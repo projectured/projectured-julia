@@ -76,6 +76,9 @@ mutable struct WebBackend <: Backend
     is_held_escape_down::Bool
     held_bar::Tuple{String,Bool}
     held_answer::Threads.Atomic{Int}
+    # Set by the receive task when a client connects or asks for a resync; the
+    # next frame resets the state of the windows and sends each in full.
+    is_full_send_asked::Threads.Atomic{Bool}
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
@@ -85,7 +88,7 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
                Dict{Symbol,WebWindowState}(), Symbol[], false, 1.0,
                :none, -1, -1, Dict{Symbol,Symbol}(),
                String[], Any[], Set{Symbol}(), 0.0, 0.0, false, ("", false),
-               Threads.Atomic{Int}(0))
+               Threads.Atomic{Int}(0), Threads.Atomic{Bool}(false))
 end
 
 # The browser draws a screen of windows, and `--backend=web` names it.
@@ -664,7 +667,7 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     elseif typ == "resync"
         # Client (re)launched popups and wants a fresh full state for everything.
-        _reset_for_full!(backend)
+        _ask_for_full_send!(backend)
 
     elseif typ == "stop" || typ == "quitconfirm"
         # A control of the busy bar of a code unit.
@@ -761,17 +764,23 @@ function _enqueue!(backend::WebBackend, conn::WebConnection, msg::String, snapsh
     return
 end
 
-# Force the next frame to send every window in full (on connect / resync).
-# Clearing per-window state drops stale incremental bookkeeping. The wake ends
-# a wait of the editor, so that the frame comes without an input. Queue
-# overflow (`_enqueue!`) sets `force_full` and wakes the backend directly,
-# without clearing this per-window state.
+# Ask the next frame to send every window in full (on connect / resync). The
+# receive task asks, and the frame clears the state of the windows, because the
+# frame reads that state. The wake ends a wait of the editor, so that the frame
+# comes without an input. Queue overflow (`_enqueue!`) sets `force_full` and
+# wakes the backend directly, without clearing this per-window state.
+function _ask_for_full_send!(backend::WebBackend)
+    backend.is_full_send_asked[] = true
+    BackendModule.wake_backend!(backend)
+    return
+end
+
+# Clearing per-window state drops stale incremental bookkeeping. Runs in a frame.
 function _reset_for_full!(backend::WebBackend)
     empty!(backend.windows)
     empty!(backend.pointer_shapes)
     backend.last_ids = Symbol[]
     backend.force_full = true
-    BackendModule.wake_backend!(backend)
     return
 end
 
@@ -783,7 +792,7 @@ function _handle_ws(backend::WebBackend, ws)
     end
     conn = WebConnection(ws)
     backend.conn = conn
-    _reset_for_full!(backend)
+    _ask_for_full_send!(backend)
     conn.sendtask = @async _send_loop(conn)
     try
         for msg in ws
@@ -1039,6 +1048,7 @@ so the server lays out and reads in logical pixels at every zoom. A new zoom sen
 every window in full, because the client draws it again at the new ratio.
 """
 function BackendModule.write_to_devices!(backend::WebBackend, devices, screen::ScreenDocument)
+    Threads.atomic_xchg!(backend.is_full_send_asked, false) && _reset_for_full!(backend)
     conn = backend.conn
     conn === nothing && return nothing  # no client; a resync on (re)connect sends full
 

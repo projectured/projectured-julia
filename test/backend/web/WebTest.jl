@@ -191,8 +191,9 @@ function test_web_backend()
         @test take_message()[:cursor] == "col-resize"
         move_to!(80)
         @test take_message()[:cursor] == "default"
-        # A new client gets every window in full, and the cursor again.
-        _WEB._reset_for_full!(backend)
+        # A new client gets every window in full, and the cursor again: the receive
+        # task asks, and the next frame resets and sends.
+        _WEB._ask_for_full_send!(backend)
         write_to_devices!(backend, Device[], screen)
         @test take_message()[:type] == "update"
         @test take_message()[:cursor] == "default"
@@ -261,7 +262,7 @@ function test_web_backend()
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         wait(receiver)
         @test elapsed < 5.0
-        @test backend.force_full
+        @test backend.is_full_send_asked[]
         @test take_from_devices!(backend, Device[]) === nothing
 
         # A wake from another task ends a long wait.
@@ -299,7 +300,7 @@ function test_web_backend()
             # that only the timeout ends still fails.
             @test (@elapsed wait_for_input(backend, Device[], 60.0)) < 30.0
             @test backend.conn !== nothing
-            @test backend.force_full
+            @test backend.is_full_send_asked[]
             notify(send)
             @test (@elapsed wait_for_input(backend, Device[], 60.0)) < 30.0
             window_input = take_from_devices!(backend, Device[])
