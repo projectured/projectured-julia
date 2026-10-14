@@ -119,11 +119,14 @@ end
 @testset "gesture_log: an operation of the window is an entry of the gesture log" begin
     log = get_session_gesture_log()
     editor, backend = _ww_editor(PrimitiveString("x"); undo = true, gesture_log = true)
-    entries = length(log.entries)
+    # The log keeps a bounded number of entries, so its length stops growing once
+    # earlier tests filled it; `count` counts every entry recorded.
+    recorded = log.count
     _ww_focus_first_tab!(editor)
     _ww_press!(editor, backend, _ww_ctrl(:t))
     @test _ww_tabs(editor) == 2
-    @test length(log.entries) > entries
+    @test log.count > recorded
+    @test last(log.entries).gesture == "Ctrl+T"
 end
 
 @testset "gesture_log: with overlay, the newest gestures draw in a panel over the window" begin
@@ -131,11 +134,12 @@ end
     editor, backend = _ww_editor(PrimitiveString("x"); undo = true,
                                  gesture_log = (; overlay = true, lines = 3))
     @test "no gesture yet" in _shell_texts(last(rendered_output(backend)))
-    entries = length(log.entries)
+    recorded = log.count
     _ww_focus_first_tab!(editor)
     _ww_press!(editor, backend, _ww_ctrl(:t))
     # The log of the session records as before, and the panel draws the gesture.
-    @test length(log.entries) > entries
+    @test log.count > recorded
+    @test last(log.entries).gesture == "Ctrl+T"
     texts = _shell_texts(last(rendered_output(backend)))
     @test !("no gesture yet" in texts)
     @test any(text -> strip(text) == "Ctrl+T", texts)
