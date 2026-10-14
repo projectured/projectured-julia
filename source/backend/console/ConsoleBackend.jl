@@ -17,11 +17,17 @@ mutable struct ConsoleBackend <: Backend
     wake_gate::Base.Event
     watcher::Union{Task, Nothing}
     watching::Bool
+    # The held frames of a code unit: the words of its parts, the status line
+    # written last, and the length of the input buffer when that line first
+    # showed, or -1 before it shows. Only a byte after it can be the stop.
+    held_parts::Vector{String}
+    held_line::String
+    held_offset::Int
 end
 
 ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=true) =
     ConsoleBackend(io, input, ansi, clear, UInt8[], false, nothing,
-                   Base.Event(true), nothing, false)
+                   Base.Event(true), nothing, false, String[], "", -1)
 
 # The console draws a block of text, so it is chosen only for an editor whose
 # output is text, and never beside a backend that draws windows.
@@ -145,6 +151,83 @@ function _set_raw!(backend::ConsoleBackend, on::Bool)
         # Leave raw_active as-is; rendering still works without raw input.
     end
     return
+end
+
+# ── Held frames ──────────────────────────────────────────────────────────
+#
+# While a code unit runs, a held frame writes one status line on the bottom row of
+# the terminal: the work that runs, its time, and how to stop it. The bytes that
+# arrive stay in the buffer for the frames after the unit, except a lone Escape
+# that arrives while the line shows, which is the stop. A terminal has no close of
+# a window, so a held frame never answers `:close`.
+
+# The cursor saved, the bottom row cleared, and the cursor back.
+const _ANSI_BOTTOM_ROW = "\e7\e[999;1H\e[2K"
+const _ANSI_RESTORE_CURSOR = "\e8"
+
+function BackendModule.prepare_held_frames!(backend::ConsoleBackend, devices, parts)
+    backend.held_parts = String[String(part) for part in parts]
+    backend.held_line = ""
+    backend.held_offset = -1
+    nothing
+end
+
+function BackendModule.run_held_frame!(backend::ConsoleBackend, devices, state::HeldFrameState)
+    _drain_input!(backend)
+    state.seconds >= 0.5 || return _wait_held_slice(backend)
+    backend.held_offset < 0 && (backend.held_offset = length(backend.inbuf))
+    _take_held_escape!(backend) && return :stop
+    _write_held_line!(backend, _format_held_line(backend, state))
+    _wait_held_slice(backend)
+end
+
+function BackendModule.end_held_frames!(backend::ConsoleBackend, devices)
+    if backend.ansi && !isempty(backend.held_line)
+        # The frame of the editor again, which the line covered, when a frame
+        # clears the screen; else the row stays empty.
+        frame = backend.clear ? something(backend.last_frame, "") : ""
+        print(backend.io, _ANSI_BOTTOM_ROW, _ANSI_RESTORE_CURSOR, frame)
+        flush(backend.io)
+    end
+    backend.held_line = ""
+    backend.held_offset = -1
+    nothing
+end
+
+# One slice of the wait of a held frame: until bytes arrive, a wake, or 0.1 s.
+function _wait_held_slice(backend::ConsoleBackend)
+    backend.watcher === nothing ? sleep(0.01) : _wait_for_gate(backend.wake_gate, 0.1)
+    :none
+end
+
+# A lone Escape at the end of the buffer, after the line showed, and with no byte
+# after it within the time of an escape sequence, leaves the buffer as the stop.
+function _take_held_escape!(backend::ConsoleBackend)
+    buffer = backend.inbuf
+    (length(buffer) > backend.held_offset && last(buffer) == 0x1b) || return false
+    count = length(buffer)
+    _wait_for_input_bytes(backend.input, _ESCAPE_SEQUENCE_TIMEOUT_SECONDS)
+    _drain_input!(backend)
+    length(buffer) == count || return false
+    pop!(buffer)
+    true
+end
+
+function _format_held_line(backend::ConsoleBackend, state::HeldFrameState)
+    parts = backend.held_parts
+    part = isempty(parts) ? "The code runs" : parts[clamp(state.current, 1, length(parts))]
+    seconds = string(floor(Int, state.seconds), " s")
+    state.is_stop_pending ?
+        string("The code does not stop: it computes. ", part, " · ", seconds) :
+        string(part, " · ", seconds, " · Esc stops")
+end
+
+function _write_held_line!(backend::ConsoleBackend, line::String)
+    (backend.ansi && line != backend.held_line) || return nothing
+    backend.held_line = line
+    print(backend.io, _ANSI_BOTTOM_ROW, "\e[7m ", line, " ", _ANSI_RESET, _ANSI_RESTORE_CURSOR)
+    flush(backend.io)
+    nothing
 end
 
 # ── ANSI styling ─────────────────────────────────────────────────────────

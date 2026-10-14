@@ -349,5 +349,30 @@ function test_console_backend()
         @test elapsed < 5.0
     end
 
+    # ── held frames ─────────────────────────────────────────────────────
+    # While a code unit runs, a held frame writes a status line on the bottom
+    # row from half a second on, keeps the bytes that arrive, and takes a lone
+    # Escape that comes while the line shows as the stop.
+    @testset "held frames" begin
+        input = Base.BufferStream()
+        output = IOBuffer()
+        held = ConsoleBackend(; io = output, input)
+        run(seconds) = run_held_frame!(held, Device[], HeldFrameState(seconds, 1, false, false))
+        prepare_held_frames!(held, Device[], ["Run the code: sleep(10)"])
+        write(input, "ab")
+        @test run(0.2) === :none
+        @test isempty(take!(output))                # no line before half a second
+        @test run(0.6) === :none
+        @test occursin("Run the code: sleep(10) · 0 s · Esc stops", String(take!(output)))
+        write(input, "\e")
+        @test run(0.7) === :stop
+        @test held.inbuf == UInt8['a', 'b']         # the bytes before it stay
+        write(input, "\e[A")                        # an arrow key is a key
+        @test run(0.8) === :none
+        @test held.inbuf == UInt8['a', 'b', 0x1b, UInt8('['), UInt8('A')]
+        end_held_frames!(held, Device[])
+        @test occursin("\e[2K", String(take!(output)))   # the line is gone
+    end
+
 end
 end
