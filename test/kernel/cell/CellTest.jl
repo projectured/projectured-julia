@@ -454,6 +454,8 @@ end
     short = Cell(@computation a[] + b[] + a[] + c[] + b[])
     @test short[] == 9
     @test getfield(short, :dependencies) == [a, b, c]
+    # A cell that the run read again keeps the reader once.
+    @test all(cell -> length(getfield(cell, :dependents)) == 1, (a, b, c))
     sources = [Cell(k) for k in 1:40]
     long = Cell(@computation sum(sources[k][] + sources[1][] for k in 1:40))
     @test long[] == sum(1:40) + 40

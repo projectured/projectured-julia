@@ -620,6 +620,9 @@ function _register_dependent!(@nospecialize(c::ReactiveCell),
                               @nospecialize(observer::ReactiveCell))
     ds = _get_dependents!(c)
     i, n = 1, length(ds)
+    # A run that reads `c` again finds itself at the end, where its first read put
+    # it, unless another reader came after it: so the end is looked at first.
+    n > 0 && (@inbounds ds[n]).value === observer && return nothing
     @inbounds while i <= n
         v = ds[i].value
         if v === nothing
