@@ -67,10 +67,18 @@ element, as a paint does.
 
     Before the plan, a key in file 1 cost 5561 at 200 files. The last row is
     the cost of the grid, 11 computations for each row.
-- [ ] **3. The texts give the measured causes.** The cost of step 7 in
+- [x] **3. The texts give the measured causes.** The cost of step 7 in
   `plan/pending/cross-cutting-views.md` and "The cost of a change" in
   `documentation/package/platform/roster/roster.md` name the slots and the grid,
   with the counts after steps 1 and 2.
+  - Done 2026-10-14. A third cause came out of the measure for the texts: a
+    change that the filter sees makes a new list of rows, and the table prints
+    every row again. With 50 files that all have edits, a save of one file
+    costs 2208 computations, about 44 for each row: 151 labels print again,
+    with a new grid. The texts name it, and this plan does not change it.
+  - X1 with the roster now costs 24 computations for each key, against 360.
+    X4, the calls grouped by file, stays at 732: its table of groups is
+    another printer.
 
 The grid stays as it is. A change of a text that the table shows still costs 11
 computations for each row, also when the size of the text stays the same. A stop for a

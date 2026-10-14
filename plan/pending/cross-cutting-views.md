@@ -1097,20 +1097,30 @@ For each step, run the narrowest test: the test files of the step, through
       | X4 without roster | 0 | 149 | 0 | 0 |
       | X4 with roster | 571 | 32836 | 732 | 486 |
 
-    - **What costs.** The roster costs about 7 computations for each row at each
-      step. In X1 each key replaces the newest entry of the undo list of the
-      file, so `has_edits` computes again and invalidates the filter, though its
-      value stays `true` (decision 10: propagation follows the writes). The
-      filter then runs over all rows, the pick makes a new slot cell for each
-      picked row, and the table lays out every row again. In X4 the change of
-      one call runs the filter over 571 rows and the group again, and the table
-      of the groups prints again. The edges of the assembly (R4) are not the
-      main cost.
-    - **What a later plan can do**, in the order of its cost: the pick and the
-      table keep the slot of a row that stays, with no change in the engine; a
-      cut-off kind of cell (R10) for a facet whose value does not change; R7 for
-      an aggregate at O(changed). R4, R7 and R10 change `ReactiveCell.jl`, which
-      is sealed.
+    - **What costs.** In X1 each key replaced the newest entry of the undo list
+      of the file, so `has_edits` computed again, gave `true` again, and left
+      every cell after it invalid (decision 10: propagation follows the writes).
+      A probe that counts each computation by the place of its code
+      (`plan/done/roster-table-cost.md`) found where the work went:
+      - Each cell of a row in the table was a computed slot, which the table
+        read when it printed. So one value that computed again printed the whole
+        table again.
+      - The grid of the table holds the heights of all rows in one cell. So one
+        label that draws again places every row again: about 11 computations
+        for each row, also for a plain `WidgetTable`, in a pane or not.
+      - A change that the filter or the sort sees makes a new list of rows, and
+        the table prints every row again: about 44 computations for each row.
+      In X4 the change of one call runs the filter over 571 rows and the group
+      again, and the table of the groups prints again. The edges of the
+      assembly (R4) are not the main cost.
+    - After `roster-table-cost.md`, a value of text has a cell that holds its
+      label, and the undo buffer writes `has_unsaved_edits`. A key in X1 with
+      the roster costs 24 computations, against 360. X4 stays at 732.
+    - **What a later plan can do:** a stop for a computed cell whose value stays
+      the same (R10), which removes the 11 computations for each row of the
+      grid; a table that keeps the print of a row that stays when the list of
+      rows changes; R7 for an aggregate at O(changed). R4, R7 and R10 change
+      `ReactiveCell.jl`, which is sealed.
     - The counts are counts, not times: a time needs an idle machine and the
       word of the owner.
 
