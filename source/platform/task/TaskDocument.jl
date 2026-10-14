@@ -94,6 +94,15 @@ function get_task_document_status(document::TaskDocument)
     current === nothing ? :pending : current.status
 end
 
+# The facets of a task in a roster of tasks, which a roster shows, filters, sorts
+# and groups by.
+get_item_facets(::Type{TaskDocument}) = [
+    "name" => "the task in one line, as the list of tasks writes it",
+    "status" => "the status of the current execution: pending, running, cancelling, done, error, " *
+                "cancelled or skipped"]
+compute_item_facet(document::TaskDocument, ::Val{:name}) = format_task_parameters(getfield(document, :task)[])
+compute_item_facet(document::TaskDocument, ::Val{:status}) = get_task_document_status(document)
+
 """
     get_task_document_result(document) -> TaskResult or nothing
 

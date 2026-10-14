@@ -1,12 +1,20 @@
 # The facets of the first examples: the type of a document, a field that wins over
 # a facet of a supertype, the name, the folder and the edits of a file, the facets
 # of an assistant, and in an editor a key press that makes the row of its file show
-# the edits, and a save that clears them.
+# the edits, and a save that clears them. And the name and the status of a task,
+# with the kind of its group, through the records of the tasks of the session.
 
 # A record whose own field has the name of a facet that every document has.
 @document struct _RosterTyped
     type::String
 end
+
+# A kind of task that a roster of tasks lists by its line.
+struct _RosterFacetTask <: ProjecturedPlatform.TaskModule.AbstractTask
+    name::String
+end
+ProjecturedPlatform.TaskModule.format_task_parameters(task::_RosterFacetTask) = task.name
+ProjecturedPlatform.TaskModule.get_result_codes(::_RosterFacetTask) = ProjecturedPlatform.TaskModule.RUN_RESULT_CODES
 
 function test_roster_facets()
 @testset "the facets of the first examples" begin
@@ -65,6 +73,31 @@ function test_roster_facets()
         @test roster.rows[1].values[2] == true
         evaluate_operation(editor, SaveFileOperation(file))
         @test roster.rows[1].values[2] == false
+    end
+
+    @testset "the name and the status of a task, and the kind of its group" begin
+        TaskModule = ProjecturedPlatform.TaskModule
+        fingerprint = TaskModule.wrap_task_group_document(
+            TaskModule.TaskGroup([_RosterFacetTask("run one"), _RosterFacetTask("run two")]; name = "fingerprint test");
+            title = "queue study")
+        smoke = TaskModule.wrap_task_group_document(TaskModule.TaskGroup([_RosterFacetTask("run three")]; name = "smoke test"))
+        list = TaskModule.get_session_task_group_list()
+        TaskModule.add_task_group!(list, fingerprint)
+        TaskModule.add_task_group!(list, smoke)
+        try
+            roster = link_roster!(Roster(StoreRecords(:tasks); columns = ["name", "status", "within.title", "within.kind"]),
+                                  list)
+            mine = [Tuple(row.values[k] for k in 1:4) for row in roster.rows
+                    if row.values[4] in ("fingerprint test", "smoke test")]
+            @test sort(mine) == sort([("run one", :pending, "queue study", "fingerprint test"),
+                                      ("run two", :pending, "queue study", "fingerprint test"),
+                                      ("run three", :pending, "smoke test", "smoke test")])
+            @test first.(collect_item_facets(TaskModule.TaskDocument))[1:2] == ["name", "status"]
+            @test first.(collect_item_facets(TaskModule.TaskGroupDocument))[1] == "kind"
+        finally
+            TaskModule.remove_task_group!(list, fingerprint)
+            TaskModule.remove_task_group!(list, smoke)
+        end
     end
 end
 end

@@ -80,6 +80,12 @@ make_task_group_identifier() = "T" * string(Threads.atomic_add!(_TASK_GROUP_COUN
 """The engine `TaskGroup` the document holds."""
 get_task_group(doc::TaskGroupDocument) = getfield(doc, :group)[]
 
+# The facet of a group in a roster of tasks, which the tasks reach as `within.kind`:
+# the name of the group, which the list of groups shows as its kind.
+get_item_facets(::Type{TaskGroupDocument}) = [
+    "kind" => "the kind of the group, its name, such as smoke test or fingerprint test"]
+compute_item_facet(doc::TaskGroupDocument, ::Val{:kind}) = get_task_group(doc).name
+
 """The `TaskGroupSummary` of the group at the last sync of its shadow."""
 get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)[].summary
 

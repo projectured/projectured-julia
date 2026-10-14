@@ -64,6 +64,10 @@ A facet is a value of an item that the slice of its type computes. A slice decla
 | `Document` | `type`: the name of the type of the document that a person sees, through the layers that wrap it |
 | `FileDocument` | `name`, `folder`, and `has_edits`: whether the history of the file has a step that the file does not hold |
 | `Assistant` | `title`, `turn`, `tokens` |
+| `TaskDocument` | `name`: the task in one line, as the list of tasks writes it, and `status`: the status of its current execution |
+| `TaskGroupDocument` | `kind`: the name of the group, which the list of groups shows as its kind |
+
+A row of `StoreRecords(:tasks)` is a task within its group, so `within.kind` filters the tasks by the kind of their group, and `within.title` names the group: `filter = ["within.kind" => ==("fingerprint test")]` keeps the tasks of the fingerprint tests of the session.
 
 `has_edits` reads the history that a file keeps in its `content`. An `UndoBuffer` keeps `saved_entry`, the step that was newest at the last save, which `SaveFileOperation` records through `record_saved_state!`. `has_unsaved_edits` compares it with the newest step. A key press reads no text of the file. A file that keeps no history answers `nothing`.
 

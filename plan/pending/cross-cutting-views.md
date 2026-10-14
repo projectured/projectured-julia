@@ -1146,6 +1146,22 @@ For each step, run the narrowest test: the test files of the step, through
   - If the API list of the IDE window does not include
     `make_application_api`, it declares the roster verbs.
   - A test in omnet-julia runs X10 as section 6.5 writes it.
+  - What step 9 found and decided, 2026-10-14:
+    - A row of `StoreRecords(:tasks)` is a `TaskDocument` within its
+      `TaskGroupDocument`, and the roster finds a facet by the type of the item
+      of the row. So the facets of a task come from the task slice of
+      projectured-julia, and not from omnet-julia: `TaskDocument` declares
+      `name` (the task in one line, `format_task_parameters`) and `status`, and
+      `TaskGroupDocument` declares `kind`, the name of the group, which the list
+      of groups already shows as its kind.
+    - So X10 filters by the kind of the group: `filter = ["within.kind" =>
+      ==("fingerprint test")]`. The groups of omnet-julia are named "smoke
+      test", "fingerprint test", "update fingerprint", "statistical test" and
+      "statistical results update". No new generic was needed.
+    - omnet-julia's `make_campaign_api` declares the roster and arrangement
+      verbs and `TabDocuments`, and the system text of the campaign window says
+      what `show_roster!` does. `test_campaign_roster` runs X10 over three groups
+      of test tasks.
 
 ## Not in this plan
 
