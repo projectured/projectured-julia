@@ -657,7 +657,11 @@ nothing.
   call. The MCP server of an ACP session keeps the work of each call that runs,
   and the cancel of that turn stops them. A new path, so it needs the word of the
   owner.
-- **D12. Open: the documents that two editors share (L21-1).** Found in step 5.
+- **D12. Decided by the owner, 2026-10-14: B for now, A later** (A stays with
+  L21-1 in the audit plan). The way for an insertion to find its editor is the
+  one proposed with the question: the loop runs with its editor as the editor of
+  the evaluation, so `get_evaluation_editor` answers in an operation too. The
+  documents that two editors share (L21-1). Found in step 5.
   The message log and the fault log are one document for the process
   (`_SESSION_MESSAGE_LOG`, `_SESSION_FAULT_LOG`), so two editors that show them
   write them from two owner tasks, against D7. The stores behind them (the
@@ -1031,7 +1035,7 @@ nothing.
     read the back buffer: the words, the time and the controls stand where they
     must. Not done here: the live check of a unit in the running application,
     which step 8 makes for each row of §6.
-- [ ] **5. The doors:** a list of each task that touches a document outside the
+- [x] **5. The doors:** a list of each task that touches a document outside the
   door (§5.7), with each one moved to the door; a list of each task of ours that
   runs user code or long work on the thread of the loop, with each one moved to
   the default pool, the first being the user model that the process debugger runs
@@ -1084,9 +1088,34 @@ nothing.
     - The suites: the kernel 4570, the MCP suite 504, the ACP suite 168, the
       process suite 315, the web suite 147, the platform the same as `main`, and
       the assistant tests 275 and 4 broken that were marked before.
-  - [ ] 5.2 L21-1, the documents that two editors share: a question for the owner
-    (D12 in §8), because a log document for each editor needs a new way for the
-    insertion of a log tab to find its editor.
+  - [x] 5.2 (`59807a2cd`, `6fd42f71d`) D12 B: the message log, the MCP log, the frame
+    statistics, the frame time series and the fault log are one for each editor.
+    - The editor keeps the documents of its session by their type
+      (`Editor.session_documents`, `get_session_document!`), under one lock.
+    - The loop runs in `run_with_evaluation_editor(editor)`, so an operation, and
+      each task that the loop starts, finds its editor with
+      `find_evaluation_editor()`; the insertion of a log tab gives the log of the
+      editor. `get_session_message_log(; editor = find_evaluation_editor())` and
+      the four others answer the document of the editor, and with no editor the
+      one document of the process, which no editor fills.
+    - A feed finds the document of its editor when it drains. The message log
+      store and the MCP log store keep their last entries with their numbers, and
+      each feed reads from its own number (`read_message_lines`,
+      `read_mcp_calls`), so two editors on one store each get every entry (the
+      copy of D7). Each feed has its own wake in the store, and the wrapper that
+      adds the feed detaches it when the loop ends.
+    - omnet-julia: `_open_mcp_log!` passes its editor, because `on_open` runs in
+      the builder of the editor, before the loop and its scope. The change is on
+      the branch `editor-always-answers` of omnet-julia (`553a3265`), and it
+      lands with this branch.
+    - The suites: the kernel 4574, the MCP suite 504, the platform the same as
+      `main` (and one test more), the umbrella tests of the logs, the statistics
+      and the tool views 186. `test_application` fails 2 and errors 2 at
+      `ApplicationTest.jl:1066`, `:1077`, `:1114` and `:1462`, as on `main` (the
+      baseline of 2026-10-13).
+    - Found here and left as they are: the gesture log
+      (`get_session_gesture_log`) and the list of the assistants
+      (`get_session_assistant_list`) are one document for the process too.
 - [ ] **6. Feeds that move only prepared data.** Decided by the owner,
   2026-10-13. The rule: a drain moves only data that its producer prepared off
   the loop. It does no I/O, it runs no method of a user type, and its work grows
