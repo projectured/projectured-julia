@@ -42,7 +42,7 @@ Each deadline is computed in an `:evaluate` barrier. A deadline that throws is
 recorded with the type of its feed as the origin and counts as no deadline.
 """
 function compute_wait_timeout(editor::Editor)
-    timeout = has_dependent_cells(getfield(editor.clock, :time)) ? FRAME_INTERVAL : Inf
+    timeout = has_clock_readers(editor.clock) ? FRAME_INTERVAL : Inf
     for feed in editor.feeds
         deadline = _run_barrier(editor, :evaluate; origin = typeof(feed),
                                 fallback = nothing) do

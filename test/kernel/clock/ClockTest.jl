@@ -3,12 +3,12 @@
 
 Confirms:
 - the two reads: `get_clock_time` records no dependency, and
-  `get_reactive_clock_time` records one, so a write of the time invalidates the
-  computation that reads it;
+  `get_reactive_clock_time` and `clock.time` record one, so a write of a new time
+  invalidates the computation that reads it, and a write of the same time does not;
 - the independence of two clocks: a write to one clock does not invalidate a
-  reader of another, so many editors can run in one process;
+  reader of another;
 - the write `set_clock_time!`, the conversion of a real time to `Float64`, a
-  time that is not a real number, and `show`.
+  time that is not a real number, `has_clock_readers`, and `show`.
 """
 
 using Test
@@ -55,6 +55,38 @@ function test_clock()
         @test sub_b[] == 100.0
     end
 
+    @testset "a write of the time that the clock holds changes nothing" begin
+        clock = Clock()
+        set_clock_time!(clock, 1.0)
+        reader = Cell(@computation get_reactive_clock_time(clock) + 1)
+        @test reader[] == 2.0
+        set_clock_time!(clock, 1)                   # the same time, as a Float64
+        @test is_cell_valid(reader)
+        set_clock_time!(clock, 1.5)
+        @test !is_cell_valid(reader)
+    end
+
+    @testset "clock.time is a read that records a dependency" begin
+        clock = Clock()
+        reader = Cell(@computation clock.time * 2)
+        @test reader[] == 0.0
+        set_clock_time!(clock, 4.0)
+        @test !is_cell_valid(reader)
+        @test reader[] == 8.0
+    end
+
+    @testset "has_clock_readers tells whether a cell reads the clock" begin
+        clock = Clock()
+        @test !has_clock_readers(clock)
+        sampled = Cell(@computation get_clock_time(clock))
+        sampled[]
+        @test !has_clock_readers(clock)             # a read that records nothing
+        subscribed = Cell(@computation get_reactive_clock_time(clock))
+        subscribed[]
+        @test has_clock_readers(clock)
+        @test subscribed[] == 0.0                   # keeps the reader alive to here
+    end
+
     @testset "set_clock_time! sets absolute logical time" begin
         clock = Clock()
         set_clock_time!(clock, 3.14)
@@ -70,6 +102,7 @@ function test_clock()
     @testset "set_clock_time! writes a Float64 and returns nothing" begin
         clock = Clock()
         @test set_clock_time!(clock, 2) === nothing
+        @test clock.time === 2.0                    # the stored value, not a read that converts
         @test get_clock_time(clock) === 2.0
         @test (@inferred get_clock_time(clock)) === 2.0
         @test (@inferred get_reactive_clock_time(clock)) === 2.0
@@ -92,7 +125,7 @@ function test_clock()
         clock.time = "text"
         @test_throws MethodError get_clock_time(clock)
         @test_throws MethodError get_reactive_clock_time(clock)
-        @test repr(clock) == "Clock(time = text)"   # the display does not convert
+        @test repr(clock) == "Clock(time = \"text\")"   # the display does not convert
     end
 
 end

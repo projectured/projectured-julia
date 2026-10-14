@@ -327,9 +327,7 @@ the walk that it calls.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
-layer. It imports `CellModule` and `CellStructModule` and nothing else, and the
-docstring of `ClockModule` holds the full interface: `Clock`,
-`get_reactive_clock_time`, `get_clock_time` and `set_clock_time!`.
+layer, and the [clock guide](clock.md) describes it.
 
 The load order is the dependency order that the include-order guard checks.
 

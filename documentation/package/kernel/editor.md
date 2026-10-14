@@ -43,7 +43,8 @@ end
   projection built against this editor reanimates independently of any other
   editor running in the same process. A caller gives a clock of its own with the
   keyword `clock` of `make_editor`, `build_editor` or `run_editor!`, so a document
-  that animates with that clock moves in this editor
+  that animates with that clock moves in this editor. The
+  [clock guide](clock.md) says who writes a clock and when
 - `tools` — what this editor exposes to an agent: the `ToolSet` an agent loop
   drives and an MCP server publishes, empty until
   `register_default_tools!(editor.tools)` fills it. Per editor, so two editors

@@ -29,10 +29,31 @@ the editor moves from the docstrings to the guide [yes]; K5-3, fix `show` or the
 [`show`]; K5-5, a new export `has_clock_readers(clock)` [yes]; the walkthrough shows the
 hand-off to an editor [no, the guide does].
 
+**The owner, 2026-10-14:** "agreed", to the four recommendations.
+
 ## Steps
 
 - [x] 1. The audit: the four checks on the two files. The lead confirms each finding
   in the code.
-- [ ] 2. The decisions of the owner, if any, and the fixes, with a test for each.
-- [ ] 3. The walkthrough and the guide `documentation/package/kernel/clock.md`.
+- [x] 2. The decisions of the owner, if any, and the fixes, with a test for each.
+  The docstrings name no layer above (K5-1) and say "a write of a new time" (K5-2);
+  `show` shows the time as Julia shows it, so a string keeps its quotes (K5-3); the
+  example of `set_clock_time!` uses the monotonic `time_ns` (K5-4); a new export
+  `has_clock_readers(clock)`, which `Feeds.jl` asks in place of the time cell (K5-5);
+  one sentence on a clock made with a computation (K5-6); tests of the stored
+  `Float64`, of `clock.time` as a read that records, of a write of the same time and
+  of `has_clock_readers` (K5-7, K5-8).
+- [x] 3. The walkthrough and the guide `documentation/package/kernel/clock.md`.
+  `print_clock_example()` with its exact-text test, and the guide, which `cell.md`,
+  `editor.md`, `architecture.md` and the index link. Checked: `test_clock` 39,
+  `test_build_editor` 37, the walkthrough 2, the kernel suite 4520 of 4520, the survey
+  of `ClockModule` clean, the guards.
 - [ ] 4. An audit that finds nothing, then the seal on the owner's word.
+  - The second pass found K5-11: the docstring of `has_clock_readers` advised a
+    writer to skip the write while nothing reads the clock, which gives stale reads
+    (the owner rejected that pattern on 2026-09-25). It now says that the answer
+    chooses how long a writer may wait, and that the writer still writes the time
+    each time it runs. The advice: a freed reader counts until the collector frees
+    it; the guide names the next timer; a comment of the walkthrough. Checked:
+    `test_clock` 39, the walkthrough 2, `test_editor_wait` 25, the layering guard.
+  - The final check of the auditor: the four checks pass, and no finding is left.

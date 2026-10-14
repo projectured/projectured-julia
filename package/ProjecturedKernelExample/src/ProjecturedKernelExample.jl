@@ -24,13 +24,15 @@ production build.
 A kernel layer that a REPL session can show has a **walkthrough**: a function that
 runs the lines that a person types to try the layer, and prints each line with the
 value that it gives. `print_cell_example` shows the cell layer,
-`print_cell_struct_example` the struct layer, `print_fault_example` the fault
-layer, and `print_performance_example` the performance layer.
+`print_cell_struct_example` the struct layer, `print_clock_example` the clock
+layer, `print_fault_example` the fault layer, and `print_performance_example` the
+performance layer.
 """
 module ProjecturedKernelExample
 
 using ProjecturedKernel.CellModule
 import ProjecturedKernel.CellStructModule
+import ProjecturedKernel.ClockModule
 using ProjecturedKernel.FaultModule
 using ProjecturedKernel.PerformanceModule
 using ProjecturedKernel.EventModule
@@ -61,6 +63,7 @@ include("../../../example/kernel/SearchRanking.jl")          # rankings of a sea
 include("../../../example/kernel/Walkthrough.jl")            # a REPL session that shows a layer
 include("../../../example/kernel/CellExample.jl")            # the walkthrough of the cell layer
 include("../../../example/kernel/CellStructExample.jl")      # the walkthrough of the struct layer
+include("../../../example/kernel/ClockExample.jl")           # the walkthrough of the clock layer
 include("../../../example/kernel/FaultExample.jl")           # the walkthrough of the fault layer
 include("../../../example/kernel/PerformanceExample.jl")     # the walkthrough of the performance layer
 
@@ -79,7 +82,7 @@ export CallSite, collect_call_sites, find_module_folder, rank_call_sites, format
 export SearchQuestion, make_search_question, make_candidate_text, SearchRanker,
        make_word_ranker, make_meaning_ranker, make_classifier_ranker, make_cascade_ranker,
        make_tree_ranker, measure_search_rankings, make_guide_units
-export print_cell_example, print_cell_struct_example, print_fault_example,
-       print_performance_example
+export print_cell_example, print_cell_struct_example, print_clock_example,
+       print_fault_example, print_performance_example
 
 end # module ProjecturedKernelExample
