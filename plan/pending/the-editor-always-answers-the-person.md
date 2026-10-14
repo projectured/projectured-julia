@@ -959,7 +959,7 @@ nothing.
     the MCP suite 504, the ACP suite 168, the platform the same as `main`, and
     the assistant tests 275 and 4 broken that were marked before. The stopped
     turn of the test ends in about 6 s, where its code sleeps 60 s.
-- [ ] **4. The backends:** the three protocol functions of held frames and their
+- [x] **4. The backends:** the three protocol functions of held frames and their
   defaults. SDL: the pump; the keys and the window events left in the queue; the
   pointer events of the windows of the editor dropped; the retained present; the
   resize; the pointer; the busy bar from textures; the stop control; the close;
@@ -968,6 +968,54 @@ nothing.
   backend: a busy message and the `wait` pointer. The console backend: a status
   line. The video backend: a unit runs on the thread of the loop, so the video
   time stays exact.
+  - [x] 4.1 (`81a436e3a`) `shows_held_frames(backend)`, a query of the backend protocol with the
+    default `true`; the video backend answers `false`, and `run_code_unit!` then
+    runs the unit on the thread of the loop.
+  - [x] 4.2 (`8e3e9dfef`) The console: a status line on the bottom row from half a second on (the
+    part, the time, "Esc stops", or the notice); the bytes stay in the buffer; a
+    lone Escape after the line showed is the stop. A terminal has no close of a
+    window, so a held frame never answers `:close`.
+  - [x] 4.3 (`a905e39f1`) The web: a held frame takes the inputs out of `inbound`, so the receive
+    task never waits for room, keeps the keys and the window events in
+    `held_pending` for `take_from_devices!`, and drops the pointer input of the
+    hold; a release of an earlier press stays. The client shows the `wait` cursor
+    and a busy bar (`{type:"held"}`) with Stop and, when asked, Quit without
+    saving; the buttons send `stop` and `quitconfirm`.
+  - [x] 4.4 (`689f6e081`) SDL, in a fragment of its own, `SdlHeldFrames.jl`. A fact found here: an
+    event filter of SDL (`SDL_FilterEvents`) runs Julia code under the lock of
+    the queue, and a collection that starts there waits for a thread that waits
+    for that lock in `SDL_PushEvent` (the wake at the end of a unit, a post of
+    background work), which can deadlock. So a held frame takes all events out
+    with `SDL_PeepEvents`, filters them with no lock held, and puts the kept ones
+    back in their order. A kept event goes through again in the next frame, so
+    each rule answers the same the second time: a release of a press from before
+    the hold (from `SDL_GetMouseState`) is kept by its button and time. While
+    kept events wait in the queue, a held frame waits by the clock, because they
+    end a wait of SDL at once. The busy bar is drawn on the back buffer of each
+    window that is not a tooltip or a popup, from textures that
+    `prepare_held_frames!` made with the text of the backend; the bar reads no
+    theme. `end_held_frames!` presents the whole retained picture and marks the
+    whole window as damage in the history of each window, because the present of
+    a frame copies only the damage of the last frames, and the bar is on the
+    buffers. The cursor is the hourglass from 0.1 s, and the shape at the pointer
+    after. A present that takes over 50 ms turns the vertical sync of that window
+    off until the hold ends.
+  - [x] 4.5 (`689f6e081`) A1: `open_offscreen_renderer`, `write_image` and `decode_sdl_image` start
+    no video of SDL; a software renderer on a surface needs none.
+  - Open, found here: background work (D9) can render text or an image while the
+    loop paints, and the font cache of SDL and SDL_ttf have no lock. A1 covers a
+    unit, which runs only while the loop holds its frames, and not background
+    work.
+  - The suites: the kernel 4566, the console 150, the web 147, the SDL suite 944
+    and 1 error, the video suite 78 and 2 failures. The error of SDL
+    (`TreeRenderTest.jl:18`, `WidgetTree` has no field `size`) and the failures of
+    video (`test_json_build_live`, `VideoTest.jl:146,153`) come from the base: the
+    video ones fail the same at `184d9c265` in the base worktree, and the branch
+    changes neither the tree widget nor its test. A probe drew the busy bar of a
+    real window in its three states (the part, the notice, the question) and
+    read the back buffer: the words, the time and the controls stand where they
+    must. Not done here: the live check of a unit in the running application,
+    which step 8 makes for each row of §6.
 - [ ] **5. The doors:** a list of each task that touches a document outside the
   door (§5.7), with each one moved to the door; a list of each task of ours that
   runs user code or long work on the thread of the loop, with each one moved to
