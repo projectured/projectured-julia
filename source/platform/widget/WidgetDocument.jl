@@ -1901,8 +1901,8 @@ WidgetProgressBar(value::Union{Nothing, Real, Cell, Function} = nothing; positio
 A ring filled clockwise from the top to a share between zero and one, as tall as
 a line of text.
 
-Use it where a bar does not fit: in a cell of a table, beside a label, in a row
-of a list. `value` is a number, a cell that holds one, a function of no
+Use it to show a share where a bar does not fit: in a cell of a table, beside a
+label, in a row of a list. `value` is a number, a cell that holds one, a function of no
 arguments that the ring follows, or `nothing`. While the value is `nothing` the
 share is not known, and a quarter of the ring turns around it once a second. The
 ring takes no width: its diameter is one line of the text of the theme.

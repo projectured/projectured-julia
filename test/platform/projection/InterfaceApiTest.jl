@@ -43,7 +43,7 @@ function test_interface_api()
     @testset "every name is declared once, and each carries what a model reads" begin
         declared = [String(name) for entry in set.api for name in get_api_entry_names(entry)]
         @test length(unique(declared)) == length(declared)
-        @test length(given) == 31
+        @test length(given) == 32
         for (mod, name) in given
             doc = _binding_doc(mod, name)
             @test occursin("\nUse it to ", doc)
