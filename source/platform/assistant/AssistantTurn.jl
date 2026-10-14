@@ -988,10 +988,11 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     is_evaluation = call.name == "execute_julia_code"
     code = is_evaluation ? String(get(call.input, "code", "")) : ""
     # For `execute_julia_code`, a `Document` return value is embedded as the live
-    # result and renders in place. Any other result is made from the text of the
-    # tool, in the format the tool declares, and `output` keeps that text: it is
-    # the tool_result `build_messages` sends the model in each later round.
-    val = is_evaluation ? get_last_evaluated_value(set) : nothing
+    # result and renders in place. The loop of the turn kept the value under the id
+    # of the call. Any other result is made from the text of the tool, in the
+    # format the tool declares, and `output` keeps that text: it is the
+    # tool_result `build_messages` sends the model in each later round.
+    val = is_evaluation ? take_tool_call_value!(set, call.id) : nothing
     is_live = val isa Document
     result = is_live ? val :
              _make_tool_result_document(find_tool(set, call.name), ev.output, ev.is_error)

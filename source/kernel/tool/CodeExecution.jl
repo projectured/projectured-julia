@@ -88,18 +88,99 @@ end
 const _SCRATCH_HELPER_NAMES = (:read_function_documentation, :search_api, :list_modules,
                                :list_types, :list_functions)
 
+# ── What the code prints ────────────────────────────────────────────────────
+#
+# Each evaluation has its own output. The scratch module writes to the output of
+# the evaluation in scope: its `stdout` and `stderr`, and its `print`, `println`,
+# `show`, `display` and `@show`. So two evaluations that run at the same time, a
+# code unit and background work, each answer what their own code printed, and the
+# streams of the process stay as they are. Code of a package that prints to
+# `Base.stdout`, and a macro of Base such as `@time`, print to the streams of the
+# process.
+
+# What one evaluation and the tasks that it starts print. Once the evaluation
+# ended, their writes go to the `stdout` of the process.
+mutable struct _EvaluationOutput
+    buffer::IOBuffer
+    lock::ReentrantLock
+    is_open::Bool
+end
+
+_EvaluationOutput() = _EvaluationOutput(IOBuffer(), ReentrantLock(), true)
+
+const _EVALUATION_OUTPUT = ScopedValue{Union{_EvaluationOutput, Nothing}}(nothing)
+
+# The `stdout` and the `stderr` of the scratch module: a stream that writes to the
+# output of the evaluation in scope, or to the `stdout` of the process outside one.
+struct _EvaluationStream <: IO end
+
+function _write_to_evaluation(write_to)
+    output = _EVALUATION_OUTPUT[]
+    output === nothing && return write_to(stdout)
+    lock(output.lock) do
+        write_to(output.is_open ? output.buffer : stdout)
+    end
+end
+
+Base.unsafe_write(::_EvaluationStream, pointer::Ptr{UInt8}, count::UInt) =
+    _write_to_evaluation(io -> unsafe_write(io, pointer, count))
+Base.write(::_EvaluationStream, byte::UInt8) = _write_to_evaluation(io -> write(io, byte))
+Base.isopen(::_EvaluationStream) = true
+Base.flush(::_EvaluationStream) = nothing
+
+# End `output` and answer its text. A later write goes to the process.
+function _close_evaluation_output!(output::_EvaluationOutput)
+    lock(output.lock) do
+        output.is_open = false
+        String(take!(output.buffer))
+    end
+end
+
+# The names of the scratch module that print, defined before any other name so
+# that model code calls them and not the ones of Base.
+function _define_printing_names!(m::Module)
+    Core.eval(m, :(const stdout = $(_EvaluationStream())))
+    Core.eval(m, :(const stderr = stdout))
+    Core.eval(m, Meta.parseall(raw"""
+        print(io::IO, xs...) = Base.print(io, xs...)
+        print(xs...) = Base.print(stdout, xs...)
+        println(io::IO, xs...) = Base.println(io, xs...)
+        println(xs...) = Base.println(stdout, xs...)
+        show(x) = Base.show(stdout, x)
+        show(io::IO, x) = Base.show(io, x)
+        show(io::IO, mime, x) = Base.show(io, mime, x)
+        display(x) = Base.display(Base.Multimedia.TextDisplay(stdout), x)
+        display(xs...) = Base.display(xs...)
+        macro show(expressions...)
+            block = Expr(:block)
+            for expression in expressions
+                push!(block.args, :(println($(sprint(Base.show_unquoted, expression) * " = "),
+                                            repr(begin local value = $(esc(expression)) end))))
+            end
+            isempty(expressions) || push!(block.args, :value)
+            block
+        end
+        """))
+    m
+end
+
 # The scratch module for one `ToolSet`, built on first use. Each top-level
 # statement of an `execute_julia_code!` call is evaluated here, so an assignment
 # (`paths = …`) becomes a module global that survives into the next call — an
 # agent can build state up incrementally instead of cramming everything into one
 # block, which is a major source of wasted rounds.
-function _scratch_module(set::ToolSet)
+# Two evaluations can ask for it at the same time, so it is built under the lock
+# of the set.
+_scratch_module(set::ToolSet) = lock(() -> _make_scratch_module!(set), set.lock)
+
+function _make_scratch_module!(set::ToolSet)
     set.scratch === nothing || return set.scratch
     m = Module(:ToolScratch)
     # The `sleep` of model code ends at a stop of its code unit. It is defined
     # before any other name, so it is the one that model code calls, and not
     # `Base.sleep`.
     Core.eval(m, :(sleep(seconds::Real) = $(wait_in_code_unit)(seconds)))
+    _define_printing_names!(m)
     srcs = _scratch_sources(set)
     mods = Module[entry.module_ for entry in srcs]
     # Bind each source under its own name, so qualified access still works. The
@@ -179,14 +260,29 @@ function _bind_lookup_functions!(m::Module, set::ToolSet, declared::Vector{ApiEn
 end
 
 """
+    find_last_evaluation_result(set) -> EvaluationResult or nothing
+
+The [`EvaluationResult`](@ref) of the last `execute_julia_code!` or
+`execute_julia_expression!` call that the calling task made on `set`, or `nothing`
+when it made none. Each task reads its own, so evaluations that run at the same
+time on other tasks do not change it. A caller that must know whether its call
+made a new result compares the result before and after the call by `===`.
+"""
+find_last_evaluation_result(set::ToolSet) =
+    lock(() -> get(set.last_results, current_task(), nothing), set.lock)
+
+"""
     get_last_evaluated_value(set) -> Any
 
-The value the most recent `execute_julia_code!` call on `set` produced (`nothing`
-if it errored or returned `nothing`). A caller uses this to embed a returned
-`Document` as a *live* result — rendering it in place — instead of settling for
-its text repr.
+The value that the last `execute_julia_code!` call of the calling task on `set`
+produced (`nothing` if it errored or returned `nothing`). A caller uses this to
+embed a returned `Document` as a *live* result — rendering it in place — instead
+of settling for its text repr.
 """
-get_last_evaluated_value(set::ToolSet) = set.last_value
+function get_last_evaluated_value(set::ToolSet)
+    result = find_last_evaluation_result(set)
+    result === nothing ? nothing : result.value
+end
 
 # How many values of calls `set` keeps; the oldest goes first.
 const TOOL_CALL_VALUE_CAPACITY = 32
@@ -204,9 +300,11 @@ not the same, such as the MCP server that runs a tool for an agent and the turn
 of the agent that draws the call: the id of the call ties the two.
 """
 function keep_tool_call_value!(set::ToolSet, call_id::AbstractString, value)
-    filter!(pair -> first(pair) != call_id, set.call_values)
-    push!(set.call_values, String(call_id) => value)
-    length(set.call_values) > TOOL_CALL_VALUE_CAPACITY && popfirst!(set.call_values)
+    lock(set.lock) do
+        filter!(pair -> first(pair) != call_id, set.call_values)
+        push!(set.call_values, String(call_id) => value)
+        length(set.call_values) > TOOL_CALL_VALUE_CAPACITY && popfirst!(set.call_values)
+    end
     value
 end
 
@@ -217,30 +315,34 @@ The value that [`keep_tool_call_value!`](@ref) kept under `call_id`, which then
 leaves `set`; `nothing` when none waits.
 """
 function take_tool_call_value!(set::ToolSet, call_id::AbstractString)
-    index = findfirst(pair -> first(pair) == call_id, set.call_values)
-    index === nothing && return nothing
-    last(popat!(set.call_values, index))
+    lock(set.lock) do
+        index = findfirst(pair -> first(pair) == call_id, set.call_values)
+        index === nothing ? nothing : last(popat!(set.call_values, index))
+    end
 end
 
 """
     get_last_evaluation_exception(set) -> exception or nothing
 
-The exception that the code of the most recent `execute_julia_code!` call on
-`set` threw, or `nothing` when it threw none. The answer of that call is the
-message of the exception, as at the Julia REPL; this is how a caller tells the
+The exception that the code of the last `execute_julia_code!` call of the calling
+task on `set` threw, or `nothing` when it threw none. The answer of that call is
+the message of the exception, as at the Julia REPL; this is how a caller tells the
 two apart.
 """
-get_last_evaluation_exception(set::ToolSet) = set.last_exception
+function get_last_evaluation_exception(set::ToolSet)
+    result = find_last_evaluation_result(set)
+    result === nothing ? nothing : result.exception
+end
 
 """
     get_evaluation_exception_count(set) -> Int
 
 The number of `execute_julia_code!` and `execute_julia_expression!` calls on
-`set` whose code threw. A caller tells whether one call threw by the count before
-and after it. The last exception can not tell it, because two exceptions can be
-equal: two `ErrorException`s with one message are `===`.
+`set` whose code threw, on any task. To tell whether one call threw, compare the
+result of the calling task before and after it with
+[`find_last_evaluation_result`](@ref).
 """
-get_evaluation_exception_count(set::ToolSet) = set.exception_count
+get_evaluation_exception_count(set::ToolSet) = lock(() -> set.exception_count, set.lock)
 
 # The editor that runs the code of the current evaluation, or `nothing` outside one.
 const _EVALUATION_EDITOR = ScopedValue{Any}(nothing)
@@ -321,21 +423,35 @@ back, said "the tool seems to not be returning the output", and spent every
 remaining round searching instead of running anything. The one line back is what
 lets it correct itself.
 """
-function execute_julia_code!(set::ToolSet, target, code;
-                             describe_value::Function = _describe_value_for_model)
+execute_julia_code!(set::ToolSet, target, code;
+                    describe_value::Function = _describe_value_for_model) =
+    run_julia_code!(set, target, code; describe_value).output
+
+"""
+    run_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> EvaluationResult
+
+[`execute_julia_code!`](@ref), and answer the whole [`EvaluationResult`](@ref) of
+the call: its answer text, the value of its last statement, and the exception of
+its code. A caller that shows the value of its own call, such as the evaluator,
+reads it here, so an evaluation that runs at the same time can not give it
+another value.
+"""
+function run_julia_code!(set::ToolSet, target, code;
+                         describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_code! call" code
-    set.last_value = nothing
-    set.last_exception = nothing
+    caller = current_task()
     if code === nothing || isempty(strip(String(code)))
         answer = "No code was given. Put the Julia source in the `code` argument."
         @info "[tool] execute_julia_code! result" answer
-        return answer
+        result = EvaluationResult(answer, nothing, nothing)
+        _record_evaluation!(set, caller, result)
+        return result
     end
     # parseall handles code of several lines
-    output = _run_expression(set, target, () -> Meta.parseall(code); describe_value,
+    result = _run_expression(set, target, () -> Meta.parseall(code); describe_value, caller,
                              part = _describe_code_part(code))
-    @info "[tool] execute_julia_code! result" output
-    output
+    @info "[tool] execute_julia_code! result" output = result.output
+    result
 end
 
 """
@@ -346,15 +462,24 @@ end
 same `editor` binding, the same answer, and the same notice to the observers. An
 object that the expression holds in a `QuoteNode` is used as that very object.
 """
-function execute_julia_expression!(set::ToolSet, target, expression;
-                                   describe_value::Function = _describe_value_for_model)
+execute_julia_expression!(set::ToolSet, target, expression;
+                          describe_value::Function = _describe_value_for_model) =
+    run_julia_expression!(set, target, expression; describe_value).output
+
+"""
+    run_julia_expression!(set, target, expression; describe_value = _describe_value_for_model) -> EvaluationResult
+
+[`execute_julia_expression!`](@ref), and answer the whole
+[`EvaluationResult`](@ref) of the call, as [`run_julia_code!`](@ref) does.
+"""
+function run_julia_expression!(set::ToolSet, target, expression;
+                               describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_expression! call" expression
-    set.last_value = nothing
-    set.last_exception = nothing
-    output = _run_expression(set, target, () -> expression; describe_value,
+    result = _run_expression(set, target, () -> expression; describe_value,
+                             caller = current_task(),
                              part = _describe_code_part(sprint(print, expression)))
-    @info "[tool] execute_julia_expression! result" output
-    output
+    @info "[tool] execute_julia_expression! result" output = result.output
+    result
 end
 
 # A statement of a call runs with the scope rule of the Julia REPL: an assignment
@@ -394,64 +519,66 @@ end
 # an editor runs it on a thread of its own and its window answers meanwhile.
 # `make_expression` runs inside the guard, so a failure to make the expression is
 # answered like any other. `describe_value` renders the last value once the
-# capture is closed, so its text never lands inside the same pipe as the code's
-# own `println`s. What the code printed comes first in the answer, also before an
-# error.
+# output of the evaluation is closed, so its text never lands among the code's own
+# `println`s. What the code printed comes first in the answer, also before an
+# error. The result is kept for `caller`, the task that asked for the evaluation.
 _run_expression(set::ToolSet, target, make_expression::Function;
-                describe_value::Function = _describe_value_for_model, part::String) =
+                describe_value::Function = _describe_value_for_model, part::String,
+                caller::Task) =
     run_in_code_unit(target; parts = [part]) do
-        _run_expression_in_unit(set, target, make_expression, describe_value)
+        _run_expression_in_unit(set, target, make_expression, describe_value, caller)
     end
 
 function _run_expression_in_unit(set::ToolSet, target, make_expression::Function,
-                                 describe_value::Function)
-    pipes = (Pipe(), Pipe())
-    readers = Task[]
+                                 describe_value::Function, caller::Task)
+    output = _EvaluationOutput()
     printed = ""
+    value = nothing
+    exception = nothing
     described = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it
         # always tracks the current target.
         Core.eval(m, :(editor = $(QuoteNode(target))))
         expr = make_expression()
-
-        result = nothing
         # A verb that the code calls with no editor takes `target`, and so does a
-        # verb in a task that the code starts.
-        with(_EVALUATION_EDITOR => target) do
-            redirect_stdio(stdout = pipes[1], stderr = pipes[2]) do
-                # A write into a full pipe waits for a reader, so one task reads each
-                # pipe while the code runs. `redirect_stdio` opens the pipes.
-                append!(readers, [@async(read(pipe.out, String)) for pipe in pipes])
-                # Evaluate each top-level statement in order and keep the last value
-                # (REPL semantics); top-level assignments persist as module globals.
-                if expr isa Expr && expr.head == :toplevel
-                    for e in expr.args
-                        e isa LineNumberNode && continue
-                        result = Core.eval(m, _make_soft_scope(e))
-                    end
-                else
-                    result = Core.eval(m, _make_soft_scope(expr))
+        # verb in a task that the code starts. What they print goes to `output`.
+        with(_EVALUATION_EDITOR => target, _EVALUATION_OUTPUT => output) do
+            # Evaluate each top-level statement in order and keep the last value
+            # (REPL semantics); top-level assignments persist as module globals.
+            if expr isa Expr && expr.head == :toplevel
+                for e in expr.args
+                    e isa LineNumberNode && continue
+                    value = Core.eval(m, _make_soft_scope(e))
                 end
+            else
+                value = Core.eval(m, _make_soft_scope(expr))
             end
         end
-        set.last_value = result
-        describe_value(result)
+        printed = _close_evaluation_output!(output)
+        describe_value(value)
     catch e
         _is_passthrough_for_model_code(e) && rethrow()
-        set.last_exception = e
-        set.exception_count += 1
+        value = nothing
+        exception = e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     finally
-        # A reader reads to the end of its pipe, which comes when its write end closes.
-        foreach(pipe -> close(pipe.in), pipes)
-        printed = join(fetch(reader) for reader in readers)
-        foreach(pipe -> close(pipe.out), pipes)
+        output.is_open && (printed = _close_evaluation_output!(output))
     end
     answer = printed * described
-    output = isempty(strip(answer)) ? "Done." : answer
-    _notify_evaluation(set)
-    output
+    result = EvaluationResult(isempty(strip(answer)) ? "Done." : answer, value, exception)
+    _record_evaluation!(set, caller, result)
+    _notify_evaluation(set, value)
+    result
+end
+
+# Keep `result` as the last result of `caller`, and count an exception.
+function _record_evaluation!(set::ToolSet, caller::Task, result::EvaluationResult)
+    lock(set.lock) do
+        set.last_results[caller] = result
+        result.exception === nothing || (set.exception_count += 1)
+    end
+    nothing
 end
 
 # The longest value that is shown as it is. Beyond it, the value is limited.
@@ -573,9 +700,8 @@ end
 # because an observer is a side effect on a result rather than a step of making
 # one — a host that throws here must not turn a good evaluation into an error the
 # reader has to read.
-function _notify_evaluation(set::ToolSet)
+function _notify_evaluation(set::ToolSet, value)
     isempty(set.observers) && return nothing
-    value = set.last_value
     for observe in set.observers
         try
             observe(value)

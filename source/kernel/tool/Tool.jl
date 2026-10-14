@@ -199,6 +199,22 @@ struct RelevanceModel
 end
 
 """
+    EvaluationResult(output, value, exception)
+
+What one call of the code tool gave: `output`, the answer text, which holds what
+the code printed and then its value or the message of its error; `value`, the
+value of its last statement, or `nothing` when the code threw; and `exception`,
+the exception that the code threw, or `nothing`. A caller that keeps the result
+of its own call reads what that call gave, also when other calls run at the same
+time. [`run_julia_code!`](@ref) answers it.
+"""
+struct EvaluationResult
+    output::String
+    value::Any
+    exception::Any
+end
+
+"""
     ToolSet(; api = ApiEntry[], meaning_model = nothing, relevance_model = nothing)
 
 The tools and resources one editor exposes, plus the state its built-in tools
@@ -206,16 +222,15 @@ need to keep between calls.
 
 Per editor, never process-global: `scratch` is the module
 `execute_julia_code!` evaluates into — so a top-level assignment in one call is
-still bound in the next — and `last_value` is that call's actual return value,
-which lets a caller embed a returned `Document` live instead of stringifying it.
-`last_exception` is the exception that the code of that call threw, or `nothing`:
-the answer of the call is its message. `exception_count` is the number of calls
-whose code threw. A caller that must tell a failed evaluation from an answered
-one, such as the MCP log, compares that count before and after the call: two
-exceptions can be equal, as two `ErrorException`s with one message are.
-`call_values` holds the value of a call that a caller kept under the id of the
-call, for a short time, until another caller takes it; see
-[`keep_tool_call_value!`](@ref).
+still bound in the next — and `last_results` holds the
+[`EvaluationResult`](@ref) of the last call that each task made, which lets a
+caller embed a returned `Document` live instead of stringifying it. A task reads
+its own, so two evaluations that run at the same time do not mix their results.
+`exception_count` is the number of calls whose code threw. `call_values` holds
+the value of a call that a caller kept under the id of the call, for a short
+time, until another caller takes it; see [`keep_tool_call_value!`](@ref). `lock`
+guards the state that each call writes, because calls can run at the same time:
+a code unit and background work.
 Two editors in one process each get their own, so neither can see the other's
 tools or evaluate into the other's namespace.
 
@@ -253,11 +268,11 @@ mutable struct ToolSet
     tools::Vector{Tool}
     resources::Vector{Resource}
     scratch::Union{Module,Nothing}
-    last_value::Any
-    last_exception::Any
+    last_results::WeakKeyDict{Task,EvaluationResult}
     exception_count::Int
     call_values::Vector{Pair{String,Any}}
     observers::Vector{Any}
+    lock::ReentrantLock
     # What a model may write, name by name. Each entry is a module and the names
     # of it a model may use, or `nothing` for every name it exports. An empty
     # `api` is the whole surface — see `declare_api!`.
@@ -268,8 +283,8 @@ end
 
 ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing,
         relevance_model::Union{Nothing,RelevanceModel} = nothing) =
-    ToolSet(Tool[], Resource[], nothing, nothing, nothing, 0, Pair{String,Any}[], Any[], _api_entries(api),
-            meaning_model, relevance_model)
+    ToolSet(Tool[], Resource[], nothing, WeakKeyDict{Task,EvaluationResult}(), 0, Pair{String,Any}[], Any[],
+            ReentrantLock(), _api_entries(api), meaning_model, relevance_model)
 
 """
     observe_evaluations!(f, set) -> f

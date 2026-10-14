@@ -33,6 +33,10 @@ and the loop runs none of its tool calls.
                unit of the editor in which a tool call of this turn runs, such as
                the cancel of this turn; or `nothing`.
 
+A call that evaluates code keeps the value of the evaluation in the tool set of
+`agent` under the id of the call ([`keep_tool_call_value!`](@ref)), so a caller
+that draws the result can take the value of that very call.
+
 A handler can answer a `Task` in place of its text, as a tool that waits for a
 person does. The loop then waits for the task on its own task, not on the task
 of the editor, so no frame waits with it, and the value of the task is the text
@@ -103,8 +107,10 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
             tool = turn_tool === nothing ? find_tool(agent.tools, call.name) : turn_tools[turn_tool]
             run_call = function ()
                 try
+                    before = find_last_evaluation_result(agent.tools)
                     text = tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :
                            tool.handler(target, call.input)
+                    _keep_evaluated_value!(agent.tools, call.id, before)
                     text isa LlmImage && (text = _PICTURE_RESULT_TEXT)
                     text isa Task ? (text, false) : (text, _is_error_output(text))
                 catch e
@@ -147,6 +153,16 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
         end
     end
     stop
+end
+
+# The value of an evaluation that a tool call made, kept under the id of the call.
+# The call ran on this task, so a new result of this task is the result of the
+# call; `before` is the result of this task before the call.
+function _keep_evaluated_value!(set::ToolSet, call_id::AbstractString, before)
+    after = find_last_evaluation_result(set)
+    (after === nothing || after === before || after.value === nothing) && return nothing
+    keep_tool_call_value!(set, call_id, after.value)
+    nothing
 end
 
 # The text in place of a picture that a tool answered: the result of a tool for a

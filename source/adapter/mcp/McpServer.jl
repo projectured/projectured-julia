@@ -260,9 +260,9 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                 call = function ()
                     started = time()
                     # Code that throws answers its message, so a new exception of
-                    # an evaluation is what marks such a call as a fault. The count
-                    # tells it, because two exceptions can be `===`.
-                    before = get_evaluation_exception_count(editor.tools)
+                    # an evaluation is what marks such a call as a fault. The result
+                    # of this task before and after the call tells it.
+                    before = find_last_evaluation_result(editor.tools)
                     # The barrier is here and not only in the transport library.
                     # A tool that throws must answer the client an error text and
                     # must not stop the server task, except an exception that
@@ -291,7 +291,8 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                         end
                     finally
                         held[] = time() - started
-                        get_evaluation_exception_count(editor.tools) > before &&
+                        after = find_last_evaluation_result(editor.tools)
+                        after !== before && after !== nothing && after.exception !== nothing &&
                             (fault[] = true)
                     end
                 end
@@ -337,8 +338,8 @@ function _find_tool_call_id(meta)
 end
 
 # The document that an evaluation returned, kept under the id of its call, so the
-# turn of an agent that draws the call can show it live. It runs on the editor
-# task right after the tool, so the last value of the tool set is the value of
+# turn of an agent that draws the call can show it live. It runs on the task that
+# ran the tool, right after it, so the last value of that task is the value of
 # this call.
 function _keep_evaluated_document!(set, name::AbstractString, call_id::String)
     name == "execute_julia_code" || return nothing

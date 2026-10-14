@@ -135,24 +135,36 @@ function test_code_execution()
         @test run("println(\"hi\"); nothing") == "hi\n"
     end
 
-    @testset "a print larger than a pipe answers whole" begin
-        # A pipe holds 64 KiB. The call runs on its own task with a bounded wait,
-        # so a print that waits for a reader fails here and the suite goes on.
-        console_stdout = stdout
-        console_stderr = stderr
-        call = @async run("print(repeat('x', 200_000))")
-        finished = timedwait(() -> istaskdone(call), 60) === :ok
-        if !finished
-            # The blocked call holds the process streams, and a failed test prints.
-            redirect_stdout(console_stdout)
-            redirect_stderr(console_stderr)
-        end
-        @test finished
-        if finished
-            answer = fetch(call)
-            @test length(answer) == 200_000
-            @test count(==('x'), answer) == 200_000
-        end
+    @testset "a large print answers whole" begin
+        answer = run("print(repeat('x', 200_000))")
+        @test length(answer) == 200_000
+        @test count(==('x'), answer) == 200_000
+    end
+
+    @testset "what the code prints goes to its own answer, and the process streams stay" begin
+        @test run("x_shown = 3\n@show x_shown") == "x_shown = 3\n3\n"
+        @test run("display(1:2); nothing") == "1:2\n"
+        @test run("show(:a); println(stderr, \"!\"); nothing") == ":a!\n"
+        @test run("fetch(@async println(\"from a task\")); nothing") == "from a task\n"
+        execute_julia_code!(set, nothing, "Base.stdout")
+        @test get_last_evaluated_value(set) === stdout
+    end
+
+    @testset "two evaluations at the same time keep their output and their result apart" begin
+        both = ToolSet()
+        code(name) = "for i in 1:3\n  println(\"$name\", i)\n  sleep(0.02)\nend\n:$name"
+        calls = [Threads.@spawn begin
+                     answer = execute_julia_code!(both, nothing, code(name))
+                     (answer, get_last_evaluated_value(both))
+                 end for name in ("first", "second")]
+        (first_answer, first_value), (second_answer, second_value) = fetch.(calls)
+        @test first_answer == "first1\nfirst2\nfirst3\n:first\n"
+        @test second_answer == "second1\nsecond2\nsecond3\n:second\n"
+        @test (first_value, second_value) == (:first, :second)
+        # Each task reads its own; this task made no call on the set.
+        @test find_last_evaluation_result(both) === nothing
+        @test run_julia_code!(both, nothing, "40 + 2").value == 42
+        @test find_last_evaluation_result(both).value == 42
     end
 
     @testset "what the code printed comes before the error" begin
