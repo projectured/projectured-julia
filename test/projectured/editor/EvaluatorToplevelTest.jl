@@ -79,7 +79,7 @@ end
 # The words of a drawn text, less the icons of the private use area.
 is_icon(word) = all(c -> '\ue000' <= c <= '\uf8ff', word)
 words(text) = [word for word in split(text) if !is_icon(word)]
-OPTION_WORDS = ["Parse", "evaluated", "forms", "Structured", "forms"]
+OPTION_WORDS = ["Parse", "evaluated", "forms", "Structured", "forms", "Background"]
 
 @testset "it draws through NaturalToGraphics" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
@@ -694,15 +694,40 @@ end
     @test s.toplevel.elements[2].form isa PrimitiveString
 end
 
-@testset "the command palette runs both options by name" begin
+@testset "the command palette runs each option by name" begin
     t = make_insertion_document(EvaluatorToplevel)
     bindings = collect_document_gesture_bindings(EvaluatorToplevel)
     for (name, option) in (("Parse evaluated forms", :parse_evaluated_forms),
-                           ("Type structured forms", :type_structured_forms))
+                           ("Type structured forms", :type_structured_forms),
+                           ("Evaluate in the background", :evaluate_in_background))
         operation = fire_named_gesture_binding(bindings, t, name; selection = t.selection)
         @test operation isa ToggleEvaluatorOptionOperation
         @test operation.option === option
     end
+end
+
+@testset "a form evaluates in the background with the option on, and a stop ends it" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = editor(toplevel)
+    evaluate_operation(ed, ToggleEvaluatorOptionOperation(toplevel, :evaluate_in_background))
+    @test toplevel.evaluate_in_background === true
+    toplevel.elements[1].form.value = "sleep(10)"
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
+    sleeping = toplevel.elements[1]
+    # The fresh form opens at once, and the form shows that it runs, with a stop.
+    @test length(toplevel.elements) == 2
+    @test sleeping.is_running === true
+    @test occursin("Running", render(toplevel)) && occursin("Stop", render(toplevel))
+    evaluate_operation(ed, StopEvaluatorFormOperation(sleeping))
+    @test timedwait(() -> sleeping.is_running !== true, 10.0) === :ok
+    @test occursin("InterruptException", _et_flatten(sleeping.result))
+    # A form that ends answers its value, as one that runs at once does.
+    toplevel.elements[2].form.value = "sleep(0.1); 40 + 2"
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
+    counted = toplevel.elements[2]
+    @test timedwait(() -> counted.is_running !== true, 10.0) === :ok
+    @test _et_flatten(counted.result) == "42"
+    @test !occursin("Running", render(toplevel))
 end
 
 @testset "a press on a check box turns its option on and off" begin

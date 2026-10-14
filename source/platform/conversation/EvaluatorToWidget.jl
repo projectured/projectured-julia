@@ -68,6 +68,8 @@ end
 # character of one monospace font, so the column has one width.
 #
 # A fresh form holds an empty result, and it shows no `=` row until it has one.
+# While its evaluation runs in the background, the `=` row says so, with a button
+# that stops it.
 #
 # The rows fill the width of the form. In a row the prompt keeps the width of its
 # one character, and the document gets the rest of the row as its edge: a document
@@ -80,10 +82,11 @@ function print_document(projection::EvaluatorFormToVerticalLayout,
     result_prompt = _make_prompt("=", projection.prompt_text)
     error_prompt  = _make_prompt("=", projection.error_prompt_text)
     code_row = _make_prompt_row(projection, () -> Any[code_prompt, form.form])
+    running = _make_running_row(projection, form)
     result_row = _make_prompt_row(projection, () -> Any[form.is_error === true ? error_prompt : result_prompt,
-                                            form.result])
+                                            form.is_running === true ? running : form.result])
     rows = (code_row, result_row)
-    output = VerticalLayout(CellVector(@computation _has_result(form) ? Any[rows...] : Any[code_row]),
+    output = VerticalLayout(CellVector(@computation _has_result_row(form) ? Any[rows...] : Any[code_row]),
                             Cell(:left), Cell(projection.row_gap), Cell(Fill), Cell(nothing), Cell(nothing))
     iomap = SimpleIoMap(projection, form, output)
     _follow_selection!(output, form, projection, iomap, Any[])
@@ -108,16 +111,28 @@ _make_prompt_row(projection, children::Function) =
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
 
+_has_result_row(form::EvaluatorForm) = form.is_running === true || _has_result(form)
+
+# What the `=` row shows while the evaluation of `form` runs in the background:
+# a word, and a button that stops it.
+function _make_running_row(projection, form::EvaluatorForm)
+    stop = WidgetButton("Stop"; icon = :stop, tooltip = "Stop the evaluation",
+                        action = editor -> evaluate_operation(editor, StopEvaluatorFormOperation(form)))
+    HorizontalLayout(Any[WidgetLabel("Running"), stop]; vertical_align = :center,
+                     gap = projection.prompt_gap)
+end
+
 # `form.<rest>` / `result.<rest>` ↔ `children[i].children[2].<rest>` — a full
 # passthrough of whatever lies below the row, because a bare form is edited and
-# not merely read. A form with no result yet has no row for one.
+# not merely read. A form with no result yet has no row for one, and a form whose
+# evaluation runs shows no result in its row.
 function map_reference_forward(::EvaluatorFormToVerticalLayout, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
     isempty(steps) && return EmptyReference()
     for (name, index) in _FORM_ROWS
         _is_field_step(steps[1], name) || continue
-        index == 2 && !_has_result(iomap.input) && return nothing
+        index == 2 && (!_has_result(iomap.input) || iomap.input.is_running === true) && return nothing
         return _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(index - 1, index),
                                FieldReferenceStep("children"), RangeReferenceStep(1, 2)],
                            _from_steps(steps[2:end]))
@@ -191,13 +206,14 @@ function print_document(projection::EvaluatorToplevelToWidgetComposite,
     iomap
 end
 
-# The two options of the toplevel, each a check box before its name. A press on
+# The three options of the toplevel, each a check box before its name. A press on
 # a box, or Space or Enter on a box that has the selection, answers
 # `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
 # give ahead of its own toggle.
 function _make_option_row(projection, t::EvaluatorToplevel)
     HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms"),
-                         _make_option_checkbox(t, :type_structured_forms, "Structured forms")];
+                         _make_option_checkbox(t, :type_structured_forms, "Structured forms"),
+                         _make_option_checkbox(t, :evaluate_in_background, "Background")];
                      vertical_align = :center, gap = projection.option_gap)
 end
 
