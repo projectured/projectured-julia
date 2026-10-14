@@ -602,6 +602,47 @@ nothing.
   should be run in the background. there should be a Julia construct which does
   this easily". So D9 is one construct with three users: the evaluator, the code
   tool, and the instructions of the agent.
+
+  **The design of D9 (proposal, 2026-10-14):**
+  - **D9a. The construct.** `start_background_work(function_; description,
+    editor = get_evaluation_editor()) -> BackgroundWork` in the tool layer runs
+    `function_()` on a task of the default pool, with the editor of the evaluation
+    in scope, and answers at once. `fetch(work)` answers the value, or throws the
+    exception, of the work; `stop_background_work!(work)` stops it as a stop stops
+    a unit: the stoppable `sleep` and our own waits end, and code that computes
+    runs to its end. The work owns no document: it reaches one only through the
+    verbs, which post through the door and wait while the editor stays usable.
+    A direct write is reported by rule d; a direct read races with no report.
+  - **D9b. Safety inside a unit.** Work that a running unit starts keeps a link to
+    that unit. A call of a verb with `wait = true` from it, and a `fetch` of it
+    from the unit, throw while the unit runs, because the unit holds the documents
+    that the work would wait for (rule b, extended).
+  - **D9c. The code tool.** `execute_julia_code` takes an argument
+    `background = false`. With `true`, the code runs as background work, and the
+    tool call answers when the work ends, waiting for it off the editor: the turn of
+    a model already waits for a handler that answers a `Task`
+    (`AgentLoop.jl:136-147`); the MCP handler gets the same wait, outside the door.
+    A stop of the turn stops the work (A2).
+  - **D9d. The evaluator.** `EvaluatorToplevel` gets the option
+    `evaluate_in_background`, next to `parse_evaluated_forms`, with a control. With
+    it on, a form starts as background work; the form shows that it runs and a stop
+    control, and its result is written through the door when the work ends.
+  - **D9e. The agent.** The description of the code tool and the instructions of
+    the agent say: code that does not need the documents of the editor runs with
+    `background = true`, or starts its long part with `start_background_work`,
+    and reaches documents only through the verbs.
+  - **D9f. What concurrent evaluations need.** Background work runs at the same
+    time as a unit and as other work, so two things that assume one evaluation at
+    a time change. The capture of what code prints stops swapping the `stdout`
+    and the `stderr` of the process (L18-4): the scratch module gets its own
+    `print`, `println`, `show` and `display`, which write to the output of the
+    evaluation in scope. And the state of a `ToolSet` that each call writes (the
+    last value, the last exception, the count of exceptions, the kept values of
+    calls) gets a lock, and each call keeps its own result.
+  - Where it goes: one more step after step 3, because it needs the stop of step
+    3. The visible list of all background work, such as a kind of task in the
+    task slice, is not part of it: each user shows its own work (the form, the tool
+    call of the turn).
 - **D10. The loop of the REPL form.** Open. `run_editor!(...; wait = false)` pins
   the loop to a thread of the default pool (D11 of
   `view-and-edit-a-data-frame.md`, the owner, 2026-09-30). A long form in the
@@ -865,6 +906,5 @@ nothing.
 ## Not in this plan
 
 Option B · the services off thread 1, which needs `-t 2` · code in a separate
-process, which alone can stop a loop that never waits · the process-wide swap of
-stdout in the code tool (L18-4) · editing of other documents while a code unit
-runs.
+process, which alone can stop a loop that never waits · editing of other
+documents while a code unit runs · a list of all background work.
