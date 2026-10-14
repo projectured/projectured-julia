@@ -144,7 +144,7 @@ end
 # into the channel, and the caller waits on it.
 
 """
-    RunFunctionOperation(function_, answer, description = "a call from another task", stop = nothing)
+    RunFunctionOperation(function_, answer; description = "a call from another task", stop = nothing)
 
 Run `function_()` on the editor task, in the drain of the inbox. `answer` is the
 channel that takes `(true, value)` or `(false, exception)`, or `nothing` when no
@@ -164,7 +164,7 @@ struct RunFunctionOperation <: Operation
     state::Threads.Atomic{Int}
 end
 
-RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing},
+RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing};
                      description::AbstractString = "a call from another task",
                      stop::Union{Function, Nothing} = nothing) =
     RunFunctionOperation(function_, answer, String(description), stop, Threads.Atomic{Int}(0))
@@ -206,7 +206,7 @@ function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool =
     wait && unit !== nothing && !unit.ended[] && get_current_code_unit() === unit &&
         throw(CodeUnitWaitException(String(description)))
     answer = wait ? Channel{Any}(1) : nothing
-    operation = RunFunctionOperation(function_, answer, description, stop)
+    operation = RunFunctionOperation(function_, answer; description, stop)
     try
         post_operation!(editor, operation)
     catch exception

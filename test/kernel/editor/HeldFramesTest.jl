@@ -184,9 +184,9 @@ function test_editor_held_frames()
             editor = _held_frame_editor(backend)
             log = Any[]
             post_operation!(editor, RunFunctionOperation(() -> (sleep(0.05); push!(log, current_task())),
-                                                         nothing, "first call"))
+                                                         nothing; description = "first call"))
             post_operation!(editor, RunFunctionOperation(() -> (sleep(0.05); push!(log, current_task())),
-                                                         nothing, "second call"))
+                                                         nothing; description = "second call"))
             @test drain_operations!(editor) == 2
             @test length(log) == 2 && log[1] === log[2] && log[1] !== current_task()
             @test backend.prepared == [["first call", "second call"]]
@@ -212,7 +212,7 @@ function test_editor_held_frames()
             post_operation!(editor, RunFunctionOperation(function ()
                 sleep(1.2)
                 post_operation!(editor, QuitEditorOperation())
-            end, nothing, "a long call"))
+            end, nothing; description = "a long call"))
             @test_logs min_level = Base.CoreLogging.Warn run_editor!(editor)
         end
 
@@ -266,7 +266,7 @@ function test_editor_held_frames()
                 catch exception
                     exception isa InterruptException || rethrow()
                 end
-            end, nothing, "a stoppable call", () -> (stopped[] = true)))
+            end, nothing; description = "a stoppable call", stop = () -> (stopped[] = true)))
             drain_operations!(editor)
             @test timedwait(() -> stopped[], 5.0) === :ok
         end
@@ -280,9 +280,9 @@ function test_editor_held_frames()
                 catch exception
                     exception isa InterruptException || rethrow()
                 end
-            end, nothing, "the call that the stop ends"))
-            post_operation!(editor, RunFunctionOperation(() -> nothing, nothing, "a later call",
-                                                         () -> (stopped[] = true)))
+            end, nothing; description = "the call that the stop ends"))
+            post_operation!(editor, RunFunctionOperation(() -> nothing, nothing; description = "a later call",
+                                                         stop = () -> (stopped[] = true)))
             @test drain_operations!(editor) == 2
             @test timedwait(() -> stopped[], 5.0) === :ok
         end
