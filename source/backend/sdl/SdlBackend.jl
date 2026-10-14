@@ -3212,7 +3212,8 @@ Pass the handle to [`close_offscreen_renderer`](@ref) at the end.
 """
 function open_offscreen_renderer(width::Integer, height::Integer;
                                   supersample::Integer = 2, density::Real = 1)
-    _start_sdl_video!()
+    # A software renderer on a surface needs no video of SDL, so an offscreen render
+    # runs on any thread, such as the thread of a code unit, and with no display.
     TTF_Init()
     S  = max(1, Int(supersample))
     sc = Float64(density)
@@ -3394,8 +3395,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
                      supersample::Integer = 2,
                      density::Real = 1)
     # Initialize before printing: the projection measures text (opening fonts),
-    # which requires SDL_ttf to be up.
-    _start_sdl_video!()
+    # which requires SDL_ttf to be up. The render needs no video of SDL.
     TTF_Init()
 
     print_canvas = (aw, ah) -> begin
@@ -4648,7 +4648,7 @@ the image dimensions. The returned `data` is suitable for passing to
 Throws on failure (file not found, unsupported format, etc.).
 """
 function decode_sdl_image(filename::AbstractString)
-    _start_sdl_video!()
+    # A load into a surface needs no video of SDL.
     surface = IMG_Load(filename)
     surface == C_NULL && error("decode_sdl_image: failed to load '$filename': $(unsafe_string(SDL_GetError()))")
 

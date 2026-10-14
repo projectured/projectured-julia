@@ -32,6 +32,7 @@ export SdlBackend, open_offscreen_renderer, with_offscreen_zoom, close_offscreen
        write_offscreen_picture_with_overlay!
 
 include("SdlBackend.jl")
+include("SdlHeldFrames.jl")
 include("SystemColorQuery.jl")
 
 end # module SdlModule
