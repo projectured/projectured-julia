@@ -414,6 +414,37 @@ function test_undo_buffer()
         @test length(buffer.undo_entries) == 0
     end
 
+    @testset "has_unsaved_edits follows each change, and the same answer reaches no reader" begin
+        list = _make_list(["a"])
+        buffer = UndoBuffer(list)
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
+        editor = _UndoEditor(buffer)
+        make_write(text) = read_intent(projection, iomap, _write_first(text))
+        reader = Cell(Computation(() -> has_unsaved_edits(buffer)))
+        @test reader[] == false
+        evaluate_operation(editor, make_write("b"))
+        @test reader[] == true
+        # A new step of a history that has edits writes `true` again.
+        evaluate_operation(editor, make_write("c"))
+        @test is_cell_valid(reader)
+        record_saved_state!(buffer)
+        @test reader[] == false
+        evaluate_operation(editor, make_write("d"))
+        @test reader[] == true
+        evaluate_operation(editor, UndoOperation(buffer))
+        @test reader[] == false
+        evaluate_operation(editor, RedoOperation(buffer))
+        @test reader[] == true
+        # A typed character that joins the run of the newest step.
+        joined = RecordUndoOperation(buffer, get_wrapped_operation(make_write("de")), :continues)
+        evaluate_operation(editor, joined)
+        @test length(buffer.undo_entries) == 3
+        @test is_cell_valid(reader) && reader[] == true
+        clear_undo_history!(buffer)
+        @test reader[] == false
+    end
+
     # The outermost buffer records every step a buffer below it records, so asking
     # it for one step back takes back the last thing that happened anywhere.
     @testset "find_undo_buffer answers the outermost one" begin

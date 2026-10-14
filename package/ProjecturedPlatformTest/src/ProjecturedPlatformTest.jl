@@ -507,6 +507,7 @@ using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.ToolModule
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedPlatform.FileFormatModule: record_saved_state!, has_unsaved_edits
 using ProjecturedPlatform.UndoModule
 
 include("../../../test/platform/undo/UndoBufferTest.jl")

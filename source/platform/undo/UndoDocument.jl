@@ -64,8 +64,11 @@ setting, such as `undo_capacity` of `HistorySettings`, which the buffer reads at
 each step.
 `saved_entry` is the step that was newest when the file that holds the buffer was
 last saved, or `nothing` when the file holds what the buffer held before its first
-step. A save notes it (`record_saved_state!`), and `has_unsaved_edits` compares
-it with the newest step.
+step. A save notes it (`record_saved_state!`). `has_unsaved_edits` is whether the
+newest step is another step than `saved_entry`. Each change of the lists and of
+`saved_entry` writes it, and a write of the value that it holds changes nothing:
+a key that joins a run of typing in a file that has edits invalidates no reader
+of it.
 
 The buffer records nothing by itself. `UndoBufferToAnyProjection` is what wraps
 the operations that pass through it.
@@ -82,12 +85,13 @@ See also `UndoBufferToAnyProjection`, `UndoEntry` and `make_inverse_operation`.
     redo_entries::CellVector
     capacity::Int
     saved_entry::Any
+    has_unsaved_edits::Bool
 end
 
 UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
            selection = nothing) =
     UndoBuffer(content, CellVector(), CellVector(),
-               capacity isa AbstractCell ? capacity : Int(capacity), nothing, selection)
+               capacity isa AbstractCell ? capacity : Int(capacity), nothing, false, selection)
 
 # A buffer is transparent on the screen, and a real node in the tree. Anything
 # that reads the tree rather than the picture — saving a file is the case — asks
@@ -120,6 +124,7 @@ function push_undo_entry!(buffer::UndoBuffer, entry::UndoEntry)
     push!(buffer.undo_entries, entry)
     _empty_entries!(buffer.redo_entries)
     _trim_entries!(buffer.undo_entries, buffer.capacity)
+    _record_unsaved_edits!(buffer)
     buffer
 end
 
@@ -135,16 +140,24 @@ function clear_undo_history!(buffer::UndoBuffer)
     _empty_entries!(buffer.undo_entries)
     _empty_entries!(buffer.redo_entries)
     buffer.saved_entry = nothing
+    _record_unsaved_edits!(buffer)
     buffer
 end
 
 # The file that holds a history holds what the history holds now: the newest step
 # is the saved one, and a history with no step was saved before its first.
-record_saved_state!(buffer::UndoBuffer) = (buffer.saved_entry = _find_newest_entry(buffer); nothing)
+function record_saved_state!(buffer::UndoBuffer)
+    buffer.saved_entry = _find_newest_entry(buffer)
+    _record_unsaved_edits!(buffer)
+    nothing
+end
+
+has_unsaved_edits(buffer::UndoBuffer) = buffer.has_unsaved_edits
 
 # A history has edits that its file does not hold when its newest step is not the
 # step that was newest at the save, or at the read when nothing was saved since.
-has_unsaved_edits(buffer::UndoBuffer) = _find_newest_entry(buffer) !== buffer.saved_entry
+_record_unsaved_edits!(buffer::UndoBuffer) =
+    (buffer.has_unsaved_edits = _find_newest_entry(buffer) !== buffer.saved_entry; nothing)
 
 _find_newest_entry(buffer::UndoBuffer) =
     (entries = buffer.undo_entries; isempty(entries) ? nothing : entries[end])
@@ -297,6 +310,7 @@ function evaluate_operation(editor, op::RecordUndoOperation)
         joined = inverse === nothing ? nothing : _join_inverses(inverse, last.inverse)
         buffer.undo_entries[end] = UndoEntry(last.label, joined, last.selection, caret, time())
         _empty_entries!(buffer.redo_entries)
+        _record_unsaved_edits!(buffer)
     else
         push_undo_entry!(buffer, UndoEntry(label, inverse, before, caret, time()))
     end
@@ -323,10 +337,10 @@ _join_inverses(new::UndoOperation, old::UndoOperation) =
 _join_inverses(new, old) = CompoundOperation(Any[new, old])
 
 evaluate_operation(editor, op::UndoOperation) =
-    _step_undo_history!(editor, op.buffer.undo_entries, op.buffer.redo_entries)
+    _step_undo_history!(editor, op.buffer, op.buffer.undo_entries, op.buffer.redo_entries)
 
 evaluate_operation(editor, op::RedoOperation) =
-    _step_undo_history!(editor, op.buffer.redo_entries, op.buffer.undo_entries)
+    _step_undo_history!(editor, op.buffer, op.buffer.redo_entries, op.buffer.undo_entries)
 
 # One step of the history, in either direction. Undo and redo differ only in
 # which list a step is taken from and which one it goes to, because the way back
@@ -335,7 +349,7 @@ evaluate_operation(editor, op::RedoOperation) =
 # The caret is read before anything is applied, so the entry that goes on the
 # other list carries the place the reverse step starts from — the same rule the
 # entry being applied follows.
-function _step_undo_history!(editor, from, to)
+function _step_undo_history!(editor, buffer::UndoBuffer, from, to)
     length(from) == 0 && return nothing
     entry = from[end]
     is_undo_barrier(entry) && return nothing
@@ -343,6 +357,7 @@ function _step_undo_history!(editor, from, to)
     back = evaluate_invertible_operation!(editor, entry.inverse)
     deleteat!(from, length(from))
     push!(to, UndoEntry(entry.label, back, here))
+    _record_unsaved_edits!(buffer)
     entry.selection === nothing || _restore_selection!(editor.document, entry.selection)
     nothing
 end
