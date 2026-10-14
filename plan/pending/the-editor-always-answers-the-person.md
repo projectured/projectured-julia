@@ -646,6 +646,16 @@ nothing.
     3. The visible list of all background work, such as a kind of task in the
     task slice, is not part of it: each user shows its own work (the form, the tool
     call of the turn).
+- **D9g. Open: the stop of a turn and the work of its tool call.** Found in
+  3b.3. The Stop of the assistant, and Escape, cancel a native turn, but the turn
+  waits in `run_turn!` for the background work of its tool call, and the work runs
+  to its end. A cancel of an ACP turn does not reach the work for which the MCP
+  server waits either. Recommended (mine): the assistant runs each turn as
+  background work, and a stop of the turn stops that work; the wait of the turn
+  for the work of a tool call attaches a stop step that stops the work of the
+  call. The MCP server of an ACP session keeps the work of each call that runs,
+  and the cancel of that turn stops them. A new path, so it needs the word of the
+  owner.
 - **D10. The loop of the REPL form. Decided by the owner, 2026-10-14: A**, the
   recommendation below. The other option was B, keep D11 and document that the
   REPL form needs `-t 2` for units. `run_editor!(...; wait = false)` pins
@@ -878,6 +888,59 @@ nothing.
   of an evaluation in its own scope in place of the swap of the streams of the
   process (L18-4), and the lock of the state of a `ToolSet` that each call writes
   (D9f).
+  - [x] 3b.1 (`953ed2036`) D9a and D9b. `BackgroundWork.jl` in the tool layer:
+    `start_background_work`, `fetch`, `stop_background_work!`,
+    `is_background_work_done`, and `BackgroundWorkWaitException`. The design
+    found here: the waits find their stop in a scope of their own,
+    `_CURRENT_STOP_SCOPE`, the innermost of the unit and the work, so the
+    `sleep` of code in a work ends at the stop of the work. The work keeps the
+    unit of its start as its current unit, so rule b covers it with no new check.
+    A `fetch` from the unit, or from a task of it, reads the stop scope, so other
+    work that the unit started can still wait for its own work. A unit has an
+    `ended` mark, and rule b and the `fetch` rule read it: a call of the work
+    after the end of its unit, and before the loop clears `editor.code_unit`,
+    waits for the next drain and does not throw.
+  - [x] 3b.2 (`993bd3b60`) D9f. Each evaluation has its own output, and the
+    scratch module defines `stdout`, `stderr`, `print`, `println`, `show`,
+    `display` and `@show`, which write to the output of the evaluation in scope,
+    or to the process outside one. A limit: code of a package that prints to
+    `Base.stdout`, and a macro of Base such as `@time`, print to the process.
+    "Each call keeps its own result": `EvaluationResult(output, value, exception)`,
+    `run_julia_code!` and `run_julia_expression!` answer it, and the tool set
+    keeps the last result of each task that asked for an evaluation, under its
+    lock, so `get_last_evaluated_value` answers the value of the call of the
+    calling task. The native turn keeps the value of a call of the code tool under
+    the id of the call, as the MCP server does, and the assistant takes it there;
+    the MCP server tells a fault of its call by the result of its own task.
+  - [x] 3b.3 (`752dd0f8f`) D9c. The argument `background`. The handler starts the
+    evaluation as work with no link to the unit of the drain, because that unit
+    does not wait for the work, and a link would make an early verb call of the
+    work throw while the drain runs other calls. The work answers the whole
+    `EvaluationResult`; the turn and the MCP handler wait for it off the editor,
+    take its output, and keep its value under the id of the call. Code in
+    background work never starts a code unit (`is_in_background_work`), so the
+    stop of the work reaches the `sleep` of the code. Not done: a stop of the turn
+    does not reach the work (the question D9g below).
+  - [x] 3b.4 (`3ce91fbc1`) D9d. `EvaluatorToplevel.evaluate_in_background`, a check
+    box "Background", and a rule of the palette. With it on, Enter opens the fresh
+    form at once; the form has `is_running` (a file does not keep it, a copy does
+    not run), its `=` row shows "Running" and a Stop button
+    (`StopEvaluatorFormOperation`), and its result comes through the door when
+    the work ends. The session of the evaluators of an editor keeps the work of
+    each running form and takes it out at the end, because the work holds the
+    editor; the namespace binds `editor = nothing` only when no form runs.
+  - [x] 3b.5 (`e2f8e14d8`) D9e. The description of the code tool, in both forms,
+    and the guide that the native assistant and an external agent get, say that
+    code that needs no document runs with `background`, or starts its long part
+    with `start_background_work`, and reaches documents only through the verbs. A
+    declared API that does not give `start_background_work` gets no sentence about
+    it.
+  - The suites after 3b.5: the kernel 4562 of 4562, the MCP suite 500 of 500, the
+    platform the same as `main` (152470, the 2 known failures, 7 broken), the
+    evaluator and the assistant tests of the umbrella 521 and 4 broken that were
+    marked before. `test_evaluator_duplicate` fails as on `main` (1 failure and 2
+    errors at `EvaluatorDuplicateTest.jl:40`, the baseline of 2026-10-13).
+  - [ ] 3b.6 Open: D9g, how a stop of a turn reaches the work of its tool call.
 - [ ] **4. The backends:** the three protocol functions of held frames and their
   defaults. SDL: the pump; the keys and the window events left in the queue; the
   pointer events of the windows of the editor dropped; the retained present; the
