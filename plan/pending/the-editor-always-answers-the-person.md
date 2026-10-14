@@ -657,6 +657,21 @@ nothing.
   call. The MCP server of an ACP session keeps the work of each call that runs,
   and the cancel of that turn stops them. A new path, so it needs the word of the
   owner.
+- **D12. Open: the documents that two editors share (L21-1).** Found in step 5.
+  The message log and the fault log are one document for the process
+  (`_SESSION_MESSAGE_LOG`, `_SESSION_FAULT_LOG`), so two editors that show them
+  write them from two owner tasks, against D7. The stores behind them (the
+  message log, the MCP log, the frame statistics, the file changes, the task
+  feed) are one for the process too, with locks. The insertion of a log tab,
+  `make_insertion_document(::Type{MessageLog})`, gets no editor, so a document
+  for each editor needs a new way for an insertion to find its editor. The
+  options: A, the answer of the audit plan to L21-1: each editor has its own
+  stores and documents, and logs under a logger of its own (L22-15), so on a
+  server with one editor for each person no person sees the log of another; B,
+  the stores stay one for the process, and each editor has its own documents,
+  which its own feeds copy from the stores (D7); C, nothing in this plan: L21-1
+  stays in the audit plan with POLICY-7. A and B both need the new way for an
+  insertion to find its editor.
 - **D10. The loop of the REPL form. Decided by the owner, 2026-10-14: A**, the
   recommendation below. The other option was B, keep D11 and document that the
   REPL form needs `-t 2` for units. `run_editor!(...; wait = false)` pins
@@ -1026,6 +1041,52 @@ nothing.
   editors share today (L21-1: the session fault log, and the stores of the log and
   statistics feeds) becomes one for each editor, or a copy that a feed keeps in
   sync (D7).
+  - The list: a survey of each place in `source/` that starts a task or a
+    callback (2026-10-14). Two read a cell outside the door: the catch of
+    `StartExternalAgentOperation` read `a.agent_session` on its task, and the
+    timer of the close of a terminal read `terminal.status`. The long tasks that
+    ran as `@async` on the thread of the loop: the user model of the process
+    debugger, the turn of the assistant, the start of an external agent, the
+    readers of a terminal, the driver and the readers of a task group, the start
+    of the MCP server, and the query of the colours of the system.
+  - A fact found here: HTTP.jl starts its listener with
+    `Threads.@spawn :interactive`, and each connection is an `@async` task of the
+    listener. With one interactive thread, the thread of the loop, every request
+    of the MCP server and of the web backend runs on the thread of the loop,
+    whatever task starts the server.
+  - [x] 5.1 (`fdd8cbf22`, `faa105074`, `bc04e335b`, `5dba4ce01`, `128a949a4`) The doors
+    and the threads:
+    - The catch of `StartExternalAgentOperation` reads the session through the
+      door; the timer of a terminal reads its process, not the document.
+    - `is_editor_loop_running(target)`, a query of the agent layer beside
+      `run_on_editor_task!` (`false` for a target that is no editor). A task that
+      posts runs on a thread of the default pool while the loop runs; with no
+      loop, a post runs at once on its task, so it runs on the thread of its
+      caller, as in a test that drives no frames. The turn of the assistant, the
+      start of an external agent, and the readers of a terminal follow it.
+    - The user model of the process debugger runs on the default pool; it writes
+      only its trace.
+    - The MCP handler runs a tool that reads no document, and a resource
+      provider, on a task of the default pool, and the request waits for it.
+    - ACP: each turn has an outbox with no bound, and one task gives its events to
+      `on_event` with no lock held; `turns_lock` holds only the `put!` into the
+      outbox, which never waits. The end of a prompt waits until its last event
+      is given. The start of a session reads the kept session through the door
+      before its lock, and posts the forget of a lost session after it.
+    - The web backend: the receive task asks for a full send with an atomic flag,
+      and the next frame clears the state of the windows, which only the frame
+      reads.
+    - Not moved here: the driver and the readers of a task group write
+      `group.runs` and read `group.stopping` with no lock, so the move needs an
+      audit of the shared state of the task slice; step 6 changes that slice
+      (the task feed), and the move goes with it. The query of the colours of
+      the system and the console watcher wait on I/O, which yields.
+    - The suites: the kernel 4570, the MCP suite 504, the ACP suite 168, the
+      process suite 315, the web suite 147, the platform the same as `main`, and
+      the assistant tests 275 and 4 broken that were marked before.
+  - [ ] 5.2 L21-1, the documents that two editors share: a question for the owner
+    (D12 in §8), because a log document for each editor needs a new way for the
+    insertion of a log tab to find its editor.
 - [ ] **6. Feeds that move only prepared data.** Decided by the owner,
   2026-10-13. The rule: a drain moves only data that its producer prepared off
   the loop. It does no I/O, it runs no method of a user type, and its work grows
@@ -1040,7 +1101,10 @@ nothing.
     and each load and save clears, in place of a write of its whole text.
   - **Task** (`TaskFeed.jl:87-112`). The reader tasks sample `/proc`, and the
     store keeps the set of runs that changed since the last drain. The drain
-    syncs only those.
+    syncs only those. The driver and the readers of a task group move from the
+    thread of the loop to the default pool here (found in step 5), after an audit
+    of the state of the task slice that they share with the loop, such as
+    `group.runs` and `group.stopping`, which they use with no lock today.
   - **Reflection** (`DocumentReflection.jl:92-119`). The drain hands a producer
     task the open paths of the tree, as plain data. The producer reads the value
     along those paths into a plain snapshot, with the user's `getproperty`,
