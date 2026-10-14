@@ -5,7 +5,7 @@
     RosterItem(item, within = nothing)
 
 One item that a source of a roster gives, and the item of an outer source that
-holds it, or `nothing`. `ItemsWithin` gives the file of each call it finds, so a
+holds it, or `nothing`. `ItemsWithin` gives the file of each call it gathers, so a
 row of a call can show its file.
 """
 struct RosterItem

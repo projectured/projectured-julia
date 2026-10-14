@@ -36,8 +36,8 @@ end
     ItemsWithin(source, type)
 
 The documents of `type` inside each item of `source`, at any depth. Each item of
-`source` is one part, so a change inside one item finds the documents of that
-item again and of no other. The row of a document found holds the item of
+`source` is one part, so a change inside one item gathers the documents of that
+item again and of no other. The row of each such document holds the item of
 `source` that holds it, which the key `within` names.
 
 # Example
@@ -77,7 +77,7 @@ owns the store. A second registration under a name replaces the first.
 
 # Example
 
-    register_roster_source!(:log, link -> CollectionItems(find_message_log(link));
+    register_roster_source!(:log, link -> CollectionItems(get_session_message_log().entries);
                             description = "the lines of the log of the window")
 """
 function register_roster_source!(name::Symbol, make_source; description::AbstractString = "")

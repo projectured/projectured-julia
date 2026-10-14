@@ -5,11 +5,11 @@
     TabDocuments(type)
 
 The documents of `type` that the tabs of a window show, one part for each tab: the
-first layer of what a tab shows that is a `type`, from its content inward
-([`find_pane_tab_layer`](@ref)), such as the file document that a tab holds in its
-history. The window is the one that shows the roster, which its link names, and a
-tab that opens, closes or comes back with an undo changes the rows; an edit inside
-a document does not gather the tabs again.
+first layer of what a tab shows that is a `type`, from its content inward, such as
+the file document that a tab holds in its history. The window is the one that
+shows the roster, which its link names. A tab that opens, closes or comes back
+with an undo changes the rows; an edit inside a document does not gather the tabs
+again.
 
 # Example
 

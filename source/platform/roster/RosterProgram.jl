@@ -89,7 +89,7 @@ The kinds of sources of a roster that the loaded slices give, each with the call
 that makes one and what its items are, and the names of the stores that
 `StoreRecords` reads, each with what its records are.
 
-Use it to find the source of a roster before `show_roster!`.
+Use it to choose the source of a roster before `show_roster!`.
 """
 function describe_roster_sources()
     lines = String["The kinds of sources of a roster:"]
@@ -101,6 +101,16 @@ function describe_roster_sources()
         push!(lines, string("- :", name, ": ", _ROSTER_SOURCES[name].description))
     end
     Text(join(lines, "\n"))
+end
+
+# The text of the docstring of `type`, read through its binding, as the
+# documentation tool reads it: `Base.Docs.doc` of a type has a method only where
+# the REPL is loaded, and a docstring can come as a `DocStr` or a `MultiDoc`.
+function _get_type_docstring(type::Type)
+    found = Base.Docs._doc(Base.Docs.Binding(parentmodule(type), nameof(type)))
+    found isa Base.Docs.MultiDoc && (found = isempty(found.order) ? nothing : found.docs[found.order[1]])
+    found === nothing && return ""
+    found isa Base.Docs.DocStr ? join(found.text) : string(found)
 end
 
 # The public types of the sources that a loaded slice gives, in the order of their
@@ -118,7 +128,7 @@ end
 # The call that makes a source of `type`, and the first sentence that its
 # docstring says of it.
 function _describe_source_type(type::Type)
-    paragraphs = split(strip(string(Base.Docs.doc(type))), r"\n\s*\n")
+    paragraphs = split(strip(_get_type_docstring(type)), r"\n\s*\n")
     call = strip(paragraphs[1])
     length(paragraphs) > 1 || return call
     words = replace(strip(paragraphs[2]), r"\s+" => " ")

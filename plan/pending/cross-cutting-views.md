@@ -1050,6 +1050,16 @@ For each step, run the narrowest test: the test files of the step, through
       machine had about 35 GB available, because other sessions held the rest.
       A run with the Claude backend sends the prompts to an external service,
       which needs the word of the owner.
+    - `describe_roster_sources` reads the docstring of a source through its
+      binding, as the documentation tool does: `Base.Docs.doc` of a type has a
+      method only where the REPL is loaded, so a plain test process threw there.
+    - **The rank of `search_api` moves with a new docstring.** The keyword search
+      sorts by the score of the name, then by a prose score that depends on the
+      length of every entry that matches, then by the length of the name. The
+      word "finds" in the docstring of `ItemsWithin` made `find_pane_reference`
+      rank above `find_pane` for "find pane", and `test_referenced_document_editor`
+      failed. The docstrings of the roster now say "gathers". The scorer itself is
+      unchanged, because the owner wants to be asked before `search_api` changes.
 
 - [x] **7. Measure X1 and X4, and record the counts here.** Done 2026-10-14.
   - Compile the performance counters in, with the preference
