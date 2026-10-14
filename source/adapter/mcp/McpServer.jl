@@ -121,8 +121,12 @@ function start_mcp!(mcp::McpServer)
         end
         timedwait(() -> mcp.server.active || istaskdone(mcp.task), 10.0; pollint = 0.001)
     catch e
-        record_fault!(mcp.editor.faults, :tool; origin = :McpServer, exception = e,
-                      traceback = catch_backtrace())
+        traceback = catch_backtrace()
+        # The start runs on a task of its own, so the fault goes to the store of the
+        # editor through its door.
+        run_on_editor_task!(mcp.editor; wait = false, description = "the fault of the MCP start") do
+            record_fault!(mcp.editor.faults, :tool; origin = :McpServer, exception = e, traceback)
+        end
         @warn "MCP server failed to start" exception = e
     finally
         Base.CoreLogging.global_logger(previous)

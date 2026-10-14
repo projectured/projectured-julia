@@ -151,7 +151,8 @@ that does not wait, because a wake is pending or a deadline is due, yields once
 for the same reason.
 
 `mcp` starts an MCP server alongside the loop, so external clients can drive
-the editor; off by default. Its value is `true` for the server's own defaults,
+the editor; off by default. The server starts on a task of its own, because its
+start waits for the server for up to 10 seconds, and the loop does not wait for it. Its value is `true` for the server's own defaults,
 or a `NamedTuple` of `instructions`, `host` and `port`, and a field that is left
 out takes the server's default.
 
@@ -170,6 +171,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         throw(ArgumentError("The loop of this editor ran and ended, and its end quit the " *
                             "backend. Make a new editor with `make_editor`."))
     server = nothing
+    server_start = nothing
     has_quit = false
     try
         # A barrier in the projection reads from the printer context whether it
@@ -187,7 +189,8 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         # a tool that the caller declares between `make_editor` and this call
         # reaches a client too.
         server = mcp === false ? nothing : _make_mcp_server(editor, mcp)
-        server === nothing || start_agent_server!(server)
+        server === nothing ||
+            (server_start = errormonitor(@async start_agent_server!(server)))
         # An editor that has no IoMap prints once before its first frame, because
         # `run_read_stage!` drops an input that no IoMap can read.
         if editor.iomap === nothing
@@ -258,7 +261,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         editor.loop_task = nothing
         remove_cell_writer!(current_task())
         editor.has_loop_ended = true
-        exception = _end_editor_loop!(editor, server)
+        exception = _end_editor_loop!(editor, server, server_start)
         # An exception of the loop goes on, so the exception of a step goes on
         # only after a quit.
         has_quit && exception !== nothing && throw(exception)
@@ -266,12 +269,13 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
 end
 
 # The steps at the end of the loop. Each step runs also when a step before it
-# throws, and the answer is the first exception of a step, or `nothing`.
-function _end_editor_loop!(editor::Editor, server)
+# throws, and the answer is the first exception of a step, or `nothing`. A server
+# that still starts gets the 10 seconds of its start before it stops.
+function _end_editor_loop!(editor::Editor, server, server_start)
     first_exception = nothing
     for step in (() -> _answer_waiting_calls!(editor),
                  (() -> stop_step(editor) for stop_step in editor.stop_steps)...,
-                 () -> server === nothing || stop_agent_server!(server),
+                 () -> server === nothing || _stop_started_server!(server, server_start),
                  () -> Base.invokelatest(quit_backend!, editor.backend))
         try
             step()
@@ -280,6 +284,11 @@ function _end_editor_loop!(editor::Editor, server)
         end
     end
     first_exception
+end
+
+function _stop_started_server!(server, server_start)
+    server_start === nothing || timedwait(() -> istaskdone(server_start), 10.0)
+    stop_agent_server!(server)
 end
 
 # The server gets the options that the caller gave. An option that is left out,
