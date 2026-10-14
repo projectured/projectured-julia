@@ -781,19 +781,19 @@ nothing.
   `run_on_editor_task!` for the owner, the faults of the held frames, the
   sentence of P1 in `FaultStore.jl` and `fault.md`, POLICY-6-inbox with I3 for a
   unit (D5), the cell writers of rule d, and the record of a slow frame (§5.10).
-  - [x] 2a. The backend protocol of held frames (`839ba7d4b`, `bc22107cf`).
+  - [x] 2a. The backend protocol of held frames (`298bc64a2`, `cfe7c02ca`).
     `run_held_frame!(backend, devices, state::HeldFrameState)` answers `:none`,
     `:stop`, `:close` or `:quit`. `HeldFrameState(seconds, current,
     is_stop_pending, is_quit_asked)` is a fragment of its own, `HeldFrameState.jl`,
     because an interface file declares only abstract types
     (PAR-INTERFACE-DECLARES-ONLY). `prepare_held_frames!` takes the list of parts,
     so the bar names the current part with no text made in a held frame.
-  - [x] 2b. `CodeUnit` in the tool layer (`61f0e9d87`, `eb3b2bb68`): the record,
+  - [x] 2b. `CodeUnit` in the tool layer (`657802e71`, `d5102ab7b`): the record,
     its stop flag and stop steps, `wait_in_code_unit`, `run_as_code_unit`, and
     the seam `run_in_code_unit`, whose default runs the work inline. The code
     tool runs its evaluation through the seam; the bar shows "Run the code: "
     and the first line of the code.
-  - [x] 2c. The units and the held frames in the editor (`fa4364301`):
+  - [x] 2c. The units and the held frames in the editor (`1e8f0ceab`):
     `run_code_unit!(function_, editor; parts)` in `HeldFrames.jl`; the owner
     check in `run_on_editor_task!`, which takes a `description`; a drain of the
     inbox with a posted call runs as one unit (A4); the faults of held frames;
@@ -805,7 +805,7 @@ nothing.
     unit, so a test fails and the unit keeps an owner. The kernel suite: 4481 of
     4482 before the move of `HeldFrameState`, and the one failure was that rule;
     the baseline at `main` was 4453 of 4453 (`/var/tmp/editor-answers-probe`).
-  - [x] 2d. POLICY-6-inbox (`0cb48e9bd`): the queue of the owner
+  - [x] 2d. POLICY-6-inbox (`dc8d2d52c`): the queue of the owner
     (`Editor.owner_posts`, no bound) takes the posts of the loop task, the
     running unit, a task that the unit started, and any task before the loop
     starts; the drain takes it first. The end closes both queues; a later post
@@ -814,7 +814,7 @@ nothing.
     `ArgumentError`. The three states of I1 come from what exists: a set
     `loop_task` means running, and `Editor.has_loop_ended` means ended; a field
     of its own would repeat `loop_task`. The kernel suite: 4482 of 4482.
-  - [x] 2e. The cell writers of rule d (`2cf33246b`). The cell layer was sealed
+  - [x] 2e. The cell writers of rule d (`3c0b85633`). The cell layer was sealed
     during the work (`330926c9f`); the owner allowed the change of
     `cell/ReactiveCell.jl` and `cell/CellModule.jl` on 2026-10-13, after seeing its
     shape. `ReactiveCell` calls `_check_cell_writer` at a write, a new computation,
@@ -825,7 +825,7 @@ nothing.
     frame records the foreign writes as faults (origin `:cell_writer`). The
     docstring of `CellModule.jl` lists the new fragment too. The kernel suite:
     4513 of 4513, and no kernel test makes a foreign write.
-  - The suites above the kernel, against `main` (`a0ac19f66`): the platform suite
+  - The suites above the kernel, against `main` (`c2c0f5f9e`): the platform suite
     is the same on both, 152468 of 152477 with the same 2 failures and 7 broken
     on `main` (`InterfaceApiTest.jl:46,49`, `WidgetProgressRing`). The MCP suite
     found 3 assertions of the old rule, "a tool runs on the task of the loop";
@@ -834,7 +834,7 @@ nothing.
     a slow-frame line, so a frame reports nothing while Julia generates output.
   - Not done: the delay from a key press to its picture, a measurement of time
     that needs an idle machine and the word of the owner.
-  - [x] 2f. The record of a slow frame (`cd4f19fc3`): the loop times each feed, the
+  - [x] 2f. The record of a slow frame (`4dc83c2ad`): the loop times each feed, the
     read, each operation, the print and the fault report, and after a frame that
     took longer than `SLOW_FRAME_SECONDS` (1 s), without the time of its held
     frames, it writes one warning line to the log, such as "a frame took 1.1 s,
@@ -847,20 +847,20 @@ nothing.
   §5.7, A2, and D10: `run_editor!(...; wait = false)` pins the loop to an
   interactive thread other than the one of the caller when the process has one,
   and to a thread of the default pool otherwise.
-  - [x] 3.1 (`b3c95f43d`) The scratch module of the code tool defines its own
+  - [x] 3.1 (`d7e51f793`) The scratch module of the code tool defines its own
     `sleep` first, which calls `wait_in_code_unit`; the evaluator uses the same
     scratch module code. `wait_for_task_group!` in a unit waits in slices of
     `wait_in_code_unit(0.1)`, so a stop ends the wait; the group goes on.
-  - [x] 3.2 (`ab5201644`) T3: `EditorCallTimeoutException` and
+  - [x] 3.2 (`c668e8c01`) T3: `EditorCallTimeoutException` and
     `EDITOR_CALL_TIMEOUT_SECONDS` (30 s) in a fragment of the agent layer of their
     own, because the contract of `run_on_editor_task!` is there. A posted call has
     an atomic state, and one compare-and-swap decides between its start and its
     withdrawal. The agent loop and the MCP handler answer the exception as an
     error result.
-  - [x] 3.3 (`23aadfa73`) T0: the MCP server starts on a task of its own, and the
+  - [x] 3.3 (`ab9830f77`) T0: the MCP server starts on a task of its own, and the
     end of the loop gives the start its 10 s before the stop. The fault of a start
     goes through the door.
-  - [x] 3.4 (`f3498c204`) T4: `Tool(...; reads_documents)`;
+  - [x] 3.4 (`53bb1d481`) T4: `Tool(...; reads_documents)`;
     the searches of the documentation, `list_resources` and `read_resource` say
     `false` and run on the calling task. The tool layer sits below the agent
     layer, so `read_resource` can not send a resource through the door; all
@@ -868,17 +868,17 @@ nothing.
     provider reads no document, and `Resource` gets no field. So the MCP resource
     providers need no door (step 5 changes with it). The fault of a tool goes to
     the store through the door, because a tool can run off the owner now.
-  - [x] 3.5 The rules of §5.7. Rule b (`d21bdd9dc`): a call with `wait = true`
+  - [x] 3.5 The rules of §5.7. Rule b (`5d73b81a8`): a call with `wait = true`
     from a task that the running unit started throws `CodeUnitWaitException`,
-    which names the call. Rule c (`d21bdd9dc`): the description of the code tool
-    says that a task that the code starts uses the verbs. Rule a (`1c5e110b0`): each
+    which names the call. Rule c (`5d73b81a8`): the description of the code tool
+    says that a task that the code starts uses the verbs. Rule a (`779bdef04`): each
     verb that reads or edits a document runs its body through
     `run_on_editor_task!`, with the name of the verb as the description: the edit
     verbs of `DocumentEdits.jl`, the verbs of panes, appearance, arrangement,
     settings, the screen, the shell and its file dialog, tasks and workflows. A
     verb of the owner still runs at once, so code in a unit and the loop see no
     change.
-  - [x] 3.6 (`8d01c8f5a`) A2: a posted call carries a stop step, and the drain
+  - [x] 3.6 (`fa2cff824`) A2: a posted call carries a stop step, and the drain
     attaches it to the unit, so a stop of the unit runs it. The agent loop passes
     `run_turn!(...; on_stop)`, the MCP server has the field `stop`, and the
     assistant gives both the step that posts `CancelAssistantTurnOperation`: the
@@ -887,7 +887,7 @@ nothing.
     step never ran. So `attach_code_unit_stop!` runs a step at once when the unit
     is stopped. It reads the flag under the lock of the unit, and the stop sets
     the flag before it takes that lock, so each step runs once.
-  - [x] 3.7 (`26a2b6d01`) D10: `run_editor!(...; wait = false)` pins the loop to
+  - [x] 3.7 (`c7821c998`) D10: `run_editor!(...; wait = false)` pins the loop to
     an interactive thread that is not the thread of the caller when the process
     has one, else to a thread of the default pool, else to an `@async` task.
   - The suites: the kernel 4526 of 4526 and the MCP suite 498 of 498 before the
@@ -896,7 +896,7 @@ nothing.
     7 broken. The workflow suite 199 of 199. The assistant tests of the umbrella
     and the task verbs: 296, and 4 broken that were marked before. One assertion
     of the umbrella said the old rule, "a tool call of a turn runs on the task of
-    the loop", which step 2 changed; it now says the rule of A4 (`397ecec08`), as
+    the loop", which step 2 changed; it now says the rule of A4 (`b44aaa913`), as
     the MCP tests do.
 - [x] **3b. Background work (D9):** `BackgroundWork` and
   `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
@@ -908,7 +908,7 @@ nothing.
   of an evaluation in its own scope in place of the swap of the streams of the
   process (L18-4), and the lock of the state of a `ToolSet` that each call writes
   (D9f).
-  - [x] 3b.1 (`953ed2036`) D9a and D9b. `BackgroundWork.jl` in the tool layer:
+  - [x] 3b.1 (`69f077893`) D9a and D9b. `BackgroundWork.jl` in the tool layer:
     `start_background_work`, `fetch`, `stop_background_work!`,
     `is_background_work_done`, and `BackgroundWorkWaitException`. The design
     found here: the waits find their stop in a scope of their own,
@@ -920,7 +920,7 @@ nothing.
     `ended` mark, and rule b and the `fetch` rule read it: a call of the work
     after the end of its unit, and before the loop clears `editor.code_unit`,
     waits for the next drain and does not throw.
-  - [x] 3b.2 (`993bd3b60`) D9f. Each evaluation has its own output, and the
+  - [x] 3b.2 (`68c1debfe`) D9f. Each evaluation has its own output, and the
     scratch module defines `stdout`, `stderr`, `print`, `println`, `show`,
     `display` and `@show`, which write to the output of the evaluation in scope,
     or to the process outside one. A limit: code of a package that prints to
@@ -932,7 +932,7 @@ nothing.
     calling task. The native turn keeps the value of a call of the code tool under
     the id of the call, as the MCP server does, and the assistant takes it there;
     the MCP server tells a fault of its call by the result of its own task.
-  - [x] 3b.3 (`752dd0f8f`) D9c. The argument `background`. The handler starts the
+  - [x] 3b.3 (`e907aa018`) D9c. The argument `background`. The handler starts the
     evaluation as work with no link to the unit of the drain, because that unit
     does not wait for the work, and a link would make an early verb call of the
     work throw while the drain runs other calls. The work answers the whole
@@ -941,7 +941,7 @@ nothing.
     background work never starts a code unit (`is_in_background_work`), so the
     stop of the work reaches the `sleep` of the code. Not done: a stop of the turn
     does not reach the work (the question D9g below).
-  - [x] 3b.4 (`3ce91fbc1`) D9d. `EvaluatorToplevel.evaluate_in_background`, a check
+  - [x] 3b.4 (`2bb238639`) D9d. `EvaluatorToplevel.evaluate_in_background`, a check
     box "Background", and a rule of the palette. With it on, Enter opens the fresh
     form at once; the form has `is_running` (a file does not keep it, a copy does
     not run), its `=` row shows "Running" and a Stop button
@@ -949,7 +949,7 @@ nothing.
     the work ends. The session of the evaluators of an editor keeps the work of
     each running form and takes it out at the end, because the work holds the
     editor; the namespace binds `editor = nothing` only when no form runs.
-  - [x] 3b.5 (`e2f8e14d8`) D9e. The description of the code tool, in both forms,
+  - [x] 3b.5 (`b6857bad9`) D9e. The description of the code tool, in both forms,
     and the guide that the native assistant and an external agent get, say that
     code that needs no document runs with `background`, or starts its long part
     with `start_background_work`, and reaches documents only through the verbs. A
@@ -960,7 +960,7 @@ nothing.
     evaluator and the assistant tests of the umbrella 521 and 4 broken that were
     marked before. `test_evaluator_duplicate` fails as on `main` (1 failure and 2
     errors at `EvaluatorDuplicateTest.jl:40`, the baseline of 2026-10-13).
-  - [x] 3b.6 (`c5beae25c`) D9g, decided A. A turn of the assistant runs as
+  - [x] 3b.6 (`e66b7433e`) D9g, decided A. A turn of the assistant runs as
     background work with no parent unit, and the cancel of the turn stops it; the
     work of each turn is in a table of the assistant slice under the control of
     the turn, because the work holds the editor and no document holds an editor.
@@ -987,20 +987,20 @@ nothing.
   backend: a busy message and the `wait` pointer. The console backend: a status
   line. The video backend: a unit runs on the thread of the loop, so the video
   time stays exact.
-  - [x] 4.1 (`81a436e3a`) `shows_held_frames(backend)`, a query of the backend protocol with the
+  - [x] 4.1 (`5de236088`) `shows_held_frames(backend)`, a query of the backend protocol with the
     default `true`; the video backend answers `false`, and `run_code_unit!` then
     runs the unit on the thread of the loop.
-  - [x] 4.2 (`8e3e9dfef`) The console: a status line on the bottom row from half a second on (the
+  - [x] 4.2 (`70cba1e9e`) The console: a status line on the bottom row from half a second on (the
     part, the time, "Esc stops", or the notice); the bytes stay in the buffer; a
     lone Escape after the line showed is the stop. A terminal has no close of a
     window, so a held frame never answers `:close`.
-  - [x] 4.3 (`a905e39f1`) The web: a held frame takes the inputs out of `inbound`, so the receive
+  - [x] 4.3 (`c86499ae9`) The web: a held frame takes the inputs out of `inbound`, so the receive
     task never waits for room, keeps the keys and the window events in
     `held_pending` for `take_from_devices!`, and drops the pointer input of the
     hold; a release of an earlier press stays. The client shows the `wait` cursor
     and a busy bar (`{type:"held"}`) with Stop and, when asked, Quit without
     saving; the buttons send `stop` and `quitconfirm`.
-  - [x] 4.4 (`689f6e081`) SDL, in a fragment of its own, `SdlHeldFrames.jl`. A fact found here: an
+  - [x] 4.4 (`e237676f0`) SDL, in a fragment of its own, `SdlHeldFrames.jl`. A fact found here: an
     event filter of SDL (`SDL_FilterEvents`) runs Julia code under the lock of
     the queue, and a collection that starts there waits for a thread that waits
     for that lock in `SDL_PushEvent` (the wake at the end of a unit, a post of
@@ -1019,7 +1019,7 @@ nothing.
     buffers. The cursor is the hourglass from 0.1 s, and the shape at the pointer
     after. A present that takes over 50 ms turns the vertical sync of that window
     off until the hold ends.
-  - [x] 4.5 (`689f6e081`) A1: `open_offscreen_renderer`, `write_image` and `decode_sdl_image` start
+  - [x] 4.5 (`e237676f0`) A1: `open_offscreen_renderer`, `write_image` and `decode_sdl_image` start
     no video of SDL; a software renderer on a surface needs none.
   - Open, found here: background work (D9) can render text or an image while the
     loop paints, and the font cache of SDL and SDL_ttf have no lock. A1 covers a
@@ -1058,7 +1058,7 @@ nothing.
     listener. With one interactive thread, the thread of the loop, every request
     of the MCP server and of the web backend runs on the thread of the loop,
     whatever task starts the server.
-  - [x] 5.1 (`fdd8cbf22`, `faa105074`, `bc04e335b`, `5dba4ce01`, `128a949a4`) The doors
+  - [x] 5.1 (`68f2b0275`, `45fa0b455`, `3b8cfac25`, `9a7f4f01c`, `d8376ead3`) The doors
     and the threads:
     - The catch of `StartExternalAgentOperation` reads the session through the
       door; the timer of a terminal reads its process, not the document.
@@ -1088,7 +1088,7 @@ nothing.
     - The suites: the kernel 4570, the MCP suite 504, the ACP suite 168, the
       process suite 315, the web suite 147, the platform the same as `main`, and
       the assistant tests 275 and 4 broken that were marked before.
-  - [x] 5.2 (`59807a2cd`, `6fd42f71d`) D12 B: the message log, the MCP log, the frame
+  - [x] 5.2 (`ec91e104e`, `0299124f3`) D12 B: the message log, the MCP log, the frame
     statistics, the frame time series and the fault log are one for each editor.
     - The editor keeps the documents of its session by their type
       (`Editor.session_documents`, `get_session_document!`), under one lock.
@@ -1113,9 +1113,73 @@ nothing.
       and the tool views 186. `test_application` fails 2 and errors 2 at
       `ApplicationTest.jl:1066`, `:1077`, `:1114` and `:1462`, as on `main` (the
       baseline of 2026-10-13).
-    - Found here and left as they are: the gesture log
-      (`get_session_gesture_log`) and the list of the assistants
-      (`get_session_assistant_list`) are one document for the process too.
+    - Found here, and done in 5.3: the gesture log (`get_session_gesture_log`)
+      and the list of the assistants (`get_session_assistant_list`) were one
+      document for the process too.
+  - [x] 5.3 (`9ae7f721b`, `9dff8a10c`, `f19f18d7e`) The owner, 2026-10-14: "there should be no global state, so gesture
+    log and assistants should also be local to the editor". The gesture log and
+    the list of the assistants are one for each editor, and no document of a
+    session has a document of the process behind it.
+    - The branch moved onto `main` at `3f8f96ea7` first, with no conflict, so it
+      has the roster of `cross-cutting-views.md`. That plan keeps
+      `AssistantList` as the reactive query E1 of the window, and its store
+      sources (`StoreRecords(:log)`, `:faults`, `:mcp_log`, `:frames`) read the
+      documents of the session through `get_session_*()`. So they read the
+      documents of the editor of the evaluation, and the two plans need nothing
+      more from each other.
+    - With no editor, `get_session_*()` answers a new empty document, which
+      nothing keeps and nothing fills. The constants `_SESSION_FAULT_LOG`,
+      `_SESSION_MESSAGE_LOG`, `_SESSION_MCP_LOG`, `_SESSION_FRAME_STATISTICS`,
+      `_SESSION_FRAME_TIME_SERIES`, `_SESSION_GESTURE_LOG` and
+      `_SESSION_ASSISTANT_LIST` are gone.
+    - `run_frame!` and `drain_feeds!` run with their editor as the editor of
+      the evaluation, as the loop does. A test or an embedder that drives the
+      frames by hand calls them with no loop, and a reader makes the documents
+      that it inserts in the read stage. The default maker of a window tool
+      (`_make_default_tool`) gets the editor, and makes the document in its
+      scope, so a press that a test evaluates outside a frame opens the log of
+      that editor too.
+    - A file, or the `prepare` of a take, can give a gesture log or an
+      assistant list in a tab before the editor exists. The pane tree finds them
+      by its tabs (`collect_pane_tab_contents`); a walk of the whole document at
+      each start would walk every open file. The `gesture_log` wrapper takes the
+      option `log`, by default a new one, and its start step makes it the log of
+      the session of the editor. `make_application_wrappers(; document)` gives
+      the first gesture log of a tab, for `run_application`,
+      `make_application_window` and the take of `record_application_video`.
+      `run_application` links every `AssistantList` of a tab after
+      `build_editor`, and the first of them, or a new one, is the list of the
+      session; the end of the loop unlinks them.
+    - The rule `PAR-PER-EDITOR-STATE` says that only a verb reads the editor of
+      the evaluation, as the default of its `editor` keyword, and that the loop
+      never reads it. Each `get_session_*` reads it as the default of an `editor`
+      keyword, but an insertion and a store source of a roster call them in a
+      frame with no editor, so the frame binds it. Step 8 changes the text of
+      the rule to say so.
+    - Still one for the process, and not in this step: the stores of the
+      producers (the message log store, the MCP log store, the task feed store,
+      D12 A later), the task group list (`_SESSION_TASK_GROUP_LIST`, which the
+      `:tasks` roster source and omnet-julia read; step 6 changes the task
+      slice), and the REPL display (`EditorDisplay.jl`, `_SESSION`), which
+      keeps one editor for the process and the values that it showed.
+    - The argument guard (`test_arguments`), which the runs of steps 3 to 5.2
+      left out, found that `RunFunctionOperation` took two optional positional
+      arguments since step 3 (A2). `description` and `stop` are keywords now.
+    - The platform suite in one call, `test_platform()`, stalls in LLVM at the
+      cap of 8 GB on `main` at `3f8f96ea7` too, so its parts ran one by one in
+      one process, at 2.9 GB: 152609 pass, the 2 known failures of
+      `InterfaceApiTest.jl:46` and `:49`, and 7 broken, as before.
+    - The suites: the kernel 4641; the umbrella tests of the logs, the tool
+      views, the arguments and the names 56; `test_application` 374, with the 2
+      fails and 2 errors of `main` (the baseline of 2026-10-13).
+    - omnet-julia (`41233047` on its branch `editor-always-answers`):
+      `IdeWindowWrapTest.jl` reads the gesture log and the MCP log of its
+      editor; the MCP log test was wrong since 5.2, which did not run the omnet
+      tests. Its helper makes the editor by hand with no start step, so it gives
+      the recorder a log and makes it the log of the session of the editor. A
+      call that the test posts runs in the code unit that owns the editor, as
+      step 2 decided, not on the loop task. `test_ide_window_wrap` 45 pass, in
+      a scratch environment over the two worktrees.
 - [ ] **6. Feeds that move only prepared data.** Decided by the owner,
   2026-10-13. The rule: a drain moves only data that its producer prepared off
   the loop. It does no I/O, it runs no method of a user type, and its work grows
@@ -1190,7 +1254,9 @@ nothing.
   takes, and lets the garbage collector run" (the last condition is a limit of
   Julia, §7); the limits in
   `editor.md`, `mcp.md`, `mcp-guide.md` and `assistant.md`; the table of feeds in
-  `editor.md:259`, which names a `TooltipFeed` that no longer exists; the tests of each layer, and a live check of each row of §6
+  `editor.md:259`, which names a `TooltipFeed` that no longer exists; the text of
+  `PAR-PER-EDITOR-STATE` on the editor of the evaluation, which a frame and the
+  loop bind now (5.3); the tests of each layer, and a live check of each row of §6
   with the real application. The hourglass plan and the branch
   `plan-evaluation-off-editor` close.
 
