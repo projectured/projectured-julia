@@ -1104,12 +1104,19 @@ For each step, run the narrowest test: the test files of the step, through
     - The counts are counts, not times: a time needs an idle machine and the
       word of the owner.
 
-- [ ] **8. The documentation.**
+- [x] **8. The documentation.** Done 2026-10-14.
   - `documentation/package/platform/roster/roster.md`: the design document of
     the slice, and its line in the index of the package documents.
   - A section "A list across the session" in
     [view-your-data-guide.md](../../documentation/guide/view-your-data-guide.md).
   - `test_documentation()` passes.
+  - The guide of the slice also has the counts of step 7 and its limits. The
+    documentation guard passes, and its report names no sentence of these
+    documents.
+  - The row of the slice in the index `documentation/package/README.md` is not in
+    the landing: another session had that file changed and not committed in the
+    checkout of `main`, and a fast-forward does not overwrite it. The row goes in
+    once that file is committed.
 
 - [ ] **9. omnet-julia: X10.**
   - Start this step after the branch lands on `main`. A change of

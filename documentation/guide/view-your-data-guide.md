@@ -65,6 +65,23 @@ A designed view is a projection: a printer that makes the view, and a reader tha
 
 A designed view and a view on demand live in the same window: open your model in one tab, and a value of the running program in the next.
 
+## A list across the session
+
+A roster shows the members of one kind as a table, gathered from the whole window or the session: the files of the tabs, the calls of one function in those files, the lines of the log, the tasks that run. Each row follows its item, so the table changes when an item changes.
+
+```julia
+roster = show_roster!(TabDocuments(FileDocument); title = "Files with edits",
+                      columns = ["name", "folder", "has_edits"],
+                      filter = ["has_edits" => ==(true)], sort = ["name"])
+show_roster!(StoreRecords(:log); title = "Errors", columns = ["level", "message"],
+             filter = ["level" => ==("Error")])
+group_collection!(roster, "folder"; aggregates = [:count])
+```
+
+The first argument is the source of the items, and each column is a key of an item: a field, a path of fields, or a facet that the slice of the item computes, such as `has_edits` of a file. `describe_roster_sources()` lists the sources, and `describe_item_facets(type)` lists the keys. The filter, the sort, the group and the first items show as chips in the bar of the table, where you change them as on any collection. `edit_shown_items!(roster, key => value)` gives one value to every item that the table shows, as one step of undo.
+
+[roster.md](../package/platform/roster/roster.md) says how a roster works, and how a slice adds a source or a facet.
+
 ## A chart of your numbers
 
 A chart is a document, so it goes on the screen the same way, and a data point can be selected like any other part. [chart.md](../package/domain/chart/chart.md) says which chart kinds exist and how a series is built.
