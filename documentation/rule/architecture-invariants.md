@@ -248,7 +248,8 @@ run on ordinary tasks, outside every computation, so this ban is not in play for
 them. Only a store a computation itself writes must have the two properties above,
 and two stores do: the fault store, and the counter store of
 `run_with_performance_counters` (`source/kernel/performance/PerformanceCounter.jl`),
-to which a cell read, a computation, an invalidation and a write add a count.
+to which a cell read, a computation, an invalidation, a write, a check and a stop
+add a count.
 
 **Accepted carve-out — a new cell that the same run made.** A computation can write
 a cell that it made in the same run, before it gives the cell out. Until then no
@@ -346,7 +347,9 @@ no reader can tell it from the value before. A write of plain data `===` to the
 value of a cell that holds no computation invalidates nothing, and a computation
 that gives plain data `===` to the value that it gave leaves the cells below it
 as they were. A write of the same mutable value, and a computation that gives a
-mutable value, still count as a change. So `c[] = c[]` of a mutable value is not
+mutable value, still count as a change. An exception during a check is no stop:
+each cell on the path of the check computes once, also above a cell that catches
+the exception and gives the value that it had. So `c[] = c[]` of a mutable value is not
 free: a printer that rewrites `selection` every frame pays to recompute the
 subtree that reads it. Write a cell only when its value needs to change. After a
 change that a write does not show, such as a change inside a mutable value, call
