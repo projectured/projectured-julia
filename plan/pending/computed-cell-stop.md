@@ -73,7 +73,7 @@ in the table change.
   JSON and Julia, and the integration suite. The counts of the six scenarios of
   the measure, which must be the counts of `:always`. The time of the six
   scenarios against `main`, on an idle machine.
-- [ ] **4. The audit.** The four checks of `SEALING.md` for each changed file of
+- [x] **4. The audit.** The four checks of `SEALING.md` for each changed file of
   the cell layer, reported to the owner, who seals.
   - First audit, 2026-10-14, and what it changed:
     - A defect: the check let an interrupt through before it reset the state
@@ -95,3 +95,11 @@ in the table change.
     - The walkthrough of the cell layer shows the stop, and `cell.md` has an
       example of it and the rules of an exception in a check.
     - `_DEPENDENCY_SCAN` is `_DEPENDENCY_SCAN_LIMIT`.
+  - Second audit, 2026-10-14, on 82ee15208: both files pass the four checks.
+    Its probes: an interrupt in a check leaves no cell checking; a cell that
+    fails below 8 checks makes 10 computations, against 45 before the fix; a
+    fault scope records the fault twice in one read, against 4. Two sentences
+    of the invariants followed in c24651256: a check and a stop add a count to
+    the counter store, and an exception during a check is no stop.
+  - `ReactiveCell.jl` and `CellInterface.jl` stay unsealed until the owner
+    seals them.
