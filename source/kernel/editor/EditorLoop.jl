@@ -63,6 +63,13 @@ clears that field when the input runs out, and `_log_performance_counters!` read
 to tell a frame that did something from an idle one.
 """
 function run_frame!(editor::Editor)
+    # A frame runs with its editor as the editor of the evaluation, as the loop
+    # does, so a frame that a test or an embedder drives by hand finds its editor
+    # too, such as the insertion of a log tab, which shows the log of this editor.
+    run_with_evaluation_editor(() -> _run_frame_stages!(editor), editor)
+end
+
+function _run_frame_stages!(editor::Editor)
     # Every fault the last frame collected, shown before this one reads
     # anything. It belongs to the frame rather than to the loop above it: a
     # driver that steps frames by hand — a playback, a test — must collect its

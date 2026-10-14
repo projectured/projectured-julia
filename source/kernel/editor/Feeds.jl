@@ -95,18 +95,21 @@ so the frame paints what its feeds just wrote.
 
 Each drain runs in its own `:evaluate` barrier. A drain that throws is recorded
 with the type of its feed as the origin and counts as no item, and the next feed
-still drains.
+still drains. The drains run with the editor as the editor of the evaluation, as
+a frame does.
 """
 function drain_feeds!(editor::Editor)
-    count = 0
-    for feed in editor.feeds
-        count += _time_frame_stage(editor, :feed, typeof(feed)) do
-            _run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0) do
-                drain_changes!(feed, editor)
+    run_with_evaluation_editor(editor) do
+        count = 0
+        for feed in editor.feeds
+            count += _time_frame_stage(editor, :feed, typeof(feed)) do
+                _run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0) do
+                    drain_changes!(feed, editor)
+                end
             end
         end
+        count
     end
-    count
 end
 
 # ── A slow frame ──────────────────────────────────────────────────────
