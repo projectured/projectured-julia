@@ -11,8 +11,9 @@
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
 > sentence of a sealed file, step 6 for feeds, step 7 for formulas, and the
-> points A1 to A4 of the review (§8.1). All decisions are made. Step 7 still
-> designs the gestures of the edit mode of a formula.
+> points A1 to A4 of the review (§8.1). **Open (2026-10-14):** D9 and D10, from
+> the questions of the owner after step 2. Step 7 still designs the gestures of
+> the edit mode of a formula.
 >
 > This plan takes in `a-long-evaluation-does-not-hold-the-editor.md` (on the
 > branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -493,6 +494,8 @@ nothing.
 | A model stream, an ACP agent, a terminal, a task group | starved while a frame runs | run during a unit, because thread 1 waits in held frames |
 | The MCP start | waits up to 10 s on the loop | waits on a service task (T0) |
 | The person closes a window while a unit runs | nothing happens | D4 |
+| Model code that computes long and must update the view as it goes | holds the window | one unit shows nothing until it ends; a task that posts its updates keeps the editor usable (D9) |
+| A long form in the Julia REPL, with the editor of `run_editor!(...; wait = false)` | does not block the editor | the same; but a unit there runs inline with the default threads, and a task that the form starts can run on the thread of the loop (D10) |
 
 ## 7. What Julia can not give
 
@@ -576,6 +579,32 @@ nothing.
   that walks the documents, a new kind of cell that computes off the loop, a note
   from the print in the printer context, and a mark that the reader adds to each
   edit. The model needs none of them.
+
+- **D9. A code call whose value is a task.** Open. One long unit shows nothing
+  until it ends, because the unit owns the cells and the loop paints none of
+  them meanwhile. Model code that must update the view as it goes starts the
+  work in a task of its own and posts each update with
+  `run_on_editor_task!(...; wait = false)`; the editor stays usable, because the
+  unit ends at once. What the plan lacks for that: the tool call can not wait for
+  the task and answer its result, nothing stops the task, and nothing shows that
+  it runs. A tool handler can already answer a `Task` that the turn waits for off
+  the editor (`agent.md:531-539`, used by `ask_person`); `execute_julia_code`
+  always answers a string. Recommended (mine): when the last value of a call of
+  the code tool is a `Task`, the unit ends at once, the tool call waits for the
+  task off the editor and answers its result, and a stop of the turn reaches the
+  task through the stop flag of the unit, which the task inherits. A new
+  mechanism, so it needs the word of the owner.
+- **D10. The loop of the REPL form.** Open. `run_editor!(...; wait = false)` pins
+  the loop to a thread of the default pool (D11 of
+  `view-and-edit-a-data-frame.md`, the owner, 2026-09-30). A long form in the
+  Julia REPL runs on the task of the REPL and does not block the editor. But with
+  the default threads the loop takes the one default thread, so a unit of that
+  editor runs inline and holds its window; and a task that the form starts with
+  `Threads.@spawn` can run on the thread of the loop while the loop waits, and
+  hold it while it computes. Recommended (mine): pin the loop to an interactive
+  thread other than the one of the REPL when the process has one (`-t auto,2`),
+  where no task of the default pool runs, and keep today's thread otherwise. It
+  changes D11 of that plan, so it needs the word of the owner.
 
 ### 8.1 The points of the review of 2026-10-13
 
