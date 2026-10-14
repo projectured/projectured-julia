@@ -11,7 +11,7 @@
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
 > sentence of a sealed file, step 6 for feeds, step 7 for formulas, and the
-> points A1 to A4 of the review (§8.1). **Open (2026-10-14):** D9 and D10, from
+> points A1 to A4 of the review (§8.1), and D9 (2026-10-14). **Open:** D10, from
 > the questions of the owner after step 2. Step 7 still designs the gestures of
 > the edit mode of a formula.
 >
@@ -580,7 +580,9 @@ nothing.
   from the print in the printer context, and a mark that the reader adds to each
   edit. The model needs none of them.
 
-- **D9. A code call whose value is a task.** Open. One long unit shows nothing
+- **D9. Background work. Decided by the owner, 2026-10-14: the design D9a to D9f
+  below, as written.** The question was first "a code call whose value is a
+  task". One long unit shows nothing
   until it ends, because the unit owns the cells and the loop paints none of
   them meanwhile. Model code that must update the view as it goes starts the
   work in a task of its own and posts each update with
@@ -603,7 +605,7 @@ nothing.
   this easily". So D9 is one construct with three users: the evaluator, the code
   tool, and the instructions of the agent.
 
-  **The design of D9 (proposal, 2026-10-14):**
+  **The design of D9 (decided by the owner, 2026-10-14):**
   - **D9a. The construct.** `start_background_work(function_; description,
     editor = get_evaluation_editor()) -> BackgroundWork` in the tool layer runs
     `function_()` on a task of the default pool, with the editor of the evaluation
@@ -810,6 +812,16 @@ nothing.
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
   and the budget in the description of the code tool), the rules a, b and c of
   §5.7, and A2.
+- [ ] **3b. Background work (D9):** `BackgroundWork` and
+  `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
+  a running unit and the calls that throw while it runs (D9b); the argument
+  `background` of `execute_julia_code`, and the wait for the work in the turn and
+  in the MCP handler (D9c); the option `evaluate_in_background` of the evaluator,
+  with a running form, its stop and its result through the door (D9d); the
+  description of the code tool and the instructions of the agent (D9e); the output
+  of an evaluation in its own scope in place of the swap of the streams of the
+  process (L18-4), and the lock of the state of a `ToolSet` that each call writes
+  (D9f).
 - [ ] **4. The backends:** the three protocol functions of held frames and their
   defaults. SDL: the pump; the keys and the window events left in the queue; the
   pointer events of the windows of the editor dropped; the retained present; the
