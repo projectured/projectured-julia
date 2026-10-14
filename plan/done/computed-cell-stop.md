@@ -69,7 +69,7 @@ in the table change.
     `:always` in the measure, for every scenario: X1 with a roster costs 18
     computations for each key, and a change of the edits of one file of 200
     costs 8.
-- [ ] **3. The checks.** The suites of the kernel, the platform, the SDL backend,
+- [x] **3. The checks.** The suites of the kernel, the platform, the SDL backend,
   JSON and Julia, and the integration suite. The counts of the six scenarios of
   the measure, which must be the counts of `:always`. The time of the six
   scenarios against `main`, on an idle machine.
@@ -92,6 +92,30 @@ in the table change.
     measure fixed the navigation and the type-in failures.
   - The first run of the suites stopped after the kernel, when the audit found
     the defect of the check; the run above is the second.
+  - The time, done 2026-10-14 with the word of the owner, after a wait for an
+    idle machine. The plain environments of `main` (3f8f96ea7) and of the
+    branch, two rounds each, medians in milliseconds:
+
+    | | `main` | the branch |
+    |---|---|---|
+    | S1 a key in a text file | 0.37 / 0.42 | 0.40 / 0.42 |
+    | S2 a key in a JSON string | 2.02 / 2.01 | 2.05 / 2.02 |
+    | S3 a caret move in JSON | 3.75 / 3.69 | 3.92 / 3.83 |
+    | S4a X1, a key in a file | 1.74 / 1.78 | 1.75 / 1.74 |
+    | S4b X1, a save that the filter sees | 30.9 / 31.2 | 31.4 / 35.5 |
+    | S4c 200 rows, the edits of a file change | 44.8 / 46.1 | 15.6 / 14.9 |
+    | S4d X4, a change of one call | 12.3 / 12.7 | 13.1 / 12.9 |
+    | S5 the width of the window changes | 1.87 / 1.80 | 1.71 / 1.75 |
+    | S6 a scroll of a table of 300 rows | 13.2 / 12.7 | 13.1 / 12.8 |
+
+  - S4c is three times faster. The other steps stay within the spread of the
+    rounds, except S3, which is 4 percent slower in both rounds.
+  - The experiment made S4b and S4d about a quarter faster than `main` also
+    with no stop: it found a cell that a run read before at the read, and then
+    did not scan the readers of the cell again. The final form removes the
+    repeats at the end of the run and keeps no field for the set, so it does
+    not have that gain. A fast path in `_register_dependent!`, or a set of the
+    run that the read asks, could bring it back; that is outside this plan.
 - [x] **4. The audit.** The four checks of `SEALING.md` for each changed file of
   the cell layer, reported to the owner, who seals.
   - First audit, 2026-10-14, and what it changed:
