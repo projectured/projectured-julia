@@ -594,6 +594,14 @@ nothing.
   task off the editor and answers its result, and a stop of the turn reaches the
   task through the stop flag of the unit, which the task inherits. A new
   mechanism, so it needs the word of the owner.
+  Proposed by the owner, 2026-10-14: "the evaluator should have a UI option to
+  start all forms in the background so it does not make the editor
+  unresponsive"; "the execute_julia_code should be similarly extended with an
+  argument to run in the background"; "the assistant documentation should be
+  extended to the agent that tasks which don't require the editor's document
+  should be run in the background. there should be a Julia construct which does
+  this easily". So D9 is one construct with three users: the evaluator, the code
+  tool, and the instructions of the agent.
 - **D10. The loop of the REPL form.** Open. `run_editor!(...; wait = false)` pins
   the loop to a thread of the default pool (D11 of
   `view-and-edit-a-data-frame.md`, the owner, 2026-09-30). A long form in the
@@ -771,7 +779,10 @@ nothing.
   line. The video backend: a unit runs on the thread of the loop, so the video
   time stays exact.
 - [ ] **5. The doors:** a list of each task that touches a document outside the
-  door (§5.7), with each one moved to the door; each MCP resource provider by
+  door (§5.7), with each one moved to the door; a list of each task of ours that
+  runs user code or long work on the thread of the loop, with each one moved to
+  the default pool, the first being the user model that the process debugger runs
+  with `@async` (`ProcessDebug.jl:80`); each MCP resource provider by
   `reads_documents`; no lock across a post in ACP; and each document that two
   editors share today (L21-1: the session fault log, and the stores of the log and
   statistics feeds) becomes one for each editor, or a copy that a feed keeps in
@@ -840,7 +851,12 @@ nothing.
     commit. The commit of `FormulaInsertion` on Enter (`formula.md:94`) uses the
     same gestures.
 - [ ] **8. The rules, the guides and the checks:** a new invariant for the units
-  and the held frames, and one for the drains of feeds; the limits in
+  and the held frames, and one for the drains of feeds; the guarantee, in the
+  form that the owner agreed on 2026-10-14: "The editor stays responsive while a
+  task that touches no document runs, when the task runs on a thread other than
+  the one of the loop, does not run as a code unit, holds no lock that the loop
+  takes, and lets the garbage collector run" (the last condition is a limit of
+  Julia, §7); the limits in
   `editor.md`, `mcp.md`, `mcp-guide.md` and `assistant.md`; the table of feeds in
   `editor.md:259`, which names a `TooltipFeed` that no longer exists; the tests of each layer, and a live check of each row of §6
   with the real application. The hourglass plan and the branch
