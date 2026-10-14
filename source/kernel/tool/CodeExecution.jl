@@ -364,22 +364,41 @@ Base.showerror(io::IO, ::MissingEvaluationEditorException) =
     get_evaluation_editor() -> editor
 
 The editor that runs the code of the current evaluation: the code of the
-evaluator, of the assistant, or of the `execute_julia_code` tool. A verb takes it
-as the default of its `editor` keyword, so the code that calls the verb names no
-editor:
+evaluator, of the assistant, or of the `execute_julia_code` tool, and the code that
+the loop of an editor runs, such as an operation. A verb takes it as the default
+of its `editor` keyword, so the code that calls the verb names no editor:
 
     focus_pane!(reference::Reference; editor = get_evaluation_editor())
 
 A task that the code starts gets the same editor. Code that runs after the
-evaluation, such as a callback or a timer, gets none, and passes its editor.
+evaluation and outside the loop, such as a callback that another task calls,
+gets none, and passes its editor.
 
-Throws [`MissingEvaluationEditorException`](@ref) outside an evaluation.
+Throws [`MissingEvaluationEditorException`](@ref) outside an evaluation;
+[`find_evaluation_editor`](@ref) answers `nothing` there.
 """
 function get_evaluation_editor()
     editor = _EVALUATION_EDITOR[]
     editor === nothing && throw(MissingEvaluationEditorException())
     editor
 end
+
+"""
+    find_evaluation_editor() -> editor or nothing
+
+The editor of the current evaluation, as [`get_evaluation_editor`](@ref) answers
+it, or `nothing` outside an evaluation.
+"""
+find_evaluation_editor() = _EVALUATION_EDITOR[]
+
+"""
+    run_with_evaluation_editor(function_, editor) -> value
+
+Run `function_()` with `editor` as the editor of the evaluation, which
+[`get_evaluation_editor`](@ref) answers to it and to each task that it starts. The
+loop of an editor runs in it.
+"""
+run_with_evaluation_editor(function_, editor) = with(function_, _EVALUATION_EDITOR => editor)
 
 """
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String

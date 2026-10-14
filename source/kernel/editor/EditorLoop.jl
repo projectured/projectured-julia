@@ -167,6 +167,15 @@ starts it strict, and a program that a person starts passes `FaultPolicy()`.
 """
 function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
               fault_policy::FaultPolicy=editor.fault_policy)
+    # The loop runs with its editor as the editor of the evaluation, so an
+    # operation that it applies, and a task that it starts, finds the editor, such
+    # as the insertion of a log tab, which shows the log of this editor.
+    run_with_evaluation_editor(editor) do
+        _run_editor_loop!(editor; mcp, fault_policy)
+    end
+end
+
+function _run_editor_loop!(editor::Editor; mcp::Union{Bool,NamedTuple}, fault_policy::FaultPolicy)
     editor.has_loop_ended &&
         throw(ArgumentError("The loop of this editor ran and ended, and its end quit the " *
                             "backend. Make a new editor with `make_editor`."))

@@ -61,7 +61,7 @@ import ..FeedModule: drain_changes!
 export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation, run_evaluate_stage!, run_print_stage!, run_frame!,
        find_rooted_operation, insert_elements!, delete_elements!,
        get_frame_clock_time,
-       post_operation!, drain_operations!, is_editor_degraded,
+       post_operation!, drain_operations!, is_editor_degraded, get_session_document!,
        get_consecutive_fault_limit,
        is_editor_in_safe_mode, make_safe_mode_projection, enter_safe_mode!,
        leave_safe_mode!,

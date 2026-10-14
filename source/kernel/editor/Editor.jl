@@ -96,6 +96,10 @@ Holds the state for a read-eval-print loop:
   - `frame_stages` — the slowest stage of the frame that runs, with its work, and
                    the time that the frame spent in held frames; a frame that is
                    slow anyway is reported with them (internal).
+  - `session_documents` — the documents of the session of this editor that a
+                   slice keeps for it, by their type, such as its message log;
+                   [`get_session_document!`](@ref) makes each one the first time.
+                   No other editor shows them, so no document has two owners.
 """
 # The slowest stage of the frame that runs, with its work, and the time that the
 # frame spent in the held frames of code units.
@@ -136,6 +140,7 @@ mutable struct Editor
     unapplied_operations::Vector{Operation}
     has_loop_ended::Bool
     frame_stages::_FrameStages
+    session_documents::IdDict{Type,Any}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -164,7 +169,7 @@ function Editor(document, projection; backend::Backend,
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
                     FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[],
-                    nothing, Any[], Operation[], false, _FrameStages())
+                    nothing, Any[], Operation[], false, _FrameStages(), IdDict{Type,Any}())
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.
@@ -211,3 +216,19 @@ ReferenceModule.find_referenced_document(locator::DocumentLocator{<:Editor}) =
 # being able to name its type reaches them. The kernel's agent layer drives a
 # tool against a target it knows only as `Any`.
 FaultModule.get_fault_store(editor::Editor) = editor.faults
+
+# The documents of the sessions of the editors are made under one lock: a caller
+# on another task, such as a person at the REPL who opens the log of a window,
+# can ask while the loop asks.
+const _SESSION_DOCUMENTS_LOCK = ReentrantLock()
+
+"""
+    get_session_document!(make, editor, type) -> document
+
+The document of type `type` of the session of `editor`, such as its message log,
+which `make()` makes the first time that it is asked. Each editor has its own, so
+no document is shared by two editors: a feed of the editor fills it, and only
+the editor that shows it writes it.
+"""
+get_session_document!(make, editor::Editor, type::Type) =
+    lock(() -> get!(make, editor.session_documents, type), _SESSION_DOCUMENTS_LOCK)

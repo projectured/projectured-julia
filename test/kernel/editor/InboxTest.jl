@@ -17,6 +17,8 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!, EditorCallTimeoutException,
                                       is_editor_loop_running
+import ProjecturedKernel.EditorModule: get_session_document!
+import ProjecturedKernel.ToolModule: find_evaluation_editor
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 using ProjecturedKernelExample
@@ -156,6 +158,24 @@ function test_editor_inbox()
         editor.has_loop_ended = true
         @test !is_editor_loop_running(editor)
         @test !is_editor_loop_running((document = nothing,))
+    end
+
+    @testset "each editor keeps its own session documents" begin
+        first_editor = _inbox_editor()
+        second_editor = _inbox_editor()
+        made = get_session_document!(() -> Int[1], first_editor, Vector{Int})
+        @test get_session_document!(() -> Int[2], first_editor, Vector{Int}) === made
+        @test get_session_document!(() -> Int[2], second_editor, Vector{Int}) == [2]
+    end
+
+    @testset "the loop runs with its editor as the editor of the evaluation" begin
+        editor = _inbox_editor()
+        seen = Ref{Any}(nothing)
+        @test find_evaluation_editor() === nothing
+        post_operation!(editor, RunFunctionOperation(() -> (seen[] = find_evaluation_editor()), nothing))
+        post_operation!(editor, QuitEditorOperation())
+        run_editor!(editor)
+        @test seen[] === editor
     end
 
     @testset "a call from another task runs in the drain, and the caller waits" begin
