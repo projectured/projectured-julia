@@ -11,8 +11,8 @@
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
 > sentence of a sealed file, step 6 for feeds, step 7 for formulas, and the
-> points A1 to A4 of the review (§8.1), and D9 (2026-10-14). **Open:** D10, from
-> the questions of the owner after step 2. Step 7 still designs the gestures of
+> points A1 to A4 of the review (§8.1), and D9 and D10 (2026-10-14). All
+> decisions are made. Step 7 still designs the gestures of
 > the edit mode of a formula.
 >
 > This plan takes in `a-long-evaluation-does-not-hold-the-editor.md` (on the
@@ -645,7 +645,9 @@ nothing.
     3. The visible list of all background work, such as a kind of task in the
     task slice, is not part of it: each user shows its own work (the form, the tool
     call of the turn).
-- **D10. The loop of the REPL form.** Open. `run_editor!(...; wait = false)` pins
+- **D10. The loop of the REPL form. Decided by the owner, 2026-10-14: A**, the
+  recommendation below. The other option was B, keep D11 and document that the
+  REPL form needs `-t 2` for units. `run_editor!(...; wait = false)` pins
   the loop to a thread of the default pool (D11 of
   `view-and-edit-a-data-frame.md`, the owner, 2026-09-30). A long form in the
   Julia REPL runs on the task of the REPL and does not block the editor. But with
@@ -811,7 +813,9 @@ nothing.
   stop steps of our own waits, the stoppable `sleep` of the scratch module (D6),
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
   and the budget in the description of the code tool), the rules a, b and c of
-  §5.7, and A2.
+  §5.7, A2, and D10: `run_editor!(...; wait = false)` pins the loop to an
+  interactive thread other than the one of the caller when the process has one,
+  and to a thread of the default pool otherwise.
 - [ ] **3b. Background work (D9):** `BackgroundWork` and
   `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
   a running unit and the calls that throw while it runs (D9b); the argument

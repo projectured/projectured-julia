@@ -512,7 +512,10 @@ chose seams in place of registries (§5.1). The design is in
 - **D11 is (b)** (the owner, 2026-09-29). The editor runs on the default pool,
   and SDL starts on that thread. The busy flag of §4.3 is necessary, and the
   editor task is pinned to one thread. On 2026-09-30 the owner withdrew the
-  busy flag (D3 changes, below).
+  busy flag (D3 changes, below). On 2026-10-14 the owner changed the thread
+  (D10 of `the-editor-always-answers-the-person.md`): the loop goes to a second
+  interactive thread when the process has one (`-t auto,2`), where no task of
+  the default pool runs, and to a thread of the default pool otherwise.
 - **D12 is (a)** (the owner, 2026-09-29). `ProjecturedDataFrames`, its example
   package and its test package go into `environment/all`, and the umbrella
   suite loads them, as for the other packages with a third-party dependency.
