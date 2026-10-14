@@ -43,7 +43,8 @@ of the editor, so no frame waits with it, and the value of the task is the text
 of the tool. A handler can answer `BackgroundWork` too, as the code tool does
 with `background`: the loop waits for it the same way, the output of its
 `EvaluationResult` is the text of the tool, and its value is kept under the id of
-the call.
+the call. When the turn runs as background work, a stop of the turn stops the
+work of the call.
 
 A tool that throws gives an `AgentToolResult` with `is_error = true`, and the
 fault goes into the fault store of `target`. An exception that is not a fault
@@ -163,8 +164,11 @@ end
 # A tool that answered background work answers when the work ends, here on the
 # task of the turn. The value of the work is the result of an evaluation: its
 # output is the text of the tool, and its value is kept under the id of the call.
-# Work that throws gives the text of its error, as a handler that throws does.
+# Work that throws gives the text of its error, as a handler that throws does. A
+# stop of the turn, when the turn runs as background work, stops the work of the
+# call too.
 function _wait_for_tool_work(work::BackgroundWork, set::ToolSet, call_id::AbstractString)
+    attach_code_unit_stop!(() -> stop_background_work!(work))
     result = try
         fetch(work)
     catch exception

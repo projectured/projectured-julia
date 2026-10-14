@@ -35,6 +35,16 @@ Stop the agent server and release its resources.
 function stop_agent_server! end
 
 """
+    stop_agent_server_work!(server) -> Nothing
+
+Stop the background work of each call of `server` that runs, as
+`stop_background_work!` stops one: the `sleep` of its code and the waits of the
+verbs end, and the call answers what the code gave. The cancel of the turn of the
+agent that made the calls calls it. It does not wait for the work.
+"""
+function stop_agent_server_work! end
+
+"""
     get_agent_server_access(server) -> (name, url, headers)
 
 What a client needs to reach `server`: its `name`, its `url`, and the `headers`

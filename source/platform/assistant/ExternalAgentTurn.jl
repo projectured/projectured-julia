@@ -67,6 +67,9 @@ function _cancel_external_agent_turn!(a::Assistant)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
     session.is_cancelled = true
+    # The work of a call of the agent that runs in the background stops too.
+    session.tool_server === nothing ||
+        Base.invokelatest(stop_agent_server_work!, session.tool_server)
     isempty(session.session_id) && return nothing
     errormonitor(@async Base.invokelatest(cancel_agent_prompt!, session.connection, session.session_id))
     nothing
@@ -95,7 +98,8 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
     # longer, so the turn shows at once with a part that says that the agent
     # starts. When the session is open, the turn leaves the conversation and comes
     # back after the prompt, below a message that the person sent meanwhile.
-    starting = isempty(session.session_id) ? ConversationPart(_get_agent_starting_text(a)) : nothing
+    starting = isempty(session.session_id) ?
+        ConversationPart(run_on_editor_task!(() -> _get_agent_starting_text(a), editor)) : nothing
     if starting !== nothing
         push!(turn.parts, starting)
         run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
@@ -178,14 +182,16 @@ end
 # of the turns that the agent saw starts at the last assistant turn: the greeting
 # of a pane, or the note of a duplicate, is no turn of this agent.
 function _make_external_agent_session!(editor, a::Assistant)
-    session = a.agent_session
+    session, command_text, session_meta = run_on_editor_task!(editor) do
+        (a.agent_session, a.agent_command, a.agent_session_meta)
+    end
     if session === nothing
         :acp in Base.invokelatest(get_agent_connection_names) ||
             error("The backend :acp needs the package ProjecturedACP. Load it with `using ProjecturedACP`.")
         # An empty command starts the built-in agent of `ProjecturedACP`.
-        command = Base.shell_split(a.agent_command)
+        command = Base.shell_split(command_text)
         connection = Base.invokelatest(make_agent_connection, :acp; command, directory = pwd(),
-                                       session_meta = a.agent_session_meta)
+                                       session_meta)
         session = ExternalAgentSession(connection)
         run_on_editor_task!(() -> a.agent_session = session, editor)
     end

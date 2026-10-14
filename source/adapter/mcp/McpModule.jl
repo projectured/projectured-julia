@@ -32,7 +32,7 @@ using ..McpLogModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!,
-                      get_agent_server_access
+                      stop_agent_server_work!, get_agent_server_access
 import HTTP
 using Random: RandomDevice
 using Sockets: getaddrinfo, listenany

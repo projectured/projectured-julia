@@ -32,6 +32,15 @@ a program of this machine that does not know the secret, or a web page that
 reaches the loopback address, can not run a tool. `get_agent_server_access`
 gives the address and the header to the client that the editor chose.
 """
+# The background work of each call of a server that runs, so the cancel of the
+# turn of its agent reaches it.
+struct _RunningCallWork
+    works::Base.IdSet{BackgroundWork}
+    lock::ReentrantLock
+end
+
+_RunningCallWork() = _RunningCallWork(Base.IdSet{BackgroundWork}(), ReentrantLock())
+
 mutable struct McpServer
     editor::Any
     server::Server
@@ -42,6 +51,7 @@ mutable struct McpServer
     # Runs when the person stops a code unit in which a call of this server runs,
     # such as the cancel of the turn of the agent that made the call; or nothing.
     stop::Union{Function, Nothing}
+    running::_RunningCallWork
 end
 
 function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS,
@@ -71,7 +81,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
     )
     port == 0 && (port = _choose_free_port(host))
     McpServer(editor, srv, nothing, String(host), Int(port),
-              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "", stop)
+              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "", stop, _RunningCallWork())
 end
 
 # A port that no other program holds now. The port is free again when the
@@ -87,6 +97,8 @@ end
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
 start_agent_server!(mcp::McpServer) = start_mcp!(mcp)
 stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)
+stop_agent_server_work!(mcp::McpServer) =
+    foreach(stop_background_work!, lock(() -> collect(mcp.running.works), mcp.running.lock))
 get_agent_server_access(mcp::McpServer) =
     (name = "projectured", url = "http://$(mcp.host):$(mcp.port)/mcp",
      headers = isempty(mcp.secret) ? Pair{String,String}[] : ["Authorization" => "Bearer " * mcp.secret])
@@ -224,8 +236,9 @@ document runs on the server task. `stop`, a function with no argument, runs when
 the person stops the unit in which a call runs, such as the cancel of the turn of
 the agent that made the call. A tool that answers background work, as the code
 tool does with `background`, is waited for here, on the server task, so the
-editor goes on meanwhile. Each call goes to the store of the MCP log of the
-session, with its arguments, its answer,
+editor goes on meanwhile; `running` keeps that work while it runs, so
+`stop_agent_server_work!` reaches it. Each call goes to the store of the MCP log
+of the session, with its arguments, its answer,
 the time it held the editor and whether it was a fault.
 
 When the client names its call in the `_meta` of the request, as Claude Code does
@@ -234,7 +247,8 @@ returns is kept in the tool set under that id with `keep_tool_call_value!`, so
 the turn of an agent can show it live.
 """
 function render_mcp_tools(editor, tools::AbstractVector{Tool};
-                          stop::Union{Function, Nothing} = nothing)
+                          stop::Union{Function, Nothing} = nothing,
+                          running::Union{_RunningCallWork, Nothing} = nothing)
     out = MCPTool[]
     for t in tools
         params = ToolParameter[
@@ -313,7 +327,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                 end
                 # Background work runs off the editor, and this task waits for it.
                 text isa BackgroundWork &&
-                    (text = _wait_for_mcp_work(text, editor.tools, call_id, fault))
+                    (text = _wait_for_mcp_work(text, editor.tools, call_id, fault, running))
                 # A picture goes to the client as an image, and to the log as a line.
                 is_picture = text isa LlmImage
                 record_mcp_call!(get_session_mcp_log_store(); method = "tools/call",
@@ -356,13 +370,16 @@ end
 # The output of background work that a tool answered, once it ends: its result is
 # the result of an evaluation, whose exception marks the call as a fault and whose
 # document is kept under the id of the call, as for a call that runs at once.
-function _wait_for_mcp_work(work::BackgroundWork, set, call_id, fault::Ref{Bool})
+function _wait_for_mcp_work(work::BackgroundWork, set, call_id, fault::Ref{Bool}, running)
+    running === nothing || lock(() -> push!(running.works, work), running.lock)
     result = try
         fetch(work)
     catch exception
         is_fault_exception(exception) || rethrow()
         fault[] = true
         return sprint(showerror, exception)
+    finally
+        running === nothing || lock(() -> delete!(running.works, work), running.lock)
     end
     result isa EvaluationResult || return string(result)
     result.exception === nothing || (fault[] = true)
@@ -419,7 +436,7 @@ end
 # server serves exactly the tools of the editor it is bound to.
 function _make_tools(mcp::McpServer)
     register_default_tools!(mcp.editor.tools)
-    render_mcp_tools(mcp.editor, list_tools(mcp.editor.tools); stop = mcp.stop)
+    render_mcp_tools(mcp.editor, list_tools(mcp.editor.tools); stop = mcp.stop, running = mcp.running)
 end
 
 function _make_resources(editor)

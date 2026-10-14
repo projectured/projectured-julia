@@ -316,6 +316,30 @@ function _mvp_test_stop_turn()
     end
 end
 
+# A turn runs as background work, so its stop stops the background work of the
+# tool call that it waits for: the code ends at its `sleep`, and the turn ends
+# long before the sleep would, with the result of the call. The first print of a
+# stack trace in a process compiles for some seconds, so the wait is long.
+function _mvp_test_stop_turn_stops_background_call()
+    @testset "a stop of a turn stops the background work of its tool call" begin
+        code = Dict{String,Any}("code" => "sleep(60)", "background" => true)
+        a = Assistant(; llm = ScriptedLlm([_tool_use_script("tu_1", "execute_julia_code", code),
+                                           _final_text_script("Done.")]))
+        editor = _mvp_editor(a)
+        a.input.value = "Go"
+        started = time()
+        evaluate_operation(editor, SubmitProseOperation(a))
+        sleep(1.0)                                   # the turn waits for the work of its call
+        evaluate_operation(editor, CancelAssistantTurnOperation(a))
+        @test _mvp_wait_idle!(a; timeout_seconds = 30) === :idle
+        @test time() - started < 40
+        last_turn = collect(a.conversation.turns)[end]
+        @test last_turn.stop_reason === :cancelled
+        form = only(part.content for part in collect(last_turn.parts) if part.content isa EvaluatorForm)
+        @test occursin("InterruptException", form.output)
+    end
+end
+
 # Alt+Return keeps its guard while a turn streams: its form in the middle of a
 # streamed turn would come between a tool call and its result. A prose submit
 # sends the message, as Return does.
@@ -527,6 +551,7 @@ function test_assistant_mvp()
         _mvp_test_submit_while_streaming()
         _mvp_test_evaluate_while_streaming()
         _mvp_test_stop_turn()
+        _mvp_test_stop_turn_stops_background_call()
         _mvp_test_turn_writes_on_editor_task()
         _mvp_test_markdown_tool_result()
         _mvp_test_agent_markdown_tool_result()

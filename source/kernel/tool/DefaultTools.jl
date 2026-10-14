@@ -184,10 +184,8 @@ function _register_code_tool!(set::ToolSet)
             part = code isa AbstractString ? _describe_code_part(code) : "Run the code"
             # The unit that runs this handler does not wait for the work, so the
             # work keeps no link to it, and its calls of verbs wait for the editor.
-            with(_CURRENT_CODE_UNIT => nothing) do
-                start_background_work(() -> run_julia_code!(set, target, code);
-                                      description = part, editor = target)
-            end
+            start_background_work(() -> run_julia_code!(set, target, code);
+                                  description = part, editor = target, parent = nothing)
         end,
     ))
 end

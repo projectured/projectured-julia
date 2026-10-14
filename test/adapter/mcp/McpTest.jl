@@ -814,6 +814,19 @@ function test_mcp_tool_runs_on_editor_task()
               "in the background\n1\n"
         @test occursin("thrown in the background",
                        background("error(\"thrown in the background\")")(Dict{String,Any}()).text)
+        # The cancel of the turn of an agent stops the background work of its calls.
+        server = McpServer(editor; port = 0)
+        sleeper = only(render_mcp_tools(editor, [Tool("probe_sleeper";
+            description = "Sleeps in the background.", parameters = NamedTuple[],
+            handler = (target, args) -> call_tool(editor.tools, "execute_julia_code"; target,
+                args = Dict{String,Any}("code" => "sleep(30)", "background" => true)))];
+            running = server.running)).handler
+        sleeping = @async sleeper(Dict{String,Any}())
+        @test timedwait(() -> !isempty(server.running.works), 10.0) === :ok
+        ProjecturedKernel.AgentModule.stop_agent_server_work!(server)
+        @test timedwait(() -> istaskdone(sleeping), 10.0) === :ok
+        @test occursin("InterruptException", fetch(sleeping).text)
+        @test isempty(server.running.works)
         # A tool that answers a picture gives the client an image.
         picture = Tool("probe_picture"; description = "Answers a picture.", parameters = NamedTuple[],
                        handler = (target, args) -> LlmImage("image/png", UInt8[1, 2, 3]))

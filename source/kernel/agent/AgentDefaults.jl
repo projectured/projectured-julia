@@ -14,6 +14,9 @@ function make_agent_server(::Val{K}, editor; kwargs...) where {K}
           "Load the opt-in package that provides :$(K).")
 end
 
+# A server whose calls run no background work has none to stop.
+stop_agent_server_work!(server) = nothing
+
 """
     get_agent_server_names() -> Vector{Symbol}
 

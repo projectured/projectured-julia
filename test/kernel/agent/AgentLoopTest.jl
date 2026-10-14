@@ -6,7 +6,8 @@ import ProjecturedKernel.AgentModule: Agent, run_turn!, AgentToolResult
 import ProjecturedKernel.FaultModule: FaultStore, get_fault_records
 import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd, LlmImage
 import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!, register_default_tools!,
-                                     call_tool, take_tool_call_value!
+                                     call_tool, take_tool_call_value!, start_background_work,
+                                     stop_background_work!
 using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                 make_scripted_say
 
@@ -136,6 +137,25 @@ function test_agent_loop()
         @test stop === :end_turn
         @test (result.output, result.is_error) == ("slept\n7\n", false)
         @test take_tool_call_value!(tools, "tu_1") == 7
+    end
+
+    @testset "a stop of a turn that runs as background work stops the work of its call" begin
+        code_tools = register_default_tools!(ToolSet())
+        tools = _make_agent_loop_tools((target, arguments) ->
+            call_tool(code_tools, "execute_julia_code"; target,
+                      args = Dict{String,Any}("code" => "sleep(30)", "background" => true)))
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        events = Any[]
+        started = time()
+        turn = start_background_work(; editor = nothing, parent = nothing) do
+            run_turn!(Agent(llm, tools), (name = :target,); messages = () -> LlmMessage[],
+                      on_event = event -> push!(events, event))
+        end
+        sleep(0.5)                                   # the turn waits for the work of its call
+        stop_background_work!(turn)
+        @test fetch(turn) === :end_turn
+        @test time() - started < 10
+        @test occursin("InterruptException", only(_get_agent_tool_results(events)).output)
     end
 
     @testset "a tool that answers gives a result not marked as an error" begin

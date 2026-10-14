@@ -59,11 +59,21 @@ Base.showerror(io::IO, exception::BackgroundWorkWaitException) =
 
 """
     start_background_work(function_; description = "background work",
-                          editor = get_evaluation_editor()) -> BackgroundWork
+                          editor = get_evaluation_editor(),
+                          parent = get_current_code_unit(), is_sticky = false) -> BackgroundWork
 
 Run `function_()` on a task of the default pool, and answer at once. The work
 runs with `editor` as the editor of the evaluation, so a verb that it calls with
 no editor takes `editor`. `description` names the work.
+
+`parent` is the code unit that the work belongs to: by default the unit that the
+calling code runs in. While that unit runs, the work can not wait for the editor,
+and the unit can not wait for the work. Give `nothing` for work that the unit
+does not wait for, such as the run of a tool call or a turn of an agent.
+
+With `is_sticky`, the work runs on the thread of the calling task, as an `@async`
+task does, and never at the same time as that task. Its stop and its waits are
+those of any work.
 
 Use it for code that does not need the documents of the editor, such as a long
 computation or a wait for a process: the window answers meanwhile. The work
@@ -77,13 +87,16 @@ reaches a document only through the verbs.
     fetch(work)
 """
 function start_background_work(function_; description::AbstractString = "background work",
-                               editor = get_evaluation_editor())
-    work = BackgroundWork(String(description), _CURRENT_CODE_UNIT[], Threads.Atomic{Bool}(false),
+                               editor = get_evaluation_editor(),
+                               parent::Union{CodeUnit, Nothing} = _CURRENT_CODE_UNIT[],
+                               is_sticky::Bool = false)
+    work = BackgroundWork(String(description), parent, Threads.Atomic{Bool}(false),
                           Any[], ReentrantLock(), nothing)
-    # The work keeps the code unit of its start as its own, so a call of a verb
-    # from it throws while that unit runs; its waits end at its own stop.
-    work.task = Threads.@spawn :default with(function_, _CURRENT_STOP_SCOPE => work,
-                                             _EVALUATION_EDITOR => editor)
+    # The parent is the code unit of the work, so a call of a verb from it throws
+    # while that unit runs; its waits end at its own stop.
+    run_work() = with(function_, _CURRENT_CODE_UNIT => parent, _CURRENT_STOP_SCOPE => work,
+                      _EVALUATION_EDITOR => editor)
+    work.task = is_sticky ? (@async run_work()) : (Threads.@spawn :default run_work())
     work
 end
 

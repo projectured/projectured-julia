@@ -6,7 +6,7 @@
 #
 # Submit flows:
 # - `SubmitProseOperation(assistant)`  — append a user message from `assistant.input`,
-#   clear the input, launch a streaming Claude turn on an `@async` task.
+#   clear the input, launch a streaming Claude turn as background work.
 # - `SubmitJuliaOperation(assistant)`  — parse `assistant.input` as Julia, run it via
 #   the editor's `execute_julia_code` tool, append the input/result message pair,
 #   clear the input. No Claude call now; the next prose turn synthesizes the eval
@@ -102,6 +102,20 @@ mutable struct AssistantTurnControl
 end
 
 AssistantTurnControl() = AssistantTurnControl(false, false, 0)
+
+# The background work of each turn that runs, under the control of the turn, so a
+# stop of the turn reaches the work of its tool calls. The table is here and not
+# in the assistant, because the work holds the editor, and no document holds an
+# editor.
+const _TURN_WORKS = IdDict{AssistantTurnControl, BackgroundWork}()
+const _TURN_WORKS_LOCK = ReentrantLock()
+
+# Stop the work of the turn of `control`, which stops the work of its tool call.
+function _stop_turn_work!(control::AssistantTurnControl)
+    work = lock(() -> get(_TURN_WORKS, control, nothing), _TURN_WORKS_LOCK)
+    work === nothing || stop_background_work!(work)
+    nothing
+end
 
 # What the callbacks of a turn of a model throw after a stop. It ends the stream
 # of the model, which closes its connection, and the loop of the kernel with it.
@@ -275,18 +289,25 @@ end
 # events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
 # same `_handle_llm_event!` consumes both, because both speak `LlmEvent`.
 #
-# The turn runs on a task of its own, and the frame of a running editor reads
-# and paints the assistant. So every write of the turn to the assistant goes
-# through `run_on_editor_task!`: a status change and a streamed part are posted
-# and applied in the drain of the next frame, which then paints them.
+# The turn runs as background work on the thread of the task that starts it, and
+# the frame of a running editor reads and paints the assistant. So every read and
+# write of the turn of the assistant goes through `run_on_editor_task!`: a status
+# change and a streamed part are posted and applied in the drain of the next
+# frame, which then paints them. No code unit waits for the turn, so its work
+# belongs to none, and a stop of the turn stops the work of its tool call.
 function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     control = AssistantTurnControl()
     control.seen_turn_count = length(a.conversation.turns)
     a.turn_control = control
-    @async begin
+    is_external = a.backend === :acp
+    # The turn starts once the table holds its work, so its end finds it there.
+    is_kept = Base.Event()
+    work = start_background_work(; description = "the turn of the assistant", editor,
+                                 parent = nothing, is_sticky = true) do
+        wait(is_kept)
         try
-            a.backend === :acp ? _run_external_agent_turn!(editor, a; control) : _run_agent_loop!(editor, a; control)
+            is_external ? _run_external_agent_turn!(editor, a; control) : _run_agent_loop!(editor, a; control)
         catch e
             # An agent that needs a sign-in is no fault: the person signs in.
             if e isa AgentSignInException
@@ -297,8 +318,10 @@ function _launch_agent_turn!(editor, a::Assistant)
             err = sprint(showerror, e, traceback)
             # The turn is told to the person in the chat, and the fault is told
             # to the editor's log as well, so one place carries every failure.
-            record_fault!(get_fault_store(editor), :tool; origin = :Assistant,
-                          exception = e, traceback)
+            run_on_editor_task!(editor; wait = false, description = "the fault of a turn") do
+                record_fault!(get_fault_store(editor), :tool; origin = :Assistant,
+                              exception = e, traceback)
+            end
             @error "Assistant turn failed" exception = (e, traceback)
             run_on_editor_task!(editor; wait = false) do
                 a.status = :error
@@ -306,6 +329,7 @@ function _launch_agent_turn!(editor, a::Assistant)
                       _make_instant_turn(:assistant, [ConversationPart("Error: " * err)]))
             end
         finally
+            lock(() -> delete!(_TURN_WORKS, control), _TURN_WORKS_LOCK)
             run_on_editor_task!(editor; wait = false) do
                 a.status === :streaming && (a.status = :idle)
                 a.turn_control === control && (a.turn_control = nothing)
@@ -316,6 +340,8 @@ function _launch_agent_turn!(editor, a::Assistant)
             end
         end
     end
+    lock(() -> (_TURN_WORKS[control] = work), _TURN_WORKS_LOCK)
+    notify(is_kept)
     nothing
 end
 
@@ -333,6 +359,8 @@ function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
     control = a.turn_control
     control isa AssistantTurnControl && (control.is_cancelled = true)
     a.backend === :acp ? _cancel_external_agent_turn!(a) : _decline_open_questions!(a)
+    # The stop of the work of the turn stops the work of its tool call.
+    control isa AssistantTurnControl && _stop_turn_work!(control)
     nothing
 end
 
@@ -796,21 +824,25 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # rather than guessing one. Tests and examples that want offline behaviour
     # pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     # `ProjecturedKernelExample`), and production never fabricates one.
-    key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
-    llm = a.llm
+    # The turn runs off the editor, so it reads the settings of the assistant
+    # through its door.
+    key, llm, backend, model, context, system = run_on_editor_task!(editor) do
+        (isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key,
+         a.llm, a.backend, a.model, a.context, a.system)
+    end
     if llm === nothing
-        a.backend === :none && error(
+        backend === :none && error(
             "Assistant: no LLM backend was named. Set `assistant.backend` to one " *
             "of " * _backend_list() * ", or construct the assistant with an " *
             "explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample in " *
             "tests/examples).")
-        llm = _build_llm(a.backend, key, a.model, a.context)
+        llm = _build_llm(backend, key, model, context)
     end
     # A backend that has a meaning model ranks the searches of this turn by the
     # meaning of a description. One that has none leaves the tool set as it is.
     Base.invokelatest(bind_meaning_model!, set, llm)
     turn_t0 = time()
-    @info "[assistant] turn start" llm=nameof(typeof(llm)) backend=a.backend model=a.model
+    @info "[assistant] turn start" llm=nameof(typeof(llm)) backend model
 
     # One assistant turn for the whole response. The event handler appends thinking/
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
@@ -836,7 +868,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # An event changes the conversation, so its part is posted to the editor's
     # task and not waited for: a stream of many small parts is applied in few
     # frames. The posts of this task keep their order.
-    agent = Agent(llm, set; system = a.system, thinking = true)
+    agent = Agent(llm, set; system, thinking = true)
     stop_reason = try
         run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
             on_stop = _make_turn_stop_step(editor, a),
