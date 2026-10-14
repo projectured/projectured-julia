@@ -45,6 +45,13 @@ const EDITOR_TOOL_GUIDE = "Use `execute_julia_code` to inspect and modify the ed
                                   "The person edits the window between your turns too: a key, an undo or a click can\n" *
                                   "change what a variable of an earlier turn shows. Read a document again before you\n" *
                                   "tell the person what it holds.\n\n" *
+                                  "LONG WORK RUNS IN THE BACKGROUND: code that does not need the documents of the\n" *
+                                  "editor, such as a long computation or a wait for a process, runs with the\n" *
+                                  "`background` argument of `execute_julia_code` set to true, so the person can use\n" *
+                                  "the editor while it runs. Code can also start its long part with\n" *
+                                  "`start_background_work(f)`, which answers at once, and read its value with\n" *
+                                  "`fetch(work)` in a later call. Code in the background reaches a document only\n" *
+                                  "through the verbs, never through the fields of a document.\n\n" *
                                   "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
                                   "- Call the `search_api` tool to find the right module, struct, or function.\n" *
                                   "- Call the `search_guides` tool to find the relevant guide section.\n" *

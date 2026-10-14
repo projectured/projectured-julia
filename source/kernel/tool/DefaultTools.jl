@@ -29,6 +29,21 @@ _make_editing_description(ways::AbstractString) =
     "starts reads and changes documents only through the verbs, never through the " *
     "fields of a document.\n\n"
 
+# How the model keeps the editor usable while long code runs, as both
+# descriptions say it. `start_background_work` is named only where the model can
+# call it.
+function _make_background_description(set::ToolSet)
+    declared = isempty(set.api) ||
+               any(:start_background_work in get_api_entry_names(entry) for entry in set.api)
+    "Code that does not need the documents of the editor, such as a long computation " *
+    "or a wait for a process, runs with `background` set to true, so the person can " *
+    "use the editor while it runs. " *
+    (declared ? "Code can also start its long part with `start_background_work(f)`, " *
+                "which answers at once, and read its value with `fetch(work)` in a later " *
+                "call. " : "") *
+    "Code in the background reaches a document only through the verbs.\n\n"
+end
+
 # The verbs that edit, as the description names them.
 const _EDITING_VERBS = (:replace_referenced_value! => "`replace_referenced_value!(part, new_value)`",
                         :insert_elements! => "`insert_elements!(collection, index, values)`",
@@ -59,6 +74,7 @@ const _WHOLE_SURFACE_DESCRIPTION =
     _VARIABLES_DESCRIPTION *
     _make_editing_description("a verb, such as " * _join_verbs([last(verb) for verb in _EDITING_VERBS]) *
                               ", or an operation that `evaluate_operation(editor, operation)` runs") *
+    _make_background_description(ToolSet()) *
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *
     "2. resource://modules\n" *
@@ -105,6 +121,7 @@ function _execute_julia_code_description(set::ToolSet)
     _ANSWER_DESCRIPTION *
     _VARIABLES_DESCRIPTION *
     _make_editing_description(set) *
+    _make_background_description(set) *
     "NEVER guess a name — search for it. NEVER write comments."
 end
 
