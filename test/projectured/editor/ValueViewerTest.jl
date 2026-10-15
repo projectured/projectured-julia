@@ -78,7 +78,13 @@ function test_value_viewer()
             # What a click on the chevron of the node reads to.
             editor.operation = SetReflectedDisclosureOperation(Pair{Any,Bool}[node => true])
             run_evaluate_stage!(editor)
-            # The request asks for a frame at once, and that frame opens the node.
+            # The request asks for a frame at once. Its drain starts a read of the
+            # value off the loop, and the end of the read asks for the frame that
+            # opens the node.
+            @test EditorModule.compute_wait_timeout(editor) == 0
+            drain_feeds!(editor)
+            feed = only(feed for feed in editor.feeds if feed isa ReflectionFeed)
+            wait(feed.reading)
             @test EditorModule.compute_wait_timeout(editor) == 0
             drain_feeds!(editor)
             run_frame!(editor)
