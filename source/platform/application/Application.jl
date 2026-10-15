@@ -666,6 +666,36 @@ function _parse_mcp_address(text::AbstractString)
     (host === nothing ? nothing : String(host), port)
 end
 
+# Set for a binary that `restart_with_window_threads!` started, so it never
+# starts itself again.
+const _THREADS_RESTART_VARIABLE = "PROJECTURED_THREADS_RESTARTED"
+
+"""
+    restart_with_window_threads!(arguments) -> Union{Cint, Nothing}
+
+Run the binary that runs now again, with `arguments` and the Julia option
+`--threads=auto,2`, when the process has one interactive thread, and answer the
+exit code of that run. The window of the new run gives each code unit an
+interactive thread of its own, so a tool call never waits behind a long
+computation ([`find_code_unit_thread_notice`](@ref)).
+
+`nothing`, and nothing runs, when the process has a second interactive thread
+already, when it is `julia` itself, as a script or a REPL is, which takes its
+threads from its own command line, and in the run that this function started.
+A `--julia-args` that the person gave the binary is not passed on.
+"""
+function restart_with_window_threads!(arguments)
+    length(Threads.threadpooltids(:interactive)) >= 2 && return nothing
+    haskey(ENV, _THREADS_RESTART_VARIABLE) && return nothing
+    executable = unsafe_string(Base.JLOptions().julia_bin)
+    startswith(basename(executable), "julia") && return nothing
+    command = addenv(`$executable $arguments --julia-args --threads=auto,2`,
+                     _THREADS_RESTART_VARIABLE => "1")
+    process = run(ignorestatus(command))
+    # A run that a signal ended answers as a shell does.
+    Cint(process.termsignal == 0 ? process.exitcode : 128 + process.termsignal)
+end
+
 """
     run_application_command(arguments; backends) -> Cint
 
@@ -677,8 +707,14 @@ answer the exit code: 0 when the window closes, 1 for a wrong command line, and
 `(sdl = SdlBackend, web = WebBackend)`. It names the backends that the build put
 into the binary, and `--backend` accepts only those. Without `--backend`, the
 first one opens the window.
+
+A built binary that runs with one interactive thread starts again with a second
+one first ([`restart_with_window_threads!`](@ref)), and answers the exit code of
+that run.
 """
 function run_application_command(arguments; backends)
+    restarted = restart_with_window_threads!(arguments)
+    restarted === nothing || return restarted
     command = try
         parse_application_arguments(arguments)
     catch err
@@ -886,6 +922,11 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
     # The documents of the tabs enter the window: the acquire applies at the first
     # drain of the loop, so the start of the window runs no work of them.
     editor isa Editor && post_operation!(editor, AcquireDocumentOperation(get_window_tree(editor.document)))
+    # How to start Julia, when a tool call of this window has no thread of its own.
+    if editor isa Editor
+        notice = find_code_unit_thread_notice(editor.backend)
+        notice === nothing || @warn notice
+    end
     (mcp && assistant !== :none && hasproperty(editor, :tools)) || return nothing
     try
         bind_meaning_model!(editor.tools, make_llm(assistant; model = String(model)))

@@ -93,10 +93,12 @@ The menu bar has **Open** and **Save As** for a file outside the directory the F
 **From a session.** Load the packages and open any value or example:
 
 ```julia
-julia --project=environment/all
+julia --threads=auto,2 --project=environment/all
 using Projectured, ProjecturedExample, ProjecturedSDL
 run_example("json")                          # one example in a window
 ```
+
+`--threads=auto,2` gives the window a second interactive thread, so a tool call never waits behind a long computation; `bin/projectured` and a built binary take it by themselves. Without it, the status bar of the window says how to start Julia.
 
 [setup-guide.md](documentation/guide/setup-guide.md) says what to do when a load fails, and [examples-tour.md](documentation/guide/examples-tour.md) lists the examples.
 

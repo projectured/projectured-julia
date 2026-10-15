@@ -45,5 +45,5 @@ fi
 application=$(printf '%s\n' "$answer" | sed -n 1p)
 module_name=$(printf '%s\n' "$answer" | sed -n 2p)
 
-exec julia --project="$application" \
+exec julia --threads=auto,2 --project="$application" \
      -e "using $module_name; exit($module_name.julia_main())" -- "$@"

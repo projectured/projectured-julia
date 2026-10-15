@@ -56,11 +56,19 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
                                         explorer = get(options, :explorer, nothing), recorded,
                                         extra = collect(Any, get(options, :tools, ()))),
-        status_bar = get(options, :status_bar, true) ? make_window_status_bar(document) : nothing)
+        status_bar = get(options, :status_bar, true) ?
+            make_window_status_bar(document; extra = _make_thread_notice(parts.backend)) : nothing)
     parts.projection = make_window_shell_projection(parts.projection; measure, appearance)
     append!(parts.opened_window_projections,
             make_opened_window_projections(; gesture_help = false, measure, appearance))
     parts
+end
+
+# The notice that a code unit of the window has no thread of its own, as a
+# segment of the status bar. The wrapper runs on the task of the loop.
+function _make_thread_notice(backend)
+    notice = find_code_unit_thread_notice(backend)
+    notice === nothing ? String[] : String[notice]
 end
 
 get_wrapper_layers(::Val{:shell}) = (:container => 10,)

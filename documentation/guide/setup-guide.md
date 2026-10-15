@@ -48,8 +48,10 @@ bin/projectured --help            # every option
 A session is what you want while you work on ProjecturEd itself, or to open a value of your own program.
 
 ```sh
-julia --project=environment/all
+julia --threads=auto,2 --project=environment/all
 ```
+
+`--threads=auto,2` gives a window a second interactive thread for the code that a tool call runs, so the call never waits behind a long computation such as a formula. `bin/projectured` passes it, and a built binary that starts with one interactive thread starts itself again with it. Without it, the status bar of the window says how to start Julia.
 
 ```julia
 using Projectured, ProjecturedExample, ProjecturedSDL

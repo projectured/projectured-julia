@@ -334,6 +334,9 @@ function test_application()
         end
 
         @testset "the command line" begin
+            # `julia` itself takes its threads from its own command line, so it is
+            # never started again; only a built binary is.
+            @test restart_with_window_threads!(["--mcp"]) === nothing
             # An option that the command line does not give is `nothing`, so the
             # start settings decide it.
             command = parse_application_arguments(String[])

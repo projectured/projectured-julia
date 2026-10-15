@@ -242,10 +242,22 @@ agent layer and runs every target that is not an `Editor` at once; see
 A code unit is work whose length is not known before it starts: the drain of an
 inbox that holds a posted function, or a run of the code tool that an operation
 of the evaluator or the composer starts. `run_code_unit!(function_, editor;
-parts)` runs it on a task pinned to a thread of the default pool that is not the
-thread of the loop. Until it ends, the unit owns the cells of the editor, its
-fault store and the text state of its backend, and a post of the unit goes to a
-queue with no bound (`owner_posts`), which the next drain applies.
+parts)` runs it on a task of its own, on the first of these that the process has:
+
+1. an interactive thread that neither the loop nor the main task uses, pinned
+   there. No task of the default pool runs on it, so the unit never waits behind
+   a formula, background work or a task of model code that computes;
+2. with the loop on an interactive thread, any free thread of the default pool;
+3. with the loop on a default thread, another default thread, pinned there, so
+   the unit never takes the thread of the loop.
+
+`julia --threads=auto,2` gives case 1 to a window that the main task runs; a
+loop that a REPL started on a second interactive thread needs `auto,3`. In cases
+2 and 3, `find_code_unit_thread_notice(backend)` gives the sentence that the
+application logs and the window shell shows on its status bar. Until it ends, the
+unit owns the cells of the editor, its fault store and the text state of its
+backend, and a post of the unit goes to a queue with no bound (`owner_posts`),
+which the next drain applies.
 
 Meanwhile the loop runs held frames with the backend protocol
 `prepare_held_frames!`, `run_held_frame!` and `end_held_frames!`. A held frame

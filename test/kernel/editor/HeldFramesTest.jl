@@ -78,8 +78,7 @@ function _held_frame_editor(backend; fault_policy = nothing)
 end
 
 # Whether this process can run a unit on a thread other than the one of this task.
-_has_code_unit_thread() =
-    any(thread -> thread != Threads.threadid(), Threads.threadpooltids(:default))
+_has_code_unit_thread() = EditorModule._find_code_unit_place(Threads.threadid()) !== nothing
 
 function test_editor_held_frames()
 @testset "code units and held frames" begin
@@ -103,9 +102,9 @@ function test_editor_held_frames()
              owner = run_on_editor_task!(() -> current_task(), editor))
         end
         @test seen.owner === seen.task               # a call of the owner runs at once
-        @test seen.unit !== nothing && seen.unit.task === seen.task
         @test @atomic(editor.code_unit) === nothing  # the loop owns the editor again
         if _has_code_unit_thread()
+            @test seen.unit !== nothing && seen.unit.task === seen.task
             @test seen.task !== current_task()
             @test seen.thread != Threads.threadid()
             @test backend.prepared == [["the work"]]
@@ -301,6 +300,45 @@ function test_editor_held_frames()
             answer = execute_julia_code!(editor.tools, editor, "Threads.threadid()")
             @test parse(Int, strip(answer)) != Threads.threadid()
         end
+
+        @testset "a unit does not wait behind a task that computes on the default pool" begin
+            place = EditorModule._find_code_unit_place(Threads.threadid())
+            if place isa Integer || length(Threads.threadpooltids(:default)) >= 2
+                busy = Threads.@spawn :default (started = time(); while time() - started < 3; sum(rand(100)); end)
+                editor = _held_frame_editor(HeldFrameProbeBackend())
+                started = time()
+                # The unit waits once, and goes on on a thread that is free.
+                @test run_code_unit!(() -> (sleep(0.05); :done), editor; parts = ["short"]) === :done
+                @test time() - started < 1.5
+                wait(busy)
+            end
+        end
+    end
+
+    @testset "a unit runs at the first free place of the threads that the process has" begin
+        place(loop, interactive, default) = EditorModule._find_code_unit_place(loop, interactive, default)
+        # An interactive thread that neither the loop nor the main task uses.
+        @test place(1, [1, 2], [3, 4]) == 2           # the application, --threads=auto,2
+        @test place(3, [1, 2, 3], [4, 5]) == 2        # a loop that a REPL started, --threads=auto,3
+        # A loop on an interactive thread: any free thread of the default pool.
+        @test place(1, [1], [2, 3]) === :default      # --threads=auto
+        @test place(1, [1], [2]) === :default         # no option
+        @test place(2, [1, 2], [3, 4]) === :default   # a loop that a REPL started, --threads=auto,2
+        # A loop on a default thread: another default thread, or inline.
+        @test place(2, [1], [2, 3]) == 3
+        @test place(2, [1], [2]) === nothing
+        @test place(1, Int[], [1]) === nothing        # one thread
+    end
+
+    @testset "the notice says how to start Julia when a unit has no interactive thread" begin
+        notice = find_code_unit_thread_notice(HeldFrameProbeBackend(), 1)
+        if length(Threads.threadpooltids(:interactive)) < 2
+            @test notice isa String && occursin("--threads=auto,2", notice)
+        else
+            @test notice === nothing
+        end
+        @test find_code_unit_thread_notice(HeldFrameInlineBackend(), 1) === nothing
+        @test find_code_unit_thread_notice(nothing, 1) === nothing
     end
 end
 end

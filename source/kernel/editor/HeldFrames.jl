@@ -27,14 +27,22 @@ const _STOP_NOTICE_SECONDS = 3.0
 Run `function_()` as a code unit of `editor`, with the words `parts` for the busy
 bar, and answer its value. An exception of `function_` is thrown again here.
 
-When the loop of `editor` runs on the calling task, and the process has a thread
-of the default pool other than the thread of the loop, the unit runs on a task
-pinned to that thread. Meanwhile the unit owns the documents and the state of
-`editor`, and the loop runs held frames ([`run_held_frame!`](@ref)): the window
-answers, shows that the editor is busy, and takes a stop or a close. In every
-other case, as with one thread, with a backend that shows no held frames, in a
-test that runs the frames by hand, inside a unit, or in background work,
-`function_` runs at once on the calling task.
+When the loop of `editor` runs on the calling task, the unit runs on a task of
+its own, on the first of these that the process has:
+
+1. an interactive thread that neither the loop nor the main task uses, pinned
+   there: no task of the default pool, such as a formula, background work or a
+   task of model code, runs on it, so the unit never waits behind one;
+2. with the loop on an interactive thread, any free thread of the default pool;
+3. with the loop on a default thread, another default thread, pinned there.
+
+Meanwhile the unit owns the documents and the state of `editor`, and the loop runs
+held frames ([`run_held_frame!`](@ref)): the window answers, shows that the editor
+is busy, and takes a stop or a close. In every other case, as with one thread,
+with a backend that shows no held frames, in a test that runs the frames by hand,
+inside a unit, or in background work, `function_` runs at once on the calling
+task. [`find_code_unit_thread_notice`](@ref) says when a unit has no thread of its
+own.
 
 The stop control of the bar, and Escape while the bar shows, stop the unit
 ([`stop_code_unit!`](@ref)), and so does a first close of a window. A second
@@ -45,10 +53,10 @@ still runs.
 function run_code_unit!(function_, editor::Editor; parts::Vector{String})
     (get_current_code_unit() === nothing && !is_in_background_work()) || return function_()
     unit = CodeUnit(parts)
-    thread = _find_code_unit_thread(editor)
-    thread === nothing && return run_as_code_unit(function_, unit)
+    place = _find_editor_code_unit_place(editor)
+    place === nothing && return run_as_code_unit(function_, unit)
     _prepare_held_frames!(editor, parts)
-    task = _make_pinned_task(thread) do
+    task = _make_code_unit_task(place) do
         try
             (true, run_as_code_unit(function_, unit))
         catch exception
@@ -77,17 +85,66 @@ end
 ToolModule.run_in_code_unit(function_, editor::Editor; parts::Vector{String}) =
     run_code_unit!(function_, editor; parts)
 
-# A thread of the default pool for a unit: not the thread of the loop, and only
-# when the calling task runs the loop of a backend that shows held frames.
-# `nothing` when the unit runs inline.
-function _find_code_unit_thread(editor::Editor)
+# Where a unit of `editor` runs, only when the calling task runs the loop of a
+# backend that shows held frames; `nothing` when the unit runs inline.
+function _find_editor_code_unit_place(editor::Editor)
     editor.loop_task === current_task() || return nothing
     Base.invokelatest(shows_held_frames, editor.backend) || return nothing
-    loop_thread = Threads.threadid()
-    for thread in Threads.threadpooltids(:default)
+    _find_code_unit_place(Threads.threadid())
+end
+
+# Where a unit of a loop on `loop_thread` runs, from the threads of the pools: the
+# thread that it is pinned to, `:default` for any free thread of the default pool,
+# or `nothing` when it runs inline. Thread 1 runs the main task: the loop, or the
+# REPL that started the loop on another thread.
+function _find_code_unit_place(loop_thread::Integer,
+                               interactive = Threads.threadpooltids(:interactive),
+                               default = Threads.threadpooltids(:default))
+    for thread in interactive
+        thread == loop_thread || thread == 1 || return thread
+    end
+    loop_thread in interactive && !isempty(default) && return :default
+    for thread in default
         thread == loop_thread || return thread
     end
     nothing
+end
+
+# The task of a unit at `place`, not yet scheduled, so the unit owns the cells
+# before it runs: pinned to a thread, or free on the default pool.
+_make_code_unit_task(function_, thread::Integer) = _make_pinned_task(function_, thread)
+
+function _make_code_unit_task(function_, pool::Symbol)
+    task = Task(function_)
+    task.sticky = false
+    # The call by which `Threads.@spawn` gives a task its pool.
+    Threads._spawn_set_thrpool(task, pool)
+    task
+end
+
+"""
+    find_code_unit_thread_notice(backend, loop_thread = Threads.threadid()) -> Union{String, Nothing}
+
+A sentence for the person when a code unit of a loop on `loop_thread` that draws
+on `backend` has no interactive thread of its own: the unit then shares the
+default pool with formulas, background work and the tasks of model code, and can
+wait behind a long computation, or it runs on the thread of the loop and holds the
+window. It says how to start Julia. `nothing` when the unit has an interactive
+thread of its own, and for a backend that shows no held frames, such as a video.
+
+Call it on the task of the loop, as the start of a window does: the thread of the
+loop decides which threads are free.
+"""
+function find_code_unit_thread_notice(backend, loop_thread::Integer = Threads.threadid())
+    (backend !== nothing && Base.invokelatest(shows_held_frames, backend)) || return nothing
+    place = _find_code_unit_place(loop_thread)
+    place isa Integer && place in Threads.threadpooltids(:interactive) && return nothing
+    # A loop on thread 1 needs one more interactive thread; a loop that a REPL
+    # started on another thread needs two more.
+    needed = loop_thread == 1 ? 2 : 3
+    what = place === nothing ? "A tool call runs on the thread of the window and holds it." :
+           "A tool call shares its thread with long computations and can wait behind them."
+    string(what, " Start Julia with --threads=auto,", needed, ".")
 end
 
 # Whether the calling task owns the documents of `editor`: the task of its running

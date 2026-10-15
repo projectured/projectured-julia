@@ -1235,10 +1235,12 @@ so the window always answers:
 
 - **A code unit** (`run_code_unit!`, `editor/HeldFrames.jl`) is a tool call,
   which reaches the loop through the inbox, or a run of the code tool that an
-  operation of the evaluator or the composer starts. It runs
-  on a thread of the default pool that is not the thread of the loop. Until it
-  ends, it owns the cells of its editor and the text state of its backend, and
-  units of one editor run one at a time.
+  operation of the evaluator or the composer starts. It runs on an interactive
+  thread that neither the loop nor the main task uses, where no task of the
+  default pool runs, so it never waits behind a computation; without one, on the
+  default pool (`julia --threads=auto,2` gives the thread, and the window says so
+  when it is missing). Until it ends, it owns the cells of its editor and the text
+  state of its backend, and units of one editor run one at a time.
 - **A held frame** is what the loop runs while it waits for a unit. It pumps the
   events of the window system, presents the last picture again, and after 0.5 s
   shows a busy bar that names the unit, with a stop control. It reads no cell,

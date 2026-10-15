@@ -52,6 +52,7 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        link_assistant_list!, unlink_assistant_list!,
        make_application_api, APPLICATION_SYSTEM, make_application_settings,
        run_application, parse_application_arguments, run_application_command,
+       restart_with_window_threads!,
        evaluate_reachable_cells!, warm_application, start_application!
 export StartSettings
 
