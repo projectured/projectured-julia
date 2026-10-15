@@ -16,7 +16,8 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+    get_child_iomaps, read_child_by_route
 
 export GraphDocument
 export GraphLayoutDocument

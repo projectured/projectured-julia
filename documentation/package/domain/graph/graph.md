@@ -57,11 +57,11 @@ Edges and edge labels are decorations: a click on them selects nothing.
 
 A plain left press on the box of a vertex, its content or the padding around it, that the content does not take, writes `GraphLayout.drag` with the vertex and the point. No drag is on yet, so a release before the pointer moves is a click. A move of 5 pixels with the button held starts the drag: the graph answers `StartDragOperation` and the closed hand pointer, and the drag wrapper then sends it `DragMove`, `DragEnd` and `DragCancel` by its path.
 
-- **A move** writes the offset of the drag. Only the cell that builds the element list reads it, so the drawing moves the box, its content and the straight routes of its edges, and the engine does not run. The dragged box is drawn over the others.
+- **A move** writes the offset of the drag. Only the drawing reads it, through one cell of the started drag that the element list and the size of the canvas read, so the drawing moves the box, its content and the straight routes of its edges, and the engine does not run. A press that has not become a drag leaves that cell at `nothing`, so it draws nothing again. The dragged box is drawn over the others.
 - **The release** writes one edit, `ReplaceReferencedValueOperation(graph, "constraints", …)`: the constraints of other kinds and the pins of the other vertices stay, the dragged vertex gets a `:pin` at its new corner, and each other vertex without a pin gets a `:start` at the corner where it is drawn. The engine runs one time. Undo takes the edit back.
 - **Escape**, a loss of focus, or a move with no button held cancels the drag, and the vertex goes back.
 
-A part of a content that takes a press keeps it, such as the edge of a column of a table. The drag of a vertex and the drag of its content do not mix.
+A part of a content that takes a press keeps it, such as the edge of a column of a table. The drag wrapper then sends the parts of that drag by the path of the part, and the drawing gives a change whose route leads into a vertex to its content, in the frame of its canvas (`get_child_iomaps`, `read_child_by_route`). The drag of a vertex and the drag of its content do not mix. Where two boxes overlap, the box on top takes the press, the click and the point.
 
 ### The layout engine seam
 

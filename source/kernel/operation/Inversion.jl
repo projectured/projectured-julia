@@ -50,6 +50,12 @@ make_inverse_operation(document, ::SetTimerOperation) = DoNothingOperation()
 make_inverse_operation(document, op::WrappingOperation) =
     make_inverse_operation(document, get_wrapped_operation(op))
 
+# A write of view state is no edit, and a history does not record it: taking an
+# edit back leaves the hover, the held button and the drag as they are. So its way
+# back is to do nothing, also inside a compound that holds an edit, such as a drop
+# that writes the document and ends the drag.
+make_inverse_operation(document, ::ReplaceViewStateOperation) = DoNothingOperation()
+
 # Flipping the same node again is the way back. A `nothing` target was never
 # resolved, so there is no node to flip.
 make_inverse_operation(document, op::ToggleCollapseOperation) =

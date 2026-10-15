@@ -238,9 +238,44 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   `graph_example` takes the whole 900 by 700 with either engine, so both engines
   place the other two vertices outside the window; the grid did so before this
   plan too.
-- [ ] **6. Review and the suites.** A code review of the diff. Then run
+- [x] **6. Review and the suites.** A code review of the diff. Then run
   `test_graph()`, `test_fsm()`, `test_process()`, and the layout tests of
   omnet-julia.
+
+  Done 2026-10-15. The review found nine faults; each is fixed or bounded:
+  1. Undo of a drop put the drag back, because the way back of a wrapper is the
+     way back of what it holds, also for a write of view state. The contract of
+     `ReplaceViewStateOperation` says a history does not record it, so its way
+     back is now `DoNothingOperation` (`Inversion.jl`), and the way back from a
+     drop takes back the edit only. With this rule, the extra inverse of
+     `ChangeScreenPointerShapeOperation` of step 3 is not needed and is gone.
+  2. A drag that a part of a vertex content starts got no moves. The drawing now
+     gives `get_child_iomaps`, `read_child_by_route` and a four-argument reader,
+     so a change whose route leads into a vertex content goes there in the frame
+     of its canvas. `_reroot_vertex_answer` dropped a write that carries its own
+     document and every wrapper, also for a click on main; both travel now. The
+     table of `graph_example` is a `WidgetTableToGraphicsCanvas`, which has no
+     column drag, so the test drags a slider in a vertex.
+  3. A tab drop had no way back on main, because of the pointer shape; with
+     fault 1 fixed it has one, and the way back does not arm the drag again.
+  4. A press whose release came to no part of the graph: a new left press or a
+     left release on the graph ends it now. A press that ends outside and is
+     followed by a press outside and a held move into the graph still starts a
+     drag from the old point, as the drag of a tab does.
+  5. The two hit tests both search from the box on top.
+  6. Only a left release ends a press, a move without the left button ends it,
+     and the drag starts at 5 pixels on one axis, where a click stops.
+  7. `join_move_answers` replaces a private copy.
+  8. A sentence of `graph.md` and a comment of omnet-julia
+     (`ModuleAppearanceToGraphics.jl`) said what is no longer true.
+  9. A cell of the started drag keeps a press that has not become a drag from
+     drawing the graph again.
+
+  After the fixes: `test_graph()`, `test_fsm()`, `test_process()`,
+  `test_undo()`, `test_drag_tracking()`, `test_drag_pointer_shape()`,
+  `test_pane_drag()`, `test_kernel()`, and `test_printer`, `test_reader` and
+  `test_position_navigation` of `graph_example` pass together: 17449 passes.
+  The naming guard passes, and the live check passes again: 15 of 15.
 
 ## 6. Limits
 

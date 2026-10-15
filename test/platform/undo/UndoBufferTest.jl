@@ -113,6 +113,23 @@ function test_undo_buffer()
         @test !is_undo_step(nothing, ToggleCollapseOperation())
     end
 
+    @testset "the way back from an edit with view state takes back only the edit" begin
+        # A drop writes the document and ends the drag in one compound. Undo takes
+        # the write back and leaves the drag ended, because a history does not
+        # record view state.
+        edited = UndoLeaf("a", nothing)
+        held = UndoLeaf("held", nothing)
+        editor = _UndoEditor(edited)
+        drop = CompoundOperation(Any[
+            ReplaceReferencedValueOperation(edited, "value", "b"),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(held, "value", "released"))])
+        inverse = evaluate_invertible_operation!(editor, drop)
+        @test inverse !== nothing
+        @test (edited.value, held.value) == ("b", "released")
+        evaluate_operation(editor, inverse)
+        @test (edited.value, held.value) == ("a", "released")
+    end
+
     @testset "an entry with no way back is a barrier" begin
         @test is_undo_barrier(UndoEntry("opaque", nothing, nothing))
         @test !is_undo_barrier(UndoEntry("plain", DoNothingOperation(), nothing))

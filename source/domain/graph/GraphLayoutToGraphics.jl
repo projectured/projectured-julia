@@ -105,6 +105,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         out
     end)
 
+    # The drag that has started, or nothing. A press that has not become a drag
+    # keeps this cell at `nothing`, so it draws nothing again.
+    started_drag = Cell(@computation _find_started_drag(layout))
+
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
@@ -117,7 +121,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         highlight_edge = layout.highlight_edge
         # The drag of a vertex moves that vertex and the edges at it, and the
         # layout stays as it is until the drop.
-        drag = _find_started_drag(layout)
+        drag = started_drag[]
         boxes = drag === nothing ? nothing : _collect_dragged_boxes(layout, drag)
         # Where each vertex's node box lands in `result` — the reference target
         # for "beside node i", which is what an annotation anchors to.
@@ -222,7 +226,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             bottom = max(bottom, Int(vertex_layout.y) + Int(vertex_layout.h) + margin)
         end
         # A dragged box is painted where the pointer took it.
-        drag = _find_started_drag(layout)
+        drag = started_drag[]
         if drag !== nothing
             vertex_layout = layout.vertex_layouts[drag.index]
             x, y = _get_dragged_corner(vertex_layout, drag.offset)
@@ -297,23 +301,50 @@ end
 
 map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference) = nothing
 
+# A change whose route leads into the content of a vertex, such as a part of a
+# drag that a part of that content started, goes to that content in the frame of
+# its canvas. Any other change is read at the point of the graph.
+function read_intent(p::GraphLayoutToGraphicsCanvas, recursion, change::Intent,
+                     iomap::GraphLayoutToGraphicsCanvasIoMap)
+    route = change.route
+    (route === nothing || isempty(get_reference_steps(strip_reference_types(route)))) ||
+        return read_routed_child(recursion, change, iomap)
+    payload = change.operation === nothing ? change.gesture : change.operation
+    Intent(change.gesture, read_intent(p, iomap, payload), change.description, change.domain)
+end
+
+# The IO maps of the contents of the vertices, which a route reaches.
+get_child_iomaps(iomap::GraphLayoutToGraphicsCanvasIoMap) =
+    Any[entry[3] for entry in iomap.child_iomaps if entry isa Tuple && entry[3] !== nothing]
+
+read_child_by_route(::GraphLayoutToGraphicsCanvas, recursion, change::Intent,
+                    iomap::GraphLayoutToGraphicsCanvasIoMap, child) =
+    read_routed_entry_child(recursion, change, child; entries = iomap.child_iomaps)
+
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics). A
 # left press can start the drag of a vertex, and the parts of that drag come here
 # by the path of the graph.
 function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
-    drag = iomap.input.drag
+    layout = iomap.input
+    drag = layout.drag
     event isa Union{DragMove, DragEnd, DragCancel} && return _read_vertex_drag(iomap, drag, event)
-    if drag !== nothing && !drag.started
-        event isa MouseMove &&
-            return _join_graph_operations(_read_vertex_press_move(iomap, drag, event),
-                                          _read_graph_move(iomap, event))
-        event isa MouseUp &&
-            return _join_graph_operations(_write_vertex_drag(iomap.input, nothing),
-                                          _forward_to_selected(iomap, event))
+    if event isa MouseMove
+        (drag === nothing || drag.started) && return _read_graph_move(iomap, event)
+        return join_move_answers(_read_vertex_press_move(iomap, drag, event),
+                                 _read_graph_move(iomap, event))
     end
-    event isa MouseMove && return _read_graph_move(iomap, event)
-    event isa MouseDown && event.button === :left && return _read_vertex_press(iomap, event)
+    # A left release ends a press that did not become a drag, which was a click,
+    # and a drag that no drag wrapper took; a new left press ends a press whose
+    # release came to no part of the graph.
+    if event isa MouseUp && event.button === :left && drag !== nothing
+        return join_move_answers(_write_vertex_drag(layout, nothing),
+                                 _forward_to_selected(iomap, event))
+    end
+    if event isa MouseDown && event.button === :left
+        return join_move_answers(drag === nothing ? nothing : _write_vertex_drag(layout, nothing),
+                                 _read_vertex_press(iomap, event))
+    end
     is_outward_gesture(event) && return _route_outward(iomap, event)
     if event isa MouseClick && event.button === :left
         op = _route_click(iomap, event)
@@ -330,7 +361,8 @@ end
 function _find_vertex_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
     layout = iomap.input
     entries = iomap.child_iomaps
-    for i in 1:length(layout.vertex_layouts)
+    # The last box drawn is on top, so the search goes from the end.
+    for i in length(layout.vertex_layouts):-1:1
         vl = layout.vertex_layouts[i]
         vl isa VertexLayout || continue
         x, y, w, h = Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h)
@@ -389,6 +421,15 @@ end
 _reroot_vertex_answer(::Nothing, i::Int, content) = nothing
 _reroot_vertex_answer(op::CompoundOperation, i::Int, content) =
     join_move_answers((_reroot_vertex_answer(member, i, content) for member in op.operations)...)
+# A wrapper, such as a write of view state, travels with what it holds.
+function _reroot_vertex_answer(op::WrappingOperation, i::Int, content)
+    inner = _reroot_vertex_answer(get_wrapped_operation(op), i, content)
+    inner === nothing ? nothing : rewrap_operation(op, inner)
+end
+# A write that carries its own document travels as it is, such as the knob of a
+# slider that is held.
+_reroot_vertex_answer(op::ReplaceReferencedValueOperation, i::Int, content) =
+    op.document === nothing ? nothing : op
 function _reroot_vertex_answer(op, i::Int, content)
     op isa ReplacePathOperation || return is_self_contained_operation(op) ? op : nothing
     path = get_operation_path(op)
@@ -419,17 +460,13 @@ end
 # not move is still a click, and the drag wrapper then sends it `DragMove`,
 # `DragEnd` and `DragCancel` by its path.
 
-# The pixels that a press on a vertex moves before it drags the vertex.
+# The pixels that a press on a vertex moves on one axis before it drags the
+# vertex. A release counts as a click while each axis moved less than the same
+# number (`ClickRecognition`), so a drag starts where a click stops.
 const _VERTEX_DRAG_START = 5
 
 _write_vertex_drag(layout::GraphLayout, drag) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(layout, "drag", drag))
-
-# The operations that are not `nothing`, as one answer.
-function _join_graph_operations(operations...)
-    present = Any[operation for operation in operations if operation !== nothing]
-    isempty(present) ? nothing : length(present) == 1 ? present[1] : CompoundOperation(present)
-end
 
 # A left press. The content of the vertex under the point reads it first, in the
 # frame of its canvas, so a part of the content that takes a press, such as the
@@ -471,14 +508,14 @@ function _find_node_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
     0
 end
 
-# Before the drag of a vertex starts: a move with a button held past the small
-# move starts it, and the graph is the part whose drag is on. A move with no
-# button held shows a release that the window did not get, and ends the press.
+# Before the drag of a vertex starts: a move with the left button held past the
+# small move starts it, and the graph is the part whose drag is on. A move without
+# the left button shows a release that the window did not get, and ends the press.
 function _read_vertex_press_move(iomap::GraphLayoutToGraphicsCanvasIoMap, drag, event::MouseMove)
-    is_move_without_button(event) && return _write_vertex_drag(iomap.input, nothing)
+    event.buttons.left || return _write_vertex_drag(iomap.input, nothing)
     ox, oy = drag.origin
-    hypot(event.x - ox, event.y - oy) >= _VERTEX_DRAG_START || return nothing
-    _join_graph_operations(
+    max(abs(event.x - ox), abs(event.y - oy)) >= _VERTEX_DRAG_START || return nothing
+    join_move_answers(
         _write_vertex_drag(iomap.input, merge(drag, (offset = (event.x - ox, event.y - oy),
                                                      started = true))),
         StartDragOperation(EmptyReference(), nothing),
@@ -497,11 +534,11 @@ function _read_vertex_drag(iomap::GraphLayoutToGraphicsCanvasIoMap, drag, event)
         offset == drag.offset && return nothing
         return _write_vertex_drag(layout, merge(drag, (offset = offset,)))
     end
-    clear = _join_graph_operations(_write_vertex_drag(layout, nothing),
+    clear = join_move_answers(_write_vertex_drag(layout, nothing),
                                    make_screen_pointer_shape_operation(nothing))
     event isa DragCancel && return clear
     dropped = merge(drag, (offset = (event.x - ox, event.y - oy),))
-    _join_graph_operations(_make_vertex_drop_operation(layout, dropped), clear)
+    join_move_answers(_make_vertex_drop_operation(layout, dropped), clear)
 end
 
 # The drop of the dragged vertex, as one edit of the constraints of the graph.
