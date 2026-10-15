@@ -3,8 +3,14 @@
 Status: a proposal. Decided by the owner, 2026-10-15: D15 A of
 [the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md),
 as a step of its own after that plan ("agreed A"). Nothing is built. D15a is
-decided too (A, 2026-10-15), so every decision is made; the work starts on the
-word of the owner.
+decided too (A, 2026-10-15), so every decision is made. STARTED 2026-10-15 (the
+owner: "let's start, ask if design questions come up"), on the branch
+`window-watches-files` in the worktree `projectured-julia-watch`.
+
+**The owner, 2026-10-15, on the band:** "don't create synthetic event for the
+band, it should be just some document on the file document or something like
+that". So the state of the band is a document that the file document holds, the
+view of the file document draws it, and its buttons answer operations.
 
 ## 1. The goal
 
