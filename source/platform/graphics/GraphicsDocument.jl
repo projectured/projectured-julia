@@ -62,6 +62,8 @@ end
 
 Words drawn at a place, in a font and a colour.
 
+Use it to write a word on a canvas: a label, a title or a caption.
+
 Use it when you build what is drawn by hand: a label of a chart, a word of a
 rule, a caption under a picture. A projection that shows text produces these,
 and a backend paints them.
@@ -107,6 +109,8 @@ end
                  border_width=0, border_color=nothing)
 
 A filled box at a place, in a colour, with corners as round as you ask.
+
+Use it to draw a coloured box on a canvas: a background, a bar or a frame.
 
 Use it for anything that is a coloured area: the background of a card, the band
 behind a selected row, a caret, a rule, a border drawn as four thin boxes.
@@ -175,6 +179,14 @@ anti-aliased.
 `n`-pixel dash and `n`-pixel gap, and a `(on, off)` tuple gives independent
 dash/gap lengths in pixels. Backends step the pattern along the line, so dashes
 stay crisp on axis-aligned lines and follow the slope on diagonals.
+
+Use it to draw a straight line on a canvas: an axis, a rule or a link.
+
+# Example
+
+    open_pane!(GraphicsCanvas([GraphicsLine(10, 10, 110, 50; color = color_red, width = 2)]; w = 120, h = 60); title = "Line")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
 """
 @document struct GraphicsLine <: GraphicsDocument
     x1::Int32
@@ -212,6 +224,14 @@ The same holds for the geometry of every graphics element.
 Optional anti-aliased outline via `border_width` + `border_color` (a
 [`StyleColor`](@ref), or `nothing` for no border). Used for avatars, radio dots,
 switch knobs and slider thumbs.
+
+Use it to draw a round dot or a disc on a canvas: a point, a marker or a badge.
+
+# Example
+
+    open_pane!(GraphicsCanvas([GraphicsCircle(60, 30, 20; color = color_blue)]; w = 120, h = 60); title = "Dot")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsArc`.
 """
 @document struct GraphicsCircle <: GraphicsDocument
     cx::Int32
@@ -249,6 +269,14 @@ and a sweep of 0 or less draws nothing. `cx`, `cy`, `radius` and the two angles
 are each a number, a cell, or a function of no arguments, as the geometry of
 every graphics element is. An angle is not rounded. Used for the indicator of a
 progress ring.
+
+Use it to draw a part of a ring on a canvas: a gauge or a progress mark.
+
+# Example
+
+    open_pane!(GraphicsCanvas([GraphicsArc(60, 40, 30; width = 6, start_angle = 0, sweep_angle = 270, color = color_green)]; w = 120, h = 80); title = "Gauge")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsCircle`.
 """
 @document struct GraphicsArc <: GraphicsDocument
     cx::Int32
@@ -299,6 +327,15 @@ on/off phase across segments so it stays continuous through the route's
 corners instead of restarting at each vertex. Optional filled-triangle
 arrowheads at the start and/or end, sized `arrow_size` pixels, oriented along
 the adjacent segment.
+
+Use it to draw a path of connected straight segments on a canvas, with an arrow at an end if needed.
+
+# Example
+
+    points_1 = [(10, 50), (40, 10), (80, 40), (110, 10)]
+    open_pane!(GraphicsCanvas([GraphicsPolyline(points_1; color = color_red, width = 2, end_arrow = true)]; w = 120, h = 60); title = "Path")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsSpline`.
 """
 @document struct GraphicsPolyline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -334,6 +371,15 @@ outline over the fill.
 
 The outline may be concave — a star marker is — so backends must triangulate it
 rather than fan it. Self-intersecting outlines are not supported.
+
+Use it to draw a closed filled shape on a canvas: a triangle, an arrow head or a region.
+
+# Example
+
+    points_1 = [(10, 50), (60, 10), (110, 50)]
+    open_pane!(GraphicsCanvas([GraphicsPolygon(points_1; color = color_blue)]; w = 120, h = 60); title = "Triangle")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
 """
 @document struct GraphicsPolygon <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -365,6 +411,15 @@ points are control points of a cubic Bézier chain). Backends tessellate to a
 polyline at render time via [`tessellate_spline`](@ref) (`segments` samples per
 span), so curve quality is one shared knob. `dash` and the arrowhead flags
 behave as on `GraphicsPolyline`.
+
+Use it to draw a smooth curve through points on a canvas.
+
+# Example
+
+    points_1 = [(10, 50), (40, 10), (80, 50), (110, 10)]
+    open_pane!(GraphicsCanvas([GraphicsSpline(points_1; color = color_red, width = 2)]; w = 120, h = 60); title = "Curve")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
 """
 @document struct GraphicsSpline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -490,6 +545,8 @@ A sheet that holds what is drawn, at a place and of a size.
 `elements` is a `Vector` of graphics documents, which the canvas holds one cell
 each, or a `CollectionDocument` it holds as it is.
 
+Use it to draw a picture: it holds the shapes and the text that a person sees.
+
 Use it as the result of anything that draws: a projection answers one, a
 backend paints one, and a test reads one to see what reached the screen. Its
 elements are drawn in order, and a canvas may hold other canvases.
@@ -589,6 +646,24 @@ end
 
 # ── Image (cached rasterized canvas) ─────────────────────────────────────
 
+"""
+    GraphicsImage(x, y, w, h, data)
+
+A picture of pixels at a place and of a size.
+
+`data` is a `Vector{UInt8}` of `w * h * 4` bytes in the order red, green, blue,
+alpha for each pixel, or a tuple `(bytes, width, height)` when the pixels have
+another size than the box. A `nothing` `data` draws nothing.
+
+Use it to draw a picture that is already a grid of pixels, such as a decoded photo or a rendered sheet.
+
+# Example
+
+    pixels_1 = repeat(UInt8[255, 0, 0, 255], 4 * 4)
+    open_pane!(GraphicsCanvas([GraphicsImage(10, 10, 40, 40, (pixels_1, 4, 4))]; w = 60, h = 60); title = "Picture")
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsRect`.
+"""
 @document struct GraphicsImage <: GraphicsDocument
     x::Int32
     y::Int32

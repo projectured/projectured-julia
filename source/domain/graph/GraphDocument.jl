@@ -14,6 +14,16 @@ end
 """
 A vertex whose `content` is an arbitrary `Document`. Identity = the object
 itself, so an edge can point at it (same identity model as `TableCell.content`).
+
+Use it to draw one node of a graph: a box that shows its content, such as a name.
+
+# Example
+
+    vertex_1 = GraphVertex(PrimitiveString("Paris"))
+    vertex_2 = GraphVertex(PrimitiveString("Lyon"))
+    open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
+
+See also `GraphGraph`, which holds it, and `GraphEdge`.
 """
 @document struct GraphVertex <: GraphDocument
     content::Any          # required: keeps the 1-arg `GraphVertex(content)` ctor
@@ -23,6 +33,17 @@ end
 """
 An edge from `source` to `target` (both `GraphVertex`, held by identity).
 `directed` draws an end arrowhead; `label` is an optional content document.
+
+Use it to draw a link between two nodes of a graph, with an arrow or a label.
+
+# Example
+
+    vertex_1 = GraphVertex(PrimitiveString("Paris"))
+    vertex_2 = GraphVertex(PrimitiveString("Lyon"))
+    edge_1 = GraphEdge(vertex_1, vertex_2; directed = false)
+    open_pane!(GraphGraph([vertex_1, vertex_2], [edge_1]); title = "Roads")
+
+See also `GraphGraph`, which holds it, and `GraphVertex`.
 """
 @document struct GraphEdge <: GraphDocument
     source::Document
@@ -52,6 +73,16 @@ and they flow through `GraphLayout` to the renderer without touching a vertex's
 measured sizes and re-running the whole layout. Both hold the referent by
 identity, like an edge's endpoints; a `VertexLayout` is rebuilt on every layout
 recompute and must never be held here.
+
+Use it to draw nodes and the links between them: a map, a network or a state machine.
+
+# Example
+
+    vertex_1 = GraphVertex(PrimitiveString("Paris"))
+    vertex_2 = GraphVertex(PrimitiveString("Lyon"))
+    open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
+
+See also `GraphVertex` and `GraphEdge`.
 """
 @document struct GraphGraph <: GraphDocument
     vertices::CellVector = CellVector()

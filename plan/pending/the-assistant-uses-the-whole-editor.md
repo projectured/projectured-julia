@@ -377,7 +377,7 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
     - The layering guard wants a bare `using ..Module`, not `using ..Module: name`
       and not a bare `import`; the modules of steps 2 to 4 follow it now.
 
-- [ ] **5. Draw.**
+- [x] **5. Draw.** Done 2026-10-15.
   - Declare the graphics documents, `StyleColor` and `StyleFont`.
   - The chart domain registers a row of the natural renderer for `Chart`, so a
     chart made by hand draws in a tab. The chart and graph domains register their
@@ -385,6 +385,20 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
   - Tests: a `GraphicsCanvas`, a `Chart` and a `GraphGraph` opened with
     `open_pane!` draw in a tab, and a canvas draws inside a `WidgetCard`. The tests
     walk the painted output.
+  - What was built:
+    - The shared list declares ten graphics documents, `StyleColor` and
+      `StyleFont`. The chart domain registers nine names, and the graph domain
+      three, with `register_assistant_api!`.
+    - The chart domain registers a row of the renderer for `Chart`
+      (`ChartToChartPlot`, then `ChartPlotToGraphicsCanvas`), so a chart made by
+      hand draws in a tab.
+    - The test opens a canvas, a canvas in a `WidgetCard`, a chart and a graph
+      with `open_pane!`, and finds a text of each in the painted output.
+    - `StyleColor` and `StyleFont` showed an empty docstring to the search: the
+      layout `[DC]` of `@document` puts the docstring on the cell struct
+      (`ACStyleColor`), and the public name is an alias. Each file now gives the
+      public name the same text with `@doc`. The macro is unchanged.
+
 - [ ] **6. The documentation.**
   - A test asserts the docstring form of §6 for every name of `make_editor_api()`
     (ProjecturedPlatformTest) and for every name that the IDE adds (OmnetIdeTest).

@@ -55,8 +55,8 @@
 
 A colour, as four parts from zero to one.
 
-Use it wherever something is painted: the fill of a box, the ink of a word, the
-line of a chart. A colour with a name is a constant, `color_black`,
+Use it to give a color to what is painted: the fill of a box, the ink of a word,
+the line of a chart. A colour with a name is a constant, `color_black`,
 `color_red`, `color_slate_500`, and the themes carry curated ramps; a colour
 with an alpha below one lets what is behind it show through.
 
@@ -74,6 +74,10 @@ See also `StyleText`, which pairs a colour with a font, and `GraphicsRect`.
     alpha::Float64
     selection::Nothing
 end
+
+# The docstring above lands on the cell struct that the layout `[DC]` names, and
+# the public name carries the same text, so a search of the name reads it.
+@doc (@doc ACStyleColor) StyleColor
 
 # ── Construction ──────────────────────────────────────────────────────────────
 

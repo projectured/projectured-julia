@@ -459,4 +459,7 @@ function __init__()
                                          GraphLayoutToGraphicsCanvas(
                                              theme = get_scaled_theme!(appearance, GraphTheme))),
     ])
+    # The names a model draws a graph with: the vertices, the edges between them,
+    # and the graph that holds both.
+    register_assistant_api!(GraphModule => (:GraphGraph, :GraphVertex, :GraphEdge))
 end

@@ -356,6 +356,12 @@ make_editor_api() = Any[
     MessageLogModule => (:get_session_message_log,),
     FaultViewModule => (:get_session_fault_log,),
     ClipboardModule => (:read_os_clipboard, :write_os_clipboard!),
+    # What a model draws with for the person: the shapes and the text of a
+    # canvas, their colors and fonts. A chart and a graph come with their domains.
+    GraphicsModule => (:GraphicsCanvas, :GraphicsRect, :GraphicsText, :GraphicsLine,
+                       :GraphicsCircle, :GraphicsArc, :GraphicsPolyline, :GraphicsPolygon,
+                       :GraphicsSpline, :GraphicsImage),
+    StyleModule => (:StyleColor, :StyleFont),
     # The commands of a part, which a key or the command palette runs for the
     # person, listed and run by their words.
     GestureHelpModule => (:describe_commands, :run_command!),

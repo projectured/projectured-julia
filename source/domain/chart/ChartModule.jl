@@ -52,14 +52,23 @@ include("ChartTheme.jl")
 include("ChartPlotToGraphics.jl")
 include("FrameTimeSeriesToChart.jl")
 
-# The row that lets a tab draw the frame times of the statistics as a chart.
-# The factory form, so every renderer builds its own projection instances.
+# The rows that let a tab draw a chart, and the frame times of the statistics as
+# a chart, and the names a model makes a chart with. The factory form, so every
+# renderer builds its own projection instances.
 function __init__()
     register_natural_graphics!(:frame_time_series, (; measure, appearance) -> Pair{Type,Any}[
         FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
                                               ChartPlotToGraphicsCanvas(measure = measure,
                                                   theme = get_scaled_theme!(appearance, ChartTheme))),
     ])
+    register_natural_graphics!(:chart, (; measure, appearance) -> Pair{Type,Any}[
+        Chart => ChainingProjection(ChartToChartPlot(),
+                                    ChartPlotToGraphicsCanvas(measure = measure,
+                                        theme = get_scaled_theme!(appearance, ChartTheme))),
+    ])
+    register_assistant_api!(ChartModule => (:Chart, :ChartLineSeries, :ChartScatterSeries,
+                                            :ChartBarSeries, :ChartPieSeries, :ChartHistogramSeries,
+                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend))
 end
 
 end # module

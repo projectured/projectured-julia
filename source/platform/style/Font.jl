@@ -34,6 +34,10 @@ See also `StyleText`, which pairs a font with a colour, and `GraphicsText`.
     selection::Nothing
 end
 
+# The docstring above lands on the cell struct that the layout `[DC]` names, and
+# the public name carries the same text, so a search of the name reads it.
+@doc (@doc ACStyleFont) StyleFont
+
 StyleFont(family::AbstractString, size::Integer; weight::Integer = 400, italic::Bool = false) =
     StyleFont(String(family), Int(size), Int16(weight), italic)
 

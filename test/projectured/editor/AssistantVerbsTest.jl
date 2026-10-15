@@ -130,5 +130,46 @@ function test_assistant_verbs()
         @test length(pages) == before + 1
         @test get_navigator_page(last(pages)) === get_document(people[2])
     end
+
+    @testset "tell: a drawing, a chart and a graph draw in a tab" begin
+        for (title, document) in (
+                ("Sketch", GraphicsCanvas([GraphicsRect(10, 10, 120, 40; color = color_red),
+                                           GraphicsText("drawn by hand", 20, 34;
+                                                        font = StyleFont("DejaVu Sans", 14))];
+                                          w = 200, h = 80)),
+                ("Card", WidgetCard(; content = GraphicsCanvas([GraphicsCircle(40, 40, 30; color = color_blue),
+                                                    GraphicsText("in a card", 10, 90;
+                                                                 font = StyleFont("DejaVu Sans", 14))];
+                                                   w = 120, h = 100))),
+                ("Sales", Chart("sold in a month", [ChartLineSeries("lamps", collect(1.0:12.0),
+                                                                    collect(2.0:2.0:24.0))])),
+                ("Roads", let a = GraphVertex(PrimitiveString("Paris")), b = GraphVertex(PrimitiveString("Lyon"))
+                     GraphGraph([a, b], [GraphEdge(a, b)])
+                 end))
+            open_pane!(document; title, editor)
+            run_frame!(editor)
+            focus_pane!(find_pane(title; editor); editor)
+            run_frame!(editor)
+            texts = _drawn_texts_of(editor)
+            expected = Dict("Sketch" => "drawn by hand", "Card" => "in a card",
+                            "Sales" => "sold in a month", "Roads" => "Lyon")[title]
+            @test any(text -> occursin(expected, text), texts)
+        end
+    end
 end
 end
+
+# Every text that the last frame of `editor` drew, in the order of the walk.
+function _drawn_texts_of(editor)
+    texts = String[]
+    walk(node, depth) = begin
+        depth > 200 && return
+        node isa GraphicsText && push!(texts, String(node.text))
+        node isa GraphicsCanvas && foreach(i -> walk(node.elements[i], depth + 1), 1:length(node.elements))
+        node isa GraphicsViewport && walk(node.content, depth + 1)
+        hasproperty(node, :windows) && foreach(window -> walk(window.content, depth + 1), node.windows)
+    end
+    walk(last(rendered_output(editor.backend)), 0)
+    texts
+end
+

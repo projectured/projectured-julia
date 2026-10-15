@@ -65,6 +65,16 @@ end
 A numeric axis. `min`/`max` are `nothing` for auto-ranging from the data (with
 the usual padding), a number to pin that end. `grid` is `:none`, `:major` or
 `:all`.
+
+Use it to set the range, the title and the grid of a numeric axis of a chart.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))];
+                    y_axis = ChartAxis(title = "units", min = 0, max = 1))
+    open_pane!(chart_1; title = "Sales")
+
+See also `Chart`, which holds it, and `ChartCategoryAxis`.
 """
 @document struct ChartAxis <: ChartDocument
     title::String = ""
@@ -80,6 +90,16 @@ end
 A categorical axis: one slot per entry of `categories`. Bars occupy the slots;
 the axis coordinate is the category index, so zoom and pan work on index space
 just as they do on a numeric axis.
+
+Use it to name the groups on the axis of a chart of bars.
+
+# Example
+
+    chart_1 = Chart("Fruit", [ChartBarSeries("sold", [5, 8, 3])];
+                    x_axis = ChartCategoryAxis(categories = ["apple", "pear", "plum"]))
+    open_pane!(chart_1; title = "Fruit")
+
+See also `Chart`, which holds it, and `ChartAxis`.
 """
 @document struct ChartCategoryAxis <: ChartDocument
     title::String = ""
@@ -96,6 +116,16 @@ The legend box. `position` is `:inside`, `:above`, `:below`, `:left` or
 `:right`; `anchor` is one of the eight compass points, placing the box within
 whichever strip `position` reserved. `sort` switches item order from the series
 order to a dictionary sort of the labels.
+
+Use it to place the box that names the series of a chart.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))];
+                    legend = ChartLegend(position = :below))
+    open_pane!(chart_1; title = "Sales")
+
+See also `Chart`, which holds it, and `ChartAxis`.
 """
 @document struct ChartLegend <: ChartDocument
     visible::Bool = true
@@ -115,6 +145,15 @@ visible index range instead of scanning the column. `draw_style` is `:none`,
 `:linear`, `:pins`, `:steps_post`, `:steps_pre` or `:steps_mid`; `line_style` is
 `:solid`, `:dotted` or `:dashed`. A `nothing` `color` takes the next entry of the
 chart's color cycle.
+
+Use it to draw a value that changes along x: a trend, a measure over time.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12); symbol = :circle)])
+    open_pane!(chart_1; title = "Sales")
+
+See also `Chart`, which holds it, and `ChartScatterSeries`.
 """
 @document struct ChartLineSeries <: ChartSeries
     label::String
@@ -147,6 +186,15 @@ end
 A scatter series over paired `x`/`y` columns: markers only, no connecting line.
 Above the style's `scatter_fold_threshold` visible points the projection folds
 the cloud into a density grid instead of drawing one marker per point.
+
+Use it to draw a cloud of points: it shows how two measures relate.
+
+# Example
+
+    chart_1 = Chart("Delay and size", [ChartScatterSeries("runs", rand(50), rand(50))])
+    open_pane!(chart_1; title = "Delay")
+
+See also `Chart`, which holds it, and `ChartLineSeries`.
 """
 @document struct ChartScatterSeries <: ChartSeries
     label::String
@@ -167,6 +215,16 @@ end
 """
 A bar series: one value per category of the chart's `ChartCategoryAxis`. How
 several bar series share a category slot is the chart's `bar_placement`.
+
+Use it to draw one bar for each category: it compares a value between groups.
+
+# Example
+
+    chart_1 = Chart("Fruit", [ChartBarSeries("sold", [5, 8, 3])];
+                    x_axis = ChartCategoryAxis(categories = ["apple", "pear", "plum"]))
+    open_pane!(chart_1; title = "Fruit")
+
+See also `Chart`, `ChartCategoryAxis` and `ChartHistogramSeries`.
 """
 @document struct ChartBarSeries <: ChartSeries
     label::String
@@ -183,6 +241,15 @@ A pie series: one slice for each entry of `categories`, as large as its entry of
 pie series fills the plot, from the top, clockwise. `colors` gives a colour to
 each slice, or `nothing` for the colour cycle of the chart. A value that is not
 finite or below zero draws no slice.
+
+Use it to draw the share of each part in a whole.
+
+# Example
+
+    chart_1 = Chart("Share", [ChartPieSeries("fruit", ["apple", "pear", "plum"], [5, 8, 3])])
+    open_pane!(chart_1; title = "Share")
+
+See also `Chart`, which holds it, and `ChartBarSeries`.
 """
 @document struct ChartPieSeries <: ChartSeries
     label::String
@@ -205,6 +272,15 @@ edges (drawn as extra cells when `show_overflow`).
 (value per unit width per total weight), running sum, and CDF.
 
 `ChartHistogramSeries(label, values; nbins)` bins a raw sample column instead.
+
+Use it to draw how the values of a sample spread over equal bins.
+
+# Example
+
+    chart_1 = Chart("Delays", [ChartHistogramSeries("delay", randn(500); nbins = 20)])
+    open_pane!(chart_1; title = "Delays")
+
+See also `Chart`, which holds it, and `ChartBarSeries`.
 """
 @document struct ChartHistogramSeries <: ChartSeries
     label::String
@@ -359,6 +435,14 @@ The bar fields are chart-wide because placement is a property of how the series
 share a category slot, not of any one series: `:aligned` gives each series its
 own sub-slot, `:overlap` offsets them by half a bar, `:infront` draws them over
 each other from the baseline, and `:stacked` sums them.
+
+Use it to draw data for the person: it shows one or more series with a title, axes and a legend.
+
+# Example
+
+    open_pane!(Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))]); title = "Sales")
+
+See also `ChartLineSeries`, `ChartBarSeries` and `ChartAxis`.
 """
 @document struct Chart <: ChartDocument
     title::String
