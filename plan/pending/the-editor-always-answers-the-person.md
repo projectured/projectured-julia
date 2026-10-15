@@ -1257,6 +1257,10 @@ nothing.
       come before the first sync of its group, whose reset put the task back to
       waiting. The first sync of a group now resets only the tasks whose document
       shows an execution of an earlier start (`_reset_earlier_tasks!`).
+    - Found in the whole suite (`bcc583835`): a stop that came while the driver
+      started a task did not see that run, which ran to its end. The driver now
+      keeps a run and reads the stop under one lock, and stops a run that
+      started during a stop itself; the same for the preparation.
     - Not here: the tasks of omnet-julia (`Session.jl`, `SimulationRunner.jl`
       and four presentation files) still start with `@async`.
   - [ ] 6.1 (`21656e865`, not done) File change.
@@ -1268,6 +1272,19 @@ nothing.
     - Found: a watcher that reads at the first event reads a file half written,
       and after a save a half-written file looks like a change of another
       program. Hence the wait until the file is whole.
+    - The export guard (`test_exports`), which the runs of steps 2 to 5 left
+      out, found the export of `CellWriterCheck.jl` after a later fragment (step
+      2e) and the exports of the MCP log store out of order (step 5.2); both are
+      in order now. The edit of the sealed `CellModule.jl` is the export of rule
+      d, which the owner allowed on 2026-10-13.
+    - The suites: the kernel 4680; the platform part by part 152626 pass with the
+      2 known failures of `InterfaceApiTest.jl` and 7 broken, after which the stop
+      race was fixed and the task tests passed five rounds (940); the umbrella
+      tests of the value viewer, the names, the arguments and the exports 23 and
+      1 broken that was marked before; omnet-julia, in scratch environments over
+      the worktrees and over the main checkouts, the legacy simulation, task,
+      result file and IDE tests 650 with 1 failure at `IdeNavigatorTest.jl:57`,
+      which `main` has too (639 with the same failure).
     - Open, D13 below: how the drain tells a save of the document from a change
       of another program for a file that a person edits. Until then the drain
       still writes the text of the document to compare (O(document)), for such a
