@@ -24,6 +24,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
@@ -31,14 +32,15 @@ using ..NaturalModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule
+using ..ProjectionAlgebraModule
 using ..ReferenceModule
 using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 
-# Imported to extend: this module adds a method to it.
-import ..DocumentModule: get_document_title
+# Imported to extend: this module adds a method to each of them.
+import ..DocumentModule: get_document_title, get_edited_field
 using ..TextModule
 using ..WidgetModule
 
@@ -56,11 +58,14 @@ export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, get_saved_text_hash, ReloadFileOperation,
        compute_file_text, read_file_content_again
 export FileToContent
+export FilePage, FileBand, find_page_file, FilePageToWidget
 export make_file_api
 
 
 include("NaturalFormat.jl")
 include("DocumentFile.jl")
+include("FilePage.jl")
+include("FilePageToWidget.jl")
 include("FileToContent.jl")
 
 end # module

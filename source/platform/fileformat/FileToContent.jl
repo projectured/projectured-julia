@@ -120,5 +120,13 @@ end
 function __init__()
     register_natural_graphics!(:fileformat, (; measure, appearance) -> Pair{Type,Any}[
         FileDocument => FileToContent(),
+        FilePage => ChainingProjection(FilePageToWidget(_find_widget_theme(appearance)),
+                                       VerticalLayoutToGraphicsCanvas()),
     ])
+end
+
+# The widget theme of `appearance`, scaled to it, which gives the band its colors.
+function _find_widget_theme(appearance::Appearance)
+    entry = get(appearance.themes, WidgetTheme, nothing)
+    entry === nothing ? make_scaled_theme(WidgetTheme(), appearance) : entry.scaled
 end

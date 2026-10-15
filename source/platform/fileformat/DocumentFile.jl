@@ -168,12 +168,13 @@ function make_file_tab(path::AbstractString, wrap = identity)
 end
 
 """
-    make_file_tab_content(path, wrap = identity) -> WidgetScrollPane
+    make_file_tab_content(path, wrap = identity) -> FilePage
 
-The content of a tab that shows the file at `path`: the file document of
-[`make_file_tab`](@ref) in a scroll pane, so a file longer than its tab scrolls.
-The scroll is made here, where a file tab is made, and not by the tab: a tab page
-gets no scroll of its own, because a page can hold two parts that each scroll.
+The content of a tab that shows the file at `path`: the [`FilePage`](@ref) of the
+file document of [`make_file_tab`](@ref) in a scroll pane, so a file longer than
+its tab scrolls, and the band of the page stays above it. The scroll is made here,
+where a file tab is made, and not by the tab: a tab page gets no scroll of its
+own, because a page can hold two parts that each scroll.
 
 Use it to open a file in a tab.
 
@@ -187,7 +188,7 @@ See also `make_file_tab` and `open_pane!`.
 function make_file_tab_content end
 
 make_file_tab_content(path::AbstractString, wrap = identity) =
-    WidgetScrollPane(make_file_tab(path, wrap))
+    FilePage(WidgetScrollPane(make_file_tab(path, wrap)))
 
 # ── What a file is called ────────────────────────────────────────────────────
 
