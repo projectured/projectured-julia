@@ -29,10 +29,15 @@ one, and the generics of the kernel's `AgentModule` drive it.
 `transport` is the connection of `AgentClientProtocol` while the agent runs.
 `agent_info`, `agent_capabilities` and `auth_methods` hold what the agent said in
 `initialize`. `turns` holds the prompt that runs in each session.
-`session_options` holds the last options of each session, and
-`waiting_session_events` the latest update of each kind of the session — its
-options, its usage, its title, its commands — that came while no prompt ran,
-for the next prompt.
+`session_options` holds the last options of each session. `session_queues`
+holds the queue of each session that opened, or `nothing` for a session that
+opened with none. `session_parents` holds the parent of each child session, the
+session of a subagent. `session_frames` holds the frame of the updates of a
+session that runs no prompt: of a child session, and of a session with a queue
+between two prompts. `opening_count` counts the opens that wait for their
+answer, and `opening_events` holds the events of a session with no queue and
+no parent while an open waits, until the open puts them into the queue of its
+session. `turns_lock` guards all of these.
 """
 mutable struct AcpConnection
     command::Vector{String}
@@ -47,7 +52,11 @@ mutable struct AcpConnection
     has_steering::Bool
     turns::Dict{String,AcpTurn}
     session_options::Dict{String,Vector{AgentOption}}
-    waiting_session_events::Dict{String,Dict{DataType,Any}}
+    session_queues::Dict{String,Union{Nothing,AgentEventQueue}}
+    session_parents::Dict{String,String}
+    session_frames::Dict{String,AcpTurn}
+    opening_count::Int
+    opening_events::Dict{String,Vector{Any}}
     turns_lock::ReentrantLock
 end
 
@@ -60,7 +69,8 @@ make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = S
                   _read_session_meta(session_meta), streams, nothing,
                   nothing, ACP.AgentCapabilities(), ACP.AuthMethod[], false,
                   Dict{String,AcpTurn}(), Dict{String,Vector{AgentOption}}(),
-                  Dict{String,Dict{DataType,Any}}(), ReentrantLock())
+                  Dict{String,Union{Nothing,AgentEventQueue}}(), Dict{String,String}(), Dict{String,AcpTurn}(),
+                  0, Dict{String,Vector{Any}}(), ReentrantLock())
 
 _read_session_meta(meta::AbstractDict) = Dict{String,Any}(meta)
 function _read_session_meta(text::AbstractString)
@@ -96,10 +106,17 @@ function start_agent_connection!(connection::AcpConnection)
     result = try
         ACP.send_request!(connection.transport, ACP.InitializeRequest(
             protocol_version = ACP.PROTOCOL_VERSION,
+            # The work of an agent: its subagents, its plans with an id, its
+            # notices, its compactions, and its background tasks, which the
+            # extension notification `_session/background_task` carries.
             client_capabilities = ACP.ClientCapabilities(
                 fs = ACP.FileSystemCapabilities(read_text_file = false, write_text_file = false),
                 terminal = false, auth = ACP.AuthCapabilities(terminal = true),
-                elicitation = ACP.ElicitationCapabilities(form = ACP.ElicitationFormCapabilities())),
+                elicitation = ACP.ElicitationCapabilities(form = ACP.ElicitationFormCapabilities()),
+                session = ACP.ClientSessionCapabilities(notices = ACP.NoticeCapabilities(),
+                                                        compaction = ACP.CompactionCapabilities()),
+                subagents = ACP.SubagentCapabilities(), plan = ACP.PlanCapabilities(),
+                meta = Dict{String,Any}("backgroundTasks" => Dict{String,Any}())),
             client_info = ACP.Implementation(
                 name = "projectured", title = "ProjecturEd",
                 version = string(something(pkgversion(Base.moduleroot(@__MODULE__)), v"0.0.0"))));
@@ -176,34 +193,71 @@ _log_agent_line(line) = @debug "agent" line
 # has `sessionCapabilities.resume`. When the answer to the resume is an error of
 # the protocol, as for a session that the agent does not have any more, a new
 # session opens, and the caller sees its new id. A needed sign-in, a timeout and
-# a closed connection go to the caller.
+# a closed connection go to the caller. An agent can send an update of the
+# session just after its answer, before this call has the id, so the updates of
+# a session with no queue and no parent wait while an open runs, and the open
+# puts them into the queue of its session.
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
                              mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
-                             session_id::AbstractString = "", on_event = nothing)
+                             session_id::AbstractString = "", on_event = nothing,
+                             events::Union{Nothing,AgentEventQueue} = nothing)
     transport = _get_started_transport(connection)
     meta = _add_instructions(connection.session_meta, instructions)
     meta = isempty(meta) ? nothing : meta
     servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
-    if !isempty(session_id) && _has_session_capability(connection, "resume")
-        result = try
-            _send_session_request!(connection, transport, ACP.ResumeSessionRequest(
-                session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta))
-        catch exception
-            exception isa ACP.ProtocolException || rethrow()
-            @debug "The agent did not resume the session, so a new session opens." exception
-            nothing
+    lock(() -> connection.opening_count += 1, connection.turns_lock)
+    try
+        opened_id = nothing
+        if !isempty(session_id) && _has_session_capability(connection, "resume")
+            result = try
+                _send_session_request!(connection, transport, ACP.ResumeSessionRequest(
+                    session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta))
+            catch exception
+                exception isa ACP.ProtocolException || rethrow()
+                @debug "The agent did not resume the session, so a new session opens." exception
+                nothing
+            end
+            if result !== nothing
+                opened_id = String(session_id)
+                _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
+                                        on_event)
+            end
         end
-        if result !== nothing
-            _store_session_options!(connection, session_id, get(ACP.get_json(result), "configOptions", Any[]),
+        if opened_id === nothing
+            result = _send_session_request!(connection, transport,
+                ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
+            opened_id = result.session_id
+            _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
                                     on_event)
-            return String(session_id)
+        end
+        _register_session!(connection, opened_id, events)
+        opened_id
+    finally
+        lock(connection.turns_lock) do
+            connection.opening_count -= 1
+            connection.opening_count == 0 && empty!(connection.opening_events)
         end
     end
-    result = _send_session_request!(connection, transport,
-        ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
-    new_id = result.session_id
-    _store_session_options!(connection, new_id, get(ACP.get_json(result), "configOptions", Any[]), on_event)
-    new_id
+end
+
+# The queue of a session that opened, and the events that came for it before
+# the open knew its id. An agent in a child process gives the id of that process
+# first; the built-in agent runs in this process, so only the `_meta.processId`
+# of its `session_info_update` names the process that does the work.
+function _register_session!(connection::AcpConnection, session_id::String,
+                            events::Union{Nothing,AgentEventQueue})
+    lock(connection.turns_lock) do
+        connection.session_queues[session_id] = events
+        delete!(connection.session_frames, session_id)
+        waiting = pop!(connection.opening_events, session_id, Any[])
+        events === nothing && return nothing
+        transport = connection.transport
+        process_id = transport === nothing ? 0 : Int(transport.process_id)
+        isempty(connection.command) || process_id <= 0 ||
+            put_agent_event!(events, AgentSessionInfoUpdate(nothing; process_id))
+        foreach(event -> put_agent_event!(events, event), waiting)
+        nothing
+    end
 end
 
 # A request that opens or resumes a session. An agent that needs a sign-in
@@ -334,13 +388,12 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
                                 prompt = _make_prompt_blocks(connection, prompt))
     turn = AcpTurn(on_event)
     _start_turn_delivery!(turn)
-    # The updates of the session that came while no prompt ran go first into the
-    # outbox, under the lock, so a newer update that the reader gives the turn
-    # comes after them.
+    # The block that the updates between two prompts left open ends in the queue
+    # of the session, under the lock, before the prompt takes the updates.
     lock(connection.turns_lock) do
+        frame = pop!(connection.session_frames, session_id, nothing)
+        frame === nothing || _send_turn_events!(frame, _close_open_block!(Any[], frame))
         connection.turns[session_id] = turn
-        waiting = pop!(connection.waiting_session_events, session_id, nothing)
-        waiting === nothing || _send_turn_events!(turn, values(waiting))
     end
     try
         result = try
@@ -386,11 +439,33 @@ function cancel_agent_prompt!(connection::AcpConnection, session_id::AbstractStr
     nothing
 end
 
-function close_agent_session!(connection::AcpConnection, session_id::AbstractString)
-    lock(connection.turns_lock) do
-        delete!(connection.session_options, session_id)
-        delete!(connection.waiting_session_events, session_id)
+# The work of a subagent stops with the notification `session/cancel` of its
+# child session, which stays open.
+function cancel_agent_subagent!(connection::AcpConnection, session_id::AbstractString,
+                                subagent_id::AbstractString)
+    ACP.send_notification!(_get_started_transport(connection),
+                           ACP.CancelNotification(session_id = String(subagent_id)))
+    nothing
+end
+
+# The extension method `_session/stop_background_task {sessionId, taskId}`
+# answers an empty object when the agent stopped the task, and an error when it
+# did not.
+function stop_agent_background_task!(connection::AcpConnection, session_id::AbstractString,
+                                     task_id::AbstractString)
+    result = try
+        ACP.send_request!(_get_started_transport(connection), "_session/stop_background_task",
+                          Dict{String,Any}("sessionId" => String(session_id), "taskId" => String(task_id));
+                          timeout = 30)
+    catch exception
+        exception isa ACP.ProtocolException || rethrow()
+        return false
     end
+    result isa AbstractDict
+end
+
+function close_agent_session!(connection::AcpConnection, session_id::AbstractString)
+    lock(() -> _forget_session!(connection, String(session_id)), connection.turns_lock)
     transport = connection.transport
     transport === nothing && return nothing
     _has_session_capability(connection, "close") || return nothing
@@ -449,42 +524,127 @@ function _get_started_transport(connection::AcpConnection)
     transport
 end
 
-# A `session/update` goes to the prompt that runs in its session. An update of
-# the session that comes outside a prompt waits for the next prompt, and another
-# update outside a prompt is dropped. `AgentClientProtocol` drops every other
-# notification unread.
+# A `session/update` goes, as its events, to the prompt that runs in its session,
+# or between two prompts to the queue of the session. An update of a child
+# session goes the same way for its parent, as the `event` of an
+# `AgentSubagentUpdate`, one level for each parent, up to the session that the
+# client opened. A session that opened with no queue drops the updates between
+# two prompts. The options of a session stay current in any case.
+# `AgentClientProtocol` drops every other notification of the protocol unread.
 function ACP.receive_notification(handler::AcpClientHandler, notification::ACP.SessionNotification, transport)
     connection = handler.connection
     session_id = notification.session_id
     update = ACP.get_json(notification.update)
-    turn = lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock)
-    kind = get(update, "sessionUpdate", "")
-    events = kind == "current_mode_update" ? _translate_mode_update(connection, session_id, update) :
-             kind == "config_option_update" ?
-                 Any[AgentOptionsUpdate(_read_agent_options(get(update, "configOptions", Any[])))] :
-             kind == "usage_update" ? Any[_read_usage_update(update)] :
-             kind == "session_info_update" ? Any[AgentSessionInfoUpdate(_read_session_title(update))] :
-             kind == "available_commands_update" ?
-                 Any[AgentCommandsUpdate(_read_agent_commands(get(update, "availableCommands", Any[])))] :
-             turn === nothing ? Any[] : _translate_session_update!(turn, update)
     lock(connection.turns_lock) do
-        # The options of a session stay current also outside a prompt.
+        turn = _find_session_turn!(connection, session_id)
+        events = _translate_connection_update!(connection, turn, session_id, update)
         for event in events
             event isa AgentOptionsUpdate && (connection.session_options[session_id] = event.options)
         end
-        # The turn is read again under the lock, so an update that comes as a
-        # prompt starts goes either to the waiting updates or to the prompt.
-        turn = get(connection.turns, session_id, nothing)
-        if turn === nothing
-            waiting = get!(() -> Dict{DataType,Any}(), connection.waiting_session_events, session_id)
-            for event in events
-                event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate,
-                                AgentCommandsUpdate} &&
-                    (waiting[typeof(event)] = event)
-            end
-        else
-            _send_turn_events!(turn, events)
+        turn === nothing || _send_turn_events!(turn, events)
+    end
+    nothing
+end
+
+# The extension notification `_session/background_task` goes where an update of
+# its session goes. A notification of another method is dropped unread.
+function ACP.receive_notification(handler::AcpClientHandler, method::String, params, transport)
+    method == "_session/background_task" && params isa Dict{String,Any} || return nothing
+    session_id = _find_string(params, "sessionId")
+    session_id === nothing && return nothing
+    connection = handler.connection
+    event = _read_background_task(params)
+    lock(() -> _deliver_session_event!(connection, session_id, event), connection.turns_lock)
+    nothing
+end
+
+# The events of one update of a session. The updates of the session itself need
+# no frame, and the connection keeps its options also when the update goes
+# nowhere; a `subagent_update` makes its child session known, also then.
+function _translate_connection_update!(connection::AcpConnection, turn::Union{Nothing,AcpTurn},
+                                       session_id::String, update::Dict{String,Any})
+    kind = get(update, "sessionUpdate", "")
+    kind == "current_mode_update" && return _translate_mode_update(connection, session_id, update)
+    kind == "config_option_update" &&
+        return Any[AgentOptionsUpdate(_read_agent_options(get(update, "configOptions", Any[])))]
+    kind == "usage_update" && return Any[_read_usage_update(update)]
+    kind == "session_info_update" && return Any[_read_session_info_update(update)]
+    kind == "available_commands_update" &&
+        return Any[AgentCommandsUpdate(_read_agent_commands(get(update, "availableCommands", Any[])))]
+    kind == "subagent_update" && return _translate_subagent_update!(connection, session_id, update)
+    turn === nothing && return Any[]
+    kind == "user_message_chunk" && return _translate_subagent_prompt!(connection, turn, session_id, update)
+    _translate_session_update!(turn, update)
+end
+
+# A `subagent_update` names a child session of `parent_id`. The child goes idle
+# when its work ends, which closes the block that its frame left open, as the
+# end of a prompt does.
+function _translate_subagent_update!(connection::AcpConnection, parent_id::String, update::Dict{String,Any})
+    event = _read_subagent_update(update)
+    isempty(event.id) && return Any[]
+    connection.session_parents[event.id] = parent_id
+    events = Any[]
+    frame = get(connection.session_frames, event.id, nothing)
+    if event.state === :idle && frame !== nothing
+        for stop in _close_open_block!(Any[], frame)
+            push!(events, AgentSubagentUpdate(event.id; event = stop))
         end
+    end
+    push!(events, event)
+end
+
+# The `user_message_chunk` of a child session is the prompt of its subagent, an
+# `LlmMessage` of the role `:user`, one for each chunk. A chunk of a session that
+# the client opened is the prompt that the client sent, and gives no event.
+function _translate_subagent_prompt!(connection::AcpConnection, turn::AcpTurn, session_id::String,
+                                     update::Dict{String,Any})
+    haskey(connection.session_parents, session_id) || return Any[]
+    text = _read_content_text(get(update, "content", nothing))
+    isempty(text) && return Any[]
+    push!(_close_open_block!(Any[], turn), LlmMessage(:user, LlmContent[LlmText(text)]))
+end
+
+# The turn whose frame and whose `on_event` take the updates of a session, under
+# the lock: the prompt that runs in it; else, for a child session, its frame,
+# whose events go to its parent; else, for a session with a queue, its frame
+# between two prompts, whose events go to the queue; else, while an open runs,
+# a frame whose events wait for the open that gets the id. Else `nothing`, and
+# the updates go nowhere.
+function _find_session_turn!(connection::AcpConnection, session_id::String)
+    turn = get(connection.turns, session_id, nothing)
+    turn === nothing || return turn
+    turn = get(connection.session_frames, session_id, nothing)
+    turn === nothing || return turn
+    parent_id = get(connection.session_parents, session_id, nothing)
+    if parent_id !== nothing
+        return connection.session_frames[session_id] = AcpTurn(event ->
+            _deliver_session_event!(connection, parent_id, AgentSubagentUpdate(session_id; event)))
+    end
+    if haskey(connection.session_queues, session_id)
+        queue = connection.session_queues[session_id]
+        queue === nothing && return nothing
+        return connection.session_frames[session_id] = AcpTurn(event -> put_agent_event!(queue, event))
+    end
+    connection.opening_count > 0 || return nothing
+    AcpTurn(event -> push!(get!(Vector{Any}, connection.opening_events, session_id), event))
+end
+
+# One event of a session, to where its updates go, under the lock.
+function _deliver_session_event!(connection::AcpConnection, session_id::String, event)
+    turn = _find_session_turn!(connection, session_id)
+    turn === nothing || _send_turn_events!(turn, (event,))
+    nothing
+end
+
+# What the connection keeps of a session that closed, and of its child sessions.
+function _forget_session!(connection::AcpConnection, session_id::String)
+    delete!(connection.session_options, session_id)
+    delete!(connection.session_queues, session_id)
+    delete!(connection.session_frames, session_id)
+    delete!(connection.session_parents, session_id)
+    for (child_id, parent_id) in collect(connection.session_parents)
+        parent_id == session_id && _forget_session!(connection, child_id)
     end
     nothing
 end

@@ -1,15 +1,22 @@
 # The transport with a real process: a child agent that starts and ends with its
 # input, one that ignores the end of its input and keeps a child of its own, the
-# built-in agent of an empty command, and a command that does not exist.
+# id of the process of an agent in the queue of its session, the built-in agent
+# of an empty command, and a command that does not exist.
 
 # A child agent in plain Julia: it answers `initialize` with the line in
-# `CHILD_AGENT_ANSWER`, with the id of the request in place of `ANSWER_ID`, and
-# reads on until its input ends. The id is the first `id` of the request,
-# because the parameters of `initialize` hold no other.
+# `CHILD_AGENT_ANSWER`, and `session/new` with the line in
+# `CHILD_SESSION_ANSWER` when it is set, with the id of the request in place of
+# `ANSWER_ID`, and reads on until its input ends. The id is the first `id` of
+# the request, because the parameters of the two requests hold no other.
 const _CHILD_AGENT = raw"""
 for line in eachline(stdin)
     m = match(r"id.:(\d+)", line)
     m === nothing && continue
+    if occursin("session/new", line) && haskey(ENV, "CHILD_SESSION_ANSWER")
+        println(replace(ENV["CHILD_SESSION_ANSWER"], "ANSWER_ID" => m[1]))
+        flush(stdout)
+        continue
+    end
     occursin("initialize", line) || continue
     println(replace(ENV["CHILD_AGENT_ANSWER"], "ANSWER_ID" => m[1]))
     flush(stdout)
@@ -28,6 +35,10 @@ const _CHILD_ANSWER = replace(JSON3.write(Dict(
                      "agentInfo" => Dict("name" => "child", "title" => "Child Agent"),
                      "authMethods" => []))), "\"ANSWER_ID\"" => "ANSWER_ID")
 
+const _CHILD_SESSION_ANSWER = replace(JSON3.write(Dict(
+    "jsonrpc" => "2.0", "id" => "ANSWER_ID", "result" => Dict("sessionId" => "child-session"))),
+    "\"ANSWER_ID\"" => "ANSWER_ID")
+
 _make_child_command() = String[Base.julia_cmd().exec..., "--startup-file=no", "-e", _CHILD_AGENT]
 
 _is_process_alive(pid::Integer) = ccall(:kill, Cint, (Cint, Cint), pid, 0) == 0
@@ -42,6 +53,21 @@ function test_acp_transport()
             process = connection.transport.process
             stop_agent_connection!(connection)
             @test process_exited(process)
+        end
+
+        @testset "an agent in a child process gives the id of that process to the queue of a session" begin
+            connection = make_agent_connection(:acp; command = _make_child_command(),
+                environment = Dict("CHILD_AGENT_ANSWER" => _CHILD_ANSWER,
+                                   "CHILD_SESSION_ANSWER" => _CHILD_SESSION_ANSWER))
+            start_agent_connection!(connection)
+            queue = AgentEventQueue()
+            @test open_agent_session!(connection; events = queue) == "child-session"
+            @test take_agent_events!(queue) ==
+                  Any[AgentSessionInfoUpdate(nothing; process_id = getpid(connection.transport.process))]
+            # A session that opens with no queue gets no process id.
+            @test open_agent_session!(connection) == "child-session"
+            @test isempty(take_agent_events!(queue))
+            stop_agent_connection!(connection)
         end
 
         @testset "an agent that stays ends with its children" begin

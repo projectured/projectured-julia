@@ -8,7 +8,8 @@ adapter `claude-agent-acp`. Depends on `ProjecturedKernel` plus
 `AgentModule`:
 `AcpConnection` and its methods of `make_agent_connection`,
 `start_agent_connection!`, `open_agent_session!`, `set_agent_option!`,
-`send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and
+`send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`,
+`stop_agent_background_task!`, `close_agent_session!` and
 `stop_agent_connection!`.
 
 **ACP reaches the editor only through this package.** The editor speaks the
@@ -22,7 +23,8 @@ events of the kernel.
 
 Two fragments share this namespace:
 
-- [`AcpUpdate.jl`](AcpUpdate.jl) — from a `session/update` to the events of the
+- [`AcpUpdate.jl`](AcpUpdate.jl) — from a `session/update`, and from the
+  extension notification `_session/background_task`, to the events of the
   kernel.
 - [`AcpConnection.jl`](AcpConnection.jl) — the connection: the methods of the
   client, and the methods of the seam.
@@ -42,6 +44,7 @@ import ClaudeCodeACP
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent_session!,
                       set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
+                      cancel_agent_subagent!, stop_agent_background_task!,
                       close_agent_session!, stop_agent_connection!, has_agent_sign_out,
                       sign_out_agent!, has_agent_steering, steer_agent_prompt!
 

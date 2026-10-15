@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 5 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 6 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -838,7 +838,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       passing; `test_external_agent_turn()` ran 269, all passing, with the old
       constructors.
 
-- [ ] **6. ProjecturedACP: the translation.**
+- [x] **6. ProjecturedACP: the translation.** Done 2026-10-15.
   - The capabilities and the translation of section 4.7. The queue replaces
     `waiting_session_events`.
   - Tests with `FakeAcpAgent`:
@@ -848,6 +848,64 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - a background task that ends between two prompts;
     - a stop and a cancel.
   - Run `test_acp()`.
+  - **What the step found and decided:**
+    - **One path for every update.** `receive_notification` finds, under the
+      lock, the `AcpTurn` that takes the updates of a session
+      (`_find_session_turn!`): the prompt that runs; else, for a child, its
+      own frame, whose `on_event` wraps each event in an
+      `AgentSubagentUpdate` of the child and gives it to the turn of its
+      parent; else, for a session with a queue, a frame whose `on_event` puts
+      into the queue. The frames live in `session_frames`. The four kinds of
+      the session go the same way and need no frame. The start of a prompt
+      closes the frame of its session between two prompts, so the last stop
+      of that text goes to the queue.
+    - **An update before the answer of an open.** `claude-agent-acp` sends its
+      commands just after its answer to `session/new`, and the reader can give
+      them before the open has the id. While an open waits
+      (`opening_count`), an update of a session with no queue and no parent
+      waits in `opening_events`; the open puts it into the queue of its
+      session, and the end of the last open drops the rest. So the buffer is
+      bounded by the time of an open. `waiting_session_events` used to keep
+      them for the next prompt.
+    - **The idle state of a child closes its open block**, as the end of a
+      prompt closes the block of a prompt; a child's text arrives as whole
+      messages, so its last block has no other end.
+    - **The prompt of a subagent** is `LlmMessage(:user, [LlmText(text)])`,
+      one for each `user_message_chunk` of a child session, which closes the
+      open block of the child first. A chunk of a session of the client still
+      gives no event.
+    - `plan_update`, `plan_removed` and `plan` close the open block, as `plan`
+      did; `notice`, `compaction_update` and `subagent_update` do not.
+      `compaction_summary_chunk` gives no event. A notice of an unknown
+      severity is `:info`; a subagent state that the client does not know is
+      `:unknown`. The token count of a subagent comes from
+      `_meta.claudeCode.usage.totalTokens`, else from the `usage` of its idle
+      state.
+    - `_session/background_task` comes through the method of
+      `ACP.receive_notification` for a method that the protocol does not name,
+      and goes where an update of its session goes, also through the parents
+      when its session is a child.
+    - `cancel_agent_subagent!` sends `session/cancel` with the id of the child
+      and does not check `can_cancel`: the caller shows the button only when
+      the subagent can be cancelled. `stop_agent_background_task!` waits 30 s;
+      a timeout throws, as for the other requests.
+    - The process id of a child agent is the `process_id` that the transport
+      of `AgentClientProtocol` keeps; the queue gets it first, before the
+      waiting events. The transport test gives a child agent an answer to
+      `session/new` and checks it.
+    - `close_agent_session!` forgets the queue, the frames and the children of
+      the session (`_forget_session!`).
+    - **Until step 7**, the assistant gets the new events during a prompt and
+      does not apply them: each one closes its open text block, and a plan of
+      Markdown or a removal replaces the checklist of the plan with an empty
+      one, because ClaudeCodeACP now sends `plan_update` to this client.
+    - `acp.md` has the new rows of the translation table, the sections "Where
+      an event goes", "The work of an agent" and "The keys of
+      `_meta.claudeCode`", the capabilities, and two new limits: a
+      permission request of a child session is cancelled, and a summary chunk
+      of a compaction gives no event.
+    - Tests: `test_acp()` ran 248 tests, all passing, with the layering guard;
+      the naming, export, argument and documentation guards pass.
 
 - [ ] **7. The assistant: the documents of the work.**
   - `AgentWork`, `Assistant.agent_work`, `AgentBackgroundTask`,
