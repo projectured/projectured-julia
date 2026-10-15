@@ -124,11 +124,19 @@ projection_to(start, reached) =
     (ss = path_sequences(start, reached); isempty(ss) ? nothing : _compile(ss[1]))
 
 # ── The trivial single-step projection ────────────────────────────────────────────
+# Whether a test package defines projection type `T`: its root module is a test package.
+_is_test_projection(T) = begin
+    body = Base.unwrap_unionall(T)
+    body isa DataType && endswith(string(Base.moduleroot(parentmodule(body))), "Test")
+end
+
 # The most trivial single-step projection applicable to document type `D` whose output
 # lands in domain `want` (:syntax / :text / :graphics). Leaf stages are macro-generated
 # (`@projection_template`), so they live in the `print_document` method table, not in
 # source — scan it, run each zero-arg candidate on `doc`, and keep those that genuinely
 # transform `doc` into `want`. Deterministic: prefers the lexicographically-first name.
+# A projection that a test package defines, such as the fixture of one test, is no
+# stage of the catalog, so the catalog does not depend on which tests are loaded.
 function _single_step(@nospecialize(D), doc, want::Symbol)
     matches = Type[]
     for m in methods(print_document)
@@ -137,6 +145,7 @@ function _single_step(@nospecialize(D), doc, want::Symbol)
         (projT isa Type && docT isa Type)             || continue
         (docT <: Document && docT !== Document)       || continue
         (projT <: Projection && projT !== Projection) || continue
+        _is_test_projection(projT) && continue
         D <: docT || continue
         local proj; try proj = projT() catch; continue end       # zero-arg stages only
         local out;  try out = unwrap_cell(print_document(proj, doc).output) catch; continue end
