@@ -906,6 +906,32 @@ For each step, run the narrowest test: the test files of the step. Do not run
       of a compaction gives no event.
     - Tests: `test_acp()` ran 248 tests, all passing, with the layering guard;
       the naming, export, argument and documentation guards pass.
+    - **What the review changed** (`16b1a9b07`; `test_acp()` 301 tests pass):
+      - `stop_agent_connection!` forgets every session of the agent that
+        ended. Before a frame goes (at a stop, at a second open of the same
+        id, at `close_agent_session!`), the event that closes its open block
+        goes into its queue, and its waiting requests are answered as
+        cancelled.
+      - A child that becomes idle keeps only its parent, in a record of at
+        most 256 finished children for each root session, which the close of
+        the root clears. A late `_meta`-only update still reaches the root and
+        adds no entry. A finished child that gets `running` again is a child
+        again, because ACP lets an agent use an idle child again.
+      - A `session_message` or a `session_message_chunk` to a child is its
+        prompt. A permission request or a form of a child goes to its root,
+        wrapped in one `AgentSubagentUpdate` for each level. A request of a
+        root session between two prompts goes into its queue and is no longer
+        cancelled. The two limits of acp.md about them are gone.
+      - `compaction_summary_chunk` adds its text to the summary.
+      - One frame for each id while an open waits, given to the registration.
+      - A `null` title or description of a subagent clears it, and a `null`
+        state gives `:unknown`. The text keys of a background task clear the
+        same way.
+      - A `subagent_update` that names its own session or one of its parents
+        as the child is ignored, with a warning.
+      - The reviewer also found that the two paths, the queue before a prompt
+        and `on_event` during it, have no order between them. Step 7 puts both
+        into the same queue.
 
 - [x] **7. The assistant: the documents of the work.** Done 2026-10-15.
   - `AgentWork`, `Assistant.agent_work`, `AgentBackgroundTask`,
