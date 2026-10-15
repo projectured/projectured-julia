@@ -174,7 +174,11 @@ function test_scroll_pane_bar()
     @testset "the pointer on a bar names the bar and lights it" begin
         area = _make_bar_test_content()
         pane = WidgetScrollPane(area; size = Point2D(200, 200))
-        driver = MttDriver(projection, pane)
+        # A clock that the test moves, so the thumb can fade out.
+        clock = Clock()
+        driver = MttDriver(projection, pane,
+                           print_document(projection, nothing, pane,
+                                          ProjecturedKernel.ProjectionModule.with_clock(PrinterContext(), clock)))
         found = _find_test_pane_bar(driver.iomap, "vertical_scroll_bar")
         bar = found.document
         thumb = found.iomap.output.elements[end - 1]
@@ -192,6 +196,9 @@ function test_scroll_pane_bar()
         _mtt_move!(driver, 20, 100, 1.1)
         @test get_mouse_target(bar) === nothing
         @test get_mouse_target(area) !== nothing
+        # The paint of the next frame sees the leave, and the thumb fades out.
+        @test thumb.color == found.iomap.projection.thumb_scrolled_color
+        ProjecturedKernel.ClockModule.set_clock_time!(clock, 1.0)
         @test thumb.color == rest
     end
 end

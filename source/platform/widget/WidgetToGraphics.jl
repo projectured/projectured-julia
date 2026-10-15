@@ -880,12 +880,14 @@ WidgetToolbarToGraphicsCanvas(theme; measure,
     minimum_thumb_length::Int
     thickness::Int                    # across the bar, where nothing sizes it
     show_duration::Float64            # seconds that the thumb shows after a scroll
+    fade_duration::Float64            # seconds that the thumb takes to fade out
 end
 
 # A bar lies over the content that it scrolls, so it shows nothing at rest and
-# covers no content. It shows while the pointer is on it or its thumb is
-# dragged, and its thumb shows for `show_duration` seconds after a scroll. A
-# maker that wants a bar at rest gives `thumb_color`.
+# covers no content. It shows at once while the pointer is on it or its thumb is
+# dragged, and its thumb shows for `show_duration` seconds after a scroll. Then
+# the thumb fades out over `fade_duration` seconds. A maker that wants a bar at
+# rest gives `thumb_color`.
 WidgetScrollBarToGraphicsCanvas(theme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
@@ -897,11 +899,11 @@ WidgetScrollBarToGraphicsCanvas(theme;
                                 thumb_scrolled_color = _themed(StyleColor, theme, t -> t.border),
                                 minimum_thumb_length = _themed(Int, theme, t -> t.scroll_thumb_minimum),
                                 thickness = _themed(Int, theme, t -> t.scroll_bar_thickness),
-                                show_duration = 1.0) =
+                                show_duration = 1.0, fade_duration = 0.15) =
     WidgetScrollBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, track_color, track_hovered_color, thumb_color,
                                     thumb_hovered_color, thumb_scrolled_color, minimum_thumb_length,
-                                    thickness, Float64(show_duration))
+                                    thickness, Float64(show_duration), Float64(fade_duration))
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
 
@@ -6746,6 +6748,28 @@ function _is_within_duration(clock, start::Float64, duration::Real)
     get_reactive_clock_time(clock) - start < duration
 end
 
+# The share of the shown color of a bar, from the pair `(showing, since)` of
+# whether it shows and the clock time of the last change of that: 1 while it
+# shows, and from 1 down to 0 over `duration` seconds after it stops.
+function _compute_scroll_bar_share(clock, shown::Tuple{Bool, Float64}, duration::Real)
+    showing, since = shown
+    showing && return 1.0
+    _is_within_duration(clock, since, duration) || return 0.0
+    1.0 - (get_clock_time(clock) - since) / duration
+end
+
+# The color `fraction` of the way from `a` to `b`. The channels mix in
+# proportion to the alpha of each end, so a transparent end takes the color of
+# the other end and only its alpha changes.
+function _mix_colors(a::StyleColor, b::StyleColor, fraction::Real)
+    fraction <= 0 && return a
+    fraction >= 1 && return b
+    alpha = a.alpha + (b.alpha - a.alpha) * fraction
+    alpha <= 0 && return color_transparent
+    mix(x, y) = (x * a.alpha + (y * b.alpha - x * a.alpha) * fraction) / alpha
+    StyleColor(mix(a.red, b.red), mix(a.green, b.green), mix(a.blue, b.blue), alpha)
+end
+
 # Whether a bar shows a change of its value from `old` to `new` as a scroll: the
 # value moved and the thumb kept its size. A change of both is a change of the
 # size of the content or of the view, such as a typed line or a log that grows.
@@ -6757,8 +6781,10 @@ _is_scroll_bar_scroll(old, new) = old[1] != new[1] && old[2] == new[2]
 # while the pointer is on the bar or its thumb is dragged. Else the thumb takes
 # its scrolled color for `show_duration` seconds of the clock of `ctx` after a
 # scroll, and both take their colors at rest, which are transparent unless a
-# maker gives them. The pointer is an arrow over the bar, also over a text under
-# it.
+# maker gives them. When the bar stops showing, the thumb goes from its scrolled
+# color to its color at rest over `fade_duration` seconds. A clock that no code
+# writes keeps a fade at its start. The pointer is an arrow over the bar, also
+# over a text under it.
 function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position
@@ -6781,10 +6807,13 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     track_rest, track_lit = _get_state_color(p, w, :track), _get_state_color(p, w, :track; state = :hovered)
     thumb_rest, thumb_lit = _get_state_color(p, w, :thumb), _get_state_color(p, w, :thumb; state = :hovered)
     thumb_scrolled = _get_state_color(p, w, :thumb; state = :scrolled)
+    # Whether the bar shows, and the clock time of the last change of that. The
+    # scroll is read first, so a scroll under the pointer counts too.
+    shown = _make_change_time_cell(() -> (recent = scrolled[]; lit[] || recent), clock)
+    share = Cell(@computation _compute_scroll_bar_share(clock, shown[], p.fade_duration))
     track_color = Cell(@computation lit[] ? track_lit : track_rest)
-    # The scroll is read first, so a scroll under the pointer counts too.
-    thumb_color = Cell(@computation (recent = scrolled[];
-                                     lit[] ? thumb_lit : recent ? thumb_scrolled : thumb_rest))
+    thumb_color = Cell(@computation (fraction = share[];
+                                     lit[] ? thumb_lit : _mix_colors(thumb_rest, thumb_scrolled, fraction)))
     colors = (track_color, thumb_color)
     function make_rect(part::Int)
         rect = GraphicsRect(0, 0, 0, 0; color = color_transparent)

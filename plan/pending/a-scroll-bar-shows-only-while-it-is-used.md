@@ -4,7 +4,7 @@
 > should auto hide and show only if its being dragged or the mouse is over the
 > bar, this is typical in modern UIs so the scroll bar doesn't hide anything".
 > The owner agreed to step 2 (show the bar after a scroll) and step 3 (fade).
-> Steps 1 and 2 are done.
+> Steps 1, 2 and 3 are done. The check in the live app is open.
 
 ## The goal
 
@@ -85,12 +85,24 @@ A projection that wants a bar at rest passes `thumb_color`. No setting is added.
 
 ### Step 3: a bar fades in and out
 
-- ⬜ The printer keeps the clock time of the last change of "shown". The alpha
+- ✅ The printer keeps the clock time of the last change of "shown". The alpha
   of the track and of the thumb goes from 0 to 1, or from 1 to 0, over
   `fade_duration` seconds, 0.15 s by default.
-- ⬜ The cell reads `get_reactive_clock_time` only during a fade.
-- ⬜ Test the alpha at three clock times of a fade, and that a bar at rest reads
-  no clock.
+  **Changed in the implementation:** the bar shows at once, and only the thumb
+  fades, and only when the bar stops showing. The track goes at once. The
+  reason: `FaultLogOverlay` and `GestureLogOverlay` print with a context whose
+  clock no code writes, and there a fade-in would keep a bar hidden under the
+  pointer for ever. A fade-out there stays at its start, so the bar stays
+  visible. A show at once also answers the pointer at once.
+- ✅ The thumb mixes its scrolled color and its color at rest by the share of
+  the fade (`_mix_colors`, in proportion to the alpha of each end), so a maker
+  that gives a visible `thumb_color` gets a fade to that color.
+- ✅ The cell sees a change when a read sees it. In the editor the paint reads
+  the color in the frame after the change, so the fade starts there. A test
+  must read the color after the change and before it moves the clock.
+- ✅ The cell reads `get_reactive_clock_time` only during a fade.
+- ✅ Test the alpha at three clock times of a fade, and that a bar at rest reads
+  no clock. The five bar tests pass: 225 of 225.
 
 ## Decisions
 

@@ -19,7 +19,10 @@ function test_widget_scroll_bar()
 @testset "a scroll bar takes its length, and the pointer moves its thumb" begin
     projection = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
-    offer = with_exact_size(PrinterContext(); height = Cell(Int32(300)))
+    bar_clock = Clock()
+    set_bar_time!(seconds) = ProjecturedKernel.ClockModule.set_clock_time!(bar_clock, seconds)
+    offer = ProjecturedKernel.ProjectionModule.with_clock(
+        with_exact_size(PrinterContext(); height = Cell(Int32(300))), bar_clock)
     bar = WidgetScrollBar(:vertical; value = 0.5, thumb_size = 0.2)
     iomap = print_document(projection, nothing, bar, offer)
     canvas = iomap.output
@@ -33,8 +36,9 @@ function test_widget_scroll_bar()
     @test canvas.elements[end - 1] === thumb
     getfield(bar, :value)[] = 0.5
 
-    @testset "the bar shows nothing at rest, and shows while the pointer is on it" begin
+    @testset "the bar shows nothing at rest, shows while the pointer is on it, and fades out" begin
         p = iomap.projection
+        set_bar_time!(10.0)
         @test track.color == color_transparent
         @test thumb.color == color_transparent
         getfield(bar, :mouse_target)[] = EmptyReference()
@@ -42,7 +46,16 @@ function test_widget_scroll_bar()
         @test thumb.color == p.thumb_hovered_color
         getfield(bar, :mouse_target)[] = nothing
         @test track.color == color_transparent
+        # The thumb fades out: half its alpha at half the fade, and then nothing.
+        @test thumb.color == p.thumb_scrolled_color
+        set_bar_time!(10.0 + p.fade_duration / 2)
+        @test (thumb.color.red, thumb.color.green, thumb.color.blue) ==
+              (p.thumb_scrolled_color.red, p.thumb_scrolled_color.green, p.thumb_scrolled_color.blue)
+        @test thumb.color.alpha ≈ p.thumb_scrolled_color.alpha / 2
+        @test has_dependent_cells(getfield(bar_clock, :time))
+        set_bar_time!(10.0 + p.fade_duration + 0.01)
         @test thumb.color == color_transparent
+        @test !has_dependent_cells(getfield(bar_clock, :time))
         @test shape isa GraphicsPointerShape && shape.shape === :arrow
         @test (Int(shape.w), Int(shape.h)) == (10, 300)
     end
@@ -167,8 +180,10 @@ function test_widget_scroll_bar()
         @test thumb.color == p.thumb_hovered_color
         getfield(scrolled, :mouse_target)[] = nothing
         @test thumb.color == p.thumb_scrolled_color
-        # After the second the thumb shows nothing, and nothing reads the clock.
+        # After the second the thumb fades out, and then nothing reads the clock.
         set_time!(11.1)
+        @test thumb.color == p.thumb_scrolled_color
+        set_time!(11.1 + p.fade_duration + 0.01)
         @test thumb.color == color_transparent
         @test !reads_clock()
     end
