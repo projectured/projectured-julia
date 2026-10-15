@@ -21,15 +21,40 @@
 # `WidgetScrollPane`. Its IO map gives the rows it placed and the edges of the
 # columns, so a container can draw graphics around the cells: a layout
 # positions and draws nothing.
+#
+# **A row that stays keeps its print.** When the columns are a vector, the grid
+# keeps the print of a row by the row document: a new head with the same rows,
+# such as the rows that a filter keeps or the rows of a table that moved its
+# head, links the prints it has, and only a new row prints. The path of the
+# cells of a kept row counts the row from the head as a computation, so it
+# follows the row, and a link makes a new canvas for the row, so no computation
+# writes a cell of a print.
 
 # What the printer of a grid of a list keeps for its readers: the rows built so
-# far, by their index from the head, and the canvas lists that it draws from.
+# far, by their index from the head, the canvas lists that it draws from, and
+# the prints of the rows linked under this head and under the head before it.
 mutable struct GridListState
     columns::Int             # the count of the columns, or 0 when they are a list
     built::Dict{Int,Any}     # index from the head => (row canvas, cell entries, row height)
     head::Cell               # the canvas node of the head row, or nothing
     column_head::Union{Nothing,Cell}   # the canvas node of the head column when the columns are a list
     column_aligns::Dict{Int,Any}       # the node of the alignment of each column built, when they are a list
+    kept::IdDict{Any,Any}              # row document => _GridListRow, linked under this head
+    kept_before::IdDict{Any,Any}       # row document => _GridListRow, linked under the head before it
+end
+
+# The print of one row of a vector of columns, which the grid keeps by the row
+# document: the IO maps of its cells with their places in the row, the output
+# of each IO map when the row printed, the outputs in their slots, and the
+# height of the row. `count` gives the count of the row from the head, which
+# the path of its cells reads, and `linked` holds the count of its last link.
+struct _GridListRow
+    entries::Vector{Any}          # (x, y, iomap) of each column
+    outputs::Vector{Any}          # the output of each IO map at the print, or nothing
+    cells::Vector{Any}            # the outputs in their slots
+    height::Cell
+    count::AbstractCell
+    linked::Base.RefValue{Int}
 end
 
 """
@@ -97,12 +122,17 @@ function _print_grid_list(p, recursion, doc, ctx)
     col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
     total_w = Cell(@computation Int32(sum((Int(col_w[k][])::Int for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
-    state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}())
-    # A new head in `children` drops every row built and starts again, and a
-    # grid whose children are no list draws no rows.
+    state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}(),
+                          IdDict{Any,Any}(), IdDict{Any,Any}())
+    # A new head in `children` links its rows again from the head, and takes the
+    # prints of the rows linked under the head before it; a print that no link of
+    # the new head takes goes with the head after it. A grid whose children are no
+    # list draws no rows.
     set_cell_computation!(state.head, () -> begin
         list = doc.children
         empty!(state.built)
+        state.kept_before = state.kept
+        state.kept = IdDict{Any,Any}()
         list isa ListNode ?
             _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w, 1, list,
                                  nothing, nothing) :
@@ -117,11 +147,14 @@ function _print_grid_list(p, recursion, doc, ctx)
     GridLayoutListIoMap(p, doc, canvas, state, col_x, col_w, hgap, vgap, total_w)
 end
 
-# One row: its cells printed through the recursion and placed in their columns.
-# The canvas's `y` is set by the node that links it, because a row is under the
-# row before it or above the row after it, and the head is at zero.
-function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
-                             total_w::Cell, k::Int, row)
+# One row: its cells printed through the recursion and placed in their columns,
+# as a print that the grid can keep. The path of its cells is `children[k][c]`,
+# where `k` is the count of the row from the head: a computation for a row that
+# the grid keeps, and the `k` of this link for a row that it does not keep, a
+# value that is no mutable object or a row that is nearer the head at another
+# place of the list.
+function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
+                              k::Int, row)
     n = state.columns
     row_policy = doc.row_policy
     fixed_h = row_policy.preferred
@@ -129,11 +162,14 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
     halign = doc.horizontal_align
     valign = doc.vertical_align
     column_align = doc.column_align
+    linked = Ref(k)
+    count = _make_grid_list_count(doc, state, row, k, linked)
+    row_ctx = ctx === nothing ? nothing : _make_grid_list_row_context(ctx, doc, k, count)
     entries = Any[]
+    outputs = Any[]
     for c in 1:n
         document = (row !== nothing && 1 <= c <= length(row)) ? row[c] : nothing
-        cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [k]),
-                                  (@reference_step [c]))
+        cctx = row_ctx === nothing ? nothing : _make_grid_list_cell_context(row_ctx, row, c)
         if cctx !== nothing
             withheld = column_offers isa AbstractVector && c <= length(column_offers) &&
                        column_offers[c] === false
@@ -149,6 +185,7 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
             Int32(Int(col_x[c][]) + _get_layout_list_align_offset(align, Int(col_w[c][]), width))
         end)
         push!(entries, (x_cell, Cell(Int32(0)), cim))
+        push!(outputs, cim === nothing ? nothing : cim.output)
     end
     cims = Any[entry[3] for entry in entries]
     row_h = Cell(@computation Int32(fixed_h !== nothing ? Int(fixed_h) :
@@ -156,8 +193,7 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
     cells = Any[]
     for c in 1:n
         (x_cell, _, cim) = entries[c]
-        cim === nothing && continue
-        child = cim.output
+        child = outputs[c]
         child isa GraphicsDocument || continue
         y_cell = Cell(@computation Int32(_get_layout_list_align_offset(
             Symbol(valign), Int(row_h[]), _child_h(cim))))
@@ -167,19 +203,110 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
                                         clip_x = true, clip_y = fixed_h !== nothing))
         entries[c] = (x_cell, y_cell, cim)
     end
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), total_w, row_h,
-                            CellVector(Cell[Cell(e) for e in cells]), layout_none, true,
-                            Cell(nothing))
-    (canvas, entries, row_h)
+    printed = _GridListRow(entries, outputs, cells, row_h, count, linked)
+    count isa ImmutableCell || (state.kept[row] = printed)
+    printed
 end
+
+# The count of `row` from the head, for its print at `k`: a computation when the
+# grid keeps the print, and `k` when it does not. `linked` holds the count of the
+# last link, which the computation gives when the walk does not reach the row.
+function _make_grid_list_count(doc, state::GridListState, row, k::Int, linked)
+    ismutable(row) || return ImmutableCell{Any}(k)
+    count = Cell(@computation something(_count_grid_list_row(doc, state, row), linked[]))
+    peek(count) == k ? count : ImmutableCell{Any}(k)
+end
+
+# The context of the cells of a row: the path of the grid and `children[k]`, with
+# the types of the print at `k`, and the count that `count` gives.
+function _make_grid_list_row_context(ctx, doc, k::Int, count::AbstractCell)
+    typed = annotate_reference_types(doc, Reference((@reference_step children), (@reference_step [k])))
+    count isa ImmutableCell &&
+        return make_child_context(ctx, make_reference_cell(reference -> concat_references(reference, typed), ctx))
+    make_child_context(ctx, Cell(@computation concat_references(ctx.reference[],
+                                                                _with_grid_list_count(typed, count[]))))
+end
+
+# The context of the cell in column `c` of `row`: the path of the row and `[c]`,
+# typed against the row.
+function _make_grid_list_cell_context(row_ctx, row, c::Int)
+    typed = annotate_reference_types(row, Reference((@reference_step [c])))
+    make_child_context(row_ctx, make_reference_cell(reference -> concat_references(reference, typed), row_ctx))
+end
+
+# The steps `children[k]`, typed as `typed` types them, with the count `k`.
+_with_grid_list_count(typed::ConcreteReference, k::Int) =
+    ConcreteReference(typed.type, typed.head,
+                      ConcreteReference(typed.tail.type, ElementReferenceStep(k), typed.tail.tail))
+
+# The count of `row` from the head of the children of `doc`: 1 at the head, and 0
+# and less before it; `nothing` when the walk does not reach it. The walk goes
+# from the head both ways in turn, so the place of the row that is nearest the
+# head wins. A row that the walk reads is in the list, linked or being linked, so
+# the walk goes one row past the rows linked under this head on each side, and
+# no farther.
+function _count_grid_list_row(doc, state::GridListState, row)
+    after = doc.children
+    after isa ListNode || return nothing
+    before = after.prev
+    reach = 2 + maximum(abs, keys(state.built); init = 0)
+    for i in 1:reach
+        after === nothing && before === nothing && return nothing
+        if after !== nothing
+            after.value === row && return i
+            after = after.next
+        end
+        if before !== nothing
+            before.value === row && return 1 - i
+            before = before.prev
+        end
+    end
+    nothing
+end
+
+# The print of `row` for its link at `k`: the print that the grid keeps, or a new
+# one. A kept print serves when the row is nearest the head at `k`, and each IO
+# map of its cells gives the output that it placed; the link reads the outputs,
+# as a print reads them.
+function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
+                             k::Int, row)
+    kept = _take_kept_grid_list_row(state, row, k)
+    kept === nothing && return _print_grid_list_row(recursion, doc, ctx, state, col_x, col_w, k, row)
+    kept.linked[] = k
+    kept
+end
+
+function _take_kept_grid_list_row(state::GridListState, row, k::Int)
+    ismutable(row) || return nothing
+    kept = get(state.kept, row, nothing)
+    kept === nothing && (kept = get(state.kept_before, row, nothing))
+    kept === nothing && return nothing
+    peek(kept.count) == k || return nothing
+    for (entry, output) in zip(kept.entries, kept.outputs)
+        entry[3] === nothing || entry[3].output === output || return nothing
+    end
+    delete!(state.kept_before, row)
+    state.kept[row] = kept
+    kept
+end
+
+# The canvas of a row for one link: the cells of the print in their slots, as tall
+# as the row. The `y` of the canvas is set by the node that links it.
+_make_grid_list_row_canvas(printed::_GridListRow, total_w::Cell) =
+    GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), total_w, printed.height,
+                   CellVector(Cell[Cell(e) for e in printed.cells]), layout_none, true,
+                   Cell(nothing))
 
 # The canvas node of row `k`, linked as a node of a linear list is
 # (`_make_layout_list_node`).
 function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, col_w,
                               total_w::Cell, k::Int, document_node::ListNode, before, after)
-    canvas, entries, row_h = state.column_head === nothing ?
-        _make_grid_list_row(recursion, doc, ctx, state, col_x, col_w, total_w, k, document_node.value) :
+    canvas, entries, row_h = if state.column_head === nothing
+        printed = _link_grid_list_row(recursion, doc, ctx, state, col_x, col_w, k, document_node.value)
+        (_make_grid_list_row_canvas(printed, total_w), printed.entries, printed.height)
+    else
         _make_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
+    end
     state.built[k] = (canvas, entries, row_h)
     vgap = getfield(doc, :vertical_gap)
     if before !== nothing

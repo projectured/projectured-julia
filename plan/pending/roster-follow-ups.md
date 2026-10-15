@@ -107,7 +107,7 @@ findings, which the owner asked to fix on 2026-10-15:
       the template, the fault barrier, the type-in, the conversation, the
       window shell and wrap, the clipboard, every arrangement test, every roster
       test, and the insertion; all pass. The naming guard passes.
-  - [ ] **2b. The grid of a list keeps the print of a row** (`GridList.jl`).
+  - [x] **2b. The grid of a list keeps the print of a row** (`GridList.jl`).
     - The grid keeps the print of each row by the row document itself, in an
       `IdDict` that keeps the row alive: the IO maps of its cells, the cells in
       their slots, and the height of the row. A new head, and a new link after
@@ -134,6 +134,25 @@ findings, which the owner asked to fix on 2026-10-15:
       keeps the IO maps of their cells (`===`); a dispatch by path sees the new
       count of a moved row; the `y` of each row; a row in the list two times; a
       row that left goes out after two heads.
+    - Done 2026-10-15. A kept print is a `_GridListRow`: the entries, the output
+      of each IO map at the print, the cells in their slots, the height, the
+      count, and the count of the last link. A link takes the print only when
+      its count is the count of the link and each IO map gives the output that
+      it placed; else the row prints again, as a row whose dispatch chose
+      another projection must.
+    - The walk of the count stops one row past the rows linked under the head
+      on each side, so a row that is not in the list ends it; then the count is
+      the count of the last link. A row that is no mutable object is not kept,
+      because `===` compares such a value by its content.
+    - The path of a row types `children[k]` against the grid once, at the
+      print, and `[c]` against the row, so a move costs no walk of the types.
+    - The grid whose columns are a list (`GridColumnList.jl`) prints its rows
+      again on a new head, as before.
+    - Tests: two testsets in `LayoutListTest.jl` read the path of a cell
+      through the context that a fault barrier keeps; the test of a list
+      layout goes from 51 to 69 checks. The tables of a list (250), every table
+      test, the roster, the groups, the natural arrangement and the data frames
+      (608) pass.
   - [ ] **2c. The table of a roster is a table of a list**
     (`RosterRowsToWidget`). The owner agreed on 2026-10-15, with the equal
     share of the columns and the two forms of the table.
