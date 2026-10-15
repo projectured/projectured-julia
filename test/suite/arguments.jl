@@ -6,7 +6,7 @@
 # may leave out is a keyword, so a definition takes at most one optional
 # positional argument, and never one beside a keyword argument. It is a
 # recommendation, and an exception says why with a `# @optional: <reason>`
-# marker above the definition.
+# marker above the definition, or above its docstring when it has one.
 #
 # **It fails on every public definition that breaks the clause** with no marker,
 # outside a port, and on every `# @positional:` marker, which no rule needs: the
@@ -131,21 +131,45 @@ end
 
 """
 The lines a `# @optional:` marker stands above: under each marker, the first line
-that is neither blank nor a comment.
+that is neither blank nor a comment, and when that line opens a docstring, also
+the first line after the docstring. A documented definition has its marker above
+the docstring, because Julia drops a docstring that a comment parts from its
+definition, and the parser gives such a definition the line of its docstring.
 """
 function _find_optional_markers(text::AbstractString)
     lines = split(text, '\n')
     marked = Set{Int}()
     for (number, line) in enumerate(lines)
         occursin(r"^\s*#\s*@optional:", line) || continue
-        for next in (number + 1):length(lines)
+        next = number + 1
+        while next <= length(lines)
             stripped = strip(lines[next])
-            (isempty(stripped) || startswith(stripped, "#")) && continue
-            push!(marked, next)
-            break
+            if isempty(stripped) || startswith(stripped, "#")
+                next += 1
+            elseif startswith(stripped, "\"\"\"")
+                push!(marked, next)
+                next = _find_after_docstring(lines, next)
+            elseif startswith(stripped, "\"") && endswith(stripped, "\"") && length(stripped) > 1
+                push!(marked, next)
+                next += 1
+            else
+                push!(marked, next)
+                break
+            end
         end
     end
     marked
+end
+
+# The number of the line after the docstring that opens at line `first`: a
+# docstring that closes on its own line, or on a later one.
+function _find_after_docstring(lines, first::Integer)
+    opening = strip(lines[first])
+    occursin("\"\"\"", opening[4:end]) && return first + 1
+    for number in (first + 1):length(lines)
+        occursin("\"\"\"", lines[number]) && return number + 1
+    end
+    length(lines) + 1
 end
 
 """

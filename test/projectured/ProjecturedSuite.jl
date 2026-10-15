@@ -352,6 +352,22 @@ function test_arguments()
             @test find_evaluation_editor_reads(fixture) ==
                   ["source/Verbs.jl:4", "source/Verbs.jl:6", "source/Verbs.jl:7"]
         end
+        # A marker stands above the docstring of its definition, and so marks
+        # the definition, which a marker between the two would part from it.
+        mktempdir() do fixture
+            mkpath(joinpath(fixture, "source"))
+            write(joinpath(fixture, "source", "Marked.jl"), """
+                # @optional: the count stands second, as at a command line.
+                \"\"\"
+                    take_first(items, count = 1; editor = nothing)
+
+                The first `count` items.
+                \"\"\"
+                take_first(items, count = 1; editor = nothing) = items[1:count]
+                unmarked(items, count = 1; editor = nothing) = items
+                """)
+            @test [d.name for d in find_argument_definitions(fixture) if d.marked] == ["take_first"]
+        end
     end
 end
 

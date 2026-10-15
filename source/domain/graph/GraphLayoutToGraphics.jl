@@ -426,6 +426,8 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     nothing
 end
 
+# @optional: the layout engine stands first, as the algorithm the pipeline runs;
+# the rest is its chrome.
 """
     GraphToGraphics(engine = GridEmbedding(); extent = nothing, border = 0,
                     constraints = nothing, theme = nothing) -> ChainingProjection
@@ -437,8 +439,6 @@ The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
 the content of a vertex prints through the recursion that encloses the chain,
 for example a `NestingProjection`.
 """
-# @optional: the layout engine stands first, as the algorithm the pipeline runs;
-# the rest is its chrome.
 GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
                 extent = nothing, border::Integer = 0, constraints = nothing,
                 theme = nothing) =

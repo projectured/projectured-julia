@@ -91,6 +91,8 @@ _drain_task_process_tree!(owner, now) = nothing
 has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store()) =
     lock(() -> !isempty(store.entries), store.lock)
 
+# @optional: the store is what the call drains, and a caller with no window
+# drains the store of the session.
 """
     drain_task_feed!(store = get_session_task_feed_store()) -> Int
 
@@ -106,8 +108,6 @@ of a running task takes its step at each drain.
 Call it on the task that reads the documents: the task of the editor, which a
 [`TaskFeed`](@ref) does, or the one task of a caller with no window.
 """
-# @optional: the store is what the call drains, and a caller with no window
-# drains the store of the session.
 function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store())
     entries = lock(store.lock) do
         changed = copy(store.changed)

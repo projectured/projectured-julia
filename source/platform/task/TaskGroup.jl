@@ -567,6 +567,7 @@ function wait_task_group(group::TaskGroup)
     group
 end
 
+# @optional: which follows the group, as what a rerun command names next.
 """
     rerun_task_group!(group, which = :failed; callbacks…)
 
@@ -574,7 +575,6 @@ Run part of the group again, in place. `which` is what
 [`compute_task_group_indices`](@ref) understands. The entries it names go back to
 pending and run; every other entry keeps the result it has.
 """
-# @optional: which follows the group, as what a rerun command names next.
 function rerun_task_group!(group::TaskGroup, which = :failed; kwargs...)
     indices = compute_task_group_indices(group, which)
     isempty(indices) && return group

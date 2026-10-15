@@ -165,14 +165,14 @@ end
 
 # ── building and syncing ──────────────────────────────────────────────────────
 
+# @optional: the policy follows the object, as the depth the walk goes to; label
+# is its chrome.
 """
     reflect_document(object, policy = DepthPolicy(1)) -> ReflectedNode
 
 A fresh bounded shadow of `object`. Sync it afterwards with
 [`sync_reflection!`](@ref) and the same policy.
 """
-# @optional: the policy follows the object, as the depth the walk goes to; label
-# is its chrome.
 function reflect_document(object, policy::SyncPolicy = DepthPolicy(1); label = "")
     node = ReflectedNode(label, "", nothing, nothing)
     _sync_reflection!(node, object, policy, 0)

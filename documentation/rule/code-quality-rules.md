@@ -249,6 +249,10 @@ the definition:
 function run_example(name = "json"; backend = nothing)
 ```
 
+A documented definition has the marker above its docstring. Julia drops a
+docstring that a comment parts from its definition, so a marker between the two
+takes the docstring away from the definition.
+
 A short form of a protocol method is a method of its own, not a default value:
 `copy_document(K, value)` calls `copy_document(K, value, nothing, 0)`, so a type
 that adds the protocol method writes its full signature once.

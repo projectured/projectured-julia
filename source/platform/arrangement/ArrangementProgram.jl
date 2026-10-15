@@ -220,12 +220,7 @@ group_collection!(collection, keys...; aggregates = Any[:count], editor = get_ev
 
 # @optional: the count is what the call says, and a call with no count takes the first
 # items away, as a call of `filter_collection!` with no condition takes the filter away.
-limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_first(count), "Limit")
-
-# The docstring follows the definition, because the marker above the definition
-# is a comment, and Julia drops a docstring that a comment parts from its code.
-@doc """
+"""
     limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> Text
 
 Show only the first `count` items of the collection at `collection`, in the order
@@ -243,7 +238,9 @@ runs after a sort.
     limit_collection!(runs_1)           # every run again
 
 See also `group_collection!` and `sort_collection!`.
-""" limit_collection!
+"""
+limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
+    _arrange_collection!(editor, collection, _make_first(count), "Limit")
 
 """
     make_filter_collection_operation(collection, conditions...; editor = get_evaluation_editor())
@@ -277,6 +274,8 @@ the editor's document, which it does not evaluate.
 make_group_collection_operation(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
     _make_arrange_operation(editor, collection, _make_group(keys, aggregates), "Group")
 
+# @optional: the count is what the call says, and a call with no count takes the first
+# items away, as a call of `filter_collection!` with no condition takes the filter away.
 """
     make_limit_collection_operation(collection, count = nothing; editor = get_evaluation_editor())
         -> Operation or nothing
@@ -284,8 +283,6 @@ make_group_collection_operation(collection, keys...; aggregates = Any[:count], e
 The edit that [`limit_collection!`](@ref) makes, as an operation from the root of
 the editor's document, which it does not evaluate.
 """
-# @optional: the count is what the call says, and a call with no count takes the first
-# items away, as a call of `filter_collection!` with no condition takes the filter away.
 make_limit_collection_operation(collection, count = nothing; editor = get_evaluation_editor()) =
     _make_arrange_operation(editor, collection, _make_first(count), "Limit")
 

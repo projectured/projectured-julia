@@ -80,6 +80,7 @@ _resolve_selection(sel, document) = sel
 
 # ── Drivers ────────────────────────────────────────────────────────────────
 
+# @optional: the output file stands second, as the destination named at a command line.
 """
     record_live_example(live::LiveExample, filename=tempname()*".mp4"; kwargs...) -> String
 
@@ -88,7 +89,6 @@ example's bare document/projection (same content origin as the live window, so a
 single timeline's mouse coordinates work in both). Extra `kwargs` pass through to
 `record_video` (e.g. `supersample`, `final_hold`, `wait_for`).
 """
-# @optional: the output file stands second, as the destination named at a command line.
 function record_live_example(live::LiveExample, filename::AbstractString=tempname()*".mp4"; kwargs...)
     document   = live.example.make_document()
     projection = live.example.make_projection()
