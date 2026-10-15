@@ -1,7 +1,8 @@
-# Fragment of `AgentModule` — the events an external agent reports in a turn,
-# beside the text and the reasoning that arrive as `LlmEvent`s, and the sign-in
-# that an agent can ask for. A connection translates its protocol into these, so
-# a caller never sees the protocol.
+# Fragment of `AgentModule` — the events an external agent reports, beside the
+# text and the reasoning that arrive as `LlmEvent`s, the sign-in that an agent
+# can ask for, and the queue that holds the events of a session between two
+# prompts. A connection translates its protocol into these, so a caller never
+# sees the protocol.
 
 """
     AgentToolCallUpdate(id; name, title, kind, status, input, output, output_mime_type, output_uri)
@@ -43,26 +44,69 @@ AgentToolCallUpdate(id::AbstractString; name = nothing, title = nothing, kind = 
     AgentToolCallUpdate(String(id), name, title, kind, status, input, output, output_mime_type, output_uri)
 
 """
-    AgentPlanEntry(content, priority, status)
+    AgentPlanEntry(content, priority, status; id = "", description = "", active_title = "", blocked_by = String[])
 
-One step of the plan of an external agent. `priority` is `:high`, `:medium` or
-`:low`, and `status` is `:pending`, `:in_progress` or `:completed`.
+One step of a plan of an external agent: `content` is its title, `priority` is
+`:high`, `:medium` or `:low`, and `status` is `:pending`, `:in_progress` or
+`:completed`.
+
+- `id`           — the id of the step, which `blocked_by` of another step
+                   names; empty when the agent gives none.
+- `description`  — what the step is about, in more words than its title.
+- `active_title` — what the agent does while the step is in progress, such as
+                   "Running the tests"; empty when the agent gives none.
+- `blocked_by`   — the ids of the steps that must be completed before this one.
+
+Two entries are equal when their fields are equal.
 """
 struct AgentPlanEntry
     content::String
     priority::Symbol
     status::Symbol
+    id::String
+    description::String
+    active_title::String
+    blocked_by::Vector{String}
 end
 
-"""
-    AgentPlanUpdate(entries)
+AgentPlanEntry(content::AbstractString, priority::Symbol, status::Symbol; id::AbstractString = "",
+               description::AbstractString = "", active_title::AbstractString = "",
+               blocked_by::AbstractVector = String[]) =
+    AgentPlanEntry(String(content), priority, status, String(id), String(description), String(active_title),
+                   String[String(blocker) for blocker in blocked_by])
 
-The whole plan of an external agent as it stands now. Each update replaces the
-plan before it.
+Base.:(==)(a::AgentPlanEntry, b::AgentPlanEntry) =
+    (a.content, a.priority, a.status, a.id, a.description, a.active_title, a.blocked_by) ==
+    (b.content, b.priority, b.status, b.id, b.description, b.active_title, b.blocked_by)
+
+Base.hash(entry::AgentPlanEntry, seed::UInt) =
+    hash((entry.content, entry.priority, entry.status, entry.id, entry.description, entry.active_title,
+          entry.blocked_by), hash(AgentPlanEntry, seed))
+
+"""
+    AgentPlanUpdate(entries; id = "", markdown = nothing, uri = nothing, is_removed = false)
+
+A plan of an external agent as it stands now. A session can have several plans,
+each with its `id`, and the one plan of an agent that names no plan has the
+empty id. Each update replaces the plan of its `id`.
+
+The content of a plan is one of three: its steps, `entries`; a Markdown text,
+`markdown`; or the `uri` of a file that holds it. The other two are then empty
+and `nothing`. An update with `is_removed` removes the plan of its `id`, and has
+no content.
 """
 struct AgentPlanUpdate <: AgentEvent
     entries::Vector{AgentPlanEntry}
+    id::String
+    markdown::Union{Nothing,String}
+    uri::Union{Nothing,String}
+    is_removed::Bool
 end
+
+AgentPlanUpdate(entries::AbstractVector; id::AbstractString = "", markdown::Union{Nothing,AbstractString} = nothing,
+                uri::Union{Nothing,AbstractString} = nothing, is_removed::Bool = false) =
+    AgentPlanUpdate(collect(AgentPlanEntry, entries), String(id), markdown === nothing ? nothing : String(markdown),
+                    uri === nothing ? nothing : String(uri), is_removed)
 
 """
     AgentPermissionOption(id, name, kind)
@@ -184,15 +228,21 @@ struct AgentUsageUpdate <: AgentEvent
 end
 
 """
-    AgentSessionInfoUpdate(title)
+    AgentSessionInfoUpdate(title; process_id = nothing)
 
 What the agent says of its session: its `title`, a short name of what the
-session is about. `nothing` keeps the title before, and an empty title clears
-it.
+session is about, and `process_id`, the id of the system process that does the
+work of the session. `nothing` keeps the value before, and an empty title
+clears the title.
 """
 struct AgentSessionInfoUpdate <: AgentEvent
     title::Union{Nothing,String}
+    process_id::Union{Nothing,Int}
 end
+
+AgentSessionInfoUpdate(title::Union{Nothing,AbstractString}; process_id::Union{Nothing,Integer} = nothing) =
+    AgentSessionInfoUpdate(title === nothing ? nothing : String(title),
+                           process_id === nothing ? nothing : Int(process_id))
 
 """
     AgentCommand(name, description, input_hint)
@@ -215,6 +265,125 @@ replaces the commands before it.
 """
 struct AgentCommandsUpdate <: AgentEvent
     commands::Vector{AgentCommand}
+end
+
+"""
+    AgentSubagentUpdate(id; title, description, state, stop_reason, token_count, tool_call_count, duration,
+                        last_tool, summary, can_cancel, event)
+
+A subagent of an external agent, new or changed: an agent that the agent starts
+for a part of its work, with a session of its own. `id` names the subagent
+across its updates, and a field that is `nothing` keeps the value of the last
+update of the same `id`.
+
+- `title`, `description` — what the subagent is for, in words for a person.
+- `state`           — `:running`, `:idle` (it waits for work), `:requires_action`
+                      (it waits for a person) or `:unknown`.
+- `stop_reason`     — why its last work ended, as `send_agent_prompt!` answers
+                      it, such as `:end_turn` or `:cancelled`.
+- `token_count`     — how many tokens its work used.
+- `tool_call_count` — how many tool calls it made.
+- `duration`        — how long it worked, in seconds.
+- `last_tool`       — the name of the last tool that it called.
+- `summary`         — what it did, in a few words.
+- `can_cancel`      — whether `cancel_agent_subagent!` can stop its work.
+- `event`           — one event of the subagent, as `send_agent_prompt!` gives
+                      the events of a session: its text, its reasoning, a tool
+                      call or a plan. The prompt of the subagent is an
+                      `LlmMessage` of the role `:user`. An update of a subagent
+                      of this subagent is an `AgentSubagentUpdate` here.
+"""
+struct AgentSubagentUpdate <: AgentEvent
+    id::String
+    title::Union{Nothing,String}
+    description::Union{Nothing,String}
+    state::Union{Nothing,Symbol}
+    stop_reason::Union{Nothing,Symbol}
+    token_count::Union{Nothing,Int}
+    tool_call_count::Union{Nothing,Int}
+    duration::Union{Nothing,Float64}
+    last_tool::Union{Nothing,String}
+    summary::Union{Nothing,String}
+    can_cancel::Union{Nothing,Bool}
+    event::Union{Nothing,AgentEvent,LlmEvent,LlmMessage}
+end
+
+AgentSubagentUpdate(id::AbstractString; title = nothing, description = nothing, state = nothing,
+                    stop_reason = nothing, token_count = nothing, tool_call_count = nothing, duration = nothing,
+                    last_tool = nothing, summary = nothing, can_cancel = nothing, event = nothing) =
+    AgentSubagentUpdate(String(id), title, description, state, stop_reason, token_count, tool_call_count,
+                        duration, last_tool, summary, can_cancel, event)
+
+"""
+    AgentBackgroundTaskUpdate(id; kind, title, status, tool_call_id, subagent_id, output_uri, summary,
+                              start_time, end_time, can_stop)
+
+A background task of an external agent, new or changed: work that the agent
+started and that runs after the call that started it, such as a command that
+runs in the background. `id` names the task across its updates, and a field
+that is `nothing` keeps the value of the last update of the same `id`.
+
+- `kind`         — what kind of work it is, as the agent names it, such as
+                   `:local_bash` or `:monitor`.
+- `title`        — what it does, in words for a person.
+- `status`       — `:running`, `:completed`, `:failed` or `:stopped`.
+- `tool_call_id` — the `id` of the `AgentToolCallUpdate` that started it.
+- `subagent_id`  — the `id` of the `AgentSubagentUpdate` of the subagent that
+                   started it.
+- `output_uri`   — the uri of the file that holds its output, such as
+                   `file:///tmp/output.txt`.
+- `summary`      — what it did, in a few words.
+- `start_time`, `end_time` — when it started and when it ended, in seconds
+                   since 1970, as `time()` answers.
+- `can_stop`     — whether `stop_agent_background_task!` can stop it.
+"""
+struct AgentBackgroundTaskUpdate <: AgentEvent
+    id::String
+    kind::Union{Nothing,Symbol}
+    title::Union{Nothing,String}
+    status::Union{Nothing,Symbol}
+    tool_call_id::Union{Nothing,String}
+    subagent_id::Union{Nothing,String}
+    output_uri::Union{Nothing,String}
+    summary::Union{Nothing,String}
+    start_time::Union{Nothing,Float64}
+    end_time::Union{Nothing,Float64}
+    can_stop::Union{Nothing,Bool}
+end
+
+AgentBackgroundTaskUpdate(id::AbstractString; kind = nothing, title = nothing, status = nothing,
+                          tool_call_id = nothing, subagent_id = nothing, output_uri = nothing, summary = nothing,
+                          start_time = nothing, end_time = nothing, can_stop = nothing) =
+    AgentBackgroundTaskUpdate(String(id), kind, title, status, tool_call_id, subagent_id, output_uri, summary,
+                              start_time, end_time, can_stop)
+
+"""
+    AgentNoticeUpdate(severity, title, description)
+
+A note of an external agent for a person, which needs no answer, such as a
+request to its model that it tries again. `severity` is `:info`, `:warning` or
+`:error`, and `description` is empty when the agent gives none.
+"""
+struct AgentNoticeUpdate <: AgentEvent
+    severity::Symbol
+    title::String
+    description::String
+end
+
+"""
+    AgentCompactionUpdate(id, status, summary)
+
+A compaction of the context of a session of an external agent, new or changed:
+the agent puts a summary in the place of the older part of its history, so the
+session fits its context window. `id` names the compaction across its updates,
+and `status` is `:in_progress`, `:completed`, `:failed` or `:cancelled`.
+`summary` is the text that the compaction keeps; `nothing` keeps the summary of
+the last update of the same `id`, and an empty one clears it.
+"""
+struct AgentCompactionUpdate <: AgentEvent
+    id::String
+    status::Symbol
+    summary::Union{Nothing,String}
 end
 
 """
@@ -246,3 +415,43 @@ struct AgentSignInException <: Exception
 end
 
 Base.showerror(io::IO, exception::AgentSignInException) = print(io, exception.message)
+
+"""
+    AgentEventQueue()
+
+The events of a session of an external agent that come between two prompts, in
+the order that the agent sent them. A connection puts each one with
+[`put_agent_event!`](@ref), on a task of its own, and the caller that opened the
+session takes them all with [`take_agent_events!`](@ref). The queue holds the
+events and a lock, and no function.
+"""
+mutable struct AgentEventQueue
+    lock::ReentrantLock
+    events::Vector{Any}
+end
+
+AgentEventQueue() = AgentEventQueue(ReentrantLock(), Any[])
+
+"""
+    put_agent_event!(queue, event)
+
+Put `event` at the end of `queue`. Any task can call it.
+"""
+function put_agent_event!(queue::AgentEventQueue, event)
+    lock(() -> push!(queue.events, event), queue.lock)
+    nothing
+end
+
+"""
+    take_agent_events!(queue) -> Vector{Any}
+
+Every event of `queue`, the oldest first, which leaves the queue empty. Any task
+can call it.
+"""
+function take_agent_events!(queue::AgentEventQueue)
+    lock(queue.lock) do
+        events = queue.events
+        queue.events = Any[]
+        events
+    end
+end

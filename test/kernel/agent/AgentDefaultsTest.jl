@@ -71,6 +71,11 @@ function test_agent_defaults()
         @test !steer_agent_prompt!(make_agent_connection(:toy), "s", Any[])
     end
 
+    @testset "a connection that does not say how to stop the work of an agent can not" begin
+        @test cancel_agent_subagent!(make_agent_connection(:toy), "s", "subagent") === nothing
+        @test stop_agent_background_task!(make_agent_connection(:toy), "s", "task") === false
+    end
+
     @testset "a sign-in exception shows its message" begin
         method = AgentSignInMethod("login", "Log in", "Run the login.", `agent --login`)
         exception = AgentSignInException("Toy Agent", [method], "Toy Agent needs a sign-in.")

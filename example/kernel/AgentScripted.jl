@@ -10,16 +10,23 @@
                             can_sign_out = false, can_steer = false)
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
-steps. A step that is an event goes to `on_event` as it is. A step that is a
-function gets the connection and `on_event`, for an agent that waits, as
-[`make_scripted_permission_step`](@ref) does.
+steps. A step that is an event goes to `on_event` as it is, also an event of the
+work of the agent, such as an `AgentSubagentUpdate` or an
+`AgentBackgroundTaskUpdate`. A step that is a function gets the connection and
+`on_event`, for an agent that waits, as [`make_scripted_permission_step`](@ref)
+does.
 
 The connection records what a test asserts: `sessions` holds the `directory`,
-the `mcp_servers`, the `instructions` and the asked `session_id` of each session
-that opened, and `prompts` each prompt. A connection that `can_resume` resumes
-an asked session and answers its id; another one opens a new session. A
-cancel answers each request that waits as cancelled, and the turn then answers
-`:cancelled`. A turn with no script answers `:end_turn` at once.
+the `mcp_servers`, the `instructions`, the asked `session_id` and the `events`
+queue of each session that opened, and `prompts` each prompt. A test puts an
+event that the agent sends between two prompts into that queue with
+`put_agent_event!(connection.sessions[k].events, event)`. A connection that
+`can_resume` resumes an asked session and answers its id; another one opens a
+new session. A cancel answers each request that waits as cancelled, and the
+turn then answers `:cancelled`. A turn with no script answers `:end_turn` at
+once. `subagent_cancels` records each `cancel_agent_subagent!` as `session_id =>
+subagent_id`, and `background_task_stops` each `stop_agent_background_task!` as
+`session_id => task_id`, which answers `true`.
 
 The first `failing_opens` sessions fail to open with a plain error. While
 `is_signed_in` is `false`, an open and a prompt throw an `AgentSignInException`
@@ -52,6 +59,8 @@ mutable struct ScriptedAgentConnection
     can_steer::Bool
     steered::Vector{Vector{Any}}
     is_prompting::Bool
+    subagent_cancels::Vector{Pair{String,String}}
+    background_task_stops::Vector{Pair{String,String}}
 end
 
 ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing,
@@ -62,7 +71,7 @@ ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_st
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
                             collect(AgentOption, options), Pair{String,String}[], can_resume,
                             is_signed_in, collect(AgentSignInMethod, sign_in_methods), can_sign_out,
-                            can_steer, Vector{Any}[], false)
+                            can_steer, Vector{Any}[], false, Pair{String,String}[], Pair{String,String}[])
 
 # What a scripted agent that is not signed in throws.
 _make_scripted_sign_in_exception(connection::ScriptedAgentConnection) =
@@ -78,14 +87,15 @@ end
 function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
                                          directory::AbstractString = pwd(),
                                          mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
-                                         session_id::AbstractString = "", on_event = nothing)
+                                         session_id::AbstractString = "", on_event = nothing,
+                                         events::Union{Nothing,AgentEventQueue} = nothing)
     connection.is_signed_in || throw(_make_scripted_sign_in_exception(connection))
     if connection.failing_opens > 0
         connection.failing_opens -= 1
         error("The scripted agent fails to open a session.")
     end
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
-                                instructions = String(instructions), session_id = String(session_id)))
+                                instructions = String(instructions), session_id = String(session_id), events))
     on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
     connection.can_resume && !isempty(session_id) && return String(session_id)
     "scripted-session-$(length(connection.sessions))"
@@ -147,6 +157,18 @@ function AgentModule.cancel_agent_prompt!(connection::ScriptedAgentConnection, s
     connection.is_cancelled = true
     foreach(reply -> reply(nothing), copy(connection.waiting_replies))
     nothing
+end
+
+function AgentModule.cancel_agent_subagent!(connection::ScriptedAgentConnection, session_id::AbstractString,
+                                            subagent_id::AbstractString)
+    push!(connection.subagent_cancels, String(session_id) => String(subagent_id))
+    nothing
+end
+
+function AgentModule.stop_agent_background_task!(connection::ScriptedAgentConnection, session_id::AbstractString,
+                                                 task_id::AbstractString)
+    push!(connection.background_task_stops, String(session_id) => String(task_id))
+    true
 end
 
 AgentModule.close_agent_session!(connection::ScriptedAgentConnection, session_id::AbstractString) = nothing

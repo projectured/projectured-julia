@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 4 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 5 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -790,11 +790,53 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `test_application` has 2 failures and 2 errors, which are item 8 of
       `the-suites-of-main-pass-again.md`.
 
-- [ ] **5. The kernel: the events of the work.**
+- [x] **5. The kernel: the events of the work.** Done 2026-10-15.
   - The events and the generics of section 4.6, and `AgentEventQueue`.
   - `ScriptedAgentConnection` scripts them.
   - Tests in the agent tests of `ProjecturedKernelTest`. An old
     `AgentPlanEntry(content, priority, status)` still builds.
+  - **What the step found and decided:**
+    - **The fields.** `AgentSubagentUpdate(id; title, description, state,
+      stop_reason, token_count, tool_call_count, duration, last_tool, summary,
+      can_cancel, event)` and `AgentBackgroundTaskUpdate(id; kind, title,
+      status, tool_call_id, subagent_id, output_uri, summary, start_time,
+      end_time, can_stop)` replace the one `usage` of section 4.6 by the counts
+      that a view shows. `duration` is in seconds; `start_time` and `end_time`
+      are seconds since 1970, as `time()`. A background task has no usage.
+    - **The prompt of a subagent is an `LlmMessage(:user, …)`** in the `event`
+      of an `AgentSubagentUpdate`. No event of the kernel says "a prompt": the
+      text events are an answer, and `description` is the role of the
+      subagent. `LlmMessage` is the type of the kernel for a message of a role,
+      and no new type was needed. So `event` is
+      `Union{Nothing,AgentEvent,LlmEvent,LlmMessage}`.
+    - `AgentNoticeUpdate(severity, title, description)` has a `String`
+      description, empty when the agent gives none: a notice is no patch.
+      `AgentCompactionUpdate(id, status, summary)` is a patch: `nothing` keeps
+      the summary, an empty one clears it.
+    - `AgentPlanEntry` holds a vector of blockers, so it defines `==` and
+      `hash` by its fields; a test that compares entries compares their values.
+      `AgentPlanUpdate(entries; id, markdown, uri, is_removed)` takes its
+      entries positionally, also when they are empty, because a definition
+      takes no optional positional argument beside keywords.
+    - **The queue lives in `AgentConnectionEvent.jl`**, beside the events that
+      it holds: `AgentEventQueue` (a lock and a `Vector{Any}`),
+      `put_agent_event!` and `take_agent_events!`. A new fragment would need a
+      place in the audit inventory of `SEALING.md` for three short names.
+    - The defaults: `cancel_agent_subagent!` does nothing and answers
+      `nothing`; `stop_agent_background_task!` answers `false`.
+    - **`ScriptedAgentConnection`** keeps the queue of each open in
+      `sessions[k].events`, and a test puts an event between two prompts with
+      `put_agent_event!(connection.sessions[k].events, event)`, so it needs no
+      new name. `subagent_cancels` and `background_task_stops` record each call
+      as `session_id => id`; a stop answers `true`.
+    - `agent.md` still says that the session kinds wait for the next prompt;
+      step 10 changes it with the other documents.
+    - Tests: `test_agent_connection_event()` and
+      `test_scripted_agent_connection()` are new in `test/kernel/agent/`, and
+      `test_agent_defaults()` checks the two defaults. With
+      `test_kernel_layering()` and `test_agent_loop()` they ran 127 tests, all
+      passing; `test_external_agent_turn()` ran 269, all passing, with the old
+      constructors.
 
 - [ ] **6. ProjecturedACP: the translation.**
   - The capabilities and the translation of section 4.7. The queue replaces

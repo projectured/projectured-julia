@@ -112,6 +112,8 @@ function test_kernel()
         test_llm_defaults()
         test_agent_defaults()
         test_agent_loop()
+        test_agent_connection_event()
+        test_scripted_agent_connection()
         test_declared_api()
         test_search_query()
         test_meaning_search()
@@ -143,6 +145,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_device_module, test_gesture_binding,
        test_iomap_reconcile, test_iomap_defaults,
        test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,
+       test_agent_connection_event, test_scripted_agent_connection,
        test_declared_api, test_search_query, test_meaning_search, test_relevance_search,
        test_search_answer,
        test_code_execution, test_background_work,
