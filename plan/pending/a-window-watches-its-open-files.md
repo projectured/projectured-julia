@@ -94,7 +94,11 @@ A save never writes over a newer file without the person knowing.
   a save over a newer file and writes nothing. No watcher takes part.
   `saved_text_hash` leaves `UndoBuffer`, with `get_saved_text_hash` and the
   keyword `text_hash` of `record_saved_state!`. The history keeps `saved_entry`
-  and `has_unsaved_edits`.
+  and `has_unsaved_edits`. The page sees the save by A of D15e: its reader
+  answers one save operation of the file-format slice in place of the
+  `SaveFileOperation` of its file, and the file dialog of "Save as" gives that
+  operation too. Its way back is `DoNothingOperation()`, as for a file write, so
+  a history above the page adds no step for a save.
 - Step 5 (fileformat): `FilePage(content; band = nothing)`, the document around
   the scrolled file, which `make_file_tab_content` and the open of a file give a
   tab, and `FileBand(; message, choices)`, a sentence and its choices, each a
@@ -168,9 +172,20 @@ A save never writes over a newer file without the person knowing.
   - On `main`, `_bring_file_change!` in `FileChangeStore.jl` reads
     `get_saved_text_hash` and `has_unsaved_edits`, chooses between a reload and a
     keep, and logs a message about edits. That choice moves to the page.
-  - Open: `Ctrl+S` gives `SaveFileOperation(file)` on the file document, so the
-    page must see the save to check the disk and to keep its hash. Ask the owner
-    before the step adds an event or a payload for it.
+  - How the page sees a save. **Decided by the owner, 2026-10-15: A** ("agreed,
+    it's A"). `Ctrl+S` gives `SaveFileOperation(file)` on the file document, so
+    the page must see the save to check the disk and to keep its hash.
+    - A: the reader of the page reads its content first, and when the content
+      answers `SaveFileOperation` of its own file, the page answers a save of its
+      own, as `UndoBufferToAnyProjection` wraps each operation of its content.
+      "Save as" gives the save of the page too, so the hash of the page follows
+      the new file.
+    - B: the page binds `Ctrl+S` itself, before its content.
+    - C: the hash on each file type, so the save of the file checks the disk.
+    - Not a `CompoundOperation` (the owner asked): a compound runs every member,
+      and no member can stop the next, so a check can not keep the write from
+      running. A choice in the reader would make the reader read the disk, and
+      the hash of the written text is not known before the write.
 
 ## Not in this plan
 
