@@ -124,6 +124,12 @@ const sorting_example        = Example("sorting",        make_collection_documen
 const lazy_example           = Example("lazy",           make_lazy_document_example,           make_lazy_projection_example)
 const lazy_bidirectional_example = Example("lazy_bidirectional", make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example)
 const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, IdentityProjection)
+# A tree of plain documents, a plan with the tree of its steps, and the tree of
+# the processes of an agent, each drawn by the natural renderer, as a tab of the
+# editor draws it.
+const document_tree_example  = Example("document_tree",  make_document_tree_document_example,  make_natural_projection_example)
+const work_plan_example      = Example("work_plan",      make_work_plan_document_example,      make_natural_projection_example)
+const system_process_tree_example = Example("system_process_tree", make_system_process_tree_document_example, make_natural_projection_example)
 
 # The visual tier's slice of the example registry, in registry order.
 const platform_examples = Example[
@@ -213,6 +219,9 @@ const platform_examples = Example[
     lazy_example,
     lazy_bidirectional_example,
     rotating_vector_example,
+    document_tree_example,
+    work_plan_example,
+    system_process_tree_example,
 ]
 
 # ── The visual tier's slice of the atomic-document registry ───────────────────
@@ -316,4 +325,11 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:navigator, "navigator",   make_navigator_document_example),
     AtomicDocument(:navigator, "address",     make_navigator_address_document_example),
     AtomicDocument(:navigator, "choice_list", make_navigator_choice_list_document_example),
+    # A tree of documents, a plan and one of its steps, and the processes of an
+    # agent and one of them.
+    AtomicDocument(:tree, "tree", make_document_tree_document_example),
+    AtomicDocument(:workplan, "plan", make_work_plan_document_example),
+    AtomicDocument(:workplan, "step", make_work_plan_step_document_example),
+    AtomicDocument(:systemprocess, "tree", make_system_process_tree_document_example),
+    AtomicDocument(:systemprocess, "process", make_system_process_document_example),
 ]

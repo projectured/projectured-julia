@@ -9,8 +9,9 @@ plan/done/example-package-split.md). It hosts:
   syntax and text documents, the widget gallery, the layout examples, the
   collection views (reversing/filtering/searching/sorting), the text
   decorators (line numbering, word wrapping, filtering, highlighting), the
-  object reflections (ObjectToSyntax / ObjectToWidget), and the rotating
-  vector animation;
+  object reflections (ObjectToSyntax / ObjectToWidget), the rotating vector
+  animation, and a tree of documents, a work plan and a tree of system
+  processes, which the natural renderer draws;
 - the visual half of the example harness: `print_example` (console rendering
   of the projected output) and `write_example_pdf` (the dependency-free Pdf
   backend; text is measured from the font files, with no SDL).
@@ -76,6 +77,9 @@ include("../../../example/platform/AppearanceDocumentExample.jl")
 include("../../../example/platform/LazyDocumentExample.jl")
 include("../../../example/platform/PaneDocumentExample.jl")
 include("../../../example/platform/NavigatorDocumentExample.jl")
+include("../../../example/platform/TreeDocumentExample.jl")
+include("../../../example/platform/WorkPlanDocumentExample.jl")
+include("../../../example/platform/SystemProcessDocumentExample.jl")
 include("../../../example/platform/RotatingVectorDocumentExample.jl")
 
 include("../../../example/platform/SyntaxProjectionExample.jl")
@@ -107,6 +111,7 @@ include("../../../example/platform/SortingProjectionExample.jl")
 # The table projection: NaturalToGraphics with the sans chrome font. It names no
 # domain, and both the graph example and the table example need it.
 include("../../../example/platform/TableProjectionExample.jl")
+include("../../../example/platform/NaturalProjectionExample.jl")
 
 include("../../../example/platform/PlatformExamples.jl")
 include("../../../example/platform/Harness.jl")
@@ -228,6 +233,11 @@ export widget_toggle_example, widget_toggle_group_example, widget_toolbar_exampl
 export widget_toolbar_item_example
 export widget_tooltip_example, widget_transform_pane_example, widget_tree_example
 export word_wrapping_example, write_example_pdf
+export OutlineItem, make_document_tree_document_example, document_tree_example
+export make_work_plan_document_example, make_work_plan_step_document_example, work_plan_example
+export make_system_process_tree_document_example, make_system_process_document_example,
+       system_process_tree_example
+export make_natural_projection_example
 export Example, AtomicDocument, platform_examples, platform_atomic_documents
 export print_example, write_example_pdf
 

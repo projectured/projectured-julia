@@ -81,7 +81,6 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportProjectionExample.jl"))
-include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "UndoProjectionExample.jl"))
@@ -116,6 +115,7 @@ include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
 include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
 
 export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example
+export assistant_work_example
 export build_file_editor, clipboard_example, conversation_editor_example
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example

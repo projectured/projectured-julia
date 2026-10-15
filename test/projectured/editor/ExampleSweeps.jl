@@ -162,6 +162,11 @@ function repl_broken(name)
     name == "sql_update_syntax" && return (ev, msg) ->
         occursin("FieldError(Nothing, :output)", msg) ||
         (occursin("MethodError", msg) && occursin("read_intent", msg))
+    # @broken: Return on a node of a tree that no navigator holds opens its page
+    # in a new tab, and the editor of the sweep has no pane tree to open it in
+    # (`open_pane!` throws). A window of `run_example` has none either.
+    name in ("document_tree", "system_process_tree") &&
+        return (ev, msg) -> occursin("no pane tree has the focus", msg)
     nothing
 end
 
@@ -247,6 +252,12 @@ function test_position_navigations()
                              # widget-container reason as well.
                              "workflow", "workflow_journal",
                              "assistant",
+                             # The tree of documents, the plan, the tree of
+                             # processes and the work page are a widget tree and
+                             # cards of widgets, here for the widget-container
+                             # reason as well.
+                             "document_tree", "work_plan", "system_process_tree",
+                             "assistant_work",
                              # `fsm` is the twelve-state TCP machine. It
                              # navigates correctly — it is simply far too big
                              # for an exhaustive caret walk (tens of minutes,

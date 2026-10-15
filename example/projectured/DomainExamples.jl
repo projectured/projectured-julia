@@ -91,6 +91,11 @@ const graphics_image_example = Example("graphics_image", make_json_document_exam
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=1000)
 const conversation_widget_example = Example("conversation_widget", make_conversation_document_example, make_conversation_widget_projection_example; render_width=1200, render_height=700)
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
+# The work page of an assistant in a navigator, as `show_assistant_work!` opens it,
+# drawn by the natural renderer: a double click on a node of one of its trees opens
+# the page of the node, and Back returns.
+const assistant_work_example = Example("assistant_work", () -> Navigator(make_assistant_work_document_example()),
+                                       make_natural_projection_example; render_width=1200, render_height=900)
 # The live-database (ODBC) catalog/object/sql_table examples and the native
 # AdaptagramsLayout graph examples (graph_adaptagrams, dvdrental_relationship) live
 # in the opt-in `ProjecturedODBCExample` / `ProjecturedAdaptagramsExample` / `ProjecturedTulipExample` packages, so this base package depends on
@@ -207,6 +212,7 @@ const domain_examples = Example[
     assistant_example,
     conversation_widget_example,
     conversation_editor_example,
+    assistant_work_example,
     sql_syntax_example,
     sql_insert_syntax_example,
     sql_update_syntax_example,
@@ -454,6 +460,9 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:conversation, "draft",        make_conversation_draft_document_example),
     AtomicDocument(:conversation, "part",         make_conversation_part_document_example),
     AtomicDocument(:conversation, "turn",         make_conversation_turn_document_example),
+    # The work page of an assistant, and the page of one of its subagents.
+    AtomicDocument(:assistant, "work",       make_assistant_work_document_example),
+    AtomicDocument(:assistant, "agent_work", make_agent_work_document_example),
     AtomicDocument(:dbcatalog, "column",   make_db_catalog_column_document_example),
     AtomicDocument(:dbcatalog, "database", make_db_catalog_database_document_example),
     AtomicDocument(:dbcatalog, "rdbms",    make_db_catalog_rdbms_document_example),
