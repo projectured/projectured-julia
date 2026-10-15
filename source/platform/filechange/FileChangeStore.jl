@@ -6,44 +6,35 @@
 
 # One file document, the absolute path of its file, the file type that reads it,
 # whether a person edits it, and what the last sync saw: the hash of the text of
-# the file, and the hash of the text that the document writes. For a file that a
-# person does not edit, `file_hash` is the hash of the time and the size of the
-# file at the last sync, and no text is read. `stamp` is the time and the size of
-# the file at the last look of a poll, or at the start of the watch. The watcher
-# alone writes `seen_hash`, the hash of the file at its last read, and `prepared`
-# holds what it read since the last drain.
+# the file. For a file that a person does not edit, `file_hash` is the hash of the
+# time and the size of the file at the last sync, and no text is read. `stamp` is
+# the time and the size of the file at the last look of a poll, or at the start of
+# the watch. The watcher alone writes `seen_hash`, the hash of the file at its
+# last read, and `prepared` holds what it read since the last drain.
 mutable struct WatchedFile
     file::FileDocument
     path::String
     type::Type
     is_editable::Bool
     file_hash::UInt64
-    text_hash::UInt64
     stamp::Any
     seen_hash::UInt64
     prepared::Any
 end
 
-# What a watcher read of a changed file: the hash of the file, its text for a file
-# that a person edits, and the new document, or the exception of its parse.
+# What a watcher read of a changed file: the hash of the file, and the new
+# document, or the exception of its parse.
 struct _PreparedFile
     file_hash::UInt64
-    text::Union{String,Nothing}
     content::Any
     failure::Any
 end
 
 function WatchedFile(file::FileDocument, path::String)
-    type = Base.typename(typeof(file)).wrapper
-    if is_editable_file_type(typeof(file))
-        file_hash = _hash_file(path)
-        WatchedFile(file, path, type, true, file_hash, _hash_document_text(file), _get_file_stamp(path),
-                    file_hash, nothing)
-    else
-        file_hash = hash(_get_file_stamp(path))
-        WatchedFile(file, path, type, false, file_hash, hash(nothing), _get_file_stamp(path), file_hash,
-                    nothing)
-    end
+    is_editable = is_editable_file_type(typeof(file))
+    file_hash = is_editable ? _hash_file(path) : hash(_get_file_stamp(path))
+    WatchedFile(file, path, Base.typename(typeof(file)).wrapper, is_editable, file_hash,
+                _get_file_stamp(path), file_hash, nothing)
 end
 
 """
@@ -243,14 +234,13 @@ end
 function _prepare_file_change(watched::WatchedFile)
     _wait_for_settled_file(watched.path)
     isfile(watched.path) || return nothing
-    text = watched.is_editable ? read(watched.path, String) : nothing
-    file_hash = watched.is_editable ? hash(text) : hash(_get_file_stamp(watched.path))
+    file_hash = watched.is_editable ? hash(read(watched.path, String)) : hash(_get_file_stamp(watched.path))
     file_hash == watched.seen_hash && return nothing
     watched.seen_hash = file_hash
     try
-        _PreparedFile(file_hash, text, read_file_content_again(watched.type, watched.path), nothing)
+        _PreparedFile(file_hash, read_file_content_again(watched.type, watched.path), nothing)
     catch exception
-        _PreparedFile(file_hash, text, nothing, CapturedException(exception, catch_backtrace()))
+        _PreparedFile(file_hash, nothing, CapturedException(exception, catch_backtrace()))
     end
 end
 
@@ -264,10 +254,12 @@ how many documents took their file again. Run it on the task that reads the
 documents. The drain reads no file: a watcher read it, off the loop.
 
 A file that a person does not edit takes the new document. For a file that a
-person edits: a file that holds what its document writes was written by a save,
-and nothing happens; a document that was not edited since its last load or save
-takes the new document; a document with edits that are not saved keeps them, and
-the log says that its file changed on disk. A parse that failed is thrown after
+person edits, the history of its content tells: a file whose hash is the hash of
+the text that the last save wrote holds that save, and nothing happens; a
+document with no edits since its last load or save takes the new document; a
+document with edits that are not saved keeps them, and the log says that its
+file changed on disk. A content that keeps no history can not tell its edits, so
+it keeps what it holds, and the log says so. A parse that failed is thrown after
 the other changes, so the editor records it.
 """
 function drain_file_changes!(; store::FileChangeStore = get_session_file_change_store(), editor = nothing)
@@ -295,19 +287,15 @@ function _bring_file_change!(watched::WatchedFile, prepared::_PreparedFile, edit
     watched.file_hash = prepared.file_hash
     prepared.failure === nothing || return false
     watched.is_editable || return _take_prepared_file!(watched, prepared, editor)
-    text = _find_document_text(watched.file)
-    if text == prepared.text
-        # The file holds what the document writes: a save wrote it.
-        watched.text_hash = hash(text)
-        return false
-    end
-    if text !== nothing && hash(text) == watched.text_hash
-        _take_prepared_file!(watched, prepared, editor)
-        watched.text_hash = _hash_document_text(watched.file)
-        return true
-    end
-    @warn string(basename(watched.path), " changed on disk, and its tab keeps the edits that ",
-                 "are not saved. Ctrl+O reads the file again; Ctrl+S writes the tab over it.")
+    content = get_file_content(watched.file)
+    # The file holds what the last save of the document wrote.
+    get_saved_text_hash(content) == prepared.file_hash && return false
+    edits = has_unsaved_edits(content)
+    edits === false && return _take_prepared_file!(watched, prepared, editor)
+    @warn string(basename(watched.path), " changed on disk, and its tab keeps ",
+                 edits === true ? "the edits that are not saved. Ctrl+O reads the file again; Ctrl+S writes the tab over it." :
+                         "what it shows, because it keeps no history that says whether it has edits. " *
+                         "Ctrl+O reads the file again.")
     false
 end
 
@@ -318,16 +306,3 @@ function _take_prepared_file!(watched::WatchedFile, prepared::_PreparedFile, edi
 end
 
 _hash_file(path::String) = isfile(path) ? hash(read(path, String)) : hash(nothing)
-
-_hash_document_text(file::FileDocument) = hash(_find_document_text(file))
-
-# The text that a save of the document writes, or `nothing` when the save would
-# refuse.
-function _find_document_text(file::FileDocument)
-    try
-        compute_file_text(file)
-    catch error
-        error isa FileCutException || rethrow()
-        nothing
-    end
-end

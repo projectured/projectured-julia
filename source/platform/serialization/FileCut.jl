@@ -309,7 +309,15 @@ must be a tree of the file's domain, with no foreign node, no shared subtree
 and no cycle, or the save logs why and returns `false`. A marker that is a plain
 leaf of the domain is a plain leaf, and saves as one.
 """
-function save_file!(file, base_dir::AbstractString)
+save_file!(file, base_dir::AbstractString) = save_file_text!(file, base_dir) !== nothing
+
+"""
+    save_file_text!(file, base_dir) -> String or nothing
+
+Write one file as [`save_file!`](@ref) does, and answer the text that the file
+holds now, or `nothing` when the save refused and wrote nothing.
+"""
+function save_file_text!(file, base_dir::AbstractString)
     is_file_document(file) ||
         error("save_file!: not a file document (", typeof(file), ")")
     text = try
@@ -317,10 +325,10 @@ function save_file!(file, base_dir::AbstractString)
     catch e
         e isa FileCutException || rethrow()
         @error e.message
-        return false
+        return nothing
     end
     _write_texts!(base_dir, Any[(file, text)])
-    true
+    String(text)
 end
 
 # One file's text: cut the graph, then print the copy in the file's own

@@ -64,7 +64,9 @@ setting, such as `undo_capacity` of `HistorySettings`, which the buffer reads at
 each step.
 `saved_entry` is the step that was newest when the file that holds the buffer was
 last saved, or `nothing` when the file holds what the buffer held before its first
-step. A save notes it (`record_saved_state!`). `has_unsaved_edits` is whether the
+step. A save notes it (`record_saved_state!`), with `saved_text_hash`, the hash of
+the text that it wrote, or `nothing` before the first save and after a load.
+`has_unsaved_edits` is whether the
 newest step is another step than `saved_entry`. Each change of the lists and of
 `saved_entry` writes it, and a write of the value that it holds changes nothing:
 a key that joins a run of typing in a file that has edits invalidates no reader
@@ -85,13 +87,14 @@ See also `UndoBufferToAnyProjection`, `UndoEntry` and `make_inverse_operation`.
     redo_entries::CellVector
     capacity::Int
     saved_entry::Any
+    saved_text_hash::Any
     has_unsaved_edits::Bool
 end
 
 UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
            selection = nothing) =
     UndoBuffer(content, CellVector(), CellVector(),
-               capacity isa AbstractCell ? capacity : Int(capacity), nothing, false, selection)
+               capacity isa AbstractCell ? capacity : Int(capacity), nothing, nothing, false, selection)
 
 # A buffer is transparent on the screen, and a real node in the tree. Anything
 # that reads the tree rather than the picture — saving a file is the case — asks
@@ -140,19 +143,23 @@ function clear_undo_history!(buffer::UndoBuffer)
     _empty_entries!(buffer.undo_entries)
     _empty_entries!(buffer.redo_entries)
     buffer.saved_entry = nothing
+    buffer.saved_text_hash = nothing
     _record_unsaved_edits!(buffer)
     buffer
 end
 
 # The file that holds a history holds what the history holds now: the newest step
 # is the saved one, and a history with no step was saved before its first.
-function record_saved_state!(buffer::UndoBuffer)
+function record_saved_state!(buffer::UndoBuffer; text_hash = nothing)
     buffer.saved_entry = _find_newest_entry(buffer)
+    buffer.saved_text_hash = text_hash
     _record_unsaved_edits!(buffer)
     nothing
 end
 
 has_unsaved_edits(buffer::UndoBuffer) = buffer.has_unsaved_edits
+
+get_saved_text_hash(buffer::UndoBuffer) = buffer.saved_text_hash
 
 # A history has edits that its file does not hold when its newest step is not the
 # step that was newest at the save, or at the read when nothing was saved since.

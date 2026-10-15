@@ -181,23 +181,28 @@ function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
     # A file that a person does not edit has nothing of a person to write.
     is_editable_file_type(typeof(file)) || return nothing
-    saved = save_file!(_make_plain_file(file), dirname(abspath(get_filename(file))))
-    # The history of the file notes that the file holds what the history holds now.
-    record_saved_state!(get_file_content(file))
-    saved
+    text = save_file_text!(_make_plain_file(file), dirname(abspath(get_filename(file))))
+    text === nothing && return false
+    # The history of the file notes that the file holds what the history holds now,
+    # and the hash of that text, which tells a watcher of the file that this save
+    # wrote it.
+    record_saved_state!(get_file_content(file); text_hash = hash(text))
+    true
 end
 
 """
-    record_saved_state!(content) -> nothing
+    record_saved_state!(content; text_hash = nothing) -> nothing
 
 Note that the file that holds `content` holds what `content` is now, as after a
-save, so [`has_unsaved_edits`](@ref) answers `false` until the next edit. A
-history answers it by keeping its newest step. The default does nothing, for a
-content that keeps no history.
+save, so [`has_unsaved_edits`](@ref) answers `false` until the next edit.
+`text_hash` is the hash of the text that the save wrote, which
+[`get_saved_text_hash`](@ref) answers. A history answers both by keeping its
+newest step and the hash. The default does nothing, for a content that keeps no
+history.
 """
 function record_saved_state! end
 
-record_saved_state!(content) = nothing
+record_saved_state!(content; text_hash = nothing) = nothing
 
 """
     has_unsaved_edits(content) -> Union{Bool, Nothing}
@@ -209,6 +214,19 @@ that keeps no history and so can not say.
 function has_unsaved_edits end
 
 has_unsaved_edits(content) = nothing
+
+"""
+    get_saved_text_hash(content) -> Union{UInt64, Nothing}
+
+The hash of the text that the last save of the file that holds `content` wrote,
+while no load replaced the document since; `nothing` before the first save, and
+for a content that keeps no history. A watcher of the file compares it with the
+hash of the file on disk: an equal hash is the save, and not a change of another
+program.
+"""
+function get_saved_text_hash end
+
+get_saved_text_hash(content) = nothing
 
 # The facets of a file document, which a roster of files shows, filters and sorts
 # by. The folder is the folder of the file name as the file gives it.

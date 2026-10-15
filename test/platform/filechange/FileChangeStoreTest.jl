@@ -1,18 +1,26 @@
 # Tests of the store of the watched files: a change of a file reaches its
 # document, a save is no change, an edit that is not saved stays, and the feed
 # drains the store and is woken by a change. A file that a person does not edit
-# is read again by the time and the size of its file.
+# is read again by the time and the size of its file. A file that a person edits
+# keeps a history in its content, as the application keeps one, and the history
+# tells its edits and its saves.
 
-# A text file in a folder of its own, and its tab.
-function _make_watched_text_file(text::AbstractString)
+# A text file in a folder of its own, and its tab, whose content keeps a history.
+function _make_watched_text_file(text::AbstractString; wrap = UndoBuffer)
     folder = mktempdir()
     path = joinpath(folder, "watched.txt")
     write(path, text)
-    (path, make_file_tab(path))
+    (path, make_file_tab(path, wrap))
 end
 
-_get_watched_text(tab) = getfield(get_file_content(tab), :value)[]
-_set_watched_text!(tab, text) = set_cell_value!(getfield(get_file_content(tab), :value), text)
+_get_watched_text(tab) = getfield(get_wrapped_document(get_file_content(tab)), :value)[]
+
+# An edit through the history, as the projection of the history records one.
+function _edit_watched_text!(tab, text)
+    buffer = get_file_content(tab)
+    set_cell_value!(getfield(get_wrapped_document(buffer), :value), text)
+    push_undo_entry!(buffer, UndoEntry("type", DoNothingOperation(), nothing))
+end
 
 # A file type that no extension names: an opener chooses it, as a store in a
 # `.json` file is chosen. It holds its text in capitals and writes it in small
@@ -80,7 +88,7 @@ function test_file_change_store()
             store = FileChangeStore()
             (path, tab) = _make_watched_text_file("one\n")
             watch_document_file!(tab; store)
-            _set_watched_text!(tab, "saved\n")
+            _edit_watched_text!(tab, "saved\n")
             evaluate_operation(nothing, SaveFileOperation(tab))
             @test read(path, String) == "saved\n"
             @test _wait_for_file_change(store)
@@ -98,7 +106,7 @@ function test_file_change_store()
             store = FileChangeStore()
             (path, tab) = _make_watched_text_file("one\n")
             watch_document_file!(tab; store)
-            _set_watched_text!(tab, "mine\n")
+            _edit_watched_text!(tab, "mine\n")
             write(path, "theirs\n")
             @test _wait_for_file_change(store)
             @test (@test_logs (:warn, r"changed on disk") drain_file_changes!(; store)) == 0
@@ -106,6 +114,17 @@ function test_file_change_store()
             # The same change is told once.
             lock(() -> push!(store.changed, abspath(path)), store.lock)
             @test (@test_logs drain_file_changes!(; store)) == 0
+            unwatch_document_file!(tab; store)
+        end
+
+        @testset "a content with no history keeps what it shows, and the log says so" begin
+            store = FileChangeStore()
+            (path, tab) = _make_watched_text_file("one\n"; wrap = identity)
+            watch_document_file!(tab; store)
+            write(path, "theirs\n")
+            @test _wait_for_file_change(store)
+            @test (@test_logs (:warn, r"keeps no history") drain_file_changes!(; store)) == 0
+            @test _get_watched_text(tab) == "one\n"
             unwatch_document_file!(tab; store)
         end
 
@@ -135,15 +154,15 @@ function test_file_change_store()
             folder = mktempdir()
             path = joinpath(folder, "note.txt")
             write(path, "hello\n")
-            file = _ShoutedFile(path, PrimitiveString("HELLO\n"))
+            file = _ShoutedFile(path, UndoBuffer(PrimitiveString("HELLO\n")))
             @test compute_file_text(file) == "hello\n"
             watch_document_file!(file; store)
             write(path, "bye\n")
             @test _wait_for_file_change(store)
             @test drain_file_changes!(; store) == 1
             # Read by its own type, not by the text file that `.txt` names.
-            @test get_file_content(file) isa PrimitiveString
-            @test getfield(get_file_content(file), :value)[] == "BYE\n"
+            @test get_wrapped_document(get_file_content(file)) isa PrimitiveString
+            @test getfield(get_wrapped_document(get_file_content(file)), :value)[] == "BYE\n"
             unwatch_document_file!(file; store)
         end
 
