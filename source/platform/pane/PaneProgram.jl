@@ -1031,8 +1031,10 @@ end
     find_focused_pane(; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
 
 The tab that has the focus, which is the tab where the person works: the deepest
-tab on the path of the selection, together with its complete reference from the
-root of the editor's document. `nothing` when the selection is in no tab.
+tab on the path of the selection, or the tab that the group shows when the
+selection names the group itself, together with its complete reference from the
+root of the editor's document. `nothing` when the selection is in no tab and no
+group.
 
 Use it to find the tab that the person looks at: to read the data it shows with
 [`get_edited_document`](@ref), to say its title, or to open a new tab beside it
@@ -1049,16 +1051,38 @@ See also `find_pane`, `find_selected_part`, `show_layout`.
 function find_focused_pane(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_focused_pane") do
         root = _get_root_document(editor)
-        selection = get_selection(root)
-        selection === nothing && return nothing
-        steps = collect(get_reference_steps(strip_reference_types(selection)))
-        for count in length(steps):-1:1
-            prefix = foldr(ConcreteReference, steps[1:count]; init = EmptyReference())
-            node = try_evaluate_reference(root, prefix, nothing)
-            node isa PaneTab && return ReferencedDocument(node, annotate_reference_types(root, prefix))
-        end
-        nothing
+        found = _find_focused_tab(root, get_selection(root))
+        found === nothing || return found
+        # A window whose root holds no selection yet, before the first click,
+        # works in the tab that its tree has the focus on.
+        tree_reference = find_pane_tree_reference(; editor)
+        tree_reference === nothing && return nothing
+        tree = evaluate_reference(root, tree_reference)
+        inner = _find_focused_tab(tree, something(get_selection(tree), get_stored_selection(tree), Some(nothing)))
+        inner === nothing ? nothing :
+            ReferencedDocument(get_document(inner),
+                               annotate_reference_types(root, concat_references(tree_reference, get_reference(inner))))
     end
+end
+
+# The tab on the path `selection` from `root`: the deepest tab on it, or the tab
+# that a group shows when the path ends at the group. `nothing` when the path
+# reaches no tab and no group.
+function _find_focused_tab(root, selection)
+    selection isa Reference || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(selection)))
+    for count in length(steps):-1:1
+        prefix = foldr(ConcreteReference, steps[1:count]; init = EmptyReference())
+        node = try_evaluate_reference(root, prefix, nothing)
+        node isa PaneTab && return ReferencedDocument(node, annotate_reference_types(root, prefix))
+        if node isa PaneGroup && !isempty(node.tabs)
+            index = get_pane_shown_tab_index(node)
+            shown = concat_references(prefix, Reference(FieldReferenceStep("tabs"),
+                                                        ElementReferenceStep(index)))
+            return ReferencedDocument(node.tabs[index], annotate_reference_types(root, shown))
+        end
+    end
+    nothing
 end
 
 """

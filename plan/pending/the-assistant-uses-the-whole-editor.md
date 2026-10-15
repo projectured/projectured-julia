@@ -1,7 +1,7 @@
 # The assistant uses the whole editor
 
 Status: a plan. Written 2026-10-15 from the answers of the owner on that day.
-Nothing is built. Every decision is made. The plan spans two repositories: the
+Steps 1 to 6 are built; step 7 is built in part. Every decision is made. The plan spans two repositories: the
 vocabulary and its verbs are in projectured-julia, and the OMNeT++ IDE in
 omnet-julia declares them.
 
@@ -443,6 +443,20 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
     a docstring.
   - A live session in each window: select a part and ask about it, ask for a
     drawing, ask for an edit, and take the edit back.
+  - Done 2026-10-15, the part that needs no model: `test_ide_assistant_verbs()`
+    (OmnetIdeTest) builds the window of the IDE headless, declares its list, and
+    runs one verb of each group through `execute_julia_code`: the formats of NED
+    and INI, the tab with the focus, the history, a drawing in a tab, an INI file
+    written as its text, its commands, and the three tools.
+  - That check found that `find_focused_pane()` answered nothing in the IDE: the
+    root of a window holds no selection before the first click, and the tree
+    keeps the focus in its own selection. The verb now falls back to the tree of
+    the window, as `find_pane_tree_reference` does, and to the tab that a group
+    shows when the selection names the group.
+  - Not done: the six tasks of the rehearsal, the run of seeds 1 to 10, the round
+    of repair, and the live session with a model. A run of the local model needs
+    47 GB of free memory, and the machine had 35 GB on 2026-10-15.
+
 
 ## Not in this plan
 
