@@ -714,7 +714,7 @@ function _apply_plan_update!(turn::ConversationTurn, state, update::AgentPlanUpd
         suffix = entry.status === :in_progress ? " *(in progress)*" : ""
         push!(lines, "- " * mark * " " * entry.content * suffix)
     end
-    content = _prose_part(join(lines, '\n')).content
+    content = make_prose_document(join(lines, '\n'))
     part = state[:plan_part]
     if part === nothing
         state[:plan_part] = ConversationPart(content)

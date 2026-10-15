@@ -237,6 +237,22 @@ function parse_natural_text(format::Symbol, text::AbstractString)
 end
 
 """
+    make_prose_document(text) -> Document
+
+The document of a run of prose, `text` in Markdown: the document that the
+Markdown parser reads from it when a domain registered one for `:md`, and else,
+or when the parse fails, a text block of `text` as it is written.
+"""
+function make_prose_document(text::AbstractString)
+    has_natural_parser(:md) || return make_text_block(String(text))
+    try
+        parse_natural_text(:md, String(text))
+    catch
+        make_text_block(String(text))
+    end
+end
+
+"""
     has_natural_expression(format::Symbol) -> Bool
 
 Whether a domain registered how to turn a document of `format` into an `Expr`.

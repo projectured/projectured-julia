@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 and 2 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 4 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -695,7 +695,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `test_task_execution` 43, `test_task_document` 83, `test_task_views` 36,
       `test_task_group_verbs` 23, the layering 21 and the edges 1, all passing.
 
-- [ ] **4. The work plan slice.**
+- [x] **4. The work plan slice.** Done 2026-10-15.
   - `WorkPlan`, `WorkPlanStep`, the statuses, the progress, the blocked
     steps, `WorkPlanToWidget`, the page of a step, and the facets.
   - Tests:
@@ -703,6 +703,92 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - a blocked step;
     - the three contents of a plan;
     - the step tree in a real `Editor`.
+  - **What the step found and decided:**
+    - **A step holds a link to its plan.** Blocked is a relation between the
+      steps of one plan, and the label, the icon and the facet of a step, and
+      its page, get only the step (`format_tree_node_label(step)`,
+      `compute_item_facet(step, …)`, the page of a navigator). In general a
+      document does not know its parent, because a document can sit in two
+      places. So a plan gives its own steps a link that a walk does not
+      follow, and only the plan sets it. `WorkPlanStep.plan` holds the private
+      `_WorkPlanLink(plan, step_tree)` of its plan, or `nothing`; the plan keeps
+      the same holder in its field `link`, and `is_walk_opaque` holds for it.
+      `WorkPlan(id; steps)` and `set_work_plan_steps!(plan, steps)` link every
+      step at every depth. Step 7 writes the steps of a plan of an agent only
+      through `set_work_plan_steps!`. A step with no plan is never blocked, and
+      its page shows the ids that it waits for with no link. The label, the
+      icon, the facet and the page call `is_work_plan_step_blocked(plan, step)`
+      when they read, so a view follows a status of a blocker.
+    - **The tree of the steps lives in the link.** `step_tree` of
+      `_WorkPlanLink` is the `DocumentTree` of the plan, titled "Steps", which
+      the first view of the plan makes. So its open nodes stay when a view
+      draws the plan again, and a walk does not find the plan again below it.
+    - A file keeps the id, the title and the content (`pred_arguments` leaves
+      out `link` and `plan`), and the constructors make the links again when
+      the file is read. A copy of a plan has a link of its own, and its copied
+      steps link to the copy; a step copied alone has no plan. A copy of
+      another kind of cell (`copy_document(K, plan)`) keeps the link of the
+      original: not handled, and no test.
+    - **`OpenFileOperation` moved to the widget slice** (`36794425b`), as step
+      2 moved `OpenPageOperation`: the slices `workplan` and `assistant` load
+      before `filesystem`, and both show a link to a file (the file of a plan,
+      and in step 8 the output file of a background task). The evaluation stays
+      in `FileSystemDocument.jl`. The docstring of the operation still says "a
+      tab, a pane or a page": `search_api` ranks "find pane" by a margin of
+      0.008 (`find_pane` 1.758, `find_pane_reference` 1.750), and without the
+      word the order turns and `test_referenced_document_editor` fails.
+    - **The prose of a text** goes through `make_prose_document(text)`, a new
+      public function of the natural slice (`NaturalNotation.jl`): the Markdown
+      parser of the seam when one is registered for `:md`, else a text block.
+      The conversation (`finalize_draft!`) and the assistant (`_prose_part`
+      and the plan part of an external agent) call it in place of their own
+      copies.
+    - The slice is `source/platform/workplan/`, four fragments:
+      `WorkPlanDocument.jl` (the documents, the link, the tree generics, the
+      facet), `WorkPlanProgress.jl`, `WorkPlanToWidget.jl` and
+      `WorkPlanStepToWidget.jl`. It loads after `systemprocess` and before
+      `assistant`, and uses collection, layout, natural, projection, roster,
+      serialization, style, tree and widget.
+    - **The content of a plan** is its steps, else its text, else its file; a
+      plan with none shows its steps, which say "no steps". A `file://` prefix
+      of the `uri` is dropped, and nothing else of a URI is read.
+    - **The progress.** `WorkPlanProgress(total, pending, in_progress,
+      completed, skipped, deferred, blocked)`; `pending` counts the blocked
+      steps too, and the words say "pending" for the pending steps that are not
+      blocked, so the parts add up to the total. The bar shows the share of the
+      completed steps.
+    - **The label of a step** is its active title while it is in progress and
+      has one, else its title, then " · " and its status or "blocked by step
+      2, 3", the blockers that are not completed. The icons: pending `:circle`,
+      in progress `:loader`, completed `:circle_check`, skipped
+      `:skip_forward`, deferred `:circle_pause`, blocked `:stop`, and the plan
+      `:list`. The label of a plan is its title (else "Plan"), " · " and its
+      progress.
+    - **The views draw through the seam**, each chained to
+      `VerticalLayoutToGraphicsCanvas()`, so the parts come back through the
+      recursion of the renderer, which draws the tree of the steps and the prose
+      with their own rows. A path `steps[i]…` of the plan is the path
+      `children[3].child.root.steps[i]…` of the view. The parts that a view
+      builds after the print take their paths from the layout; the tree
+      document takes its part and no more, because its root is the plan.
+    - **A blocker link** on the page of a step is a button that answers
+      `OpenPageOperation(plan, steps[i]…)`. A navigator whose content is the
+      plan, or which has the plan on the address of its page, opens it as a
+      visit, and Back returns.
+    - **Facets.** `status` and `title` are fields of `WorkPlanStep`, and a facet
+      with the name of a field of its own type is an `ArgumentError`, so the
+      only facet is `blocked`.
+    - The entry of the test is `test_work_plan()`, which no other test package
+      defines. It ran 82 tests; `test_document_tree` 66, the layering 21, the
+      edges 1, `test_external_agent_turn` 269, `test_conversation_editor` 40,
+      and the guards of the names, the exports and the arguments, all passing;
+      `test_parse_markdown_blocks` passes 12 of 13, and its failure is item 5 of
+      `the-suites-of-main-pass-again.md`. For the move:
+      `test_open_page_operation` 61, `test_filesystem` 84, `test_file_dialog`
+      14, `test_markdown_link_target` 11, `test_workflow_catalog_to_widget` 13,
+      `test_tool_views` 19 and `test_referenced_document_editor` 110 pass;
+      `test_application` has 2 failures and 2 errors, which are item 8 of
+      `the-suites-of-main-pass-again.md`.
 
 - [ ] **5. The kernel: the events of the work.**
   - The events and the generics of section 4.6, and `AgentEventQueue`.

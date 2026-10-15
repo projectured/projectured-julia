@@ -1160,18 +1160,9 @@ end
 
 # A run of prose → one real markdown part, so headings / lists / **bold** /
 # `code` / links become a genuine projectured document instead of flat text. It
-# needs the markdown domain: with none loaded the seam has no method for `:md`
-# and the prose stays a plain-text part, which is what it already degraded to
-# when the parse failed.
-function _prose_part(s::AbstractString)
-    has_natural_parser(:md) || return ConversationPart(String(s))
-    doc = try
-        parse_natural_text(:md, s)
-    catch
-        nothing
-    end
-    doc === nothing ? ConversationPart(String(s)) : ConversationPart(doc)
-end
+# needs the markdown domain: with none loaded, or when the parse fails, the prose
+# is a plain-text part.
+_prose_part(s::AbstractString) = ConversationPart(make_prose_document(s))
 
 """
     parse_markdown_blocks(text::AbstractString) -> Vector{ConversationPart}

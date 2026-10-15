@@ -443,7 +443,8 @@ end
     finalize_draft!(draft) -> Bool
 
 Normalize a draft for submission: drop a trailing blank text typein and convert
-every remaining `PrimitiveString` part to committed `TextBlock` prose. Returns
+every remaining `PrimitiveString` part to committed prose (`make_prose_document`),
+so a typed message draws in the font and with the wrapping of a reply. Returns
 whether the draft still has any parts (i.e. is worth submitting).
 """
 function finalize_draft!(d::ConversationDraft)
@@ -454,22 +455,9 @@ function finalize_draft!(d::ConversationDraft)
     for i in eachindex(d.parts)
         part = d.parts[i]
         part.content isa PrimitiveString &&
-            (part.content = _prose_document(_value(part.content)))
+            (part.content = make_prose_document(_value(part.content)))
     end
     !isempty(d.parts)
-end
-
-# A committed paragraph is a markdown document when a markdown parser is loaded,
-# so a typed message draws in the font and with the wrapping of a reply. With no
-# parser it stays a text block, which is what an environment without the markdown
-# package can draw. The model receives the source either way.
-function _prose_document(text::AbstractString)
-    has_natural_parser(:md) || return make_text_block(String(text))
-    try
-        parse_natural_text(:md, String(text))
-    catch
-        make_text_block(String(text))
-    end
 end
 
 function evaluate_operation(editor, op::ComposerSubmitOperation)
