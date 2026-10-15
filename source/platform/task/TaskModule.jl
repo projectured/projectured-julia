@@ -16,6 +16,7 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EditorModule
 using ..EventModule
 using ..FeedModule
 using ..FocusModule
@@ -80,8 +81,6 @@ export TaskDocument, find_task_document_group, get_current_task_execution, get_t
        get_task_document_result, collect_task_document_lines, start_task!,
        wait_task_document, stop_task!, reset_task_document!, add_task_execution!,
        get_earlier_task_executions
-export TaskGroupList, get_session_task_group_list, add_task_group!, remove_task_group!,
-       set_task_group_opener!, open_task_group_pane
 export TaskGroupDocument, make_task_group_identifier, get_task_group,
        get_task_group_document_summary, get_task_group_document_counts,
        wrap_task_group_document, find_task_group_document, get_task_group_preparation,
@@ -89,10 +88,12 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        rerun_task_group_document!, stop_task_group_document!, wait_task_group_document,
        select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status
+export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
+       add_task_group!, remove_task_group!, set_task_group_opener!, open_task_group_pane
 export TaskTheme, ScaledTaskTheme
 export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
-       make_task_group_list_tab_title, build_task_graphics_entry
+       make_task_group_list_tab_title, ClosedTaskGroupToWidgetPane, build_task_graphics_entry
 export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
        TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
@@ -106,8 +107,8 @@ include("TaskGroup.jl")
 include("BuildStep.jl")
 include("TaskFeed.jl")
 include("TaskDocument.jl")
-include("TaskGroupList.jl")
 include("TaskGroupDocument.jl")
+include("TaskGroupList.jl")
 include("TaskTheme.jl")
 include("TaskGroupToWidget.jl")
 include("TaskPagesToWidget.jl")

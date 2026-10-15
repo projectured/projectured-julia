@@ -33,7 +33,7 @@ end
 """
     list_task_groups(; editor = get_evaluation_editor()) -> Text
 
-**Every group of tasks of this session, newest first**, one line each: the
+**Every open group of tasks of this session, newest first**, one line each: the
 identifier, the title, the kind, the state, the finished tasks over all of them,
 the counts of each result, and the time.
 
@@ -49,8 +49,8 @@ function list_task_groups end
 
 function list_task_groups(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "list_task_groups") do
-        groups = collect(get_session_task_group_list().groups)
-        isempty(groups) && return Text("No group of tasks ran in this session.")
+        groups = reverse(collect_task_group_documents(get_session_task_group_list(; editor)))
+        isempty(groups) && return Text("No group of tasks is open in this session.")
         Text(join((_format_group_line(group) for group in groups), "\n"))
     end
 end
@@ -58,8 +58,8 @@ end
 """
     find_task_group(name; editor = get_evaluation_editor()) -> TaskGroupDocument or nothing
 
-The group of this session whose identifier (`"T3"`) or title is `name`, or
-`nothing` when no group has it.
+The open group of this session whose identifier (`"T3"`) or title is `name`, or
+`nothing` when no open group has it.
 
 Use it to reach a group that this conversation did not start; a group that it
 started is the value its start verb answered.
@@ -74,7 +74,7 @@ function find_task_group end
 
 function find_task_group(name::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_task_group") do
-        groups = collect(get_session_task_group_list().groups)
+        groups = collect_task_group_documents(get_session_task_group_list(; editor))
         index = findfirst(g -> getfield(g, :identifier)[] == name || getfield(g, :title)[] == name,
                           groups)
         index === nothing ? nothing : groups[index]
@@ -318,7 +318,7 @@ See also `stop_task!` and `describe_task_group`.
 function rerun_tasks! end
 
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
-    run_on_editor_task!(() -> rerun_task_group_document!(group, which), editor;
+    run_on_editor_task!(() -> rerun_task_group_document!(group, which; editor), editor;
                         description = "rerun_tasks!")
     wait && wait_for_task_group!(editor, group)
     group
@@ -348,7 +348,7 @@ function close_task_group!(group::TaskGroupDocument; editor = get_evaluation_edi
         for reference in found
             close_pane!(reference; editor)
         end
-        remove_task_group!(get_session_task_group_list(), group)
+        remove_task_group!(get_session_task_group_list(; editor), group)
         Text("Closed the group " * getfield(group, :identifier)[] * ".")
     end
 end

@@ -280,7 +280,8 @@ function test_task_views()
             @test evaluate_reference(document, opened.reference) === task(1)
             @test press(projection, iomap, row; ctrl = true).place === :new_tab
             # The title of a group in the Tasks pane opens the page of the group.
-            list = get_session_task_group_list()
+            list = TaskGroupList()
+            add_task_group!(list, document)
             projection, iomap = _print_task_view(list)
             title = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "linked tasks")
             opened = press(projection, iomap, title)
@@ -317,8 +318,36 @@ function test_task_views()
             wait_task_group_document(start_task_group_document!(document))
             @test title.icon === :x && title.icon_role === :error
             @test [badge.content for badge in title.badges] == ["1 ERROR"]
-            words = _collect_task_view_words(get_session_task_group_list())
+            list = TaskGroupList()
+            add_task_group!(list, document)
+            words = _collect_task_view_words(list)
             @test getfield(document, :identifier)[] in words && "tabbed" in words
+        end
+
+        @testset "the Tasks pane shows the open groups newest first, and a group keeps its place" begin
+            groups = [wrap_task_group_document(TaskGroup([_TaskViewProbeTask(name, "exit 0")]; name = "kept");
+                                               title = name) for name in ("first group", "second group", "third group")]
+            list = TaskGroupList()
+            foreach(group -> add_task_group!(list, group), groups)
+            @test collect(list.groups) == groups
+            texts = _collect_task_view_texts(last(_print_task_view(list)).output)
+            place(word) = only(t[2] for t in texts if t[3] == word)
+            @test place("third group") < place("second group") < place("first group")
+            # A close leaves a closed group in the place, which the pane hides, and a
+            # path to a later group still names that group.
+            remove_task_group!(list, groups[2])
+            closed = list.groups[2]
+            @test closed isa ClosedTaskGroup && getfield(closed, :title)[] == "second group"
+            @test evaluate_reference(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(2, 3))) === groups[3]
+            @test collect_task_group_documents(list) == [groups[1], groups[3]]
+            words = _collect_task_view_words(list)
+            @test !("second group" in words) && "2 groups · 0 running" in words
+            # The page of the closed group says that it closed.
+            words = _collect_task_view_words(closed)
+            @test "second group" in words && "This group is closed. Its tasks and their output are gone." in words
+            # A group that runs again goes back into its place.
+            add_task_group!(list, groups[2])
+            @test collect(list.groups) == groups
         end
     end
 end

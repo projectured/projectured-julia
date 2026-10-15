@@ -108,12 +108,34 @@ function test_task_document()
             @test getfield(document, :identifier)[] != getfield(other, :identifier)[]
             @test get_task_group_document_status(document) === :pending
             @test build_task_group_document_counts(document)[:pending] == 5
-            start_task_group_document!(document)
-            @test first(get_session_task_group_list().groups) === document
+            # A group that starts in an evaluation of an editor joins the end of the
+            # list of its session; a group that starts outside every editor joins
+            # no list.
+            editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            earlier = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "earlier"))
+            add_task_group!(get_session_task_group_list(; editor), earlier)
+            run_with_evaluation_editor(() -> start_task_group_document!(document), editor)
+            @test collect(get_session_task_group_list(; editor).groups) == [earlier, document]
+            start_task_group_document!(other)
+            @test !any(g -> g === other, get_session_task_group_list(; editor).groups)
+            wait_task_group_document(other)
+            # A start that names its editor, as a verb does, joins the list of that
+            # editor also outside an evaluation.
+            named = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "named"))
+            start_task_group_document!(named; editor)
+            @test last(get_session_task_group_list(; editor).groups) === named
+            wait_task_group_document(named)
             wait_task_group_document(document)
             @test get_task_group_document_status(document) === :finished
             counts = build_task_group_document_counts(document)
             @test counts[:done] == 4 && counts[:error] == 1 && counts[:total] == 5
+            # The facets of a task that ended: its code, and whether it was expected.
+            failed = only(d for d in getfield(document, :tasks)[] if get_task_document_result(d).result == "ERROR")
+            @test compute_item_facet(failed, Val(:result)) == "ERROR"
+            @test compute_item_facet(failed, Val(:expected)) === false
+            done = first(d for d in getfield(document, :tasks)[] if get_task_document_result(d).result == "DONE")
+            @test compute_item_facet(done, Val(:expected)) === true
             # The counts of the shadow, which the tally of the scheduler makes,
             # agree with a count of the documents.
             synced = get_task_group_document_counts(document)
@@ -154,7 +176,14 @@ function test_task_document()
             inner = find_task_group_document(document, 1)
             @test inner isa TaskGroupDocument && get_task_group(inner) === phases[1]
             @test getfield(inner, :identifier)[] == identifier * ".1"
-            start_task_group_document!(document)
+            # The task of an inner group holds it, so it has a path under the outer
+            # group.
+            @test evaluate_reference(document, Reference(FieldReferenceStep("tasks"), RangeReferenceStep(0, 1),
+                                                         FieldReferenceStep("inner_group"))) === inner
+            @test find_task_group_document(document, 3) === nothing && find_task_group_document(document, 0) === nothing
+            editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            run_with_evaluation_editor(() -> start_task_group_document!(document), editor)
             wait_task_group_document(document)
             @test get_task_group_document_status(document) === :finished
             @test get_task_group_document_summary(document).total == 10
@@ -165,7 +194,7 @@ function test_task_document()
                 @test get_task_group_document_status(find_task_group_document(document, index)) === :finished
             end
             # Only the outer group has a row in the Tasks pane.
-            groups = collect(get_session_task_group_list().groups)
+            groups = collect(get_session_task_group_list(; editor).groups)
             @test any(g -> g === document, groups) && !any(g -> g === inner, groups)
             # A run again of a phase puts its tasks back to waiting, and they
             # report again.

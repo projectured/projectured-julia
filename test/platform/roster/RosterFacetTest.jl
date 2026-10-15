@@ -2,7 +2,8 @@
 # a facet of a supertype, the name, the folder and the edits of a file, the facets
 # of an assistant, and in an editor a key press that makes the row of its file show
 # the edits, and a save that clears them. And the name and the status of a task,
-# with the kind of its group, through the records of the tasks of the session.
+# with the kind of its group, through the records of the tasks of the session of
+# an editor, and the result, the expected and the reason of a task that ended.
 
 # A record whose own field has the name of a facet that every document has.
 @document struct _RosterTyped
@@ -82,23 +83,30 @@ function test_roster_facets()
             TaskModule.TaskGroup([_RosterFacetTask("run one"), _RosterFacetTask("run two")]; name = "fingerprint test");
             title = "queue study")
         smoke = TaskModule.wrap_task_group_document(TaskModule.TaskGroup([_RosterFacetTask("run three")]; name = "smoke test"))
-        list = TaskModule.get_session_task_group_list()
+        # The records of the tasks are those of the session of the editor of the
+        # evaluation, as in a frame of that editor.
+        editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                        backend = HeadlessBackend(), devices = Device[])
+        list = TaskModule.get_session_task_group_list(; editor)
         TaskModule.add_task_group!(list, fingerprint)
         TaskModule.add_task_group!(list, smoke)
-        try
+        run_with_evaluation_editor(editor) do
             roster = link_roster!(Roster(StoreRecords(:tasks); columns = ["name", "status", "within.title", "within.kind"]),
                                   list)
-            mine = [Tuple(row.values[k] for k in 1:4) for row in roster.rows
-                    if row.values[4] in ("fingerprint test", "smoke test")]
-            @test sort(mine) == sort([("run one", :pending, "queue study", "fingerprint test"),
-                                      ("run two", :pending, "queue study", "fingerprint test"),
-                                      ("run three", :pending, "smoke test", "smoke test")])
-            @test first.(collect_item_facets(TaskModule.TaskDocument))[1:2] == ["name", "status"]
-            @test first.(collect_item_facets(TaskModule.TaskGroupDocument))[1] == "kind"
-        finally
+            @test [Tuple(row.values[k] for k in 1:4) for row in roster.rows] ==
+                  [("run one", :pending, "queue study", "fingerprint test"),
+                   ("run two", :pending, "queue study", "fingerprint test"),
+                   ("run three", :pending, "smoke test", "smoke test")]
+            # A closed group has no records.
             TaskModule.remove_task_group!(list, fingerprint)
-            TaskModule.remove_task_group!(list, smoke)
+            @test [row.values[1] for row in roster.rows] == ["run three"]
         end
+        @test first.(collect_item_facets(TaskModule.TaskDocument))[1:5] ==
+              ["name", "status", "result", "expected", "reason"]
+        @test first.(collect_item_facets(TaskModule.TaskGroupDocument))[1] == "kind"
+        # A task that did not end has no result, and so no expected and no reason.
+        pending = first(getfield(smoke, :tasks)[])
+        @test all(name -> compute_item_facet(pending, Val(name)) === nothing, (:result, :expected, :reason))
     end
 end
 end

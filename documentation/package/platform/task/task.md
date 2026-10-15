@@ -277,18 +277,33 @@ A caller with no window drains the store itself: `wait_task_document` and
 shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
 never changes. The slot of each task syncs the shadow of the group after the
 task (`get_task_group_document_summary`, `get_task_group_document_counts`). Each task that is
-a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …
-(`find_task_group_document`); only the outer group has a row in the Tasks pane.
+a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
+`TaskDocument` holds in the field `inner_group`
+(`find_task_group_document`). So an inner group has a path under its outer group,
+`tasks[i].inner_group`. Only the outer group has a row in the Tasks pane.
 `start_task_group_document!`, `rerun_task_group_document!` and
 `stop_task_group_document!` act on the group, and its status is `:pending`,
 `:running`, `:stopping` or `:finished`. The status reads the counts of the
 shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 
-`TaskGroupList` is the groups of the session, newest first, that the Tasks pane
-shows. A group adds itself when it starts, and stays until a person closes its
-row. `set_task_group_opener!` says what Show does; a window sets it, and it
-captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
+`TaskGroupList` is the groups of the session of an editor, in the order of their
+starts, which the Tasks pane shows newest first. It is a session document of the
+editor (`get_session_task_group_list(; editor = find_evaluation_editor())`), and
+no module constant holds it. The first call with an editor takes the list that a
+tab of its window shows, because a window can make its Tasks tab before its
+editor exists; else it makes a new list. A group adds itself at the end of the
+list of the editor of the evaluation when it starts. A group that starts outside
+every editor, such as from a script, joins no list.
+
+A group keeps its place, so a path `groups[k]` names the same group for the whole
+session. A close of its row puts a `ClosedTaskGroup` in the place: the
+identifier, the title and the line that sums the group up. The tasks and their
+executions go with the group, so their memory goes. The Tasks pane and the
+records of the tasks hide a closed group, `collect_task_group_documents` gives the
+open groups, and the page of a closed group says that it closed. A group that
+runs again goes back into its place. `set_task_group_opener!` says what Show
+does; a window sets it, and it captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
 
 ## The views
 
@@ -328,8 +343,9 @@ In a tree, a task is a leaf whose text is its name and its status with the time 
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
-pane, one row for each group of the session, with Show, Stop, Run unexpected
-again and Close.
+pane, one row for each open group of the session, newest first, with Show, Stop,
+Run unexpected again and Close. `ClosedTaskGroupToWidgetPane` draws the page of a
+closed group.
 
 The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
 the natural renderer for both panes, each with a widget renderer of its own so

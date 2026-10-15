@@ -49,7 +49,7 @@ The slice of a kind of item adds its own source, as `SystemProcesses` shows. The
 | `:faults` | the lines of the fault log of the session |
 | `:log` | the lines of the message log of the session: `level` and `message` |
 | `:mcp_log` | the calls of the MCP log of the session |
-| `:tasks` | the tasks of the groups of the session, each with its group as `within` |
+| `:tasks` | the tasks of the open groups of the session of the editor, each with its group as `within` |
 | `:frames` | the recent frames of the session: `frame`, and the time of each measurement in seconds |
 
 The frames are a named tuple for each frame of the series of frame times. The part of the frames reads `names` of the series, which is the probe of the frame statistics feed for a view. So the series flushes while a roster shows the frames, and only then.
@@ -74,7 +74,7 @@ A facet is a value of an item that the slice of its type computes. A slice decla
 | `AgentWork` | `tokens` |
 | `SystemProcess` | `load`, `elapsed` |
 | `WorkPlanStep` | `blocked` |
-| `TaskDocument` | `name`: the task in one line, as the list of tasks writes it, and `status`: the status of its current execution |
+| `TaskDocument` | `name`: the task in one line, as the list of tasks writes it; `status`: the status of its current execution; `result`: the code of the result of that execution; `expected`: whether that result is the expected one; and `reason`: why the result is what it is. The last three are `nothing` before the execution ends |
 | `TaskGroupDocument` | `kind`: the name of the group, which the list of groups shows as its kind |
 
 A row of `StoreRecords(:tasks)` is a task within its group, so `within.kind` filters the tasks by the kind of their group, and `within.title` names the group: `filter = ["within.kind" => ==("fingerprint test")]` keeps the tasks of the fingerprint tests of the session.

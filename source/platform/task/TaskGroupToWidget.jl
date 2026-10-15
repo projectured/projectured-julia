@@ -898,11 +898,12 @@ end
 """
     TaskGroupListToWidgetPane(; theme styles…)
 
-Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each group of the
-session, newest first, with its identifier, its title, its kind, the word of its
-state, its counts, how far it is and the time, and the buttons that show its
+Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open group of
+the session, newest first, with its identifier, its title, its kind, the word of
+its state, its counts, how far it is and the time, and the buttons that show its
 pane, stop it, run its unexpected tasks again, and close its row. A group whose
-pane was closed keeps its row, and Show opens the pane again.
+pane was closed keeps its row, and Show opens the pane again. A closed row leaves
+a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -926,20 +927,9 @@ that run while any does.
 """
 make_task_group_list_tab_title(list::TaskGroupList) =
     PaneTabTitle("Tasks"; icon = :list,
-                 badges = () -> (n = count(g -> getfield(g, :status)[] in (:running, :stopping), list.groups);
+                 badges = () -> (n = count(g -> getfield(g, :status)[] in (:running, :stopping),
+                                           collect_task_group_documents(list));
                                  n == 0 ? Any[] : Any[WidgetBadge(string(n, " running"); role = :accent)]))
-
-# The counts of a group in a line: each code, then the tasks that run and wait.
-function _format_group_counts(counts)
-    parts = String[]
-    for (code, expected, unexpected) in counts.counts
-        expected > 0 && push!(parts, string(expected, " ", code))
-        unexpected > 0 && push!(parts, string(unexpected, " ", code, " unexpected"))
-    end
-    counts.running > 0 && push!(parts, string(counts.running, " running"))
-    counts.pending > 0 && push!(parts, string(counts.pending, " waiting"))
-    join(parts, " · ")
-end
 
 function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
     group = get_task_group(doc)
@@ -968,18 +958,24 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
                          gap = p.inline_gap)]
 end
 
+# The open groups of the list, newest first, each with its place in the list,
+# which the path of its link names.
+_collect_shown_task_groups(list::TaskGroupList) =
+    [(index, group) for (index, group) in Iterators.reverse(collect(enumerate(list.groups)))
+     if group isa TaskGroupDocument]
+
 function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroupList, ctx)
     heading = WidgetLabel(() -> begin
-        groups = collect(list.groups)
+        groups = collect_task_group_documents(list)
         running = count(g -> getfield(g, :status)[] in (:running, :stopping), groups)
         string(length(groups), length(groups) == 1 ? " group" : " groups", " · ", running, " running")
     end)
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
-        groups = collect(list.groups)
-        isempty(groups) && return Cell[Cell(_make_label(
-            "No group of tasks ran in this session yet.", p.muted_color))]
-        rows = Any[_build_list_row(p, list, doc, index) for (index, doc) in enumerate(groups)]
+        shown = _collect_shown_task_groups(list)
+        isempty(shown) && return Cell[Cell(_make_label(
+            "No group of tasks is open in this session.", p.muted_color))]
+        rows = Any[_build_list_row(p, list, doc, index) for (index, doc) in shown]
         Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
     end)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
@@ -990,6 +986,32 @@ function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroup
     iomap
 end
 
+# ── A closed group ───────────────────────────────────────────────────────────
+
+"""
+    ClosedTaskGroupToWidgetPane(; stack_gap, inline_gap, muted_color)
+
+Draw a [`ClosedTaskGroup`](@ref) as its page: the title and the identifier of the
+group, that it closed, and the line that sums it up. A path that named the group
+names this page, and never another group.
+"""
+@projection UntrackedCell struct ClosedTaskGroupToWidgetPane <: Projection
+    stack_gap::Int = get_task_style(nothing, :stack_gap)
+    inline_gap::Int = get_task_style(nothing, :inline_gap)
+    muted_color::StyleColor = get_task_style(nothing, :muted_color)
+end
+
+function print_document(p::ClosedTaskGroupToWidgetPane, recursion, group::ClosedTaskGroup, ctx)
+    heading = HorizontalLayout(Any[WidgetLabel(getfield(group, :title)[]),
+                                   WidgetBadge(getfield(group, :identifier)[]; variant = :outline)];
+                               vertical_align = :center, gap = p.inline_gap)
+    lines = VerticalLayout(Any[_make_label("This group is closed. Its tasks and their output are gone.", p.muted_color),
+                               WidgetLabel(getfield(group, :summary)[])]; gap = p.stack_gap, child_width = Fill)
+    root = VerticalLayout(Any[WidgetCard(; title = heading, content = lines)]; horizontal_align = :left,
+                          gap = p.stack_gap)
+    ChildrenIoMap(p, group, root, Cell(Any[]))
+end
+
 # ── Natural-projection registration ─────────────────────────────────────────
 
 """
@@ -997,8 +1019,8 @@ end
         -> Vector{Pair{Type,Any}}
 
 The rows of the natural renderer that draw a group of tasks as its pane, the
-groups of the session as the Tasks pane, and a task, an execution and a stream
-as their pages. Each pane draws with the scaled
+groups of the session as the Tasks pane, a closed group, and a task, an execution
+and a stream as their pages. Each pane draws with the scaled
 `TaskTheme` of `appearance`, and its widgets draw with a widget renderer of
 their own, which also takes a click back to the button under it. `measure` is
 what the registry gives every row; a row made by hand measures with the font
@@ -1036,6 +1058,9 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     Pair{Type,Any}[
         TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
+        ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; stack_gap = styles.stack_gap,
+                                                  inline_gap = styles.inline_gap, muted_color = styles.muted_color),
+                                              widgets()),
         TaskDocument => ChainingProjection(TaskDocumentToWidgetPane(; styles...), widgets()),
         ACTaskExecution => ChainingProjection(TaskExecutionToWidgetPane(; styles...), widgets()),
         TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.stack_gap), stream_widgets())]

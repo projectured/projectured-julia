@@ -46,6 +46,9 @@ and runs no process, for an example or a picture of a task.
   sets, or to `nothing` for a task of no group. The page of the task stops it and
   runs it again through its group, so the counts of the group stay right. A
   `Ref`, so a walk and a copy of the documents do not go round through it.
+- `inner_group` — the [`TaskGroupDocument`](@ref) of a task that is a group, or
+  `nothing`. It is a field, so the inner group has a path under the outer group,
+  `tasks[i].inner_group`, and the page of the task shows the page of that group.
 
 While the document has a current execution, its shadow is the last of
 `executions` ([`get_current_task_execution`](@ref)).
@@ -57,12 +60,13 @@ While the document has a current execution, its shadow is the last of
     result_document::Any
     process_tree::Any
     group::Any
+    inner_group::Any
 end
 
 function TaskDocument(task; status::Symbol = :pending, progress = nothing)
     document = _follow_current_execution!(TaskDocument(Cell(task), Cell(nothing), Cell(CellVector()),
                                                        Cell(nothing), Cell(nothing), Cell(Ref{Any}(nothing)),
-                                                       Cell(nothing)))
+                                                       Cell(nothing), Cell(nothing)))
     status === :pending && return document
     execution = TaskExecution(task)
     execution.status = status
@@ -78,7 +82,8 @@ has_document_duplicate(::TaskDocument) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
                                                     executions = CellVector(), result_document = nothing,
-                                                    process_tree = nothing, group = Ref{Any}(nothing)))
+                                                    process_tree = nothing, group = Ref{Any}(nothing),
+                                                    inner_group = nothing))
 
 # A task is called by the task in one line, as the list of tasks writes it.
 get_document_title(document::TaskDocument) = format_task_parameters(getfield(document, :task)[])
@@ -102,6 +107,8 @@ function remove_task_output_files!(document::TaskDocument)
         remove_task_output_files!(shadow.output)
         remove_task_output_files!(shadow.error_output)
     end
+    inner = getfield(document, :inner_group)[]
+    inner === nothing || remove_task_output_files!(inner)
     document
 end
 
@@ -156,9 +163,18 @@ end
 get_item_facets(::Type{TaskDocument}) = [
     "name" => "the task in one line, as the list of tasks writes it",
     "status" => "the status of the current execution: pending, running, cancelling, done, error, " *
-                "cancelled or skipped"]
+                "cancelled or skipped",
+    "result" => "the result code of the current execution, such as PASS or ERROR, or nothing before it ends",
+    "expected" => "whether that result is the expected one, true or false, or nothing before it ends",
+    "reason" => "why the result is what it is, such as the first error, or nothing"]
 compute_item_facet(document::TaskDocument, ::Val{:name}) = format_task_parameters(getfield(document, :task)[])
 compute_item_facet(document::TaskDocument, ::Val{:status}) = get_task_document_status(document)
+compute_item_facet(document::TaskDocument, ::Val{:result}) =
+    (result = get_task_document_result(document); result === nothing ? nothing : result.result)
+compute_item_facet(document::TaskDocument, ::Val{:expected}) =
+    (result = get_task_document_result(document); result === nothing ? nothing : is_expected(result))
+compute_item_facet(document::TaskDocument, ::Val{:reason}) =
+    (result = get_task_document_result(document); result === nothing ? nothing : result.reason)
 
 # The node of a task in a tree is a leaf: its name, its status and the time when
 # it started while it runs, or the code of its result and how long it ran, with an

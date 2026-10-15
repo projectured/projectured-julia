@@ -50,7 +50,7 @@ function test_roster_sources()
             calls = link_roster!(Roster(StoreRecords(:mcp_log); columns = ["name"]), log)
             @test length(calls.rows) == length(get_session_mcp_log(; editor).entries)
             tasks = link_roster!(Roster(StoreRecords(:tasks); columns = ["within.title"]), log)
-            @test length(tasks.rows) == sum((length(group.tasks) for group in get_session_task_group_list().groups); init = 0)
+            @test length(tasks.rows) == sum((length(group.tasks) for group in collect_task_group_documents(get_session_task_group_list())); init = 0)
             unknown = link_roster!(Roster(StoreRecords(:no_such_store); columns = ["x"]), log)
             @test_throws ArgumentError length(unknown.rows)
         end
