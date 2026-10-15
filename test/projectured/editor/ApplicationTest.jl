@@ -1481,7 +1481,7 @@ function test_application()
                 @test again.model == "small"
                 @test again.context == 4096
                 @test get_pane_tab_title_string(group.tabs[index]) == "Assistant"
-                greeting(assistant) = string(assistant.conversation.turns[1].parts[1].content)
+                greeting(assistant) = get_flat_string(assistant.conversation.turns[1].parts[1].content)
                 @test greeting(again) == greeting(started)
                 @test occursin("Ollama", greeting(again))
 
