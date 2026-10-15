@@ -4,7 +4,7 @@
 > should auto hide and show only if its being dragged or the mouse is over the
 > bar, this is typical in modern UIs so the scroll bar doesn't hide anything".
 > The owner agreed to step 2 (show the bar after a scroll) and step 3 (fade).
-> No source changed.
+> Step 1 is done.
 
 ## The goal
 
@@ -41,16 +41,20 @@ fades in and fades out.
 
 ### Step 1: a bar shows nothing at rest
 
-- ⬜ Make the default rest color of the thumb `color_transparent`. The bar then
+- ✅ Make the default rest color of the thumb `color_transparent`. The bar then
   shows only while `lit` is true.
-- ⬜ Update the comment over `WidgetScrollBarToGraphicsCanvas(theme; …)`, the
+- ✅ Update the comment over `WidgetScrollBarToGraphicsCanvas(theme; …)`, the
   docstrings of `WidgetScrollPane` and `WidgetScrollBar`, and the section "The
   scroll bars" of `documentation/package/platform/widget/widget.md`.
-- ⬜ Update the tests that assert the rest color: `WidgetScrollBarTest.jl`,
-  `ScrollPaneBarTest.jl`, `WidgetTableBarTest.jl`, `WidgetColorTest.jl`.
-- ⬜ `tool/widget-images.jl`: draw the bar of the gallery lit, so its picture
-  shows a bar.
+- ✅ Update the tests that assert the rest color: `WidgetScrollBarTest.jl`,
+  `ScrollPaneBarTest.jl`, `WidgetTableBarTest.jl`, `WidgetColorTest.jl`. Only the
+  first two assert it. The five bar tests pass: 208 of 208.
+- ✅ `tool/widget-images.jl`: draw the bar of the gallery lit, so its picture
+  shows a bar. The example `make_widget_scroll_bar_document_example` puts the
+  mouse target on its bar, as the focus example puts a selection. The tool
+  itself does not change.
 - ⬜ Check in the live app: a pane, a list, a table and the data frame view.
+  This check runs once, after step 3, for the three steps.
 
 A projection that wants a bar at rest passes `thumb_color`. No setting is added.
 

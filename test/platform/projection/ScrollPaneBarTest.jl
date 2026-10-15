@@ -179,6 +179,7 @@ function test_scroll_pane_bar()
         bar = found.document
         thumb = found.iomap.output.elements[end - 1]
         rest = thumb.color
+        @test rest == color_transparent
         @test strip_reference_types(compute_part_at_point(driver.iomap, 198, 100)) ==
               ConcreteReference(FieldReferenceStep("vertical_scroll_bar"), EmptyReference())
         _mtt_move!(driver, 198, 100, 1.0)

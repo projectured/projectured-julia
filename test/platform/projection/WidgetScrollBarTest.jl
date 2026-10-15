@@ -8,9 +8,9 @@
 
 A `WidgetScrollBar` with no authored size takes the extent that its parent
 offers along it and the thickness of its theme across it. Its thumb reads the
-value in cells, so a new value moves the thumb on the same canvas. Its track is
-transparent until the pointer is on the bar, and the pointer is an arrow over
-it. A click on the track moves the value one page toward the pointer, Shift and a
+value in cells, so a new value moves the thumb on the same canvas. Its track and
+its thumb are transparent until the pointer is on the bar, and the pointer is an
+arrow over it. A click on the track moves the value one page toward the pointer, Shift and a
 click or a press put the middle of the thumb under the pointer, and a press on
 the thumb starts a drag: each `DragMove` adds its distance to the value of the
 press, and `DragCancel` puts that value back.
@@ -33,15 +33,16 @@ function test_widget_scroll_bar()
     @test canvas.elements[end - 1] === thumb
     getfield(bar, :value)[] = 0.5
 
-    @testset "the track shows while the pointer is on the bar" begin
+    @testset "the bar shows nothing at rest, and shows while the pointer is on it" begin
         p = iomap.projection
         @test track.color == color_transparent
-        @test thumb.color == p.thumb_color
+        @test thumb.color == color_transparent
         getfield(bar, :mouse_target)[] = EmptyReference()
         @test track.color == p.track_hovered_color
         @test thumb.color == p.thumb_hovered_color
         getfield(bar, :mouse_target)[] = nothing
         @test track.color == color_transparent
+        @test thumb.color == color_transparent
         @test shape isa GraphicsPointerShape && shape.shape === :arrow
         @test (Int(shape.w), Int(shape.h)) == (10, 300)
     end

@@ -880,15 +880,16 @@ WidgetToolbarToGraphicsCanvas(theme; measure,
     thickness::Int                    # across the bar, where nothing sizes it
 end
 
-# A bar lies over the content that it scrolls, so its rail is transparent at
-# rest and only the thumb covers the content.
+# A bar lies over the content that it scrolls, so it shows nothing at rest and
+# covers no content. It shows while the pointer is on it or its thumb is
+# dragged. A maker that wants a bar at rest gives `thumb_color`.
 WidgetScrollBarToGraphicsCanvas(theme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 track_color = color_transparent,
                                 track_hovered_color = _themed(StyleColor, theme, t -> t.muted),
-                                thumb_color = _themed(StyleColor, theme, t -> t.border),
+                                thumb_color = color_transparent,
                                 thumb_hovered_color = _themed(StyleColor, theme, t -> t.input),
                                 minimum_thumb_length = _themed(Int, theme, t -> t.scroll_thumb_minimum),
                                 thickness = _themed(Int, theme, t -> t.scroll_bar_thickness)) =
@@ -6713,9 +6714,10 @@ end
 
 # A scroll bar is as long as its parent offers and as thick as its theme says,
 # unless it authors a size. Its track and its thumb read the value in cells, so
-# a scroll moves the thumb and prints nothing again. Both light while the pointer
-# is on the bar or its thumb is dragged, and the pointer is an arrow over the
-# bar, also over a text under it.
+# a scroll moves the thumb and prints nothing again. Both take their lit colors
+# while the pointer is on the bar or its thumb is dragged, and their colors at
+# rest, which are transparent unless a maker gives them, at other times. The
+# pointer is an arrow over the bar, also over a text under it.
 function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position

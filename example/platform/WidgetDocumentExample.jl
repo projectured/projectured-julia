@@ -322,10 +322,13 @@ function make_widget_offered_document_example(; width=760, height=420)
     WidgetShell(split; size=Point2D(width, height))
 end
 
-# WidgetScrollBar — a single scroll bar with a thumb.
-make_widget_scroll_bar_document_example() =
-    WidgetScrollBar(:vertical; value=0.4, thumb_size=0.3,
-                    position=Point2D(40, 40), size=Point2D(20, 300))
+# WidgetScrollBar — a single scroll bar with a thumb. A bar shows nothing at
+# rest, so the pointer is on this one.
+function make_widget_scroll_bar_document_example()
+    bar = WidgetScrollBar(:vertical; value=0.4, thumb_size=0.3,
+                          position=Point2D(40, 40), size=Point2D(20, 300))
+    replace_mouse_target!(bar, EmptyReference())
+end
 
 # WidgetScrollPane — a scrollable viewport over an over-tall composite.
 function make_widget_scroll_pane_document_example(; width=400, height=300, line_height=40)
