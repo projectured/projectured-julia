@@ -45,7 +45,7 @@ again.
 end
 
 """
-    SystemProcessTree(root_process_ids; title = "Processes of …")
+    SystemProcessTree(root_process_ids; title = "Processes of …", root = "/proc")
 
 The processes under `root_process_ids`, as a document: each root that runs is
 one of `roots`, and each process holds its children. A sync brings a read of
@@ -53,8 +53,9 @@ one of `roots`, and each process holds its children. A sync brings a read of
 syncs once in an interval while a view reads `roots`
 ([`drain_system_process_tree!`](@ref)). `sampled_at` is the time of the read of
 the last sync, so a view shows an elapsed time with no clock. `sampler` holds
-the read that runs and what a load needs, and a walk of the documents does not
-enter it.
+the read that runs, the folder `root` that it reads, and what a load needs, and a
+walk of the documents does not enter it. With no `root` folder, as on a system
+with no `/proc`, the node of the tree says that the processes can not be read.
 
 Show it with [`show_system_process_tree!`](@ref), or alone, as the page of a
 navigator, where it draws as a tree.
@@ -67,17 +68,20 @@ navigator, where it draws as a tree.
     sampler::Any
 end
 
-SystemProcessTree(root_process_ids; title::AbstractString = _format_tree_title(root_process_ids)) =
+SystemProcessTree(root_process_ids; title::AbstractString = _format_tree_title(root_process_ids),
+                  root::AbstractString = "/proc") =
     SystemProcessTree(collect(Int, root_process_ids), String(title), CellVector(Any[]), nothing,
-                      _SystemProcessSampler())
+                      _SystemProcessSampler(root))
 
 _format_tree_title(root_process_ids) = "Processes of " * join(root_process_ids, ", ")
 
-# What the drain of a tree needs and no view shows: the lock of the result, the
-# read that runs on a task of its own, the result of the last read with the time
-# at which it read, the time of the last start, and the processor ticks of each
-# process at the last sample, by its process id and its start ticks.
+# What the drain of a tree needs and no view shows: the folder that it reads, the
+# lock of the result, the read that runs on a task of its own, the result of the
+# last read with the time at which it read, the time of the last start, and the
+# processor ticks of each process at the last sample, by its process id and its
+# start ticks.
 mutable struct _SystemProcessSampler
+    root::String
     lock::ReentrantLock
     reading::Union{Task,Nothing}
     result::Union{Nothing,Tuple{Float64,Vector{SystemProcessRecord}}}
@@ -85,8 +89,8 @@ mutable struct _SystemProcessSampler
     processor_ticks::Dict{Tuple{Int,Int},Int}
 end
 
-_SystemProcessSampler() =
-    _SystemProcessSampler(ReentrantLock(), nothing, nothing, -Inf, Dict{Tuple{Int,Int},Int}())
+_SystemProcessSampler(root::AbstractString) =
+    _SystemProcessSampler(String(root), ReentrantLock(), nothing, nothing, -Inf, Dict{Tuple{Int,Int},Int}())
 
 # A walk of the documents finds no document in a sampler, and must not enter its
 # task or its lock.
@@ -99,6 +103,11 @@ get_document_title(process::SystemProcess) =
 # ── The nodes of a tree ──────────────────────────────────────────────────────
 
 get_tree_children_steps(::SystemProcessTree) = ((FieldReferenceStep("roots"),),)
+
+# The text of the root node is the title, or why the tree is empty when the folder
+# that it reads is not there.
+format_tree_node_label(tree::SystemProcessTree) =
+    isdir(tree.sampler.root) ? tree.title : "No /proc on this system: the processes can not be read."
 get_tree_children_steps(::SystemProcess) = ((FieldReferenceStep("children"),),)
 
 format_tree_node_label(process::SystemProcess) =

@@ -682,10 +682,16 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `SystemProcessModule => (:show_system_process_tree!,
       :describe_system_process_tree)` and one sentence in `APPLICATION_SYSTEM`.
       Their docstrings do not say "find" or "pane".
-    - Not done: on a system with no `/proc`, `describe_system_process_tree`
-      says why, and the view shows an empty tree that does not.
+    - **An empty tree says why in the text of its root node.** The tree keeps
+      the folder that it reads, `/proc` by default, in its sampler
+      (`SystemProcessTree(ids; root)`). When that folder is not there,
+      `format_tree_node_label` of the tree answers "No /proc on this system:
+      the processes can not be read." in place of the title, and
+      `describe_system_process_tree` says the same in its text. The node text
+      keeps the tree generic: a leaf under the root would need a child that is
+      no process, in `roots` or in a second collection of children.
     - The entry of the test is `test_system_process()`, which no other test
-      package defines. It ran 72 tests; `test_document_tree` 66,
+      package defines. It ran 72 tests (78 with the empty tree); `test_document_tree` 66,
       `test_task_execution` 43, `test_task_document` 83, `test_task_views` 36,
       `test_task_group_verbs` 23, the layering 21 and the edges 1, all passing.
 

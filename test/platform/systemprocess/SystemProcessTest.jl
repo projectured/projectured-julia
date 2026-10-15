@@ -145,6 +145,22 @@ function test_system_process()
         @test ["load", "elapsed"] ⊆ first.(collect_item_facets(SystemProcess))
     end
 
+    @testset "a tree whose folder is not there says why it is empty" begin
+        @test format_tree_node_label(SystemProcessTree([100]; root = _sysproc_write(_sysproc_processes()))) ==
+              "Processes of 100"
+        tree = SystemProcessTree([100]; root = joinpath(_sysproc_write(_sysproc_processes()), "none"))
+        @test get_document_title(tree) == "Processes of 100"
+        widget = print_document(DocumentTreeToWidgetTree(), nothing, DocumentTree(tree), nothing).output
+        @test widget.roots[1].label == "No /proc on this system: the processes can not be read."
+        @test isempty(widget.roots[1].children)
+        # A read of that folder answers no process.
+        view = Cell(@computation length(tree.roots))
+        @test view[] == 0
+        drain_system_process_tree!(tree; now = 100.0)
+        _sysproc_wait_read(tree)
+        @test drain_system_process_tree!(tree; now = 100.5) == 1 && view[] == 0
+    end
+
     @testset "a tree draws as a tree in a navigator, and a node opens the page of its process" begin
         root = _sysproc_write(_sysproc_processes())
         tree = SystemProcessTree([100, 2])

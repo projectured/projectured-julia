@@ -156,7 +156,7 @@ end
 function _read_into_sampler!(sampler::_SystemProcessSampler, root_process_ids::Vector{Int})
     read_at = time()
     records = try
-        read_system_processes(root_process_ids)
+        read_system_processes(root_process_ids; root = sampler.root)
     catch exception
         @warn "a read of the system processes failed" exception
         return nothing
