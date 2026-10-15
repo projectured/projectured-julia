@@ -16,8 +16,10 @@ module FileChangeModule
 
 using FileWatching: FolderMonitor
 
+using ..EditorModule
 using ..OperationModule
 using ..SerializationModule
+using ..ToolModule
 using ..FileFormatModule
 using ..FeedModule
 
@@ -25,7 +27,8 @@ using ..FeedModule
 import ..FeedModule: drain_changes!, attach_wake_callback!
 
 export FileChangeStore, get_session_file_change_store, watch_document_file!,
-       unwatch_document_file!, is_document_file_watched, drain_file_changes!
+       unwatch_document_file!, is_document_file_watched, close_file_change_store!,
+       drain_file_changes!
 export FileChangeFeed, make_file_change_feeds
 
 include("FileChangeStore.jl")

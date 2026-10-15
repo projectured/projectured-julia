@@ -541,6 +541,11 @@ using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
+using ProjecturedKernel.EditorModule: Editor
+using ProjecturedKernel.DeviceModule: Device
+using ProjecturedKernel.ToolModule: run_with_evaluation_editor
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedKernelExample: HeadlessBackend
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

@@ -59,14 +59,33 @@ FileChangeStore(; poll_interval::Real = 1.0) =
     FileChangeStore(ReentrantLock(), WatchedFile[], Set{String}(), Dict{String,Any}(), Any[],
                     Float64(poll_interval))
 
-"""The store of the session: every file document that watches its file is here."""
-const SESSION_FILE_CHANGE_STORE = FileChangeStore()
+"""
+    get_session_file_change_store(; editor = find_evaluation_editor()) -> FileChangeStore
 
-"""The store of the session, [`SESSION_FILE_CHANGE_STORE`](@ref)."""
-get_session_file_change_store() = SESSION_FILE_CHANGE_STORE
+The store of the file changes of `editor`: the store of its
+[`FileChangeFeed`](@ref). Each editor that has the feed has its own store. With no
+editor, or an editor that has no such feed, a new store that nothing keeps and
+nothing drains.
+"""
+function get_session_file_change_store(; editor = find_evaluation_editor())
+    store = _find_editor_file_change_store(editor)
+    store === nothing ? FileChangeStore() : store
+end
+
+# The store of the `FileChangeFeed` of `editor`, or `nothing` when it has none.
+function _find_editor_file_change_store(editor)
+    editor isa Editor || return nothing
+    index = findfirst(feed -> feed isa FileChangeFeed, editor.feeds)
+    index === nothing ? nothing : editor.feeds[index].store
+end
+
+# The store that a watch takes by default: the store of the feed of the editor of
+# the evaluation, or `nothing`, and then a watch does nothing, because no drain
+# would bring its changes and its watcher would run forever.
+_find_watch_store() = _find_editor_file_change_store(find_evaluation_editor())
 
 """
-    watch_document_file!(file; store = get_session_file_change_store()) -> file
+    watch_document_file!(file; store) -> file
 
 Bring the changes of the file of `file` to it. When another program changes the
 file, a drain of the store reads it again into `file`, as `ReloadFileOperation`
@@ -76,15 +95,19 @@ changed on disk. A save of the document is not a change. A file of a type that a
 person does not edit (`is_editable_file_type`) is read again when the time or the
 size of its file changes, and its text is never read to compare.
 
-Call it on the task that reads the document. A file document with no file name
-has nothing to watch. A document that watches already is left as it is.
+Call it on the task that reads the document. `store` is by default the store of
+the [`FileChangeFeed`](@ref) of the editor of the evaluation; with no such
+editor nothing is watched, because nothing would drain the changes. A file
+document with no file name has nothing to watch. A document that watches already
+is left as it is.
 
 While Julia writes a precompile cache, nothing is watched. Such a process ends
 after its workload, and Julia ends it only when every task of the workload has
 ended, so the task of a watch would hold it forever.
 """
-function watch_document_file!(file::FileDocument; store::FileChangeStore = get_session_file_change_store())
-    Base.generating_output() && return file
+function watch_document_file!(file::FileDocument;
+                              store::Union{FileChangeStore,Nothing} = _find_watch_store())
+    (store === nothing || Base.generating_output()) && return file
     isempty(get_filename(file)) && return file
     path = abspath(get_filename(file))
     watched = WatchedFile(file, path)
@@ -98,12 +121,15 @@ function watch_document_file!(file::FileDocument; store::FileChangeStore = get_s
 end
 
 """
-    unwatch_document_file!(file; store = get_session_file_change_store()) -> file
+    unwatch_document_file!(file; store) -> file
 
 Stop bringing the changes of its file to `file`. The watcher of its folder stops
-when no watched file is left in the folder.
+when no watched file is left in the folder. `store` is by default the one that
+[`watch_document_file!`](@ref) takes.
 """
-function unwatch_document_file!(file::FileDocument; store::FileChangeStore = get_session_file_change_store())
+function unwatch_document_file!(file::FileDocument;
+                                store::Union{FileChangeStore,Nothing} = _find_watch_store())
+    store === nothing && return file
     lock(store.lock) do
         index = findfirst(w -> w.file === file, store.files)
         index === nothing && return
@@ -116,9 +142,28 @@ function unwatch_document_file!(file::FileDocument; store::FileChangeStore = get
     file
 end
 
-"""Whether `file` watches its file in `store`."""
-is_document_file_watched(file::FileDocument; store::FileChangeStore = get_session_file_change_store()) =
-    lock(() -> any(w -> w.file === file, store.files), store.lock)
+"""Whether `file` watches its file in `store`, by default the one that [`watch_document_file!`](@ref) takes."""
+is_document_file_watched(file::FileDocument; store::Union{FileChangeStore,Nothing} = _find_watch_store()) =
+    store !== nothing && lock(() -> any(w -> w.file === file, store.files), store.lock)
+
+"""
+    close_file_change_store!(store) -> store
+
+Stop every watcher of `store` and forget its files, as when the editor that
+drains it ends. A poll of a folder stops at its next look.
+"""
+function close_file_change_store!(store::FileChangeStore)
+    lock(store.lock) do
+        for watcher in values(store.watchers)
+            watcher isa FolderMonitor && close(watcher)
+        end
+        empty!(store.watchers)
+        empty!(store.files)
+        empty!(store.changed)
+        empty!(store.wakes)
+    end
+    store
+end
 
 # ── The watchers ─────────────────────────────────────────────────────────────
 
@@ -247,7 +292,7 @@ end
 # ── The drain ────────────────────────────────────────────────────────────────
 
 """
-    drain_file_changes!(; store = get_session_file_change_store(), editor = nothing) -> Int
+    drain_file_changes!(; editor = nothing, store = get_session_file_change_store(; editor)) -> Int
 
 Bring each change that the watchers read and parsed to its document, and answer
 how many documents took their file again. Run it on the task that reads the
@@ -262,7 +307,7 @@ file changed on disk. A content that keeps no history can not tell its edits, so
 it keeps what it holds, and the log says so. A parse that failed is thrown after
 the other changes, so the editor records it.
 """
-function drain_file_changes!(; store::FileChangeStore = get_session_file_change_store(), editor = nothing)
+function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_session_file_change_store(; editor))
     changed = lock(store.lock) do
         isempty(store.changed) && return Tuple{WatchedFile,_PreparedFile}[]
         paths = copy(store.changed)

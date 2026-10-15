@@ -8,8 +8,8 @@ The file-change slice of `ProjecturedPlatform` brings a change of a file on disk
 
 | Part | What it is |
 | --- | --- |
-| `FileChangeStore` | the watched file documents, a watcher for each folder that holds one, and the paths that changed since the last drain |
-| `watch_document_file!(file)` | the file document watches its file; `unwatch_document_file!` stops it |
+| `FileChangeStore` | the watched file documents, a watcher for each folder that holds one, and the paths that changed since the last drain; each `FileChangeFeed` owns one, so each editor has its own (`get_session_file_change_store(; editor)`) |
+| `watch_document_file!(file)` | the file document watches its file, in the store of the editor of the evaluation; `unwatch_document_file!` stops it, and `close_file_change_store!` stops every watcher of a store |
 | `drain_file_changes!(; store, editor)` | brings each stored change to its document, on the task that reads the documents |
 | `FileChangeFeed` | the feed of a window: a watcher wakes the editor, and the drain runs once a frame |
 
@@ -51,13 +51,16 @@ The code is in `source/platform/filechange/`. The slice depends on the file-form
 ## Usage
 
 ```julia
-store = get_session_file_change_store()
-tab   = make_file_tab("notes.txt")
-watch_document_file!(tab)                      # the session store
-editor = build_editor(tab; feeds = make_file_change_feeds())
-drain_file_changes!()                          # a caller with no window
-unwatch_document_file!(tab)
+tab    = make_file_tab("notes.txt")
+editor = build_editor(tab; feeds = make_file_change_feeds())   # a feed with a store of its own
+store  = get_session_file_change_store(; editor)               # the store of that feed
+watch_document_file!(tab; store)               # in an evaluation of the editor, `store` is the default
+drain_file_changes!(; store)                   # a caller with no window drains it itself
+unwatch_document_file!(tab; store)
 ```
+
+A watch where no editor with a `FileChangeFeed` is the editor of the evaluation does
+nothing: no drain would bring its changes, and its watcher task would run forever.
 
 - Examples: none.
 - Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()`: a change reaches a document that was not edited, a file written by a rename is seen, a save is no change, an edit that is not saved stays, the feed drains and is woken, and a polled folder.

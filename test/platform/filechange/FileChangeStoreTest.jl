@@ -206,5 +206,31 @@ function test_file_change_store()
             unwatch_document_file!(tab; store)
             @test isempty(store.watchers)
         end
+
+        @testset "each editor watches in the store of its own feed, and no editor watches nothing" begin
+            make_watching_editor() = Editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                                            devices = Device[], feeds = Feed[FileChangeFeed()])
+            first_editor, second_editor = make_watching_editor(), make_watching_editor()
+            first_store = get_session_file_change_store(; editor = first_editor)
+            @test first_store === only(first_editor.feeds[k] for k in eachindex(first_editor.feeds)
+                                       if first_editor.feeds[k] isa FileChangeFeed).store
+            @test get_session_file_change_store(; editor = second_editor) !== first_store
+            # With no editor, a new store that nothing keeps.
+            @test get_session_file_change_store(; editor = nothing) !== get_session_file_change_store(; editor = nothing)
+            (path, tab) = _make_watched_text_file("one\n")
+            # A watch with no editor of the evaluation does nothing.
+            @test watch_document_file!(tab) === tab
+            @test !is_document_file_watched(tab; store = first_store)
+            # In the evaluation of an editor, the store of its feed.
+            run_with_evaluation_editor(first_editor) do
+                watch_document_file!(tab)
+                @test is_document_file_watched(tab)
+            end
+            @test is_document_file_watched(tab; store = first_store)
+            @test !is_document_file_watched(tab; store = get_session_file_change_store(; editor = second_editor))
+            # The close of a store stops its watchers and forgets its files.
+            close_file_change_store!(first_store)
+            @test isempty(first_store.watchers) && !is_document_file_watched(tab; store = first_store)
+        end
     end
 end
