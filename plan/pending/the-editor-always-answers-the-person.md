@@ -1456,6 +1456,13 @@ nothing.
       runs is not stopped" for a stop of a turn: the live check of 8.4 tells.
     - [ ] 8.3 The tests of each layer.
     - [ ] 8.4 A live check of each row of §6 with the real application.
+      - The first run (2026-10-15) stopped at the start of the application:
+        "A ScreenDocument holds no pane tree". `start_application!` posts
+        `AcquireDocumentOperation(get_window_tree(editor.document))` (step 7, A3),
+        and `get_window_tree(document)` read a screen only as the document of an
+        editor, not as a document that it reaches through a wrapper. The tests of
+        step 7 make the editor with a pane tree as its document, so they did not
+        reach it. Fixed in `PaneProgram.jl`, with a case in `PaneReaderTest.jl`.
     - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
 
 ## Not in this plan

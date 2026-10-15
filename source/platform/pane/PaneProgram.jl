@@ -175,6 +175,11 @@ function _get_window_tree(editor)
     # The screen can be inside wrappers, such as the state of a tracker.
     screen = get_wrapped_document(document)
     hasproperty(screen, :windows) || return _get_wrapped_window_tree(document)
+    _get_screen_window_tree(screen)
+end
+
+# A screen holds the tree in the content of its first window.
+function _get_screen_window_tree(screen)
     windows = screen.windows
     isempty(windows) && error("The editor shows no window.")
     _get_window_tree(first(windows).content)
@@ -183,6 +188,7 @@ end
 # A content that is wrapped — a history, say — holds the tree inside the wrapper.
 # A node that wraps nothing holds no tree at all, and that is what to say.
 function _get_wrapped_window_tree(node)
+    hasproperty(node, :windows) && return _get_screen_window_tree(node)
     wrapped = get_wrapped_document(node)
     wrapped === node &&
         error("A " * String(nameof(typeof(node))) * " holds no pane tree.")

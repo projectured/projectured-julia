@@ -562,6 +562,10 @@ end
     @test get_window_tree(ClipboardSlice(tree)) === tree
     @test get_window_tree(tree) === tree
     @test get_window_tree(; editor = _PaneReaderMockEditor(tree)) === tree
+    # A screen, as the document of a running window, holds the tree in its first
+    # window.
+    screen = ScreenDocument([WindowDocument(; id = :main, content = tree)])
+    @test get_window_tree(screen) === tree
 end
 
 end # testset
