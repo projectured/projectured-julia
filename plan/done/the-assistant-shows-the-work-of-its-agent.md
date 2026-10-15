@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 8 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** done; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 10 are done, and the branch is rebased onto `main` a second time. ClaudeCodeACP 0.1.9 is landed on the main checkout of its repository; its push and its entry in the registry wait for the owner. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -1149,7 +1149,10 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - Not checked: a real agent, the page in a live window, the Cancel of a
       nested subagent, and a tooltip inside a scroll pane in a live window.
 
-- [ ] **9. ClaudeCodeACP: the new updates.** This step can start after step 1.
+- [x] **9. ClaudeCodeACP: the new updates.** This step can start after step 1.
+  Done 2026-10-15: the version 0.1.9 is landed on the main checkout of
+  ClaudeCodeACP (`8e6c949`), and ProjecturedACP needs it (the second rebase). The
+  push and the entry in the registry wait for the owner.
   - The translation of section 4.9, from the recordings of step 1.
   - Tests with the fake `claude` of the package, on the new recordings.
   - Prepare a new version of the package and its entry in the registry. The
@@ -1233,7 +1236,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       - One lock covers the sends of the reader, the end of the work and a
         restart. Work of a `claude` that crashed is `failed`.
 
-- [ ] **10. The live check and the documentation.**
+- [x] **10. The live check and the documentation.** Done 2026-10-15.
   - Run the editor with a signed-in Claude Code, as the owner allowed on
     2026-10-15:
     - give a prompt that starts a subagent and a background command;
@@ -1329,6 +1332,96 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `test_application` has 360 passes, 2 broken, the 2 failures and 2 errors of
       item 8 of `the-suites-of-main-pass-again.md`, and the 2 errors above. The
       naming, export and argument guards pass.
+  - **What the second rebase decided** (onto `main` at `22ae8ace2`, 2026-10-15,
+    after the work "the editor always answers the person" and the press on a row
+    of the table of a group):
+    - **The conflicts.**
+      - `RosterToGraphics.jl`: the read of a move of the head of a list of rows of
+        main (`_get_roster_head_row`, `_find_roster_head_move`,
+        `_find_written_cells`) and the double click of step 2
+        (`_find_double_clicked_item`) both stay.
+      - `AcpConnection.jl` and `AcpUpdate.jl`: main gives the events of a prompt to
+        its `on_event` from an outbox, on a task of its own with no lock held
+        (`4ca52ca05`). The frames of step 6 keep their `on_event`, which only puts
+        into a queue or wraps for a parent and never waits. `_send_turn_events!` is
+        the one way to give events: into the outbox of a prompt, or at once to the
+        `on_event` of a frame, a turn with no deliverer. `waiting_session_events`
+        stays gone. A limit, which acp.md says: an update that comes after the
+        answer of a prompt can reach the queue before the last events of that
+        prompt reach `on_event`, while its outbox still delivers.
+      - `ExternalAgentTurn.jl`: main reads the assistant through the door at the
+        start of a session and at a start that failed; the queue of step 7 and the
+        end of the work stay there.
+      - `TaskExecution.jl` and `TaskFeed.jl`: the reader of `/proc`, below.
+      - `roster.md`: "A table with a height" of main and "A page from a row".
+      - `task.md`: the detail of the task whose row a person pressed, as main
+        writes it with no column of `›`, shows the tree of the processes of that
+        task in a card.
+    - **One reader of `/proc`.** Main's sampler stays: a task of the default pool
+      for each process that runs calls `sample_task_usage!` every 0.25 s, off the
+      loop, and each write of an execution notes it as changed in the store.
+      `sample_task_usage!` reads with `read_system_process_usage` of the slice
+      `systemprocess`, and `_read_process_usage`, `_get_clock_ticks_per_second` and
+      `_get_page_size` of the task slice went. Every parse of `/proc` is in
+      `SystemProcessRead.jl`.
+    - **The process tree of a running task.** `drain_task_feed!` keeps main's drain
+      of the executions that changed, and the step of the tree
+      (`_drain_task_process_tree!`) runs for each of them. The sampler writes the
+      execution of a running process four times a second, so the tree of a running
+      task takes its step at each drain, and the `TaskFeed` asks for a frame each
+      0.25 s while it watches an execution: the tree needs no wake and no deadline
+      of its own. Its read runs off the loop at most once a second, as for any
+      tree. A process that `/proc` no longer shows writes no sample, and its tree
+      stays as it is until the result of the task removes it.
+    - **Rule a.** `show_document_tree!`, `show_system_process_tree!` and
+      `show_assistant_work!` run through `run_on_editor_task!`, with their names as
+      the description. `show_document_tree!` takes `title = nothing` and reads the
+      label of the root inside the door. `describe_system_process_tree` reads no
+      document, so it runs on the task that calls it, as a tool of main that reads
+      no document does. The branch changed no verb of the roster.
+    - **The list of the assistants of each editor.** Stop of a background task and
+      Cancel of a subagent take the editor of the press and read
+      `get_session_assistant_list(; editor)`; the two tests use the list of their
+      editor.
+    - **Background work.** Stop and Cancel call the agent through
+      `start_background_work(…; parent = nothing, is_sticky =
+      !is_editor_loop_running(editor))`, as a turn does: on the default pool while
+      the loop runs, on the thread of the press with no loop. The read of a tree of
+      processes starts on `Threads.@spawn :default`.
+    - **The `on_event` of a prompt** (`_post_agent_event!`) puts the event into the
+      queue and calls `wake_editor!` while `is_editor_loop_running`, and else
+      applies the queue at once, as a call through the door runs at once with no
+      loop. It runs on the task of the outbox, never on the loop.
+    - **Rule b and the lock of the start.** No waiting call of the work of an agent
+      comes from a task that a code unit started: the turn and the work of Stop and
+      Cancel have no parent. `_make_agent_event_queue!` posts the join of the queue
+      to the feed and does not wait, so the lock of the start of a session holds no
+      wait for the editor; a later call of the same task that waits, such as the
+      start of the prompt, applies after the post.
+    - **`AgentEventFeed`** needed no other change: its drain applies the events
+      that the connection prepared in the queues, and the trees of the processes of
+      the work read off the loop.
+    - **The two failures of the first rebase.** `test_roster_facets` expects the
+      facets `title`, `turn`, `tokens`, `plan`, `subagents`, `background_tasks` and
+      `type` of `Assistant`. The title column of the Assistants pane has a weight
+      and no minimum of its own (`_ASSISTANT_TITLE_POLICY`): a column with a weight
+      whose cells clip is at least as wide as its widest cell, so the title stays
+      on one line, takes the slack of a wide pane, and a pane narrower than the
+      table scrolls it. Each column that is its content is at least as wide as its
+      header, and those minimums had left the title less than the width of
+      "Window" and "assistant" on one line in the pane of the test window. A headless `write_image` of the application window
+      at 1600 by 1000 shows "Window assistant" on one line; `Fill`, whose minimum
+      is 0, let the title shrink to nothing.
+    - **ClaudeCodeACP 0.1.9.** The compat bound of ProjecturedACP rises from
+      `0.1.4` to `0.1.9`, and `Pkg.resolve()` moved `environment/all` to 0.1.9.
+    - Tests after the second rebase, each alone: the layering 21, the edges 1,
+      `test_roster_facets` 20, `test_system_process` 78, `test_task_execution` 57,
+      `test_task_document` 87, `test_task_views` 52, `test_agent_work` 158,
+      `test_assistant_work` 100, `test_external_agent_turn` 271,
+      `test_assistant_list` 50 and `test_acp` 301 pass. The naming and argument
+      guards pass; the export guard has one failure, the order of the exports of
+      `ApplicationModule.jl` against `Application.jl`, which `main` has as well.
+      `test_application` and the umbrella suites run after the landing.
 
 ## 7. Not in this plan
 

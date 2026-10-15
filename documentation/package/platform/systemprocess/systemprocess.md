@@ -132,7 +132,7 @@ The slice owns the only reader of `/proc` of the platform. The sampler of a proc
 - **The process id and the start ticks are the key.** A process id alone names another process after the system gives it again.
 - **The page guards its signals.** A button that sends a signal to a process id must not hit a process that started later.
 
-The plan with the steps and the alternatives is [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/pending/the-assistant-shows-the-work-of-its-agent.md).
+The plan with the steps and the alternatives is [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 
 ## Limits
 

@@ -109,7 +109,7 @@ The slice uses the collection, layout, natural, projection, roster, serializatio
 - **Skipped and deferred are in the document.** The Markdown plans of a repository say which steps a person skipped or deferred. A later reader of them fills the two statuses, and the kernel and the protocol carry no such status.
 - **A plan is not edited.** The agent owns it.
 
-The plan with the steps and the alternatives is [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/pending/the-assistant-shows-the-work-of-its-agent.md).
+The plan with the steps and the alternatives is [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 
 ## Limits
 

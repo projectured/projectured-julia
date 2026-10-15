@@ -85,7 +85,7 @@ These slices add kinds of node:
 
 ## Design decisions
 
-- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/pending/the-assistant-shows-the-work-of-its-agent.md).
+- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 - **A node is open by the identity of its document.** An open node that a path of indices names would name another node after an insert.
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.
