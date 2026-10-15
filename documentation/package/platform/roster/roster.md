@@ -146,4 +146,4 @@ roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]),
 
 ## Design decisions
 
-The options, the examples and the steps are in [cross-cutting-views.md](../../../../plan/pending/cross-cutting-views.md).
+The options, the examples and the steps are in [cross-cutting-views.md](../../../../plan/done/cross-cutting-views.md).
