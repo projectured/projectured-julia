@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 to 5 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** done on the branch `graph-vertex-drag` of projectured-julia and of omnet-julia, 2026-10-15; steps 1 to 6 are done; nothing is landed; section 8 holds a question for the owner · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
