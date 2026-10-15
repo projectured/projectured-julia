@@ -38,6 +38,7 @@ using ..SerializationModule
 using ..SettingsModule
 using ..ShellModule
 using ..StyleModule
+using ..SystemProcessModule
 using ..TextModule
 using ..TooltipModule
 using ..TreeModule

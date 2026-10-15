@@ -180,6 +180,9 @@ struct _TaskGroupSlot
     index::Int
 end
 
+_drain_task_process_tree!(slot::_TaskGroupSlot, now) =
+    _drain_task_process_tree!(getfield(slot.group, :tasks)[][slot.index], now)
+
 # The first sync of an execution adds its shadow to the document of the task. A
 # task that is a group starts its own tasks again: that first sync also puts the
 # tasks of its document back to waiting, before their own syncs come. Each sync

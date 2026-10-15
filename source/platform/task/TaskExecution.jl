@@ -550,7 +550,7 @@ no `/proc`, write nothing.
 function sample_task_usage!(execution::TaskExecution; now::Real = time())
     process_id = execution.process_id
     (process_id === nothing || execution.status !== :running) && return execution
-    usage = _read_process_usage(process_id)
+    usage = read_system_process_usage(process_id)
     usage === nothing && return execution
     ticks, resident = usage
     update_task_execution!(execution) do e
@@ -558,7 +558,7 @@ function sample_task_usage!(execution::TaskExecution; now::Real = time())
         if runtime.processor_ticks !== nothing && runtime.sampled_at !== nothing &&
            now > runtime.sampled_at
             e.processor_load = 100 * (ticks - runtime.processor_ticks) /
-                               _get_clock_ticks_per_second() / (now - runtime.sampled_at)
+                               get_clock_ticks_per_second() / (now - runtime.sampled_at)
         end
         runtime.processor_ticks = ticks
         runtime.sampled_at = Float64(now)
@@ -578,24 +578,3 @@ function _sample_task_usage_while_running(execution::TaskExecution)
     end
 end
 
-# The processor time of a process, in clock ticks, and its resident memory, in
-# bytes; `nothing` when the process is gone or the system has no `/proc`.
-function _read_process_usage(process_id::Integer)
-    stat = try read("/proc/$(process_id)/stat", String) catch; return nothing end
-    statm = try read("/proc/$(process_id)/statm", String) catch; return nothing end
-    # The name of the command is in parentheses and can hold spaces, so the
-    # fields are counted from the last ")": the state is field 3 of the line, and
-    # the user and the system time are fields 14 and 15.
-    closing = findlast(')', stat)
-    closing === nothing && return nothing
-    fields = split(stat[closing + 1:end])
-    length(fields) >= 13 || return nothing
-    ticks = parse(Int, fields[12]) + parse(Int, fields[13])
-    pages = split(statm)
-    length(pages) >= 2 || return nothing
-    (ticks, parse(Int, pages[2]) * _get_page_size())
-end
-
-# `sysconf(_SC_CLK_TCK)`, which is 2 on Linux, and the size of a memory page.
-_get_clock_ticks_per_second() = Int(ccall(:sysconf, Clong, (Cint,), 2))
-_get_page_size() = Int(ccall(:getpagesize, Cint, ()))

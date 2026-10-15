@@ -82,6 +82,11 @@ default does nothing.
 """
 record_task_execution_sync!(owner, execution, shadow, before::Symbol, made::Bool) = nothing
 
+# The step of the sample of the tree of the processes of the document that an
+# owner stands for, at each drain. An owner that stands for no task document has
+# none.
+_drain_task_process_tree!(owner, now) = nothing
+
 """Whether the store watches an execution that has not had its end synced."""
 has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store()) =
     lock(() -> !isempty(store.entries), store.lock)
@@ -92,7 +97,11 @@ has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store()) =
 Sync the shadow of every execution that changed since the last drain, and answer
 how many were synced. The sampler of a process that runs writes its processor
 load and its memory, so a drain reads no file. An execution whose end is synced
-is let go.
+is let go. The tree of the processes of the document of each execution that
+changed, while a view reads it, takes its step here too
+([`drain_system_process_tree!`](@ref)), and its read runs off the loop. The
+sampler writes the execution of a process that runs at each sample, so the tree
+of a running task takes its step at each drain.
 
 Call it on the task that reads the documents: the task of the editor, which a
 [`TaskFeed`](@ref) does, or the one task of a caller with no window.
@@ -107,20 +116,23 @@ function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store())
     end
     synced = 0
     ended = TaskFeedEntry[]
+    now = time()
     for entry in entries
         version = get_task_execution_version(entry.execution)
-        version == entry.version && continue
-        made = entry.shadow === nothing
-        before = made ? :pending : entry.shadow.status
-        if made
-            entry.shadow = make_task_execution_shadow(entry.execution)
-        else
-            sync_document!(entry.shadow, entry.execution)
+        if version != entry.version
+            made = entry.shadow === nothing
+            before = made ? :pending : entry.shadow.status
+            if made
+                entry.shadow = make_task_execution_shadow(entry.execution)
+            else
+                sync_document!(entry.shadow, entry.execution)
+            end
+            entry.version = version
+            record_task_execution_sync!(entry.owner, entry.execution, entry.shadow, before, made)
+            synced += 1
+            entry.shadow.result === nothing || push!(ended, entry)
         end
-        entry.version = version
-        record_task_execution_sync!(entry.owner, entry.execution, entry.shadow, before, made)
-        synced += 1
-        entry.shadow.result === nothing || push!(ended, entry)
+        _drain_task_process_tree!(entry.owner, now)
     end
     isempty(ended) || lock(store.lock) do
         filter!(entry -> !any(e -> e === entry, ended), store.entries)

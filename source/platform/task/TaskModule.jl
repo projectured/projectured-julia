@@ -35,6 +35,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..RosterModule
 using ..StyleModule
+using ..SystemProcessModule
 using ..ToolModule
 using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
@@ -88,7 +89,7 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status
 export TaskTheme, ScaledTaskTheme
-export TaskGroupDocumentToWidgetPane, format_memory_size, make_task_progress_bar,
+export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
        make_task_group_list_tab_title, build_task_graphics_entry
 export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,

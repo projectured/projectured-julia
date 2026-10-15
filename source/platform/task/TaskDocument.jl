@@ -36,6 +36,11 @@ and runs no process, for an example or a picture of a task.
   same document until the result changes, so an edit of it stays while the
   person looks at another task. A path reaches it, so a key edits it where the
   detail of the task shows it.
+- `process_tree` — the [`SystemProcessTree`](@ref) of the processes under the
+  process of the current execution, or `nothing` while it has no process or has
+  a result. It computes when a view reads it, and stays the same tree while the
+  process runs. The feed of the session samples it while a view reads it, and
+  the detail of the task shows it below its facts.
 - `group` — a `Ref` to the group document that holds the task and the place of
   the task in it, `(group, index)`, which [`wrap_task_group_document`](@ref)
   sets, or to `nothing` for a task of no group. The page of the task stops it and
@@ -50,12 +55,14 @@ While the document has a current execution, its shadow is the last of
     running::Any
     executions::Any
     result_document::Any
+    process_tree::Any
     group::Any
 end
 
 function TaskDocument(task; status::Symbol = :pending, progress = nothing)
-    document = _follow_result_document!(TaskDocument(Cell(task), Cell(nothing), Cell(CellVector()),
-                                                     Cell(nothing), Cell(Ref{Any}(nothing)), Cell(nothing)))
+    document = _follow_current_execution!(TaskDocument(Cell(task), Cell(nothing), Cell(CellVector()),
+                                                       Cell(nothing), Cell(nothing), Cell(Ref{Any}(nothing)),
+                                                       Cell(nothing)))
     status === :pending && return document
     execution = TaskExecution(task)
     execution.status = status
@@ -69,9 +76,9 @@ end
 accepts_pasted_document(::TaskDocument) = false
 has_document_duplicate(::TaskDocument) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
-    _follow_result_document!(copy_document_fields(policy, document; running = nothing,
-                                                  executions = CellVector(), result_document = nothing,
-                                                  group = Ref{Any}(nothing)))
+    _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
+                                                    executions = CellVector(), result_document = nothing,
+                                                    process_tree = nothing, group = Ref{Any}(nothing)))
 
 # A task is called by the task in one line, as the list of tasks writes it.
 get_document_title(document::TaskDocument) = format_task_parameters(getfield(document, :task)[])
@@ -98,13 +105,29 @@ function remove_task_output_files!(document::TaskDocument)
     document
 end
 
-# The document of the result follows the result of the current execution.
-function _follow_result_document!(document::TaskDocument)
+# The document of the result follows the result of the current execution, and the
+# tree of the processes follows its process until the result comes.
+function _follow_current_execution!(document::TaskDocument)
     set_cell_computation!(getfield(document, :result_document), () -> begin
         result = get_task_document_result(document)
         result === nothing ? nothing : get_task_result_document(getfield(document, :task)[], result)
     end)
+    set_cell_computation!(getfield(document, :process_tree), () -> begin
+        current = get_current_task_execution(document)
+        process_id = current === nothing ? nothing : current.process_id
+        (process_id === nothing || current.result !== nothing) ? nothing : SystemProcessTree([process_id])
+    end)
     document
+end
+
+# A view that reads the tree of the processes made it; the feed samples it then.
+# A tree that no view read is not made for the drain.
+function _drain_task_process_tree!(document::TaskDocument, now)
+    cell = getfield(document, :process_tree)
+    is_cell_valid(cell) || return nothing
+    tree = peek(cell)
+    tree === nothing || drain_system_process_tree!(tree; now)
+    nothing
 end
 
 """

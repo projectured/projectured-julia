@@ -290,12 +290,10 @@ end
 
 # ── Registration ─────────────────────────────────────────────────────────────
 
-# The row of the natural renderer: a tree document draws as its widget, which a
-# widget renderer of its own draws, as the tree of the files does.
-function _make_tree_graphics_entries(; measure, appearance)
-    widgets = RecursiveProjection(FaultCatchingProjection(
+# A tree document draws as its widget, which a widget renderer of its own draws,
+# as the tree of the files does, inside any document that a renderer draws.
+make_graphics_projection(::Type{DocumentTree}; measure, appearance) =
+    ChainingProjection(DocumentTreeToWidgetTree(), RecursiveProjection(FaultCatchingProjection(
         inner = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
                                  graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
-        substitute = FaultToGraphics()))
-    Pair{Type,Any}[DocumentTree => ChainingProjection(DocumentTreeToWidgetTree(), widgets)]
-end
+        substitute = FaultToGraphics())))

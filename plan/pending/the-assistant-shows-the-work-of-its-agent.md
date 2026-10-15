@@ -579,7 +579,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `ProjecturedTest` defines and exports `test_tree()`, the guard of the
       repository tree, and it uses `ProjecturedPlatformTest`.
 
-- [ ] **3. The system processes slice.**
+- [x] **3. The system processes slice.** Done 2026-10-15.
   - `SystemProcess`, `SystemProcessTree`, the sample, the store and the feed,
     the roster source, the facets, and the page of a process.
   - The task slice reads `/proc` through the slice. The detail of a running
@@ -590,6 +590,104 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - no view, no sample;
     - a real child process tree of `sleep` shows and leaves;
     - the detail of a running task shows its process.
+  - **What the step found and decided:**
+    - **The schedule refines section 4.4.** Section 4.4 said "a feed syncs the
+      snapshot" and named no feed. The read of `/proc` runs off the editor
+      task, on a task of `Threads.@spawn`, and writes only into the sampler of
+      its tree, under its lock. The sync runs on the editor task. There is no
+      registry of trees: each owner drains its own trees from a feed that its
+      window already has. `show_system_process_tree!` adds one
+      `SystemProcessFeed` to `editor.feeds` (the first tree adds it, the next
+      ones reuse it) and puts the tree in it. The tree of a task is drained by
+      the feed of the tasks, `drain_task_feed!`, which finds it through the
+      owner of each execution. `drain_system_process_tree!` syncs a read that
+      ended and starts the next one once in the interval, only while
+      `has_dependent_cells` holds for the cell `roots`. A read is synced at the
+      first drain after it ends, so a view shows a sample at most one interval
+      old. The read does not wake the editor; `compute_wake_deadline` answers
+      the time to the next sample.
+    - The slice is `source/platform/systemprocess/`, eight fragments:
+      `SystemProcessRead.jl` (`SystemProcessRecord`, `read_system_processes`,
+      `read_system_process_usage`, `get_clock_ticks_per_second`),
+      `SystemProcessDocument.jl` (the two documents, the sampler, the tree
+      generics, the facets, `format_memory_size`), `SystemProcessSignal.jl`,
+      `SystemProcessSync.jl` (the sync, the drain, the deadline,
+      `SystemProcessFeed`), `SystemProcessTreeToDocumentTree.jl`,
+      `SystemProcessToWidget.jl`, `SystemProcessRoster.jl`
+      (`SystemProcesses`) and `SystemProcessProgram.jl` (the two verbs).
+    - The read takes the children from `task/<tid>/children` of every thread.
+      It needs `btime` in `<root>/stat` for the start time, so a folder with no
+      `stat` answers no records, as a missing folder does. A process whose
+      `stat`, `statm` or `cmdline` can not be read is gone and left out, and so
+      are the children that only it named. A `cwd` that can not be read is an
+      empty `folder`.
+    - **The start ticks are a field**, `SystemProcess.start_ticks`: with the
+      process id it is the key of a document in the sync, of the processor ticks
+      in the sampler, and of the guard of a signal.
+    - **The elapsed time reads one shared cell.** The field `sampled_at` of each
+      process is the cell `sampled_at` of its tree itself, so the page and the
+      facet `elapsed` read the time of the sample with no clock, and one write in
+      a sync moves the elapsed time of every process. A sync writes the time at
+      which the read began, not the time of the drain, so the load and the
+      elapsed time are those of the read. A sync with no change writes only
+      `sampled_at`, and a sync at the same time writes no cell.
+    - A list of children, and `roots`, is replaced by a new `CellVector` only
+      when its members are not the same documents in the same order.
+    - `root_process_ids` reads back as a `CellVector`, because `@document` wraps
+      a vector field; the drain collects it before the read.
+    - The sampler is the private `_SystemProcessSampler`, marked
+      `is_walk_opaque`, so `search_documents` does not enter its task or its
+      lock. A tree is one document with its sampler in a field, so the way of
+      `TaskExecution`, a runtime in the native layout only, does not apply.
+    - The feed holds its trees strongly. A tree is an immutable struct (the cell
+      layout), and a `WeakRef` to it does not hold its identity. A tree that no
+      view reads costs one check in each drain.
+    - `_read_process_usage` moved as `read_system_process_usage`, and the
+      behaviour of `sample_task_usage!` is the same. `get_clock_ticks_per_second`
+      is public, because the load of a task and the load of a process both
+      divide by it. `format_memory_size` moved from the task slice to this one,
+      which the label of a process needs and which loads first;
+      `ProjecturedPlatform` still exports it.
+    - **The tree slice draws through the seam.** `DocumentTree` now gives
+      `make_graphics_projection` in place of `register_natural_graphics!(:tree,
+      …)`. The pane of a group draws a card with a widget renderer that reads
+      only that seam, and the natural renderer reads it too, so the tree draws
+      in both. `SystemProcessTree` and `SystemProcess` draw through the seam as
+      well.
+    - A `SystemProcessTree` shown alone prints, through
+      `SystemProcessTreeToDocumentTree`, a `DocumentTree` of itself, whose paths
+      are its own below `root`. Its open nodes live as long as that print.
+    - The page of a process is `SystemProcessToWidget`. Interrupt and Stop are
+      `WidgetButton`s whose action calls `interrupt_system_process!` and
+      `stop_system_process!`, as `_make_task_action_button` calls an action of a
+      kind. Each signal reads the start ticks of the process id from `root`
+      (`/proc` by default) and sends nothing when they changed; the keyword is
+      what the test of the guard sets to a fixture folder.
+    - The icon table has no `:cpu`. A process node uses `:terminal`
+      (square-terminal).
+    - `SystemProcesses(tree)` has one part, the tree. A root has `within =
+      nothing`.
+    - **The tree of a task is a computed field of `TaskDocument`**,
+      `process_tree`, as `result_document` is: the `SystemProcessTree` of the
+      process of the current execution while it has a process and no result,
+      made when a view first reads it, and `nothing` after. `drain_task_feed!`
+      calls the private `_drain_task_process_tree!(owner, now)` for each entry at
+      each drain: a `TaskDocument` and the slot of a group drain the tree when
+      its cell is valid, so a task that no view looked at makes no tree. The
+      detail of a task shows it in an embedded card after the buttons and before
+      the card of the result. The maps of the pane find both cards by their
+      places, from `_CARD_FIELDS`; a task that ended has no tree, so the card of
+      the result stays the seventh part.
+    - The two verbs are declared to the assistant as `show_document_tree!` is:
+      `SystemProcessModule => (:show_system_process_tree!,
+      :describe_system_process_tree)` and one sentence in `APPLICATION_SYSTEM`.
+      Their docstrings do not say "find" or "pane".
+    - Not done: on a system with no `/proc`, `describe_system_process_tree`
+      says why, and the view shows an empty tree that does not.
+    - The entry of the test is `test_system_process()`, which no other test
+      package defines. It ran 72 tests; `test_document_tree` 66,
+      `test_task_execution` 43, `test_task_document` 83, `test_task_views` 36,
+      `test_task_group_verbs` 23, the layering 21 and the edges 1, all passing.
 
 - [ ] **4. The work plan slice.**
   - `WorkPlan`, `WorkPlanStep`, the statuses, the progress, the blocked

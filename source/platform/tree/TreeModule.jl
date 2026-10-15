@@ -37,6 +37,7 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..WidgetModule: make_graphics_projection
 
 export get_tree_children_steps, format_tree_node_label, get_tree_node_icon
 export DocumentTree
@@ -48,9 +49,5 @@ include("TreeDefaults.jl")
 include("TreeDocument.jl")
 include("DocumentTreeToWidgetTree.jl")
 include("TreeProgram.jl")
-
-function __init__()
-    register_natural_graphics!(:tree, _make_tree_graphics_entries)
-end
 
 end # module

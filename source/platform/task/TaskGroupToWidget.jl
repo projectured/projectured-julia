@@ -54,14 +54,6 @@ function _format_duration(seconds::Real; precision::Integer = 0)
     occursin(':', text) ? text : text * " s"
 end
 
-"""A number of bytes in the unit a person reads: `512 B`, `12.3 MB`, `1.2 GB`."""
-function format_memory_size(bytes::Integer)
-    bytes < 1024 && return string(bytes, " B")
-    for (unit, size) in (("GB", 1024^3), ("MB", 1024^2), ("kB", 1024))
-        bytes >= size && return string(round(bytes / size; digits = 1), " ", unit)
-    end
-end
-
 # The colour of a role of a result code, and of the states that have none.
 function _get_role_color(p, role::Symbol)
     role === :success ? p.success_color : role === :info ? p.info_color :
@@ -396,13 +388,14 @@ end
 
 # ── The detail of one task ───────────────────────────────────────────────────
 
-# ── The document of a result, edited where it shows ─────────────────────────
+# ── The documents of a task, edited where they show ─────────────────────────
 #
-# The detail of a task draws the document of its result in the card of an
-# embedded document (`make_embed_card`). A path from the group reaches the
-# document, `tasks[i].result_document + rest`, so the pane maps that path to the
-# card, `content + rest`, and back, as a page maps an embedded file. Every other
-# path takes the defaults of `Projection`.
+# The detail of a task draws the tree of the processes of the task while it runs,
+# and the document of its result, each in the card of an embedded document
+# (`make_embed_card`). A path from the group reaches each document,
+# `tasks[i].process_tree + rest` and `tasks[i].result_document + rest`, so the
+# pane maps that path to its card, `content + rest`, and back, as a page maps an
+# embedded file. Every other path takes the defaults of `Projection`.
 
 # The steps from the root of the pane to the detail: the split is the second
 # child of the root, in a constraint, and the detail is the second pane of the
@@ -410,28 +403,34 @@ end
 const _DETAIL_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                        FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
 
-# The parts of the detail of a task before the card of its result: its state, its
-# facts, its process, its result, its earlier executions and its buttons.
-const _PARTS_BEFORE_RESULT_DOCUMENT = 6
+# The parts of the detail of a task before its cards: its state, its facts, its
+# process, its result, its earlier executions and its buttons.
+const _PARTS_BEFORE_CARDS = 6
 
-# The task whose result the detail of the pane shows in a card, and the steps from
-# the root of the pane to that card; `nothing` when the detail shows no such
-# card. A task of an inner group shows in the detail of that group, which no path
-# from this group reaches.
-function _find_result_card_place(doc::TaskGroupDocument)
+# The fields of a task document that the detail shows in a card, in this order,
+# each when it holds a document.
+const _CARD_FIELDS = (:process_tree, :result_document)
+
+# The card of each document that the detail of the pane shows: the steps from the
+# group to the document, and the steps from the root of the pane to its card. A
+# task of an inner group shows in the detail of that group, which no path from
+# this group reaches.
+function _find_card_places(doc::TaskGroupDocument)
+    places = Tuple{Tuple,Tuple}[]
     index = getfield(doc, :selected)[]
     documents = getfield(doc, :tasks)[]
-    (1 <= index <= length(documents)) || return nothing
-    find_task_group_document(doc, index) === nothing || return nothing
-    getfield(documents[index], :result_document)[] === nothing && return nothing
-    (index, (_DETAIL_STEPS..., FieldReferenceStep("children"),
-             RangeReferenceStep(_PARTS_BEFORE_RESULT_DOCUMENT, _PARTS_BEFORE_RESULT_DOCUMENT + 1),
-             FieldReferenceStep("child")))
+    (1 <= index <= length(documents)) || return places
+    find_task_group_document(doc, index) === nothing || return places
+    for field in _CARD_FIELDS
+        getfield(documents[index], field)[] === nothing && continue
+        position = _PARTS_BEFORE_CARDS + length(places)
+        push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
+                        FieldReferenceStep(String(field))),
+                       (_DETAIL_STEPS..., FieldReferenceStep("children"),
+                        RangeReferenceStep(position, position + 1), FieldReferenceStep("child"))))
+    end
+    places
 end
-
-# The steps from the group to the document of the result of task `index`.
-_get_result_document_steps(index::Int) =
-    (FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index), FieldReferenceStep("result_document"))
 
 # What a step names, so a step that a reader answers and a step written here
 # compare by what they select.
@@ -452,24 +451,24 @@ function _find_path_below(path, head)
 end
 
 function map_reference_forward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
-    place = reference isa ConcreteReference ? _find_result_card_place(iomap.input) : nothing
-    if place !== nothing
-        (index, steps) = place
-        inside = _find_path_below(reference, _get_result_document_steps(index))
-        inside === nothing || return annotate_reference_types(iomap.output,
-            concat_references(_make_steps_reference(steps), make_embed_card_path(inside)))
+    if reference isa ConcreteReference
+        for (document_steps, card_steps) in _find_card_places(iomap.input)
+            inside = _find_path_below(reference, document_steps)
+            inside === nothing || return annotate_reference_types(iomap.output,
+                concat_references(_make_steps_reference(card_steps), make_embed_card_path(inside)))
+        end
     end
     invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
 function map_reference_backward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
-    place = reference isa ConcreteReference ? _find_result_card_place(iomap.input) : nothing
-    if place !== nothing
-        (index, steps) = place
-        below = _find_path_below(reference, steps)
-        inside = below === nothing ? nothing : find_embed_card_path_inside(below)
-        inside === nothing || return annotate_reference_types(iomap.input,
-            concat_references(_make_steps_reference(_get_result_document_steps(index)), inside))
+    if reference isa ConcreteReference
+        for (document_steps, card_steps) in _find_card_places(iomap.input)
+            below = _find_path_below(reference, card_steps)
+            inside = below === nothing ? nothing : find_embed_card_path_inside(below)
+            inside === nothing || return annotate_reference_types(iomap.input,
+                concat_references(_make_steps_reference(document_steps), inside))
+        end
     end
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
@@ -548,13 +547,15 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                             gestures = _make_open_gestures(doc, _make_task_reference(index)))
         push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
-        # The document that the kind gives for the result, in the card of an
-        # embedded document, between the facts and the output. The maps of the
-        # pane find the card by its place.
-        shown = getfield(document, :result_document)[]
-        if shown !== nothing
-            length(parts) == _PARTS_BEFORE_RESULT_DOCUMENT ||
-                error("the card of the result is not where the maps of the pane find it")
+        # The tree of the processes of the task while it runs, and the document
+        # that the kind gives for the result, each in the card of an embedded
+        # document, between the facts and the output. The maps of the pane find
+        # each card by its place.
+        length(parts) == _PARTS_BEFORE_CARDS ||
+            error("the cards of the task are not where the maps of the pane find them")
+        for field in _CARD_FIELDS
+            shown = getfield(document, field)[]
+            shown === nothing && continue
             card = make_embed_card(shown, something(get_document_title(shown), "Result"))
             push!(parts, _follow_detail_part!(detail, LayoutConstraint(card; height = Relative(2), width = Fill),
                                               length(parts)))
