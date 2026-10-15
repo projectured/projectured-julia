@@ -676,6 +676,22 @@ nothing.
   which its own feeds copy from the stores (D7); C, nothing in this plan: L21-1
   stays in the audit plan with POLICY-7. A and B both need the new way for an
   insertion to find its editor.
+- **D13. Open (step 6.1): how a drain tells a save from a change of another
+  program.** For a file that a person edits, the watcher reads the file on disk.
+  A save of the document writes that file too, and the drain must not read the
+  save back: that would replace the document after each Ctrl+S and move the
+  caret. Today the drain writes the whole text of the document and compares it
+  with the disk, O(document) on the loop. The options:
+  - A: the save notes the hash of the text that it wrote in the history of the
+    file (`record_saved_state!` takes it, and the undo buffer keeps it), and the
+    drain compares it with the hash that the watcher read: O(1). A file with no
+    history can not tell its edits from a save, so it keeps what it holds and the
+    log says that its file changed. The application keeps a history of each file.
+  - B: keep the compare of the text on the loop, once for each change on disk of
+    a file that a person edits.
+  - C: the edit mark alone: a document with no edits since its last load or save
+    takes the file. A save is then read back.
+  Recommended (mine): A.
 - **D10. The loop of the REPL form. Decided by the owner, 2026-10-14: A**, the
   recommendation below. The other option was B, keep D11 and document that the
   REPL form needs `-t 2` for units. `run_editor!(...; wait = false)` pins
@@ -1205,6 +1221,58 @@ nothing.
     The producer reads the value as the sync reads it today, so a value that
     another task changes at the same time races as it does today. The owner
     accepted that race for the display (`view-and-edit-a-data-frame.md:548-554`).
+  - [x] 6.0 (`4c82d9fa1`) The contract of a feed (`FeedInterface.jl`) says the rule.
+  - [x] 6.3 (`ab84654ef`) Reflection. The sync is split in two halves:
+    `_make_reflection_open_state` reads on the loop which nodes are open, as plain
+    data; `_take_reflection_snapshot` reads the value along them on a task of the
+    default pool; `_sync_reflection!` of a `_ReflectionSnapshot` writes it into the
+    shadow at the next drain. `sync_reflection!` keeps the synchronous form for a
+    caller with no feed.
+    - Found: a read of a computed cell off the loop computes it there, and rule d
+      records that write. So a value that keeps its fields in cells (a `@document`,
+      a `CellVector`, a cell) stays in the snapshot as it is, and the loop reads it
+      when it writes the shadow, as today. A plain struct, an array and a
+      dictionary of the user are read off the loop.
+    - A node that opened, closed or grew during the read keeps what it shows, and
+      the next read fills it. A read that throws goes to the next drain, which
+      throws it, so the editor records it as before.
+    - A sync now takes two drains: one starts the read, and the end of the read
+      wakes the editor for the one that writes it.
+  - [x] 6.2 (`9685e6472`) Task.
+    - A sampler task of each process reads `/proc` every 0.25 s off the loop.
+      `update_task_execution!` calls the listeners of the execution after each
+      write (`attach_task_execution_listener!`), and the listener of the store
+      notes the entry as changed. A drain syncs only the entries that changed and
+      reads no file. The feed still asks for a frame each interval while it
+      watches an execution, so the store needs no wake of its own, and holds no
+      editor.
+    - The driver of a group, its preparation, and the readers of a process run
+      with `Threads.@spawn :default`. The audit: the driver, `stop_task_group!` and
+      the loop share `runs`, `stopping`, `start_time`, `end_time` and
+      `preparation_run`, which now go under the lock of the runtime of the group,
+      as the tally did. The callbacks that the driver calls only write native
+      state under its lock, register an execution in the store, or write the
+      fingerprint store of omnet-julia; none reads a document.
+    - Found: with the drivers on the default pool, the first sync of a task can
+      come before the first sync of its group, whose reset put the task back to
+      waiting. The first sync of a group now resets only the tasks whose document
+      shows an execution of an earlier start (`_reset_earlier_tasks!`).
+    - Not here: the tasks of omnet-julia (`Session.jl`, `SimulationRunner.jl`
+      and four presentation files) still start with `@async`.
+  - [ ] 6.1 (`21656e865`, not done) File change.
+    - The watcher of a folder reads a changed file once its time and its size
+      stay the same for 50 ms, parses it with `read_file_content_again(type,
+      path)`, and keeps the new document; a later change replaces it. The drain
+      swaps it in with `ReloadFileOperation(file; content)`. A parse that failed
+      is thrown by the drain after the other changes.
+    - Found: a watcher that reads at the first event reads a file half written,
+      and after a save a half-written file looks like a change of another
+      program. Hence the wait until the file is whole.
+    - Open, D13 below: how the drain tells a save of the document from a change
+      of another program for a file that a person edits. Until then the drain
+      still writes the text of the document to compare (O(document)), for such a
+      file only; a file that a person does not edit, as the result files of
+      omnet-julia, takes the new document with no other work.
 - [ ] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
