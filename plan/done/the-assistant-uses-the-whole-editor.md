@@ -1,7 +1,7 @@
 # The assistant uses the whole editor
 
 Status: a plan. Written 2026-10-15 from the answers of the owner on that day.
-Steps 1 to 6 are built; step 7 is built in part. Every decision is made. The plan spans two repositories: the
+Done 2026-10-15: steps 1 to 6 are built, and step 7 without the rehearsal, by the decision of the owner. The plan spans two repositories: the
 vocabulary and its verbs are in projectured-julia, and the OMNeT++ IDE in
 omnet-julia declares them.
 
@@ -433,7 +433,7 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
       `limit_collection!` now follows its definition with `@doc`. 12 definitions
       in projectured-julia and 8 in omnet-julia lose their docstring the same way.
 
-- [ ] **7. The rehearsal and the live check.**
+- [x] **7. The rehearsal and the live check.** Closed 2026-10-15: the part with no model is done, and the owner decided not to run the rest.
   - Six new tasks of one prompt each in `tool/assistant/rehearsal.jl`, at least
     one for each group. Examples: "what did I select?", "draw a red circle in a new
     tab", "add a heading to notes.md", "make the text larger".
@@ -455,7 +455,8 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
     shows when the selection names the group.
   - Not done: the six tasks of the rehearsal, the run of seeds 1 to 10, the round
     of repair, and the live session with a model. A run of the local model needs
-    47 GB of free memory, and the machine had 35 GB on 2026-10-15.
+    47 GB of free memory, and the machine had 35 GB on 2026-10-15. Decided by the
+    owner, 2026-10-15: no rehearsal ("1: no").
 
 
 ## Not in this plan
@@ -465,3 +466,13 @@ exists, and each needs a design of its own · an SVG reader · a chart verb for 
 data frame · a Tasks pane in either window (`TaskVerbs.jl:19` says that one
 exists, but none does) · F1 or the palette opened by the model for the person ·
 the `ask_person` tool for an MCP or ACP agent.
+
+## After the plan
+
+The owner, 2026-10-15, on the two facts of step 6:
+
+- The search that shows only the first docstring of a function: the owner asked
+  "what if there are 100s?". Open.
+- The `# @optional:` marker that drops a docstring: "yes", the argument guard
+  accepts the marker above the docstring, and the 20 definitions get their
+  docstrings back. That is a change of its own, after this plan.
