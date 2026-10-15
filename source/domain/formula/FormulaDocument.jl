@@ -16,16 +16,26 @@ end
 
 """
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
-`code` (a `JuliaDocument`, a `MathDocument`, or a bare number), `result` (the
-computed value, any value or a `FormulaError`), `display_mode`
-(`:code`/`:result`/`:both`). The code refers to another formula by its name.
-`result` is wired to `Cell(@computation evaluate_formula(self, env))` once placed
-in an environment; see [`wire_result!`](@ref).
+`code` (a `JuliaDocument`, a `MathDocument`, or a bare number), and
+`display_mode` (`:code`/`:result`/`:both`). The code refers to another formula by
+its name.
+
+`result` is the last value that was computed, any value or a `FormulaError`, or
+`nothing` before the first computation; `result_key` is the key of the code that
+it came from ([`compute_formula_key`](@ref)), and `is_computing` says that a
+computation of it runs. Only [`ReplaceFormulaResultOperation`](@ref) writes them,
+and a print reads only them. `current_value` is the value of the code and the
+inputs now, which a read computes on the task that reads it; it is wired once the
+formula is placed in an environment ([`wire_result!`](@ref)), code reads it with
+[`get_formula_value`](@ref), and no print reads it.
 """
 @document struct FormulaFormula <: FormulaDocument
     name::String
     code::Union{JuliaDocument, MathDocument, PrimitiveNumber}
     result::Any
+    result_key::Any
+    is_computing::Bool
+    current_value::Any
     display_mode::Symbol = :both
 end
 
@@ -34,13 +44,13 @@ end
 # (a derived thunk); the inner ctor passes a Cell through unchanged.
 function FormulaFormula(name, code::Document; result = nothing, display_mode::Symbol = :both)
     name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
-    FormulaFormula(name_cell, Cell(code), Cell(result), Cell(display_mode), Cell(nothing))
+    FormulaFormula(name_cell, Cell(code), Cell(result), Cell(nothing), Cell(false), Cell(nothing),
+                   Cell(display_mode), Cell(nothing))
 end
 
 """
 Named-formula scope: an ordered set of `FormulaFormula`s (a spreadsheet
-*sheet*). Each contained formula's `result` is wired to a reactive thunk
-against this environment.
+*sheet*). The `current_value` of each formula is wired to this environment.
 """
 @document struct FormulaEnvironment <: FormulaDocument
     formulas::CellVector{FormulaFormula} = CellVector{FormulaFormula}()
@@ -434,17 +444,11 @@ end
 # Phase 3 — evaluation
 # ═══════════════════════════════════════════════════════════════════════
 
-# A persistent scratch module used to evaluate formula bodies, mirroring the
-# `execute_julia_code!` sandbox-eval pattern in editor/Mcp.jl. Dependency values
-# are bound as locals in a generated `let` so they never leak into globals.
-const _FORMULA_SCRATCH = Ref{Module}()
-
-function _formula_scratch_module()
-    if !isassigned(_FORMULA_SCRATCH)
-        _FORMULA_SCRATCH[] = Module(:FormulaScratch)
-    end
-    _FORMULA_SCRATCH[]
-end
+# The code of a formula runs in a scratch module: one for each editor, which its
+# formula task keeps, and one for each formula that code reads the value of. The
+# values of the dependencies are bound as locals in a generated `let`, so they
+# never leak into globals.
+_make_formula_scratch_module() = Module(:FormulaScratch)
 
 """
     FormulaError(text)
@@ -475,30 +479,43 @@ convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
 convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.value
 
 """
-    evaluate_formula(formula, env) -> value
+    evaluate_formula(formula, env; scratch = Module(:FormulaScratch)) -> value
 
-The value of `formula`: its code evaluated in a scratch module, inside a `let`
-that binds each free name that resolves in `env` to the value of that formula.
-The scope binds last, so a formula named `pi` means that formula and not
-`Base.pi`. The read of the `result` of each dependency records the dependency,
-so a change of it computes this formula again.
+The value of `formula` now: its code evaluated in the module `scratch`, inside a
+`let` that binds each free name that resolves in `env` to the value of that
+formula now. The scope binds last, so a formula named `pi` means that formula and
+not `Base.pi`. It reads the value of each dependency with
+[`get_formula_value`](@ref), so in a cell it records the dependency, and a change
+of it computes this formula again. It runs the code of the person on the task
+that calls it, so no print calls it.
 
 An error that the code raises, a dependency whose value is a `FormulaError`,
 and a formula that depends on itself give a `FormulaError`.
 """
-function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
+function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
+                          scratch::Module = _make_formula_scratch_module())
     _depends_on_itself(formula, env) && return FormulaError("#CYCLE!")
     try
-        bindings = Expr[]
+        bindings = Pair{Symbol,Any}[]
         for name in get_formula_names(formula.code)
             dependency = resolve(env, name)
             dependency === nothing && continue
-            value = dependency.result
+            value = get_formula_value(dependency)
             value isa FormulaError && return value
-            push!(bindings, Expr(:(=), Symbol(name), QuoteNode(value)))
+            push!(bindings, Symbol(name) => value)
         end
-        body = convert_formula_to_expr(formula.code, env)
-        Core.eval(_formula_scratch_module(), Expr(:let, Expr(:block, bindings...), body))
+        _run_formula_code(scratch, convert_formula_to_expr(formula.code, env), bindings)
+    catch e
+        FormulaError("#ERROR! " * sprint(showerror, e))
+    end
+end
+
+# Run the `Expr` of the code of a formula in `scratch`, with each binding as a
+# local of a `let`. An error that the code raises is a `FormulaError`.
+function _run_formula_code(scratch::Module, expression, bindings::Vector{Pair{Symbol,Any}})
+    try
+        lets = Expr[Expr(:(=), name, QuoteNode(value)) for (name, value) in bindings]
+        Core.eval(scratch, Expr(:let, Expr(:block, lets...), expression))
     catch e
         FormulaError("#ERROR! " * sprint(showerror, e))
     end
@@ -538,8 +555,12 @@ end
 """
     get_formula_value(formula) -> Any
 
-The value of a formula: any value its code computes, or a `FormulaError`.
-Reading it inside a reactive cell subscribes to the result.
+The value of a formula for its code and its inputs now: any value its code
+computes, or a `FormulaError`. It computes the value on the task that calls it
+when the code or an input changed since the last read, so code that adds a
+formula and reads its value at once gets it. Reading it inside a reactive cell
+subscribes to it. A view reads the stored value with
+[`get_formula_result`](@ref), never this.
 
 Use it to read the number a formula of a study's sheet computed — a blocking
 probability, a mean queue length — to compare it with a result, to print it, or
@@ -552,11 +573,26 @@ to state an expectation from it.
 
 See also `add_study_formula!`, `add_expectation!`.
 """
-get_formula_value(formula::FormulaFormula) = formula.result
+get_formula_value(formula::FormulaFormula) = formula.current_value
+
+"""
+    get_formula_result(formula) -> Any
+
+The value that the last computation of `formula` stored, which a view shows, or
+`nothing` before the first one. It runs no code.
+"""
+get_formula_result(formula::FormulaFormula) = formula.result
 
 # The value of a formula as one line of text, short enough to read beside its
 # code: a float to six digits, nothing as no text, and any other value in its
 # `text/plain` form, or in its compact form when that form takes more lines.
+# The stored value of a formula as a view shows it, with the mark `⋯` while a
+# computation of it runs.
+function _format_stored_formula_value(formula::FormulaFormula)
+    text = _formula_value_text(formula.result)
+    formula.is_computing ? (isempty(text) ? "⋯" : text * " ⋯") : text
+end
+
 _formula_value_text(value::AbstractFloat) = string(round(value; sigdigits = 6))
 _formula_value_text(::Nothing) = ""
 function _formula_value_text(value)
@@ -568,20 +604,23 @@ end
 """
     wire_result!(formula, env) -> formula
 
-Wire `formula.result` to a reactive thunk that re-evaluates the body whenever any
-dependency's value changes. Idempotent.
+Wire `formula.current_value` to the code and the inputs of `formula` in `env`:
+a read computes it again after a change of the code or of the value of a
+dependency, in a scratch module of the formula. Idempotent.
 """
 function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
-    set_cell_computation!(getfield(formula, :result),
-                          () -> evaluate_formula(formula, env))
+    scratch = _make_formula_scratch_module()
+    set_cell_computation!(getfield(formula, :current_value),
+                          () -> evaluate_formula(formula, env; scratch))
     formula
 end
 
 # ── What a formula owes its file ─────────────────────────────────────────────
 #
-# A formula holds its code as a Julia tree and its result as a derived cell. A
-# `.pred` file holds the code as the text a person wrote, and no result: the
-# sheet evaluates it again on load. A sheet writes its formulas, one block each.
+# A formula holds its code as a Julia tree and its value as a stored one. A
+# `.pred` file holds the code as the text a person wrote, and no value: the sheet
+# computes it again when its window acquires it. A sheet writes its formulas, one
+# block each.
 
 """
     pred_arguments(formula::FormulaFormula)
@@ -645,7 +684,7 @@ pred_arguments(env::FormulaEnvironment) =
     make_pred_document(::Type{<:FormulaEnvironment}, positional, keywords)
 
 The sheet a call in a file builds. Every formula in it is wired to the sheet, so
-each result evaluates again against the names the file wrote.
+its value computes against the names the file wrote.
 """
 function make_pred_document(::Type{<:FormulaEnvironment}, positional, keywords)
     fields = Dict{Symbol,Any}(keywords)

@@ -108,7 +108,9 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
         TextString("⇒", p.op);
         open=TextString(" ", p.op.font),
         close=TextString(" ", p.op.font))
-    result_leaf = SyntaxLeaf(TextString(() -> _formula_value_text(f.result), p.result))
+    # The stored value, and a mark while a computation of it runs. A print runs no
+    # code of the formula.
+    result_leaf = SyntaxLeaf(TextString(() -> _format_stored_formula_value(f), p.result))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(f, path -> begin

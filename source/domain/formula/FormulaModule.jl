@@ -2,9 +2,9 @@
     FormulaModule
 
 The Formula domain — named, cross-referencing, evaluated formulas whose code
-is a Julia expression (the spreadsheet idea generalised). Each formula's
-`result` is a reactive `Cell` evaluating the Julia body against a named
-environment; a formula refers to another by its name.
+is a Julia expression (the spreadsheet idea generalised). Each formula stores the
+value that its code last computed, which the formula task of the editor computes
+off the loop; a formula refers to another by its name.
 """
 module FormulaModule
 
@@ -17,11 +17,13 @@ import ..SerializationModule: pred_arguments, make_pred_document
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward
+import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation
 
 export FormulaDocument, FormulaError, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_dependencies, get_formula_names, would_create_cycle, compute_topological_order,
-       convert_formula_to_expr, evaluate_formula, get_formula_value, convert_math_to_julia,
-       MathReadingException, get_formula_key, is_math_code
+       convert_formula_to_expr, evaluate_formula, get_formula_value, get_formula_result,
+       convert_math_to_julia, MathReadingException, get_formula_key, is_math_code
+export compute_formula_key, ComputeFormulasOperation, ReplaceFormulaResultOperation
 export FormulaTheme, ScaledFormulaTheme
 export FormulaInsertionToSyntaxLeaf, FormulaIdentifierToSyntaxLeaf, FormulaFormulaToSyntaxNode,
        FormulaEnvironmentToSyntaxNode, FormulaToSyntax
@@ -31,6 +33,7 @@ export FormulaFormulaToLayout, FormulaEnvironmentToLayout, make_formula_graphics
 
 include("MathToJulia.jl")
 include("FormulaDocument.jl")
+include("FormulaComputation.jl")
 include("FormulaTheme.jl")
 include("FormulaToSyntax.jl")
 include("FormulaToGraphics.jl")

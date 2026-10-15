@@ -121,6 +121,7 @@ function test_formula_math()
             FormulaFormula("p_{block}", parse_math("((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")),
             FormulaFormula("twice", parse_julia("2 * rho")),
         ])
+        _compute_formula_sheet!(sheet)
         renderer = NaturalToGraphics(measure = FontFileMeasure())
         context = with_exact_size(PrinterContext();
                                   width = Cell(Int32(800)), height = Cell(Int32(600)))
@@ -130,8 +131,9 @@ function test_formula_math()
         @test any(t -> occursin("block", t), texts)           # the subscript of the name
         @test any(t -> occursin("0.0663", t), texts)          # the value beside it
         @test any(t -> occursin("twice = 2 * rho = 1.6", t), texts)   # a Julia formula, one line
-        # A changed input redraws the value.
+        # A changed input, computed again, redraws the value.
         sheet.formulas[1].code = parse_math("0.5")
+        _compute_formula_sheet!(sheet)
         canvas = print_document(renderer, nothing, sheet, context).output
         @test any(t -> occursin("0.007874", t), _formula_texts(canvas))
     end

@@ -23,6 +23,9 @@ function make_formula_document_example()
         FormulaFormula("H", parse_julia("2 * K")),
         FormulaFormula("K", parse_julia("H + 1")),
     ])
+    # The values, as a saved sheet holds them once computed; a window computes
+    # them again when it opens the sheet.
+    evaluate_operation(nothing, ComputeFormulasOperation(env))
     set_selection!(env, @reference(env, formulas[1]))
 end
 

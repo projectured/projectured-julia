@@ -4,6 +4,10 @@
 _formula_sheet(pairs...) =
     FormulaEnvironment([FormulaFormula(name, parse_julia(code)) for (name, code) in pairs])
 
+# Compute the stored values of a sheet at once, as a script with no editor does; a
+# view shows only stored values.
+_compute_formula_sheet!(sheet) = (evaluate_operation(nothing, ComputeFormulasOperation(sheet)); sheet)
+
 function test_formula_evaluation()
 @testset "the evaluation of a formula by name" begin
 
@@ -67,12 +71,88 @@ function test_formula_evaluation()
 
     @testset "the view shows a value on one line" begin
         f2s = RecursiveProjection(FormulaToSyntax())
-        sheet = _formula_sheet("V" => "[1, 2, 3]", "E" => "Z")
+        sheet = _compute_formula_sheet!(_formula_sheet("V" => "[1, 2, 3]", "E" => "Z"))
         V, E = sheet.formulas
         V.display_mode = :result
         @test render(print_document(f2s, V).output) == "[1, 2, 3]"
         E.display_mode = :result
         @test !occursin('\n', render(print_document(f2s, E).output))
+    end
+end
+end
+
+# The stored value: a view shows it, a computation stores it with the key of the
+# code that it came from, and a value for code that changed meanwhile is dropped.
+function test_formula_stored_value()
+@testset "the stored value of a formula" begin
+
+    @testset "a view shows the stored value, which a computation stores" begin
+        sheet = _formula_sheet("A" => "2", "B" => "A * 3")
+        A, B = sheet.formulas
+        @test get_formula_result(B) === nothing
+        @test get_formula_value(B) == 6                     # code computes on its own task
+        @test get_formula_result(B) === nothing             # and stores nothing
+        _compute_formula_sheet!(sheet)
+        @test get_formula_result(A) == 2 && get_formula_result(B) == 6
+        @test B.result_key == compute_formula_key(B, sheet)
+        @test !A.is_computing && !B.is_computing
+    end
+
+    @testset "a new value computes the formulas that name it, and an equal value does not" begin
+        sheet = _compute_formula_sheet!(_formula_sheet("A" => "2", "B" => "A * 3", "C" => "B + 1"))
+        A, B, C = sheet.formulas
+        A.code = parse_julia("5")
+        evaluate_operation(nothing, ComputeFormulasOperation(sheet, [A]))
+        @test get_formula_result(B) == 15 && get_formula_result(C) == 16
+        # New code with the same value leaves the formulas that name it.
+        old_key = B.result_key
+        A.code = parse_julia("4 + 1")
+        evaluate_operation(nothing, ComputeFormulasOperation(sheet, [A]))
+        @test get_formula_result(A) == 5 && B.result_key == old_key
+    end
+
+    @testset "a value for code that changed is dropped, and the formula computes again" begin
+        sheet = _compute_formula_sheet!(_formula_sheet("A" => "2"))
+        A = only(sheet.formulas)
+        key = compute_formula_key(A, sheet)
+        A.code = parse_julia("7")
+        evaluate_operation(nothing, ReplaceFormulaResultOperation(A, sheet, 99, key))
+        @test get_formula_result(A) == 7
+    end
+
+    @testset "a cycle stores its error, and the computation ends" begin
+        sheet = _compute_formula_sheet!(_formula_sheet("H" => "2 * K", "K" => "H + 1"))
+        H, K = sheet.formulas
+        @test get_formula_result(H) == FormulaError("#CYCLE!") && get_formula_result(K) == FormulaError("#CYCLE!")
+    end
+end
+end
+
+# The formula task of an editor: while the loop runs, the code of a formula runs
+# on a task of its own, and its value comes back through the door.
+function test_formula_task()
+@testset "the formula task of an editor" begin
+    sheet = _formula_sheet("A" => "2", "T" => "(A, Base.current_task())")
+    A, T = sheet.formulas
+    editor = run_editor!(() -> Editor(sheet, RecursiveProjection(FormulaToSyntax());
+                                      backend = HeadlessBackend(), devices = Device[]); wait = false)
+    loop = editor.loop_task
+    try
+        run_on_editor_task!(() -> evaluate_operation(editor, ComputeFormulasOperation(sheet)), editor)
+        read_stored() = run_on_editor_task!(() -> (get_formula_result(T), T.is_computing), editor)
+        deadline = time() + 30
+        while time() < deadline
+            (value, computing) = read_stored()
+            value !== nothing && !computing && break
+            sleep(0.05)
+        end
+        (value, computing) = read_stored()
+        @test !computing && value isa Tuple && value[1] == 2
+        @test value[2] isa Task && value[2] !== loop
+        @test run_on_editor_task!(() -> get_formula_result(A), editor) == 2
+    finally
+        post_operation!(editor, QuitEditorOperation())
+        wait(loop)
     end
 end
 end

@@ -170,6 +170,7 @@ end
     sheet = FormulaEnvironment([FormulaFormula("C", parse_julia("55")),
                                 FormulaFormula("D", parse_math("C/2")),
                                 FormulaFormula("H", parse_julia("2"))])
+    _compute_formula_sheet!(sheet)
     rendered = render(print_document(RecursiveProjection(FormulaToSyntax()), sheet).output)
     @test occursin("D = C/2 ⇒ 27.5", rendered)
     walk = ProjecturedPlatformTest.explore_position_selections(sheet, make_formula_projection_example())
@@ -179,7 +180,7 @@ end
 
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
-    env = FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))])
+    env = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))]))
     f = env.formulas[1]
 
     f.display_mode = :code
@@ -248,6 +249,7 @@ end
         FormulaFormula("A1", parse_julia("1"); display_mode=:result),
         FormulaFormula("B1", parse_julia("2"); display_mode=:result),
     ])
+    _compute_formula_sheet!(env)
     rendered = render(print_document(f2s, env).output)
     @test occursin("1", rendered)
     @test occursin("2", rendered)
