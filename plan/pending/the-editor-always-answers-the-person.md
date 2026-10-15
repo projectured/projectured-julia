@@ -1483,7 +1483,26 @@ nothing.
       `TooltipFeed` that no longer exists; it now lists the MCP log, task,
       reflection and file-change feeds. `assistant.md` keeps "a tool call that
       runs is not stopped" for a stop of a turn: the live check of 8.4 tells.
-    - [ ] 8.3 The tests of each layer.
+    - [x] 8.3 The tests of each layer. 2026-10-15, each suite in its own capped
+      process (`/var/tmp/editor-answers-probe/suites-8.sh`):
+      - formula 227, Markdown 268, MCP 508, ACP 168, workflow 199, kernel 4680:
+        no failure.
+      - platform, part by part: 152640 pass, the 2 failures of `main`
+        (`InterfaceApiTest.jl:46` and `:49`), 7 broken; and one failure that
+        came and went, `TaskGroupTest.jl:119` (1 run in 6 alone). The test read
+        the summary of a group of groups and then its inner groups, and since
+        step 6 the drivers run on other threads, so a task could end between the
+        reads. The test now compares only a sample in which no inner group
+        changed (10 of 10 runs pass).
+      - umbrella: documents 147, printers 421998, readers 26220, REPLs 25760 with
+        2 broken, navigations 9030 with 5 broken; `test_application` 374 with the
+        2 failures and 2 errors of `main`; `test_referenced_document_editor` 110.
+      - guards: names, arguments, exports and the tree pass; the documentation
+        guard flags no sentence that step 8 wrote in the guides.
+      - omnet-julia (its branch, the scratch environment over both worktrees):
+        the study, the study views, the study verbs and the IDE window tests, 201
+        pass, with the 4 failures of `main` (`StudyToWidgetTest.jl:195`,
+        `StudyVerbsTest.jl:50` and `:51`, `IdeNavigatorTest.jl:57`).
     - [ ] 8.4 A live check of each row of §6 with the real application.
       - The first run (2026-10-15) stopped at the start of the application:
         "A ScreenDocument holds no pane tree". `start_application!` posts
