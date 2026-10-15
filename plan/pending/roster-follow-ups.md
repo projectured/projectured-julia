@@ -176,6 +176,52 @@ findings, which the owner asked to fix on 2026-10-15:
       (the same object); a wheel past 200 rows moves `anchor`, and the
       selection stays on its row; the roster tests, the arrangement tests and
       the test of step 1 pass. The counts of S4b and S6 before and after.
+    - Built 2026-10-15. The view is `_RosterTableView`, a document of one
+      field, `anchor`, so the write is an operation of view state. The list is
+      `make_index_list` over the rows, with the cells of a row made when a walk
+      first reaches it. The roster reads the answers of the table in its own
+      `read_intent`: a write of `cells` becomes a write of `anchor`, and the
+      shift of the selection goes.
+    - A list yields its nodes when it is iterated, so the walks of drawn text
+      in the tests take the value of a node (`_arrangement_drawn`).
+    - The filter test needed 2d: before it, the bar printed the whole roster
+      table again on every change of the rows.
+  - [x] **2d. A container follows the outputs of its children apart from their
+    print.** Found in 2c, with a probe: the bar of an arranged place is a
+    `VerticalLayout`, and its build prints the children and reads their
+    outputs in one computation. The output of the table of a roster reaches it
+    through cells that compute again to the same object when the rows change,
+    and the engine stops only plain data, so the build printed the whole table
+    again on every change of the rows: the cost of S4b, before any grid. A
+    build that peeks the outputs prints the table once, but then the count of
+    the chips stays old, because the chips make a new canvas. The owner said
+    "continue then" to the proposal, the eager grid in it.
+    - The build of a container prints its children and reads its structure; a
+      computation of its own places their outputs, and keeps the wrapper of an
+      output that stays. The vertical, horizontal, constraint, anchored, flow
+      and scroll layouts change. The split pane and the stack have this form.
+    - The eager `GridLayout` places the outputs in a computation too, so it
+      follows a new output of a child, such as a fault mark or the chips.
+    - Tests: a container keeps the IO maps of its children when the output of
+      a child computes again to the same object, and places a new output of a
+      child; the layout tests; the filter test of 2c.
+    - Done 2026-10-15. `_place_child_outputs` places the outputs of the
+      entries of a build, and keeps the wrapper of an output that stays at its
+      place; the vertical, horizontal, constraint, flow and scroll layouts use
+      it, and the anchored layout places its content as it is, under its
+      children. The eager grid places its outputs in a computation of its
+      own, with the slot of each child read at the print, as before.
+    - The split showed three wrappers that kept the output of a child from the
+      print, which the print again of the whole container had hidden: the
+      `LayoutConstraint` around the chips of a bar (its count stayed old), the
+      `AppearanceToWidget` and `WindowManaging`. Each forwards the output of
+      its child as a computation now.
+    - Tests: a testset in `LayoutCloseoutTest.jl` for the vertical, horizontal
+      and eager grid layouts: the first child keeps its IO map and its drawn
+      text when the choice of the second child changes, and the second child
+      draws its new output. The layout tests, the roster, the arrangements,
+      the fault barrier, the appearance tab, the tooltip and window tests, and
+      the tables of a list pass.
 - [ ] **3. The record of a new reader.** Done only when, after step 2, the probe
   of `plan/done/dependency-reads.md` still walks more than one million entries
   in a step of S4b or S4d. Then a record that knows the reader is new to the

@@ -10,12 +10,14 @@ import ProjecturedKernelExample: HeadlessBackend, rendered_output, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 
-# Each text of a canvas, at its place, also inside the viewport of a pane.
+# Each text of a canvas, at its place, also inside the viewport of a pane. The
+# elements of a canvas of a list are its nodes, from the first to the last.
 function _arrangement_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     x = ox + Int(canvas.x)
     y = oy + Int(canvas.y)
     for element in canvas.elements
         element = element isa Cell ? element[] : element
+        element = element isa ListNode ? element.value : element
         if element isa GraphicsText
             push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
         elseif element isa GraphicsCanvas
