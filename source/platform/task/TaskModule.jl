@@ -27,7 +27,6 @@ using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
-using ..NavigatorModule
 using ..OperationModule
 using ..PaneModule
 using ..PrimitiveModule

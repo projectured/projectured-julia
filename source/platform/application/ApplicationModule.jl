@@ -40,6 +40,7 @@ using ..ShellModule
 using ..StyleModule
 using ..TextModule
 using ..TooltipModule
+using ..TreeModule
 using ..UndoModule
 using ..WidgetModule
 

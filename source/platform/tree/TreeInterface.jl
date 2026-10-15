@@ -1,0 +1,36 @@
+# Fragment of `TreeModule` — the contract of the slice: the generics that say how
+# a document is a node of a tree, with no body. A slice that owns a kind of node
+# adds methods to them, and the tree slice names none of those slices. The
+# fallback behaviours sit in `TreeDefaults.jl`.
+
+"""
+    get_tree_children_steps(document) -> Tuple
+
+The paths from `document` to each collection of its children, in order, each a
+tuple of `ReferenceStep`s: `((FieldReferenceStep("children"),),)` for a node with
+one collection in its field `children`. The children of a node are the elements
+of its collections, one collection after the other, so a node can show two kinds
+of children, such as the parts that it holds and the work that it started.
+
+It runs inside a computation of the tree, so it can read cells. A path that
+reaches nothing gives no children. The default is `()`: a document is a leaf.
+"""
+function get_tree_children_steps end
+
+"""
+    format_tree_node_label(document) -> String
+
+The text of the node of `document` in a tree. It runs inside the computation of
+the node, so it reads cells, and the node draws again when what it reads
+changes, and no other node does. The default is the title of the document, or
+the name of its type that a person sees.
+"""
+function format_tree_node_label end
+
+"""
+    get_tree_node_icon(document) -> Symbol or nothing
+
+The icon of the node of `document` in a tree, a name of an icon of the widget
+layer, such as `:folder`, or `nothing` for no icon. The default is `nothing`.
+"""
+function get_tree_node_icon end

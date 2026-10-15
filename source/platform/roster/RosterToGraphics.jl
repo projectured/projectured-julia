@@ -126,12 +126,22 @@ end
 # takes, such as the choice of the menu of the item of a row: the rows answer it
 # at that place, so the readers above carry it on. A cell of text prints a label
 # and no document, so no child takes such a route.
+#
+# A double click on a row opens the item of the row as a page, as a double click
+# on a file opens the file: the first press selects the item, and the second one
+# opens what the row selects.
 function read_intent(p::RosterRowsToWidget, recursion, change::Intent, iomap::RosterRowsToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    (change.route isa ConcreteReference && change.operation !== nothing) || return answer
-    (answer isa Intent ? answer.operation : answer) === nothing || return answer
-    steps = Tuple(get_reference_steps(strip_reference_types(change.route)))
-    Intent(change.gesture, reroot_operation(change.operation, steps), change.description, change.domain)
+    operation = answer isa Intent ? answer.operation : answer
+    if change.route isa ConcreteReference && change.operation !== nothing
+        operation === nothing || return answer
+        steps = Tuple(get_reference_steps(strip_reference_types(change.route)))
+        return Intent(change.gesture, reroot_operation(change.operation, steps), change.description, change.domain)
+    end
+    item = answer isa Intent ? _find_double_clicked_item(change.gesture, operation) : nothing
+    item === nothing && return answer
+    Intent(answer.gesture, CompoundOperation(Any[operation, OpenPageOperation(nothing, item)]),
+           answer.description, answer.domain)
 end
 
 # The keys of the columns: those that the roster put in the context, or else
@@ -328,6 +338,15 @@ function _find_written_cells(table, operation)
      write.reference isa ConcreteReference && write.reference.head == FieldReferenceStep("cells") &&
      write.reference.tail isa EmptyReference) || return nothing
     write.value
+end
+
+# The path of the item of a row that a plain double click selects, or `nothing`.
+function _find_double_clicked_item(gesture, operation)
+    (gesture isa MouseClick && gesture.button === :left && gesture.count == 2 &&
+     gesture.modifiers == ModifierKeys() && operation isa ReplaceSelectionOperation) || return nothing
+    steps = get_reference_steps(strip_reference_types(operation.path))
+    (length(steps) == 2 && _is_index_step(steps[1]) && steps[2] == FieldReferenceStep("item")) || return nothing
+    operation.path
 end
 
 # The rows of the natural renderer: a roster, and a list of rows of a roster, which

@@ -314,8 +314,7 @@ Open the task page, and in the Tasks pane the title of a group
 opens the page of the group. Each answers `OpenPageOperation` with the document
 that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
-holds it, and an open that no navigator takes opens a tab. The slice loads after
-the navigator slice for this.
+holds it, and an open that no navigator takes opens a tab.
 
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group

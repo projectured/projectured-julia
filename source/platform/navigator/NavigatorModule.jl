@@ -53,7 +53,7 @@ export get_navigator_page_address, get_navigator_address_steps, get_navigator_pa
 export find_navigator_choices, make_navigator_choice_operation
 export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
        make_navigator_address_reset_operation, is_navigator_address_selected
-export OpenPageOperation, find_navigator_target, find_navigator_address
+export find_navigator_target, find_navigator_address
 export make_navigator_address_projection, ReferenceStepToSyntaxLeaf
 export NavigatorToWidget, make_navigator_projection
 export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
@@ -63,7 +63,7 @@ include("NavigatorVisits.jl")
 include("NavigatorChoices.jl")
 include("NavigatorAddressEdits.jl")
 include("NavigatorGestures.jl")
-include("OpenPageOperation.jl")
+include("NavigatorPageOpen.jl")
 include("NavigatorAddressToSyntax.jl")
 include("NavigatorToWidget.jl")
 include("NavigatorChoiceListToWidget.jl")

@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; no step is started. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 and 2 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -511,7 +511,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `~/.claude/plans/` with `Write`.
     - The `Agent` tool is named `Task` in the list of tools of `init`.
 
-- [ ] **2. The tree slice, and a page from a row or a node.**
+- [x] **2. The tree slice, and a page from a row or a node.** Done 2026-10-15.
   - `OpenPageOperation` moves below `roster` and `tree`.
   - `DocumentTree`, `DocumentTreeToWidgetTree`, the three generics,
     `expanded` by identity, `show_document_tree!`.
@@ -523,6 +523,61 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - a label draws again alone when its document changes;
     - in a real `Editor`, a double click on a node and on a row of a roster
       opens a page in a navigator, and Back returns.
+  - **What the step found and decided:**
+    - `OpenPageOperation` is a fragment of `WidgetModule`,
+      `source/platform/widget/OpenPageOperation.jl`, beside
+      `ContextMenuOperation.jl`, with its constructor and its four methods.
+      `NavigatorModule` uses it and no longer exports it. Its docstring no
+      longer names the navigator, because a lower slice does not describe its
+      consumers (`PAR-NO-CONSUMER-DOCS`). What the navigator does with an open
+      that no navigator takes is now the comment of its `evaluate_operation`,
+      in `NavigatorPageOpen.jl`, with `find_navigator_target` and
+      `_find_opened_content`. Markdown, rst and the data frame adapter reach
+      the name through `PlatformModule`, and need no change.
+    - A binding of a `WidgetTreeNode` answers in the frame of the
+      `WidgetTree`: the reader of the tree returns the answer of the node as it
+      is, and does not put the path of the node before it. So
+      `OpenPageOperation(nothing, EmptyReference())` from a node would name
+      the widget, not the node. The binding of a node answers
+      `OpenPageOperation(nothing, roots[1].children[k]…)`, the path of its own
+      node, and `DocumentTreeToWidgetTree` maps it to `root.<steps>[i]…`. The
+      widget slice does not change. A node knows its path because each node is
+      made again when the collections of its parent change.
+    - Each node is two lazy lists of its children. The entries give the
+      document of each child and its index path, and read only the collections
+      of the parent. The widget nodes read the text and the icon of the
+      document, and take their children from the entry. So a change of the
+      text of one document computes its own `WidgetTreeNode` again, and its
+      children are the same list.
+    - `expanded` is an `IdDict{Any,Nothing}` whose keys are the open
+      documents. A walk of the documents enters a dict by its values, so
+      `search_documents` does not find the open documents a second time. A
+      `Base.IdSet` keeps its keys in a `Memory` field, which the walk enters.
+    - A chevron answers `ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget,
+      "expanded", paths))`, a write that carries the widget as its root. The
+      reader of `DocumentTreeToWidgetTree` turns it into the same write of
+      `expanded` of the `DocumentTree`, with the documents at those paths.
+    - The open paths of the widget walk the open nodes only. So a node under a
+      closed node leaves `expanded` at the next write, and a node that opens
+      again shows its children closed. The widget alone keeps the paths of the
+      nodes under a closed node.
+    - A document that is again on the path to its own node stays closed there,
+      so a cycle of documents does not open without end.
+    - The row of the natural renderer is
+      `ChainingProjection(DocumentTreeToWidgetTree(), RecursiveProjection(FaultCatchingProjection(WidgetToGraphics(…))))`,
+      as the row of the workspace draws the tree of the files.
+    - The default title of a `DocumentTree` and of `show_document_tree!` is the
+      label of the root. `show_document_tree!` is declared to the assistant as
+      `show_roster!` is: `TreeModule => (:DocumentTree, :show_document_tree!)`
+      in `make_application_api`, and one sentence in `APPLICATION_SYSTEM`.
+    - A double click on a row of a roster is a `read_intent` of
+      `RosterRowsToWidget` of its own, below `_is_index_step`, away from the
+      lines that the branch `roster-scroll` changes. It adds
+      `OpenPageOperation(nothing, [r].item)` when the answer of a plain double
+      click selects the item of a row, as the view of a data frame does.
+    - The entry of the test is `test_document_tree()`, not `test_tree()`:
+      `ProjecturedTest` defines and exports `test_tree()`, the guard of the
+      repository tree, and it uses `ProjecturedPlatformTest`.
 
 - [ ] **3. The system processes slice.**
   - `SystemProcess`, `SystemProcessTree`, the sample, the store and the feed,

@@ -15,7 +15,9 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EditorModule
+using ..EventModule
 using ..FocusModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule

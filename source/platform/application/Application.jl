@@ -360,11 +360,11 @@ end
 
 What the assistant of this window may write, and the whole of it.
 
-Seven vocabularies: the pane verbs that arrange the window, the widget names that
+Eight vocabularies: the pane verbs that arrange the window, the widget names that
 build what a pane shows, the file verbs that open and save one, the workspace
 this application lists, the verbs that filter, sort, group and limit a
-collection, the verbs that gather the members of one kind into a roster, and what
-each loaded domain registered with
+collection, the verbs that gather the members of one kind into a roster, the verb
+that shows a document as a tree, and what each loaded domain registered with
 `register_assistant_api!`. Every exported name here is a verb the assistant reaches
 through `execute_julia_code`, and nothing else resolves.
 
@@ -395,6 +395,8 @@ make_application_api() = Any[
     # what it can show.
     RosterModule => (:Roster, :show_roster!, :describe_roster_sources, :describe_item_facets,
                      :edit_shown_items!, :CollectionItems, :ItemsWithin, :StoreRecords),
+    # The verb that shows a document and the documents under it as a tree.
+    TreeModule => (:DocumentTree, :show_document_tree!),
     PaneModule => (:TabDocuments,),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.
@@ -438,6 +440,8 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "describe_item_facets(type) say which sources and which keys exist, and " *
     "filter_collection!, sort_collection!, group_collection! and limit_collection! " *
     "change the rows that show_roster! answers. " *
+    "show_document_tree!(root; title) shows a document and the documents under " *
+    "it as a tree in a tab. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."

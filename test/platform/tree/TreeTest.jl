@@ -1,0 +1,239 @@
+# A tree of documents: the nodes of plain documents with one or two collections of
+# children, the maps of a path both ways, the open nodes by the identity of their
+# documents, a node that computes again alone, the verb that shows a tree, and a
+# double click on a node of a tree and on a row of a roster that opens a page in a
+# navigator, which Back leaves. The editor is the one of `NavigatorToWidgetTest.jl`.
+
+# A node with a name and one collection of children.
+@document struct _DocTreeNode
+    name::String
+    children::CellVector
+end
+
+# A node with a title and two collections: its parts and its notes.
+@document struct _DocTreePair
+    name::String
+    parts::CellVector
+    notes::CellVector
+end
+
+# A document that says nothing of itself.
+@document struct _DocTreeLeaf
+    value::Int
+end
+
+# How often the label of each node is computed.
+const _DOCTREE_LABEL_COUNTS = IdDict{Any,Int}()
+
+TreeModule.get_tree_children_steps(::_DocTreeNode) = ((FieldReferenceStep("children"),),)
+TreeModule.get_tree_children_steps(::_DocTreePair) = ((FieldReferenceStep("parts"),), (FieldReferenceStep("notes"),))
+TreeModule.get_tree_node_icon(::_DocTreePair) = :folder
+DocumentModule.get_document_title(pair::_DocTreePair) = pair.name
+
+function TreeModule.format_tree_node_label(node::_DocTreeNode)
+    _DOCTREE_LABEL_COUNTS[node] = get(_DOCTREE_LABEL_COUNTS, node, 0) + 1
+    node.name
+end
+
+_doctree_node(name, children...) = _DocTreeNode(name, CellVector(Any[children...]))
+
+# A root with two parts and a note; the first part holds two nodes.
+function _doctree_make()
+    first_part = _doctree_node("alpha", _doctree_node("alpha one"), _doctree_node("alpha two"))
+    root = _DocTreePair("root", CellVector(Any[first_part, _doctree_node("beta")]),
+                        CellVector(Any[_doctree_node("gamma")]))
+    root
+end
+
+_doctree_path(steps...) = extend_reference(EmptyReference(), steps...)
+
+# The path of the node at the index path `indices` of the widget.
+function _doctree_node_path(indices...)
+    steps = Any[FieldReferenceStep("roots"), ElementReferenceStep(indices[1])]
+    foreach(k -> push!(steps, FieldReferenceStep("children"), ElementReferenceStep(k)), indices[2:end])
+    _doctree_path(steps...)
+end
+
+# The write of the open nodes of the widget that a chevron makes.
+_doctree_chevron(widget, paths...) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget, "expanded", Set{Vector{Int}}(paths)))
+
+_doctree_double(click) = MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0)
+
+# Whether the open nodes of `tree` are the documents `documents`, by identity.
+_doctree_is_open(tree, documents...) =
+    length(tree.expanded) == length(documents) && all(document -> haskey(tree.expanded, document), documents)
+
+function test_document_tree()
+@testset "a tree of documents" begin
+    projection = DocumentTreeToWidgetTree()
+    root_step = FieldReferenceStep("root")
+
+    @testset "the nodes of plain documents, with one or two collections" begin
+        @test get_tree_children_steps(_DocTreeLeaf(1)) == ()
+        @test get_tree_node_icon(_DocTreeLeaf(1)) === nothing
+        @test format_tree_node_label(_DocTreeLeaf(1)) == "_DocTreeLeaf"
+        @test format_tree_node_label(_doctree_make()) == "root"
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        @test tree.title == "root" && get_document_title(tree) == "root"
+        @test DocumentTree(root; title = "Parts").title == "Parts"
+        # The root is open at the start, by the identity of its document.
+        @test _doctree_is_open(tree, root)
+        widget = print_document(projection, nothing, tree, nothing).output
+        @test widget isa WidgetTree && length(widget.roots) == 1
+        node = widget.roots[1]
+        @test node.label == "root" && node.icon === :folder
+        # The children of a node are its parts, then its notes.
+        @test [child.label for child in node.children] == ["alpha", "beta", "gamma"]
+        @test [child.label for child in node.children[1].children] == ["alpha one", "alpha two"]
+        @test isempty(node.children[2].children)
+        @test widget.expanded == Set([[1]])
+        # A file keeps the root and the title, and no open node.
+        (positional, keywords) = pred_arguments(tree)
+        @test length(positional) == 1 && positional[1] === root && keywords == Pair{Symbol,Any}[:title => "root"]
+        read = parse_pred_text(print_pred_text(DocumentTree(PrimitiveString("x"); title = "Leaf")))
+        @test read isa DocumentTree && read.title == "Leaf" && read.root.value == "x"
+        @test _doctree_is_open(read, read.root)
+    end
+
+    @testset "a path maps both ways" begin
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        iomap = print_document(projection, nothing, tree, nothing)
+        widget = iomap.output
+        forward(path) = map_reference_forward(projection, iomap, path)
+        backward(path) = map_reference_backward(projection, iomap, path)
+        notes_first = _doctree_path(root_step, FieldReferenceStep("notes"), ElementReferenceStep(1))
+        alpha_two = _doctree_path(root_step, FieldReferenceStep("parts"), ElementReferenceStep(1),
+                                  FieldReferenceStep("children"), ElementReferenceStep(2))
+        @test _nav_is(forward(_doctree_path(root_step)), _doctree_node_path(1))
+        @test _nav_is(forward(notes_first), _doctree_node_path(1, 3))
+        @test _nav_is(forward(alpha_two), _doctree_node_path(1, 1, 2))
+        # A path inside a document maps to the row of its node.
+        @test _nav_is(forward(extend_reference(alpha_two, FieldReferenceStep("name"))), _doctree_node_path(1, 1, 2))
+        @test forward(_doctree_path(FieldReferenceStep("title"))) === nothing
+        @test _nav_is(backward(_doctree_node_path(1)), _doctree_path(root_step))
+        @test _nav_is(backward(_doctree_node_path(1, 3)), notes_first)
+        @test _nav_is(backward(_doctree_node_path(1, 1, 2)), alpha_two)
+        @test backward(_doctree_node_path(1, 9)) === nothing
+        # Any other part of the widget is a part that the view drew.
+        @test has_introduced_step(backward(_doctree_path(FieldReferenceStep("scroll_position"))))
+        @test has_introduced_step(backward(EmptyReference()))
+        # The selection of the tree document is the selection of the widget.
+        getfield(tree, :selection)[] = alpha_two
+        @test _nav_is(widget.selection, _doctree_node_path(1, 1, 2))
+        # A press on a node selects its document.
+        answer = read_intent(projection, iomap, ReplaceSelectionOperation(_doctree_node_path(1, 3)))
+        @test answer isa ReplaceSelectionOperation && _nav_is(answer.path, notes_first)
+        # A double click on a node and Return on it open its document as a page.
+        double = MouseClick(:left, 0, 0, 2, ModifierKeys(); time = 0.0)
+        gamma = widget.roots[1].children[3]
+        for gesture in (double, KeyPress('\n'; time = 0.0))
+            open = read_bound_gesture(gamma, gesture, nothing)
+            @test open isa OpenPageOperation && _nav_is(open.reference, _doctree_node_path(1, 3))
+            mapped = read_intent(projection, iomap, open)
+            @test mapped isa OpenPageOperation && _nav_is(mapped.reference, notes_first)
+        end
+        @test read_bound_gesture(gamma, MouseClick(:left, 0, 0, 1, ModifierKeys(); time = 0.0), nothing) === nothing
+    end
+
+    @testset "an open node stays open when a node comes before it" begin
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        iomap = print_document(projection, nothing, tree, nothing)
+        widget = iomap.output
+        alpha = root.parts[1]
+        # A chevron writes the open nodes of the tree document, as view state.
+        write = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1]))
+        @test write isa ReplaceViewStateOperation
+        @test get_wrapped_operation(write).document === tree
+        evaluate_operation(nothing, write)
+        @test _doctree_is_open(tree, root, alpha)
+        @test widget.expanded == Set([[1], [1, 1]])
+        insert!(root.parts, 1, _doctree_node("first"))
+        @test widget.expanded == Set([[1], [1, 2]])
+        @test widget.roots[1].children[2].label == "alpha"
+        # A node under a closed node is not open.
+        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1, 2])))
+        @test isempty(widget.expanded)
+        @test [child.label for child in widget.roots[1].children] == ["first", "alpha", "beta", "gamma"]
+        # The next write holds only the documents of the nodes that are there.
+        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 2])))
+        deleteat!(root.parts, 2)
+        @test widget.expanded == Set([[1]])
+        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 3])))
+        @test _doctree_is_open(tree, root, root.notes[1])
+    end
+
+    @testset "a change of one document computes its own node again, and no other" begin
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        tree.expanded = IdDict{Any,Nothing}(root => nothing, root.parts[1] => nothing)
+        widget = print_document(projection, nothing, tree, nothing).output
+        read_labels() = (node = widget.roots[1];
+                         vcat([child.label for child in node.children],
+                              [child.label for child in node.children[1].children]))
+        alpha = root.parts[1]
+        nodes = Any[alpha, root.parts[2], root.notes[1], alpha.children[1], alpha.children[2]]
+        @test read_labels() == ["alpha", "beta", "gamma", "alpha one", "alpha two"]
+        before = Dict(n => _DOCTREE_LABEL_COUNTS[node] for (n, node) in enumerate(nodes))
+        under = widget.roots[1].children[1].children
+        alpha.name = "alpha*"
+        @test read_labels() == ["alpha*", "beta", "gamma", "alpha one", "alpha two"]
+        @test _DOCTREE_LABEL_COUNTS[alpha] == before[1] + 1
+        @test all(_DOCTREE_LABEL_COUNTS[nodes[n]] == before[n] for n in 2:5)
+        # The nodes under it are the same nodes.
+        @test widget.roots[1].children[1].children === under
+    end
+
+    @testset "the verb shows a tree in a tab" begin
+        root = _doctree_make()
+        editor, backend = _nav_editor(PrimitiveString("start"); tabs = true)
+        shown = show_document_tree!(root; editor)
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test shown isa ReferencedDocument
+        tree = get_document(shown)
+        @test tree isa DocumentTree && tree.root === root && tree.title == "root"
+        @test try_evaluate_reference(editor.document, get_reference(shown), nothing) === tree
+        @test _nav_has_text(backend, "alpha") && _nav_has_text(backend, "gamma")
+    end
+
+    @testset "a double click on a node opens its document in a navigator, and Back returns" begin
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        navigator = Navigator(tree)
+        editor, backend = _nav_editor(navigator)
+        click = _nav_click(backend, "gamma")
+        @test click !== nothing
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        @test get_navigator_page(navigator) === root.notes[1]
+        @test _nav_is(navigator.address, _doctree_path(root_step, FieldReferenceStep("notes"), ElementReferenceStep(1)))
+        back = _nav_click(backend, _NAV_BACK)
+        @test back !== nothing
+        _nav_press!(editor, backend, back)
+        @test get_navigator_page(navigator) === tree
+        @test navigator.address isa EmptyReference
+        @test _nav_has_text(backend, "gamma")
+    end
+
+    @testset "a double click on a row of a roster opens its item in a navigator, and Back returns" begin
+        items = CellVector(Any[_doctree_node("first"), _doctree_node("second")])
+        roster = link_roster!(Roster(CollectionItems(items); columns = ["name"], title = "Nodes"), items)
+        navigator = Navigator(roster)
+        editor, backend = _nav_editor(navigator)
+        click = _nav_click(backend, "second")
+        @test click !== nothing
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        @test get_navigator_page(navigator) === items[2]
+        @test _nav_is(navigator.address, _doctree_path(FieldReferenceStep("rows"), ElementReferenceStep(2),
+                                                       FieldReferenceStep("item")))
+        back = _nav_click(backend, _NAV_BACK)
+        @test back !== nothing
+        _nav_press!(editor, backend, back)
+        @test get_navigator_page(navigator) === roster
+        @test _nav_has_text(backend, "second")
+    end
+end
+end

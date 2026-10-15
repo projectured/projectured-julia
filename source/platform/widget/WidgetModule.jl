@@ -46,7 +46,7 @@ import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gestu
 import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
                           is_collecting_operation, join_collected_operations,
-                          operation_reference, retarget_operation
+                          operation_reference, retarget_operation, describe_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
 
@@ -97,6 +97,7 @@ export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_ope
        make_find_bar_placement_operation
 export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
        make_context_menu_binding
+export OpenPageOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window
@@ -127,6 +128,7 @@ include("FindBarViewGestures.jl")
 include("FindBarViewToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("ContextMenuOperation.jl")
+include("OpenPageOperation.jl")
 include("ContextMenuWindow.jl")
 include("DocumentComposition.jl")
 
