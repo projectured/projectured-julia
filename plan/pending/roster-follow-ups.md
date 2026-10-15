@@ -49,27 +49,42 @@ findings, which the owner asked to fix on 2026-10-15:
   not an issue"): the grid of a list keeps the print of a row by the row, and
   the table of a roster becomes a table of a list, so the grid of a list prints
   its rows. Three parts, one commit each:
-  - [ ] **2a. A place that follows its row.** A print keeps the path of its
-    place in its printer context, and a row of a list names its place by its
-    count from the head. So a kept print of a row that moves names the old row
+  - [ ] **2a. The path of a printer context is a cell.** A print keeps its
+    printer context: the fault barrier keeps it for a retry, and the dispatch
+    by path keeps it in the computation of its choice. The context holds the
+    path of the input as a value, and a row of a list names its place by its
+    count from the head. So a kept print of a row that moves gives the old row
     to every reader of that path: the dispatch by path, the base and the picks
-    of an arrangement, and the origin of a fault.
-    - `PrinterContext` holds `place`, a cell of the path where a place that can
-      move starts, or `nothing`, and `relative`, the path below it.
-      `ctx.reference` stays the name of the whole path, a property that reads
-      the cell, so a computation that reads it follows a move, as a field of a
-      document follows its cell. A context with no `place` costs what it costs
-      now. `with_place(ctx, cell)` makes a context whose place is the cell.
-    - A path that a print keeps for later reads `ctx.reference` again when it
-      is used: the base of an arrangement (`_Arrangement`), the picks
-      (`_with_picked_rows`), the path in `ReferenceDispatchingIoMap`. The copies
-      in `ConversationToWidget.jl` and `ProjectionTemplate.jl` extend the
-      context, and do not copy its path.
-    - `FaultStore.jl` (🔒) does not change: its example reads `ctx.reference`,
-      which keeps its meaning.
-    - Tests: a context with a place gives the path from the cell; a computation
-      that reads `ctx.reference` computes again when the place moves; a context
-      with no place gives its path as before.
+    of an arrangement, and the origin of a fault. The owner's form
+    (2026-10-15): the context carries the computation in a cell, which gives
+    the projection the value that is always correct. The first form, a `place`
+    field beside the path, was wrong (the owner, 2026-10-15).
+    - `PrinterContext.reference` is an `AbstractCell` of the path, and a reader
+      reads `ctx.reference[]`. A fixed path is an `ImmutableCell`, and the
+      child of a fixed path is computed at once, as now, so a context that can
+      not move costs what it costs now. The child of a path that can move is a
+      computed cell that extends the path of its parent. A constructor that
+      gets a `Reference` wraps it in an `ImmutableCell`.
+    - What a print keeps for later keeps the cell, and reads it when it is
+      used: the dispatch by path, the base of an arrangement (`_Arrangement`),
+      the picks (`_with_picked_rows`), and the origin of a fault. A printer that
+      reads the path during the print reads it in a computation of its own, or
+      with `peek`, so the computation that runs the print does not depend on
+      it.
+    - The field `reference` of `ReferenceDispatchingIoMap` has no reader, and
+      goes. `ConversationToWidget.jl` passes `ctx` and `ProjectionTemplate.jl`
+      extends the context, where each now makes a context from a copy of the
+      path.
+    - `FaultStore.jl` (🔒) has `reference = ctx.reference` in the example of
+      `record_fault!`. It becomes `ctx.reference[]` only with the owner's
+      permission for that file.
+    - Tests: the context of a fixed path holds an `ImmutableCell`; a
+      computation that reads the path of a child of a path that can move
+      computes again when the parent moves; the dispatch by path chooses again
+      when its path moves, and keeps the inner IO map for the same choice.
+    - A child of a vector (`make_reconciled_child_iomaps_cell`) is kept by its
+      object and its index, because its path held the index. With the path in
+      a cell it can be kept by its object alone; that is not part of this plan.
   - [ ] **2b. The grid of a list keeps the print of a row** (`GridList.jl`).
     - The grid keeps the print of each row by the row document itself, in an
       `IdDict` that keeps the row alive: the IO maps of its cells, the cells in
@@ -81,15 +96,16 @@ findings, which the owner asked to fix on 2026-10-15:
     - A link makes a new canvas for its row around the kept cells, with the `y`
       that follows the row before or after it. A computation must not write a
       cell (`fault.md`), so a link never moves a kept canvas.
-    - The place of a kept row is a cell of the path `children[k]`, and `k` is a
-      computation: the count of links from the head of `children` to the row,
-      walked from the head both ways in turn. So the place follows any change
-      of the list between the head and the row, and no computation writes it.
-      The count is plain data, so the stop of a computed cell keeps the readers
-      of a row whose count stays the same.
+    - The path of the context of a kept row is a computed cell (2a) that
+      extends the path of the grid by `children[k]`, and `k` is a computation:
+      the count of links from the head of `children` to the row, walked from
+      the head both ways in turn. So the path follows any change of the list
+      between the head and the row, and no computation writes it. The count is
+      plain data, so the stop of a computed cell keeps the readers of a row
+      whose count stays the same.
     - A row object that is in the list two times keeps its print only at the
-      place nearest the head. The other place prints the row again, with its
-      path fixed at the print, and the grid does not keep that print.
+      place nearest the head. The other place prints the row again, with the
+      count of its link fixed, and the grid does not keep that print.
     - The walk reads only a row that is in the list: the grid reads it when it
       links the row, and a reader of the place reaches the row through a link.
     - Tests in the test of the grid of a list: a new head with the same rows
@@ -97,7 +113,8 @@ findings, which the owner asked to fix on 2026-10-15:
       count of a moved row; the `y` of each row; a row in the list two times; a
       row that left goes out after two heads.
   - [ ] **2c. The table of a roster is a table of a list**
-    (`RosterRowsToWidget`).
+    (`RosterRowsToWidget`). The owner agreed on 2026-10-15, with the equal
+    share of the columns and the two forms of the table.
     - With an exact height in its context, the body of the table is a list of
       the cells of the rows (`made`, the same object for a row that stays),
       from the row `anchor`, a cell of the IO map. With no height, as in a print
