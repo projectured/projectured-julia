@@ -79,6 +79,15 @@ end
     @test _run(out).content == "world"
 end
 
+@testset "a string with a break prints a line for each line, and no run holds the break" begin
+    s = PrimitiveString("x = 1\nx + 1")
+    p = PrimitiveStringToTextBlock()
+    out = print_document(p, nothing, s, nothing).output
+    @test [line.elements[1].content for line in out.elements] == ["x = 1", "x + 1"]
+    s.value = "x = 1"
+    @test [line.elements[1].content for line in out.elements] == ["x = 1"]
+end
+
 # ── Selection forward ────────────────────────────────────────────────────────
 
 @testset "selection forward .value[k] → the flat caret {k}" begin

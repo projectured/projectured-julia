@@ -225,16 +225,18 @@ map_reference_backward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, referen
     _backward_string(iomap.output, reference)
 
 function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveString, ctx)
-    value_line = TextLine(TextString(() -> something(s.value, ""), p.style))
-    # When the value is empty and a placeholder is configured, show a muted hint
-    # line instead. Both lines keep a stable identity; the CellVector thunk only
-    # swaps which one is the line of the block at the empty↔non-empty boundary,
-    # and the flat selection tracks `s.value` either way.
+    # A line for each line of the value, so no run holds a break, and the flat
+    # string of the block is the value. A line whose text did not change keeps its
+    # object (`_compute_text_block_lines!`). When the value is empty and a
+    # placeholder is configured, the block is one muted hint line instead, the same
+    # object each time, and the flat selection tracks `s.value` either way.
+    previous = Ref(Pair{String, TextLine}[])
     placeholder_line = TextLine(TextString(p.placeholder, p.placeholder_style))
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
+    lines() = show_placeholder() ? TextDocument[placeholder_line] :
+              _compute_text_block_lines!(previous, something(s.value, ""), p.style)
     paths = make_output_path_cells(s, _forward_value)
-    out = TextBlock(CellVector(@computation TextDocument[show_placeholder() ? placeholder_line : value_line]),
-                   paths.selection, paths.mouse_target)
+    out = TextBlock(CellVector(@computation lines()), paths.selection, paths.mouse_target)
     SimpleIoMap(p, s, out)
 end
 
