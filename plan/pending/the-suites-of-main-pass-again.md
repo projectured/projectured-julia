@@ -104,7 +104,18 @@ known; elsewhere the origin is not found yet.
    primarily, not an end user concept". Each type that a test can make gets an atom, also a
    part of a page. A cell layout of a document counts as its document by the schema name
    (`get_document_schema_name`). Only a type that no test can make goes on the list of
-   exclusions, with its reason.
+   exclusions, with its reason. **Decided by the owner, 2026-10-15:** the 14 types of
+   the failing test now; the 36 older types of `_NO_ATOM` in a later step. **Built:** the
+   test counts a type under its schema name, and 10 atoms pass the catalog:
+   `widget/find_bar`, `layout/scroll`, `roster/roster`, `terminal/terminal`, and `task/`
+   `task`, `group`, `group_list`, `execution`, `stream` and `stream_lines`. A task atom
+   comes from one build step that has not run, so a test starts no process. **Held back:**
+   the atoms of `HighlightedText`, `FilteredText` and `TextGutter` fail the catalog testers
+   about 1300 times, because a single-step projection of the catalog has no recursion for
+   the text or the marks that they hold, the reason that marks the layouts broken; the atom
+   of `GraphicsRect` fails twice with `getindex(nothing)`. **New on `main`:** `AgentWork`,
+   `AssistantWork`, `DocumentTree`, `SystemProcess`, `SystemProcessTree`, `WorkPlan` and
+   `WorkPlanStep` have a printer and no atom (2026-10-15).
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
