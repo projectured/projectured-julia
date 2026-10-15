@@ -745,8 +745,10 @@ For each step, run the narrowest test: the test files of the step. Do not run
   - Tests with the fake `claude` of the package, on the new recordings.
   - Prepare a new version of the package and its entry in the registry. The
     owner publishes it. Then the compat bound of ProjecturedACP follows.
-  - **The code is done** (ClaudeCodeACP `976708f` and `51cc8fc`, 282 tests
-    pass). The version and the entry in the registry are not prepared yet.
+  - **The code is done** (ClaudeCodeACP `976708f`, `51cc8fc`, `f839b94` and
+    `4dfddf6`; 319 tests pass). The version and the entry in the registry are
+    not prepared yet. The bullets below are the state after the review; where
+    a later bullet says otherwise, the later one holds.
     What the code found and decided:
     - **One reader for each `claude` process** (`_follow_claude!`) replaces
       `_follow_turn!`. While a prompt runs, it gives the events to the prompt,
@@ -791,6 +793,36 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - Not checked against a real `claude`: whether `claude -p` takes
       `stop_task` on its input, the health events (their shapes come from the
       binary), and a subagent of a subagent (a unit test covers it).
+    - **What the review of the code changed** (`f839b94`, `4dfddf6`):
+      - **Which `result` ends a prompt.** A `result` ends a prompt when the
+        prompt is cancelled, when every message of the prompt was taken, or
+        when it is past the results of the turns that ran when the prompt sent
+        its message. So the error `result` of a turn that `claude` started by
+        itself does not end a prompt that `claude` has not taken yet, and a
+        prompt whose turn fails before the echo still ends. A turn starts with
+        `system/init`, or an `assistant`, `user` or `stream_event` with no
+        `parent_tool_use_id`. Limit: an event that is still in the pipe at the
+        send is not counted.
+      - A prompt that failed at its `result` no longer starts `claude` again,
+        so the background work of `claude` lives on.
+      - **A later `_session/background_task` carries only the keys that
+        changed**, with `sessionId` and `taskId`. The first one carries the
+        whole state. Step 6 merges them.
+      - The `_meta` of a subagent: a finished subagent is dropped, with its
+        state. Its parent stays known, because `claude` sends the `summary`
+        and the last `usage` in the `task_notification` after the
+        `task_updated` that made it idle. That late event sends one
+        `SubagentUpdate` with only `_meta`.
+      - `_session/stop_background_task` waits up to 10 s for the
+        `control_response` of `claude`, and answers its error.
+      - `_meta.processId` goes only to a client that advertises
+        `_meta.backgroundTasks`, so a client of version 1 sees the old updates.
+      - The plan of the plan mode of a subagent goes in the child session of
+        that subagent, and only when the editor is asked for the permission.
+      - The maps of finished subagents, finished background tasks and tool
+        calls are emptied, so a long session does not grow them.
+      - One lock covers the sends of the reader, the end of the work and a
+        restart. Work of a `claude` that crashed is `failed`.
 
 - [ ] **10. The live check and the documentation.**
   - Run the editor with a signed-in Claude Code, as the owner allowed on
