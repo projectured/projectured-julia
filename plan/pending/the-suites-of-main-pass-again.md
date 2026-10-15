@@ -1,7 +1,8 @@
 # The suites of main pass again
 
 **Status (2026-10-14): IN PROGRESS.** The owner asked to record these failures in a plan, and
-then to start step 1 with the type-in of item 7. Items 1, 3, 6, 7 and 10 are fixed.
+then to start step 1 with the type-in of item 7. Items 1, 3, 6, 7 and 10 are fixed, and items 2 and 4 pass on
+`main` with no change of their own.
 
 **Goal:** each failure of §1 is fixed, or marked with `@test_broken` and its reason, so that a
 suite on `main` shows no unmarked failure.
@@ -25,7 +26,9 @@ known; elsewhere the origin is not found yet.
    second turn sends only what came since the last answer", "a turn that never reached the
    agent is in the next prompt", "an agent that needs a sign-in gives a request, and a retry
    starts it", "a question of the agent is a form, and its values go back", and "a question of
-   the agent is the turn of the person".
+   the agent is the turn of the person". **Passes on `main` at `08fffddb2`** (2026-10-15): the whole
+   `test_platform`, which runs `test_conversation`, gives 152605 passes, 7 broken and no
+   failure.
 3. **`test_interface_api`, 2 failures** (`InterfaceApiTest.jl:46` and `:49`). The test counts
    32 declared names where it expects 31. The docstring of `WidgetProgressRing` has no line
    that starts with "Use it to". **Fixed (`564cf4394`, step 2):** the ring is a name of the
@@ -35,7 +38,8 @@ known; elsewhere the origin is not found yet.
    passes, 14 of 14, at `a9cf7bbaa`, its parent, `c345fe385` and `7e31ba460` (2026-10-14). The
    failure came in the run of the whole `test_platform`, so an earlier test of that run leaves
    a state that the pane reads. A bisect over commits can not find it; a search over the
-   order of the tests can.
+   order of the tests can. **Passes on `main` at `08fffddb2`** (2026-10-15) in the whole
+   `test_platform` too, so no search is needed.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
