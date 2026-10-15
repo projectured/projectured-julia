@@ -261,19 +261,21 @@ path_count(cim) = get_reference_steps(strip_reference_types(cim.context.referenc
     @test first_cell(grid_io, 3) === printed[3]
 end
 
-@testset "a row in the list two times prints at both places, and keeps the nearer one" begin
+@testset "a row in the list two times prints at both places, each with the path of its place" begin
     rows = label_rows(3)
     layout = grid(list_of(rows[[1, 2, 1, 3]]))
     io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(400, 200)), context())
     grid_io = io.content_iomap
     @test length(filter(t -> t[3] == "r1 c1", texts(viewport(io)))) == 2
-    nearer, farther = first_cell(grid_io, 1), first_cell(grid_io, 3)
-    @test nearer !== farther
-    @test (path_count(nearer), path_count(farther)) == (1, 3)
+    first, again, other = first_cell(grid_io, 1), first_cell(grid_io, 3), first_cell(grid_io, 2)
+    @test first !== again
+    @test (path_count(first), path_count(again)) == (1, 3)
+    # The counts of the new head find the row at two places, so the grid keeps no
+    # print of it, and keeps the print of the row that is at one place.
     getfield(layout, :children)[] = list_of(rows[[2, 1, 3, 1]])
     @test length(filter(t -> t[3] == "r1 c1", texts(viewport(io)))) == 2
-    @test first_cell(grid_io, 2) === nearer
-    @test first_cell(grid_io, 4) !== farther
+    @test first_cell(grid_io, 1) === other
+    @test first_cell(grid_io, 2) !== first && first_cell(grid_io, 2) !== again
     @test (path_count(first_cell(grid_io, 2)), path_count(first_cell(grid_io, 4))) == (2, 4)
 end
 

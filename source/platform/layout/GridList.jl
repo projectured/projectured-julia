@@ -28,7 +28,8 @@
 # head, links the prints it has, and only a new row prints. The path of the
 # cells of a kept row counts the row from the head as a computation, so it
 # follows the row, and a link makes a new canvas for the row, so no computation
-# writes a cell of a print.
+# writes a cell of a print. One walk for each head counts the rows, and the
+# count of a row reads it.
 
 # What the printer of a grid of a list keeps for its readers: the rows built so
 # far, by their index from the head, the canvas lists that it draws from, and
@@ -41,6 +42,8 @@ mutable struct GridListState
     column_aligns::Dict{Int,Any}       # the node of the alignment of each column built, when they are a list
     kept::IdDict{Any,Any}              # row document => _GridListRow, linked under this head
     kept_before::IdDict{Any,Any}       # row document => _GridListRow, linked under the head before it
+    counts::Cell                       # row document => its count from the head, for the rows near it
+    extent::Tuple{Int,Int}             # the lowest and the highest count linked under the head before
 end
 
 # The print of one row of a vector of columns, which the grid keeps by the row
@@ -123,13 +126,15 @@ function _print_grid_list(p, recursion, doc, ctx)
     total_w = Cell(@computation Int32(sum((Int(col_w[k][])::Int for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
     state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}(),
-                          IdDict{Any,Any}(), IdDict{Any,Any}())
+                          IdDict{Any,Any}(), IdDict{Any,Any}(), Cell(nothing), (1, 0))
+    set_cell_computation!(state.counts, () -> _count_grid_list_rows(doc, state))
     # A new head in `children` links its rows again from the head, and takes the
     # prints of the rows linked under the head before it; a print that no link of
     # the new head takes goes with the head after it. A grid whose children are no
     # list draws no rows.
     set_cell_computation!(state.head, () -> begin
         list = doc.children
+        state.extent = (minimum(keys(state.built); init = 1), maximum(keys(state.built); init = 0))
         empty!(state.built)
         state.kept_before = state.kept
         state.kept = IdDict{Any,Any}()
@@ -151,7 +156,7 @@ end
 # as a print that the grid can keep. The path of its cells is `children[k][c]`,
 # where `k` is the count of the row from the head: a computation for a row that
 # the grid keeps, and the `k` of this link for a row that it does not keep, a row
-# that is nearer the head at another place of the list.
+# that is at two places of the list.
 function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
                               k::Int, row)
     n = state.columns
@@ -209,14 +214,28 @@ end
 
 # The count of `row` from the head, for its print at `k`: a computation when the
 # grid keeps the print, and `k` when it does not. `linked` holds the count of the
-# last link, which the computation gives when the walk does not reach the row. A
-# row that is `===` to another, the same object or an equal value that is no
-# mutable object, is one row at two places, and the place nearest the head keeps
-# the print.
+# last link, which the computation gives when the counts of the head do not reach
+# the row, or find it at two places. A row that is `===` to another, the same
+# object or an equal value that is no mutable object, is one row at two places,
+# and the grid keeps no print of it.
 function _make_grid_list_count(doc, state::GridListState, row, k::Int, linked)
-    count = Cell(@computation something(_count_grid_list_row(doc, state, row), linked[]))
+    _is_repeated_grid_list_row(state, row) && return ImmutableCell{Any}(k)
+    count = Cell(@computation _get_grid_list_count(state.counts[], row, linked[]))
     peek(count) == k ? count : ImmutableCell{Any}(k)
 end
+
+# The count of `row` in `counts`, or `linked` for a row that the counts do not
+# reach or find at two places.
+function _get_grid_list_count(counts, row, linked::Int)
+    count = get(counts, row, nothing)
+    (count === nothing || count == _REPEATED_GRID_LIST_ROW) ? linked : count
+end
+
+# The mark in the counts of a head of a row that is at two places.
+const _REPEATED_GRID_LIST_ROW = typemin(Int)
+
+_is_repeated_grid_list_row(state::GridListState, row) =
+    get(peek(state.counts), row, nothing) == _REPEATED_GRID_LIST_ROW
 
 # The context of the cells of a row: the path of the grid and `children[k]`, with
 # the types of the print at `k`, and the count that `count` gives.
@@ -240,35 +259,40 @@ _with_grid_list_count(typed::ConcreteReference, k::Int) =
     ConcreteReference(typed.type, typed.head,
                       ConcreteReference(typed.tail.type, ElementReferenceStep(k), typed.tail.tail))
 
-# The count of `row` from the head of the children of `doc`: 1 at the head, and 0
-# and less before it; `nothing` when the walk does not reach it. The walk goes
-# from the head both ways in turn, so the place of the row that is nearest the
-# head wins. A row that the walk reads is in the list, linked or being linked, so
-# the walk goes one row past the rows linked under this head on each side, and
-# no farther.
-function _count_grid_list_row(doc, state::GridListState, row)
-    after = doc.children
-    after isa ListNode || return nothing
-    before = after.prev
-    reach = 2 + maximum(abs, keys(state.built); init = 0)
-    for i in 1:reach
-        after === nothing && before === nothing && return nothing
-        if after !== nothing
-            after.value === row && return i
-            after = after.next
+# The count of each row of the children of `doc` from the head: 1 at the head,
+# and 0 and less before it; a row that the walk meets two times is marked
+# `_REPEATED_GRID_LIST_ROW`. One walk for the head, which every count of a row
+# reads, so a change of the list computes the counts once. On each side the walk
+# goes as far as the rows linked under this head and under the head before it,
+# and reads no link past them, so it builds no row that no link built; a row that
+# is linked past it takes the count of its link until the counts are computed
+# again.
+function _count_grid_list_rows(doc, state::GridListState)
+    counts = IdDict{Any,Int}()
+    head = doc.children
+    head isa ListNode || return counts
+    lowest = min(state.extent[1], minimum(keys(state.built); init = 1))
+    highest = max(state.extent[2], maximum(keys(state.built); init = 0))
+    steps_before = max(0, 1 - lowest)
+    after = highest >= 1 ? head : nothing
+    before = steps_before >= 1 ? head.prev : nothing
+    for i in 1:max(highest, steps_before)
+        if after !== nothing && i <= highest
+            counts[after.value] = haskey(counts, after.value) ? _REPEATED_GRID_LIST_ROW : i
+            after = i < highest ? after.next : nothing
         end
-        if before !== nothing
-            before.value === row && return 1 - i
-            before = before.prev
+        if before !== nothing && i <= steps_before
+            counts[before.value] = haskey(counts, before.value) ? _REPEATED_GRID_LIST_ROW : 1 - i
+            before = i < steps_before ? before.prev : nothing
         end
     end
-    nothing
+    counts
 end
 
 # The print of `row` for its link at `k`: the print that the grid keeps, or a new
-# one. A kept print serves when the row is nearest the head at `k`, and each IO
-# map of its cells gives the output that it placed; the link reads the outputs,
-# as a print reads them.
+# one. A kept print serves when its count is `k`, the row is at no other place
+# that the counts reach, and each IO map of its cells gives the output that it
+# placed; the link reads the outputs, as a print reads them.
 function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
                              k::Int, row)
     kept = _take_kept_grid_list_row(state, row, k)
@@ -278,6 +302,7 @@ function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
 end
 
 function _take_kept_grid_list_row(state::GridListState, row, k::Int)
+    _is_repeated_grid_list_row(state, row) && return nothing
     kept = get(state.kept, row, nothing)
     kept === nothing && (kept = get(state.kept_before, row, nothing))
     kept === nothing && return nothing

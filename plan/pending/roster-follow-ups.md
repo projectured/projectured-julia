@@ -128,6 +128,7 @@ findings, which the owner asked to fix on 2026-10-15:
     - A row object that is in the list two times keeps its print only at the
       place nearest the head. The other place prints the row again, with the
       count of its link fixed, and the grid does not keep that print.
+      (Changed in the build: see below.)
     - The walk reads only a row that is in the list: the grid reads it when it
       links the row, and a reader of the place reaches the row through a link.
     - Tests in the test of the grid of a list: a new head with the same rows
@@ -150,6 +151,19 @@ findings, which the owner asked to fix on 2026-10-15:
       print, and `[c]` against the row, so a move costs no walk of the types.
     - The grid whose columns are a list (`GridColumnList.jl`) prints its rows
       again on a new head, as before.
+    - The counts: one computation for each head maps each row to its count, in
+      one walk from the head, and the count of a row reads it. A count that
+      walked from the head to its own row made about n²/2 dependency edges for
+      n rows. The walk goes on each side as far as the rows linked under this
+      head and under the head before it, and reads no link past them, so a
+      print builds only the head (the test of 100,000 rows). A row linked past
+      the walk takes the count of its link; a change of the list inside one
+      head that the counts do not reach prints the rows after it again.
+    - A row at two places: the rule "nearest place keeps the print" failed
+      under the first head, where the counts reach no row, and could give a
+      kept print the count of the other place. The rule now: a row that the
+      counts find at two places is not kept, and each of its prints takes the
+      count of its own link.
     - Tests: two testsets in `LayoutListTest.jl` read the path of a cell
       through the context that a fault barrier keeps; the test of a list
       layout goes from 51 to 69 checks. The tables of a list (250), every table

@@ -163,7 +163,7 @@ function _print_grid_column_list(p, recursion, doc, ctx)
     hgap = getfield(doc, :horizontal_gap)
     vgap = getfield(doc, :vertical_gap)
     state = GridListState(0, Dict{Int,Any}(), Cell(nothing), Cell(nothing), Dict{Int,Any}(),
-                          IdDict{Any,Any}(), IdDict{Any,Any}())
+                          IdDict{Any,Any}(), IdDict{Any,Any}(), Cell(nothing), (1, 0))
     # A new head in `column_policies` builds the columns again, and so does a
     # new head in `children` build the rows again. `column_align` is a list
     # anchored with the columns, or one alignment for every column.
