@@ -76,6 +76,9 @@ include("../../../example/platform/PrimitiveDocumentExample.jl")
 include("../../../example/platform/AppearanceDocumentExample.jl")
 include("../../../example/platform/LazyDocumentExample.jl")
 include("../../../example/platform/PaneDocumentExample.jl")
+include("../../../example/platform/RosterDocumentExample.jl")
+include("../../../example/platform/TaskDocumentExample.jl")
+include("../../../example/platform/TerminalDocumentExample.jl")
 include("../../../example/platform/NavigatorDocumentExample.jl")
 include("../../../example/platform/TreeDocumentExample.jl")
 include("../../../example/platform/WorkPlanDocumentExample.jl")
@@ -129,6 +132,11 @@ export make_list_node_document_example, make_collection_projection_example
 export make_constraint_layout_document_example, make_constraint_layout_projection_example
 export make_filtering_projection_example, make_flow_layout_document_example
 export make_graphics_canvas_document_example, make_grid_layout_document_example
+export make_scroll_layout_document_example, make_roster_document_example,
+       make_terminal_document_example, make_task_document_example,
+       make_task_group_document_example, make_task_group_list_document_example,
+       make_task_execution_document_example, make_task_stream_document_example,
+       make_task_stream_lines_document_example
 export make_horizontal_layout_document_example, make_layout_constraint_document_example
 export make_layout_document_example, make_layout_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example

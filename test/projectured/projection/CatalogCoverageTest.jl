@@ -99,8 +99,13 @@ Exposed so the gap can be inspected from the REPL while it is being closed —
 `setdiff(get_catalog_coverage_gap(), …)` is the worklist.
 """
 get_catalog_coverage_gap() =
-    sort(String[string(nameof(T isa UnionAll ? Base.unwrap_unionall(T) : T))
-                for T in setdiff(_coverage_wanted(), _coverage_covered())])
+    sort(collect(setdiff(Set(_coverage_name(T) for T in _coverage_wanted()),
+                         Set(_coverage_name(T) for T in _coverage_covered()))))
+
+# The name a type counts under: the schema of a document, so a printer declared on
+# a layout of a document, such as `ACTaskExecution`, and an atom built in another
+# layout of it count as the one document `TaskExecution`.
+_coverage_name(T) = string(ProjecturedAll.DocumentModule.get_document_schema_name(T))
 
 # ── Atoms the natural renderer cannot take ─────────────────────────────────
 # `NaturalToGraphics` sends text through `WordWrapping → TextToGraphics`, and

@@ -138,3 +138,7 @@ make_vertical_layout_document_example() =
 make_layout_constraint_document_example() =
     LayoutConstraint(WidgetLabel("Constrained");
                      min_width=80, preferred_width=160, max_width=320)
+
+# A center and a left edge, the parts that a scroll pane moves apart.
+make_scroll_layout_document_example() =
+    ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1"))

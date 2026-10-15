@@ -259,6 +259,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "alert",                make_widget_alert_atom_document_example),
     AtomicDocument(:widget, "avatar",                make_widget_avatar_document_example),
     AtomicDocument(:widget, "badge",                make_widget_badge_atom_document_example),
+    AtomicDocument(:widget, "find_bar",             make_find_bar_document_example),
     AtomicDocument(:widget, "button",                make_widget_button_document_example),
     AtomicDocument(:widget, "card",                  make_widget_card_document_example),
     AtomicDocument(:widget, "checkbox",              make_widget_checkbox_document_example),
@@ -313,6 +314,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:layout, "stack",             make_stack_layout_document_example),
     AtomicDocument(:layout, "vertical",          make_vertical_layout_document_example),
     AtomicDocument(:layout, "layout_constraint", make_layout_constraint_document_example),
+    AtomicDocument(:layout, "scroll",            make_scroll_layout_document_example),
     # Syntax atom.
     AtomicDocument(:syntax, "leaf", make_syntax_leaf_document_example),
     # Base-tier collections. They live in this slice because the example-package
@@ -332,4 +334,14 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:workplan, "step", make_work_plan_step_document_example),
     AtomicDocument(:systemprocess, "tree", make_system_process_tree_document_example),
     AtomicDocument(:systemprocess, "process", make_system_process_document_example),
+    # A roster of a collection, and a terminal that has not started its program.
+    AtomicDocument(:roster, "roster",     make_roster_document_example),
+    AtomicDocument(:terminal, "terminal", make_terminal_document_example),
+    # The documents of a task, each from one build step that has not run.
+    AtomicDocument(:task, "task",         make_task_document_example),
+    AtomicDocument(:task, "group",        make_task_group_document_example),
+    AtomicDocument(:task, "group_list",   make_task_group_list_document_example),
+    AtomicDocument(:task, "execution",    make_task_execution_document_example),
+    AtomicDocument(:task, "stream",       make_task_stream_document_example),
+    AtomicDocument(:task, "stream_lines", make_task_stream_lines_document_example),
 ]
