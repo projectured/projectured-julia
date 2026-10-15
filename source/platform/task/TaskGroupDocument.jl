@@ -80,6 +80,9 @@ make_task_group_identifier() = "T" * string(Threads.atomic_add!(_TASK_GROUP_COUN
 """The engine `TaskGroup` the document holds."""
 get_task_group(doc::TaskGroupDocument) = getfield(doc, :group)[]
 
+# A group is called by its title.
+get_document_title(doc::TaskGroupDocument) = getfield(doc, :title)[]
+
 # The facet of a group in a roster of tasks, which the tasks reach as `within.kind`:
 # the name of the group, which the list of groups shows as its kind.
 get_item_facets(::Type{TaskGroupDocument}) = [
@@ -118,6 +121,10 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             Cell(String(identifier)), Cell(0),
                             Cell(PrimitiveString("all")), Cell(groups), Cell(preparation))
     group.runtime.on_start = _make_task_group_wiring(doc)
+    # Each task knows its group and its place, so its page acts through the group.
+    for (index, document) in enumerate(documents)
+        getfield(document, :group)[][] = (doc, index)
+    end
     preparation === nothing ||
         (group.runtime.on_preparation = _make_preparation_wiring(preparation))
     doc

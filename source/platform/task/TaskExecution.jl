@@ -199,6 +199,10 @@ brings up to date.
 - `result` — the [`TaskResult`](@ref) once the task ended.
 - `runtime` — the [`TaskRuntime`](@ref) of the native layout; `nothing` in a
   shadow.
+- `stdout_page`, `stderr_page` — the page of each stream, a [`TaskStream`](@ref),
+  which a shadow holds and the native layout does not: every line of the stream,
+  with the state of its view, which stays while the shadow follows the
+  execution.
 """
 @document [M, C] struct TaskExecution
     task::AbstractTask
@@ -214,11 +218,13 @@ brings up to date.
     resident_memory::Union{Int,Nothing}
     result::Union{TaskResult,Nothing}
     runtime::Union{TaskRuntime,Nothing}
+    stdout_page::Any
+    stderr_page::Any
 end
 
 TaskExecution(task::AbstractTask) =
     TaskExecution(task, :pending, nothing, nothing, nothing, nothing, nothing,
-                  TaskOutput(), TaskOutput(), nothing, nothing, nothing, TaskRuntime())
+                  TaskOutput(), TaskOutput(), nothing, nothing, nothing, TaskRuntime(), nothing, nothing)
 
 Base.show(io::IO, execution::TaskExecution) =
     print(io, "TaskExecution(", execution.task, ", ", execution.status, ")")
@@ -251,18 +257,25 @@ const _SHADOW_FIELDS = (:task, :status, :process_id, :start_time, :end_time, :pr
     make_task_execution_shadow(execution) -> shadow
 
 The shadow of `execution` in the cell layout, which a view reads: its fields as
-they are now, and a copy of the lines of each stream, read under the lock. The
-shadow holds no runtime. Make it on the editor task.
+they are now, a copy of the lines of each stream, read under the lock, and the
+page of each stream. The shadow holds no runtime. Make it on the editor task.
 """
 function make_task_execution_shadow(execution::TaskExecution)
-    lock(execution.runtime.lock) do
+    shadow = lock(execution.runtime.lock) do
         ACTaskExecution(execution.task, execution.status, execution.process_id,
                         execution.start_time, execution.end_time, execution.progress,
                         execution.position, copy(execution.output), copy(execution.error_output),
                         execution.processor_load, execution.resident_memory, execution.result,
-                        nothing)
+                        nothing, nothing, nothing)
     end
+    shadow.stdout_page = make_task_stream(shadow, :output)
+    shadow.stderr_page = make_task_stream(shadow, :error_output)
+    shadow
 end
+
+# An execution is called by the time it started.
+get_document_title(shadow::ACTaskExecution) =
+    shadow.start_time === nothing ? "not started" : "execution " * Libc.strftime("%H:%M:%S", shadow.start_time)
 
 """
     sync_document!(shadow, execution) -> shadow

@@ -16,15 +16,19 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EventModule
 using ..FeedModule
+using ..FileSystemModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
 using ..NavigatorModule
+using ..OperationModule
 using ..PaneModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
@@ -40,7 +44,7 @@ import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_it
 import ..DomainModule: accepts_pasted_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..PaneModule: make_pane_tab_title
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,
@@ -55,6 +59,8 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        describe_task_execution, is_task_running, wait_task_execution, stop_task_execution!,
        get_task_status, finish_task_execution!, TaskFinishFailure, start_process_task!,
        sample_task_usage!
+export TaskStreamLines, TaskStream, make_task_stream, get_task_stream_output, collect_task_stream_rows,
+       find_task_stream_matches, make_task_stream_find_operation, make_task_stream_first_error_operation
 export get_default_job_count, start_task, TaskStartFailure, TaskNotStarted,
        TaskGroupSummary, TaskGroupTally, TaskGroupRuntime, TaskGroup, is_concurrent,
        format_task_group_description, format_task_group_close_description,
@@ -69,7 +75,7 @@ export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildSte
 export TaskFeedStore, get_session_task_feed_store, register_task_execution!,
        record_task_execution_sync!, has_task_feed_entries, drain_task_feed!, TaskFeed,
        make_task_feeds
-export TaskDocument, get_current_task_execution, get_task_document_status,
+export TaskDocument, find_task_document_group, get_current_task_execution, get_task_document_status,
        get_task_document_result, collect_task_document_lines, start_task!,
        wait_task_document, stop_task!, reset_task_document!, add_task_execution!,
        get_earlier_task_executions
@@ -86,12 +92,15 @@ export TaskTheme, ScaledTaskTheme
 export TaskGroupDocumentToWidgetPane, format_memory_size, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
        make_task_group_list_tab_title, build_task_graphics_entry
+export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
+       TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
        get_task_output, wait_for_task_group!, stop_tasks!, rerun_tasks!, close_task_group!,
        make_task_api
 
 include("TaskResult.jl")
 include("TaskExecution.jl")
+include("TaskStream.jl")
 include("TaskGroup.jl")
 include("BuildStep.jl")
 include("TaskFeed.jl")
@@ -100,6 +109,7 @@ include("TaskGroupList.jl")
 include("TaskGroupDocument.jl")
 include("TaskTheme.jl")
 include("TaskGroupToWidget.jl")
+include("TaskPagesToWidget.jl")
 include("TaskVerbs.jl")
 
 end # module TaskModule

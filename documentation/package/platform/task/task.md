@@ -232,8 +232,13 @@ project is a sequential group of phases, each a concurrent group of steps.
 
 `TaskDocument` is one task on the screen: the task, the native layout of its
 current execution in `running`, and the shadow of every execution of the task in
-`executions`, the newest last. It holds nothing that a kind of task knows: a view
-asks the task for its columns, its facts and its buttons.
+`executions`, the newest last, a `CellVector`, so a selection goes into the page
+of an execution. It holds nothing that a kind of task knows: a view asks the task
+for its columns, its facts and its buttons. `group` holds, in a `Ref`, the group
+document of the task and its place in it, which `wrap_task_group_document` sets
+(`find_task_document_group`); a walk and a copy of the documents do not go round
+through it. A task is called by `format_task_parameters` of its task, a group by
+its title, and an execution by the time it started.
 `start_task!(document; options...)` starts the task through `start_task` of its
 kind and answers at once; `stop_task!` and `wait_task_document` act on the
 current execution. A view reads the shadow of the current execution
@@ -313,6 +318,46 @@ The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
 the natural renderer for both panes, each with a widget renderer of its own so
 that a press reaches its button, and the slice registers them, so any
 `NaturalToGraphics` draws a tab that holds a group or the list of groups.
+
+## The pages
+
+A navigator shows a task, an execution and a stream as pages; the slice registers
+a row of the natural renderer for each. A part that leads to another page answers
+`OpenPageOperation` with the document that holds it and a path from it, so the
+navigator around the page opens it, and Ctrl+press opens it in a new tab.
+
+- **The page of a task** (`TaskDocumentToWidgetPane`): its name, its state, and a
+  link to its group; the facts of its kind, its process and its time; Stop, Run
+  again and the buttons of its kind, which act through the group of the task, so
+  the counts of the group follow, or on the task itself when it has no group; a
+  link to the page of the group of a task that is a group; its executions, the
+  newest first, each a link to its page; and the last lines of each stream of its
+  current execution, with a link to the page of the stream.
+- **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a
+  shadow: its time, its verdict, the facts of the kind of its task, its process,
+  its times, its use of the machine and its reason, and a link to the page of
+  each stream.
+- **The page of a stream** (`TaskStreamToWidget`): each shadow holds a
+  `TaskStream` for each stream, `stdout_page` and `stderr_page`, which keeps the
+  state of its view while the shadow follows its execution. A grid holds the bar
+  at its height and the lines below it, which take the rest of the height. The
+  bar holds the field of Find with ‹ and › and the count of the matches, the field
+  of the text that the lines that show hold, the follow of the end, First error
+  and Open as a file; each field is an `ObjectField` of the lines, and each
+  button answers an operation on them (`make_task_stream_find_operation`,
+  `make_task_stream_first_error_operation`). The lines
+  (`TaskStreamLines`, drawn by `TaskStreamLinesToWidget`) read the file of the
+  stream: an index of where each line starts grows as the file grows, so a
+  stream of a million lines costs the lines that fit the height. Each line shows
+  its number and its text in the colour of its mark, and the line of the current
+  match in the colour of a task that runs. A turn of the wheel moves the top by
+  three lines a notch, and the scroll bar jumps; at the last lines the page
+  follows the end again. A search reads the file on the editor task, once for
+  each text, and goes on from where it ended when the file grows.
+
+The stream page has these limits: a line longer than the page is cut, no key
+moves the lines (the wheel and the scroll bar do), the page copies no line, and a
+search of a stream of many megabytes holds the editor task while it reads.
 
 ## The verbs
 

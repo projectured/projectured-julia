@@ -25,15 +25,22 @@ and runs no process, for an example or a picture of a task.
 - `running` — the native layout of the current [`TaskExecution`](@ref), which a
   stop and a wait act on: from the start of the execution until the task waits
   to start again; `nothing` before.
-- `executions` — the shadow of every execution of the task, the newest last. A
-  view reads them; the feed of the session syncs each one while its execution
-  runs. A start again adds one and replaces none ([`add_task_execution!`](@ref)).
+- `executions` — the shadow of every execution of the task, the newest last, in
+  a `CellVector`, so a selection goes into the page of an execution and of its
+  streams. A view reads them; the feed of the session syncs each one while its
+  execution runs. A start again adds one and replaces none
+  ([`add_task_execution!`](@ref)).
 - `result_document` — the document that the kind of the task gives for the
   result of the current execution ([`get_task_result_document`](@ref)), or
   `nothing`. It computes when a view reads it, on the editor task, and stays the
   same document until the result changes, so an edit of it stays while the
   person looks at another task. A path reaches it, so a key edits it where the
   detail of the task shows it.
+- `group` — a `Ref` to the group document that holds the task and the place of
+  the task in it, `(group, index)`, which [`wrap_task_group_document`](@ref)
+  sets, or to `nothing` for a task of no group. The page of the task stops it and
+  runs it again through its group, so the counts of the group stay right. A
+  `Ref`, so a walk and a copy of the documents do not go round through it.
 
 While the document has a current execution, its shadow is the last of
 `executions` ([`get_current_task_execution`](@ref)).
@@ -43,11 +50,12 @@ While the document has a current execution, its shadow is the last of
     running::Any
     executions::Any
     result_document::Any
+    group::Any
 end
 
 function TaskDocument(task; status::Symbol = :pending, progress = nothing)
-    document = _follow_result_document!(TaskDocument(Cell(task), Cell(nothing), Cell(Any[]),
-                                                     Cell(nothing), Cell(nothing)))
+    document = _follow_result_document!(TaskDocument(Cell(task), Cell(nothing), Cell(CellVector()),
+                                                     Cell(nothing), Cell(Ref{Any}(nothing)), Cell(nothing)))
     status === :pending && return document
     execution = TaskExecution(task)
     execution.status = status
@@ -62,7 +70,19 @@ accepts_pasted_document(::TaskDocument) = false
 has_document_duplicate(::TaskDocument) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_result_document!(copy_document_fields(policy, document; running = nothing,
-                                                  executions = Any[], result_document = nothing))
+                                                  executions = CellVector(), result_document = nothing,
+                                                  group = Ref{Any}(nothing)))
+
+# A task is called by the task in one line, as the list of tasks writes it.
+get_document_title(document::TaskDocument) = format_task_parameters(getfield(document, :task)[])
+
+"""
+    find_task_document_group(document) -> (group, index) or nothing
+
+The group document that holds the task and the place of the task in it, or
+`nothing` for a task of no group.
+"""
+find_task_document_group(document::TaskDocument) = getfield(document, :group)[][]
 
 """
     remove_task_output_files!(document::TaskDocument) -> document
@@ -200,8 +220,7 @@ the executions, the newest last. Call it on the task that reads the document,
 when the execution starts.
 """
 function add_task_execution!(document::TaskDocument, execution::TaskExecution, shadow)
-    set_cell_value!(getfield(document, :executions),
-                    push!(copy(getfield(document, :executions)[]), shadow))
+    push!(getfield(document, :executions)[], shadow)
     set_cell_value!(getfield(document, :running), execution)
     document
 end

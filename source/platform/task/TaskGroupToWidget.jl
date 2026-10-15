@@ -860,8 +860,9 @@ end
     build_task_graphics_entry(; measure = nothing, appearance = Appearance())
         -> Vector{Pair{Type,Any}}
 
-The rows of the natural renderer that draw a group of tasks as its pane and the
-groups of the session as the Tasks pane. Each pane draws with the scaled
+The rows of the natural renderer that draw a group of tasks as its pane, the
+groups of the session as the Tasks pane, and a task, an execution and a stream
+as their pages. Each pane draws with the scaled
 `TaskTheme` of `appearance`, and its widgets draw with a widget renderer of
 their own, which also takes a click back to the button under it. `measure` is
 what the registry gives every row; a row made by hand measures with the font
@@ -881,13 +882,27 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     documents = Pair{Type,Any}[type => Base.invokelatest(make_graphics_projection, type;
                                                          measure = measured, appearance = appearance)
                                for type in collect_graphics_projection_types()]
-    widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
-        WidgetToGraphics(; measure = measured, theme = get_scaled_theme!(appearance, WidgetTheme),
-                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
-        documents)))
+    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
+    make_widget_rows() = WidgetToGraphics(; measure = measured, theme = widget_theme,
+                                          graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch
+    widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(make_widget_rows(), documents)))
+    # The page of a stream draws the fields of its bar and its lines too. A row of lines is a line of the font of the widgets with the padding of
+    # a cell and a rule, as the table draws it.
+    table = last(only(row for row in make_widget_rows() if first(row) === WidgetTable))
+    row_step = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measured, "M", widget_theme.font).height) +
+                                               2 * Int(table.cell_padding.top[]) + 1)
+    lines = TaskStreamLinesToWidget(; row_step, inline_gap = styles.inline_gap, warning_color = styles.warning_color,
+                                    error_color = styles.error_color, info_color = styles.info_color,
+                                    running_color = styles.running_color, muted_color = styles.muted_color)
+    stream_widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
+        make_object_field_widget_dispatch(make_widget_rows()), documents, Pair{Type,Any}[
+            TaskStreamLines => ChainingProjection(lines, VerticalLayoutToGraphicsCanvas())])))
     Pair{Type,Any}[
         TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),
-        TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets())]
+        TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
+        TaskDocument => ChainingProjection(TaskDocumentToWidgetPane(; styles...), widgets()),
+        ACTaskExecution => ChainingProjection(TaskExecutionToWidgetPane(; styles...), widgets()),
+        TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.stack_gap), stream_widgets())]
 end
 
 function __init__()
