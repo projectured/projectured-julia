@@ -68,7 +68,7 @@ The nearest navigator around the tree takes the open, shows the document of the 
 
 ### The verb
 
-`show_document_tree!(root; title, editor)` shows a tree in a tab of the window of `editor`, and answers the tree in its window as a `ReferencedDocument`, as `show_roster!` does. A `DocumentTree` in place of a root shows with its own title. The verb is declared to the assistant, and its system text names it.
+`show_document_tree!(root; title, editor)` shows a tree in a tab of the window of `editor`, and answers the tree in its window as a `ReferencedDocument`, as `show_roster!` does. It runs through `run_on_editor_task!`, so any task can call it, and with no `title` it reads the label of the root there. A `DocumentTree` in place of a root shows with its own title. The verb is declared to the assistant, and its system text names it.
 
 ## How it fits
 

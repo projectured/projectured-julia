@@ -55,7 +55,7 @@ The editor task never reads `/proc`. `drain_system_process_tree!(tree; now, inte
 
 1. When no view reads `roots` of the tree (`has_dependent_cells`), it does nothing. A tree that nobody looks at costs no read.
 2. When a read ended, it takes the result from the sampler under its lock and syncs it.
-3. When no read runs and `interval` seconds passed since the last start, it starts the next read on a task of its own (`Threads.@spawn`). The task writes only into the sampler, under its lock. A read that throws is a warning, and the next interval reads again.
+3. When no read runs and `interval` seconds passed since the last start, it starts the next read on a task of the default pool (`Threads.@spawn :default`), never on the thread of the loop. The task writes only into the sampler, under its lock. A read that throws is a warning, and the next interval reads again.
 
 A view shows a sample at most one interval old. `compute_system_process_tree_deadline` answers the seconds until the next sample, or `nothing` while no view reads the tree, so a window that shows no tree sleeps.
 
@@ -66,7 +66,7 @@ No registry of trees exists. Each owner drains its own trees from a feed that it
 | Owner | Feed |
 | --- | --- |
 | `show_system_process_tree!` | `SystemProcessFeed`: the first tree adds one to `editor.feeds`, and the next trees reuse it |
-| the tree of a running task | the feed of the tasks, `drain_task_feed!`, which finds the tree through the owner of each execution ([task.md](../task/task.md)) |
+| the tree of a running task | the feed of the tasks, `drain_task_feed!`, which finds the tree through the owner of each execution that changed; the sampler of the process writes the execution four times a second ([task.md](../task/task.md)) |
 | the tree of the processes of an agent | the feed of the agent events ([assistant.md](../assistant/assistant.md)) |
 
 The feed holds its trees strongly, because a tree is an immutable struct and a `WeakRef` to it does not hold its identity. A tree that no view reads costs one check in each drain.
@@ -102,7 +102,7 @@ The task slice makes a `SystemProcessTree` of the process of the current executi
 
 ### The verbs
 
-`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It must run on the editor task. `describe_system_process_tree(root_process_ids)` reads `/proc` once and answers a `Text`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
+`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It runs through `run_on_editor_task!`, so any task can call it. `describe_system_process_tree(root_process_ids)` reads `/proc` once, on the task that calls it, because it reads no document, and answers a `Text`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
 
 ## Try it
 
@@ -122,7 +122,7 @@ A test reads a folder of fixed files: write `stat`, `statm`, `cmdline` and `task
 
 The slice uses the collection, focus, graphics, layout, projection, roster, style, tree and widget slices of the platform. It loads after `tree`, and the task, assistant and application slices use it.
 
-The slice owns the only reader of `/proc` of the platform. `sample_task_usage!` of the task slice calls `read_system_process_usage`. `format_memory_size` is a function of this slice, because the label of a process needs it, and `ProjecturedPlatform` exports it.
+The slice owns the only reader of `/proc` of the platform. The sampler of a process of the task slice, off the loop, calls `read_system_process_usage` through `sample_task_usage!`. `format_memory_size` is a function of this slice, because the label of a process needs it, and `ProjecturedPlatform` exports it.
 
 ## Design decisions
 

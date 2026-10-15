@@ -11,6 +11,7 @@ generics, so this module names none of them.
 """
 module TreeModule
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule

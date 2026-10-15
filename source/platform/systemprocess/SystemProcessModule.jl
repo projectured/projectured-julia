@@ -22,6 +22,7 @@ process.
 """
 module SystemProcessModule
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule

@@ -94,25 +94,27 @@ subagents and background tasks run.
 See also `show_document_tree!`, which shows any document as a tree.
 """
 function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
-    root = editor.document
-    shown = _get_shown_assistant_work(editor, a)
-    if shown === nothing
-        work = AssistantWork(a)
-        title = "Work · " * compute_assistant_overview_title(a)
-        tab = open_pane!(Navigator(work); title, editor)
-        route = get_reference_steps(strip_reference_types(get_reference(tab)))
-    else
-        work, route = shown
-        # The operation of the focus alone: `focus_pane!` would also print the
-        # layout of the window, which walks it.
-        tab_path = annotate_reference_types(root, Reference(route...))
-        focus = make_focus_pane_operation(tab_path; editor)
-        focus === nothing || evaluate_operation(editor, focus)
+    run_on_editor_task!(editor; description = "show_assistant_work!") do
+        root = editor.document
+        shown = _get_shown_assistant_work(editor, a)
+        if shown === nothing
+            work = AssistantWork(a)
+            title = "Work · " * compute_assistant_overview_title(a)
+            tab = open_pane!(Navigator(work); title, editor)
+            route = get_reference_steps(strip_reference_types(get_reference(tab)))
+        else
+            work, route = shown
+            # The operation of the focus alone: `focus_pane!` would also print the
+            # layout of the window, which walks it.
+            tab_path = annotate_reference_types(root, Reference(route...))
+            focus = make_focus_pane_operation(tab_path; editor)
+            focus === nothing || evaluate_operation(editor, focus)
+        end
+        # The work is the content of the navigator that the tab holds.
+        content = FieldReferenceStep("content")
+        reference = Reference(route..., content, content)
+        ReferencedDocument(work, annotate_reference_types(root, reference))
     end
-    # The work is the content of the navigator that the tab holds.
-    content = FieldReferenceStep("content")
-    reference = Reference(route..., content, content)
-    ReferencedDocument(work, annotate_reference_types(root, reference))
 end
 
 # The work page of `a` that a tab of a window of `editor` shows, and the steps from

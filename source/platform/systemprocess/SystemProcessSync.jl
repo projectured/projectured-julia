@@ -118,9 +118,9 @@ end
 
 The step of the sample of `tree` on the editor task, and how many reads it
 synced. While a view reads `roots` of the tree, it syncs a read that ended, and
-starts a new read on a task of its own when none runs and `interval` seconds
-passed since the last start. A tree that no view reads does nothing, so a tree
-that nobody looks at costs no read of `/proc`.
+starts a new read on a task of the default pool when none runs and `interval`
+seconds passed since the last start. A tree that no view reads does nothing, so a
+tree that nobody looks at costs no read of `/proc`.
 
 The owner of a tree calls it from a feed of its window: a
 [`SystemProcessFeed`](@ref), or the feed of the tasks for the tree of a task.
@@ -145,7 +145,7 @@ function drain_system_process_tree!(tree::SystemProcessTree; now::Real = time(),
     if sampler.reading === nothing && now - sampler.started_at >= interval
         sampler.started_at = Float64(now)
         root_process_ids = collect(Int, tree.root_process_ids)
-        sampler.reading = Threads.@spawn _read_into_sampler!(sampler, root_process_ids)
+        sampler.reading = Threads.@spawn :default _read_into_sampler!(sampler, root_process_ids)
     end
     synced
 end

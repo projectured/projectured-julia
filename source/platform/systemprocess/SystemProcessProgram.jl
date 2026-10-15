@@ -10,8 +10,7 @@ Show the processes under `root_process_ids` as a tree in a tab of the window of
 `editor`, and answer the tree in its window. Each node says the process id, the
 command, the processor load and the memory, and a double click on a node opens
 the page of its process, with its facts and the buttons Interrupt and Stop. The
-tree reads `/proc` once a second while the tab shows it. Call it on the task of
-the editor.
+tree reads `/proc` once a second while the tab shows it.
 
 Use it to watch what a program started: the compilers of a build, the workers
 of a simulation, the shells and the commands of a terminal.
@@ -25,10 +24,12 @@ text, and `show_document_tree!`.
 """
 function show_system_process_tree!(root_process_ids; title::AbstractString = _format_tree_title(root_process_ids),
                                    editor = get_evaluation_editor())
-    tree = SystemProcessTree(root_process_ids; title)
-    feed = _get_system_process_feed!(editor)
-    push!(feed.trees, tree)
-    show_document_tree!(tree; title, editor)
+    run_on_editor_task!(editor; description = "show_system_process_tree!") do
+        tree = SystemProcessTree(root_process_ids; title)
+        feed = _get_system_process_feed!(editor)
+        push!(feed.trees, tree)
+        show_document_tree!(tree; title, editor)
+    end
 end
 
 # The feed of the trees of processes of `editor`, which the first tree adds.
@@ -47,7 +48,8 @@ end
 The processes under `root_process_ids` as text, read from `/proc` once: a line
 for each process, indented under its parent, with the process id, the command,
 the state and the resident memory. A process id that does not run has no line,
-and a system with no `/proc` says so.
+and a system with no `/proc` says so. It reads no document, so it runs on the
+task that calls it.
 
 Use it to see in one call what a program started, and what each part of it
 does now.

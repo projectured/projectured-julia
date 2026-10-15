@@ -138,11 +138,13 @@ A `Cmd` starts in a process group of its own. `stop_task_execution!` sends
 the compilers of `make`, for example — and a program that catches the signal
 can still finish its work. The status says `:cancelling` until the process
 ends. A Ctrl+C at the REPL does not reach the group.
-`sample_task_usage!` reads the processor time and the resident memory of the
-process with `read_system_process_usage`, which the slice
-[systemprocess.md](../systemprocess/systemprocess.md) holds, and so reads
-`/proc` in one place. Both the load of a task and the load of a process there
-divide the ticks by `get_clock_ticks_per_second`.
+A sampler of each process that runs calls `sample_task_usage!` four times a
+second, on a task of the default pool, off the loop. It reads the processor time
+and the resident memory of the process with `read_system_process_usage`, which
+the slice [systemprocess.md](../systemprocess/systemprocess.md) holds, and so
+reads `/proc` in one place, and it writes the execution, which notes it as
+changed in the store of the feed. Both the load of a task and the load of a
+process there divide the ticks by `get_clock_ticks_per_second`.
 
 ## A group of tasks
 
@@ -249,7 +251,7 @@ current execution. A view reads the shadow of the current execution
 `get_task_document_result` and `collect_task_document_lines` read its status, its
 result and its lines.
 
-`process_tree` is a computed field of `TaskDocument`, as `result_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the sample of the tree at each drain, for each entry whose tree a view read; a `TaskDocument` and the slot of a group of tasks both answer the step. So a build or a simulation run shows its compilers or its workers with no code in its domain.
+`process_tree` is a computed field of `TaskDocument`, as `result_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the step of the tree for each execution that changed, when a view read its tree; a `TaskDocument` and the slot of a group of tasks both answer the step. The sampler writes the execution of a process that runs four times a second, so the tree of a running task takes its step at each drain, and the feed of the tasks already wakes the window then; the tree needs no wake of its own. The read of the tree runs off the loop, as for any tree. So a build or a simulation run shows its compilers or its workers with no code in its domain.
 
 A start again, or a run again of a group, adds an execution and replaces none
 (`add_task_execution!`). The earlier executions keep their own results
