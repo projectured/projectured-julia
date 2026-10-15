@@ -291,3 +291,10 @@ findings, which the owner asked to fix on 2026-10-15:
   `documentation/package/platform/roster/roster.md`, with the counts of steps 2
   to 4. The place that follows its row in the document of the projection
   system, and the kept rows in the document of the layout.
+  - Done 2026-10-15 for steps 2 and 3: `projection-system.md` (the path of a
+    context is a cell), `layout.md` (a container places the outputs of its
+    children apart from their print; the forwarders; the kept rows of a grid
+    of a list; a body of `nothing`), `roster.md` (the table with a height, the
+    move of the head, the cost of S4b-w), `cell.md` (the list of readers). The
+    documentation guard passes. The time of step 4 goes into `roster.md` when
+    it is measured.

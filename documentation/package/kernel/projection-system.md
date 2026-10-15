@@ -98,12 +98,27 @@ The two extra arguments are essential:
   editor's document root to the *current* input, plus the range that the
   parent gives on each axis (`minimum_width`/`maximum_width`,
   `minimum_height`/`maximum_height`: exact, bounded or free) and an open
-  `properties` Dict. Each
+  `properties` Dict. The `reference` is a cell of the path, and a reader reads
+  it with `ctx.reference[]`. A fixed path is an `ImmutableCell`, computed at
+  once, and the child of a fixed path is fixed too, so it costs what a plain
+  path costs. The path of a place that can move after the print, such as a row
+  of a list counted from its head, is a computation, a `Cell`. A print that
+  keeps its context reads the path that holds when it reads: the fault barrier
+  keeps it for a retry and for the origin of a fault, and the dispatch by path
+  reads it in the computation of its choice. A printer that reads the path
+  during its print reads it with `peek(ctx.reference)` or in a computation of
+  its own, so the computation that runs the print does not depend on it. Each
   projection extends the reference before recursing into a child by calling
-  `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`), so every
-  projection's context carries where it sits in the original document. This is
+  `make_child_context(ctx, step…)` or `make_child_context(ctx, full_path)`, so every
+  projection's context carries where it sits in the original document.
+  `make_reference_cell(f, ctx)` makes a cell of `f` of the path of `ctx`: an
+  `ImmutableCell` when the path is fixed, else a computation.
+  `make_child_context(ctx, cell)` gives a child the cell as its path, and
+  `make_child_context(ctx, reference::Reference)` gives it a fixed path. This is
   what enables [ReferenceDispatchingProjection](../platform/projection/higher-order-projections.md) to
-  switch behaviour based on document-root-relative location. The top-level call
+  switch behaviour based on document-root-relative location. It chooses again
+  when its path moves, and it keeps the inner IO map when the choice is the same
+  projection. The top-level call
   passes a fresh `PrinterContext()` (whose reference is
   `EmptyReference()`).
 
@@ -490,7 +505,7 @@ JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToTe
    └─────────────────── read_intent chain ◄──── KeyPress / MouseClick ─────────────────┘
 ```
 
-Forward, each step extends the `context`'s reference path (via
+Forward, each step extends the path of the `context` (via
 `make_child_context`) so child projections carry their position relative to the
 document root, and wires its output selection with `map_reference_forward`.
 Backward, each step's IoMap is visited in reverse, with each projection's

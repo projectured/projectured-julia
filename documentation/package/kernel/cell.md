@@ -83,6 +83,8 @@ evaluation on one task never records a reader for an evaluation on another task:
 
 So no code declares a dependency. A read records it.
 
+**The list of readers.** A run detaches its cell from every cell that it read before the run starts. So the reader of a read in a run is new to the list of the cell that it reads, unless the run read that cell already. `_register_dependent!` looks at the last entry of the list and puts the reader at the end, with no scan. A run that reads a cell again after another reader came puts a second entry of itself in the list. The next run of that reader, or a write to it, removes both entries, because a detach removes every entry of its reader. `_sweep_dependents!` removes the entries of collected readers when a list grows to more than twice its length after its last sweep plus 8, and every detach sweeps too. So a list stays within about twice the readers that were alive at its last sweep. The cell keeps the length after the sweep in the field `swept_length`.
+
 ## Invalidation
 
 The engine marks at once, and it computes only on a read:

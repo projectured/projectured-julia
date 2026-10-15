@@ -22,6 +22,10 @@ A roster with no link has no rows. A window links a roster when it shows it, wit
 
 **The table.** `RosterToGraphics` prints the rows through the recursion of the renderer at the path `rows`. So an entry of an arrangement at `rows` puts a filter, a sort, a group or the first items before the printer of the rows, as at any collection, and the bar shows the chips. A pick of a filter or a sort keeps the element type of a `CellVector`, so the picked rows are a `CellVector{RosterRow}` too, and `RosterRowsToWidget` prints them as a `WidgetTable`: a header with the key of each column, and one row of cells for each row.
 
+**A table with a height.** Where the context gives the rows an exact height, as a tab does, the body of the table is a list of the rows from the row at its head (`_RosterTableView.anchor`), built with `make_index_list`. The table builds only the rows that it shows, fills the height and scrolls its rows. The cells of a row are the same object while the row stays, so the grid of the list keeps the print of a row that a filter or a sort keeps. Every column takes an equal share of the width, and the width of its header at least, because a table of a list measures no cell for a column. A row is as tall as its cells. Where no height is given, as in a print with no window, the body is a vector of every row, and a column is as wide as its widest cell. A filter that keeps no row gives a body of `nothing`, a list with no rows.
+
+When the table moves its head more than 200 rows from the head, it writes `cells`. The roster turns that write into a write of `anchor`, and it drops the shift of the selection, because the selection of the rows names a row of `rows` and the maps place it from the anchor.
+
 A cell whose value is a document shows that document, the same object as in its item. So a key in that cell edits the item through the reader of the document, and the history of the window records the edit. A cell whose value is not a document shows a label of its text. A press on a label selects the item of the row, so the context menu is the menu of the item. A label takes no key: no widget writes a field of a target as text. In a navigator, the menu of a row has Open as a page and Open in a new tab, and Ctrl+Return opens the selected item, at the place where the content holds it when its domain answers it ([navigator.md](../navigator/navigator.md)); so a roster needs no link of its own.
 
 **A file.** A file that keeps a tab with a roster saves its source, its columns and its title (`pred_arguments`), and no row and no link. The sources `CollectionItems`, `ItemsWithin`, `StoreRecords` and `TabDocuments` say that a file can build them (`is_pred_constructible`).
@@ -97,9 +101,11 @@ The cell engine computes only what a change invalidated and what the screen read
 
 - **A value of text.** It has a cell that holds its label, and only the text of the label reads the value. So a new value draws its label again, and no other cell of the table.
 - **The grid of the table.** It holds the heights of all rows in one cell and the widths of all columns in another. A label that draws again keeps its size when its text keeps its width, and a computation that gives the plain value that it had stops the walk there: the grid places nothing again. A label that changes its size makes the grid place again the rows below it, or the columns after it.
-- **A new list of rows.** A change that a filter or a sort sees makes a new list of rows, and the table prints every row again: about 44 computations for each row.
+- **A new list of rows.** A change that a filter or a sort sees makes a new list of rows. A table with no height prints every row again, at about 44 computations for each row. A table with a height keeps the print of a row that stays, as the paragraph above says.
 
 A change that gives a value that a reader already has costs nothing more when it is plain data, by a write or by a computation. The undo buffer writes `has_unsaved_edits`, so a key in a file that has edits invalidates no row.
+
+A table with a height keeps the print of a row that a new list of rows keeps. The cost was measured per step with 50 files and a filter that a save moves file 1 in or out of, in a window, on 2026-10-15. A change then costs about 1572 computations, where a print of the whole table again costs about 2179. A save moves every row after file 1, so each of those rows checks its path and the dispatch of each cell again. That costs about 33 computations for a row, where a print of the row costs about 45.
 
 The counters measured this on a headless window, with the walk of the paint counted, for each step after the first:
 
@@ -116,7 +122,7 @@ The plan in [roster-table-cost.md](../../../../plan/done/roster-table-cost.md) h
 
 ## Limits
 
-- The table builds a row of widgets for each row of the roster. A roster of more than about 1000 rows needs the lazy rows that a table of a list has, which the roster table does not use yet.
+- The table builds a row of widgets for each row of the roster. A table with no height, as in a print with no window, builds every row, and a roster of more than about 1000 rows is slow there. A table with a height builds only the rows that it shows.
 - A file can not keep an arrangement: an entry holds a `Reference`, and the pred notation can not write a kernel `Reference`. A `CollectionItems` with a `Reference` can not be saved for the same reason.
 - A source can not join the items of two sources.
 - A cell whose value is not a document takes no key.
