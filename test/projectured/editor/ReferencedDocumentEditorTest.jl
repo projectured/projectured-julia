@@ -289,7 +289,7 @@ function test_referenced_document_editor()
     @testset "an operation routed into a file tab is recorded in the file's history" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_document(people_tab).content.content.content   # the scroll pane, the file, its history
+        file_history = get_file_content(find_page_file(get_document(people_tab).content))   # the history of the file of the page
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         name = extend_reference(EmptyReference(), ElementReferenceStep(2), FieldReferenceStep("entries"),
                                 ElementReferenceStep(1), FieldReferenceStep("value"))
@@ -305,7 +305,7 @@ function test_referenced_document_editor()
     @testset "the editing verbs record an edit in the history of the file, and an undo takes it back" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_document(people_tab).content.content.content
+        file_history = get_file_content(find_page_file(get_document(people_tab).content))
         count = length(get_document(people))
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
@@ -338,14 +338,17 @@ function test_referenced_document_editor()
         @test occursin("hello", repr(text))
     end
 
-    # A file tab shows its file in a scroll pane, made where the tab is made.
+    # A file tab shows the page of its file, and the page holds the file in a scroll
+    # pane, made where the tab is made.
     @testset "a long file tab scrolls, and an edit, a save and an open go through its scroll pane" begin
         long_directory = mktempdir()
         long_path = joinpath(long_directory, "long.json")
         write(long_path, "[" * join(("{\"n\": $i}" for i in 1:60), ", ") * "]")
         long_editor = _make_referenced_application(long_directory; paths = [long_path])
         long_tab = find_pane("long.json"; editor = long_editor)
-        pane = get_document(long_tab).content
+        page = get_document(long_tab).content
+        @test page isa FilePage
+        pane = page.content
         @test pane isa WidgetScrollPane && is_file_document(pane.content)
         items = get_edited_document(long_tab)
         @test get_document(items) isa JsonArray

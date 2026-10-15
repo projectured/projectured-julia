@@ -41,8 +41,10 @@ const _FILE_PAGE_FIRST_STEPS = (FieldReferenceStep("children"), RangeReferenceSt
 const _FILE_PAGE_SECOND_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
 
 function print_document(p::FilePageToWidget, recursion, page::FilePage, ctx)
+    # The content fills the height that the band leaves, so a long file scrolls in
+    # its scroll pane and the band stays.
     output = VerticalLayout(CellVector(@computation _arrange_file_page(p, page)), Cell(:left), Cell(0),
-                            Cell(Fill), Cell(nothing), Cell(nothing))
+                            Cell(Fill), Cell(Fill), Cell(nothing))
     iomap = SimpleIoMap(p, page, output)
     # The layout passes a key by its own selection, so it carries the part of the
     # path of the page below it. The content is a document of the page, which
@@ -59,7 +61,7 @@ function _arrange_file_page(p::FilePageToWidget, page::FilePage)
 end
 
 # The row of `band`: its sentence, and a button for each choice, whose click answers
-# the operation of the choice.
+# the operation of the choice. The row takes the height of its content.
 function _make_file_band_row(p::FilePageToWidget, band::FileBand)
     sentence = WidgetLabel(band.message; style = WidgetStyle(; label_text_color = p.text))
     buttons = Any[WidgetButton(label; gestures = GestureBinding[
@@ -67,8 +69,9 @@ function _make_file_band_row(p::FilePageToWidget, band::FileBand)
                                      description = label, domain = "file")])
                   for (label, operation) in band.choices]
     row = HorizontalLayout(Any[sentence, buttons...]; gap = 12, vertical_align = :center)
-    WidgetComposite(Any[row]; padding = Inset(6, 10, 6, 10),
-                    style = WidgetStyle(; content_color = p.surface, padding_color = p.surface))
+    band_widget = WidgetComposite(Any[row]; padding = Inset(6, 10, 6, 10),
+                                  style = WidgetStyle(; content_color = p.surface, padding_color = p.surface))
+    LayoutConstraint(band_widget; height = Content)
 end
 
 # The steps from the layout to the content, for the arrangement that the page

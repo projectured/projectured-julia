@@ -1030,8 +1030,10 @@ function test_application()
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
                 @test group !== explorer
                 # The group of the files, where a file from the explorer opens too. A
-                # file tab shows its file in a scroll pane.
-                @test any(tab -> tab.content isa WidgetScrollPane && is_file_document(tab.content.content),
+                # file tab shows the page of its file, which holds the file in a
+                # scroll pane.
+                @test any(tab -> tab.content isa FilePage && tab.content.content isa WidgetScrollPane &&
+                                 is_file_document(find_page_file(tab.content)),
                           group.tabs)
             end
 
