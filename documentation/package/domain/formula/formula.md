@@ -10,7 +10,7 @@ The Formula domain, `ProjecturedFormula`, holds named formulas that refer to eac
 
 | Type | Fields that matter |
 | --- | --- |
-| `FormulaFormula` | `name`, `code` (a `JuliaDocument`, a `MathDocument` or a bare `PrimitiveNumber`), `result` (computed), `display_mode` (`:code`, `:result` or `:both`) |
+| `FormulaFormula` | `name`, `code` (a `JuliaDocument`, a `MathDocument` or a bare `PrimitiveNumber`), `draft` (the code that edit mode edits, or `nothing`), `result` (the stored value) with `result_key` and `is_computing`, `current_value` (the value of the code now, for code to read), `display_mode` (`:code`, `:result` or `:both`) |
 | `FormulaEnvironment` | `formulas`, a `CellVector{FormulaFormula}`: the scope in which names resolve, one sheet |
 | `FormulaInsertion` | the placeholder |
 
@@ -22,11 +22,19 @@ A formula refers to another by its name. `C = A + B` holds two identifiers, and 
 
 ### Evaluation
 
-`wire_result!(formula, environment)` sets the function of the `result` cell. The function builds the Julia `Expr` of the code with `make_julia_expression`, so every Julia node evaluates, a lambda too. It binds each free name that resolves in the environment to the value of that formula in a `let` block, and evaluates the block in a scratch module that is made once. The `let` is the innermost scope, so the names of the environment win over a Julia global: a formula named `pi` means that formula. The read of each dependency's `result` records the dependency, so a change of one formula computes its dependents again. `FormulaEnvironment(formulas)` wires every formula that it holds.
+The code of a formula is the code of a person, so it can take any time. A view therefore shows only the stored value, `result`, and no print runs the code. The value is any value: a number, a vector, a function. So `F = x -> x^2` and `G = F(3)` give `9`. The views show it on one line: a float to six digits, and another value in its `text/plain` form, or its compact form when that form takes more lines. A view shows `⋯` while a computation of the formula runs.
 
-The `result` holds the value itself, any value: a number, a vector, a function. So `F = x -> x^2` and `G = F(3)` give `9`, and `get_formula_value` gives the value. The views show the value on one line: a float to six digits, and another value in its `text/plain` form, or its compact form when that form takes more lines.
+`ComputeFormulasOperation(environment, formulas)` computes formulas again, each after the formulas of the list that it names. While the loop of the editor runs, the formula task of that editor computes them, one at a time, off the loop: the loop prepares each job through the door (the `Expr` of the code with `make_julia_expression`, and the stored value of each formula that it names), the task runs the code in the scratch module of the editor, and `ReplaceFormulaResultOperation` brings the value back. With no loop, as in a test that drives the frames or a script with no editor, the formulas compute at once on the task that applies the operation. The code runs in a `let` block that binds each free name that resolves in the environment to the value of that formula. The `let` is the innermost scope, so the names of the environment win over a Julia global: a formula named `pi` means that formula.
 
-An error and a cycle do not raise. The result becomes a `FormulaError`, which shows as `#ERROR! …` or `#CYCLE!`, so a broken formula does not break the reactive graph. A formula that reads a `FormulaError` gives the same value on, as a spreadsheet does. Before it reads any result, the evaluation walks the names of the code through the environment, and a formula that reaches itself gives `#CYCLE!`. The walk reads the code and the name of each formula on the way, so each formula of a cycle computes again when a person breaks the cycle. `would_create_cycle(environment, from, to)` is the check that an editor runs before it adds a reference.
+A stored value keeps `result_key`, the key of the code and the inputs that it came from (`compute_formula_key`): the hash of the text of the code, and of the key of the stored value of each formula that the code names. A value that comes back for code that changed meanwhile is dropped, and the formula computes again. A new value computes again each formula that names the formula; an equal value does not, so a cycle ends. A computation starts at a commit, when a window acquires the sheet (`acquire_document!`, as when a tab opens with it), and at a new value of a formula that the code names. A key starts none.
+
+Code that needs a value reads `get_formula_value`, which answers the value for the code and the inputs now and computes it on the task that calls it: a script that adds a formula reads its value at once. `wire_result!(formula, environment)` wires that `current_value` cell, and `FormulaEnvironment(formulas)` wires every formula that it holds. No print reads it; a view reads `get_formula_result`.
+
+An error and a cycle do not raise. The value becomes a `FormulaError`, which shows as `#ERROR! …` or `#CYCLE!`. A formula that reads a `FormulaError` gives the same value on, as a spreadsheet does. Before it reads any value, the evaluation walks the names of the code through the environment, and a formula that reaches itself gives `#CYCLE!`. `would_create_cycle(environment, from, to)` is the check that an editor runs before it adds a reference.
+
+### Edit mode
+
+A formula edits as a cell of a spreadsheet does. A key reads at the stage nearest the output, and its operation comes up to the sheet as a path from it. In value mode, the sheet rule turns a write of the code of a formula into `BeginFormulaEditOperation`, which makes `draft` a copy of the code, and the same write of the draft. A view then shows the draft in place of the code, and no value, because the stored value belongs to the code. In edit mode, the bindings of `FormulaFormula` read Enter and Escape first, even inside the code: Enter gives `CommitFormulaOperation`, which writes the draft into the code as one operation and computes the formula; Escape gives `CancelFormulaEditOperation`, which drops the draft. Each leaves the selection on the whole code. An undo of a commit restores the old code, the draft and the old value together.
 
 ### Math code
 
@@ -44,7 +52,7 @@ The graphics rows draw a formula with math code as a `MathAssignment` of the mat
 
 ### The file
 
-The domain has no file type and no parser of its own. It stores formulas in `.pred` files of the serialization slice. `pred_arguments` writes the name, the code as text, the notation (`:math` or `:julia`) and the display mode. It does not write the result, because a load computes it again. `make_pred_document` reads the code back with `parse_math` or `parse_julia`, by the notation.
+The domain has no file type and no parser of its own. It stores formulas in `.pred` files of the serialization slice. `pred_arguments` writes the name, the code as text, the notation (`:math` or `:julia`) and the display mode. It does not write the value: a window that acquires the sheet computes it again. `make_pred_document` reads the code back with `parse_math` or `parse_julia`, by the notation.
 
 ### The theme
 
@@ -82,15 +90,17 @@ sheet = FormulaEnvironment([                 # wires every result
     FormulaFormula("n", parse_julia("6")),
     FormulaFormula("p_block", parse_julia("(1 - rho) * rho^n / (1 - rho^(n + 1))")),
 ])
-get_formula_value(sheet.formulas[3])         # ≈ 0.066341
-sheet.formulas[1].code = parse_julia("0.5")  # p_block computes again on the next read
+get_formula_value(sheet.formulas[3])         # ≈ 0.066341, computed on this task
+sheet.formulas[1].code = parse_julia("0.5")  # get_formula_value(sheet.formulas[3]) computes again
+evaluate_operation(editor, ComputeFormulasOperation(sheet))  # the values that a view shows
 ```
 
 - Examples: `formula_example`, from `make_formula_document_example()` and `make_formula_projection_example()`.
-- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file`, `test_formula_math` and `test_formula_names`.
+- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file`, `test_formula_math`, `test_formula_names`, `test_formula_evaluation`, `test_formula_stored_value` and `test_formula_task`.
 
 ## Limits
 
 - You can not type a new formula yet. `FormulaInsertion` prints a fixed label and has no reader, although its docstring describes a commit on Enter. This is Phase 5 of the plan.
+- A key edits the code of a math formula only. An identifier of Julia code prints through `FormulaIdentifierToSyntaxLeaf`, which maps no text, so a key there reads nothing. Alt+Enter has no new line of the code yet.
 - A formula inside another domain, for example in a table cell, is a goal of the plan (Phase 6). No test or example does it.
-- Each evaluation of code that holds a lambda makes a new function type in the scratch module, as each line of the Julia REPL does. The cost grows with the edits of such a formula, not with the frames.
+- Each evaluation of code that holds a lambda makes a new function type in the scratch module of the editor, or of the wiring of the formula, as each line of the Julia REPL does. The cost grows with the computations of such a formula, not with the frames.
