@@ -41,7 +41,8 @@ known; elsewhere the origin is not found yet.
    order of the tests can. **Passes on `main` at `08fffddb2`** (2026-10-15) in the whole
    `test_platform` too, so no search is needed.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
-   block of the language `unknownlang` gives no `TextBlock` that holds that word.
+   block of the language `unknownlang` gives no `TextBlock` that holds that word. **Fails alone on
+   `main` at `5a74db9d9`** (2026-10-15).
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
    (`NavigationTest.jl:180`). The walk reaches no state: Ctrl+Home, the seed of the walk,
    gives `nothing`. **Origin: `8389450e8`** (2026-10-06, found by a bisect from `5d4c1269e`,
@@ -75,12 +76,16 @@ known; elsewhere the origin is not found yet.
      shows `a = 1` where `b = 2\nb + 1` is expected.
    - "a closed assistant and a closed Files pane come back as they were" (`:1462`): the greeting
      prints as the representation of a `TextBlock`, so the word "Ollama" is not found.
+   **All four fail alone on `main` at `5a74db9d9`** (2026-10-15, with no network).
 9. **`test_catalog_coverage`, 1 failure** (`CatalogCoverageTest.jl:223`). Eleven document types
    have no entry in the catalog: `FilteredText`, `FindBarView`, `GraphicsRect`,
    `HighlightedText`, `ScrollLayout`, `TaskGroupDocument`, `TaskGroupList`, `TerminalDocument`,
    `TextGutter`, `WidgetProgressBar` and `WidgetProgressRing`. The test failed in the same way
    on 2026-10-01, with another list. The atoms of `2c0ca015f` (item 6) cover the two progress
-   widgets. On 2026-10-14 the list has ten names: the nine others and `Roster`, which is new.
+   widgets. On 2026-10-14 the list has ten names: the nine others and `Roster`, which is new. On 2026-10-15
+   (`5a74db9d9`) it has 14: the task pages of `02d2b2525` add `TaskDocument`, `TaskStream`,
+   `TaskStreamLines` and `ACTaskExecution`. A name with the prefix `AC` is a name of the cell
+   layout of `TaskExecution`, which the stem of the test does not take off.
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
