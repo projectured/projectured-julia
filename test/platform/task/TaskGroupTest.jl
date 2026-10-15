@@ -106,12 +106,15 @@ function test_task_group()
             @test !is_concurrent(outer) && get_result_codes(outer) === RUN_RESULT_CODES
             agree = Bool[]
             start_task_group!(outer)
+            # The drivers run on other threads, so a task can end between two reads:
+            # a sample counts only when no inner group changed while it was taken.
+            read_counts(group) = (s = build_task_group_summary(group); (s.total, s.finished, s.running))
             sampler = @async while outer.runtime.scheduler === nothing || !istaskdone(outer.runtime.scheduler)
-                summary = build_task_group_summary(outer)
-                inner = [build_task_group_summary(phase) for phase in phases]
-                push!(agree, summary.total == sum(s.total for s in inner) &&
-                             summary.finished == sum(s.finished for s in inner) &&
-                             summary.running == sum(s.running for s in inner))
+                before = [read_counts(phase) for phase in phases]
+                summary = read_counts(outer)
+                after = [read_counts(phase) for phase in phases]
+                before == after &&
+                    push!(agree, summary == Tuple(sum(counts[k] for counts in before) for k in 1:3))
                 sleep(0.02)
             end
             wait_task_group(outer)
