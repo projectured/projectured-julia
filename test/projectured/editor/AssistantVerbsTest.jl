@@ -99,6 +99,26 @@ function test_assistant_verbs()
         @test_throws ArgumentError change_setting!(:selection, nothing; editor)
     end
 
+    @testset "change: the commands of a part, and the selection stays" begin
+        select_part!(people[2]["name"]; editor)
+        run_frame!(editor)
+        selected = get_selection(editor.document)
+        @test occursin("Insert a new element", string(describe_commands(people; editor)))
+        @test occursin("Sort the entries by key", string(describe_commands(people[1]; editor)))
+        @test occursin("has no command", string(describe_commands(people[1]["name"]; editor)))
+        @test get_selection(editor.document) == selected
+        count = length(people)
+        @test run_command!(people, "Insert a new element"; editor) isa Text
+        run_frame!(editor)
+        @test length(people) == count + 1
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test length(people) == count
+        @test_throws ArgumentError run_command!(people, "No such command"; editor)
+        @test occursin("Insert a new element",
+                       _run_assistant_code(editor, "describe_commands(get_edited_document(find_pane(\"people.json\")))"))
+    end
+
     @testset "tell: a part opens as a page in a new tab with a navigator" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))

@@ -29,6 +29,7 @@ using ..FileFormatModule
 using ..FaultViewModule
 using ..FileSystemModule
 using ..FocusModule
+using ..GestureHelpModule
 using ..GestureLogModule
 using ..MessageLogModule
 using ..NaturalModule

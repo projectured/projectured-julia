@@ -49,7 +49,7 @@ using ..SelectionModule
 using ..SettingsModule
 using ..ToolModule
 using ..EditorModule
-using ..AgentModule: run_on_editor_task!
+using ..AgentModule
 using ..ProjectionAlgebraModule
 using ..NaturalModule
 

@@ -356,6 +356,9 @@ make_editor_api() = Any[
     MessageLogModule => (:get_session_message_log,),
     FaultViewModule => (:get_session_fault_log,),
     ClipboardModule => (:read_os_clipboard, :write_os_clipboard!),
+    # The commands of a part, which a key or the command palette runs for the
+    # person, listed and run by their words.
+    GestureHelpModule => (:describe_commands, :run_command!),
     # What controls the window and what shows the person a part: a part as a page
     # of a navigator, and the settings of the window.
     NavigatorModule => (:open_page!,),
@@ -419,6 +422,9 @@ const EDITOR_SYSTEM =
     "of its own in a new tab. `change_setting!(name, value)` changes a setting of " *
     "the window, and `describe_settings()` lists them. " *
     "`write_os_clipboard!(text)` gives the person a text to paste. " *
+    "`describe_commands(part)` lists the commands of a part, which a key or the " *
+    "command palette runs for the person, and `run_command!(part, description)` " *
+    "runs one of them by its words, as an edit that Ctrl+Z takes back. " *
     "To change a document, use a verb, so the change is an edit that Ctrl+Z takes " *
     "back: `replace_referenced_value!(part, new_value)`, " *
     "`insert_elements!(collection, index, values)` and " *

@@ -16,6 +16,9 @@ Build one from a collection of intents (applicability is evaluated against the
 document's current selection at the time they were collected):
 
     make_gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
+
+A model of an assistant lists the commands of one part with `describe_commands`
+and runs one with `run_command!`, and the selection of the person does not move.
 """
 module GestureHelpModule
 
@@ -38,12 +41,15 @@ using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
 using ..EditorModule
+using ..AgentModule
+using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
+export describe_commands, run_command!
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
@@ -65,5 +71,6 @@ include("GestureMapToSyntax.jl")
 include("CommandPaletteToSyntax.jl")
 include("CommandPaletteDecorator.jl")
 include("GestureHelpDecorator.jl")
+include("PartCommands.jl")
 
 end # module

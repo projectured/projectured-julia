@@ -39,9 +39,9 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..EditorModule
-using ..AgentModule: run_on_editor_task!
-using ..SelectionModule: get_selection
-using ..ToolModule: get_evaluation_editor
+using ..AgentModule
+using ..SelectionModule
+using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

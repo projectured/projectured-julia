@@ -343,7 +343,7 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
       answers one sentence. A headless test drains the posted operation.
     - The application slice may now use the navigator and settingsmanaging
       slices.
-- [ ] **4. The commands.**
+- [x] **4. The commands.** Done 2026-10-15.
   - `collect_commands(part)` and `run_command!(part, description)`, by D8.
   - They ask the chain from the editor with
     `Intent(CollectIntents(), nothing, "", "", get_reference(part))`. The editor
@@ -356,6 +356,27 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
     commands of a part are the rows of its own table that F1 shows when the person
     selects it. The selection of the person does not change. A command that
     `run_command!` runs is undone by `undo`.
+  - What was built, and what changed against the lines above:
+    - The names are `describe_commands(part)`, which answers one line for each
+      command that can run now, and `run_command!(part, description)`. They are
+      in the gesture help slice (`PartCommands.jl`).
+    - A routed `CollectIntents` sent from the root does not reach the part. The
+      history layer (`UndoBufferToAny`) answers a collection before it looks at
+      the route, and it gives the route to its content without the step into the
+      content. A collected operation is also not recorded in the history. So the
+      verbs do in two existing calls what the end of a route does:
+      `read_gesture(part, CollectIntents())` asks the part's own table, and
+      `read_rooted_operation(editor, place, operation)` sends the chosen
+      operation to the root along the path of the part, so the history records
+      it. No event, payload, reader method or method of `is_collecting_operation`
+      was added.
+    - A projection's own keys are not in the table of a document, so text
+      editing and the keys of a view are not commands of a part. Markdown has
+      almost no command of its own, and NED and INI have none: a model writes
+      them as text (D1). The tests use a JSON array and a JSON object.
+    - The layering guard wants a bare `using ..Module`, not `using ..Module: name`
+      and not a bare `import`; the modules of steps 2 to 4 follow it now.
+
 - [ ] **5. Draw.**
   - Declare the graphics documents, `StyleColor` and `StyleFont`.
   - The chart domain registers a row of the natural renderer for `Chart`, so a

@@ -26,8 +26,8 @@ using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
-using ..AgentModule: run_on_editor_task!
-using ..ToolModule: get_evaluation_editor
+using ..AgentModule
+using ..ToolModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
