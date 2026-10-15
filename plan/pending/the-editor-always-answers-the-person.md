@@ -1298,7 +1298,7 @@ nothing.
     - The suites of D13: the file change and undo tests 236; the platform tests
       that save a file 1457; the umbrella tests that save a file, the guards and
       `test_application` 734, with the 4 failures of `main`, and an error at
-      `MarkerVocabularyTest.jl:88`, which the base commit is checked for.
+      `MarkerVocabularyTest.jl:88`, which the base commit `961df53cb` has too.
 - [ ] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
