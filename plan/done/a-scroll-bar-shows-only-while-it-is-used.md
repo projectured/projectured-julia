@@ -1,10 +1,10 @@
 # A scroll bar shows only while it is used
 
-> **Status (2026-10-15): pending.** The owner asked for it: "the scroll bars
+> **Status (2026-10-15): done** on the branch `scroll-bars-and-wheel`, not landed. The owner asked for it: "the scroll bars
 > should auto hide and show only if its being dragged or the mouse is over the
 > bar, this is typical in modern UIs so the scroll bar doesn't hide anything".
 > The owner agreed to step 2 (show the bar after a scroll) and step 3 (fade).
-> Steps 1, 2 and 3 are done. The check in the live app is open.
+> Steps 1, 2 and 3 and the check in the live app are done.
 
 ## The goal
 
@@ -53,8 +53,16 @@ fades in and fades out.
   shows a bar. The example `make_widget_scroll_bar_document_example` puts the
   mouse target on its bar, as the focus example puts a selection. The tool
   itself does not change.
-- ⬜ Check in the live app: a pane, a list, a table and the data frame view.
-  This check runs once, after step 3, for the three steps.
+- ✅ Check in the live app: a pane, a list, a table and the data frame view.
+  This check runs once, after step 3, for the three steps. A script
+  (`/var/tmp/scroll-wheel/live.jl`, not in the repository) drives a real SDL
+  window of a scroll pane with the gesture tracker, pushes SDL motion events,
+  and reads the pixels of the strip of the bar from the retained target: 8 of
+  8 checks pass. The strip does not change at rest, 2390 of 2400 pixels change
+  under the pointer, none after the pointer leaves, 110 (the thumb, no track)
+  after a scroll, and none a second later. The list, the table and the data
+  frame view use the same printer of the bar, and their tests pass; the live
+  check drew a pane only. A real mouse is still the final check.
 
 A projection that wants a bar at rest passes `thumb_color`. No setting is added.
 

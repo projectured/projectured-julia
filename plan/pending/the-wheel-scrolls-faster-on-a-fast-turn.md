@@ -123,7 +123,11 @@ A new pair of fields holds the exact amount of the turn, in notches, as a
   tests that send several notches at the time 0.0 made a fast run, so their
   helpers now send each notch a second after the last. 17 test functions pass:
   1012 of 1012.
-- ⬜ Tune the numbers in the live app.
+- ⬜ Tune the numbers in the live app. The live check (see the plan of the
+  scroll bar) confirms the numbers in a real window: one notch scrolls 69
+  pixels, three lines of 23, and three notches 50 ms apart scroll 263 pixels,
+  69 + 86 + 108. Whether 80 ms, 150 ms and 1.25 feel right needs a real wheel
+  in the hand of the owner.
 
 ## Decisions
 
