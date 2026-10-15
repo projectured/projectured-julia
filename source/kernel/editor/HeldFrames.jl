@@ -158,7 +158,7 @@ end
 
 # The held frames of `unit`, until its task ends. Each frame answers what the
 # person did: a stop, a close, or the confirm to quit (decisions D3 and D4 of
-# plan/pending/the-editor-always-answers-the-person.md).
+# plan/done/the-editor-always-answers-the-person.md).
 function _run_held_frames!(editor::Editor, unit::CodeUnit, task::Task)
     stopped_at = nothing
     closes = 0

@@ -1,19 +1,24 @@
 # The editor always answers the person
 
-> **Status (2026-10-14): IN PROGRESS, steps 1 and 2 done.** The work runs on the branch
-> `editor-always-answers`, in the worktree `projectured-julia-answers`. The owner
-> asked on 2026-10-12: "The editor cannot become unresponsive in any
+> **Status (2026-10-15): DONE, steps 1 to 8, on the branch `editor-always-answers`
+> in the worktree `projectured-julia-answers`, with the branch of the same name of
+> omnet-julia. Not landed and not pushed: that waits for the word of the owner.**
+> The owner asked on 2026-10-12: "The editor cannot become unresponsive in any
 > circumstances. [...] If this needs new tasks, threads, etc. then we should
 > design it that way. Of course, race conditions, dead locks, live locks should
-> be avoided at all costs." The owner started the work on 2026-10-13.
+> be avoided at all costs." The owner started the work on 2026-10-13. Later work:
+> [a-window-watches-its-open-files.md](../pending/a-window-watches-its-open-files.md)
+> (D15), the stores of the producers that are one for the process (D12 A), and
+> the `@async` tasks of omnet-julia (step 5).
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
 > sentence of a sealed file, step 6 for feeds, step 7 for formulas, and the
-> points A1 to A4 of the review (§8.1), and D9 and D10 (2026-10-14). All
-> decisions are made. Step 7 still designs the gestures of
-> the edit mode of a formula.
+> points A1 to A4 of the review (§8.1), D9, D10 and D12 (2026-10-14), and D13,
+> D14 and D15 (2026-10-15). There is no D11 in this plan: D11 of
+> `view-and-edit-a-data-frame.md` is a decision of that plan. All decisions are
+> made.
 >
 > This plan takes in `a-long-evaluation-does-not-hold-the-editor.md` (on the
 > branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -1449,7 +1454,7 @@ nothing.
       study verbs and the IDE window tests, with the 4 failures that `main` has
       too (`StudyToWidgetTest.jl:195`, `StudyVerbsTest.jl:50` and `:51`,
       `IdeNavigatorTest.jl:57`).
-- [ ] **8. The rules, the guides and the checks:** a new invariant for the units
+- [x] **8. The rules, the guides and the checks:** a new invariant for the units
   and the held frames, and one for the drains of feeds; the guarantee, in the
   form that the owner agreed on 2026-10-14: "The editor stays responsive while a
   task that touches no document runs, when the task runs on a thread other than
@@ -1513,7 +1518,7 @@ nothing.
         the study, the study views, the study verbs and the IDE window tests, 201
         pass, with the 4 failures of `main` (`StudyToWidgetTest.jl:195`,
         `StudyVerbsTest.jl:50` and `:51`, `IdeNavigatorTest.jl:57`).
-    - [ ] 8.4 A live check of each row of §6 with the real application.
+    - [x] 8.4 A live check of each row of §6 with the real application.
       - The first run (2026-10-15) stopped at the start of the application:
         "A ScreenDocument holds no pane tree". `start_application!` posts
         `AcquireDocumentOperation(get_window_tree(editor.document))` (step 7, A3),
@@ -1544,6 +1549,24 @@ nothing.
           end of the unit its task yields, and thread 2 runs a busy task. `undo`
           took 7.1 s in a run where the formula task computed. The window answers
           meanwhile (held frames), but the bar stays and a stop has no effect.
+          D14 fixed it (8.6).
+        - Native turn (a window built as `run_application` builds it, with a
+          `ScriptedLlm`; the prompts posted through `run_on_editor_task!`): a tool
+          call of `sleep(3); 6 * 7` shows its bar and answers `42` in the turn; a
+          tool call of `sleep(30)` shows "execute_julia_code 4 s" and "Stop (Esc)",
+          a pushed Escape stops it, and the turn ends without its next round (A2);
+          a call 0.4 s later is answered. An Escape before the bar shows reaches a
+          normal frame, and a bare Escape quits the editor, as before this plan.
+          The answer of a stopped call holds the whole stack, 28 frames of the
+          editor; a shorter one is left for later.
+        - R5: a call answered in 1.4 s while the formulas of a sheet of a billion
+          points computed; the print reads the stored values.
+        - Not checked live, and covered by the tests: the rows of an ACP agent and
+          its permission request (they need an external agent), T3 (a call that
+          waits 30 s in the inbox), a storm of faults, and the REPL form of D10. A
+          fresh process logged "[frame] a frame took 5.7 s, 2.49 s of it in the read
+          of the input" at its first prompt: the compile of code that the session
+          environment does not precompile.
     - [x] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
       2026-10-15: `the-pointer-shows-the-hourglass.md` moved to `plan/done/` with a
       note on what took its place (held frames show the hourglass; a slow frame

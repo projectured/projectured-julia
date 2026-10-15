@@ -1,7 +1,7 @@
 # A window watches its open files
 
 Status: a proposal. Decided by the owner, 2026-10-15: D15 A of
-[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md),
+[the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md),
 as a step of its own after that plan ("agreed A"). Nothing is built. D15a is open.
 
 ## 1. The goal

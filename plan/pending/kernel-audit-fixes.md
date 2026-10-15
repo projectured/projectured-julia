@@ -2227,7 +2227,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 #### POLICY-6-inbox
 
 **Decided by the owner, 2026-10-13: A, as part of
-[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md)
+[the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md)
 (D5).** That plan holds the work. Its change: I3 also takes the posts of a running
 code unit, which owns the cells while it runs.
 
@@ -2248,7 +2248,7 @@ code unit, which owns the cells while it runs.
 #### POLICY-6-time
 
 **Decided by the owner, 2026-10-13: T0, T3 and T4, as part of
-[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md)
+[the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md)
 (D5).** That plan holds the work. Its change: the budget of T4 says that the
 person can not edit while model code runs. T1, T2, T5 and T6 stay open here.
 
