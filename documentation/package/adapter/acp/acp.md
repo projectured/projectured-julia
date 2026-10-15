@@ -18,7 +18,7 @@ The kernel declares the generics of a connection in `source/kernel/agent/AgentCo
 | `send_agent_prompt!` | sends `session/prompt` and waits for its answer; returns the stop reason |
 | `cancel_agent_prompt!` | sends the notification `session/cancel` and answers each waiting request as cancelled |
 | `cancel_agent_subagent!` | sends the notification `session/cancel` with the session id of the child session of the subagent |
-| `stop_agent_background_task!` | sends the extension request `_session/stop_background_task {sessionId, taskId}`; answers `true` for a result, `false` for an error answer |
+| `stop_agent_background_task!` | sends the extension request `_session/stop_background_task {sessionId, taskId}`; answers `true` when the answer is an object, `false` for an error answer |
 | `set_agent_option!` | sends `session/set_config_option` and gives the options of the answer to `on_event` |
 | `close_agent_session!` | sends `session/close`, when the agent lists that capability |
 | `stop_agent_connection!` | ends the agent and its process group |

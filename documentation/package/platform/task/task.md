@@ -1,6 +1,6 @@
 # Tasks
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [systemprocess.md](../systemprocess/systemprocess.md), [tree.md](../tree/tree.md)
 
 The task slice of `ProjecturedPlatform` holds what every kind of work shares
 when it runs as a task, in the words of `opp_repl` (`common/task.py`): a piece of
@@ -138,8 +138,11 @@ A `Cmd` starts in a process group of its own. `stop_task_execution!` sends
 the compilers of `make`, for example — and a program that catches the signal
 can still finish its work. The status says `:cancelling` until the process
 ends. A Ctrl+C at the REPL does not reach the group.
-`sample_task_usage!` reads the processor time and the resident memory from
-`/proc`.
+`sample_task_usage!` reads the processor time and the resident memory of the
+process with `read_system_process_usage`, which the slice
+[systemprocess.md](../systemprocess/systemprocess.md) holds, and so reads
+`/proc` in one place. Both the load of a task and the load of a process there
+divide the ticks by `get_clock_ticks_per_second`.
 
 ## A group of tasks
 
@@ -246,6 +249,8 @@ current execution. A view reads the shadow of the current execution
 `get_task_document_result` and `collect_task_document_lines` read its status, its
 result and its lines.
 
+`process_tree` is a computed field of `TaskDocument`, as `result_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the sample of the tree at each drain, for each entry whose tree a view read; a `TaskDocument` and the slot of a group of tasks both answer the step. So a build or a simulation run shows its compilers or its workers with no code in its domain.
+
 A start again, or a run again of a group, adds an execution and replaces none
 (`add_task_execution!`). The earlier executions keep their own results
 (`get_earlier_task_executions`). A task that waits to start again has no current
@@ -289,7 +294,7 @@ captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
 counts of each code, a bar of the progress, the time, the reason of what was not
 expected and the actions on the whole group; a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
-buttons and its two streams. The detail of a task that is a group is the pane of
+buttons and its two streams. While the current execution of that task has a process, the detail shows the tree of its processes in a card, after the buttons and before the card of the result ([tree.md](../tree/tree.md) says how a tree draws). A task that ended has no tree, so the card of the result follows the buttons at once. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -316,6 +321,8 @@ that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
 holds it, and an open that no navigator takes opens a tab.
 
+In a tree, a task is a leaf whose text is its name, its status or the code of its result, and its elapsed time, with an icon of its status.
+
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
@@ -338,7 +345,9 @@ navigator around the page opens it, and Ctrl+press opens it in a new tab.
   link to its group; the facts of its kind, its process and its time; Stop, Run
   again and the buttons of its kind, which act through the group of the task, so
   the counts of the group follow, or on the task itself when it has no group; a
-  link to the page of the group of a task that is a group; its executions, the
+  kind that the editor does not start (`start_task`), such as a background task
+  of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
+  its kind; a link to the page of the group of a task that is a group; its executions, the
   newest first, each a link to its page; and the last lines of each stream of its
   current execution, with a link to the page of the stream.
 - **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a

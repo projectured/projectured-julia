@@ -99,6 +99,8 @@ The natural slice depends on the kernel and on the text, layout, widget, graphic
 | graph, formula, file format, inspector, assistant, evaluator | a graphics factory |
 | the syntax slice | the fallback and the `syntax → text` step |
 
+**Prose.** `make_prose_document(text)` makes the document of a run of prose written in Markdown. It answers the document that the Markdown parser of the seam reads from `text`, when a domain registered one for `:md`. Else, or when the parse fails, it answers a text block of `text`. The conversation, the assistant and the work plan make their prose with it.
+
 The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The [application slice](../application/application.md) draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
 
 ## Design decisions

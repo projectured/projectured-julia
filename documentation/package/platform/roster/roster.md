@@ -26,6 +26,8 @@ A roster with no link has no rows. A window links a roster when it shows it, wit
 
 When the table moves its head more than 200 rows from the head, it writes `cells`. The roster turns that write into a write of `anchor`, and it drops the shift of the selection, because the selection of the rows names a row of `rows` and the maps place it from the anchor.
 
+**A page from a row.** A double click on a row opens its item as a page. The first press selects the item, as a single click does. The second press adds `OpenPageOperation(nothing, <path of the item>)` to the answer, so the nearest navigator shows the item as a page and Back returns to the table. With no navigator around the table, the editor opens a new tab with a navigator ([navigator.md](../navigator/navigator.md)). `RosterRowsToWidget` makes this answer in its own `read_intent`, the reader that also answers an operation that a route brings to a row. A press with a modifier key, and a press on a cell that holds a document, do not open a page. The roster slice does not name the navigator, because the operation is a type of the widget slice.
+
 A cell whose value is a document shows that document, the same object as in its item. So a key in that cell edits the item through the reader of the document, and the history of the window records the edit. A cell whose value is not a document shows a label of its text. A press on a label selects the item of the row, so the context menu is the menu of the item. A label takes no key: no widget writes a field of a target as text. In a navigator, the menu of a row has Open as a page and Open in a new tab, and Ctrl+Return opens the selected item, at the place where the content holds it when its domain answers it ([navigator.md](../navigator/navigator.md)); so a roster needs no link of its own.
 
 **A file.** A file that keeps a tab with a roster saves its source, its columns and its title (`pred_arguments`), and no row and no link. The sources `CollectionItems`, `ItemsWithin`, `StoreRecords` and `TabDocuments` say that a file can build them (`is_pred_constructible`).
@@ -38,8 +40,9 @@ A cell whose value is a document shows that document, the same object as in its 
 | `CollectionItems(collection)` | the items of a collection inside a document, given by a `Reference` from the document of the window, or as the collection itself | one part |
 | `ItemsWithin(source, type)` | the documents of `type` inside each item of `source`, at any depth, each with the item that holds it as `within` | one part for each item of `source` |
 | `StoreRecords(name)` | the records of a store of the session that a slice registers under `name` | the parts of the source of the store |
+| `SystemProcesses(tree)` | every process of a `SystemProcessTree`, a parent before its children, each with its parent as `within` ([systemprocess.md](../systemprocess/systemprocess.md)) | one part, the tree |
 
-The slices that own the stores register them in their `__init__`, with `register_roster_source!(name, link -> source; description)`:
+The slice of a kind of item adds its own source, as `SystemProcesses` shows. The slices that own the stores register them in their `__init__`, with `register_roster_source!(name, link -> source; description)`:
 
 | Name | Records |
 | --- | --- |
@@ -67,7 +70,10 @@ A facet is a value of an item that the slice of its type computes. A slice decla
 | --- | --- |
 | `Document` | `type`: the name of the type of the document that a person sees, through the layers that wrap it |
 | `FileDocument` | `name`, `folder`, and `has_edits`: whether the history of the file has a step that the file does not hold |
-| `Assistant` | `title`, `turn`, `tokens` |
+| `Assistant` | `title`, `turn`, `tokens`, `plan` (the completed steps over all the steps of its first plan with steps, such as `3/7`), `subagents` and `background_tasks` (how many run) |
+| `AgentWork` | `tokens` |
+| `SystemProcess` | `load`, `elapsed` |
+| `WorkPlanStep` | `blocked` |
 | `TaskDocument` | `name`: the task in one line, as the list of tasks writes it, and `status`: the status of its current execution |
 | `TaskGroupDocument` | `kind`: the name of the group, which the list of groups shows as its kind |
 
