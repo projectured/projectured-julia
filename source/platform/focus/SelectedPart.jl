@@ -22,7 +22,8 @@ end
 The part that the person selected: the document that the selection of the
 window names as a whole after an Alt+click, or the document that holds the caret.
 The answer acts like the document and carries its complete reference from the
-root, so a verb that takes a part takes it. `nothing` when nothing is selected.
+root, so a verb that takes a part takes it. `nothing` when nothing below the root
+of the window is selected.
 
 Use it to answer a question about "this", "here" or "the selected one": to read
 the text of the part, to say what it is, or to change it.

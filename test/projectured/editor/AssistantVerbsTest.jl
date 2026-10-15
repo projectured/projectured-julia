@@ -97,6 +97,7 @@ function test_assistant_verbs()
         @test_throws ArgumentError change_setting!(:no_such_setting, 1; editor)
         # Each group has the fields of a document too, and those are no setting.
         @test_throws ArgumentError change_setting!(:selection, nothing; editor)
+        @test_throws ArgumentError change_setting!(:partial_render, "sometimes"; editor)
     end
 
     @testset "change: the commands of a part, and the selection stays" begin
@@ -111,8 +112,14 @@ function test_assistant_verbs()
         @test run_command!(people, "Insert a new element"; editor) isa Text
         run_frame!(editor)
         @test length(people) == count + 1
-        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        # The part is read again at each call, so a second call sees the first.
+        @test run_command!(people, "Insert a new element"; editor) isa Text
         run_frame!(editor)
+        @test length(people) == count + 2
+        for _ in 1:2
+            call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+            run_frame!(editor)
+        end
         @test length(people) == count
         @test_throws ArgumentError run_command!(people, "No such command"; editor)
         @test occursin("Insert a new element",

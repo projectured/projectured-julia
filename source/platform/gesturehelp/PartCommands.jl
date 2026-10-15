@@ -9,16 +9,17 @@
 # records it as it records an edit of the person.
 
 # Every row of the table of `part`, each with the operation that its binding built
-# against the part now. A row whose binding reads the keystroke, or whose
-# precondition fails, has no operation.
-function _collect_part_rows(part::ReferencedDocument)
-    document = get_document(part)
+# against the part now. The part is read again from the root by its reference, so
+# a change at its place since a verb found it is seen. A row whose binding reads
+# the keystroke, or whose precondition fails, has no operation.
+function _collect_part_rows(editor, part::ReferencedDocument)
+    document = try_evaluate_reference(getfield(editor, :document), get_reference(part), nothing)
     document isa Document || return GestureRow[]
     collect_gesture_rows(read_gesture(document, CollectIntents()))
 end
 
-_collect_runnable_rows(part::ReferencedDocument) =
-    [row for row in _collect_part_rows(part) if row.operation !== nothing]
+_collect_runnable_rows(editor, part::ReferencedDocument) =
+    [row for row in _collect_part_rows(editor, part) if row.operation !== nothing]
 
 """
     describe_commands(part; editor = get_evaluation_editor()) -> Text
@@ -42,7 +43,7 @@ See also `run_command!`, `find_selected_part`.
 """
 function describe_commands(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_commands") do
-        rows = _collect_runnable_rows(part)
+        rows = _collect_runnable_rows(editor, part)
         isempty(rows) &&
             return Text("This " * String(nameof(typeof(get_document(part)))) * " has no command now.")
         Text(join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
@@ -72,13 +73,18 @@ See also `describe_commands`, `replace_referenced_value!`.
 function run_command!(part::ReferencedDocument, description::AbstractString;
                       editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "run_command!") do
-        rows = _collect_runnable_rows(part)
-        index = findfirst(row -> row.description == description, rows)
-        index === nothing &&
+        rows = _collect_runnable_rows(editor, part)
+        matches = [row for row in rows if row.description == description]
+        isempty(matches) &&
             throw(ArgumentError("The part has no command " * repr(String(description)) *
                                 " now. Its commands: " *
                                 join([repr(row.description) for row in rows], ", ") * "."))
-        rooted = read_rooted_operation(editor, get_reference(part), rows[index].operation;
+        length(matches) == 1 ||
+            throw(ArgumentError(string(length(matches), " commands of the part are called ",
+                                       repr(String(description)), ", of ",
+                                       join([row.domain for row in matches], " and "),
+                                       ", and this verb can not tell them apart.")))
+        rooted = read_rooted_operation(editor, get_reference(part), only(matches).operation;
                                        description = String(description))
         rooted === nothing &&
             throw(ArgumentError("The window can not run " * repr(String(description)) *

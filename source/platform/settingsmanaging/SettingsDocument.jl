@@ -94,8 +94,8 @@ Change the setting `name` of the window to `value`, as a person does in the tab 
 the settings: the window checks the value against the description of the
 setting, writes it, and applies it at once. `name` is the name of a setting, as
 [`describe_settings`](@ref) writes it after the group; a name that no group has,
-or that two groups have, is refused. A value that does not fit changes nothing,
-and the log of the window says why.
+or that two groups have, is refused, and so is a value that does not fit the
+setting.
 
 Use it to change how the window looks or works when the person asks for it.
 
@@ -117,6 +117,11 @@ function change_setting!(name::Symbol, value; editor = get_evaluation_editor())
             throw(ArgumentError(string(length(groups), " groups of the settings have the setting ",
                                        repr(name), ".")))
         group = only(groups)
+        description = find_setting_description(get_settings_group_type(group), name)
+        convert_setting_value(description, value) === nothing &&
+            throw(ArgumentError(repr(value) * " does not fit the setting " * repr(name) * ", a " *
+                                string(description.type) *
+                                (description.values === nothing ? "" : " in " * repr(description.values)) * "."))
         evaluate_operation(editor, ApplySettingOperation(group, name, value))
         getproperty(group, name)
     end
