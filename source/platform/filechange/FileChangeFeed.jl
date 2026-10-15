@@ -45,7 +45,9 @@ get_wrapper_layers(::Val{:file_change}) = (:screen => 10,)
     make_file_change_feeds() -> Vector{Feed}
 
 The `feeds` of a window whose file documents watch their files: one
-[`FileChangeFeed`](@ref), with a store of its own.
-`build_editor(…; feeds = make_file_change_feeds())`.
+[`FileChangeFeed`](@ref), with a store of its own. No stop step comes with it, so
+the caller stops the watchers of the store with `close_file_change_store!` when
+its loop ends. The wrapper `file_change = true` of `build_editor` adds the feed
+and that stop step both.
 """
 make_file_change_feeds() = Feed[FileChangeFeed()]

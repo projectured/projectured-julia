@@ -39,7 +39,7 @@ A file of a type that a person does not edit (`is_editable_file_type` answers `f
 
 ## How it fits
 
-The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `receive_file_change!`, `FilePage`, `find_page_file` and `compute_file_text_hash`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, or opens a tab, which watches its file itself, and gives its editor the feed with `make_file_change_feeds()`.
+The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `receive_file_change!`, `FilePage`, `find_page_file` and `compute_file_text_hash`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, or opens a tab, which watches its file itself, and turns on the wrapper `file_change = true` of `build_editor`. The wrapper adds the feed, and its stop step stops the watchers of the store of the feed when the loop ends.
 
 ## Design decisions
 
@@ -54,7 +54,7 @@ The code is in `source/platform/filechange/`. The slice depends on the file-form
 
 ```julia
 tab    = make_file_tab("notes.txt")
-editor = build_editor(tab; feeds = make_file_change_feeds())   # a feed with a store of its own
+editor = build_editor(tab; file_change = true)                # a feed with a store of its own
 store  = get_session_file_change_store(; editor)               # the store of that feed
 watch_document_file!(tab; store)               # in an evaluation of the editor, `store` is the default
 drain_file_changes!(; store)                   # a caller with no window drains it itself

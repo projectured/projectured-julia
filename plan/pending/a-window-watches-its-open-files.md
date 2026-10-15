@@ -57,9 +57,11 @@ A save never writes over a newer file without the person knowing.
 - [x] 3. The window of the application registers the feed, in `run_application`
   and `make_application_window`, which the IDE of omnet-julia uses too. Done:
   the wrapper `file_change = true`, which `make_application_wrappers` turns on.
-  The campaign window and the IDE of omnet-julia do not use these wrappers: they
-  give `make_file_change_feeds()` themselves, which now has a store of its own,
-  and no stop step closes it when their loop ends. The store test 62.
+  The campaign window of omnet-julia, which its IDE uses too, does not use these
+  wrappers, but it turns on `file_change = true` itself, so the stop step of the
+  wrapper closes its store when its loop ends. A feed from
+  `make_file_change_feeds()` has no stop step, so its caller closes the store.
+  The store test 62; the campaign loop test of omnet-julia checks the close.
 - [x] 4. A save compares the file on disk with the last load or save of the
   document before it writes, and a newer file goes to the person (D15a). Done
   together with step 5, in one commit: once the history holds no hash, only a
