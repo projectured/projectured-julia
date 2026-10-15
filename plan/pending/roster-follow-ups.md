@@ -41,7 +41,7 @@ findings, which the owner asked to fix on 2026-10-15:
     the window, and the wheel brings it into view. Without a window an editor
     has no height to give, and its canvas is as tall as its content.
   - The roster tests and every arrangement test pass.
-- [ ] **2. A row that stays keeps its print.** When a filter or a sort makes a
+- [x] **2. A row that stays keeps its print.** When a filter or a sort makes a
   new list of rows, a row that is in the old list and in the new one keeps the
   print of its cells. A test checks that the drawn text of such a row is the
   same object after a change of the filter; the counts of S4b before and after.
@@ -169,7 +169,7 @@ findings, which the owner asked to fix on 2026-10-15:
       layout goes from 51 to 69 checks. The tables of a list (250), every table
       test, the roster, the groups, the natural arrangement and the data frames
       (608) pass.
-  - [ ] **2c. The table of a roster is a table of a list**
+  - [x] **2c. The table of a roster is a table of a list**
     (`RosterRowsToWidget`). The owner agreed on 2026-10-15, with the equal
     share of the columns and the two forms of the table.
     - With an exact height in its context, the body of the table is a list of
@@ -236,6 +236,28 @@ findings, which the owner asked to fix on 2026-10-15:
       draws its new output. The layout tests, the roster, the arrangements,
       the fault barrier, the appearance tab, the tooltip and window tests, and
       the tables of a list pass.
+  - The counts of step 2, per step, on 2026-10-15: the base is `e8198106f`,
+    the start of this plan, in a worktree of its own; the probe is
+    `scenarios.jl` of `plan/done/computed-cell-stop-measure.md`, whose walk of
+    a paint now takes the value of a node of a list. S4 runs with no window, so
+    its roster keeps the vector form; S4b-w is S4b in a window, where the
+    roster takes the list form.
+
+    | scenario | computes, base | computes, branch |
+    |---|---|---|
+    | S4b, no window | 2212 | 2046 |
+    | S4b-w, a window | 2179 | 1572 |
+    | S4d | 749.5 | 732.5 |
+    | S4a, S4c, S6 | 18, 8, 8 | 18, 8, 8 |
+
+    The walks of the readers lists (`plan/done/dependency-reads.md`), per step:
+    S4b 4.14 M → 4.59 M register; S4b-w 6.52 M → 1.65 M register and 0.04 M →
+    1.45 M unregister; S4d 0.82 M → 0.92 M. A save moves file 1 in or out of
+    the top of the list, so every row after it changes its count: its path,
+    the dispatch of each cell and the cells of the row compute again, and the
+    cells of the row read the edges of the columns, which have a reader for
+    each row. That cascade, about 33 computations for a moved row, is what
+    remains; a print of the row was about 45.
 - [ ] **3. The record of a new reader.** Done only when, after step 2, the probe
   of `plan/done/dependency-reads.md` still walks more than one million entries
   in a step of S4b or S4d. Then a record that knows the reader is new to the
