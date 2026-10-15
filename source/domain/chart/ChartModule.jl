@@ -68,7 +68,9 @@ function __init__()
     ])
     register_assistant_api!(ChartModule => (:Chart, :ChartLineSeries, :ChartScatterSeries,
                                             :ChartBarSeries, :ChartPieSeries, :ChartHistogramSeries,
-                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend))
+                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend);
+        description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
+                      "a series of each kind, and `open_pane!` draws it.")
 end
 
 end # module

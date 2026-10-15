@@ -55,7 +55,11 @@ function __init__()
     # What the model of an assistant may write about a workflow: the documents,
     # the verbs that record the work as the assistant, and the read of a journal.
     # Each verb is an edit of the editor, which a person takes back with Ctrl+Z.
-    register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)
+    register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API;
+        description = "A workflow records the work as steps, decisions and cards: " *
+                      "`add_workflow_step!`, `record_workflow_decision!` and " *
+                      "`add_workflow_card!` add to it, and `collect_workflow_entries` " *
+                      "reads its journal.")
 end
 
 end # module

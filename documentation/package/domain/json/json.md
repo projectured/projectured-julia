@@ -78,7 +78,7 @@ follows its scales, and the appearance tab shows a section for `JsonTheme`.
 
 Its `__init__` in `source/domain/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
 
-A model reads and writes a JSON document as its text: `print_natural_text` prints a document or a part of it, and `parse_natural_text(:json, text)` reads one JSON value, which the natural notation that the same `__init__` registers makes possible. So the domain registers no constructors with `register_assistant_api!`.
+A model reads and writes a JSON document as its text: `print_natural_text` prints a document or a part of it, and `parse_natural_text(:json, text)` reads one JSON value, which the natural notation that the same `__init__` registers makes possible. So the domain registers no constructors with `register_assistant_api!`, only the sentence that tells a model to write a JSON value as its text.
 
 ## Design decisions
 

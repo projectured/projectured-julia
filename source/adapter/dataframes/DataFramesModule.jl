@@ -81,7 +81,10 @@ make_graphics_projection(::Type{DataFrameViewRow}; measure, appearance) =
 function __init__()
     register_assistant_api!(DataFrames => (:DataFrame, :select, :transform, :combine,
                                            :groupby, :subset, :ByRow, :Not, :nrow,
-                                           :describe => :summarize_frame))
+                                           :describe => :summarize_frame);
+        description = "A data frame is made, narrowed, grouped and counted with " *
+                      "`DataFrame`, `select`, `transform`, `combine`, `groupby`, `subset` " *
+                      "and `nrow`, and `summarize_frame` gives the statistics of each column.")
 end
 
 end # module DataFramesModule

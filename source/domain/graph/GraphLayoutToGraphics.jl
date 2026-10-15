@@ -693,5 +693,9 @@ function __init__()
     ])
     # The names a model draws a graph with: the vertices, the edges between them,
     # and the graph that holds both.
-    register_assistant_api!(GraphModule => (:GraphGraph, :GraphVertex, :GraphEdge))
+    register_assistant_api!(GraphModule => (:GraphGraph, :GraphVertex, :GraphEdge);
+        description = "A graph is `GraphGraph(vertices, edges)` of `GraphVertex(content)` " *
+                      "and `GraphEdge(source, target)`; the content of a vertex is a " *
+                      "document, such as `WidgetLabel(\"Paris\")`, and `open_pane!` draws " *
+                      "the graph.")
 end

@@ -220,7 +220,8 @@ _has_example_parse_error(expression) =
 
 Every name of `api` from a package of the editor carries what a model reads to use
 it: a "Use it to" line, an example that parses, and a "See also" line. Every name
-that `EDITOR_SYSTEM` writes in backticks is a name that the model can write.
+that `EDITOR_SYSTEM` and the paragraph of the loaded domains write in backticks is
+a name that the model can write.
 """
 function test_assistant_documentation(api = make_editor_api())
 @testset "every declared name carries its use, an example and its neighbours" begin
@@ -247,11 +248,11 @@ function test_assistant_documentation(api = make_editor_api())
         union!(writable, String.(get_api_entry_names(entry)))
     end
     union!(writable, [tool.name for tool in list_tools(set)])
-    for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM)
+    for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM * make_domain_system())
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
         name = String(head.captures[1])
-        @test name in writable || error("EDITOR_SYSTEM names `" * name * "`, which no model can write")
+        @test name in writable || error("the system text names `" * name * "`, which no model can write")
     end
 end
 end

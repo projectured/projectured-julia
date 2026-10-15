@@ -434,9 +434,8 @@ const EDITOR_SYSTEM =
     "a column of them. To draw, put shapes and text on a canvas: " *
     "`GraphicsCanvas`, `GraphicsRect`, `GraphicsText`, `GraphicsLine`, " *
     "`GraphicsCircle`, `GraphicsPolyline`, with `StyleColor` and `StyleFont`. " *
-    "`Chart(title, [ChartLineSeries(label, xs, ys)])` is a chart, and " *
-    "`GraphGraph(vertices, edges)` of `GraphVertex(content)` and " *
-    "`GraphEdge(source, target)` is a graph. A shape takes a function of no " *
+    "A loaded domain, such as a chart or a graph, says below how its documents " *
+    "are made. A shape takes a function of no " *
     "arguments for a coordinate, and one that reads " *
     "`get_reactive_clock_time(editor.clock)` moves the shape on each frame. " *
     "`open_page!(part)` opens a part as a " *
@@ -476,7 +475,7 @@ const EDITOR_SYSTEM =
     "`describe_natural_formats()` lists the formats. `describe_commands(part)` " *
     "lists the commands of a part, which a key or the command palette runs for the " *
     "person, and `run_command!(part, description)` runs one by its words. " *
-    "Example: `replace_referenced_value!(people_1[2][\"age\"], parse_natural_text(:json, \"31\"))`."
+    "Example: `delete_elements!(people_1, 2)`."
 
 """
     APPLICATION_SYSTEM
@@ -501,7 +500,8 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     make_application_system() -> String
 
 The system text of the assistant of this application: [`APPLICATION_SYSTEM`](@ref),
-then the section "Reach what a tab holds" of the orientation guide, which shows in
+the paragraph of the loaded domains ([`make_domain_system`](@ref)), then the
+section "Reach what a tab holds" of the orientation guide, which shows in
 code how to read what a tab holds, change a part of it with a verb, add a record and
 open a table beside a tab.
 
@@ -512,8 +512,23 @@ with the section, S2 passed 10 of 10 seeds and the tasks of one prompt 12 of 12;
 without it, 4 of 5 and 4 of 6. The guide stays the one place of the section.
 """
 make_application_system() =
-    APPLICATION_SYSTEM * "\n\nHOW TO WORK IN THIS WINDOW, from the orientation guide:\n\n" *
+    APPLICATION_SYSTEM * make_domain_system() *
+    "\n\nHOW TO WORK IN THIS WINDOW, from the orientation guide:\n\n" *
     read_guide_section("guide/orientation", "Reach what a tab holds")
+
+"""
+    make_domain_system() -> String
+
+The paragraph of the system text that the loaded domains give: the sentence that
+each domain registered with its names ([`describe_registered_assistant_api`](@ref)),
+after a blank line, or an empty string when no loaded domain gave one. The system
+text of every window holds it after [`EDITOR_SYSTEM`](@ref), so a window tells its
+model about a domain exactly while the window loads that domain.
+"""
+function make_domain_system()
+    domains = describe_registered_assistant_api()
+    isempty(domains) ? "" : "\n\nTHE DOMAINS OF THIS WINDOW. " * domains
+end
 
 """
     make_application_settings(file; fault_policy = nothing, assistant = nothing,

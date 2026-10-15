@@ -93,7 +93,7 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, format_conversation, write_conversation,
        parse_markdown_blocks
-export register_assistant_api!, get_registered_assistant_api
+export register_assistant_api!, get_registered_assistant_api, describe_registered_assistant_api
 export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurnOperation,
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage

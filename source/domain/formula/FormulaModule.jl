@@ -49,7 +49,9 @@ include("FormulaToTable.jl")
 # are added here and not at the top level.
 function __init__()
     register_natural_graphics!(:formula, make_formula_graphics_entry)
-    register_assistant_api!(FormulaModule => (:get_formula_value,))
+    register_assistant_api!(FormulaModule => (:get_formula_value,);
+        description = "`get_formula_value(formula)` answers the value that a formula of " *
+                      "a sheet computes now.")
 end
 
 end # module

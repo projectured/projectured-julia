@@ -25,4 +25,19 @@ function test_assistant_api()
         end
         @test length(get_registered_assistant_api()) == before
     end
+
+    @testset "a loaded package tells the model about its names" begin
+        sentence = "A toy is made with `toy_shape`."
+        before = length(get_registered_assistant_api())
+        try
+            register_assistant_api!(Any[]; description = sentence)
+            register_assistant_api!(Any[]; description = sentence)
+            @test length(get_registered_assistant_api()) == before
+            @test count(==(sentence), AssistantModule._ASSISTANT_API_DESCRIPTIONS) == 1
+            @test occursin(sentence, describe_registered_assistant_api())
+        finally
+            filter!(!=(sentence), AssistantModule._ASSISTANT_API_DESCRIPTIONS)
+        end
+        @test !occursin(sentence, describe_registered_assistant_api())
+    end
 end
