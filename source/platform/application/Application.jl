@@ -228,10 +228,11 @@ end
 The wrappers of `build_editor` that the application window has, as keywords:
 its undo, its chrome, the clipboard and the walk, F1 help, the command palette,
 the gesture log, the message log, the statistics and the fault log, which fill
-the tools of the toolbar, and the list of the assistants of its tabs, which the
-Assistants button of the toolbar opens. **One place says which wrappers this
-binary has.** [`run_application`](@ref), [`make_application_window`](@ref) and
-the warm-up of a build come here, so none of them holds a list of its own.
+the tools of the toolbar, the list of the assistants of its tabs, which the
+Assistants button of the toolbar opens, and the watch of the files that its tabs
+show. **One place says which wrappers this binary has.** [`run_application`](@ref),
+[`make_application_window`](@ref) and the warm-up of a build come here, so none of
+them holds a list of its own.
 
 The toolbar has the assistant when `assistant` is not `nothing`, a fresh one
 with its backend, its model and its greeting, and its explorer lists `root`.
@@ -253,7 +254,7 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
        gesture_help = (; measure),
        command_palette = (; measure),
        gesture_log = _make_gesture_log_option(document), message_log = true,
-       frame_statistics = true, fault_log = true, assistant_list = true)
+       frame_statistics = true, fault_log = true, assistant_list = true, file_change = true)
 
 # The gesture log of a window records into the first gesture log that a tab of
 # its pane tree shows, or into a new one.

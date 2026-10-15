@@ -27,6 +27,7 @@ using ..FeedModule
 # that enters or leaves the window starts or stops its watch.
 import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..DomainModule: acquire_document!, release_document!
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export FileChangeStore, get_session_file_change_store, watch_document_file!,
        unwatch_document_file!, is_document_file_watched, close_file_change_store!,

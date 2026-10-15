@@ -248,5 +248,18 @@ function test_file_change_store()
             evaluate_operation(plain, AcquireDocumentOperation(tab))
             @test !is_document_file_watched(file; store)
         end
+
+        @testset "the wrapper file_change adds a feed, and the end of the loop stops its watchers" begin
+            editor = build_editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                                  devices = Device[], window = false, tabs = false, appearance = false,
+                                  settings = false, file_change = true)
+            @test count(feed -> feed isa FileChangeFeed, editor.feeds) == 1
+            store = get_session_file_change_store(; editor)
+            (path, file) = _make_watched_text_file("one\n")
+            evaluate_operation(editor, AcquireDocumentOperation(file))
+            @test is_document_file_watched(file; store) && !isempty(store.watchers)
+            foreach(step -> step(editor), editor.stop_steps)
+            @test isempty(store.watchers) && !is_document_file_watched(file; store)
+        end
     end
 end

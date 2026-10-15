@@ -25,6 +25,23 @@ function attach_wake_callback!(feed::FileChangeFeed, wake)
 end
 
 """
+    file_change = true
+
+The wrapper of `build_editor` that watches the files that the tabs of the window
+show: it adds a [`FileChangeFeed`](@ref), so a file document that enters the
+window watches its file in the store of the feed, and its stop step stops every
+watcher of that store when the loop ends. It is off by default.
+"""
+function wrap_editor!(::Val{:file_change}, layer::Symbol, argument, parts::EditorParts)
+    feed = FileChangeFeed()
+    push!(parts.feeds, feed)
+    push!(parts.stop_steps, _ -> (close_file_change_store!(feed.store); nothing))
+    parts
+end
+
+get_wrapper_layers(::Val{:file_change}) = (:screen => 10,)
+
+"""
     make_file_change_feeds() -> Vector{Feed}
 
 The `feeds` of a window whose file documents watch their files: one

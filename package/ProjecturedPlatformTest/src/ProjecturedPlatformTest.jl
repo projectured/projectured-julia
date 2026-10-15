@@ -541,7 +541,7 @@ using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
-using ProjecturedKernel.EditorModule: Editor
+using ProjecturedKernel.EditorModule: Editor, build_editor
 using ProjecturedKernel.DeviceModule: Device
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
