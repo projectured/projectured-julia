@@ -12,16 +12,16 @@
 
 | Document | What it holds |
 | --- | --- |
-| `GraphGraph` | `vertices`, `edges`, and the presentation fields `highlight_vertex` and `highlight_edge` |
+| `GraphGraph` | `vertices`, `edges`, the presentation fields `highlight_vertex` and `highlight_edge`, and `constraints`, the places that a drag gave its vertices |
 | `GraphVertex` | `content`, a document of any domain: a table, a JSON object, another graph |
 | `GraphEdge` | `source` and `target` vertices, `directed`, and an optional `label` document |
-| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, and `engine`, the name of the engine that placed it |
+| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, and `drag`, the drag of a vertex as view state |
 | `VertexLayout`, `EdgeLayout` | the box `(x, y, w, h)` of one vertex; the route of one edge as a list of points |
-| `GraphConstraint` | a `kind` and a `payload` for one vertex, such as a pin |
+| `GraphConstraint` | a `kind` and a `payload` for one vertex, such as a pin or a start |
 
-An edge holds its two vertices by identity, not by index. So a reorder of `vertices` keeps every edge, and a layout engine keys each vertex by its `objectid`. `GraphGraph` is the content. `GraphLayout` is the output of the first stage and holds the geometry, so a saved graph has no coordinates. `ChartPlot` makes the same split against `Chart`.
+An edge holds its two vertices by identity, not by index. So a reorder of `vertices` keeps every edge, and a layout engine keys each vertex by its `objectid`. `GraphGraph` is the content. `GraphLayout` is the output of the first stage and holds the computed geometry, as `ChartPlot` does against `Chart`. The graph holds coordinates only as `constraints`: the pin of each vertex that the person dropped, and the start of each other vertex, which a drop writes.
 
-The domain has no `@domain` call and no `@gestures` table. `GraphDocument` is declared by hand, and no gesture adds or removes a vertex or an edge.
+The domain has no `@domain` call and no `@gestures` table. `GraphDocument` is declared by hand. No gesture adds or removes a vertex or an edge, and a drag moves a vertex.
 
 ### The chain
 
@@ -29,14 +29,14 @@ The domain has no `@domain` call and no `@gestures` table. `GraphDocument` is de
 GraphGraph ──GraphGraphToGraphLayout──▶ GraphLayout ──GraphLayoutToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-1. **Size, then place.** `GraphGraphToGraphLayout(engine; extent, border, constraints)` prints the `content` of each vertex through the recursion into a canvas and reads its width and height. One computed cell then calls `layout_graph` with those sizes. The cell reads the vertex list, the edge list, the sizes and the constraints, so the engine runs again only when one of them changes. `constraints` is a function of the graph, because a constraint names a vertex, and the vertices exist only when there is a document.
+1. **Size, then place.** `GraphGraphToGraphLayout(engine; extent, border, constraints)` prints the `content` of each vertex through the recursion into a canvas and reads its width and height. One computed cell then calls `layout_graph` with those sizes. The cell reads the vertex list, the edge list, the sizes and the constraints, so the engine runs again only when one of them changes. `constraints` is a function of the graph, because a constraint names a vertex, and the vertices exist only when there is a document. The engine gets these constraints first and `graph.constraints` after them, so a pin that the person dropped wins over a pin of the projection.
 2. **Draw.** `GraphLayoutToGraphicsCanvas` draws the edges first, as `GraphicsPolyline`s with an arrowhead when `directed` is true. It prints each edge `label` and centres it on the midpoint of the route by arc length. It then draws each box as a rounded `GraphicsRect`, larger than the vertex by the padding of the theme on each side, with the content canvas on top.
 
 The size of the output canvas is a computed cell over the layout: the right and bottom edges of the boxes, of the highlight ring and of the route points. So a vertical layout above a graph reserves the right height, and the height grows when the vertices arrive after the first print.
 
 **The content prints twice.** The first stage prints each content to measure it, and the second stage prints it again to draw it. Nothing caches the first print for the second. A large content in a vertex costs two prints.
 
-`GraphToGraphics(engine = GridEmbedding(); extent, border, constraints)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
+`GraphToGraphics(engine = make_deferred_layout_engine(); extent, border, constraints)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
 
 ### Selection and clicks
 
@@ -44,7 +44,7 @@ The first stage maps `vertices[i].rest` to `vertex_layouts[i].vertex.rest` and b
 
 The second stage maps no reference backward. Its reader re-roots instead:
 
-- A left press inside a box goes to the reader of that content, with the point moved into the frame of the content. A `ReplaceSelectionOperation` that comes back is rooted under `vertex_layouts[i].vertex.content`. An operation for which `is_self_contained_operation` is true passes unchanged. The reader drops every other operation.
+- A left click inside a box goes to the reader of that content, with the point moved into the frame of the content. A left press goes there first too, and starts the drag of the vertex when the content does not take it; see "The drag of a vertex". A `ReplaceSelectionOperation` that comes back is rooted under `vertex_layouts[i].vertex.content`. An operation for which `is_self_contained_operation` is true passes unchanged. The reader drops every other operation.
 - A key goes to the reader of each content in turn, and the first answer wins.
 
 Edges and edge labels are decorations: a click on them selects nothing.
@@ -52,6 +52,16 @@ Edges and edge labels are decorations: a click on them selects nothing.
 ```julia
 @reference vertices[2].content.entries[1].value   # a value inside the JSON of vertex 2
 ```
+
+### The drag of a vertex
+
+A plain left press on the box of a vertex, its content or the padding around it, that the content does not take, writes `GraphLayout.drag` with the vertex and the point. No drag is on yet, so a release before the pointer moves is a click. A move of 5 pixels with the button held starts the drag: the graph answers `StartDragOperation` and the closed hand pointer, and the drag wrapper then sends it `DragMove`, `DragEnd` and `DragCancel` by its path.
+
+- **A move** writes the offset of the drag. Only the cell that builds the element list reads it, so the drawing moves the box, its content and the straight routes of its edges, and the engine does not run. The dragged box is drawn over the others.
+- **The release** writes one edit, `ReplaceReferencedValueOperation(graph, "constraints", …)`: the constraints of other kinds and the pins of the other vertices stay, the dragged vertex gets a `:pin` at its new corner, and each other vertex without a pin gets a `:start` at the corner where it is drawn. The engine runs one time. Undo takes the edit back.
+- **Escape**, a loss of focus, or a move with no button held cancels the drag, and the vertex goes back.
+
+A part of a content that takes a press keeps it, such as the edge of a column of a table. The drag of a vertex and the drag of its content do not mix.
 
 ### The layout engine seam
 
@@ -91,11 +101,12 @@ In both, the content of a vertex is the domain node itself, held by identity. So
 
 `ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
 
-The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `GridEmbedding`, so a tab draws a graph as a diagram. The package registers no natural domain row: a graph has no text form, no parser and no file type.
+The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `DeferredLayout`, so a tab draws a graph as a diagram. The package registers no natural domain row: a graph has no text form, no parser and no file type.
 
 ## Design decisions
 
-- **The geometry is a separate document.** `GraphLayout` holds the positions outside `GraphGraph`, so a saved graph holds no coordinates and two views can place one graph in two ways. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md).
+- **The computed geometry is a separate document, and the places that the person gave are in the graph.** `GraphLayout` holds the positions that an engine computed. A drop is an edit that the person keeps and takes back, so its pins and starts are `constraints` of `GraphGraph`, and every view of the graph shows them. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md) and [the-mouse-drags-a-vertex-of-a-graph.md](../../../../plan/done/the-mouse-drags-a-vertex-of-a-graph.md).
+- **The default engine defers its choice.** `GraphGraphToGraphLayout()`, `GraphToGraphics()` and `make_graph_projection_example` use `DeferredLayout`: a force-directed placement shows the structure of a graph, and a grid shows only its order. A layout run costs about 0.13 s at 300 vertices. See [the-mouse-drags-a-vertex-of-a-graph.md](../../../../plan/done/the-mouse-drags-a-vertex-of-a-graph.md).
 - **A vertex holds any document.** The content prints through the recursion of the caller, so a table, a card or another graph can be a node with no code in this package. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md).
 - **An engine throws on a constraint that it does not implement.** A picture does not show whether a pin was kept or dropped, so a silent drop is the worst answer. See [plan/done/graph-layout-engines.md](../../../../plan/done/graph-layout-engines.md).
 - **The pure-Julia engines are ports.** They must draw the picture that the C++ original draws, so each C++ file has one Julia file with the same name and order. See [plan/done/graph-layout-engines.md](../../../../plan/done/graph-layout-engines.md).
@@ -114,11 +125,14 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/domain/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()` and `test_graph_theme()`.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()` and `test_graph_vertex_drag()`.
 
 ## Limits
 
-- Edges and labels are not selectable. No gesture adds or removes a vertex or an edge, and a vertex can not be dragged. [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md) lists these as future work.
+- Edges and labels are not selectable. No gesture adds or removes a vertex or an edge. [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md) lists these as future work.
+- A graph that a view makes keeps the places of a drop only while the view lives: the diagram of a state machine, a process diagram, the topology of an omnet simulation. The pins go on that graph, and a reprint makes a new graph. After a reprint, undo of such a drop has no visible result.
+- During a drag, the edges of the dragged vertex are straight. An engine that routes around boxes routes them again at the drop.
+- No command removes the pins and the starts; undo is the way back.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
 - With a pure-Julia engine, a self-loop edge gets a route of two equal points at the centre of its box, so it does not show.
 - The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before `ProjecturedAdaptagrams` loads keeps its layout until its vertices, edges, sizes or constraints change.

@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 to 3 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 to 5 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
@@ -209,17 +209,35 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
     question.
   - `test_graph()`, `test_drag_tracking()`, `test_drag_pointer_shape()`,
     `test_pane_drag()` and `test_undo()` pass together: 918 passes.
-- [ ] **4. omnet-julia.** `SpringEmbedderLayout` and `ForceDirectedLayout` take
+- [x] **4. omnet-julia.** `SpringEmbedderLayout` and `ForceDirectedLayout` take
   `:start` as a pin. A test in the layout tests of omnet-julia covers it. Run
   `Pkg.precompile` of omnet-julia. This step lands after step 3 is on `main` of
   projectured.
-- [ ] **5. The documents and the live check.**
+
+  Done 2026-10-15 on the branch `graph-vertex-drag` of omnet-julia, commit
+  `5c55e294`, not landed. `ModuleLayout.jl` imports `get_constraint_starts`.
+  The test ran in a scratch environment (`/var/tmp/graph-vertex-drag/omnet-env`)
+  whose paths point at both worktrees: `test_module_layout()` gives 115 passes.
+  No source of omnet-julia or inet-julia builds `GraphGraph` or `GraphLayout`
+  by the positional form that the new fields change.
+- [x] **5. The documents and the live check.**
   - In [graph.md](../../documentation/package/domain/graph/graph.md), write the
     design decision again, change the limits and the usage, and link this plan.
   - In [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md),
     add the `:start` row and the table of section 3.
   - Do the live check: drag a vertex of `graph_example` in the SDL editor with
     pushed SDL events, then press Escape, then undo.
+
+  Done 2026-10-15. The live check (`/var/tmp/graph-vertex-drag/live_drag.jl`,
+  an editor over `SdlBackend` with the drag tracking screen, Escape through the
+  input queue of the backend) gives 15 of 15 passes: the press, the start after
+  the small move, the box at the moved corner, no layout during the drag, the
+  pin at the release, and Escape. Undo is checked by the unit test only. After
+  the drop, the two other vertices moved by about 80 pixels: a quarter of `k`
+  for these large boxes. With the room of a window, the table vertex of
+  `graph_example` takes the whole 900 by 700 with either engine, so both engines
+  place the other two vertices outside the window; the grid did so before this
+  plan too.
 - [ ] **6. Review and the suites.** A code review of the diff. Then run
   `test_graph()`, `test_fsm()`, `test_process()`, and the layout tests of
   omnet-julia.
@@ -237,7 +255,8 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
 
 ## 7. Not in this plan
 
-Not in this plan: a command that removes the pins and the start positions (lay
+Not in this plan: a vertex whose content fills the room that it gets, as the
+table of `graph_example` does; a command that removes the pins and the start positions (lay
 out again); a drag of an edge, of a bend, or of the empty canvas; feeding start
 positions to libcola through a wider C interface.
 
