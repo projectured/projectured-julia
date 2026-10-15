@@ -25,6 +25,13 @@ feed must not block — a producer waits for the editor through its store, never
 the other way. A drain may post an operation with `post_operation!`: a post of
 the editor's own task never waits, and the operation applies at the next drain.
 
+A drain moves only data that its producer prepared off the loop. It does no
+I/O, it calls no method of a type that a user defines, and its work grows only
+with what changed, so a frame stays short whatever the store holds. A producer
+that reads a file, a process or a value of the user does that on its own task,
+and stores the result as plain data, or as a new document that no computation
+reads yet.
+
 A drain that throws is recorded as a fault of its feed, and the next feed still
 drains.
 
