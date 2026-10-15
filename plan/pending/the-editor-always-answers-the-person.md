@@ -1299,7 +1299,7 @@ nothing.
       that save a file 1457; the umbrella tests that save a file, the guards and
       `test_application` 734, with the 4 failures of `main`, and an error at
       `MarkerVocabularyTest.jl:88`, which the base commit `961df53cb` has too.
-- [ ] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
+- [x] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
   Today `result` is a cell whose computation runs the code of the formula, set by
@@ -1341,7 +1341,7 @@ nothing.
     commit. The commit of `FormulaInsertion` on Enter (`formula.md:94`) uses the
     same gestures.
   - The parts, 2026-10-15:
-    - [ ] 7.1 The stored value. `result` is a plain cell that only
+    - [x] 7.1 (`bd4811030`) The stored value. `result` is a plain cell that only
       `ReplaceFormulaResultOperation` writes, with `result_key`, the key of the
       code and of the inputs that the value came from: the hash of the text of the
       code and of the keys of the stored values of the formulas that it names. A
@@ -1350,7 +1350,7 @@ nothing.
       stored value when it is current, and else computes the stale formulas in the
       order of their dependencies on the task that calls it, as a script and a
       check need; no print calls it. `wire_result!` goes.
-    - [ ] 7.2 The formula task of each editor. `ComputeFormulasOperation(env,
+    - [x] 7.2 (`bd4811030`) The formula task of each editor. `ComputeFormulasOperation(env,
       formulas)` queues formulas; one task of the default pool for each editor
       takes them one at a time, asks the loop through the door for the code as an
       `Expr`, the values of its inputs and the key, runs the code in the scratch
@@ -1358,12 +1358,12 @@ nothing.
       `ReplaceFormulaResultOperation`, which drops a value whose key is no longer
       the key now, and queues the formulas that name the formula whose value
       changed.
-    - [ ] 7.3 A3: `acquire_document!(editor, document)` and
+    - [x] 7.3 (`e02a25565`) A3: `acquire_document!(editor, document)` and
       `AcquireDocumentOperation` in the domain slice, the counterpart of
       `release_document!`. The open of a tab adds it, and the start of a window
       acquires the documents of its tabs. The formula domain queues every formula
       of a sheet that the editor acquires; a document that holds a sheet forwards.
-    - [ ] 7.4 Edit mode. `draft` holds a copy of the code while the formula is in
+    - [x] 7.4 (`952825db3`) Edit mode. `draft` holds a copy of the code while the formula is in
       edit mode; the print shows the draft in place of the code and no value. A
       key that edits the code in value mode becomes `BeginFormulaEditOperation` and
       the same edit of the draft. `CommitFormulaOperation` writes the draft into
@@ -1371,9 +1371,42 @@ nothing.
       old code and the old value. `CancelFormulaEditOperation` drops the draft.
       The gestures, mine, as Excel: Enter commits, Alt+Enter is a new line of the
       code, and Escape cancels.
-    - [ ] 7.5 omnet-julia follows (the sheet of a study, `add_study_formula!`, the
-      check of an expectation, the label of a reference, the precompile
-      workload), and the guide of the formula domain.
+    - [x] 7.5 (omnet-julia `933cdc34`, the guide `0f2ce5285`) omnet-julia follows
+      (the sheet of a study, `add_study_formula!`, the check of an expectation,
+      the label of a reference, the precompile workload), and the guide of the
+      formula domain.
+    - What the parts found and decided:
+      - The key holds the keys of the stored values of the inputs, not only the
+        code. A key of the code alone let a value that a formula computed from an
+        input with no value yet count as current.
+      - The formula task is background work with no parent unit
+        (`start_background_work(…; parent = nothing)`): the unit that queues the
+        formulas does not wait for it, and rule b would forbid its waits for the
+        editor while that unit runs. It computes only while the loop runs; with no
+        loop, the operation computes at once on its own task.
+      - No scratch module is one for the process: one for each editor, in its
+        formula task, and one for each wired formula, for code that reads a value.
+      - A key never reaches the reader of a formula: it reads at the stage
+        nearest the output, and its operation comes up to the sheet as a path. So
+        the sheet reader starts the edit mode, and the bindings of
+        `FormulaFormula` (`override`, only in edit mode) take Enter and Escape; the
+        sheet reads them for the formula that holds its selection, as a template
+        reads its focused child.
+      - The draft is a plain deep copy (`copy_document`), because a math tree
+        declares no duplicate.
+      - A key edits the code of a math formula only, on `main` too: an identifier
+        of Julia code prints through `FormulaIdentifierToSyntaxLeaf`, which maps
+        no text. Alt+Enter, a new line of the code, is not done. The type-in walk
+        checks an edit that a domain stages before it (`TypeinTest.jl`).
+      - omnet-julia: a study acquires its sheet, and `_open_study_pane!`, which
+        places the study by a write of the root of the tree, acquires it.
+    - The suites: the formula suite 210; the pane, shell, roster and window tests
+      of the platform 1352 and 124; the umbrella walks of the formula example with
+      the 489 type-in failures that `main` has, and the guards of the names, the
+      arguments and the exports; omnet-julia, the study, the study views, the
+      study verbs and the IDE window tests, with the 4 failures that `main` has
+      too (`StudyToWidgetTest.jl:195`, `StudyVerbsTest.jl:50` and `:51`,
+      `IdeNavigatorTest.jl:57`).
 - [ ] **8. The rules, the guides and the checks:** a new invariant for the units
   and the held frames, and one for the drains of feeds; the guarantee, in the
   form that the owner agreed on 2026-10-14: "The editor stays responsive while a
