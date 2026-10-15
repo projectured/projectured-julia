@@ -50,6 +50,7 @@ using ..SettingsModule
 using ..ToolModule
 using ..EditorModule
 using ..ProjectionAlgebraModule
+using ..NaturalModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field,
@@ -78,5 +79,13 @@ include("UndoBufferToAny.jl")
 include("UndoTheme.jl")
 include("UndoBufferToSyntax.jl")
 include("HistorySettings.jl")
+
+# The row that lets every renderer draw a history: what it holds, and nothing of
+# its own. The open of a file gives the file a history in every editor that has
+# settings, so no editor can be left without the row.
+function __init__()
+    register_natural_graphics!(:undo, (; measure, appearance) -> Pair{Type,Any}[
+        UndoBuffer => UndoBufferToAnyProjection()])
+end
 
 end # module

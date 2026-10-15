@@ -516,6 +516,10 @@ using ProjecturedKernel.ToolModule
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedPlatform.FileFormatModule: record_saved_state!, has_unsaved_edits, get_saved_text_hash
 using ProjecturedPlatform.UndoModule
+using ProjecturedPlatform.NaturalModule: NaturalToGraphics
+using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsViewport
+using ProjecturedPlatform.StyleModule: FixedMeasure
+using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 
 include("../../../test/platform/undo/UndoBufferTest.jl")
 include("../../../test/platform/undo/UndoSuite.jl")

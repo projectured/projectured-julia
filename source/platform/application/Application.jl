@@ -151,10 +151,10 @@ end
         -> Vector{Pair{Type,Any}}
 
 How the application draws what a tab holds, in front of the defaults of
-`NaturalToGraphics`: the history around a file, the Files pane, the assistant
-and its conversation, and plain text. A document of a domain draws through the
-natural renderer, which every loaded domain registers itself with, so the
-application names no domain.
+`NaturalToGraphics`: the Files pane, the assistant and its conversation, and
+plain text. A document of a domain draws through the natural renderer, which
+every loaded domain registers itself with, so the application names no domain.
+A history around a file draws through the row that the undo slice registers.
 """
 function make_application_content_projections(; measure = FontFileMeasure(),
                                                appearance::Appearance = Appearance())
@@ -165,9 +165,6 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         make_conversation_row(measure = measure, appearance = appearance),
     ]
     Pair{Type,Any}[
-        # A history around what a tab holds is invisible: it prints what it holds
-        # and answers that output.
-        UndoBuffer        => UndoBufferToAnyProjection(),
         TextDocument      => text_to_graphics,
         # The file system slice registers a row for a workspace, and this one
         # overrides it for one reason: what a file opens WITH is the

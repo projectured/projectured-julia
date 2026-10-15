@@ -81,6 +81,8 @@ Four rules make the two work together, and a run of typing keeps them (see above
 
 `make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the menu Open, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
 
+So every editor that has settings can hold a history, and every editor must draw one. The slice registers the row `UndoBuffer => UndoBufferToAnyProjection()` with the natural renderer when it loads, and each `NaturalToGraphics` draws a history as what it holds. A renderer that does not draw through the natural renderer needs the row in its own table.
+
 ### The keys
 
 | Key | What it does |
@@ -121,9 +123,9 @@ fills them with `get_undo_style`, from an `UndoTheme` scaled or not, or the defa
 
 ## How it fits
 
-The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. No other slice depends on it; an application puts a buffer into its document and a `UndoBuffer => UndoBufferToAnyProjection()` row into its dispatch table.
+The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, the natural slice for its row, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. The file system slice and the application depend on it: the open of a file and the application put a buffer into the document.
 
-It registers nothing at load time. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
+At load time it registers one row with the natural renderer, `UndoBuffer => UndoBufferToAnyProjection()`. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 
 ## Design decisions
 

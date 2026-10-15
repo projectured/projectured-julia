@@ -26,6 +26,33 @@ end
 
 _texts(list::UndoList) = [item.value for item in list.items]
 
+# Each text that a graphics output draws, with the place where it draws it.
+function _drawn_texts(node, found = Tuple{String,Float64,Float64}[], x = 0.0, y = 0.0)
+    node isa Cell && return _drawn_texts(node[], found, x, y)
+    if node isa GraphicsCanvas
+        foreach(element -> _drawn_texts(element, found, x + node.x, y + node.y), node.elements)
+    elseif node isa GraphicsViewport
+        _drawn_texts(node.content, found, x + node.x, y + node.y)
+    elseif node isa GraphicsText
+        push!(found, (String(node.text), x + node.x, y + node.y))
+    end
+    found
+end
+
+# Whether an IO map of type `T` is on the chain under `iomap`.
+function _has_iomap(iomap, ::Type{T}; depth = 12) where {T}
+    iomap isa T && return true
+    depth == 0 && return false
+    for name in fieldnames(typeof(iomap))
+        value = getfield(iomap, name)
+        value isa Cell && (value = value[])
+        (value isa Document || value isa Projection || value isa Number ||
+         value isa AbstractString || value === nothing) && continue
+        _has_iomap(value, T; depth = depth - 1) && return true
+    end
+    false
+end
+
 # A write into the first element of the list the buffer holds, in the content's
 # own frame — the frame the reader of the content answers in.
 _write_first(text) = ReplaceReferencedValueOperation(nothing,
@@ -98,6 +125,16 @@ function test_undo_buffer()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         @test iomap.output === list
         @test iomap.content_iomap.input === list
+    end
+
+    @testset "the natural renderer draws a buffer as what it holds, and records through it" begin
+        renderer = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
+        held = print_document(renderer, nothing, UndoBuffer(PrimitiveString("held")), offer)
+        plain = print_document(renderer, nothing, PrimitiveString("held"), offer)
+        @test _drawn_texts(held.output) == _drawn_texts(plain.output)
+        @test first.(_drawn_texts(held.output)) == ["held"]
+        @test _has_iomap(held, UndoBufferToAnyIoMap)
     end
 
     @testset "a reference gains the content step going back and loses it going forward" begin
