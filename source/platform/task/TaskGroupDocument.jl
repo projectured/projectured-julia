@@ -188,7 +188,7 @@ function record_task_execution_sync!(slot::_TaskGroupSlot, execution, shadow,
         add_task_execution!(document, execution, shadow)
         inner = find_task_group_document(doc, slot.index)
         if inner !== nothing
-            _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
+            _reset_earlier_tasks!(inner)
             _sync_task_group_shadow!(inner)
         end
     elseif get_current_task_execution(document) !== shadow
@@ -217,7 +217,7 @@ end
 function record_task_execution_sync!(preparation::_TaskGroupPreparation, execution, shadow,
                                      before::Symbol, made::Bool)
     doc = preparation.group
-    made && _reset_tasks!(doc, eachindex(get_task_group(doc).tasks))
+    made && _reset_earlier_tasks!(doc)
     _sync_task_group_shadow!(doc)
     nothing
 end
@@ -274,6 +274,21 @@ function _reset_tasks!(doc::TaskGroupDocument, indices)
     doc
 end
 
+# At the first sync of a start of the group, put back to waiting each task whose
+# document shows an execution of an earlier start. The driver of a group runs on a
+# task of its own, so the first sync of a task of this start can come before the
+# first sync of the group, and its document keeps what it shows.
+function _reset_earlier_tasks!(doc::TaskGroupDocument)
+    documents = _task_documents(doc)
+    runs = _get_task_group_runs(get_task_group(doc))
+    for (index, document) in enumerate(documents)
+        current = getfield(document, :running)[]
+        current !== nothing && current === runs[index] && continue
+        reset_task_document!(document)
+    end
+    doc
+end
+
 # Called whenever a task starts or ends, so it must not count the tasks. It reads
 # the counts of the shadow of the group, which the tally of the scheduler makes
 # without a walk. A count is one walk of every task per change: on 18,500 tasks,
@@ -326,7 +341,7 @@ row was closed in the Tasks pane gets its row back.
 """
 function rerun_task_group_document!(doc::TaskGroupDocument, which = :failed)
     group = get_task_group(doc)
-    group.start_time === nothing && return start_task_group_document!(doc)
+    lock(() -> group.start_time, group.runtime.lock) === nothing && return start_task_group_document!(doc)
     indices = compute_task_group_indices(group, which)
     isempty(indices) && return doc
     set_cell_value!(getfield(doc, :status), :running)

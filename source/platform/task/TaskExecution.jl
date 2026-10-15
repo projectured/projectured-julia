@@ -154,8 +154,10 @@ end
 
 What an execution needs while its process runs, and which no view shows: the
 lock that its writers and its readers take, the process, the task that reads
-the streams of the process, the count of the writes, and the last sample of the
-processor time. The shadow of an execution does not hold it.
+the streams of the process, the count of the writes, the last sample of the
+processor time, and the functions that each write calls, such as the one of the
+store of a feed that keeps the executions that changed. The shadow of an
+execution does not hold it.
 """
 mutable struct TaskRuntime
     lock::ReentrantLock
@@ -168,9 +170,10 @@ mutable struct TaskRuntime
     # when that sample was taken.
     processor_ticks::Union{Int,Nothing}
     sampled_at::Union{Float64,Nothing}
+    listeners::Vector{Any}
 end
 
-TaskRuntime() = TaskRuntime(ReentrantLock(), nothing, nothing, 0, nothing, nothing)
+TaskRuntime() = TaskRuntime(ReentrantLock(), nothing, nothing, 0, nothing, nothing, Any[])
 
 """
     TaskExecution(task)
@@ -233,14 +236,31 @@ Base.show(io::IO, execution::TaskExecution) =
     update_task_execution!(f, execution) -> execution
 
 Write `execution` with `f(execution)`, under the lock of its runtime, and count
-the write.
+the write. Then call each listener of the execution
+([`attach_task_execution_listener!`](@ref)), with no lock held.
 """
 function update_task_execution!(f, execution::TaskExecution)
     runtime = execution.runtime
-    lock(runtime.lock) do
+    listeners = lock(runtime.lock) do
         f(execution)
         runtime.version += 1
+        isempty(runtime.listeners) ? runtime.listeners : copy(runtime.listeners)
     end
+    for listener in listeners
+        listener()
+    end
+    execution
+end
+
+"""
+    attach_task_execution_listener!(execution, listener) -> execution
+
+Call `listener()` after each write of `execution`, on the task that writes, with
+no lock held. A listener only notes the change: it reads no document, and it
+does not wait.
+"""
+function attach_task_execution_listener!(execution::TaskExecution, listener)
+    lock(() -> push!(execution.runtime.listeners, listener), execution.runtime.lock)
     execution
 end
 
@@ -451,8 +471,11 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
         e.output.path = paths.output
         e.error_output.path = paths.error_output
     end
-    execution.runtime.reader = @async begin
-        error_reader = @async _read_task_stream(error_output, execution, :error_output, nothing)
+    # The readers and the sampler run on the default pool, never on the thread of
+    # the loop that started the task.
+    errormonitor(Threads.@spawn :default _sample_task_usage_while_running(execution))
+    execution.runtime.reader = errormonitor(Threads.@spawn :default begin
+        error_reader = Threads.@spawn :default _read_task_stream(error_output, execution, :error_output, nothing)
         _read_task_stream(output, execution, :output, read_line)
         wait(error_reader)
         wait(process)
@@ -469,7 +492,7 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
                                       time() - started);
                     finish = on_finish)
         end
-    end
+    end)
     execution
 end
 
@@ -540,6 +563,18 @@ function sample_task_usage!(execution::TaskExecution; now::Real = time())
         runtime.processor_ticks = ticks
         runtime.sampled_at = Float64(now)
         e.resident_memory = resident
+    end
+end
+
+# How often the sampler of a process that runs reads `/proc`, in seconds.
+const TASK_USAGE_SAMPLE_INTERVAL = 0.25
+
+# Sample the use of the processor and of the memory of the process of
+# `execution` while it runs, off the loop, so a drain only syncs the samples.
+function _sample_task_usage_while_running(execution::TaskExecution)
+    while lock(() -> execution.result === nothing, execution.runtime.lock)
+        sample_task_usage!(execution)
+        sleep(TASK_USAGE_SAMPLE_INTERVAL)
     end
 end
 

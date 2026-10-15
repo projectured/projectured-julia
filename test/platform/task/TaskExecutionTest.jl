@@ -67,9 +67,13 @@ function test_task_execution()
             @test execution.process_id == getpid(execution.runtime.process)
             @test isdir("/proc/$(execution.process_id)")
             @test execution.start_time !== nothing && execution.end_time === nothing
-            sample_task_usage!(execution)
-            sleep(0.2)
-            sample_task_usage!(execution)
+            # The sampler of the process writes its use of the processor and of the
+            # memory off the loop, with no call.
+            deadline = time() + 5
+            while lock(() -> execution.processor_load, execution.runtime.lock) === nothing &&
+                  time() < deadline
+                sleep(0.05)
+            end
             @test execution.resident_memory !== nothing && execution.resident_memory > 0
             @test execution.processor_load !== nothing && execution.processor_load >= 0
             wait_task_execution(execution)

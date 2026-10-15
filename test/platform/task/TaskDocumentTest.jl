@@ -85,6 +85,21 @@ function test_task_document()
             @test _TaskDocumentFeed.compute_wake_deadline(feed, nothing) === nothing
         end
 
+        @testset "a drain syncs only the executions that changed" begin
+            store = TaskFeedStore()
+            first_execution = TaskExecution(_TaskGroupProbeTask("one", "exit 0"))
+            second_execution = TaskExecution(_TaskGroupProbeTask("two", "exit 0"))
+            first_owner = _TaskDocumentFeedOwner(Tuple{Symbol,Bool}[])
+            second_owner = _TaskDocumentFeedOwner(Tuple{Symbol,Bool}[])
+            register_task_execution!(store, first_execution, first_owner)
+            register_task_execution!(store, second_execution, second_owner)
+            @test drain_task_feed!(store) == 2
+            update_task_execution!(e -> (e.progress = 0.5), second_execution)
+            @test drain_task_feed!(store) == 1
+            @test length(first_owner.syncs) == 1 && length(second_owner.syncs) == 2
+            @test drain_task_feed!(store) == 0
+        end
+
         @testset "a group document keeps its counts and its summary" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(0.0); name = "probe", jobs = 2))

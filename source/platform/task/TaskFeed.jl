@@ -1,8 +1,10 @@
 # The feed of the slice `task`: the executions of tasks, each brought into its
-# shadow on the task of the editor, a few times a second. The readers of a process
-# write the native layout of a `TaskExecution`; a drain syncs its shadow in the
-# cell layout, which the views read. So no reader of a process writes a cell, and
-# a change of state is no edit: it goes into no undo list.
+# shadow on the task of the editor, a few times a second. The readers and the
+# sampler of a process write the native layout of a `TaskExecution`, off the loop,
+# and each write notes the execution as changed in the store; a drain syncs the
+# shadow of each execution that changed, in the cell layout, which the views read.
+# So no reader of a process writes a cell, a drain reads no file, and a change of
+# state is no edit: it goes into no undo list.
 #
 # Each execution has an owner: the document that shows it. A drain tells the
 # owner what it synced ([`record_task_execution_sync!`](@ref)), so a document
@@ -23,16 +25,18 @@ end
 """
     TaskFeedStore()
 
-The executions of the tasks that run, each with its shadow and its owner. Any
-task registers an execution; a drain syncs what changed and lets an execution go
-once its end is synced.
+The executions of the tasks that run, each with its shadow and its owner, and the
+entries whose execution changed since the last drain. Any task registers an
+execution; a drain syncs what changed and lets an execution go once its end is
+synced.
 """
 struct TaskFeedStore
     lock::ReentrantLock
     entries::Vector{TaskFeedEntry}
+    changed::Vector{TaskFeedEntry}
 end
 
-TaskFeedStore() = TaskFeedStore(ReentrantLock(), TaskFeedEntry[])
+TaskFeedStore() = TaskFeedStore(ReentrantLock(), TaskFeedEntry[], TaskFeedEntry[])
 
 """The store of the session: every document that starts a task registers here."""
 const SESSION_TASK_FEED_STORE = TaskFeedStore()
@@ -50,10 +54,21 @@ on the editor task that made the shadow itself gives it.
 """
 function register_task_execution!(store::TaskFeedStore, execution::TaskExecution, owner;
                                   shadow = nothing)
+    entry = TaskFeedEntry(execution, shadow, owner, -1)
     lock(store.lock) do
-        push!(store.entries, TaskFeedEntry(execution, shadow, owner, -1))
+        push!(store.entries, entry)
+        push!(store.changed, entry)
     end
+    attach_task_execution_listener!(execution, () -> _record_task_feed_change!(store, entry))
     execution
+end
+
+# Note that the execution of `entry` changed, once until the next drain.
+function _record_task_feed_change!(store::TaskFeedStore, entry::TaskFeedEntry)
+    lock(store.lock) do
+        any(changed -> changed === entry, store.changed) || push!(store.changed, entry)
+    end
+    nothing
 end
 
 """
@@ -72,25 +87,27 @@ has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store()) =
     lock(() -> !isempty(store.entries), store.lock)
 
 """
-    drain_task_feed!(store = get_session_task_feed_store(); now = time()) -> Int
+    drain_task_feed!(store = get_session_task_feed_store()) -> Int
 
 Sync the shadow of every execution that changed since the last drain, and answer
-how many were synced. An execution whose process runs is sampled first, so its
-processor load and its memory are fresh. An execution whose end is synced is let
-go.
+how many were synced. The sampler of a process that runs writes its processor
+load and its memory, so a drain reads no file. An execution whose end is synced
+is let go.
 
 Call it on the task that reads the documents: the task of the editor, which a
 [`TaskFeed`](@ref) does, or the one task of a caller with no window.
 """
 # @optional: the store is what the call drains, and a caller with no window
 # drains the store of the session.
-function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store();
-                          now::Real = time())
-    entries = lock(() -> copy(store.entries), store.lock)
+function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store())
+    entries = lock(store.lock) do
+        changed = copy(store.changed)
+        empty!(store.changed)
+        changed
+    end
     synced = 0
     ended = TaskFeedEntry[]
     for entry in entries
-        sample_task_usage!(entry.execution; now = now)
         version = get_task_execution_version(entry.execution)
         version == entry.version && continue
         made = entry.shadow === nothing
@@ -136,7 +153,7 @@ function drain_changes!(feed::TaskFeed, editor)
     now - feed.flushed_at >= feed.flush_interval || return 0
     has_task_feed_entries(feed.store) || return 0
     feed.flushed_at = now
-    drain_task_feed!(feed.store; now = now)
+    drain_task_feed!(feed.store)
 end
 
 compute_wake_deadline(feed::TaskFeed, editor) =
