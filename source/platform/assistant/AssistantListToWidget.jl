@@ -16,6 +16,8 @@ title, the state of its work, whose turn it is, what its turn does now, how many
 prompts it has, how much of its context it uses, how far the plan of its agent
 is, how many subagents and background tasks of its agent run, when it started
 and how long it runs.
+The title fills the width that the other columns leave and stays on one line,
+and a pane narrower than the table scrolls it.
 Each value is a label that reads the cells of the assistant, so a row follows
 its assistant while a turn streams. The elapsed time of a turn that runs reads
 the clock of the editor, so it moves while the turn runs. Between turns no label
@@ -40,6 +42,17 @@ AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme
 # `background_tasks` does; the short name keeps the column narrow.
 const _ASSISTANT_LIST_COLUMNS = ("", "title", "work", "turn", "activity", "prompts", "context",
                                  "plan", "subagents", "tasks", "started", "elapsed")
+
+# The title takes the width that the other columns leave, and never less than its
+# widest title, which stays on one line: a column with a weight and no minimum of
+# its own, whose cells clip, is at least as wide as its widest cell. Each other
+# column is its content and at least its header, so the columns of numbers do not
+# narrow the title, and a pane narrower than the table scrolls it.
+const _ASSISTANT_TITLE_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
+
+_make_assistant_list_columns() =
+    Any[WidgetTableColumn(; policy = name == "title" ? _ASSISTANT_TITLE_POLICY : nothing)
+        for name in _ASSISTANT_LIST_COLUMNS]
 
 # The words of a state of the work, and the role of its badge.
 _format_work_state(state::Symbol) = replace(String(state), "_" => " ")
@@ -106,7 +119,8 @@ function _build_assistant_table(p, list::AssistantList, clock)
         isempty(assistants) && return Cell[Cell(WidgetLabel("No assistant is open in this window.";
                                                             text_style = p.muted_color))]
         rows = Any[_build_assistant_row(list, a, clock) for a in assistants]
-        Cell[Cell(WidgetTable(collect(Any, _ASSISTANT_LIST_COLUMNS), rows))]
+        Cell[Cell(WidgetTable(collect(Any, _ASSISTANT_LIST_COLUMNS), rows;
+                              columns = _make_assistant_list_columns()))]
     end)
     body
 end

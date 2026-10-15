@@ -122,6 +122,11 @@ the title, the work state, whose turn it is, the activity, the count of prompts,
 usage of the context (`format_agent_usage`), the three columns of the work of the
 agent (`plan`, `subagents` and `tasks`), the start time and the elapsed
 time. Work shows the work page of the agent ([The work page](#the-work-page)).
+The title column has a weight and no minimum of its own, so it takes the width
+that the other columns leave and is at least as wide as its widest title, which
+stays on one line; each other column is its content and at least its header. A
+pane narrower than the table scrolls it, and the columns of numbers never make the
+title wrap.
 Each value is a label that reads cells, so a row follows its assistant while a
 turn streams. While a turn runs, the elapsed time reads the clock of the editor
 (`ctx.clock`), which the frame loop writes. Between turns no label reads the
