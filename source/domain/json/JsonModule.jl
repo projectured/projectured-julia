@@ -43,8 +43,9 @@ include("JsonToSyntax.jl")
 include("JsonFile.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, the
-# natural notation it reads and writes, and the names a model may use.
+# What this slice registers when it loads: the file extensions it owns, and the
+# natural notation it reads and writes, which is also how a model reads and writes
+# a JSON document.
 function __init__()
     register_natural_domain!(JsonDocument;
                              rung      = :syntax,
@@ -56,12 +57,6 @@ function __init__()
                              parse     = parse_json)
 
     register_file_document_type!(".json", JsonFile)
-
-    # The shape of a JSON file, which a model reads to find the fields of a
-    # record.
-    register_assistant_api!(JsonModule => (:JsonArray, :JsonObject, :JsonObjectEntry,
-                                           :JsonString, :JsonNumber, :JsonBool,
-                                           :JsonNull))
 end
 
 end # module

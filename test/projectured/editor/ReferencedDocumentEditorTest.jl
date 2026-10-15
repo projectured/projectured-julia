@@ -186,7 +186,7 @@ function test_referenced_document_editor()
     end
 
     @testset "the application declares the new names, and a search finds them" begin
-        set = ToolSet(; api = make_application_api())
+        set = ToolSet(; api = make_editor_api())
         register_default_tools!(set)
         description = only([t for t in set.tools if t.name == "execute_julia_code"]).description
         @test occursin("replace_referenced_value!(part, new_value)", description)
@@ -198,7 +198,9 @@ function test_referenced_document_editor()
         @test first(first_names("find pane"; mode = "keywords")) == "find_pane"
         @test "ReferencedDocument" in first_names("a document and where it is"; mode = "description")
         @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
-        @test first(first_names("the fields of a JSON object"; mode = "description")) == "JsonObject"
+        # A domain with a parser is written as its text, so its constructors are
+        # not declared, and a search for a document from text finds the parser.
+        @test first(first_names("a document from its text"; mode = "description")) == "parse_natural_text"
         @test first(first_names("open a pane under another pane"; mode = "description")) == "open_pane!"
     end
 

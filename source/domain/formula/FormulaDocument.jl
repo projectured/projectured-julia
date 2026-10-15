@@ -567,16 +567,17 @@ formula and reads its value at once gets it. Reading it inside a reactive cell
 subscribes to it. A view reads the stored value with
 [`get_formula_result`](@ref), never this.
 
-Use it to read the number a formula of a study's sheet computed — a blocking
-probability, a mean queue length — to compare it with a result, to print it, or
-to state an expectation from it.
+Use it to read the number that a formula of a sheet computed, such as a blocking
+probability or a mean queue length: to compare it with a measured value, to print
+it, or to state an expectation from it.
 
 # Example
 
-    p_block = add_study_formula!(get_study(), "p_{block}", "((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")
-    println(get_formula_value(p_block))
+    sheet_1 = get_edited_document(find_pane("queue.pred"))
+    p_block_1 = sheet_1.formulas[2]
+    println(get_formula_value(p_block_1))
 
-See also `add_study_formula!`, `add_expectation!`.
+See also `get_edited_document`, `print_natural_text`.
 """
 get_formula_value(formula::FormulaFormula) = formula.current_value
 

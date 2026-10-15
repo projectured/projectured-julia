@@ -72,4 +72,16 @@ make_graphics_projection(::Type{DataFrameViewRow}; measure, appearance) =
     ChainingProjection(make_data_frame_row_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
                        GridLayoutToGraphicsCanvas())
 
+# The names of DataFrames that a model makes, transforms and counts a frame with:
+# a frame that a verb answers has to be grouped, narrowed to its columns and
+# counted. `describe` arrives as `summarize_frame`, because `describe_document` is
+# the sentence that a document says about itself, and one model holds one name.
+# The registry is runtime state, so the names are added here and not at the top
+# level.
+function __init__()
+    register_assistant_api!(DataFrames => (:DataFrame, :select, :transform, :combine,
+                                           :groupby, :subset, :ByRow, :Not, :nrow,
+                                           :describe => :summarize_frame))
+end
+
 end # module DataFramesModule

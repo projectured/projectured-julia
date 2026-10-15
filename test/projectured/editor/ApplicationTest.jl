@@ -287,17 +287,16 @@ function test_application()
         end
 
         @testset "the assistant's verbs" begin
-            api = make_application_api()
-            names = Set{Symbol}()
-            for entry in api
-                entry isa Pair && union!(names, last(entry))
-            end
+            api = make_editor_api()
+            names = Set{Symbol}(name for entry in declare_api!(ToolSet(), api).api
+                                     for name in get_api_entry_names(entry))
             # One vocabulary from each of the four, so a missing concatenation
             # shows here and not in a window.
             @test :open_pane! in names          # the pane arranges the window
             @test :WidgetTable in names         # a widget shows a value
             @test :make_file_tab in names       # a path becomes a tab
             @test :Workspace in names           # the Files pane lists a tree
+            @test :list_task_groups in names    # the groups of tasks of the session
 
             # A declared surface is what `search_api` answers. Without it the
             # search indexes the kernel's own modules and a person asking to open
@@ -318,6 +317,8 @@ function test_application()
 
             @test occursin("FileFormatModule", APPLICATION_SYSTEM)
             @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
+            # The paragraph that every window of the editor holds.
+            @test occursin(EDITOR_SYSTEM, APPLICATION_SYSTEM)
 
             # The text of what a tab holds, by the path the prompt names. A file
             # tab carries a history, and the file answers the text of what the

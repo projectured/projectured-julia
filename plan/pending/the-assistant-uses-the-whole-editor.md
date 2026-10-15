@@ -244,7 +244,31 @@ its tests and a commit. Each name that a step adds or declares has:
 After each change of a declared list, `test_referenced_document_editor` must pass.
 If a rank moves, the fix is a word of a docstring, not the scorer of `search_api`.
 
-- [ ] **1. One vocabulary for both windows.**
+- [x] **1. One vocabulary for both windows.** Done 2026-10-15.
+  - What was built:
+    - The Workspace of the Files pane is shared too, because the IDE also has a
+      Files pane. So the application adds nothing to the shared list:
+      `make_application_api` is renamed to `make_editor_api`, and the application
+      declares it as it is.
+    - `EDITOR_SYSTEM` is the shared paragraph, in the application slice.
+      `CAMPAIGN_SYSTEM` holds it in place of its own paragraphs on the roster and
+      the layout. Its sentence "every verb takes [`editor`] as its first argument"
+      was false, and it now says that a verb acts on the editor.
+    - The application slice may now use the task slice (`PLATFORM_SLICE_EDGES`).
+    - The orientation guide writes JSON values with `parse_natural_text`, and its
+      two notes no longer name the JSON types.
+    - `search_api` put `find_pane_reference` above `find_pane` for "find pane"
+      after the task names joined the list. The rank was fragile: without any one
+      of six entries, `find_pane` was first again. The "Use it to" line of
+      `find_pane` now says "find a pane", and the scorer is unchanged.
+    - OmnetIde does not load ProjecturedDataFrames, so `make_result_api()` keeps
+      its ten DataFrames names. Both declarations give the same bindings.
+  - The counts: the application declares 132 names, the IDE 195, and the IDE
+    holds each name of the application.
+  - Failures that main has too, and that this step does not change:
+    `test_application` 2 fail and 2 error (the evaluator and the restore of a
+    closed pane), `test_campaign_verbs` 3 error (stale names), and
+    `test_ide_file_navigator` 1 fail (a Julia file of the folder draws).
   - `make_editor_api()` in the application slice holds what both windows share:
     the pane, interface, file and natural text lists, `search_documents`,
     `get_wrapped_document`, the edit verbs, the arrangement and roster verbs,

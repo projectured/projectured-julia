@@ -30,7 +30,7 @@ function make_editor(directory)
     editor.iomap = print_document(composed, nothing, scene,
                                   PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
                                                  Dict{Symbol,Any}(), Clock()))
-    declare_api!(editor.tools, make_application_api())
+    declare_api!(editor.tools, make_editor_api())
     register_undo_tools!(editor.tools)
     (editor, document, composed, assistant)
 end

@@ -310,28 +310,31 @@ function _make_application_pane_projection(content, measure, appearance::Appeara
 end
 
 """
-    make_application_api() -> Vector
+    make_editor_api() -> Vector
 
-What the assistant of this window may write, and the whole of it.
+What the assistant of a window of the editor may write: the vocabulary that
+every window declares, and that a window of a domain extends with its own verbs.
 
-Nine vocabularies: the pane verbs that arrange the window, the widget names that
+The vocabularies: the pane verbs that arrange the window, the widget names that
 build what a pane shows, the file verbs that open and save one, the workspace
-this application lists, the verbs that filter, sort, group and limit a
-collection, the verbs that gather the members of one kind into a roster, the verb
-that shows a document as a tree, the verbs that show and describe the processes of
-the system, and what each loaded domain registered with
-`register_assistant_api!`. Every exported name here is a verb the assistant reaches
-through `execute_julia_code`, and nothing else resolves.
+that the Files pane lists, the text form of a document of any domain, the verbs
+that edit a collection, the verbs that filter, sort, group and limit a
+collection, the verbs that gather the members of one kind into a roster, the
+verbs of the groups of tasks, the verb that shows a document as a tree, the verbs
+that show and describe the processes of the system, and what each loaded domain
+registered with `register_assistant_api!`. Every name here is a verb the
+assistant reaches through `execute_julia_code`, and nothing else resolves.
 
-Each vocabulary is declared where its verbs are, so a second host that offers the
-same verbs states it once and this function only names which it wants.
+Each vocabulary is declared where its verbs are, so a host that offers the same
+verbs states it once and this function only names which it wants. The Projectured
+application declares this list as it is; the OMNeT++ IDE adds the verbs of its
+simulations to it.
 """
-make_application_api() = Any[
+make_editor_api() = Any[
     make_pane_api()...,
     make_interface_api()...,
     make_file_api()...,
-    # What this application holds and the file slice does not name: the tree the
-    # Files pane lists, and the operation that opens a row of it.
+    # The tree that the Files pane lists, and the operation that opens a row of it.
     FileSystemModule => (:Workspace, :WorkspaceFolder),
     WidgetModule => (:OpenFileOperation,),
     # How a model reads what a tab holds, which is what a window of files is
@@ -351,6 +354,9 @@ make_application_api() = Any[
     # what it can show.
     RosterModule => (:Roster, :show_roster!, :describe_roster_sources, :describe_item_facets,
                      :edit_shown_items!, :CollectionItems, :ItemsWithin, :StoreRecords),
+    # The verbs that list, describe, stop, run again and close the groups of tasks
+    # of the session, whichever verb started them.
+    make_task_api()...,
     # The verb that shows a document and the documents under it as a tree.
     TreeModule => (:DocumentTree, :show_document_tree!),
     # The verbs that show the processes under a process as a tree, and write them
@@ -365,50 +371,71 @@ make_application_api() = Any[
 ]
 
 """
+    EDITOR_SYSTEM
+
+What the assistant of every window of the editor is told about the verbs that
+[`make_editor_api`](@ref) declares and the tools that
+[`register_editor_tools!`](@ref) adds. The system text of a window holds it,
+beside what that window adds about itself, so [`make_editor_api`](@ref) and this
+text change together.
+"""
+const EDITOR_SYSTEM =
+    "Read the guide resource://guide/guide/orientation first: it shows each step " *
+    "below in code. `find_pane(title)` answers a tab by its title, and " *
+    "`get_edited_document(tab)` answers the document that the tab shows, which acts " *
+    "like the data: index it, iterate it, read a field. " *
+    "`print_natural_text(document)` answers the text of a document or of a part of " *
+    "it, and `parse_natural_text(format, text)` makes a document of a domain from " *
+    "its text, as `parse_natural_text(:json, \"[1, 2]\")` does; write the text of a " *
+    "domain rather than the constructors of its documents. " *
+    "To change a document, use a verb, so the change is an edit that Ctrl+Z takes " *
+    "back: `replace_referenced_value!(part, new_value)`, " *
+    "`insert_elements!(collection, index, values)` and " *
+    "`delete_elements!(collection, index)`. " *
+    "`open_pane!(document; title, target, side)` puts a document in a tab, beside or " *
+    "under another tab, and `get_parent(editor, tab)` answers the group that holds a " *
+    "tab; `focus_pane!`, `move_pane!` and `close_pane!` bring a pane forward, move it " *
+    "and close it, and `show_layout()` prints what is where. WidgetModule and " *
+    "LayoutModule build what a pane shows: a card, a button, a table, a row or a " *
+    "column of them. `make_file_tab_content(path)` opens a path as the content of a " *
+    "tab, and `write_document_file(document, path)` writes a document to a file. " *
+    "`Workspace` names the folders that the Files pane lists, and " *
+    "`search_documents` finds a document in the window when no tab names it. " *
+    "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *
+    "shows a table of the members of one kind, gathered from the whole window or " *
+    "the session: `TabDocuments(type)` gives the documents of the tabs, and " *
+    "`StoreRecords(:log)` a store of the session. `describe_roster_sources()` and " *
+    "`describe_item_facets(type)` say which sources and which keys exist, and " *
+    "`filter_collection!`, `sort_collection!`, `group_collection!` and " *
+    "`limit_collection!` change the rows that `show_roster!` answers. " *
+    "`list_task_groups()` lists the groups of tasks of the session, and " *
+    "`describe_task_group`, `get_task_output`, `stop_tasks!`, `rerun_tasks!` and " *
+    "`close_task_group!` act on one. " *
+    "`show_document_tree!(root; title)` shows a document and the documents under it " *
+    "as a tree in a tab. `show_system_process_tree!(process_ids; title)` shows the " *
+    "processes under those processes as a tree in a tab, and " *
+    "`describe_system_process_tree(process_ids)` writes them as text. " *
+    "`show_assistant_work!(assistant)` shows the work of the agent of an assistant " *
+    "in a tab: its job, its plans, its subagents, its background tasks, its " *
+    "processes and its notices. " *
+    "The tool `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it " *
+    "back; the tool `take_picture` shows you what the window draws."
+
+"""
     APPLICATION_SYSTEM
 
 What the assistant of this application is told about itself.
 
 It is the editor's own instructions with one paragraph added: which verbs this
-window offers. The greeting, this text and [`make_application_api`](@ref) are
-three descriptions of one thing, so all three change together.
+window offers, which is [`EDITOR_SYSTEM`](@ref). The greeting, this text and
+[`make_editor_api`](@ref) are three descriptions of one thing, so all three
+change together.
 """
 const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
     "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
-    "FileSystemModule, and the names that search_api lists. Read the guide " *
-    "resource://guide/guide/orientation first: it shows each step below in code. " *
-    "find_pane(title) answers a tab by its title, and " *
-    "get_edited_document(tab) answers the document that the tab shows, which acts " *
-    "like the data: index it, iterate it, read a field. print_natural_text(document) " *
-    "answers its text. To change a document, use a verb, so the change is an edit " *
-    "that Ctrl+Z takes back: replace_referenced_value!(part, new_value), " *
-    "insert_elements!(collection, index, values) and " *
-    "delete_elements!(collection, index). open_pane!(document; " *
-    "title, target, side) puts a document in a tab, beside or under another tab, " *
-    "and get_parent(editor, tab) answers the group that holds a tab; focus_pane!, " *
-    "move_pane! and close_pane! bring a pane forward, move it and close it, and " *
-    "show_layout prints what is where. WidgetModule and LayoutModule build what a " *
-    "pane shows — a card, a button, a table, a row or a column of them. " *
-    "FileFormatModule opens a path as a tab with make_file_tab_content and writes a " *
-    "document back with write_document_file. FileSystemModule names the workspace " *
-    "the Files pane lists. search_documents finds a document in the window when no " *
-    "tab names it. " *
-    "show_roster!(source; title, columns, filter, sort, group, aggregates, first) " *
-    "shows a table of the members of one kind, gathered from the whole window or " *
-    "the session: TabDocuments(type) gives the documents of the tabs, and " *
-    "StoreRecords(:log) a store of the session. describe_roster_sources() and " *
-    "describe_item_facets(type) say which sources and which keys exist, and " *
-    "filter_collection!, sort_collection!, group_collection! and limit_collection! " *
-    "change the rows that show_roster! answers. " *
-    "show_document_tree!(root; title) shows a document and the documents under " *
-    "it as a tree in a tab. " *
-    "show_system_process_tree!(process_ids; title) shows the processes under " *
-    "those processes as a tree in a tab, and describe_system_process_tree(process_ids) " *
-    "writes them as text. " *
-    "show_assistant_work!(assistant) shows the work of the agent of an assistant in a " *
-    "tab: its job, its plans, its subagents, its background tasks, its processes and " *
-    "its notices. " *
+    "FileSystemModule, and the names that search_api lists. " *
+    EDITOR_SYSTEM * " " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."
@@ -859,11 +886,26 @@ function _find_drawn_text_point(node, text::AbstractString, x0::Int = 0, y0::Int
 end
 
 """
+    register_editor_tools!(set) -> set
+
+Add to `set` the tools that every window of the editor gives its assistant beside
+the default ones: `undo` and `redo`, which take back the last change and put it
+back as Ctrl+Z and Ctrl+Shift+Z do, and `take_picture`, which shows the model
+what the window draws. A host calls it on the tools of its editor when it
+declares [`make_editor_api`](@ref) there.
+"""
+function register_editor_tools!(set)
+    register_undo_tools!(set)
+    register_picture_tools!(set)
+    set
+end
+
+"""
     start_application!(editor; mcp = false, assistant = :none, model = "")
 
 What the application does once the editor exists: it declares the API of
-[`make_application_api`](@ref) on the tools of the editor, adds the `undo` and
-`redo` tools, and posts the acquire of the documents of its tabs
+[`make_editor_api`](@ref) on the tools of the editor, adds the tools of
+[`register_editor_tools!`](@ref), and posts the acquire of the documents of its tabs
 (`AcquireDocumentOperation`), such as a sheet that computes its formulas. With `mcp`, the tools also get the meaning model of the
 backend `assistant` names, with `model` (empty for its default), because an MCP
 client runs no turn of the assistant and its searches by description rank by
@@ -880,9 +922,8 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
         # functions a model finds with `search_api` and calls through
         # `execute_julia_code`; they are not tools, so their descriptions cost
         # nothing until it asks.
-        declare_api!(editor.tools, make_application_api())
-        register_undo_tools!(editor.tools)
-        register_picture_tools!(editor.tools)
+        declare_api!(editor.tools, make_editor_api())
+        register_editor_tools!(editor.tools)
     end
     # The documents of the tabs enter the window: the acquire applies at the first
     # drain of the loop, so the start of the window runs no work of them.

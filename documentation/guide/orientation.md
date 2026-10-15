@@ -95,8 +95,13 @@ To change what a tab shows, give the part and its new value to
 `replace_referenced_value!`, so the change is an edit that Ctrl+Z can undo:
 
 ```julia
-replace_referenced_value!(items_1[2]["price"], JsonNumber(12))
+replace_referenced_value!(items_1[2]["price"], parse_natural_text(:json, "12"))
 ```
+
+A new value is written in the text of its domain: `parse_natural_text(:json, text)`
+reads one JSON value, `:md` reads Markdown and `:jl` reads Julia. The text of a
+domain is what you know best, so write it rather than the constructors of its
+documents.
 
 and not `items_1[2]["price"].value = 12`, which changes the document outside the
 editor's handling of an edit. To add a record, or to remove one, use
@@ -104,7 +109,7 @@ editor's handling of an edit. To add a record, or to remove one, use
 1-based index:
 
 ```julia
-item_1 = JsonObject("name" => JsonString("lamp"), "price" => JsonNumber(25))
+item_1 = parse_natural_text(:json, """{"name": "lamp", "price": 25}""")
 insert_elements!(items_1, length(items_1) + 1, [item_1])
 ```
 
@@ -134,8 +139,10 @@ later call instead of finding its object again.
 
 - Property access already unwraps `Cell`s — write `node.field`, **not** `node.field[]`.
 - A pane tree can mirror the **same** document into two tabs at once, so a bare
-  value match hits both — scope by **domain node type** (`v isa JsonString`).
+  value match hits both — search inside the document of one tab,
+  `get_edited_document(tab)`, not inside the whole window.
 - `execute_julia_code` keeps top-level bindings between calls, so build state up
   in numbered variables (`items_1 = …` in one call, use `items_1` in the next).
-- A referenced document is not an instance of its document's type:
-  `items_1 isa JsonArray` is false. Ask `get_document(items_1) isa JsonArray`.
+- A referenced document is not an instance of its document's type.
+  `describe_document(items_1)` says what it is, and `print_natural_text(items_1)`
+  shows its text.

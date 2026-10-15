@@ -22,19 +22,22 @@ The chrome is `make_window_menu_bar()`, `make_window_toolbar(; assistant, explor
 
 `make_application_assistant(backend; model, context, llm)` makes the `Assistant` of the window: `backend` is one of `APPLICATION_ASSISTANTS` (`:ollama`, `:anthropic`, `:none`), and `:none` answers `nothing`. Its greeting, from `get_application_greeting_text(backend)`, says what the window shows and what the assistant needs to answer.
 
-`make_application_api()` is what that assistant may write, and the whole of it: five vocabularies, concatenated and passed to `declare_api!`.
+`make_editor_api()` is what the assistant of a window of the editor may write: the vocabularies that every window declares, concatenated and passed to `declare_api!`. The application declares the list as it is, and the OMNeT++ IDE adds the verbs of its simulations to it, so the two windows offer one vocabulary.
 
 | Vocabulary | Where it comes from |
 | --- | --- |
 | the pane verbs that arrange the window | `make_pane_api()` |
 | the widget names that build what a pane shows | `make_interface_api()` |
 | the file verbs that open and save one | `make_file_api()` |
-| the workspace this application lists, and how to read what a tab holds | named in `make_application_api` itself: `OpenFileOperation`, `Workspace`, `WorkspaceFolder`, `search_documents`, `get_wrapped_document`, `get_file_content`, `print_natural_text`, `parse_natural_text`, `insert_elements!`, `delete_elements!` |
-| what each loaded domain registered for its own documents | `get_registered_assistant_api()` |
+| the workspace that the Files pane lists, and how to read what a tab holds | named in `make_editor_api` itself: `OpenFileOperation`, `Workspace`, `WorkspaceFolder`, `search_documents`, `get_wrapped_document`, `get_file_content`, `print_natural_text`, `parse_natural_text`, `insert_elements!`, `delete_elements!` |
+| the arrangement and the roster of a collection | named in `make_editor_api` itself |
+| the groups of tasks of the session | `make_task_api()` |
+| a tree of documents, the processes of the system, the work of an agent | named in `make_editor_api` itself |
+| what each loaded domain registered | `get_registered_assistant_api()` |
 
-Each vocabulary is declared where its verbs are, so a second host that offers the same verbs states it once and this function only names which it wants. The last row is the open end: a domain's `__init__` registers names with `register_assistant_api!`, and `get_registered_assistant_api()` answers every one that is loaded, in the order of the registrations; [assistant.md](../assistant/assistant.md#the-api-a-loaded-package-offers) describes the registry, and the JSON domain's seven document types are the first user of it (see [json.md](../../domain/json/json.md)).
+Each vocabulary is declared where its verbs are, so a host that offers the same verbs states it once and this function only names which it wants. The last row is the open end: a domain's `__init__` registers names with `register_assistant_api!`, and `get_registered_assistant_api()` answers every one that is loaded, in the order of the registrations; [assistant.md](../assistant/assistant.md#the-api-a-loaded-package-offers) describes the registry. A domain with a parser registers no constructors: a model reads and writes such a document as its text, with `print_natural_text` and `parse_natural_text`.
 
-`APPLICATION_SYSTEM` is the editor's own instructions with one paragraph that names these verbs, and `make_application_system()` appends the section "Reach what a tab holds" of the orientation guide. `start_application!(editor; mcp, assistant, model)` declares `make_application_api()` and the undo and redo tools on `editor.tools` once the editor exists, and, with `mcp` on and an assistant, also binds the meaning model of the backend to the tools, so a search by description ranks by meaning for an MCP client too.
+`EDITOR_SYSTEM` is the paragraph of the system text that names these verbs, and the system text of every window holds it. `APPLICATION_SYSTEM` is the editor's own instructions with one sentence about the window and `EDITOR_SYSTEM`, and `make_application_system()` appends the section "Reach what a tab holds" of the orientation guide. `register_editor_tools!(set)` adds the tools `undo`, `redo` and `take_picture`. `start_application!(editor; mcp, assistant, model)` declares `make_editor_api()` and these tools on `editor.tools` once the editor exists, and, with `mcp` on and an assistant, also binds the meaning model of the backend to the tools, so a search by description ranks by meaning for an MCP client too.
 
 ### The command line
 

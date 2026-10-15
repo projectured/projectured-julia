@@ -99,7 +99,7 @@ edit_shown_items!(roster, "status" => "checked")
 - `edit_shown_items!` gives one value to the key of the item of each row that the roster shows, as one `CompoundOperation`. `find_rooted_operation` carries it through the readers, so the history records it as one step. With a group in the arrangement of the roster, the call throws an `ArgumentError`.
 - `describe_item_facets(type_or_source)` lists the keys of the items.
 
-`make_application_api` declares these verbs, `TabDocuments` and the three other sources for the assistant of the application, and its system text names them.
+`make_editor_api` declares these verbs, `TabDocuments` and the three other sources for the assistant of every window, and `EDITOR_SYSTEM` names them.
 
 ## The cost of a change
 
