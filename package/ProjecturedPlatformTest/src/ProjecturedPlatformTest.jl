@@ -546,6 +546,9 @@ using ProjecturedKernel.DeviceModule: Device
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedKernelExample: HeadlessBackend
+using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation
+using ProjecturedPlatform.PaneModule: PaneTab
+using ProjecturedPlatform.WidgetModule: WidgetScrollPane
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

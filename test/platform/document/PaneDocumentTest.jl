@@ -8,9 +8,13 @@ end
 # A document that notes each editor that acquires it.
 struct _PaneAcquireProbe <: Document
     acquired::Vector{Any}
+    released::Vector{Any}
 end
+_PaneAcquireProbe(acquired::Vector{Any}) = _PaneAcquireProbe(acquired, Any[])
 ProjecturedPlatform.DomainModule.acquire_document!(editor, probe::_PaneAcquireProbe) =
     (push!(probe.acquired, editor); nothing)
+ProjecturedPlatform.DomainModule.release_document!(editor, probe::_PaneAcquireProbe) =
+    (push!(probe.released, editor); nothing)
 
 function test_pane_surgery()
 @testset "PaneTree surgery" begin
@@ -138,9 +142,11 @@ end
     operation = make_pane_close_tab_operation(tree, group, 1)
     release = last(operation.operations)
     @test release isa ReleaseDocumentOperation
-    @test release.document === tabs[1].content
-    # The release changes no document, so its way back is to do nothing.
-    @test make_inverse_operation(tree, release) isa DoNothingOperation
+    @test release.document === tabs[1]
+    # The way back of the release acquires the tab again, and of an acquire releases.
+    @test make_inverse_operation(tree, release) isa ProjecturedPlatform.DomainModule.AcquireDocumentOperation
+    @test make_inverse_operation(tree, ProjecturedPlatform.DomainModule.AcquireDocumentOperation(tabs[1])) isa
+          ReleaseDocumentOperation
     inverse = evaluate_invertible_operation!(editor, operation)
     @test length(group.tabs) == 1
     @test inverse !== nothing
@@ -351,6 +357,13 @@ end
     # A pane tree acquires each of its tabs.
     evaluate_operation(editor, ProjecturedPlatform.DomainModule.AcquireDocumentOperation(tree))
     @test length(inner.acquired) == 2 && length(other.acquired) == 2
+    # The close of a tab releases each layer of what it shows, and its undo
+    # acquires them again.
+    index = findfirst(tab -> get_wrapped_document(tab.content) === inner, group.tabs)
+    inverse = evaluate_invertible_operation!(editor, make_pane_close_tab_operation(tree, group, index))
+    @test inner.released == Any[editor]
+    _apply!(editor, inverse)
+    @test length(inner.acquired) == 3
 end
 
 end # testset

@@ -78,7 +78,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
                 "serialization", "settings", "style", "syntax", "text", "tooltip", "widget"],
     "fileformat" => ["collection", "domain", "layout", "natural", "primitive", "projection", "roster",
                      "serialization", "style", "syntax", "text", "widget"],
-    "filechange" => ["fileformat", "serialization"],
+    "filechange" => ["domain", "fileformat", "serialization"],
     "filesystem" => ["collection", "domain", "fileformat", "focus", "graphics", "natural",
                      "pane", "primitive", "projection", "serialization", "settingsmanaging",
                      "style", "syntax", "text", "undo", "widget"],

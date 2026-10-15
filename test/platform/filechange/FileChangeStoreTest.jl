@@ -232,5 +232,21 @@ function test_file_change_store()
             close_file_change_store!(first_store)
             @test isempty(first_store.watchers) && !is_document_file_watched(tab; store = first_store)
         end
+
+        @testset "a file that a tab shows watches its file while the tab is open" begin
+            editor = Editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                            devices = Device[], feeds = Feed[FileChangeFeed()])
+            store = get_session_file_change_store(; editor)
+            (path, file) = _make_watched_text_file("one\n")
+            tab = PaneTab("watched.txt", WidgetScrollPane(file))
+            evaluate_operation(editor, AcquireDocumentOperation(tab))
+            @test is_document_file_watched(file; store)
+            evaluate_operation(editor, ReleaseDocumentOperation(tab))
+            @test !is_document_file_watched(file; store)
+            # An editor with no file change feed watches nothing.
+            plain = Editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+            evaluate_operation(plain, AcquireDocumentOperation(tab))
+            @test !is_document_file_watched(file; store)
+        end
     end
 end

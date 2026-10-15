@@ -21,7 +21,8 @@ acquire_document!(editor, document) = nothing
 
 Acquire `document` with [`acquire_document!`](@ref). The open of a tab adds it
 after the insert of the tab, and a window posts it for its documents when it
-starts. It changes no document, so its inverse is `DoNothingOperation()`.
+starts. Its inverse releases the document, so an undo of the open of a tab ends
+what the tab started, such as the watch of a file.
 """
 struct AcquireDocumentOperation <: Operation
     document::Any
@@ -32,7 +33,8 @@ function evaluate_operation(editor, operation::AcquireDocumentOperation)
     nothing
 end
 
-make_inverse_operation(document, operation::AcquireDocumentOperation) = DoNothingOperation()
+make_inverse_operation(document, operation::AcquireDocumentOperation) =
+    ReleaseDocumentOperation(operation.document)
 
 describe_operation(operation::AcquireDocumentOperation) =
     "acquire the $(nameof(typeof(operation.document))) that enters the window"
@@ -51,9 +53,8 @@ release_document!(editor, document) = nothing
     ReleaseDocumentOperation(document)
 
 Release `document` with [`release_document!`](@ref). The close of a tab adds it
-after the delete of the tab. It changes no document, so its inverse is
-`DoNothingOperation()`: an undo of the close brings the document back, and the
-document starts again what it needs when it needs it.
+after the delete of the tab. Its inverse acquires the document, so an undo of the
+close starts again what the tab needs, such as the watch of a file.
 """
 struct ReleaseDocumentOperation <: Operation
     document::Any
@@ -64,7 +65,8 @@ function evaluate_operation(editor, operation::ReleaseDocumentOperation)
     nothing
 end
 
-make_inverse_operation(document, operation::ReleaseDocumentOperation) = DoNothingOperation()
+make_inverse_operation(document, operation::ReleaseDocumentOperation) =
+    AcquireDocumentOperation(operation.document)
 
 describe_operation(operation::ReleaseDocumentOperation) =
     "release the $(nameof(typeof(operation.document))) that leaves the window"

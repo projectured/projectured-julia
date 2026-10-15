@@ -23,8 +23,10 @@ using ..ToolModule
 using ..FileFormatModule
 using ..FeedModule
 
-# Imported to extend: the feed of this module answers each of them.
+# Imported to extend: the feed of this module answers each of them, and a file
+# that enters or leaves the window starts or stops its watch.
 import ..FeedModule: drain_changes!, attach_wake_callback!
+import ..DomainModule: acquire_document!, release_document!
 
 export FileChangeStore, get_session_file_change_store, watch_document_file!,
        unwatch_document_file!, is_document_file_watched, close_file_change_store!,

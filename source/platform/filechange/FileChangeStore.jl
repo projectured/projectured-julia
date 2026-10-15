@@ -146,6 +146,15 @@ end
 is_document_file_watched(file::FileDocument; store::Union{FileChangeStore,Nothing} = _find_watch_store()) =
     store !== nothing && lock(() -> any(w -> w.file === file, store.files), store.lock)
 
+# A file that enters the window watches its file in the store of the editor while
+# a tab shows it, and the release of the tab stops the watch. An editor with no
+# file change feed watches nothing.
+acquire_document!(editor, file::FileDocument) =
+    (watch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
+
+release_document!(editor, file::FileDocument) =
+    (unwatch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
+
 """
     close_file_change_store!(store) -> store
 

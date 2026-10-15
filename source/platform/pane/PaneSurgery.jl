@@ -402,9 +402,12 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
 end
 
 # A tab acquires each layer of what it shows, from its content inward, such as the
-# sheet in a file; a pane tree acquires each of its tabs.
+# sheet in a file, and releases each one; a pane tree acquires each of its tabs.
 acquire_document!(editor, tab::PaneTab) =
     (find_pane_tab_layer(tab, layer -> (acquire_document!(editor, layer); false)); nothing)
+
+release_document!(editor, tab::PaneTab) =
+    (find_pane_tab_layer(tab, layer -> (release_document!(editor, layer); false)); nothing)
 
 function acquire_document!(editor, tree::PaneTree)
     for group in get_pane_groups(tree), tab in group.tabs
@@ -498,16 +501,17 @@ end
 Remove tab `index` of `group`. When it is the group's last tab the group goes
 too: it is dropped from its parent split, or — when that split is left with one
 element — the split is replaced by its remaining sibling. An empty root group
-stays, because a tree always has a root. Then the document of the tab is
-released with `ReleaseDocumentOperation`, so what it holds outside the tree,
-such as the agent of an assistant, ends.
+stays, because a tree always has a root. Then the tab is released with
+`ReleaseDocumentOperation`, each layer of what it shows, so what a layer holds
+outside the tree, such as the agent of an assistant or the watch of a file, ends.
+An undo of the close acquires the tab again.
 """
 function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
     close = n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
     close === nothing && return nothing
-    CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index].content)])
+    CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index])])
 end
 
 function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Integer)
