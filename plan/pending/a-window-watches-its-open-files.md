@@ -52,8 +52,12 @@ A save never writes over a newer file without the person knowing.
   releases a window. The store test 59, the pane test 105. The guard of the
   edges between the slices fails on `main` too: the task slice uses the
   filesystem and the navigator slices, which its row does not allow.
-- [ ] 3. The window of the application registers the feed, in `run_application`
-  and `make_application_window`, which the IDE of omnet-julia uses too.
+- [x] 3. The window of the application registers the feed, in `run_application`
+  and `make_application_window`, which the IDE of omnet-julia uses too. Done:
+  the wrapper `file_change = true`, which `make_application_wrappers` turns on.
+  The campaign window and the IDE of omnet-julia do not use these wrappers: they
+  give `make_file_change_feeds()` themselves, which now has a store of its own,
+  and no stop step closes it when their loop ends. The store test 62.
 - [ ] 4. A save compares the file on disk with the last load or save of the
   document before it writes, and a newer file goes to the person (D15a).
 - [ ] 5. What the person sees, by the decision of D15a.
