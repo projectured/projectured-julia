@@ -432,7 +432,9 @@ end
     table, io = print_table(make_indexed_list(1000, texts_of))
     step = Int(head_of(io).value.h) + gap_of(io)
     @test table.top_row == 1
-    getfield(table, :scroll_position)[] = Point2D(0, 5 * step)
+    # A notch is three lines of 16 pixels, the ascent and the descent of the
+    # measure. The turn ends one line past five rows.
+    getfield(table, :scroll_position)[] = Point2D(0, 5 * step + 16 - 3 * 16)
     apply!(table, wheel(io, -1))
     @test table.top_row == 6
     # The top row is the row under the top edge of the cells.
@@ -450,8 +452,9 @@ end
     @test turn > 0
     # Three hundred rows down, a turn moves the head to the row at the top and
     # the offset by the place of that row: every row moves by one turn, as it
-    # would with no move of the head.
-    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    # would with no move of the head. The turn ends one line, 16 pixels, past
+    # three hundred rows.
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
     selection = cell_reference(305, 1)
     getfield(table, :selection)[] = selection
     before = label_y(io, "row 305"; limit = 400)    # 304 rows from the head
@@ -469,7 +472,7 @@ end
     @test label_y(io, "row 305") == before - turn
     @test built[] < 1000
     # Up past the head as far, the head moves back.
-    getfield(table, :scroll_position)[] = Point2D(0, -250 * step)
+    getfield(table, :scroll_position)[] = Point2D(0, -250 * step - 16 + turn)
     apply!(table, wheel(io, 1))
     @test table.cells.value[1].content == "row 50"
     @test table.top_row == 1
@@ -760,7 +763,9 @@ end
     table = make_headed_table(10_000_000)
     io = print_document(rec, nothing, table, context())
     step = Int(head_of(io).value.h) + gap_of(io)
-    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    # A notch is three lines of 16 pixels, the ascent and the descent of the
+    # measure. The turn ends one line past three hundred rows.
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step + 16 - 3 * 16)
     op = wheel(io, -1)
     moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
     @test any(o -> o.reference.head.name == "row_headers", moved)

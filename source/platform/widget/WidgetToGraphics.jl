@@ -808,6 +808,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     content_color::StyleColor        # viewport fill; color_transparent paints none
     font::StyleFont                  # measures the scroll step
     scroll_bar_thickness::Int        # across each bar that the pane draws
+    lines_per_notch::Int             # lines that one notch of the wheel scrolls
 end
 
 WidgetScrollPaneToGraphicsCanvas(theme; measure,
@@ -816,9 +817,10 @@ WidgetScrollPaneToGraphicsCanvas(theme; measure,
                                  margin_color = color_transparent, border_color = color_transparent,
                                  padding_color = color_transparent,
                                  content_color = _themed(StyleColor, theme, t -> t.background),
-                                 scroll_bar_thickness = _themed(Int, theme, t -> t.scroll_bar_thickness)) =
+                                 scroll_bar_thickness = _themed(Int, theme, t -> t.scroll_bar_thickness),
+                                 lines_per_notch = 3) =
     WidgetScrollPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                     content_color, font, scroll_bar_thickness)
+                                     content_color, font, scroll_bar_thickness, lines_per_notch)
 
 @projection UntrackedCell struct WidgetTransformPaneToGraphicsCanvas
     measure::TextMeasure
@@ -830,6 +832,7 @@ WidgetScrollPaneToGraphicsCanvas(theme; measure,
     padding_color::StyleColor
     content_color::StyleColor         # default viewport fill
     font::StyleFont                   # measures the pan step
+    lines_per_notch::Int              # lines that one notch of the wheel pans
 end
 
 WidgetTransformPaneToGraphicsCanvas(theme; measure,
@@ -837,9 +840,10 @@ WidgetTransformPaneToGraphicsCanvas(theme; measure,
                                     margin = inset_default, border = inset_default, padding = inset_default,
                                     margin_color = color_transparent, border_color = color_transparent,
                                     padding_color = color_transparent,
-                                    content_color = _themed(StyleColor, theme, t -> t.background)) =
+                                    content_color = _themed(StyleColor, theme, t -> t.background),
+                                    lines_per_notch = 3) =
     WidgetTransformPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                        content_color, font)
+                                        content_color, font, lines_per_notch)
 
 @projection UntrackedCell struct WidgetToolbarToGraphicsCanvas
     measure::TextMeasure
@@ -5936,7 +5940,8 @@ end
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
-    _, scroll_step = _text_size(p.measure, p.font, "M")
+    _, line = _text_size(p.measure, p.font, "M")
+    scroll_step = p.lines_per_notch * line
     dx, dy = (evt.dx != 0 && evt.dy == 0) ? (-evt.dx * scroll_step, 0) :
                                             (0, -evt.dy * scroll_step)
     w = iomap.input
@@ -6476,10 +6481,12 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             hit_element_at(canvas, x, y) === nothing && return nothing
             return _zoom_op(w, M, dy >= 0 ? 1 : -1, Float64(x - cox), Float64(y - coy))
         end
-        # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, step = line height.
+        # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, `lines_per_notch`
+        # lines for each notch.
         MouseScroll(dx, dy, x, y) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
-            _, step = _text_size(p.measure, p.font, "M")
+            _, line = _text_size(p.measure, p.font, "M")
+            step = p.lines_per_notch * line
             return dx != 0 && dy == 0 ?
                 _write_view_state(w, "transform", _pan_by(M, dx * step, 0)) :
                 _write_view_state(w, "transform", _pan_by(M, 0, dy * step))

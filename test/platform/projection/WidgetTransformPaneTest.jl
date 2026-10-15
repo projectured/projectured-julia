@@ -57,7 +57,7 @@ function test_widget_transform_pane()
         M = _written(op)
         @test M.a ≈ 1.0            # no scale change
         @test M.d ≈ 1.0
-        @test M.f ≈ 24.0           # panned vertically by the line step
+        @test M.f ≈ 72.0           # panned vertically by three lines of 24
         @test M.e ≈ 0.0
     end
 
@@ -67,7 +67,7 @@ function test_widget_transform_pane()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, ModifierKeys(); time = 0.0))
         @test op isa ReplaceViewStateOperation
-        @test _written(op).e ≈ 24.0
+        @test _written(op).e ≈ 72.0
         @test _written(op).f ≈ 0.0
     end
 

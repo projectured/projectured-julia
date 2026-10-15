@@ -208,8 +208,9 @@ function test_data_frame_view()
             @test turn > 0
             @test view.anchor == 1
             # Three hundred rows down, a turn moves the anchor to the row at the
-            # top, and every row moves by one turn as before.
-            getfield(view, :scroll_position)[] = Point2D(0, 300 * step)
+            # top, and every row moves by one turn as before. The turn ends one
+            # line, 16 pixels, past three hundred rows.
+            getfield(view, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
             before = y_of("305"; limit = 400)       # 304 rows from the anchor
             evaluate_operation(nothing, wheel(-1))
             @test view.anchor == 301

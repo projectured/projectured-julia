@@ -183,7 +183,8 @@ end
     apply!(table, wheel(-1))
     turn = near - y_of(name(2, 1))
     @test turn > 0
-    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    # The turn ends one line, 16 pixels, past three hundred rows.
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
     getfield(table, :selection)[] = cell_path(2, 305)
     before = y_of(name(305, 2))
     op = wheel(-1)
@@ -207,7 +208,9 @@ end
     io = print_document(rec, nothing, table, context())
     position_of(text) = text_at(io, text; limit = 400)
     step = position_of(name(2, 1))[2] - position_of(name(1, 1))[2]
-    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    # A notch is three lines of 16 pixels, the ascent and the descent of the
+    # measure. The turn ends one line past three hundred rows.
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step + 16 - 3 * 16)
     getfield(table, :selection)[] = cell_path(2, 305)
     op = read(io, MouseScroll(0, -1, 100, 150; time = 0.0))
     @test only(o for o in op.operations if o isa ReplaceSelectionOperation).path == cell_path(2, 5)

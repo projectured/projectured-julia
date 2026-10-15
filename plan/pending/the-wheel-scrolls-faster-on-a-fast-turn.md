@@ -5,7 +5,8 @@
 > scrolling is continuous than slowly speed up to max". The owner agreed to the
 > four steps below and to a change of `MouseScroll` for the touchpad. Step 3
 > changes `MouseScroll` with a new field and not with a new type of `dx` and
-> `dy`. That design waits for the word of the owner. No source changed.
+> `dy`. The owner agreed to that design and to the fix of the copies that drop
+> `modifiers` ("yes and also with the fixes"). Step 1 is done.
 
 ## The goal
 
@@ -43,12 +44,17 @@ more at each notch, up to one view less one line. A touchpad scrolls smoothly.
 
 ### Step 1: a notch moves 3 lines
 
-- ⬜ `_self_scroll` and the pan of `WidgetTransformPane` move the view by 3 lines
-  for each notch. The count is a field of each projection with a keyword.
-- ⬜ The spin box, the zoom, the tab strip, the chart, the sequence chart and the
+- ✅ `_self_scroll` and the pan of `WidgetTransformPane` move the view by 3 lines
+  for each notch. The count is a field of each projection with a keyword,
+  `lines_per_notch`.
+- ✅ The spin box, the zoom, the tab strip, the chart, the sequence chart and the
   task pages do not change.
-- ⬜ Update the tests that assert the distance of a notch, and the docstrings and
-  `widget.md`.
+- ✅ Update the tests that assert the distance of a notch, and the docstrings and
+  `widget.md`. 16 assertions in 4 files changed. Each test that scrolls three
+  hundred rows now starts two lines higher, so its turn ends where a turn of
+  one line ended before and the intent of the test stays. A line of
+  `FixedMeasure(8, 12, 4, 0)` is 16 pixels: the ascent and the descent. 17 test
+  functions that send wheel events pass.
 
 ### Step 2: the backend merges a run of wheel events
 
