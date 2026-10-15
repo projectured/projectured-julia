@@ -223,7 +223,7 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 
 ## Limits
 
-- **A tool call holds the frame.** A tool call of the model runs on the editor task, and the editor draws no frame until it returns. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model.
+- **A tool call holds the documents, not the window.** A tool call of the model that reads a document runs as a code unit: the window shows the last picture and a busy bar, and keeps the keys for the frames after the call. A stop of the unit also cancels the turn that made the call. A search reads no document and runs on the task of the turn. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model.
 - **A part that fails to apply does not end the turn.** A streamed part is posted and not waited for, so an exception while the drain applies it goes to the fault log of the editor, and the turn goes on.
 - The view of an assistant draws `status` only through the Stop button, which is enabled only while a turn runs. The Assistants pane says whose turn it is and what the turn does.
 - **The Assistants pane lists the assistants of the tabs of one window.** An assistant inside a layout or a card of a tab gets no row, and a window of another binary, which links no list, shows an empty list. [plan/done/a-table-shows-every-assistant-conversation.md](../../../../plan/done/a-table-shows-every-assistant-conversation.md) records the ways to fill a list that are not supported now.

@@ -147,6 +147,8 @@ requirement; the rule is its own lead sentence.
 | [PAR-OPT-IN-DEPENDENCY](#par-opt-in-dependency) | Add a backend/engine as an opt-in package behind a factory seam, not by coupling core code to the dependency |
 | [PAR-PROFILE-WITH-COUNTERS](#par-profile-with-counters) | Profile edits with the per-frame performance counters |
 | [PAR-PER-EDITOR-STATE](#par-per-editor-state) | No process-global state in the editor or the machinery it drives; one process must run many editors at once |
+| [PAR-LOOP-RUNS-NO-USER-CODE](#par-loop-runs-no-user-code) | The loop runs no code of a person or a model; it waits for a code unit only in held frames |
+| [PAR-DRAIN-MOVES-PREPARED-DATA](#par-drain-moves-prepared-data) | A feed drain moves only data that its producer prepared off the loop |
 | [PAR-REPORT-NEVER-THROWS](#par-report-never-throws) | A fault report never throws, and a barrier never swallows a fault in silence |
 
 **Package, layer, slice, and module structure**
@@ -1182,16 +1184,24 @@ cross-invalidate each other's animation graph. No clock is shared by the whole
 process: a document that animates takes the clock of the editor that shows it,
 through the keyword `clock` of `make_editor`, `build_editor` and `run_editor!`.
 
-**The editor of an evaluation is state of one evaluation.** While the code of
-the evaluator, of the assistant or of the `execute_julia_code` tool runs,
-`_run_expression` binds its editor in a `ScopedValue`, and
-`get_evaluation_editor()` reads it. The tasks that the code starts get the same
-editor, and nothing else does. Only a verb reads it, and only as the default of
-its `editor` keyword, `focus_pane!(reference; editor = get_evaluation_editor())`,
-so the code of a person or a model names no editor. Every other code passes the
-editor it has: an operation gets it from `evaluate_operation(editor, operation)`,
-and a projection, the editor loop and a call from a package never read the
-scope. The argument guard, `test/suite/arguments.jl`, fails on a call of
+**The editor of an evaluation is state of one evaluation.** It is bound in a
+`ScopedValue` (`run_with_evaluation_editor`) while the code of the evaluator, of
+the assistant or of the `execute_julia_code` tool runs, and while the loop of
+`run_editor!`, a frame (`run_frame!`) or a drain of the feeds (`drain_feeds!`)
+runs. The tasks that the code starts, and its background work, get the same
+editor, and nothing else does. `get_evaluation_editor()` reads it and throws
+when none is bound; `find_evaluation_editor()` answers `nothing` then. Only a
+verb reads it, and only as the default of its `editor` keyword,
+`focus_pane!(reference; editor = get_evaluation_editor())`, so the code of a
+person or a model names no editor. A document of the session of an editor, such
+as the message log, the gesture log or the assistant list, is kept on the editor
+(`get_session_document!`), and its reader takes `editor =
+find_evaluation_editor()`: with no editor it answers a new document that nothing
+keeps. The loop and a frame bind their editor because an insertion or a source of
+a roster calls such a reader in a frame, with no editor to pass. Every other code
+passes the editor it has: an operation gets it from `evaluate_operation(editor,
+operation)`, and a projection and a call from a package never read the scope.
+The argument guard, `test/suite/arguments.jl`, fails on a call of
 `get_evaluation_editor` anywhere else.
 
 **Accepted carve-out — state that is identical for every editor.** Process-global
@@ -1216,6 +1226,70 @@ qualifies:
 
 A shared read of one such value does not reintroduce the cross-editor *write*
 conflict PAR-PER-EDITOR-STATE targets.
+
+### PAR-LOOP-RUNS-NO-USER-CODE
+
+**The loop runs no code of a person or a model; it waits for a code unit only in
+held frames.** Code whose length is not known before it starts runs off the loop,
+so the window always answers:
+
+- **A code unit** (`run_code_unit!`, `editor/HeldFrames.jl`) is a tool call,
+  which reaches the loop through the inbox, or a run of the code tool that an
+  operation of the evaluator or the composer starts. It runs
+  on a thread of the default pool that is not the thread of the loop. Until it
+  ends, it owns the cells of its editor and the text state of its backend, and
+  units of one editor run one at a time.
+- **A held frame** is what the loop runs while it waits for a unit. It pumps the
+  events of the window system, presents the last picture again, and after 0.5 s
+  shows a busy bar that names the unit, with a stop control. It reads no cell,
+  applies no operation, drains no feed, writes no fault store and makes no text.
+  It keeps the keys and the window events for the frames after the unit, and drops
+  the pointer input that starts in it. Escape, the stop control and the first
+  close of a window stop the unit; a second close asks whether to quit without a
+  save.
+- **Background work** (`start_background_work`) is code that no frame waits for,
+  such as a long computation that model code starts. It reaches a document only
+  through `run_on_editor_task!`. The formula task of an editor is background
+  work: a formula computes from its inputs as values, and a print reads its
+  stored value.
+
+Four rules keep a unit the only task that touches the documents while it runs:
+a verb reads or edits a document through `run_on_editor_task!`, which runs at once
+for the owner and posts for any other task (a); a call with `wait = true` from
+work that the running unit started throws at once, because the two would wait for
+each other (b); the description of the code tool says that a task that model code
+starts uses the verbs (c); and the cell engine records a fault for a write, from a
+task that does not own the cells, to a cell that a computation reads (d,
+`cell/CellWriterCheck.jl`).
+
+The guarantee, in the words that the owner agreed: **the editor stays responsive
+while a task that touches no document runs, when the task runs on a thread other
+than the one of the loop, does not run as a code unit, holds no lock that the loop
+takes, and lets the garbage collector run.** With one thread, or with
+`run_editor!(...; wait = false)` and the default threads, a unit runs at once on
+the loop task and no held frame shows. Julia can not cancel a task, so a stop ends
+only the waits of the editor and the `sleep` of the scratch module of the code
+tool; code that computes and never waits ends only with the quit. A loop that does
+not allocate delays each garbage collection, and the loop waits for it too.
+
+### PAR-DRAIN-MOVES-PREPARED-DATA
+
+**A feed drain moves only data that its producer prepared off the loop.**
+`drain_changes!` does no I/O, calls no method of a type that a user defines, and
+does work that grows only with what changed, so a frame stays short whatever its
+store holds (`PAR-STORE-THEN-DRAIN` says where the data goes; this rule says what
+a drain may cost). A producer that reads a file, a process or a value of the user
+does that on its own task, and stores the result as plain data, or as a new
+document that no computation reads yet:
+
+- the file-change watcher reads and parses a changed file after it settles, and
+  the drain applies the parsed content in a `ReloadFileOperation`;
+- the task feed samples `/proc` on its reader tasks and keeps the set of tasks
+  that changed, so a drain writes only those;
+- the reflection feed takes the snapshot of a value along its open paths off the
+  loop, and the next drain applies it. A cell value is read on the loop, because
+  only the owner of the cells reads them (rule d of
+  `PAR-LOOP-RUNS-NO-USER-CODE`).
 
 ### PAR-REPORT-NEVER-THROWS
 

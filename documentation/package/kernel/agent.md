@@ -584,13 +584,17 @@ reads it on the editor task. So every direction calls through one door:
 run_on_editor_task!(function_, target; wait = true) -> value
 ```
 
-It runs `function_()` on the task that runs the loop of `target`, in the drain of
-the next frame, and the calling task waits for the value. `run_turn!` runs each
+It runs `function_()` in the drain of the next frame of `target`, as a code unit
+that owns the documents of the editor, and the calling task waits for the value.
+The loop runs held frames meanwhile, so the window answers. `run_turn!` runs each
 tool call through it, with its fault barrier inside the call, and the MCP server
-runs the call of a client the same way. So a tool runs on the editor task for
-the assistant in the window and for an MCP client. With `wait = false` the call
-only posts, and the answer is `nothing`. The assistant posts each streamed part
-in this way.
+runs the call of a client the same way. So a tool runs as the owner of the
+documents for the assistant in the window and for an MCP client. A tool that
+reads no document (`reads_documents = false`) runs on the calling task instead.
+With `wait = false` the call only posts, and the answer is `nothing`. The
+assistant posts each streamed part in this way. A call with `wait = true` from
+work that the running unit started throws, and a call that does not start within
+`timeout` seconds throws `EditorCallTimeoutException`.
 
 The agent layer declares the function, and its default runs `function_()` at
 once, because a target that is not an editor has no loop to wait for. The editor

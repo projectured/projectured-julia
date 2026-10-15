@@ -213,23 +213,69 @@ text = run_on_editor_task!(() -> call_tool(editor.tools, name, args, editor), ed
 run_on_editor_task!(() -> push!(turn.parts, part), editor; wait = false)
 ```
 
-1. The call posts a `RunFunctionOperation`, which holds the function and a
-   channel for the answer.
-2. The drain of the next frame runs the function on the editor task, and puts
-   the value or the exception into the channel.
+1. The call posts a `RunFunctionOperation`, which holds the function, a
+   channel for the answer, and a `description` that names the call.
+2. The drain of the next frame holds a posted function, so it runs as a code
+   unit (`run_code_unit!`, `HeldFrames.jl`): the drain applies the operations and
+   the functions in order on a task of the default pool, and puts the value or
+   the exception of each function into its channel.
 3. The calling task waits on the channel, and gets the value, or the exception
    thrown again. With `wait = false` the call only posts, and the posts of one
-   task keep their order.
+   task keep their order. A call that the editor has not started after
+   `timeout` seconds, 30 by default, throws `EditorCallTimeoutException` and
+   does not run.
 
-The function runs at once, on the calling task, when `editor.loop_task` is
-`nothing` or is the calling task. So a test that drives frames by hand, and an
-operation that the editor task evaluates, never wait for themselves. When the
+The function runs at once, on the calling task, when no loop runs, and for the
+task that owns the documents: the task of the running unit, or else the loop
+task. So a test that drives frames by hand, and an operation that the editor
+task evaluates, never wait for themselves. A call with `wait = true` from a task
+or background work that the running unit started throws `CodeUnitWaitException`,
+because the editor waits for the unit, which would wait for the call. When the
 loop ends, the calls still in the inbox run on the task that ran the loop, so no
-caller waits forever. The kernel declares the function in the agent layer and
-runs every target that is not an `Editor` at once; see [agent.md](agent.md).
+caller waits forever; when it ends while a unit still runs, after a quit, each
+call gets an exception and does not run. The kernel declares the function in the
+agent layer and runs every target that is not an `Editor` at once; see
+[agent.md](agent.md).
 
-The editor task runs no other frame while the function runs. So a tool that
-runs for a second keeps the window from drawing for a second.
+#### A code unit and its held frames
+
+A code unit is work whose length is not known before it starts: the drain of an
+inbox that holds a posted function, or a run of the code tool that an operation
+of the evaluator or the composer starts. `run_code_unit!(function_, editor;
+parts)` runs it on a task pinned to a thread of the default pool that is not the
+thread of the loop. Until it ends, the unit owns the cells of the editor, its
+fault store and the text state of its backend, and a post of the unit goes to a
+queue with no bound (`owner_posts`), which the next drain applies.
+
+Meanwhile the loop runs held frames with the backend protocol
+`prepare_held_frames!`, `run_held_frame!` and `end_held_frames!`. A held frame
+pumps the events of the window system, presents the last picture again on an
+expose or a resize, shows the hourglass pointer, and after 0.5 s draws a busy bar
+with the description of the current part, its time and a stop control. It keeps
+the keys and the window events in the queue of the backend for the frames after
+the unit, and drops each pointer event that starts in it. It reads no cell,
+applies no operation, drains no feed, writes no fault store and makes no text,
+and the loop records its faults after the unit.
+
+- **The stop.** Escape while the bar shows, the stop control and the first close
+  of a window call `stop_code_unit!`: it sets the stop flag of the unit and runs
+  its stop steps on a task of their own. A wait of the editor in the unit ends,
+  the `sleep` of the scratch module of the code tool throws `InterruptException`,
+  and a tool call of an assistant turn cancels that turn.
+- **The quit.** Julia can not cancel a task, so code that computes and never
+  waits does not see the stop. A second close, or a close after a stop that had
+  no effect for 3 s, asks on the bar whether to quit without a save, and its
+  confirm throws `QuitEditorException` while the unit still runs.
+- **No held frame.** With one thread, with `run_editor!(...; wait = false)` and
+  the default threads, with a backend whose `shows_held_frames` answers `false`,
+  in a test that drives the frames by hand, inside a unit and in background work,
+  the function runs at once on the calling task, as one frame.
+
+Work that no frame waits for, such as a long computation that model code starts,
+is background work (`start_background_work`, `tool/BackgroundWork.jl`): it runs
+on a task of the default pool and reaches a document only through this door. The
+rule of the whole is `PAR-LOOP-RUNS-NO-USER-CODE` in
+[architecture-invariants.md](../../rule/architecture-invariants.md).
 
 ### The feeds
 
@@ -256,8 +302,14 @@ The concrete feeds:
 | `InboxFeed` (built-in, always first) | `post_operation!` and `run_on_editor_task!` callers | bounded queue, backpressure | the edited document |
 | `MessageLogFeed` (the log slice) | any task that logs | ring buffer | the `MessageLog` |
 | `FrameStatisticsFeed` (the statistics slice) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
-| `ReflectionFeed` (the reflection slice) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
-| `TooltipFeed` (the tooltip slice) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
+| `McpLogFeed` (the mcplog slice) | the MCP server, for each request | numbered calls, which each feed copies from its own cursor | the `McpLog` of the session of the editor |
+| `ReflectionFeed` (the reflection slice) | a read of the value along its open paths, on a task of the default pool, which a drain starts | the snapshot of the last read | the reflected tree of the value: the next drain writes only what changed |
+| `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, and the set of those that changed | the rows of the task groups: a drain writes only the changed set |
+| `FileChangeFeed` (the filechange slice) | a watcher of each open file, which reads and parses the file after it settles | the parsed content of each changed file | the file document: the drain applies a `ReloadFileOperation` with the parsed content, or, for a document with edits that are not saved, logs that its file changed |
+
+A drain moves only data that its producer prepared off the loop: it does no I/O,
+calls no method of a type that a user defines, and does work that grows only with
+what changed (`PAR-DRAIN-MOVES-PREPARED-DATA`).
 
 The fault store is not a feed: `run_frame!` reports it at its top, so a
 hand-driven frame collects its faults too. It uses only the wake protocol of the
