@@ -1545,12 +1545,38 @@ nothing.
           took 7.1 s in a run where the formula task computed. The window answers
           meanwhile (held frames), but the bar stays and a stop has no effect.
     - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
-    - [ ] 8.6 D14: the thread of a code unit by the decided rule, with a test for
+    - [x] 8.6 D14: the thread of a code unit by the decided rule, with a test for
       each case; the notice in the log and on the status bar; `--threads=auto,2`
       in `bin/projectured`, in a built binary (its main starts it again with the
       option when it has one interactive thread) and in the launcher of the
       omnet-julia IDE; the aliases `jp`, `jo` and `ji`; the guides; the live check
-      of the starvation again.
+      of the starvation again. Done 2026-10-15 (6f426396a; omnet-julia 5bc87e12):
+      - `_find_code_unit_place(loop_thread, interactive, default)` in
+        `HeldFrames.jl` gives the place; a unit free on the default pool is a
+        `Task` with `Threads._spawn_set_thrpool`, made before it starts, so it owns
+        the cells before it runs.
+      - `find_code_unit_thread_notice(backend)`: `start_application!` logs it, the
+        window shell adds it to the status bar; `nothing` for a backend that shows
+        no held frames, so a video never shows it.
+      - `restart_with_window_threads!(arguments)` (application slice): a built
+        binary, whose executable is not `julia`, runs itself again with
+        `--julia-args --threads=auto,2` once; `run_application_command` and the
+        `run_window_command` of omnet-julia call it first. A `--julia-args` that the
+        person gave is not passed on. A built binary was not run: no build was made.
+      - The launchers `bin/projectured`, `bin/omnet_ide` and `bin/omnet_campaign_ui`
+        (the campaign window shares `run_window_command`) and the aliases pass
+        `--threads=auto,2`. The README and the setup guide say it.
+      - Tests: the held frames test passes with one thread (18, the unit inline),
+        with 1 + 1 (51) and with `-t 2` and `--threads=auto,2` (53); its check of
+        `editor.code_unit` moved into the branch of a unit on its own thread,
+        because with one thread the old code ran the unit inline too. Shell 450,
+        window shell 138, wrappers 50, window wrap 45, referenced document 110,
+        application 375 with the failures of `main`; omnet-julia 201 with its 4
+        known failures, the campaign loop 22.
+      - Live, with the two busy tasks of 8 s: `--threads=auto,2` answers the call
+        that starts them in 0.24 s (8.1 s before) and a unit of 2 s in 2.3 s; plain
+        `julia` (1 + 1) answers in 16.2 s, as the fallback must, and the status bar
+        shows the notice.
 
 ## Not in this plan
 
