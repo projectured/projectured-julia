@@ -305,9 +305,30 @@ function _compute_shown_indices(doc::TaskGroupDocument)
     collect(eachindex(documents))
 end
 
+# The gestures of a part that opens a page: a press opens it here, in the navigator
+# around the pane, or a double press for a part whose press does something else;
+# Ctrl+press opens it in a new tab. The open names `document` and a path from it,
+# so the navigator opens the page where its content holds it
+# (`find_navigator_address`).
+function _make_open_gestures(document, reference::Reference; double::Bool = false)
+    open(place) = (_, _) -> OpenPageOperation(document, reference, place)
+    here = double ? MouseClickPattern(:left; modifiers = Symbol[], guard = event -> event.count == 2,
+                                      label = "double press") :
+                    MouseClickPattern(:left; modifiers = Symbol[])
+    GestureBinding[GestureBinding(here, open(:here); description = "Open as a page", domain = "task"),
+                   GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
+                                  description = "Open in a new tab", domain = "task")]
+end
+
+# The path from a group to the document of its task `index`.
+_make_task_reference(index::Int) = Reference(FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index))
+
 function _build_table_row(p, doc::TaskGroupDocument, group, kind_columns, index::Int,
                           document::TaskDocument)
-    pick = WidgetButton("›"; action = _ -> select_task_document!(doc, index))
+    # A press shows the task in the detail of the pane, and a double press opens
+    # its page.
+    pick = WidgetButton("›"; action = _ -> select_task_document!(doc, index),
+                        gestures = _make_open_gestures(doc, _make_task_reference(index); double = true))
     task = getfield(document, :task)[]
     Any[pick,
         _make_live_label(() -> _get_task_state(p, group, document)),
@@ -515,7 +536,9 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                               () -> !(getfield(doc, :status)[] in (:running, :stopping)))
         actions = Any[_make_task_action_button(p, label, action, task)
                       for (label, action) in get_task_actions(task)]
-        push!(parts, HorizontalLayout(Any[stop, again, actions...]; vertical_align = :center,
+        page = WidgetButton("Open the task page"; size = p.button_size,
+                            gestures = _make_open_gestures(doc, _make_task_reference(index)))
+        push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
         # The document that the kind gives for the result, in the card of an
         # embedded document, between the facts and the output. The maps of the
@@ -782,8 +805,12 @@ function _format_group_counts(counts)
     join(parts, " · ")
 end
 
-function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument)
+function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
     group = get_task_group(doc)
+    # The title is a link to the page of the group.
+    title = WidgetButton(getfield(doc, :title)[];
+                         gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
+                                                                        RangeReferenceStep(index - 1, index))))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
     show_button = _make_action_button(p, "Show", editor -> open_task_group_pane(editor, list, doc);
                                       enabled = () -> true)
@@ -795,7 +822,7 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument)
                                        enabled = () -> !is_going())
     Any[show_button,
         WidgetLabel(getfield(doc, :identifier)[]),
-        WidgetLabel(() -> getfield(doc, :title)[]),
+        title,
         WidgetLabel(group.name),
         _make_live_label(() -> _get_group_state(p, doc, group)),
         WidgetLabel(() -> _format_group_counts(get_task_group_document_counts(doc))),
@@ -816,7 +843,7 @@ function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroup
         groups = collect(list.groups)
         isempty(groups) && return Cell[Cell(_make_label(
             "No group of tasks ran in this session yet.", p.muted_color))]
-        rows = Any[_build_list_row(p, list, doc) for doc in groups]
+        rows = Any[_build_list_row(p, list, doc, index) for (index, doc) in enumerate(groups)]
         Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
     end)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];

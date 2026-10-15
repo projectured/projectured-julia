@@ -294,6 +294,15 @@ tooltip. A row reads the shadow of the current execution of its own document,
 so a task that reports draws only its own row again, and the rows are a lazy
 list, so a group of 22,731 tasks costs what a group of twenty costs.
 
+**The links.** A press on the pick `›` of a row shows the task in the detail, a
+double press opens the page of the task, and Ctrl+press opens it in a new tab.
+The detail has Open the task page, and in the Tasks pane the title of a group
+opens the page of the group. Each answers `OpenPageOperation` with the document
+that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
+the list, so the navigator around the pane opens the page where its content
+holds it, and an open that no navigator takes opens a tab. The slice loads after
+the navigator slice for this.
+
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks

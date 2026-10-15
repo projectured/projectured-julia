@@ -18,10 +18,13 @@ using ..CollectionModule
 using ..DocumentModule
 using ..FeedModule
 using ..FocusModule
+using ..GestureBindingModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
+using ..NavigatorModule
 using ..PaneModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule

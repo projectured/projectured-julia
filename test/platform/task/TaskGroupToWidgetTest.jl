@@ -250,6 +250,36 @@ function test_task_views()
             @test count(==("Run all"), words) == 1
         end
 
+        @testset "a row, the detail and the Tasks pane open pages" begin
+            tasks = [_TaskViewProbeTask(name, "exit 0") for name in ("alpha", "beta")]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "linked", jobs = 2); title = "linked tasks")
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 2)
+            projection, iomap = _print_task_view(document)
+            texts = _collect_task_view_texts(iomap.output)
+            press(view, map, t; count = 1, ctrl = false) = read_intent(view, map,
+                MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0))
+            task(k) = getfield(document, :tasks)[][k]
+            # A press on › shows the task in the detail, a double press opens its
+            # page, and Ctrl+press opens it in a new tab.
+            pick = first(t for t in texts if t[3] == "›")
+            @test press(projection, iomap, pick) isa InvokeActionOperation
+            opened = press(projection, iomap, pick; count = 2)
+            @test opened isa OpenPageOperation && opened.document === document && opened.place === :here
+            @test evaluate_reference(document, opened.reference) === task(1)
+            @test press(projection, iomap, pick; ctrl = true).place === :new_tab
+            # The detail opens the page of the task that it shows.
+            opened = press(projection, iomap, only(t for t in texts if t[3] == "Open the task page"))
+            @test opened isa OpenPageOperation && evaluate_reference(document, opened.reference) === task(2)
+            # The title of a group in the Tasks pane opens the page of the group.
+            list = get_session_task_group_list()
+            projection, iomap = _print_task_view(list)
+            title = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "linked tasks")
+            opened = press(projection, iomap, title)
+            @test opened isa OpenPageOperation && opened.document === list
+            @test evaluate_reference(list, opened.reference) === document
+        end
+
         @testset "the tab and the Tasks pane follow the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(0.0); name = "tabbed", jobs = 4))
