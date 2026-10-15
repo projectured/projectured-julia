@@ -273,6 +273,16 @@ regression). The open bugs are `grep "@catalog-broken"` in
 [CatalogTest.jl](../../test/projectured/projection/CatalogTest.jl). See
 `plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
 
+**A new printer brings its atom.** A change that adds a `print_document` method for a
+document type with no atom also adds the atom: a function that makes one instance that a
+test can use, and its `AtomicDocument` row. The catalog is a test instrument, not a thing
+that a person sees, so a part of a page and a document of a process get an atom too; the
+atom of a task comes from a step that has not run, so a test starts no process. A printer
+of a cell layout of a document counts for that document. `test_catalog_coverage` finds a
+printer with no atom and fails for the change that adds it. Only a type that no test can
+make goes on its list `_NO_ATOM`, with the reason. A projection that a test defines for
+its own fixture is no stage of the catalog.
+
 ## A test that checks the root of a built editor
 
 `build_editor` applies the wrappers that are on by default, and the platform has
