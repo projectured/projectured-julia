@@ -1,5 +1,41 @@
-# Fragment of `DomainModule` — the release of a document that leaves the window:
-# what it holds outside the document tree, such as a process or a server, ends.
+# Fragment of `DomainModule` — the acquire of a document that enters the window,
+# which starts what it needs, such as the computation of a sheet; and the release
+# of a document that leaves the window: what it holds outside the document tree,
+# such as a process or a server, ends.
+
+"""
+    acquire_document!(editor, document)
+
+Start what `document` needs because it enters the window of `editor`: a tab
+opens with it, or the window starts with it. The default starts nothing. A
+document that needs something adds a method: a sheet of formulas computes the
+values that it does not hold yet. A document that holds such a document passes
+it on, as a pane tree acquires each layer of what each of its tabs shows. The
+counterpart of [`release_document!`](@ref). It runs on the loop, as an operation
+does.
+"""
+acquire_document!(editor, document) = nothing
+
+"""
+    AcquireDocumentOperation(document)
+
+Acquire `document` with [`acquire_document!`](@ref). The open of a tab adds it
+after the insert of the tab, and a window posts it for its documents when it
+starts. It changes no document, so its inverse is `DoNothingOperation()`.
+"""
+struct AcquireDocumentOperation <: Operation
+    document::Any
+end
+
+function evaluate_operation(editor, operation::AcquireDocumentOperation)
+    acquire_document!(editor, operation.document)
+    nothing
+end
+
+make_inverse_operation(document, operation::AcquireDocumentOperation) = DoNothingOperation()
+
+describe_operation(operation::AcquireDocumentOperation) =
+    "acquire the $(nameof(typeof(operation.document))) that enters the window"
 
 """
     release_document!(editor, document)

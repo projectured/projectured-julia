@@ -62,7 +62,7 @@ using ..WidgetModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
 import ..ClipboardModule: find_clipboard_document
-import ..DomainModule: accepts_pasted_replacement
+import ..DomainModule: accepts_pasted_replacement, acquire_document!
 import ..DocumentModule: get_document_title, get_edited_field
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type

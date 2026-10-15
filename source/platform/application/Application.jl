@@ -861,8 +861,9 @@ end
     start_application!(editor; mcp = false, assistant = :none, model = "")
 
 What the application does once the editor exists: it declares the API of
-[`make_application_api`](@ref) on the tools of the editor, and adds the `undo`
-and `redo` tools. With `mcp`, the tools also get the meaning model of the
+[`make_application_api`](@ref) on the tools of the editor, adds the `undo` and
+`redo` tools, and posts the acquire of the documents of its tabs
+(`AcquireDocumentOperation`), such as a sheet that computes its formulas. With `mcp`, the tools also get the meaning model of the
 backend `assistant` names, with `model` (empty for its default), because an MCP
 client runs no turn of the assistant and its searches by description rank by
 meaning too.
@@ -882,6 +883,9 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
         register_undo_tools!(editor.tools)
         register_picture_tools!(editor.tools)
     end
+    # The documents of the tabs enter the window: the acquire applies at the first
+    # drain of the loop, so the start of the window runs no work of them.
+    editor isa Editor && post_operation!(editor, AcquireDocumentOperation(get_window_tree(editor.document)))
     (mcp && assistant !== :none && hasproperty(editor, :tools)) || return nothing
     try
         bind_meaning_model!(editor.tools, make_llm(assistant; model = String(model)))

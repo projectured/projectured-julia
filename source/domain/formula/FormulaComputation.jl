@@ -233,3 +233,8 @@ make_inverse_operation(document, operation::ReplaceFormulaResultOperation) = DoN
 
 describe_operation(operation::ReplaceFormulaResultOperation) =
     "store the value of the formula $(operation.formula.name)"
+
+# A sheet that enters the window computes each value that it does not hold for
+# its code now, as at the load of a file, whose sheet holds no value.
+acquire_document!(editor, env::FormulaEnvironment) =
+    evaluate_operation(editor, ComputeFormulasOperation(env))

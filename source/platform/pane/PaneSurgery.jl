@@ -380,7 +380,8 @@ end
     make_pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
 
 Insert `tab` into `group` at the 1-based `index` (the end by default) and focus it. One
-`make_insert_elements_operation` splice with its cursor move. A tab whose content is the
+`make_insert_elements_operation` splice with its cursor move, and the acquire of what the
+tab shows (`AcquireDocumentOperation`). A tab whose content is the
 empty placeholder takes the selection on that content, as a whole, so a paste fills it. A
 tab whose content holds a selection of its own, such as the caret of a new evaluator,
 takes the focus along that selection, so the root holds the selection the document had.
@@ -395,8 +396,21 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     pairs === nothing && return nothing
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
-    make_insert_elements_operation(tabs_path, at, Any[tab];
-                                   selection = _make_new_tab_cursor(pairs, tab))
+    CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
+                                                         selection = _make_new_tab_cursor(pairs, tab)),
+                          AcquireDocumentOperation(tab)])
+end
+
+# A tab acquires each layer of what it shows, from its content inward, such as the
+# sheet in a file; a pane tree acquires each of its tabs.
+acquire_document!(editor, tab::PaneTab) =
+    (find_pane_tab_layer(tab, layer -> (acquire_document!(editor, layer); false)); nothing)
+
+function acquire_document!(editor, tree::PaneTree)
+    for group in get_pane_groups(tree), tab in group.tabs
+        acquire_document!(editor, tab)
+    end
+    nothing
 end
 
 # Where the selection goes in a tab that is about to exist, given the pairs that
@@ -596,7 +610,8 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
         return CompoundOperation(Any[
             make_insert_elements_operation(elements_path, at, Any[new_group]),
             _write_weights(tree, owner, weights),
-            ReplaceSelectionOperation(cursor)])
+            ReplaceSelectionOperation(cursor),
+            AcquireDocumentOperation(tab)])
     end
 
     elements = before ? Any[new_group, group] : Any[group, new_group]
@@ -608,7 +623,7 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
     cursor = _make_new_tab_cursor(pairs, tab)
-    CompoundOperation(Any[write, ReplaceSelectionOperation(cursor)])
+    CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)])
 end
 
 # ── Move a tab ─────────────────────────────────────────────────────────────

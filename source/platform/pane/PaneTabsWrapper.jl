@@ -59,6 +59,9 @@ function wrap_editor!(::Val{:tabs}, layer::Symbol, argument, parts::EditorParts)
     inner = get_selection(document)
     inner === nothing || set_selection!(tree, @reference(tree, root.tabs[1].content.^(inner)))
     parts.document = tree
+    # The documents of the tabs enter the window: the acquire applies at the first
+    # drain of the loop, so the build of the editor starts no work of them.
+    push!(parts.start_steps, editor -> (post_operation!(editor, AcquireDocumentOperation(tree)); nothing))
     parts.projection = make_tabs_projection(parts.projection;
         appearance = get(options, :appearance, get(parts.arguments, :appearance, Appearance())),
         measure = get(options, :measure, FontFileMeasure()))

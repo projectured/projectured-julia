@@ -5,6 +5,13 @@ mutable struct _PaneMockEditor
     document::Any
 end
 
+# A document that notes each editor that acquires it.
+struct _PaneAcquireProbe <: Document
+    acquired::Vector{Any}
+end
+ProjecturedPlatform.DomainModule.acquire_document!(editor, probe::_PaneAcquireProbe) =
+    (push!(probe.acquired, editor); nothing)
+
 function test_pane_surgery()
 @testset "PaneTree surgery" begin
 
@@ -329,6 +336,21 @@ end
     @test length(groups) == 3
     @test groups[1] === group
     @test groups[2] === right
+end
+
+@testset "a tab that opens, or a split with a tab, acquires each layer of what it shows" begin
+    tree, group, _ = _flat(1)
+    editor = _PaneMockEditor(tree)
+    inner = _PaneAcquireProbe(Any[])
+    _apply!(editor, make_pane_open_tab_operation(tree, group, PaneTab("probe", ProjecturedPlatform.UndoModule.UndoBuffer(inner))))
+    @test inner.acquired == Any[editor]
+    other = _PaneAcquireProbe(Any[])
+    _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical, side = :right,
+                                             tab = PaneTab("other", other)))
+    @test other.acquired == Any[editor]
+    # A pane tree acquires each of its tabs.
+    evaluate_operation(editor, ProjecturedPlatform.DomainModule.AcquireDocumentOperation(tree))
+    @test length(inner.acquired) == 2 && length(other.acquired) == 2
 end
 
 end # testset

@@ -18,6 +18,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward
 import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation
+import ..DomainModule: acquire_document!
 
 export FormulaDocument, FormulaError, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_dependencies, get_formula_names, would_create_cycle, compute_topological_order,

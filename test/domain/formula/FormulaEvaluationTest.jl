@@ -120,6 +120,14 @@ function test_formula_stored_value()
         @test get_formula_result(A) == 7
     end
 
+    @testset "a sheet that a tab opens computes its values" begin
+        sheet = _formula_sheet("A" => "2", "B" => "A + 1")
+        tree = PaneTree(PaneGroup(PaneTab[PaneTab("notes", PrimitiveString("x"))]))
+        apply_pane_operation!(tree, make_pane_open_tab_operation(tree, first(get_pane_groups(tree)),
+                                                                 PaneTab("sheet", sheet)))
+        @test get_formula_result(sheet.formulas[2]) == 3
+    end
+
     @testset "a cycle stores its error, and the computation ends" begin
         sheet = _compute_formula_sheet!(_formula_sheet("H" => "2 * K", "K" => "H + 1"))
         H, K = sheet.formulas

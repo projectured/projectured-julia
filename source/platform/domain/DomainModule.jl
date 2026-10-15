@@ -5,8 +5,9 @@ The core document domain. Models document-level identity and basic structural
 documents: a base abstract type, a nothing-document, an insertion placeholder,
 and a reference document.
 
-The release of a document that leaves the window, `release_document!` and
-`ReleaseDocumentOperation`, lives in `DocumentRelease.jl`.
+The acquire of a document that enters the window, `acquire_document!` and
+`AcquireDocumentOperation`, and the release of a document that leaves it,
+`release_document!` and `ReleaseDocumentOperation`, live in `DocumentRelease.jl`.
 
 The load/save/import/export document operations live with the serializers:
 binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
@@ -39,7 +40,7 @@ export compute_loaded_subtypes, var"@domain", var"@insertion",
        replace_selected_document
 export DocumentNothing, DocumentInsertion
 export compute_context_menu
-export release_document!, ReleaseDocumentOperation
+export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 
