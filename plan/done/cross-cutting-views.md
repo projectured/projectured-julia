@@ -992,7 +992,8 @@ For each step, run the narrowest test: the test files of the step, through
       options R4, R5, R7 and R9 change `ReactiveCell.jl`, so a later plan for them
       needs the word of the owner for that file, beside answer 2 of section 8.
 
-- [x] **6. The verbs of the assistant.** Done 2026-10-14, but for the rehearsal.
+- [x] **6. The verbs of the assistant.** Done 2026-10-14. The rehearsal did not
+  run: the owner skipped it on 2026-10-15.
   - `make_roster`, `show_roster!`, `list_roster_sources`, `list_item_facets`
     and `edit_shown_items!`, in a file of verbs, as `ArrangementProgram.jl`
     holds the verbs of the arrangement.
@@ -1008,6 +1009,10 @@ For each step, run the narrowest test: the test files of the step, through
   - The fast loop of the assistant (`tool/assistant/rehearsal.jl`) with three
     requests in plain words, for X1, X2 and X6. Record here how many rounds the
     model used for each. Check the free memory before a local model runs.
+  - The rehearsal waited for Ollama, which needs 47 GB of free memory, or for
+    the word of the owner to use the Claude backend. The owner skipped it on
+    2026-10-15; the verbs are tested by `test_roster_program` and by
+    `test_campaign_roster` of omnet-julia, and no model run measured the rounds.
   - **What the step found and decided:**
     - `make_roster` is not a verb: the constructor `Roster(source; columns,
       title)` makes a roster, and `show_roster!` shows a `Roster` that it is
