@@ -499,20 +499,6 @@ function test_undo_buffer()
         @test reader[] == false
     end
 
-    @testset "a save keeps the hash of the text that it wrote, until a load" begin
-        buffer = UndoBuffer(_make_list(["a"]))
-        @test get_saved_text_hash(buffer) === nothing
-        record_saved_state!(buffer; text_hash = hash("a\n"))
-        @test get_saved_text_hash(buffer) == hash("a\n")
-        record_saved_state!(buffer)
-        @test get_saved_text_hash(buffer) === nothing
-        record_saved_state!(buffer; text_hash = hash("b\n"))
-        clear_undo_history!(buffer)
-        @test get_saved_text_hash(buffer) === nothing
-        # A content that keeps no history can not say.
-        @test get_saved_text_hash(_make_list(["a"])) === nothing
-    end
-
     # The outermost buffer records every step a buffer below it records, so asking
     # it for one step back takes back the last thing that happened anywhere.
     @testset "find_undo_buffer answers the outermost one" begin

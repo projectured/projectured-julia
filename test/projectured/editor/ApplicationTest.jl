@@ -799,8 +799,9 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene([json], dir)
                 editor = _AppFakeEditor(scene, iomap)
                 operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
-                @test _app_plain(operation) isa SaveFileOperation
-                tab = _app_plain(operation).file
+                # The page of the file answers its own save, which checks the disk first.
+                @test _app_plain(operation) isa SaveFilePageOperation
+                tab = find_page_file(_app_plain(operation).page)
                 @test tab.filename == json
                 get_wrapped_document(tab.content).entries[1].value.value = "Bob"
                 evaluate_operation(editor, operation)
@@ -1880,14 +1881,15 @@ function test_application()
                       if occursin("Alice", text)]
                 w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
                 @test holds_one_path(w)
-                # Ctrl+O answers the reload and a selection of the whole file.
+                # Ctrl+O answers the load of the page of the file and a selection of the
+                # whole file.
                 reload = w.press!(KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
                 @test reload isa CompoundOperation
-                @test any(operation -> operation isa ReloadFileOperation, reload.operations)
+                @test any(operation -> operation isa LoadFilePageOperation, reload.operations)
                 @test holds_one_path(w)
                 @test evaluate_reference(w.scene, get_selection(w.scene)) isa JsonFile
                 @test _app_plain(_app_fire(w.composed, w.editor.iomap,
-                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFileOperation
+                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFilePageOperation
             end
 
             @testset "the evaluator" begin

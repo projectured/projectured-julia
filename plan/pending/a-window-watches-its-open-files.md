@@ -60,9 +60,13 @@ A save never writes over a newer file without the person knowing.
   The campaign window and the IDE of omnet-julia do not use these wrappers: they
   give `make_file_change_feeds()` themselves, which now has a store of its own,
   and no stop step closes it when their loop ends. The store test 62.
-- [ ] 4. A save compares the file on disk with the last load or save of the
-  document before it writes, and a newer file goes to the person (D15a).
-- [ ] 5. What the person sees, by the decision of D15a.
+- [x] 4. A save compares the file on disk with the last load or save of the
+  document before it writes, and a newer file goes to the person (D15a). Done
+  together with step 5, in one commit: once the history holds no hash, only a
+  page that the watcher reports to can tell its own save, so the two can not land
+  apart. The facts are in §3.2.
+- [x] 5. What the person sees, by the decision of D15a. Done: the page decides
+  what a reported change means, and shows its band (§3.2).
 - [ ] 6. The tests of each layer, and a live check in the application: a change
   of an open file reaches its tab; a change under unsaved edits, and a save over
   a newer file, show what D15a decided.
@@ -113,6 +117,41 @@ A save never writes over a newer file without the person knowing.
   chooses (D15e): the hash of its last load or save does nothing; a content with
   no edits loads the change; a content with edits, or one that keeps no history,
   shows the band.
+
+## 3.2 What steps 4 and 5 built (2026-10-15)
+
+The work of steps 4 to 6 is in the worktree `projectured-julia-watch-save`, on the
+branch `watch-save` from `window-watches-files`. The part "the history loses its hash"
+came from the session that did steps 1 to 3, as a patch.
+
+- The names. `FilePage` has the field `file_hash`; `make_file_page(content)` sets
+  it from the file as it was read, and `make_file_tab_content` and the open of a
+  file use it. `compute_file_text_hash(path)` is the one hash of a file text, for
+  the page and for the watcher. `SaveFilePageOperation(page; force = false)`,
+  `LoadFilePageOperation(page; content, file_hash)` and
+  `KeepFilePageEditsOperation(page, file_hash)` are the operations of the page.
+  `receive_file_change!(editor, receiver, file_hash, content)` is declared in
+  fileformat. `WatchedFile` has a `receiver`, `watch_document_file!` takes the
+  keyword `receiver`, and filechange acquires and releases a `FilePage`.
+- The reader of the page answers its own save and load in place of a
+  `SaveFileOperation` and a `ReloadFileOperation` (with no document) of its file:
+  two 3-argument `read_intent` methods, which the default reader reaches for each
+  member of a compound too. "Save as" (`save_file_dialog!` with a page) answers
+  the save of the page with `force = true`.
+- A save and a keep have the way back `DoNothingOperation()`. A load has none, as
+  `Ctrl+O` has none. A `SaveFileOperation` has no way back, so a history above it
+  records a barrier for each `Ctrl+S`; in a page, a save adds no step.
+- A file with no page: a file that a person does not edit loads the change; any
+  other keeps what it holds and logs, because it can not tell its own save from a
+  change. This is the rule of D13 A for a file with no history, given now to a
+  file with no page. Every file tab of the source is a page.
+- A page of a file that a person does not edit reads no text for a hash, because
+  such a file can be large and a save never writes it.
+- The watcher still reads `is_editable_file_type`, to choose between the text of
+  a file and its time and size. It reads no edit and no save.
+- A fact of the tests: an `UndoEntry` is a value, so two entries with equal
+  fields are `===`, and a test that pushes equal entries sees no edits. A real
+  entry carries its time.
 
 ## 4. The decision
 

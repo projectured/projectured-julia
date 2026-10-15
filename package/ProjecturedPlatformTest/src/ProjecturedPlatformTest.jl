@@ -514,7 +514,7 @@ using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.ToolModule
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedPlatform.FileFormatModule: record_saved_state!, has_unsaved_edits, get_saved_text_hash
+using ProjecturedPlatform.FileFormatModule: record_saved_state!, has_unsaved_edits
 using ProjecturedPlatform.UndoModule
 using ProjecturedPlatform.NaturalModule: NaturalToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsViewport

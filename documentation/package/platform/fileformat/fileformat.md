@@ -38,7 +38,7 @@ A path that does not exist opens as `make_document_seed(Val(extension))`. A doma
 
 `make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`) has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file.
 
-`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the file document of `make_file_tab` in a `WidgetScrollPane`, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it.
+`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: a `FilePage` (see the next section) around the file document of `make_file_tab` in a `WidgetScrollPane`, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it.
 
 `FileToContent` is the projection of a `FileDocument` in the general renderer. It prints `content` through the recursion, so a tab with a `JsonFile` shows the JSON document exactly as a bare `JsonDocument` would show. The forward map passes the path below `content` to the child. The backward map puts the `content` step in front with `concat_references`. The `^` splice of `@reference` would move the type checkpoints of the path, and the selection would then match no document. `FileToContent(; content, accepts)` prints and reads a content that `accepts` answers `true` for with the projection `content` in place of the recursion: the view of a file of a domain, which a document of that domain inside another document does not have. Any other content, such as one that an opener wraps in a document of its own, prints through the recursion. The Julia domain gives `JuliaFile` such a view through `make_graphics_projection`, whose rows come before the row of `FileDocument`.
 
@@ -48,10 +48,33 @@ The `@gestures` table of `FileDocument` has two keys:
 
 | Key | Operation | What it does |
 | --- | --- | --- |
-| Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document |
-| Ctrl+O | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file |
+| Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document; inside a page, the reader of the page answers `SaveFilePageOperation` in place of it |
+| Ctrl+O | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; inside a page, the reader of the page answers `LoadFilePageOperation` in place of it |
 
-The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing; the [file-change slice](../filechange/filechange.md) compares it with the file on disk. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
+The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
+
+### The page of a file
+
+`FilePage` is what a tab shows for a file. It holds `content` (the file in its scroll pane), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page.
+
+The page holds the state of its file against the disk. `file_hash` is the hash of the text of the last load or save. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash.
+
+`SaveFilePageOperation` reads the file on disk and compares its hash with `file_hash`.
+
+- If the hashes are equal, it writes the file and keeps the hash of the written text.
+- If they differ, it writes nothing and shows the band.
+- With `force = true`, it writes with no check.
+
+"Save as" (`save_file_dialog!` with a page) writes with `force = true`. A history above the page adds no step for a save or for `KeepFilePageEditsOperation`, because their way back is `DoNothingOperation`.
+
+`FileBand` holds a `message` and `choices`, each a label with an operation. `FilePageToWidget` draws it above the file. After a change on disk, the band says "<name> changed on disk." and offers two choices:
+
+| Choice | Operation | What it does |
+| --- | --- | --- |
+| Load it | `LoadFilePageOperation` | loads the document that the watcher read, or reads the file now when it carries none |
+| Keep mine | `KeepFilePageEditsOperation` | takes the hash of the disk as the hash of the page, so the next save writes |
+
+The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver, file_hash, content)`, which this slice declares. A page with the same hash does nothing. A file that a person does not edit, or with no edits (`has_unsaved_edits` false), loads the new document. Any other file keeps its content, and the page shows the band. A file document with no page loads a file that a person does not edit. For any other file it logs a warning, because it can not tell its own save from a change.
 
 ### The tool set
 
@@ -88,4 +111,4 @@ tab  = make_file_tab("example.json", UndoBuffer)
 
 - Only `.json`, `.xml`, `.jl` and `.sql` define a seed. A missing `.md`, `.yaml`, `.rst` or `.math` file opens as `DocumentNothing()`.
 - `write_document_file` writes natural text for an extension that no domain registered, but `read_document_file` raises an error for the same path.
-- A file document with no file name has no save and no reload: the two gestures return `nothing`. No "save as" exists.
+- A file document with no file name has no save and no reload: the two gestures return `nothing`. `save_file_dialog!` of the shell slice gives it a name and writes it.

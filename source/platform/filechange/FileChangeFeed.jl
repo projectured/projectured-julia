@@ -8,7 +8,7 @@
 The feed of a window whose file documents watch their files: give it to the
 editor in its `feeds`. It owns its store, so each editor watches its own files
 ([`get_session_file_change_store`](@ref)). A watcher of the store wakes the
-editor when a file changes, and the drain brings each change to its document
+editor when a file changes, and the drain reports each change to the receiver of its file
 ([`drain_file_changes!`](@ref)). An idle feed asks for no frame.
 """
 struct FileChangeFeed <: Feed

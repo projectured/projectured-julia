@@ -2,20 +2,22 @@
 # documents that watch their files, a watcher for each folder that holds one,
 # and the paths that changed since the last drain. A watcher reads and parses a
 # changed file on its own task and keeps the new document in the store; only a
-# drain, on the editor task, reads the documents and swaps the new one in.
+# drain, on the editor task, reports the change to the receiver of the file.
 
 # One file document, the absolute path of its file, the file type that reads it,
-# whether a person edits it, and what the last sync saw: the hash of the text of
-# the file. For a file that a person does not edit, `file_hash` is the hash of the
-# time and the size of the file at the last sync, and no text is read. `stamp` is
-# the time and the size of the file at the last look of a poll, or at the start of
-# the watch. The watcher alone writes `seen_hash`, the hash of the file at its
-# last read, and `prepared` holds what it read since the last drain.
+# whether its text is read, the receiver that a change is reported to, and what
+# the last report saw: the hash of the text of the file. The text of a file that
+# a person does not edit is not read: its `file_hash` is the hash of the time and
+# the size of the file. `stamp` is the time and the size of the file at the last
+# look of a poll, or at the start of the watch. The watcher alone writes
+# `seen_hash`, the hash of the file at its last read, and `prepared` holds what
+# it read since the last drain.
 mutable struct WatchedFile
     file::FileDocument
     path::String
     type::Type
     is_editable::Bool
+    receiver::Any
     file_hash::UInt64
     stamp::Any
     seen_hash::UInt64
@@ -30,10 +32,10 @@ struct _PreparedFile
     failure::Any
 end
 
-function WatchedFile(file::FileDocument, path::String)
+function WatchedFile(file::FileDocument, path::String, receiver)
     is_editable = is_editable_file_type(typeof(file))
-    file_hash = is_editable ? _hash_file(path) : hash(_get_file_stamp(path))
-    WatchedFile(file, path, Base.typename(typeof(file)).wrapper, is_editable, file_hash,
+    file_hash = is_editable ? compute_file_text_hash(path) : hash(_get_file_stamp(path))
+    WatchedFile(file, path, Base.typename(typeof(file)).wrapper, is_editable, receiver, file_hash,
                 _get_file_stamp(path), file_hash, nothing)
 end
 
@@ -42,7 +44,7 @@ end
 
 The file documents that watch their files, and the paths that changed since the
 last drain. A watcher task for each folder writes a change into it; a drain, on
-the editor task, brings each change to its document
+the editor task, reports each change to the receiver of its file
 ([`drain_file_changes!`](@ref)). A folder where the system gives no
 notification is polled every `poll_interval` seconds.
 """
@@ -85,32 +87,33 @@ end
 _find_watch_store() = _find_editor_file_change_store(find_evaluation_editor())
 
 """
-    watch_document_file!(file; store) -> file
+    watch_document_file!(file; store, receiver = file) -> file
 
-Bring the changes of the file of `file` to it. When another program changes the
-file, a drain of the store reads it again into `file`, as `ReloadFileOperation`
-does, if the document was not edited since its last load or save; a document
-with edits that are not saved keeps them, and the log says that its file
-changed on disk. A save of the document is not a change. A file of a type that a
-person does not edit (`is_editable_file_type`) is read again when the time or the
-size of its file changes, and its text is never read to compare.
+Report each change of the file of `file` to `receiver`: when the file changed on
+disk, a drain of the store calls `receive_file_change!` with the hash of the file
+and the document that a watcher parsed, and the receiver decides what the change
+means. A [`FilePage`](@ref) that shows the file is the receiver of a file in a
+tab. A file of a type that a person does not edit (`is_editable_file_type`) is
+read again when the time or the size of its file changes, and its text is never
+read.
 
 Call it on the task that reads the document. `store` is by default the store of
 the [`FileChangeFeed`](@ref) of the editor of the evaluation; with no such
 editor nothing is watched, because nothing would drain the changes. A file
 document with no file name has nothing to watch. A document that watches already
-is left as it is.
+is left as it is, with its receiver.
 
 While Julia writes a precompile cache, nothing is watched. Such a process ends
 after its workload, and Julia ends it only when every task of the workload has
 ended, so the task of a watch would hold it forever.
 """
 function watch_document_file!(file::FileDocument;
-                              store::Union{FileChangeStore,Nothing} = _find_watch_store())
+                              store::Union{FileChangeStore,Nothing} = _find_watch_store(),
+                              receiver = file)
     (store === nothing || Base.generating_output()) && return file
     isempty(get_filename(file)) && return file
     path = abspath(get_filename(file))
-    watched = WatchedFile(file, path)
+    watched = WatchedFile(file, path, receiver)
     folder = dirname(path)
     lock(store.lock) do
         any(w -> w.file === file, store.files) && return
@@ -148,12 +151,27 @@ is_document_file_watched(file::FileDocument; store::Union{FileChangeStore,Nothin
 
 # A file that enters the window watches its file in the store of the editor while
 # a tab shows it, and the release of the tab stops the watch. An editor with no
-# file change feed watches nothing.
+# file change feed watches nothing. A tab acquires its outer layer first, so the
+# page of a file watches the file as its receiver, and the file itself, which comes
+# next, watches already.
 acquire_document!(editor, file::FileDocument) =
     (watch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
 
 release_document!(editor, file::FileDocument) =
     (unwatch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
+
+function acquire_document!(editor, page::FilePage)
+    file = find_page_file(page)
+    file === nothing ||
+        watch_document_file!(file; store = _find_editor_file_change_store(editor), receiver = page)
+    nothing
+end
+
+function release_document!(editor, page::FilePage)
+    file = find_page_file(page)
+    file === nothing || unwatch_document_file!(file; store = _find_editor_file_change_store(editor))
+    nothing
+end
 
 """
     close_file_change_store!(store) -> store
@@ -288,7 +306,7 @@ end
 function _prepare_file_change(watched::WatchedFile)
     _wait_for_settled_file(watched.path)
     isfile(watched.path) || return nothing
-    file_hash = watched.is_editable ? hash(read(watched.path, String)) : hash(_get_file_stamp(watched.path))
+    file_hash = watched.is_editable ? compute_file_text_hash(watched.path) : hash(_get_file_stamp(watched.path))
     file_hash == watched.seen_hash && return nothing
     watched.seen_hash = file_hash
     try
@@ -303,18 +321,13 @@ end
 """
     drain_file_changes!(; editor = nothing, store = get_session_file_change_store(; editor)) -> Int
 
-Bring each change that the watchers read and parsed to its document, and answer
-how many documents took their file again. Run it on the task that reads the
-documents. The drain reads no file: a watcher read it, off the loop.
-
-A file that a person does not edit takes the new document. For a file that a
-person edits, the history of its content tells: a file whose hash is the hash of
-the text that the last save wrote holds that save, and nothing happens; a
-document with no edits since its last load or save takes the new document; a
-document with edits that are not saved keeps them, and the log says that its
-file changed on disk. A content that keeps no history can not tell its edits, so
-it keeps what it holds, and the log says so. A parse that failed is thrown after
-the other changes, so the editor records it.
+Report each change that the watchers read and parsed to the receiver of its file
+(`receive_file_change!`), and answer how many receivers took the new document.
+Run it on the task that reads the documents. The drain reads no file: a watcher
+read it, off the loop. What a change means is the choice of the receiver: a
+[`FilePage`](@ref) knows its own save and the edits of its file, and the drain
+knows neither. A change is reported once. A parse that failed is thrown after the
+other changes, so the editor records it.
 """
 function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_session_file_change_store(; editor))
     changed = lock(store.lock) do
@@ -340,23 +353,5 @@ function _bring_file_change!(watched::WatchedFile, prepared::_PreparedFile, edit
     prepared.file_hash == watched.file_hash && return false
     watched.file_hash = prepared.file_hash
     prepared.failure === nothing || return false
-    watched.is_editable || return _take_prepared_file!(watched, prepared, editor)
-    content = get_file_content(watched.file)
-    # The file holds what the last save of the document wrote.
-    get_saved_text_hash(content) == prepared.file_hash && return false
-    edits = has_unsaved_edits(content)
-    edits === false && return _take_prepared_file!(watched, prepared, editor)
-    @warn string(basename(watched.path), " changed on disk, and its tab keeps ",
-                 edits === true ? "the edits that are not saved. Ctrl+O reads the file again; Ctrl+S writes the tab over it." :
-                         "what it shows, because it keeps no history that says whether it has edits. " *
-                         "Ctrl+O reads the file again.")
-    false
+    receive_file_change!(editor, watched.receiver, prepared.file_hash, prepared.content)
 end
-
-# Swap the document that the watcher read into the file document.
-function _take_prepared_file!(watched::WatchedFile, prepared::_PreparedFile, editor)
-    evaluate_operation(editor, ReloadFileOperation(watched.file; content = prepared.content))
-    true
-end
-
-_hash_file(path::String) = isfile(path) ? hash(read(path, String)) : hash(nothing)

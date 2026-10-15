@@ -2,15 +2,15 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [fileformat.md](../fileformat/fileformat.md), [editor.md](../../kernel/editor.md)
 
-The file-change slice of `ProjecturedPlatform` brings a change of a file on disk to the document that the file holds. Another program changes a file: a tool in a terminal, a checkout of git, a task that writes a store. A file document that watches its file reads the change, on the editor task, with no action of a person. This document says how a change is noticed, how it reaches the document, and what happens to edits that are not saved.
+The file-change slice of `ProjecturedPlatform` reports a change of a file on disk to the receiver of the file. Another program changes a file: a tool in a terminal, a checkout of git, a task that writes a store. A watcher reads the change off the loop, and the receiver of the file takes it on the editor task, with no action of a person. This document says how a change is noticed, how it reaches the receiver, and what happens to edits that are not saved.
 
 ## How it works
 
 | Part | What it is |
 | --- | --- |
 | `FileChangeStore` | the watched file documents, a watcher for each folder that holds one, and the paths that changed since the last drain; each `FileChangeFeed` owns one, so each editor has its own (`get_session_file_change_store(; editor)`) |
-| `watch_document_file!(file)` | the file document watches its file, in the store of the editor of the evaluation; `unwatch_document_file!` stops it, and `close_file_change_store!` stops every watcher of a store |
-| `drain_file_changes!(; store, editor)` | brings each stored change to its document, on the task that reads the documents |
+| `watch_document_file!(file; receiver)` | the file document watches its file, in the store of the editor of the evaluation, and reports each change to `receiver`, which is the file itself by default; `unwatch_document_file!` stops it, and `close_file_change_store!` stops every watcher of a store |
+| `drain_file_changes!(; store, editor)` | reports each stored change to the receiver of its file, on the task that reads the documents |
 | `FileChangeFeed` | the feed of a window: a watcher wakes the editor, and the drain runs once a frame |
 
 ### A change is noticed by a watcher of the folder
@@ -19,33 +19,35 @@ A watcher task watches each folder that holds a watched file, with a `FolderMoni
 
 A watcher writes only the store, from its own task, and wakes each editor that drains the store. The watcher of a folder stops when the last watched file of the folder stops watching.
 
-### A change reaches the document on the editor task
+### A change reaches the receiver on the editor task
 
-The drain reads each changed file and compares three texts: the text of the file on disk, the text that a save of the document writes now (`compute_file_text` of the file-format slice), and the hashes of both from the last sync.
+A watcher reads a changed file off the loop. It hashes the text, parses a new document, and keeps both in the store. The drain, on the editor task, reports each change once to the receiver of the file: `receive_file_change!(editor, receiver, file_hash, content)`. The file-format slice declares this function. The drain decides nothing: the receiver decides what the change means.
 
-| What the drain finds | What it does |
+| Receiver | What it does with a change |
 | --- | --- |
-| The file holds the same text as at the last sync | nothing |
-| The file holds what the document writes | nothing: a save of the document wrote it |
-| The document was not edited since its last load or save | reads the file again, as `ReloadFileOperation` does |
-| The document has edits that are not saved | keeps them, and logs that the file changed on disk |
+| a `FilePage`, with the hash it already holds | nothing: its own save or load wrote that text |
+| a `FilePage`, for a file with no edits, or a file that a person does not edit | loads the new document |
+| a `FilePage`, for a file with edits, or with no history that says | keeps what it holds, and shows its band with "Load it" and "Keep mine" |
+| a file document with no page, for a file that a person does not edit | loads the new document |
+| a file document with no page, for any other file | keeps what it holds, and logs a warning, because it can not tell its own save from a change |
 
-A document that keeps its edits keeps them until the person decides: Ctrl+O reads the file again, Ctrl+S writes the document over it. The log names each change once.
+The receiver of a file in a tab is its `FilePage`. A tab acquires its outer layer first, so the page watches the file with itself as the receiver. A file document with no page is its own receiver. The page and its band are described in [fileformat.md](../fileformat/fileformat.md).
 
-A file of a type that a person does not edit (`is_editable_file_type` answers `false`), such as the result file of a run that writes it while it runs, has no edits to keep and can be too large to read whole. The drain compares only the time and the size of its file with those of the last sync, and when they changed, it reads the file again. The text of such a file is never read to compare.
+A file of a type that a person does not edit (`is_editable_file_type` answers `false`), such as the result file of a run that writes it while it runs, has no edits to keep and can be too large to read whole. The watcher compares only the time and the size of its file with those of the last read, and never reads its text.
 
-`drain_file_changes!` answers how many documents read their file again. A caller with no window drains the store itself, on the one task that reads the documents.
+`drain_file_changes!` answers how many receivers took the new document. A caller with no window drains the store itself, on the one task that reads the documents.
 
 ## How it fits
 
-The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `ReloadFileOperation` and `compute_file_text`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, and gives its editor the feed with `make_file_change_feeds()`.
+The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `receive_file_change!`, `FilePage`, `find_page_file` and `compute_file_text_hash`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, or opens a tab, which watches its file itself, and gives its editor the feed with `make_file_change_feeds()`.
 
 ## Design decisions
 
 - **The feed is generic.** Any file document can watch its file; the slice names no domain. See [plan/pending/pending-edits-and-file-changes.md](../../../../plan/pending/pending-edits-and-file-changes.md).
 - **A watcher for each folder, not for each file.** A program writes a file at once by a rename, which a watch of the file itself loses, and a session with many files of one folder needs one handle of the system.
-- **The text decides, not the time.** A save of the document changes the time of its file too; the comparison with the text that the document writes separates the save from a change of another program, with no hook in the save.
-- **An edit that is not saved is never lost.** The drain reads a file again only into a document whose text is the text of its last sync.
+- **The text decides, not the time.** A save changes the time of its file too. The hash of the text separates a save from a change of another program, and the receiver compares it, not the drain.
+- **The watcher knows nothing of editing.** It watches, reads, hashes and parses. The receiver owns the meaning of a change, so the slice reads no edit and makes no band. It names `FilePage` only to watch a file with its page as the receiver.
+- **An edit that is not saved is never lost.** The receiver keeps the edits of a file that has them, and shows a choice. The drain never replaces a document.
 - **No watch while Julia writes a precompile cache.** `watch_document_file!` does nothing in such a process. Julia ends a precompile only when every task of its workload has ended, and the task of a watcher ends only when its folder monitor closes, so one watch in a workload holds the precompile forever.
 
 ## Usage
@@ -63,10 +65,9 @@ A watch where no editor with a `FileChangeFeed` is the editor of the evaluation 
 nothing: no drain would bring its changes, and its watcher task would run forever.
 
 - Examples: none.
-- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()`: a change reaches a document that was not edited, a file written by a rename is seen, a save is no change, an edit that is not saved stays, the feed drains and is woken, and a polled folder.
+- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()` in `FileChangeStoreTest.jl`. It covers a page whose file has no edits, a save of the page, a page with edits and its band, a page with no history, a file with no page, the save that checks the disk, the feed, a file type that an opener chose, a file that a person does not edit, a polled folder, one store for each editor, a tab that watches while it is open, and the `file_change` wrapper.
 
 ## Limits
 
-- The drain reads the file again with `ReloadFileOperation`, which writes no selection; a selection that pointed into the old content can point at nothing.
-- No program of this repository watches its files yet; the application does not call `watch_document_file!` for the files that it opens.
+- A load reads the file again with `ReloadFileOperation`, which writes no selection; a selection that pointed into the old content can point at nothing.
 - A file that is removed keeps its document as it is.

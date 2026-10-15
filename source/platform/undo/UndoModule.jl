@@ -60,7 +60,7 @@ import ..OperationModule: evaluate_operation, make_inverse_operation,
                           get_wrapped_operation, rewrap_operation,
                           is_self_contained_operation
 import ..ProjectionModule: get_projection_gesture_bindings
-import ..FileFormatModule: record_saved_state!, has_unsaved_edits, get_saved_text_hash
+import ..FileFormatModule: record_saved_state!, has_unsaved_edits
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward

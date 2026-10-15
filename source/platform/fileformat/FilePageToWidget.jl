@@ -109,3 +109,13 @@ function map_reference_backward(::FilePageToWidget, iomap::SimpleIoMap, referenc
     end
     isempty(steps) ? EmptyReference() : nothing
 end
+
+# The save and the load of the file of the page come back as the page's own, so the
+# page checks the disk before a save and keeps the hash of the text of each load
+# and save. A reader of a compound reaches each member here.
+read_intent(::FilePageToWidget, iomap::SimpleIoMap, op::SaveFileOperation) =
+    op.file === find_page_file(iomap.input) ? SaveFilePageOperation(iomap.input) : op
+
+read_intent(::FilePageToWidget, iomap::SimpleIoMap, op::ReloadFileOperation) =
+    (op.content === nothing && op.file === find_page_file(iomap.input)) ?
+        LoadFilePageOperation(iomap.input) : op

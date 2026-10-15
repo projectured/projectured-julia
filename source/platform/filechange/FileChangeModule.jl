@@ -8,9 +8,10 @@ of a change that another program makes: a tool in a terminal, a checkout of
 git, a task that writes a store. A watcher task for each folder takes the
 notifications of the system, or polls the times of the files where no
 notification works, and stores the paths that changed. The editor drains the
-store on its own task ([`FileChangeFeed`](@ref)): a document that was not edited
-since its last load or save reads its file again, and a document with edits
-that are not saved keeps them, and the log says that its file changed on disk.
+store on its own task ([`FileChangeFeed`](@ref)), and the drain reports each
+change to the receiver of its file, which decides what the change means. The
+watcher knows nothing of editing: the page of a file in a tab knows its own save
+and the edits of its file.
 """
 module FileChangeModule
 

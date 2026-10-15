@@ -77,7 +77,7 @@ function evaluate_operation(editor, op::OpenFileOperation)
     history = settings === nothing ? identity : make_history_wrap(settings)
     tab = op.file_wrap === identity ?
           make_file_tab_content(op.path, document -> history(op.wrap(document))) :
-          FilePage(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)))))
+          make_file_page(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)))))
     post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor), editor))
     nothing
 end

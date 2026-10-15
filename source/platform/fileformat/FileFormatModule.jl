@@ -55,10 +55,12 @@ export import_document, export_document,
 export write_document_file, read_document_file, make_document_for, make_document_seed,
        make_file_tab, make_file_tab_content
 export export_document
-export SaveFileOperation, record_saved_state!, has_unsaved_edits, get_saved_text_hash, ReloadFileOperation,
-       compute_file_text, read_file_content_again
+export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
+       compute_file_text, compute_file_text_hash, read_file_content_again
 export FileToContent
-export FilePage, FileBand, find_page_file, FilePageToWidget
+export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
+       SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
+       receive_file_change!
 export make_file_api
 
 

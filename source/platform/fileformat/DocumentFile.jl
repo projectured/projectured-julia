@@ -172,9 +172,10 @@ end
 
 The content of a tab that shows the file at `path`: the [`FilePage`](@ref) of the
 file document of [`make_file_tab`](@ref) in a scroll pane, so a file longer than
-its tab scrolls, and the band of the page stays above it. The scroll is made here,
-where a file tab is made, and not by the tab: a tab page gets no scroll of its
-own, because a page can hold two parts that each scroll.
+its tab scrolls, and the band of the page stays above it. The page knows the hash
+of the text of the file that it read ([`make_file_page`](@ref)). The scroll is
+made here, where a file tab is made, and not by the tab: a tab page gets no
+scroll of its own, because a page can hold two parts that each scroll.
 
 Use it to open a file in a tab.
 
@@ -188,7 +189,7 @@ See also `make_file_tab` and `open_pane!`.
 function make_file_tab_content end
 
 make_file_tab_content(path::AbstractString, wrap = identity) =
-    FilePage(WidgetScrollPane(make_file_tab(path, wrap)))
+    make_file_page(WidgetScrollPane(make_file_tab(path, wrap)))
 
 # ── What a file is called ────────────────────────────────────────────────────
 
@@ -231,28 +232,29 @@ function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
     # A file that a person does not edit has nothing of a person to write.
     is_editable_file_type(typeof(file)) || return nothing
+    _write_file_text!(file) !== nothing
+end
+
+# Write the text of `file` to its name, and answer that text, or `nothing` when
+# nothing was written. The history of the file notes that the file holds what the
+# history holds now.
+function _write_file_text!(file::FileDocument)
     text = save_file_text!(_make_plain_file(file), dirname(abspath(get_filename(file))))
-    text === nothing && return false
-    # The history of the file notes that the file holds what the history holds now,
-    # and the hash of that text, which tells a watcher of the file that this save
-    # wrote it.
-    record_saved_state!(get_file_content(file); text_hash = hash(text))
-    true
+    text === nothing || record_saved_state!(get_file_content(file))
+    text
 end
 
 """
-    record_saved_state!(content; text_hash = nothing) -> nothing
+    record_saved_state!(content) -> nothing
 
 Note that the file that holds `content` holds what `content` is now, as after a
-save, so [`has_unsaved_edits`](@ref) answers `false` until the next edit.
-`text_hash` is the hash of the text that the save wrote, which
-[`get_saved_text_hash`](@ref) answers. A history answers both by keeping its
-newest step and the hash. The default does nothing, for a content that keeps no
-history.
+save, so [`has_unsaved_edits`](@ref) answers `false` until the next edit. A
+history answers it by keeping its newest step. The default does nothing, for a
+content that keeps no history.
 """
 function record_saved_state! end
 
-record_saved_state!(content; text_hash = nothing) = nothing
+record_saved_state!(content) = nothing
 
 """
     has_unsaved_edits(content) -> Union{Bool, Nothing}
@@ -266,17 +268,14 @@ function has_unsaved_edits end
 has_unsaved_edits(content) = nothing
 
 """
-    get_saved_text_hash(content) -> Union{UInt64, Nothing}
+    compute_file_text_hash(path) -> UInt64
 
-The hash of the text that the last save of the file that holds `content` wrote,
-while no load replaced the document since; `nothing` before the first save, and
-for a content that keeps no history. A watcher of the file compares it with the
-hash of the file on disk: an equal hash is the save, and not a change of another
-program.
+The hash of the text of the file at `path` on disk now, or the hash of `nothing`
+when there is no file. A [`FilePage`](@ref) keeps the hash of the text of its last
+load or save and compares it with this one, and a watcher of the file reports it
+with a change.
 """
-function get_saved_text_hash end
-
-get_saved_text_hash(content) = nothing
+compute_file_text_hash(path::AbstractString) = isfile(path) ? hash(read(path, String)) : hash(nothing)
 
 # The facets of a file document, which a roster of files shows, filters and sorts
 # by. The folder is the folder of the file name as the file gives it.

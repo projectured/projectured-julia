@@ -124,6 +124,41 @@ mktempdir() do dir
         @test any(entry -> occursin("hello", entry[1]), texts)
     end
 
+    # Ctrl+S and Ctrl+O in a page answer the save and the load of the page, so the
+    # save checks the disk first, and both keep the hash of the text of the file.
+    @testset "Ctrl+S and Ctrl+O in a page answer the save and the load of the page" begin
+        write(path, "{\"greeting\": \"hello\"}")
+        page = make_file_tab_content(path)
+        @test page.file_hash == hash(read(path, String))
+        renderer = NaturalToGraphics(measure = _stub)
+        print_page() = print_document(renderer, nothing, page,
+                                      PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))
+        iomap = print_page()
+        # A key reaches the file where the caret is: a click puts it in the file.
+        (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
+                      if occursin("hello", text))
+        click = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+        replace_selection!(page, click.path)
+        iomap = print_page()
+        save = read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
+        @test save isa SaveFilePageOperation && save.page === page && !save.force
+        load = read_intent(renderer, iomap, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
+        @test load isa CompoundOperation
+        @test any(o -> o isa LoadFilePageOperation && o.page === page, load.operations)
+        @test !any(o -> o isa ReloadFileOperation, load.operations)
+        # Another program writes the file: the save shows the band and writes nothing.
+        write(path, "{\"greeting\": \"theirs\"}")
+        @test evaluate_operation(nothing, save) === false
+        @test occursin("theirs", read(path, String))
+        @test page.band isa FileBand
+        texts = _app_drawn_at(get_iomap_output(print_page()))
+        @test any(entry -> occursin("a.json changed on disk.", entry[1]), texts)
+        evaluate_operation(nothing, only(o for o in load.operations if o isa LoadFilePageOperation))
+        @test page.band === nothing
+        @test page.file_hash == hash(read(path, String))
+        @test occursin("theirs", render(find_page_file(page)))
+    end
+
     @testset "a file with an empty name declines both" begin
         file = JsonFile("", JsonNull())
         @test read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) === nothing
