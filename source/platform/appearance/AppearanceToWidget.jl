@@ -221,7 +221,8 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
-    AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits, folds)
+    AppearanceToWidgetIoMap(p, appearance, Cell(@computation child.output), child, commands, writes,
+                            edits, folds)
 end
 
 # The summaries of the two cards of the settings of the appearance, which no theme

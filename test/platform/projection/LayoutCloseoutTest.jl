@@ -209,5 +209,49 @@ end
     @test length(collect(io.output.elements)) == 2    # remove reflows back
 end
 
+# ── A container places the outputs of its children apart from their print: an
+# output that a child computes again as the same object prints no child again,
+# and a new output of a child is placed. ──
+@testset "a container places a new output of a child, and prints no child again" begin
+    measure = FixedMeasure(8, 12, 4, 0)
+    layouts = LayoutToGraphics().dispatch
+    plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 20); measure).dispatch))
+    large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 40); measure).dispatch))
+    choice = _LC_Cell(:plain)
+    # Every place reads the choice, and only the second child changes with it.
+    function choose(reference)
+        kind = choice[]
+        steps = get_reference_steps(strip_reference_types(reference))
+        (kind === :large && !isempty(steps) && steps[end] == ElementReferenceStep(2)) ? large : plain
+    end
+    projection = RecursiveProjection(ReferenceDispatchingProjection(choose))
+    function drawn(node, found = Dict{String,Any}())
+        if node isa GraphicsCanvas
+            for element in node.elements
+                drawn(element isa _LC_Cell ? element[] : element, found)
+            end
+        elseif node isa GraphicsViewport
+            drawn(node.content, found)
+        elseif node isa GraphicsText
+            found[node.text] = node
+        end
+        found
+    end
+    for layout in (VerticalLayout(Any[WidgetLabel("one"), WidgetLabel("two")]),
+                   HorizontalLayout(Any[WidgetLabel("one"), WidgetLabel("two")]),
+                   GridLayout(Any[WidgetLabel("one"), WidgetLabel("two")], 2))
+        choice[] = :plain
+        io = print_document(projection, nothing, layout, PrinterContext())
+        first_child() = io.child_iomaps[1][3]
+        child = first_child()
+        before = drawn(io.output)
+        choice[] = :large
+        after = drawn(io.output)
+        @test first_child() === child
+        @test after["one"] === before["one"]
+        @test after["two"] !== before["two"] && after["two"].font.size > before["two"].font.size
+    end
+end
+
 end # @testset
 end # function

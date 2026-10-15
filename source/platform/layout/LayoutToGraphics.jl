@@ -120,6 +120,39 @@ function _wrap_child(child::GraphicsDocument, x_cell::Cell, y_cell::Cell)
                    layout_none, true, Cell(nothing))
 end
 
+# The outputs of the children of a container, each at its place, from the entries
+# `(x, y, iomap)` that the build of the container gives; an entry that is
+# `nothing` places nothing. A container reads them in a computation of its own,
+# apart from the build that prints its children, so a child that gives a new
+# output, such as a fault mark or a canvas that it makes again, is placed again,
+# and no child prints again. `placed` keeps the wrapper of each output, so an
+# output that stays at its place keeps its wrapper.
+function _place_child_outputs(entries, placed::IdDict{Any,Any})
+    wrapped = Any[]
+    kept = IdDict{Any,Any}()
+    for entry in entries
+        entry === nothing && continue
+        x, y, cim = entry
+        output = cim.output
+        output isa GraphicsDocument || continue
+        known = get(placed, output, nothing)
+        wrapper = (known !== nothing && known[1] === x && known[2] === y) ? known[3] :
+                  _wrap_child(output, x, y)
+        kept[output] = (x, y, wrapper)
+        push!(wrapped, wrapper)
+    end
+    empty!(placed)
+    merge!(placed, kept)
+    wrapped
+end
+
+# A cell of the outputs of the children that the build `build` gives, each at its
+# place (`_place_child_outputs`).
+function _make_placed_children_cell(build::Cell)
+    placed = IdDict{Any,Any}()
+    Cell(@computation _place_child_outputs(build[].entries, placed))
+end
+
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
                        clip_x, clip_y)
@@ -515,9 +548,10 @@ end
     LayoutConstraintToGraphicsCanvas
 
 Recurse into the wrapped child with the parent-provided context unchanged
-and forward the child's canvas as this projection's output. The constraint
-values are not consumed here — they are read by the *parent* layout when
-it allocates space across its children.
+and forward the child's canvas as this projection's output, as a computation, so
+a new canvas of the child is the new output. The constraint values are not
+consumed here — they are read by the *parent* layout when it allocates space
+across its children.
 """
 function print_document(p::LayoutConstraintToGraphicsCanvas,
                           recursion, doc::LayoutConstraint, ctx)
@@ -526,7 +560,7 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
             SimpleIoMap(nothing, child, child) :
             print_child(recursion, child,
                              make_child_context(ctx, doc, (@reference_step child)))
-    output = inner.output isa GraphicsDocument ? inner.output : _empty_canvas()
+    output = Cell(@computation (drawn = inner.output; drawn isa GraphicsDocument ? drawn : _empty_canvas()))
     ContentIoMap(p, doc, output, inner)
 end
 
@@ -942,19 +976,12 @@ function _hl_build(recursion, doc, ctx)
         push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell, row_baseline))
     end
 
-    wrapped = Any[]
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
-
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+    (w = outer_w, h = outer_h, entries = entries)
 end
 
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
@@ -964,10 +991,11 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    placed = _make_placed_children_cell(build)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(build[].wrapped, Any[ring])),
+                           CellVector(@computation vcat(placed[], Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
@@ -1170,19 +1198,12 @@ function _vl_build(recursion, doc, ctx)
         push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
     end
 
-    wrapped = Any[]
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
-
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+    (w = outer_w, h = outer_h, entries = entries)
 end
 
 function print_document(p::VerticalLayoutToGraphicsCanvas,
@@ -1196,10 +1217,11 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = Cell(@computation _vl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    placed = _make_placed_children_cell(build)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(build[].wrapped, Any[ring])),
+                           CellVector(@computation vcat(placed[], Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
@@ -1620,35 +1642,47 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # slot; every other child is drawn where the alignment put it and reaches as
     # far as it reaches. The column count is read once here: a grid whose column
     # count changes is rebuilt by the cell around this function.
-    wrapped = Any[]
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsDocument || continue
+    function place_output(i, c)
         row, col, span = places_now[i]
         clip_x = all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
         clip_y = _gl_offers(peek_row_policy(row))
-        if clip_x || clip_y
-            push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
-                                              y_cell = child_y[i], slot_x = col_x[col],
-                                              slot_y = row_y[row],
-                                              slot_w = span > 1 ? span_w[i] : col_w[col],
-                                              slot_h = row_h[row], clip_x, clip_y))
-        else
-            push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-        end
+        (clip_x || clip_y) || return _wrap_child(c, child_x[i], child_y[i])
+        clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i], y_cell = child_y[i],
+                           slot_x = col_x[col], slot_y = row_y[row],
+                           slot_w = span > 1 ? span_w[i] : col_w[col],
+                           slot_h = row_h[row], clip_x, clip_y)
     end
-
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(outer_w[])),
-                           Cell(@computation Int32(outer_h[])),
-                           CellVector(Cell[Cell(e) for e in wrapped]),
-                           layout_none, true, Cell(nothing))
 
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
-    push!(outer.elements, make_layout_selection_ring(doc, () -> entries, p.graphics_style))
+    ring = make_layout_selection_ring(doc, () -> entries, p.graphics_style)
+    # The outputs are placed in a computation of their own, apart from the print
+    # of the children, so a child that gives a new output is placed again and no
+    # child prints again; an output that stays keeps its place.
+    placed = IdDict{Any,Any}()
+    elements = CellVector(Computation(function ()
+        wrapped = Any[]
+        kept = IdDict{Any,Any}()
+        for i in 1:n
+            c = child_iomaps[i].output
+            c isa GraphicsDocument || continue
+            known = get(placed, c, nothing)
+            wrapper = (known !== nothing && known[1] == i) ? known[2] : place_output(i, c)
+            kept[c] = (i, wrapper)
+            push!(wrapped, wrapper)
+        end
+        empty!(placed)
+        merge!(placed, kept)
+        push!(wrapped, ring)
+        wrapped
+    end))
+
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           Cell(@computation Int32(outer_w[])),
+                           Cell(@computation Int32(outer_h[])),
+                           elements, layout_none, true, Cell(nothing))
 
     row_count = row_count_cell
 
@@ -1844,23 +1878,18 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             end
             total + max(0, lc - 1) * vgap_cell[]
         end))
-        wrapped = Any[]
-        for i in 1:n
-            c = child_iomaps[i].output
-            c isa GraphicsDocument || continue
-            push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-        end
         entries = Tuple{Cell,Cell,Any}[]
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
-        (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+        (w = outer_w, h = outer_h, entries = entries)
     end)
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    placed = _make_placed_children_cell(build)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(build[].wrapped, Any[ring])),
+                           CellVector(@computation vcat(placed[], Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
@@ -2189,19 +2218,12 @@ function _cl_build(solver, recursion, doc, ctx)
         h
     end))
 
-    wrapped = Any[]
-    for i in 1:n
-        c = final_iomaps[i].output
-        c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
-
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], final_iomaps[i]))
     end
 
-    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+    (w = outer_w, h = outer_h, entries = entries)
 end
 
 function print_document(p::ConstraintLayoutToGraphicsCanvas,
@@ -2209,10 +2231,11 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
     solver = p.solver
     build = Cell(@computation _cl_build(solver, recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    placed = _make_placed_children_cell(build)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(build[].wrapped, Any[ring])),
+                           CellVector(@computation vcat(placed[], Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
@@ -2322,16 +2345,6 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
     child_x = Cell[Cell(@computation Int32(placed[][i][1])) for i in 1:n]
     child_y = Cell[Cell(@computation Int32(placed[][i][2])) for i in 1:n]
 
-    # The content first, the anchored children over it, in the order given.
-    wrapped = Any[]
-    content_output = content_iomap.output
-    content_output isa GraphicsDocument && push!(wrapped, content_output)
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
-
     # The region is what was asked for, else what the content needs — an
     # annotation hanging off the edge does not grow the diagram.
     outer_w = Cell(Computation(function ()
@@ -2348,17 +2361,27 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
-    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+    (w = outer_w, h = outer_h, entries = entries)
+end
+
+# The content first, as it is, and the anchored children over it at their
+# places, in the order given.
+function _place_anchored_outputs(entries, placed::IdDict{Any,Any})
+    content = entries[1][3].output
+    children = _place_child_outputs(entries[2:end], placed)
+    content isa GraphicsDocument ? Any[content, children...] : children
 end
 
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
     build = Cell(@computation _al_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    memo = IdDict{Any,Any}()
+    placed = Cell(@computation _place_anchored_outputs(build[].entries, memo))
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(build[].wrapped, Any[ring])),
+                           CellVector(@computation vcat(placed[], Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
@@ -2474,7 +2497,6 @@ function _scroll_layout_build(recursion, doc::ScrollLayout, ctx)
     end
     extents = Cell(@computation compute_scroll_layout_extents(_get_scroll_part_sizes(iomaps)))
     entries = Any[]
-    wrapped = Any[]
     for (index, iomap) in enumerate(iomaps)
         if iomap === nothing
             push!(entries, nothing)
@@ -2483,18 +2505,17 @@ function _scroll_layout_build(recursion, doc::ScrollLayout, ctx)
         x = Cell(@computation Int32(get_scroll_layout_place(index, extents[]...)[1]))
         y = Cell(@computation Int32(get_scroll_layout_place(index, extents[]...)[2]))
         push!(entries, (x, y, iomap))
-        output = iomap.output
-        output isa GraphicsDocument && push!(wrapped, _wrap_child(output, x, y))
     end
-    (wrapped = wrapped, entries = entries, extents = extents)
+    (entries = entries, extents = extents)
 end
 
 function print_document(p::ScrollLayoutToGraphicsCanvas, recursion, doc::ScrollLayout, ctx)
     build = Cell(@computation _scroll_layout_build(recursion, doc, ctx))
+    placed = _make_placed_children_cell(build)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(sum(build[].extents[][1]))),
                            Cell(@computation Int32(sum(build[].extents[][2]))),
-                           CellVector(@computation build[].wrapped),
+                           CellVector(@computation placed[]),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end

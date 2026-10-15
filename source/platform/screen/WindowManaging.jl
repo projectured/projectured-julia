@@ -41,7 +41,7 @@ end
 
 function print_document(p::WindowManagingProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    WindowManagingIoMap(p, input, inner_iomap.output, inner_iomap)
+    WindowManagingIoMap(p, input, Cell(@computation inner_iomap.output), inner_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
