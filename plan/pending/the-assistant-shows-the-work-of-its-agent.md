@@ -449,9 +449,9 @@ the word of the owner.
 For each step, run the narrowest test: the test files of the step. Do not run
 `test_all()`.
 
-- [ ] **1. Record what `claude -p` says.** In ClaudeCodeACP. This step runs
+- [x] **1. Record what `claude -p` says.** In ClaudeCodeACP. This step runs
   `claude` on the subscription of the owner, which the owner allowed on
-  2026-10-15.
+  2026-10-15. Done 2026-10-15, ClaudeCodeACP `b720da0`.
   - Record four turns with the model `haiku` in an empty folder, and clean
     them as `test/recorded/README.md` says:
     - a subagent;
@@ -460,6 +460,56 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - the plan mode, up to `ExitPlanMode`.
   - Write here which events of section 3.1 come, and their fields. If an
     event does not come, the steps below use what comes, and say so here.
+  - **What the step found** (`claude -p` 2.1.286, `haiku`; the files are
+    `subagent.jsonl`, `background-task.jsonl`, `plan-steps.jsonl` and
+    `plan-mode.jsonl` in `test/recorded/` of ClaudeCodeACP):
+    - The task events come. Each system event also has `uuid` and
+      `session_id`.
+      - `task_started`: `task_id`, `tool_use_id`, `description`, `task_type`
+        and `is_backgrounded`. A subagent also has `subagent_type`,
+        `spawn_depth` and `prompt`.
+      - `task_progress`, for a subagent only: `usage` (`total_tokens`,
+        `tool_uses`, `duration_ms`), `last_tool_name` and `description`.
+      - `task_updated`: `task_id` and a `patch` of `status` (`completed`,
+        `killed`) and `end_time`.
+      - `task_notification`: `status` (`completed`, `stopped`),
+        `output_file` and `summary`. A subagent also has `usage`.
+      - `background_tasks_changed`: the whole list of the background tasks
+        that run, each with `task_id`, `task_type` (`local_agent`,
+        `local_bash`) and `description`.
+    - `compact_boundary` and `api_retry` did not come: a turn this small does
+      not cause them. Step 9 takes their shapes from the binary, and no
+      recording tests them.
+    - **A subagent sends no stream events.** Its `assistant` and `user`
+      messages carry `parent_tool_use_id`, the id of the `Agent` call, and its
+      `stream_event`s have none. So the text of a subagent comes as whole
+      messages, not as deltas. The `task_id` of a subagent is its agent id,
+      and its `tool_use_id` is the id of the `Agent` call.
+    - **`claude` starts a turn by itself** when a background subagent or a
+      background command ends after the `result` of a turn. A second `result`
+      follows with no message on the input. ClaudeCodeACP reads the events of
+      `claude` only while a prompt runs, so the events of that turn wait until
+      the next prompt and go to it. Step 9 adds a reader that runs between two
+      prompts and sends those events as updates outside a prompt, which step 6
+      puts into the queue.
+    - A background command starts with `Bash` and `run_in_background: true`.
+      Its result has `backgroundTaskId`. The stop is `TaskStop` with
+      `{task_id}`, which `claude` loads with `ToolSearch`. A stop gives
+      `background_tasks_changed`, `task_updated` (`killed`) and
+      `task_notification` (`stopped`).
+    - **`TaskCreate` comes only with `CLAUDE_CODE_ENABLE_TASKS=1`.** Without
+      the variable, `claude -p` has `TodoWrite` (its result has `oldTodos` and
+      `newTodos`) and no `TaskCreate`. ClaudeCodeACP does not set the variable
+      and translates only `TaskCreate` and `TaskUpdate`, so the plan of the
+      real agent can stay empty now. Step 9 translates `TodoWrite` too and
+      sets no variable: the agent runs `claude` as the person configured it.
+      `TaskUpdate` with a blocker has the input `{taskId, addBlockedBy}`.
+    - **`ExitPlanMode` needs a permission tool.** With
+      `--permission-prompt-tool`, as the agent runs `claude`, the plan mode
+      asks for `ExitPlanMode` with the input `{plan}` (Markdown) and
+      `planFilePath`. Without it, the plan mode writes a file under
+      `~/.claude/plans/` with `Write`.
+    - The `Agent` tool is named `Task` in the list of tools of `init`.
 
 - [ ] **2. The tree slice, and a page from a row or a node.**
   - `OpenPageOperation` moves below `roster` and `tree`.
