@@ -88,9 +88,11 @@ known; elsewhere the origin is not found yet.
    [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) names
    `PrimitiveToText` among the producers that give lines, and its guard walks the examples as
    they are made, where no primitive string holds a break. **Fixed (step 2):** the projection
-   gives a line for each line of the value; `test_application` keeps one failure, the
-   greeting. The greeting fails at every commit that the bisect tried, so its origin is
-   before `70b479f5c`.
+   gives a line for each line of the value. **The greeting: origin `ba1957607`**, as item
+   5 (found by a bisect from `62ee4b4da`, where the test came, 10 steps). The test read the
+   part with `string`, which gives the representation of a block of lines. **Fixed (step
+   2):** it reads the flat string of the part. `test_application` 379 and 2 broken, no
+   failure.
 9. **`test_catalog_coverage`, 1 failure** (`CatalogCoverageTest.jl:223`). Eleven document types
    have no entry in the catalog: `FilteredText`, `FindBarView`, `GraphicsRect`,
    `HighlightedText`, `ScrollLayout`, `TaskGroupDocument`, `TaskGroupList`, `TerminalDocument`,
