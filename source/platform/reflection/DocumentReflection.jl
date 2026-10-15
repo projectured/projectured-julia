@@ -268,3 +268,125 @@ struct _Repeated
     value::Any
 end
 Base.getindex(r::_Repeated, ::Int) = r.value
+
+# ── a read off the loop ───────────────────────────────────────────────────────
+#
+# A sync reads the value with the methods of its type, which a user defines, and
+# writes the shadow, whose cells the loop owns. A feed splits the two: the loop
+# reads which nodes are open, a task of its own reads the value along them into a
+# snapshot, and the loop writes the snapshot into the shadow at its next drain.
+
+# Which part of a node the sync descends into, read from the shadow on the loop as
+# plain data: whether its children are read, how many of them it shows, whether
+# its tail marker asks for more, and the same for each child that it shows.
+struct _ReflectionOpenState
+    is_descended::Bool
+    shown::Int
+    is_tail_requested::Bool
+    kids::Vector{_ReflectionOpenState}
+end
+
+# The open state of a node at `depth` that the shadow does not hold yet.
+_make_new_reflection_open_state(policy::SyncPolicy, depth::Int) =
+    _ReflectionOpenState(is_descendable_for_sync(policy, depth + 1, nothing), 0, false,
+                         _ReflectionOpenState[])
+
+# How many children the slot `current` of a node shows, and whether its tail
+# marker asks for more. A slot that holds no list shows none.
+function _get_reflection_shown(current)
+    current isa CellVector || return (0, false)
+    count = length(current)
+    tail = count > 0 && current[count] isa AUnsyncedDocument ? current[count] : nothing
+    (tail === nothing ? count : count - 1, tail !== nothing && tail.requested)
+end
+
+# The open state of `node` at `depth`. It walks only what is open, as the screen
+# shows it.
+function _make_reflection_open_state(node, policy::SyncPolicy, depth::Int)
+    current = node.children
+    is_descendable_for_sync(policy, depth + 1, current) ||
+        return _ReflectionOpenState(false, 0, false, _ReflectionOpenState[])
+    shown, is_tail_requested = _get_reflection_shown(current)
+    kids = _ReflectionOpenState[_make_reflection_open_state(current[index], policy, depth + 1)
+                                for index in 1:shown]
+    _ReflectionOpenState(true, shown, is_tail_requested, kids)
+end
+
+# Whether only the loop reads `x`: a cell, or a document that keeps its fields in
+# cells, as `@document` makes it. A read of a computed cell off the loop would
+# compute it there.
+_is_read_on_loop(x) =
+    x isa AbstractCell ||
+    (x isa Document && any(index -> isdefined(x, index) && getfield(x, index) isa AbstractCell, 1:nfields(x)))
+
+# What a read of the value found for one node, as plain data: its kind, its
+# rendering when it is a leaf, its count of children, and the children that it
+# read for the open state of the node. A child is a snapshot, or a value that only
+# the loop reads, which the loop reads when it writes the shadow. The child after
+# the last one that the node shows is the value as it is, because only its type
+# names the tail marker.
+struct _ReflectionSnapshot
+    kind::String
+    is_leaf::Bool
+    value::Union{String,Nothing}
+    count::Int
+    is_descended::Bool
+    shown::Int
+    is_tail_requested::Bool
+    children::Vector{Pair{String,Any}}
+end
+
+_kind_of(snapshot::_ReflectionSnapshot) = snapshot.kind
+is_reflection_leaf(snapshot::_ReflectionSnapshot) = snapshot.is_leaf
+get_reflection_value(snapshot::_ReflectionSnapshot) = snapshot.value
+reflect_child_count(snapshot::_ReflectionSnapshot) = snapshot.count
+reflect_child_pairs(snapshot::_ReflectionSnapshot) = snapshot.children
+
+# Read `object` at `depth` for the open state `open`, with the methods of its type.
+# A task other than the loop runs it, so it writes no cell.
+function _take_reflection_snapshot(object, open::_ReflectionOpenState, policy::SyncPolicy, depth::Int)
+    _is_read_on_loop(object) && return object
+    kind = _kind_of(object)
+    is_reflection_leaf(object) &&
+        return _ReflectionSnapshot(kind, true, get_reflection_value(object), 0, false, 0, false,
+                                   Pair{String,Any}[])
+    count = reflect_child_count(object)
+    open.is_descended ||
+        return _ReflectionSnapshot(kind, false, nothing, count, false, 0, false, Pair{String,Any}[])
+    limit = compute_sync_element_limit(policy, count; shown = open.shown,
+                                       requested = open.is_tail_requested)
+    children = Pair{String,Any}[]
+    for (index, (label, value)) in enumerate(Iterators.take(reflect_child_pairs(object), limit + 1))
+        if index > limit
+            push!(children, label => value)
+        else
+            child = index <= length(open.kids) ? open.kids[index] :
+                                                 _make_new_reflection_open_state(policy, depth + 1)
+            push!(children, label => _take_reflection_snapshot(value, child, policy, depth + 1))
+        end
+    end
+    _ReflectionSnapshot(kind, false, nothing, count, true, open.shown, open.is_tail_requested, children)
+end
+
+# Write a snapshot into `node` on the loop. A node that opened, closed or grew
+# since the read keeps its children, and the next read fills it.
+function _sync_reflection!(node, snapshot::_ReflectionSnapshot, policy::SyncPolicy, depth::Int)
+    node.kind == snapshot.kind || (node.kind = snapshot.kind)
+    if snapshot.is_leaf
+        node.value == snapshot.value || (node.value = snapshot.value)
+        node.children === nothing || (node.children = nothing)
+        return node
+    end
+    node.value === nothing || (node.value = nothing)
+    current = node.children
+    if !is_descendable_for_sync(policy, depth + 1, current)
+        current isa AUnsyncedDocument || (node.children = _collapsed_marker(snapshot))
+        return node
+    end
+    snapshot.is_descended || return node
+    _get_reflection_shown(current) == (snapshot.shown, snapshot.is_tail_requested) || return node
+    kids = current isa CellVector ? current : CellVector(Any[])
+    kids === current || (node.children = kids)
+    _sync_reflected_children!(kids, snapshot, policy, depth + 1)
+    node
+end

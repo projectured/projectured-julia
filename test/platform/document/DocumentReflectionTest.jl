@@ -34,6 +34,16 @@ mutable struct ReflectWithSlot <: Document
     selection::Nothing
 end
 
+# A value whose count of children notes the task that asks for it, and throws
+# while `fails` is set.
+mutable struct ReflectTaskProbe
+    tasks::Vector{Task}
+    fails::Bool
+end
+ProjecturedPlatform.ReflectionModule.reflect_child_count(probe::ReflectTaskProbe) =
+    (push!(probe.tasks, current_task()); probe.fails && error("the count failed"); 1)
+ProjecturedPlatform.ReflectionModule.reflect_child_pairs(probe::ReflectTaskProbe) = ("tasks" => 1,)
+
 reflect_kids(node) = node.children
 reflect_kid(node, i) = node.children[i]
 reflect_tail(node) = (k = node.children; k[length(k)])
@@ -141,7 +151,14 @@ end
     n = reflect_document(value, policy)
     clock = Ref(5.0)
     feed = ReflectionFeed(n, value; policy = policy, now = () -> clock[])
-    drain!(feed, nothing)
+    # A drain starts a read of the value on a task of its own, and the next drain
+    # writes what it read.
+    function sync!(feed)
+        drain!(feed, nothing)
+        feed.reading === nothing || wait(feed.reading)
+        drain!(feed, nothing)
+    end
+    sync!(feed)
     @test deadline(feed, nothing) === nothing
     value.name = "renamed"
     clock[] += 0.125
@@ -152,13 +169,57 @@ end
     # A chevron does not wait.
     request_sync!(reflect_kid(n, 2).children)
     @test deadline(feed, nothing) == 0.0
+    @test drain!(feed, nothing) == 0
+    wait(feed.reading)
+    @test deadline(feed, nothing) == 0.0
     @test drain!(feed, nothing) == 1
     @test reflect_kid(n, 1).value == "renamed"
     @test deadline(feed, nothing) === nothing
     value.name = "again"
     clock[] += 0.5
-    drain!(feed, nothing)
+    sync!(feed)
     @test reflect_kid(n, 1).value == "again"
+end
+
+@testset "the feed reads the value off the loop, and writes it on the next drain" begin
+    drain! = ProjecturedKernel.FeedModule.drain_changes!
+    probe = ReflectTaskProbe(Task[], false)
+    n = reflect_document(probe, policy)
+    empty!(probe.tasks)
+    feed = ReflectionFeed(n, probe; policy = policy)
+    woken = Ref(0)
+    ProjecturedKernel.FeedModule.attach_wake_callback!(feed, () -> (woken[] += 1))
+    @test drain!(feed, nothing) == 0
+    wait(feed.reading)
+    @test woken[] == 1
+    @test !isempty(probe.tasks) && all(task -> task !== current_task(), probe.tasks)
+    @test drain!(feed, nothing) == 0
+    @test feed.reading === nothing
+    # A read that throws is thrown by the drain that would write it, and asks for
+    # no frame.
+    probe.fails = true
+    feed.synced_at = -Inf
+    drain!(feed, nothing)
+    wait(feed.reading)
+    @test_throws CapturedException drain!(feed, nothing)
+    @test ProjecturedKernel.FeedModule.compute_wake_deadline(feed, nothing) === nothing
+end
+
+@testset "a node that opens during a read keeps its marker, and the next read fills it" begin
+    drain! = ProjecturedKernel.FeedModule.drain_changes!
+    value = ReflectNested("root", ReflectLeafy(1, "x"), collect(1:10))
+    n = reflect_document(value, policy)
+    feed = ReflectionFeed(n, value; policy = policy)
+    drain!(feed, nothing)
+    wait(feed.reading)
+    # The chevron of the field `inner` opens after the read took its snapshot.
+    request_sync!(reflect_kid(n, 2).children)
+    @test drain!(feed, nothing) == 0
+    @test reflect_kid(n, 2).children isa AUnsyncedDocument && reflect_kid(n, 2).children.requested
+    drain!(feed, nothing)
+    wait(feed.reading)
+    @test drain!(feed, nothing) == 1
+    @test reflect_kid(n, 2).children isa CellVector
 end
 
 # ── Collapse is writing a marker back, same as for documents ──────────────

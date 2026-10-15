@@ -65,7 +65,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync,
                          compute_sync_element_limit, make_unsynced_placeholder
-import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..FeedModule: drain_changes!, compute_wake_deadline, attach_wake_callback!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent
 
