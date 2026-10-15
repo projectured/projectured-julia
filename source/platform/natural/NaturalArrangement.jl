@@ -276,7 +276,8 @@ end
     ArrangementGroupRowsToWidget()
 
 Prints the rows that a group of an arrangement makes, a
-`CellVector{ArrangementGroupRow}`, as a `WidgetTable` in a `VerticalLayout`: a
+`CellVector{ArrangementGroupRow}`, as a `WidgetTable` in a `GridLayout` that gives
+it the height that the rows are given, so it scrolls its rows there: a
 header with the name of each column, the keys of the group and then its
 aggregates, and one row of labels for each group. A row stands for no one item,
 so a path in the table is the path of its row of the groups, and no key edits it.
@@ -294,7 +295,7 @@ function print_document(p::ArrangementGroupRowsToWidget, recursion, rows::CellVe
     cells = CellVector(@computation Any[CellVector(Cell[Cell(WidgetLabel(_format_group_value(value)))
                                                         for value in row.values]) for row in rows])
     table = WidgetTable(headers, cells)
-    layout = VerticalLayout(Any[table]; child_width = Fill)
+    layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
     ArrangementGroupRowsToWidgetIoMap(p, rows, layout)
 end
 

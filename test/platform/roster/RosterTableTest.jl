@@ -1,7 +1,7 @@
 # The table of a roster in an editor: a press on a cell of a value selects the
 # item of its row, a cell of a document shows that document, where a key edits it
-# as one step of undo, and a file keeps a roster with its source, its columns and
-# its title, and no row.
+# as one step of undo, a file keeps a roster with its source, its columns and its
+# title, and no row, and a long roster scrolls in its tab.
 
 # A note, whose text is a document that a row of a roster shows.
 @document struct _RosterNote
@@ -67,6 +67,36 @@ function test_roster_table()
         within = Roster(ItemsWithin(StoreRecords(:tasks), PrimitiveString); columns = ["value"])
         read = parse_pred_text(print_pred_text(within))
         @test read.source == ItemsWithin(StoreRecords(:tasks), PrimitiveString)
+    end
+
+    # A tab gives its content the height of the tab as a slot, and the table of a
+    # roster takes it and scrolls its rows there, so the last row of a long roster
+    # comes into view under the wheel.
+    @testset "a roster of 200 rows fills its tab, and the wheel brings its last row into view" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:200])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(PrimitiveString("start"), natural; backend,
+                              devices = Device[Keyboard(), Mouse(), Display()],
+                              window = true, tabs = true, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs"),
+                              editor.document)
+        open_pane!(roster; title = "Runs", editor)
+        drain_operations!(editor)
+        run_frame!(editor)
+        window = first(editor.iomap.output.windows)
+        height = Int(window.content.h)
+        place(text) = (drawn = _arrangement_drawn(window.content);
+                       drawn[findlast(entry -> entry[1] == text, drawn)])
+        @test place("200")[3] > height
+        (_, x, y) = place("1")
+        for _ in 1:100
+            push_event!(backend, WindowInput(window.id, MouseScroll(0, -10, x + 2, y + 2; time = 0.0)))
+            run_frame!(editor)
+            place("200")[3] < height && break
+        end
+        @test 0 <= place("200")[3] < height
     end
 end
 end

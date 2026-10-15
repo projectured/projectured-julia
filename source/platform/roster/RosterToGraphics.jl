@@ -60,8 +60,9 @@ end
     RosterRowsToWidget()
 
 Prints a list of rows of a roster, a `CellVector{RosterRow}`, as a `WidgetTable`
-in a `VerticalLayout`: a header with the key of each column, and one row of cells
-for each row. The keys come from the printer context, which the roster gives, or
+in a `GridLayout` that gives it the height that the rows are given, so in a tab it
+fills the tab and scrolls its rows: a header with the key of each column, and one
+row of cells for each row. The keys come from the printer context, which the roster gives, or
 else from the first row.
 
 A cell whose value is a document shows that document itself, the same object as
@@ -76,7 +77,7 @@ struct RosterRowsToWidget <: Projection end
 @iomap struct RosterRowsToWidgetIoMap
     projection::Any
     input::Any          # CellVector{RosterRow}
-    output::Any         # VerticalLayout of the table
+    output::Any         # GridLayout of the table
     columns::Any        # the keys of the columns
 end
 
@@ -86,12 +87,12 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     cells = CellVector(Computation(() -> _collect_row_cells(rows, made)))
     headers = CellVector(Cell[Cell(WidgetLabel(key)) for key in columns])
     table = WidgetTable(headers, cells)
-    layout = VerticalLayout(Any[table]; child_width = Fill)
+    layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
     iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns)
     # The layout and the table hold their part of the selection and of the part
     # under the pointer. The walk stops at the table: a cell can hold a document
     # of an item, which keeps its own selection.
-    is_followed = node -> node isa VerticalLayout || node isa WidgetTable
+    is_followed = node -> node isa GridLayout || node isa WidgetTable
     follow_output_selection!(layout, () -> _map_rows_forward(iomap, getfield(rows, :selection)[]);
                              forward_mouse_target = () -> map_mouse_target_forward(rows,
                                  path -> _map_rows_forward(iomap, path)),
@@ -239,5 +240,5 @@ _is_index_step(step) = step isa RangeReferenceStep && is_element_reference_step(
 function _make_roster_graphics_entries(; measure = nothing, appearance)
     Pair{Type,Any}[Roster => RosterToGraphics(),
                    CellVector{RosterRow} => ChainingProjection(RosterRowsToWidget(),
-                                                               VerticalLayoutToGraphicsCanvas())]
+                                                               GridLayoutToGraphicsCanvas())]
 end

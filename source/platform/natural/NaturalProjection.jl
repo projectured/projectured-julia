@@ -152,7 +152,7 @@ function NaturalToGraphics(; measure::TextMeasure,
         Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
                        ArrangementChips => ArrangementChipsToGraphics(),
                        CellVector{ArrangementGroupRow} => ChainingProjection(ArrangementGroupRowsToWidget(),
-                                                                             VerticalLayoutToGraphicsCanvas())],
+                                                                             GridLayoutToGraphicsCanvas())],
         # layouts before widgets: a WidgetTable builds a GridLayout
         LayoutToGraphics(; theme = graphics_theme).dispatch,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)

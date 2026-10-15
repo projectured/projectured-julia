@@ -37,7 +37,7 @@ collection of `entry`.
 """
 function make_field_caret_reference(entry, place, i::Int, steps::Tuple, position::Int)
     output = extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(1),
-                              FieldReferenceStep("entry"), FieldReferenceStep("projections"),
+                              FieldReferenceStep("child"), FieldReferenceStep("entry"), FieldReferenceStep("projections"),
                               ElementReferenceStep(i), steps..., RangeReferenceStep(position, position))
     make_introduced_reference(ArrangementBarProjection(entry), place, output)
 end
@@ -81,7 +81,7 @@ function is_in_find_field(arrangement::ArrangementDocument)
         (step isa ProjectionReferenceStep && step.projection isa ArrangementBarProjection) || continue
         entry = step.projection.entry
         return @reference_case strip_reference_types(step.output_path) begin
-            children[1].entry.projections[i].text.rest... =>
+            children[1].child.entry.projections[i].text.rest... =>
                 1 <= i <= length(entry.projections) && entry.projections[i] isa ArrangementFind
             __ => false
         end
