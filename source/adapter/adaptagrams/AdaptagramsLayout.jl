@@ -92,14 +92,16 @@ AdaptagramsLayout(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
 """
     get_supported_constraint_kinds(::AdaptagramsLayout)
 
-`:pin` and `:fixed_size`. The shim's `adaptagrams_layout` takes no constraint
-argument, so a pin is imposed on the way out rather than fed to libcola: the
-native run arranges the graph as if the vertex were free, and the vertex is then
-placed where it was pinned. The contract holds — the vertex is where the caller
-asked — but the neighbours were placed without knowing it. Teaching libcola
-about pins means a wider C ABI, and that is not this plan's work.
+`:pin`, `:start` and `:fixed_size`. The shim's `adaptagrams_layout` takes no
+constraint argument, so a pin is imposed on the way out rather than fed to
+libcola: the native run arranges the graph as if the vertex were free, and the
+vertex is then placed where it was pinned. The contract holds — the vertex is
+where the caller asked — but the neighbours were placed without knowing it.
+Teaching libcola about pins means a wider C ABI, and that is not this plan's work.
+A start is imposed as a pin is, because libcola never sees it: the vertex stays
+where the layout began, which is a placement that a start allows.
 """
-get_supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :fixed_size)
+get_supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :start, :fixed_size)
 
 """
     effective_engine(engine, vertex_count) -> GraphLayoutEngine
@@ -265,7 +267,7 @@ function _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
         end
     end
 
-    pins = get_constraint_pins(constraints)
+    pins = merge(get_constraint_starts(constraints), get_constraint_pins(constraints))
     isempty(pins) && return nothing
     for i in 1:n
         pin = get(pins, objectid(nodes[i]), nothing)

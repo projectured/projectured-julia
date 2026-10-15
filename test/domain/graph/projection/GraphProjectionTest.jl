@@ -203,7 +203,16 @@ end
     # And so is a kind nothing knows about.
     @test_throws ArgumentError layout_graph(engine, graph, sizes,
                                             [GraphConstraint(v1, :handstand, nothing)])
-    @test get_supported_constraint_kinds(GridEmbedding()) == (:pin, :fixed_size)
+    @test get_supported_constraint_kinds(GridEmbedding()) == (:pin, :start, :fixed_size)
+
+    # A grid has nothing to refine, so a start is placed as a pin is, and a pin
+    # of the same vertex wins.
+    start = GraphConstraint(v2, :start, (120, 90))
+    positions, _ = layout_graph(engine, graph, sizes, [start])
+    @test positions[objectid(v2)] == (120, 90, 60, 30)
+    positions, _ = layout_graph(engine, graph, sizes,
+                                [start, GraphConstraint(v2, :pin, (10, 20))])
+    @test positions[objectid(v2)] == (10, 20, 60, 30)
 end
 
 @testset "GraphToGraphLayout sizing + reactivity" begin

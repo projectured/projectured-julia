@@ -352,7 +352,8 @@ fill the extent. Without an `extent` the grid is unbounded, which is what the
 caller asked for by naming no box.
 
 It implements `:pin` — a pinned vertex is placed at its coordinate and takes no
-grid cell — and `:fixed_size`. It refuses every other kind, because a grid has
+grid cell — `:start`, which it places as a pin because a grid has nothing to
+refine, and `:fixed_size`. It refuses every other kind, because a grid has
 nothing to say about them.
 """
 struct GridEmbedding <: GraphLayoutEngine
@@ -370,7 +371,7 @@ GridEmbedding(; node_sep::Integer=40, rank_sep::Integer=60,
                   columns === nothing ? nothing : Int(columns), direction,
                   Int(circle_max))
 
-get_supported_constraint_kinds(::GridEmbedding) = (:pin, :fixed_size)
+get_supported_constraint_kinds(::GridEmbedding) = (:pin, :start, :fixed_size)
 layout_engine_name(::GridEmbedding) = :grid
 
 # How many columns the grid gets. Without an extent it is the caller's `columns`
@@ -458,7 +459,8 @@ function layout_graph(engine::GridEmbedding, graph::GraphGraph, sizes::Dict,
     n == 0 && return (positions, Dict{UInt,Vector{Tuple{Int,Int}}}())
 
     widths, heights = get_vertex_sizes(vertices, sizes, constraints)
-    pins = get_constraint_pins(constraints)
+    # A grid has nothing to refine, so a start is placed as a pin is.
+    pins = merge(get_constraint_starts(constraints), get_constraint_pins(constraints))
     cx = zeros(Float64, n); cy = zeros(Float64, n)
     free = [i for i in 1:n if !haskey(pins, objectid(vertices[i]))]
 

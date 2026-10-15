@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; step 1 is done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 and 2 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
@@ -151,7 +151,7 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   `get_constraint_pins` share `_collect_constraint_corners`. Only one test
   depended on the grid default: it asserted the engine type of `GraphToGraphics()`.
   `test_graph()`, `test_fsm()` and `test_process()` pass together: 898 passes.
-- [ ] **2. The engines.** `FruchtermanReingoldLayout` as in section 4.2.
+- [x] **2. The engines.** `FruchtermanReingoldLayout` as in section 4.2.
   `GridEmbedding` and `AdaptagramsLayout` place a start as a pin. Tests in
   `FruchtermanReingoldLayoutTest.jl`:
   - with start positions, the same input gives the same positions;
@@ -162,6 +162,25 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   A grid test asserts that a start is placed at its corner.
   `ProjecturedAdaptagrams` has no test, so the step loads the package and checks
   `get_supported_constraint_kinds` of `AdaptagramsLayout`.
+
+  Done 2026-10-15. `_START_TRAVEL` is the share of `k` that the forces can move
+  a body with a start in all the rounds together; the first temperature of such
+  a body is `2 * _START_TRAVEL * k / (iterations + 1)`, because the temperature
+  falls in a straight line. The measurement
+  (`/var/tmp/graph-vertex-drag/measure_travel.jl`, boxes of 60 by 24, in units
+  of `k`) found that an FR result is not a balanced state:
+
+  | travel | again from the result | after 5 such layouts, chain of 12 | drop: neighbours | drop: others |
+  | --- | --- | --- | --- | --- |
+  | 0 | 0 | 0 | 0 | 0 |
+  | 0.25 | 0.13 to 0.23 on average | 1.24 | 0.25 | 0.18 to 0.24 on average |
+  | 1.0 | 0.12 to 0.75 on average | 3.52 | 1.0 | 0.67 to 0.82 on average |
+
+  So every vertex with a start moves by about the travel at each drop, and the
+  moves add up over drops; the neighbours of a dropped vertex move no more than
+  the others. The step sets `_START_TRAVEL = 0.25`, the smaller of the useful
+  values, and section 8 holds the question. `test_graph()` and the check of
+  `ProjecturedAdaptagrams` pass: 416 passes.
 - [ ] **3. The drag.** Section 4.3. A new test file in
   `test/domain/graph/projection/` prints `graph_example` one time. It reads the
   gestures through that one IO map with the drag wrapper, as
@@ -203,3 +222,18 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
 Not in this plan: a command that removes the pins and the start positions (lay
 out again); a drag of an edge, of a bend, or of the empty canvas; feeding start
 positions to libcola through a wider C interface.
+
+## 8. Open question
+
+- **What does a vertex with a start do?** The measurement of step 2 shows that
+  D2, as agreed, moves every vertex at each drop, and the moves add up.
+  - (a) As now: the forces move it at most a quarter of `k`.
+  - (b) The forces do not move it. Only the pass that removes overlaps and the
+    rule of the extent move it, so it moves only when it must. A new vertex is
+    still placed by the forces. Nothing drifts, but the neighbours of a dropped
+    vertex do not move toward it, and a new edge does not pull its ends.
+  - (c) Forces that answer only a change: the engine subtracts the forces of
+    the start positions. This is a new algorithm, and I did not try it.
+
+  My recommendation: (b), because with (a) the drift is as large as the
+  adaptation, so the person can not tell one from the other. Open.
