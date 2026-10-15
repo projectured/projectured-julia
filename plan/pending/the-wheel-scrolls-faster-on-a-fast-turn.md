@@ -6,7 +6,8 @@
 > four steps below and to a change of `MouseScroll` for the touchpad. Step 3
 > changes `MouseScroll` with a new field and not with a new type of `dx` and
 > `dy`. The owner agreed to that design and to the fix of the copies that drop
-> `modifiers` ("yes and also with the fixes"). Steps 1, 2 and 3 are done.
+> `modifiers` ("yes and also with the fixes"). Steps 1 to 4 are done. The
+> check in the live app and the precompile of omnet-julia are open.
 
 ## The goal
 
@@ -97,21 +98,32 @@ A new pair of fields holds the exact amount of the turn, in notches, as a
 
 ### Step 4: a fast run of notches speeds up
 
-- ⬜ `WidgetScrollPane` and `WidgetTransformPane` keep the run of the wheel as
-  view state: the time, the direction and the distance of the last notch. A
-  write of it is a `ReplaceViewStateOperation` in the same operation as the
-  scroll. The `.pred` writer leaves it out.
-- ⬜ A notch that comes less than 80 ms after the last notch, in the same
+- ✅ `WidgetScrollPane` and `WidgetTransformPane` keep the run of the wheel as
+  view state, `wheel_run`: the time, the direction and the distance of the last
+  notch. A write of it is a `ReplaceViewStateOperation` in the same operation as
+  the scroll, after it. The `.pred` writer leaves it out. The panes that the
+  table and the list make by position get a cell of their own for it; a list
+  keeps it across notches (`WidgetRowsScrollTest.jl`).
+- ✅ The answer of a pane to the wheel is now a compound of the scroll and the
+  run. The table read the scroll as one write (`_find_written_offset`), so it
+  now finds it inside a compound, and keeps the other writes beside a move of
+  its head, in one flat compound, so a reader that looks for the selection at
+  the top level still finds it.
+- ✅ A notch that comes less than 80 ms after the last notch, in the same
   direction, multiplies the distance by 1.25. A gap from 80 ms to 150 ms keeps
   the distance. A longer gap, or a change of direction, puts the distance back to
   3 lines. A merged event of n notches counts as n notches.
-- ⬜ The largest distance of a notch is the view less one line, so a notch never
+- ✅ The largest distance of a notch is the view less one line, so a notch never
   jumps past text that the person did not see.
-- ⬜ Only a turn of whole notches speeds up. A turn with a fraction comes from a
+- ✅ Only a turn of whole notches speeds up. A turn with a fraction comes from a
   touchpad, and the system already speeds it up.
-- ⬜ The growth is a field of the projection with a keyword. A growth of 1.0
-  turns the speed-up off.
-- ⬜ Test with events that carry their times. Tune the numbers in the live app.
+- ✅ The growth is a field of the projection with a keyword, `wheel_growth`. A
+  growth of 1.0 turns the speed-up off.
+- ✅ Test with events that carry their times (`ScrollPaneBarTest.jl`). The older
+  tests that send several notches at the time 0.0 made a fast run, so their
+  helpers now send each notch a second after the last. 17 test functions pass:
+  1012 of 1012.
+- ⬜ Tune the numbers in the live app.
 
 ## Decisions
 

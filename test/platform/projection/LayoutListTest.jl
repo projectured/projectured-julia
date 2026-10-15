@@ -81,7 +81,9 @@ read(io, g) = begin
     change isa Intent ? change.operation : change
 end
 wheel(io, dx, dy) = read(io, MouseScroll(dx, dy, 50, 50; time = 0.0))
-apply!(pane, op) = (getfield(pane, :scroll_position)[] = get_wrapped_operation(op).value)
+# The scroll that an answer writes; it comes first, before the run of the wheel.
+apply!(pane, op) = (getfield(pane, :scroll_position)[] =
+                        get_wrapped_operation(op isa CompoundOperation ? first(op.operations) : op).value)
 column(list; kw...) = VerticalLayout(list; child_width = Fixed(200), gap = 4, kw...)
 row(list; kw...) = HorizontalLayout(list; child_height = Fixed(40), gap = 4, kw...)
 

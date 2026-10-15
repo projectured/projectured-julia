@@ -809,6 +809,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     font::StyleFont                  # measures the scroll step
     scroll_bar_thickness::Int        # across each bar that the pane draws
     lines_per_notch::Int             # lines that one notch of the wheel scrolls
+    wheel_growth::Float64            # factor of each fast notch of a run of the wheel; 1 is no speed-up
 end
 
 WidgetScrollPaneToGraphicsCanvas(theme; measure,
@@ -818,9 +819,10 @@ WidgetScrollPaneToGraphicsCanvas(theme; measure,
                                  padding_color = color_transparent,
                                  content_color = _themed(StyleColor, theme, t -> t.background),
                                  scroll_bar_thickness = _themed(Int, theme, t -> t.scroll_bar_thickness),
-                                 lines_per_notch = 3) =
+                                 lines_per_notch = 3, wheel_growth = 1.25) =
     WidgetScrollPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                     content_color, font, scroll_bar_thickness, lines_per_notch)
+                                     content_color, font, scroll_bar_thickness, lines_per_notch,
+                                     Float64(wheel_growth))
 
 @projection UntrackedCell struct WidgetTransformPaneToGraphicsCanvas
     measure::TextMeasure
@@ -833,6 +835,7 @@ WidgetScrollPaneToGraphicsCanvas(theme; measure,
     content_color::StyleColor         # default viewport fill
     font::StyleFont                   # measures the pan step
     lines_per_notch::Int              # lines that one notch of the wheel pans
+    wheel_growth::Float64             # factor of each fast notch of a run of the wheel; 1 is no speed-up
 end
 
 WidgetTransformPaneToGraphicsCanvas(theme; measure,
@@ -841,9 +844,9 @@ WidgetTransformPaneToGraphicsCanvas(theme; measure,
                                     margin_color = color_transparent, border_color = color_transparent,
                                     padding_color = color_transparent,
                                     content_color = _themed(StyleColor, theme, t -> t.background),
-                                    lines_per_notch = 3) =
+                                    lines_per_notch = 3, wheel_growth = 1.25) =
     WidgetTransformPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                        content_color, font, lines_per_notch)
+                                        content_color, font, lines_per_notch, Float64(wheel_growth))
 
 @projection UntrackedCell struct WidgetToolbarToGraphicsCanvas
     measure::TextMeasure
@@ -5929,23 +5932,73 @@ function _scroll_by(sp, dx, dy, room = nothing)
     _write_view_state(sp, "scroll_position", Point2D(x, y))
 end
 
+# A notch of a run of the wheel that comes sooner than this after the last one,
+# in seconds, scrolls more than it; up to `_WHEEL_RUN_END_GAP` it scrolls as much,
+# and a longer gap ends the run.
+const _WHEEL_RUN_GROWTH_GAP = 0.08
+const _WHEEL_RUN_END_GAP = 0.15
+
+# The distance in pixels that a turn of `turn` notches at `time` moves a view, with
+# the sign of `turn`, and the run of the wheel after it. The first notch of a run
+# moves `step`. A notch in the same direction less than `_WHEEL_RUN_GROWTH_GAP`
+# seconds after the last one moves `growth` times the distance of that one, and
+# up to `_WHEEL_RUN_END_GAP` seconds as much; a longer gap or the other direction
+# starts a new run. Each later notch of a merged turn grows too. No notch moves
+# more than `largest`. A turn with a fraction comes from a touchpad, which the
+# system already speeds up: it moves `turn` steps and ends the run.
+function _compute_wheel_turn(run, turn::Float64, time::Float64, step::Real, largest::Real,
+                             growth::Real)
+    turn == 0 && return (0, run)
+    isinteger(turn) || return (round(Int, turn * step), nothing)
+    direction = turn > 0 ? 1 : -1
+    distance = Float64(step)
+    grows = false
+    if run !== nothing && run.direction == direction && 0 <= time - run.time < _WHEEL_RUN_END_GAP
+        distance = run.distance
+        grows = time - run.time < _WHEEL_RUN_GROWTH_GAP
+    end
+    total = 0.0
+    for notch in 1:Int(abs(turn))
+        (grows || notch > 1) && (distance = min(Float64(largest), distance * growth))
+        total += distance
+    end
+    (direction * round(Int, total), (time = time, direction = direction, distance = distance))
+end
+
+# `op` with the write of the run of the wheel `run` into `w`. A turn that moves
+# nothing writes no run, so its notch does not count.
+_add_wheel_run(op, w, run) =
+    op === nothing ? nothing : CompoundOperation(Any[op, _write_view_state(w, "wheel_run", run)])
+
 # Scroll this pane, if the wheel landed on it. Only reached once the content has
-# declined the event, so the innermost pane under the pointer wins.
-#
-# `follow_end` is a mode, not a lock. A pane that follows the end draws at the
-# end and ignores `scroll_position` — so a reader who scrolls back through a
-# transcript must first take the pane off the pin, and the pin goes back on when
-# they reach the end again. Without that the wheel wrote a cell nothing read, and
-# the transcript could not be scrolled at all.
+# declined the event, so the innermost pane under the pointer wins. A notch
+# scrolls `lines_per_notch` lines, more in a fast run, and at most the view less
+# one line.
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
     _, line = _text_size(p.measure, p.font, "M")
-    scroll_step = p.lines_per_notch * line
     # The turn with its fraction, so a touchpad scrolls smoothly.
     turn_x, turn_y = evt.precise_dx, evt.precise_dy
-    dx, dy = (turn_x != 0 && turn_y == 0) ? (-round(Int, turn_x * scroll_step), 0) :
-                                            (0, -round(Int, turn_y * scroll_step))
+    horizontal = turn_x != 0 && turn_y == 0
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
+    step = p.lines_per_notch * line
+    largest = max(step, (horizontal ? view_w : view_h) - line)
+    w = iomap.input
+    distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
+                                        step, largest, p.wheel_growth)
+    dx, dy = horizontal ? (-distance, 0) : (0, -distance)
+    _add_wheel_run(_scroll_pane_by(p, iomap, dx, dy), w, run)
+end
+
+# The scroll of the pane of `iomap` by `(dx, dy)` pixels.
+#
+# `follow_end` is a mode, not a lock. A pane that follows the end draws at the
+# end and ignores `scroll_position` — so a reader who scrolls back through a
+# transcript must first take the pane off the pin, and the pin goes back on when
+# they reach the end again. Without that, the wheel writes a cell that nothing
+# reads, and the transcript does not scroll.
+function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
     w = iomap.input
     room = _scroll_room(p, iomap)
     following = getfield(w, :follow_end)[] === true
@@ -6487,12 +6540,17 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         MouseScroll(dx, dy, x, y) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
             _, line = _text_size(p.measure, p.font, "M")
-            step = p.lines_per_notch * line
-            # The turn with its fraction, so a touchpad pans smoothly.
+            # The turn with its fraction, so a touchpad pans smoothly. A fast run
+            # pans more at each notch, and at most the view less one line.
             turn_x, turn_y = evt.precise_dx, evt.precise_dy
-            return turn_x != 0 && turn_y == 0 ?
-                _write_view_state(w, "transform", _pan_by(M, turn_x * step, 0)) :
-                _write_view_state(w, "transform", _pan_by(M, 0, turn_y * step))
+            horizontal = turn_x != 0 && turn_y == 0
+            size = w.size
+            step = p.lines_per_notch * line
+            largest = max(step, Int(horizontal ? size.x[] : size.y[]) - line)
+            distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
+                                                step, largest, p.wheel_growth)
+            pan = horizontal ? _pan_by(M, distance, 0) : _pan_by(M, 0, distance)
+            return _add_wheel_run(_write_view_state(w, "transform", pan), w, run)
         end
     end
     # Forward other events to the content, then re-root the result. Every pointer
@@ -9502,9 +9560,10 @@ function _print_rows_pane(p, recursion, w, ctx)
     right = box.margin[3] + box.border[3]
     bottom = box.margin[4] + box.border[4]
     # Positional: content, position, size, scroll_position, follow_end,
-    # vertical_scroll_bar, horizontal_scroll_bar, visible, margin, border,
-    # padding, style, tooltip, selection, mouse_target.
+    # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
+    # border, padding, style, tooltip, selection, mouse_target.
     pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(false),
+                            Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
                             Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),

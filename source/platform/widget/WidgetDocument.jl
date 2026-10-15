@@ -1381,6 +1381,10 @@ second after a scroll. Then the thumb fades out. Each of `vertical_scroll_bar` a
   shorter than its track, and computes nothing. The maker of the bar sets its
   `value` and `thumb_size`, and turns a write of its `value` into a scroll.
 
+`wheel_run` is view state: the last notch of a run of the wheel, as
+`(time, direction, distance)`, or `nothing`. A fast run of notches scrolls more
+at each notch, and the pane reads the run to know how much.
+
 Use it to show a long table or a long text inside a bounded `size`. With
 `follow_end = true` the pane keeps the end of its content in view as content is
 added, which is what a log or a transcript wants.
@@ -1411,6 +1415,7 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
     size::Union{Point2D, Nothing}
     scroll_position::Point2D
     follow_end::Bool
+    wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
@@ -1433,7 +1438,7 @@ function WidgetScrollPane(content;
     WidgetScrollPane(Cell(content),
                      Cell(position), Cell(size),
                      scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
-                     follow_end isa AbstractCell ? follow_end : Cell(follow_end),
+                     follow_end isa AbstractCell ? follow_end : Cell(follow_end), Cell(nothing),
                      Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))
@@ -1457,12 +1462,16 @@ matrix, so content is magnified/panned inside a fixed on-screen box.
 single-field `ReplaceReferencedValueOperation(pane, "transform", M')`: Ctrl+wheel zooms
 about the cursor, a plain wheel pans, and Ctrl+0 resets to the identity. Only the
 translate+scale subset is rendered today; rotation/shear is future work.
+
+`wheel_run` is view state, as on a `WidgetScrollPane`: the last notch of a run of
+the wheel, so a fast run pans more at each notch.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
     position::Union{Point2D, Nothing}
     size::Point2D
     transform::AffineTransform
+    wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     visible::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
@@ -1479,7 +1488,7 @@ function WidgetTransformPane(content;
                             margin=nothing, border=nothing, padding=nothing,
                             style=nothing, tooltip=nothing)
     WidgetTransformPane(Cell(content),
-                        Cell(position), Cell(size), Cell(transform),
+                        Cell(position), Cell(size), Cell(transform), Cell(nothing),
                         Cell(visible), Cell(margin), Cell(border), Cell(padding),
                         Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -3594,8 +3603,14 @@ pred_arguments(shell::WidgetShell) =
                                                   :context_menu, :status_bar))
 
 # A saved window keeps a scroll pane whole: what it holds, its size, and where it
-# was scrolled. A list of the Help menu is a tab of this kind.
-pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, ())
+# was scrolled, but not the run of the wheel. A list of the Help menu is a tab of
+# this kind.
+pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
+
+# A transform pane writes its fields as a document of data does, but the run of
+# the wheel.
+pred_arguments(pane::WidgetTransformPane) =
+    (), filter(keyword -> first(keyword) !== :wheel_run, last(invoke(pred_arguments, Tuple{Any}, pane)))
 
 # The keywords that a file writes for `widget` by default, but for its content,
 # which is written as the first argument, and for the fields `left_out`.

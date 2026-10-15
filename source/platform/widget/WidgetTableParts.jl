@@ -147,7 +147,7 @@ end
 # cell and a rule as its own padding. It has no fill, because the table draws
 # its bands behind it, and no bar.
 _make_part_pane(grid, offset::Cell, padding::Inset) =
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false), Cell(nothing),
                      Cell(nothing), Cell(nothing), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing))
@@ -167,9 +167,9 @@ _make_part_pane(grid, offset::Cell, padding::Inset) =
 function _make_cells_pane(w::WidgetTable, grid, offset::Cell, padding::Inset)
     target = Cell(@computation _get_table_bar_target(w))
     # Positional: content, position, size, scroll_position, follow_end,
-    # vertical_scroll_bar, horizontal_scroll_bar, visible, margin, border,
-    # padding, style, tooltip, selection, mouse_target.
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false),
+    # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
+    # border, padding, style, tooltip, selection, mouse_target.
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false), Cell(nothing),
                      getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
@@ -1586,8 +1586,16 @@ end
 # keeps more rows reachable from the head.
 const _TABLE_RELOCATION_DISTANCE = 200
 
-# The offset that a scroll writes, or `nothing` for any other answer.
+# The offset that a scroll writes, also inside a compound, or `nothing` for any
+# other answer.
 function _find_written_offset(op)
+    if op isa CompoundOperation
+        for operation in op.operations
+            offset = _find_written_offset(operation)
+            offset === nothing || return offset
+        end
+        return nothing
+    end
     op isa ReplaceViewStateOperation || return nothing
     inner = get_wrapped_operation(op)
     (inner isa ReplaceReferencedValueOperation && inner.value isa Point2D &&
@@ -1611,16 +1619,20 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     x, y = Int(offset.x[]), Int(offset.y[])
     k = _find_table_row_at(st, y + st.pad_y + st.bw)
     k === nothing && return op
+    # The writes of the answer but the scroll, such as the run of the wheel, stay
+    # beside a move of the head.
+    others = op isa CompoundOperation ?
+        Any[o for o in op.operations if _find_written_offset(o) === nothing] : Any[]
     if abs(k - 1) <= _TABLE_RELOCATION_DISTANCE
         moved = st.column_list ? _move_head_column(iomap, x, y) : nothing
-        moved === nothing || return moved
+        moved === nothing || return CompoundOperation(Any[others..., moved.operations...])
         k == w.top_row && return op
         return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
     end
     writes = _write_body_head(w, k)
     found = find_grid_list_row(st.cells_pane.content_iomap, k)
     (writes === nothing || found === nothing) && return op
-    moved = Any[writes...,
+    moved = Any[others..., writes...,
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
                 _write_view_state(w, "top_row", 1)]
     # The row headers move in step with the rows.

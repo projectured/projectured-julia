@@ -138,7 +138,11 @@ function place(io, k, c)
     box = find_reference_box(io.output, image)
     (box.x, box.y)
 end
-wheel(io, dy) = read(io, MouseScroll(0, dy, 100, 150; time = 0.0))
+# Each turn of the wheel comes a second after the last, so no two turns make a
+# fast run, which scrolls more at each notch.
+wheel_time = Ref(0.0)
+take_wheel_time!() = (wheel_time[] += 1.0)
+wheel(io, dy) = read(io, MouseScroll(0, dy, 100, 150; time = take_wheel_time!()))
 # A scroll is view state that names the table, so it applies with no editor. A
 # selection that a scroll moves is set on the table here, as an editor would.
 function apply!(table, op)
@@ -401,7 +405,7 @@ end
                        cells = make_indexed_list(10, texts_of),
                        columns = columns_of(Any[Fixed(400), Fixed(400)]))
     io = print_document(rec, nothing, wide, context())
-    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = take_wheel_time!()))
     grid_w = Int(grid_of(io).output.w)
     view_w = Int(cells_viewport(io).w)
     @test grid_w > view_w
@@ -612,7 +616,7 @@ end
     columns = 1_000
     table = make_wide_table(20, columns; at_column = columns)
     io = print_document(rec, nothing, table, context())
-    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = take_wheel_time!()))
     # The head column is the last: the table shows it at the right edge, and
     # the header of the last column over it.
     @test side(-1) === nothing
@@ -631,7 +635,7 @@ end
     table = make_wide_table(5, 100_000)
     io = print_document(rec, nothing, table, context())
     step = 60 + 2 * io.state.pad_x + io.state.bw
-    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = take_wheel_time!()))
     # A turn near the head column moves the columns by one step of the wheel.
     near = text_x(io, "h2")
     apply!(table, side(-1))

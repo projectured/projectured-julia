@@ -182,6 +182,38 @@ function test_scroll_pane_bar()
         @test turn(-0.5) == (0, round(Int, whole / 2))
     end
 
+    @testset "a fast run of notches scrolls more at each notch, up to the view less one line" begin
+        pane = WidgetScrollPane(WidgetTextarea(join(("line $i" for i in 1:400), "\n"); rows = 400);
+                                size = Point2D(200, 200))
+        iomap = print_document(projection, pane)
+        y() = Int(pane.scroll_position.y[])
+        function turn!(notches, time; precise_dy = notches)
+            before = y()
+            _bar_test_apply!(read_intent(projection, iomap,
+                                         MouseScroll(0, notches, 100, 100; time, precise_dy)))
+            y() - before
+        end
+        step = turn!(-1, 1.0)
+        @test step > 0
+        # Sooner than 80 ms a notch scrolls more, and up to 150 ms as much.
+        @test turn!(-1, 1.05) == round(Int, 1.25 * step)
+        @test turn!(-1, 1.15) == round(Int, 1.25 * step)
+        # A pause, and the other direction, start a new run.
+        @test turn!(-1, 2.0) == step
+        @test turn!(1, 2.05) == -step
+        # A merged turn of two notches grows at its second notch.
+        @test turn!(-2, 3.0) == round(Int, 2.25 * step)
+        # A touchpad moves its fraction and ends the run.
+        @test turn!(0, 3.05; precise_dy = -0.5) == round(Int, step / 2)
+        @test turn!(-1, 3.1) == step
+        # A long fast run stops growing at the view less one line: a notch is
+        # three lines.
+        for k in 1:20
+            turn!(-1, 4.0 + 0.05 * k)
+        end
+        @test turn!(-1, 5.1) == 200 - step ÷ 3
+    end
+
     @testset "the pointer on a bar names the bar and lights it" begin
         area = _make_bar_test_content()
         pane = WidgetScrollPane(area; size = Point2D(200, 200))

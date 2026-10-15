@@ -67,6 +67,20 @@ function test_widget_rows_scroll()
         @test row_of(after) == 1 + (60 - top + offset) ÷ step
     end
 
+    @testset "a fast run of notches scrolls the rows more at each notch" begin
+        list = _make_rows_test_list()
+        iomap = print_document(projection, nothing, list, _make_rows_test_offer())
+        y() = Int(list.scroll_position.y[])
+        function turn!(time)
+            before = y()
+            evaluate_operation(nothing, read_intent(projection, iomap, MouseScroll(0, -1, 20, 60; time)))
+            y() - before
+        end
+        step = turn!(1.0)
+        @test step > 0
+        @test turn!(1.05) == round(Int, 1.25 * step)
+    end
+
     @testset "the pointer lights the row under it, and the bar is a part of the list" begin
         list = _make_rows_test_list()
         driver = MttDriver(projection, list, print_document(projection, nothing, list, _make_rows_test_offer()))

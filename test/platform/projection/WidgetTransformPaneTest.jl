@@ -4,8 +4,9 @@
 function test_widget_transform_pane()
 @testset "WidgetTransformPane zoom/pan" begin
 
-    # The transform an answer writes.
-    _written(op) = get_wrapped_operation(op).value
+    # The transform an answer writes. A pan writes it first, before the run of
+    # the wheel.
+    _written(op) = get_wrapped_operation(op isa CompoundOperation ? first(op.operations) : op).value
 
     # Deterministic measure: "M" → (10, 24), so the pan step (line height) is 24.
     _stub = FixedMeasure(10, 18, 6, 0)
@@ -53,7 +54,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(); time = 0.0))
-        @test op isa ReplaceViewStateOperation
+        @test op isa CompoundOperation
+        @test all(o -> o isa ReplaceViewStateOperation, op.operations)
         M = _written(op)
         @test M.a ≈ 1.0            # no scale change
         @test M.d ≈ 1.0
@@ -66,7 +68,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, ModifierKeys(); time = 0.0))
-        @test op isa ReplaceViewStateOperation
+        @test op isa CompoundOperation
         @test _written(op).e ≈ 72.0
         @test _written(op).f ≈ 0.0
     end

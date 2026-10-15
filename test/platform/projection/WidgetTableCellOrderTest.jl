@@ -177,7 +177,9 @@ end
                   cells = Any[make_list_of(10_000_000, r -> label(r, c)) for c in 1:2])
     io = print_document(rec, nothing, table, context())
     y_of(text) = text_at(io, text; limit = 400)[2]
-    wheel(dy) = read(io, MouseScroll(0, dy, 100, 150; time = 0.0))
+    # Each turn comes a second after the last, so no two make a fast run.
+    wheel_time = Ref(0.0)
+    wheel(dy) = read(io, MouseScroll(0, dy, 100, 150; time = (wheel_time[] += 1.0)))
     step = y_of(name(2, 1)) - y_of(name(1, 1))
     near = y_of(name(2, 1))
     apply!(table, wheel(-1))
