@@ -676,8 +676,8 @@ nothing.
   which its own feeds copy from the stores (D7); C, nothing in this plan: L21-1
   stays in the audit plan with POLICY-7. A and B both need the new way for an
   insertion to find its editor.
-- **D13. Open (step 6.1): how a drain tells a save from a change of another
-  program.** For a file that a person edits, the watcher reads the file on disk.
+- **D13. Decided by the owner, 2026-10-15: A** (step 6.1): how a drain tells a
+  save from a change of another program. For a file that a person edits, the watcher reads the file on disk.
   A save of the document writes that file too, and the drain must not read the
   save back: that would replace the document after each Ctrl+S and move the
   caret. Today the drain writes the whole text of the document and compares it
@@ -691,7 +691,7 @@ nothing.
     a file that a person edits.
   - C: the edit mark alone: a document with no edits since its last load or save
     takes the file. A save is then read back.
-  Recommended (mine): A.
+  Recommended (mine): A. Done in 6.1.
 - **D10. The loop of the REPL form. Decided by the owner, 2026-10-14: A**, the
   recommendation below. The other option was B, keep D11 and document that the
   REPL form needs `-t 2` for units. `run_editor!(...; wait = false)` pins
@@ -1196,7 +1196,7 @@ nothing.
       call that the test posts runs in the code unit that owns the editor, as
       step 2 decided, not on the loop task. `test_ide_window_wrap` 45 pass, in
       a scratch environment over the two worktrees.
-- [ ] **6. Feeds that move only prepared data.** Decided by the owner,
+- [x] **6. Feeds that move only prepared data.** Decided by the owner,
   2026-10-13. The rule: a drain moves only data that its producer prepared off
   the loop. It does no I/O, it runs no method of a user type, and its work grows
   only with what changed. The contract of a feed (`FeedInterface.jl`) says it.
@@ -1263,7 +1263,7 @@ nothing.
       started during a stop itself; the same for the preparation.
     - Not here: the tasks of omnet-julia (`Session.jl`, `SimulationRunner.jl`
       and four presentation files) still start with `@async`.
-  - [ ] 6.1 (`21656e865`, not done) File change.
+  - [x] 6.1 (`21656e865`, `5b89146d2`) File change.
     - The watcher of a folder reads a changed file once its time and its size
       stay the same for 50 ms, parses it with `read_file_content_again(type,
       path)`, and keeps the new document; a later change replaces it. The drain
@@ -1285,11 +1285,20 @@ nothing.
       the worktrees and over the main checkouts, the legacy simulation, task,
       result file and IDE tests 650 with 1 failure at `IdeNavigatorTest.jl:57`,
       which `main` has too (639 with the same failure).
-    - Open, D13 below: how the drain tells a save of the document from a change
-      of another program for a file that a person edits. Until then the drain
-      still writes the text of the document to compare (O(document)), for such a
-      file only; a file that a person does not edit, as the result files of
-      omnet-julia, takes the new document with no other work.
+    - D13 A (`5b89146d2`): `save_file_text!` answers the text that a save
+      wrote; `SaveFileOperation` notes its hash with
+      `record_saved_state!(content; text_hash)`, and only when the save wrote;
+      the undo buffer keeps it in `saved_text_hash` until a load clears the
+      history; `get_saved_text_hash(content)` answers it. The drain of a file
+      that a person edits: the hash of the save is no change; a history with no
+      edits takes the new document; a history with edits keeps them and logs; a
+      content with no history keeps what it shows and logs that it can not tell.
+      The drain writes no text of the document. The tests of the store use a
+      file whose content keeps a history, as the application does.
+    - The suites of D13: the file change and undo tests 236; the platform tests
+      that save a file 1457; the umbrella tests that save a file, the guards and
+      `test_application` 734, with the 4 failures of `main`, and an error at
+      `MarkerVocabularyTest.jl:88`, which the base commit is checked for.
 - [ ] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
