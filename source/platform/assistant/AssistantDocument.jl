@@ -136,7 +136,11 @@ the agent gave its session, empty until it gives one, and the tab of the
 assistant shows it. `agent_usage` is how much of its context window the
 session uses, an `AgentUsageUpdate`, or `nothing`. `agent_commands` are the
 commands that the agent offers, as `/name` at the start of a prompt. They are no
-data either.
+data either. `agent_work` is the work of the session of the agent, an
+[`AgentWork`](@ref): its subagents, its plans, its background tasks, its notices
+and its processes. It is the live state of the session, so it is no data either:
+a file does not keep it, and a duplicate and a new session start with an empty
+one.
 
 `workflow` is the node of a workflow that the conversation records its work in,
 or `nothing`. It is data that the person chose, so a `.pred` file keeps it; the
@@ -185,6 +189,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_title::String
     agent_usage::Union{Nothing,AgentUsageUpdate}
     agent_commands::Vector{AgentCommand}
+    agent_work::AgentWork
     workflow::Any
     description::PrimitiveString
     comment::PrimitiveString
@@ -263,7 +268,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(CellVector{AgentOption}(collect(AgentOption, agent_options))),
                            Cell(String(agent_title)), Cell(agent_usage),
                            Cell(CellVector{AgentCommand}(collect(AgentCommand, agent_commands))),
-                           Cell(workflow),
+                           Cell(AgentWork("")), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
                            Cell(nothing))
@@ -284,7 +289,8 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 # it at the next message, and a `.pred` file runs no code. So `agent_command` and
 # `agent_session_meta` come from the settings of the application, never from a
 # file. A live connection is not data either: `llm`
-# is a fake or a running client, `agent_session` is a running agent, `status` is what a turn is doing right now,
+# is a fake or a running client, `agent_session` is a running agent, `agent_work` is the work of its
+# session, `status` is what a turn is doing right now,
 # and `conversation`/`input`/`draft` are this session's exchange, not the
 # next one's — so a save keeps only the settings that describe an assistant
 # rather than a moment of one, and a load starts a fresh, empty conversation.
@@ -351,7 +357,7 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_session_directory = "", agent_session_turn_count = 0,
                                 agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
-                                agent_commands = AgentCommand[])
+                                agent_commands = AgentCommand[], agent_work = AgentWork(""))
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&

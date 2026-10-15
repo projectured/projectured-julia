@@ -15,6 +15,13 @@ A turn has two kinds. With a model, the kernel's `run_turn!` drives the model
 and runs its tools (`AssistantTurn.jl`). With an external agent, the agent runs
 its own loop and its own tools, and the turn draws what it reports
 (`ExternalAgentTurn.jl`).
+
+The events of an external agent also fill the work of its session, an
+`AgentWork`: its subagents with their transcripts, its plans, its background
+tasks as tasks of the task slice, its notices and its processes
+(`AgentWorkDocument.jl`). Each event of a session goes into the queue of the
+session, in a prompt and between two prompts, and the feed of the window applies
+the events in the order in which they came (`AgentEventFeed.jl`).
 """
 module AssistantModule
 
@@ -29,6 +36,7 @@ using ..EditorModule
 using ..EventModule
 using ..EventModule
 using ..FaultModule
+using ..FeedModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GraphicsModule
@@ -46,21 +54,28 @@ using ..ScreenModule
 using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
+using ..SystemProcessModule
+using ..TaskModule
 using ..TerminalModule
 using ..TextModule
 using ..ToolModule
 using ..WidgetModule
+using ..WorkPlanModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
 import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
                        get_insertion_aliases, make_insertion_document
+import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns, format_task_column,
+                     format_task_details, get_task_actions
 
+export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
        DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
@@ -81,8 +96,10 @@ export compute_assistant_overview_title, find_first_prompt, find_last_prompt, co
 export AssistantList, get_session_assistant_list, set_assistant_list_source!,
        set_assistant_list_opener!, select_assistant!
 export AssistantListToWidgetPane
+export apply_agent_event!, AgentEventFeed
 
 
+include("AgentWorkDocument.jl")
 include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
@@ -92,5 +109,6 @@ include("AssistantOverview.jl")
 include("AssistantList.jl")
 include("AssistantListToWidget.jl")
 include("AssistantApi.jl")
+include("AgentEventFeed.jl")
 
 end # module

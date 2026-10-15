@@ -245,12 +245,13 @@ function evaluate_operation(editor, op::ClearInputOperation)
 end
 
 # A new conversation is a new session of an external agent, which holds the
-# history of the old one, so the assistant forgets the old session.
+# history of the old one, so the assistant forgets the old session and its work.
 function evaluate_operation(editor, op::ResetConversationOperation)
     a = op.assistant
     a.conversation = ConversationConversation()
     _set_input!(a, "")
     stop_external_agent!(a)
+    a.agent_work = AgentWork("")
     a.agent_session_id = ""
     a.agent_session_directory = ""
     a.agent_session_turn_count = 0
@@ -974,13 +975,16 @@ end
 # A turn ends with its stop reason and the time of its end. A turn that produced
 # nothing (an immediate stop, or an error before any content) is dropped, so it
 # does not render as a bare "assistant:" line.
-function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
+_finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol) =
+    _finish_turn!(a.conversation, turn, stop_reason)
+
+function _finish_turn!(conversation::ConversationConversation, turn::ConversationTurn, stop_reason::Symbol)
     turn.stop_reason = stop_reason
     turn.finish_time = time()
     if isempty(turn.parts)
-        elems = getfield(a.conversation.turns, :elements)[]
+        elems = getfield(conversation.turns, :elements)[]
         if !isempty(elems) && elems[end][] === turn
-            deleteat!(a.conversation.turns, length(elems))
+            deleteat!(conversation.turns, length(elems))
         end
     end
     nothing

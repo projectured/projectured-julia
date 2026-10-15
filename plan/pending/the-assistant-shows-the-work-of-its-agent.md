@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 6 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 7 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -907,15 +907,106 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - Tests: `test_acp()` ran 248 tests, all passing, with the layering guard;
       the naming, export, argument and documentation guards pass.
 
-- [ ] **7. The assistant: the documents of the work.**
+- [x] **7. The assistant: the documents of the work.** Done 2026-10-15.
   - `AgentWork`, `Assistant.agent_work`, `AgentBackgroundTask`,
-    `apply_agent_work_event!`, the transcript of a subagent, and the facets.
+    `apply_agent_event!`, the transcript of a subagent, and the facets.
   - The feed of the window drains the queues.
   - Tests with `ScriptedAgentConnection`:
     - a subagent and its transcript;
     - a background task that ends after the prompt;
     - a plan with a blocked step and a step in progress;
     - the process id of a session.
+  - **What the step found and decided:**
+    - **The assistant slice loads after the task slice.** It loaded before
+      `pane`, and the task slice uses `pane`, so `AgentBackgroundTask <:
+      AbstractTask` could not be written. The include of `assistant` moved to
+      just after `task`, and `task` to just before `shell`, the first slice that
+      uses the assistant; no slice between them uses either. The table of the
+      edges gives `assistant` the edges `systemprocess`, `task` and `workplan`.
+    - Two new fragments: `AgentWorkDocument.jl` (`AgentNotice`, `AgentWork`,
+      `AgentBackgroundTask`, `AgentBackgroundTaskResult`, what the task slice
+      asks of a background task, the facets), included first because
+      `Assistant` declares a field of `AgentWork`; and `AgentEventFeed.jl`
+      (`apply_agent_event!`, the turns, the prompt, the work, `AgentEventFeed`).
+    - **The name is `apply_agent_event!(editor, assistant, event)`.** It applies
+      every event of a session, its text too, not only the work, so "work" left
+      the name. It takes the editor first, as the other functions of the turn do:
+      the forms of a tool call take their live results from `editor.tools`, and a
+      failed event is a fault of `editor`. No state that a document reaches holds
+      the tool set, which binds the editor in its scratch module.
+    - **One path, one order** (an addition of the review of steps 5 and 6). The
+      `on_event` of a prompt puts each event into the queue of its session and
+      calls `wake_editor!`; the feed applies the queue in the next frame. An
+      editor whose loop does not run on another task, as in a test, applies the
+      queue at once on the task of the turn. The start of a prompt, on the
+      editor task, applies the events that wait, ends a turn that the agent
+      started by itself, and makes the state of the prompt the one that takes the
+      events; the end of a prompt applies the events that wait before it cancels
+      the questions and lets the state go. The stop reason and the split of a
+      steered turn stay with the turn.
+    - **The states of the turns live in `ExternalAgentSession`**, which is no
+      data: `events` (the queue), `prompt_turn`, `agent_turn`,
+      `waiting_requests`, `subagent_turns` (by the `AgentWork` of each
+      subagent) and `prompt_end_time`. The session is now opaque to the walk of
+      the documents (`is_walk_opaque`), so a search does not find a part a
+      second time through a state.
+    - **A turn that the agent starts by itself** (addition 2): a text, a
+      reasoning, a tool call, a plan or a question between two prompts begins a
+      new assistant turn; an `AgentUsageUpdate` between two prompts, or the next
+      prompt, ends it and closes its open blocks. An event that only ends a block
+      begins no turn.
+    - **The questions** (addition 3): a question of the session between two
+      prompts is a card in the turn that the agent started by itself; it stays
+      open after that turn ends (`waiting_requests`), and the end of the next
+      prompt cancels it when nobody answered. A question of a subagent is **one
+      request in two parts**: a part of the transcript of the subagent, whose end
+      cancels it, and a part of the turn of the session that runs, where the
+      person looks. An answer in either is the answer of both, and the reply goes
+      to the `reply` of the event once. Its title names the subagent:
+      `The subagent “Explore” asks to run: …`.
+    - **The plan parts of the transcript** are one part for each plan id, so a
+      Markdown plan is a prose part "Plan" with its text, beside the checklist,
+      and a removal or a plan in a file changes no part. An event of the work (a
+      subagent, a background task, a notice, a compaction) no longer closes the
+      open text block of the session, which step 6 left so.
+    - **A plan of the work.** The plan with an empty id has the title "Plan";
+      another plan has its id as its title. A step keeps its document from one
+      update to the next by its id, and only its changed fields are written, so
+      a view keeps its open steps; an entry with no id is named by its place
+      (`"1"`, `"2"`, …). The steps are written through `set_work_plan_steps!`,
+      and only when the list of the documents changed.
+    - **`AgentBackgroundTask` holds `summary` and `can_stop` too**: the task is
+      the facts of the agent about it, a plain immutable value. An update that
+      changes one writes a new value into the cell `task` of the `TaskDocument`,
+      so the views follow; a task that ended can not be stopped. Its execution
+      starts at its first status (`update_task_execution!`, then the shadow,
+      `add_task_execution!` and `register_task_execution!` with the store of the
+      session) and ends at `completed`, `failed` or `stopped` with
+      `finish_task_execution!` and `AgentBackgroundTaskResult` (DONE, ERROR,
+      CANCEL), with the end time of the agent. A summary that comes after the end
+      is in the task, not in the result.
+    - **The window gets a `TaskFeed` with its first session** when it has none:
+      the window of ProjecturEd has none, and without it the shadow of a
+      background task would never sync.
+    - The output file is a fact line (`output: <path>`) and a button "Open the
+      output" of `get_task_actions`, which evaluates `OpenFileOperation`; Stop is
+      a button while `can_stop`. Stop finds the assistant of the session in
+      `get_session_assistant_list().assistants`; a refusal of the agent is a
+      notice "The agent did not stop …".
+    - A compaction is a notice whose title says its status, such as "The context
+      was compacted", with its summary as the description.
+    - A reset of the conversation starts an empty `AgentWork` too.
+    - Tests: `test_agent_work()` is new, in
+      `test/platform/conversation/AgentWorkTest.jl`; it ran 117 tests:
+      the eight cases of the brief, the order of a queued event and an event of
+      a prompt, a turn that the agent starts by itself, a question of a subagent
+      that the person answers, and a question between two prompts.
+      `test_external_agent_turn()` ran 269, `test_assistant_overview()` 63,
+      `test_assistant_list()` 49, the layering 21 and the edges 1, all passing;
+      the naming, export and argument guards pass, and the style guard has only
+      its known failure at `TextDocument.jl:438`.
+    - Not checked: the wake path of a running loop (the tests use an editor with
+      no loop), a real agent, and the views of step 8.
 
 - [ ] **8. The assistant: the work page.**
   - `AssistantWork` and its view, the page of a subagent, the Work button, the

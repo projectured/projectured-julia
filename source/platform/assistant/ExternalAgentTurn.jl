@@ -4,8 +4,8 @@
 # The agent owns its model, its tools and its history. The assistant sends it
 # what the person said since the last answer, and draws what the agent reports:
 # its text and its reasoning as parts, each tool call as an `EvaluatorForm` that
-# its updates fill, its plan as one part that each update replaces, and each
-# question for the person as a `ConversationPermissionRequest`. The agent
+# its updates fill, each plan as one part that each update of the plan replaces,
+# and each question for the person as a `ConversationPermissionRequest`. The agent
 # reaches the tools of this editor through the MCP server that the assistant
 # starts for it, with a secret, so each edit of the agent is an operation of the
 # editor.
@@ -30,10 +30,24 @@ The live link of an assistant to its external agent:
 - `is_cancelled` — whether the person stopped the turn that runs; the end of
                   the turn clears it;
 - `start_lock`  — held while the agent starts and its session opens, so a turn
-                  and a start from the option bar open one session.
+                  and a start from the option bar open one session;
+- `events`      — the `AgentEventQueue` of the open session, which takes every
+                  event of the session, in a prompt and between two prompts, and
+                  which the `AgentEventFeed` of the window drains; `nothing`
+                  while no session is open, and again when the session closes;
+- `prompt_turn` — the state of the turn of the prompt that runs, which the
+                  events of the session fill; `nothing` between two prompts;
+- `agent_turn`  — the state of a turn that the agent started by itself between
+                  two prompts, or `nothing`;
+- `waiting_requests` — the questions of the turns that the agent started by
+                  itself, which wait for the person after their turn ended; the
+                  end of the next prompt cancels those that nobody answered;
+- `subagent_turns` — the state of the open turn of each subagent, by its
+                  `AgentWork`;
+- `prompt_end_time` — when the last prompt ended, in seconds of `time()`.
 
-It is no data: a save does not write it, and a duplicate of the assistant does
-not share it.
+It is no data: a save does not write it, a duplicate of the assistant does not
+share it, and a walk of the documents does not enter it.
 """
 mutable struct ExternalAgentSession
     connection::Any
@@ -46,11 +60,19 @@ mutable struct ExternalAgentSession
     has_answered::Bool
     is_cancelled::Bool
     start_lock::ReentrantLock
+    events::Union{Nothing,AgentEventQueue}
+    prompt_turn::Any
+    agent_turn::Any
+    waiting_requests::Vector{Any}
+    subagent_turns::IdDict{Any,Any}
+    prompt_end_time::Float64
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
-                         ReentrantLock())
+                         ReentrantLock(), nothing, nothing, nothing, Any[], IdDict{Any,Any}(), -Inf)
+
+is_walk_opaque(::ExternalAgentSession) = true
 
 """
     is_external_agent_turn_running(assistant) -> Bool
@@ -78,7 +100,9 @@ end
 # One turn: start the agent and its session when this is the first turn, send
 # what the person said since the agent last saw the conversation, and draw each
 # event as it arrives. Every write to the assistant goes through
-# `run_on_editor_task!`, as the writes of a turn of a model do.
+# `run_on_editor_task!`, as the writes of a turn of a model do. An event of the
+# prompt goes into the queue of the session, behind the events that came before
+# it, and the feed of the window applies it with the state of this turn.
 #
 # A turn that fails closes the connection, so the next turn starts the agent again
 # and resumes the kept session. The count of the turns that the agent saw stays,
@@ -88,12 +112,8 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
     session = _make_external_agent_session!(editor, a)
     conversation = run_on_editor_task!(() -> a.conversation, editor)
     turn = ConversationTurn(:assistant; start_time = time())
-    state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing,
-                             :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
-                             :permission_requests => ConversationPermissionRequest[],
-                             :question_requests => ConversationQuestionRequest[],
-                             :tools => _find_editor_tool_set(editor), :live_results => Set{String}(),
-                             :turn => turn)
+    state = _make_agent_turn_state(turn)
+    state[:control] = control
     # The start of an agent takes seconds, and its first turn in a process takes
     # longer, so the turn shows at once with a part that says that the agent
     # starts. When the session is open, the turn leaves the conversation and comes
@@ -105,6 +125,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
     end
     is_open = false
+    queue = nothing
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
         is_open = true
@@ -121,12 +142,10 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             session.sent_turn_count = turn_count
             return nothing
         end
-        run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
+        queue = session.events === nothing ? _make_agent_event_queue!(editor, a, session) : session.events
+        run_on_editor_task!(() -> _start_agent_prompt_turn!(editor, a, session, state, queue), editor)
         reason = Base.invokelatest(send_agent_prompt!, session.connection, session.session_id, prompt;
-            on_event = event -> run_on_editor_task!(editor; wait = false) do
-                _split_steered_turn!(a, state, control)
-                _handle_external_agent_event!(event, a, state[:turn], state)
-            end)
+                                   on_event = event -> _post_agent_event!(editor, a, queue, event))
         session.sent_turn_count = max(turn_count, session.steered_turn_count)
         session.has_answered = true
         run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
@@ -148,11 +167,9 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         # A cancel holds for the turn that it stopped, and the next turn starts
         # with none.
         session.is_cancelled = false
-        # A question that the person did not answer before the end is cancelled.
-        run_on_editor_task!(editor; wait = false) do
-            foreach(request -> answer_permission_request!(request, nothing), state[:permission_requests])
-            foreach(request -> answer_question_request!(request, nothing), state[:question_requests])
-        end
+        # The events of the prompt that wait apply first, and a question that the
+        # person did not answer before the end is cancelled.
+        run_on_editor_task!(() -> _end_agent_prompt_turn!(editor, a, session, state, queue), editor; wait = false)
     end
     run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
     nothing
@@ -207,6 +224,9 @@ end
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
 # that the transcript shows. The options of the session reach `agent_options`.
+# The session gets a queue of its own for its events, which the feed of the
+# window drains, and a session that is not the one of the work of the assistant
+# starts an empty work.
 #
 # The lock of the start holds no wait for the editor: the kept session is read
 # through the door before it, and the editor forgets a kept session after it.
@@ -224,11 +244,13 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             session.directory = is_resumable ? kept_directory : pwd()
             session.is_resumed = false
             session.has_answered = false
+            queue = _make_agent_event_queue!(editor, a, session)
             session_id = Base.invokelatest(open_agent_session!, session.connection;
                 directory = session.directory, mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
                 session_id = is_resumable ? kept_id : "",
-                on_event = event -> _post_agent_options!(editor, a, event))
+                on_event = event -> _post_agent_options!(editor, a, event), events = queue)
             session.session_id = session_id
+            run_on_editor_task!(() -> _start_agent_work!(a, session, session_id), editor; wait = false)
             session.is_resumed = is_resumable && session_id == kept_id
             if session.is_resumed
                 session.sent_turn_count = kept_count
@@ -352,8 +374,7 @@ function _split_steered_turn!(a::Assistant, state, control::AssistantTurnControl
     control.is_split_asked || return nothing
     control.is_split_asked = false
     above = state[:turn]
-    state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, above, state, nothing)
-    state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, above, state, nothing)
+    _close_agent_blocks!(a, state)
     index = findfirst(turn -> turn === above, collect(a.conversation.turns))
     if isempty(above.parts) && index !== nothing
         deleteat!(a.conversation.turns, index)
@@ -481,9 +502,11 @@ end
 
 # The agent stopped, and the session object holds no open session; the next turn
 # starts the agent again and resumes the kept session. The MCP server stays,
-# because its port and its secret still serve the next session.
+# because its port and its secret still serve the next session. The queue of the
+# session leaves the feed of the window at its next drain.
 function _close_external_agent_session!(session::ExternalAgentSession)
     session.session_id = ""
+    session.events = nothing
     try
         Base.invokelatest(stop_agent_connection!, session.connection)
     catch exception
@@ -504,6 +527,7 @@ function stop_external_agent!(a::Assistant)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
     a.agent_session = nothing
+    session.events = nothing
     a.agent_options = AgentOption[]
     a.agent_usage = nothing
     a.agent_commands = AgentCommand[]
@@ -548,52 +572,79 @@ function _make_external_agent_prompt(conversation::ConversationConversation, sen
     prompt, length(turns)
 end
 
-# One event of the agent, applied to the turn on the editor task. The stop of a
-# text block reads the text part again in place of the last part, so a part of
-# another kind closes the open blocks before it comes, and text after it opens a
-# new block.
-function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTurn, state)
+# The state of a turn that the events of an agent fill: the turn, its open text
+# and thinking blocks, the form of each tool call, the part of each plan, and the
+# questions for the person that the end of the turn cancels when nobody answered.
+_make_agent_turn_state(turn::ConversationTurn) =
+    Dict{Symbol,Any}(:turn => turn, :current_block => nothing, :current_thinking => nothing,
+                     :tool_forms => Dict{String,EvaluatorForm}(), :plan_parts => Dict{String,ConversationPart}(),
+                     :permission_requests => ConversationPermissionRequest[],
+                     :question_requests => ConversationQuestionRequest[], :live_results => Set{String}())
+
+# The open text and thinking blocks of the turn of `state` close.
+function _close_agent_blocks!(a::Assistant, state)
+    state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, state[:turn], state, nothing)
+    state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, state[:turn], state, nothing)
+    nothing
+end
+
+# One event of the transcript of an agent, applied to the turn on the editor task:
+# its text, its reasoning, a tool call, a plan, or a question for the person.
+# `tools` is the tool set of the editor, whose live results the forms show. The
+# stop of a text block reads the text part again in place of the last part, so a
+# part of another kind closes the open blocks before it comes, and text after it
+# opens a new block.
+function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTurn, state, tools)
     if event isa LlmTextDelta && state[:current_block] === nothing
         _handle_agent_event!(LlmTextStart(), a, turn, state, nothing)
     elseif event isa LlmThinkingDelta && state[:current_thinking] === nothing
         _handle_agent_event!(LlmThinkingStart(), a, turn, state, nothing)
-    elseif !(event isa Union{LlmEvent,AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate,
-                             AgentCommandsUpdate}) &&
-           !(event isa AgentToolCallUpdate && haskey(state[:tool_forms], event.id))
-        state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, nothing)
-        state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, nothing)
+    elseif _puts_agent_part(event, state)
+        _close_agent_blocks!(a, state)
     end
     if event isa LlmEvent
         _handle_agent_event!(event, a, turn, state, nothing)
-    elseif event isa AgentOptionsUpdate
-        a.agent_options = event.options
-    elseif event isa AgentUsageUpdate
-        a.agent_usage = event
-    elseif event isa AgentSessionInfoUpdate
-        event.title === nothing || (a.agent_title = event.title)
-    elseif event isa AgentCommandsUpdate
-        a.agent_commands = event.commands
     elseif event isa AgentToolCallUpdate
-        _apply_tool_call_update!(turn, state, event)
+        _apply_tool_call_update!(turn, state, event, tools)
     elseif event isa AgentPlanUpdate
         _apply_plan_update!(turn, state, event)
-    elseif event isa AgentPermissionRequest
-        title = _remove_agent_tool_prefix(something(event.tool_call.title, event.tool_call.name, "a tool"))
-        request = ConversationPermissionRequest("The agent asks to run: " * title, event.options;
-                                                reply = event.reply)
-        push!(state[:permission_requests], request)
-        push!(turn.parts, Cell(ConversationPart(request)))
-    elseif event isa AgentQuestionRequest
-        request = ConversationQuestionRequest(event.message, event.fields; reply = event.reply)
-        push!(state[:question_requests], request)
-        push!(turn.parts, Cell(ConversationPart(request)))
+    elseif event isa Union{AgentPermissionRequest,AgentQuestionRequest}
+        _add_agent_request!(state, _make_agent_request(event, "The agent"))
     end
     nothing
 end
 
+# The card of a question of `asker` for the person, which waits for the answer: a
+# permission to run a tool, or a form. Its reply goes to the agent.
+function _make_agent_request(event::Union{AgentPermissionRequest,AgentQuestionRequest}, asker::AbstractString)
+    event isa AgentQuestionRequest &&
+        return ConversationQuestionRequest(event.message, event.fields; reply = event.reply)
+    title = _remove_agent_tool_prefix(something(event.tool_call.title, event.tool_call.name, "a tool"))
+    ConversationPermissionRequest(asker * " asks to run: " * title, event.options; reply = event.reply)
+end
+
+# A card joins the turn of `state`, whose end cancels it when nobody answered.
+function _add_agent_request!(state, request)
+    _hold_agent_request!(state, request)
+    push!(state[:turn].parts, Cell(ConversationPart(request)))
+    nothing
+end
+
+# The end of the turn of `state` cancels `request` when nobody answered it.
+_hold_agent_request!(state, request) =
+    push!(request isa ConversationPermissionRequest ? state[:permission_requests] : state[:question_requests],
+          request)
+
+# Whether `event` puts a part of another kind than text into the turn: a new tool
+# call, a plan that shows, or a question.
+_puts_agent_part(event, state) =
+    event isa AgentToolCallUpdate ? !haskey(state[:tool_forms], event.id) :
+    event isa AgentPlanUpdate ? _has_plan_part(event) :
+    event isa Union{AgentPermissionRequest,AgentQuestionRequest}
+
 # A tool call becomes a form at its first event, and each update fills it: the
 # input, the text that the tool answered, and a failure.
-function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentToolCallUpdate)
+function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentToolCallUpdate, tools)
     forms = state[:tool_forms]
     form = get(forms, update.id, nothing)
     if form === nothing
@@ -602,7 +653,7 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         output = something(update.output, "")
         form = EvaluatorForm(_eval_form_doc(LlmToolUse(update.id, name, input));
                              source = name == "execute_julia_code" ? string(get(input, "code", "")) : "",
-                             result = _make_agent_tool_result(state, update.id, name, output,
+                             result = _make_agent_tool_result(state, tools, update.id, name, output,
                                                               update.status === :failed;
                                                               mime_type = update.output_mime_type,
                                                               uri = update.output_uri),
@@ -634,7 +685,7 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         form.output = update.output
         # A live result stays when a later update repeats the output.
         update.id in state[:live_results] ||
-            (form.result = _make_agent_tool_result(state, update.id, form.tool_name, update.output,
+            (form.result = _make_agent_tool_result(state, tools, update.id, form.tool_name, update.output,
                                                    update.status === :failed || form.is_error;
                                                    mime_type = update.output_mime_type,
                                                    uri = update.output_uri))
@@ -651,9 +702,8 @@ end
 # the editor, otherwise gets the document that a turn of a model makes of its
 # text, from the media type that the tool declares: a Markdown page for a
 # documentation tool. Another tool, and an error, keep their text.
-function _make_agent_tool_result(state, id::AbstractString, name::AbstractString, output::AbstractString,
-                                 is_error::Bool; mime_type = nothing, uri = nothing)
-    tools = state[:tools]
+function _make_agent_tool_result(state, tools, id::AbstractString, name::AbstractString,
+                                 output::AbstractString, is_error::Bool; mime_type = nothing, uri = nothing)
     if tools !== nothing && !is_error && name == "execute_julia_code"
         value = take_tool_call_value!(tools, id)
         if value !== nothing
@@ -705,22 +755,33 @@ _remove_agent_tool_prefix(name::AbstractString) =
 
 const AGENT_TOOL_PREFIX = "mcp__projectured__"
 
-# The plan of the agent is one part of the turn, a list of its steps, which
-# each update replaces.
+# Each plan of the agent is one part of the turn, which each update of the plan
+# replaces: a plan of steps as a list of its steps, and a Markdown plan as its
+# text. A plan in a file, and a removal, leave the parts as they are.
 function _apply_plan_update!(turn::ConversationTurn, state, update::AgentPlanUpdate)
+    _has_plan_part(update) || return nothing
     lines = String["**Plan**", ""]
-    for entry in update.entries
-        mark = entry.status === :completed ? "[x]" : "[ ]"
-        suffix = entry.status === :in_progress ? " *(in progress)*" : ""
-        push!(lines, "- " * mark * " " * entry.content * suffix)
+    if update.markdown !== nothing
+        push!(lines, update.markdown)
+    else
+        for entry in update.entries
+            mark = entry.status === :completed ? "[x]" : "[ ]"
+            suffix = entry.status === :in_progress ? " *(in progress)*" : ""
+            push!(lines, "- " * mark * " " * entry.content * suffix)
+        end
     end
     content = make_prose_document(join(lines, '\n'))
-    part = state[:plan_part]
+    parts = state[:plan_parts]
+    part = get(parts, update.id, nothing)
     if part === nothing
-        state[:plan_part] = ConversationPart(content)
-        push!(turn.parts, Cell(state[:plan_part]))
+        part = parts[update.id] = ConversationPart(content)
+        push!(turn.parts, Cell(part))
     else
         part.content = content
     end
     nothing
 end
+
+# Whether a plan update shows as a part of the turn: a plan of steps or a
+# Markdown plan, and not a plan in a file or a removal.
+_has_plan_part(update::AgentPlanUpdate) = !update.is_removed && update.uri === nothing
