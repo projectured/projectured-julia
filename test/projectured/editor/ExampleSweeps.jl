@@ -261,6 +261,10 @@ function test_position_navigations()
                              # above: the strip and the split pane hold the
                              # content, and Ctrl+Home reaches no caret in it.
                              "pane", "empty_pane", "pane_json",
+                             # `formula_report` is a Markdown page whose blocks
+                             # the natural renderer stacks, here for the
+                             # widget-container reason as well.
+                             "formula_report",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 sigs = posnav_seed_broken(example.name)

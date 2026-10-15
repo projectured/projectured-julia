@@ -164,6 +164,20 @@ end
     run_frame!(math_editor)
     platform._nav_press!(math_editor, math_backend, KeyPress('l'; time = 0.0))
     @test math.formulas[2].name == "Dl"
+    # A name that reads as a number is its own key. A Delete that leaves the name
+    # `1` of a cell name renames the formula, and its use keeps it.
+    @test get_formula_key("1") == "1" && get_formula_key("A1") == "A1"
+    cells = FormulaEnvironment([FormulaFormula("A1", parse_julia("4")),
+                                FormulaFormula("B1", parse_julia("A1 * 2"))])
+    cells_backend = HeadlessBackend()
+    cells_editor = build_editor(cells, projection; backend = cells_backend,
+                                devices = Device[Keyboard(), Mouse(), Display()],
+                                window = false, tabs = false, appearance = false, settings = false)
+    set_selection!(cells, @reference(cells, formulas[1].name{0}))
+    run_frame!(cells_editor)
+    platform._nav_press!(cells_editor, cells_backend, KeyDown(:delete, ModifierKeys(); time = 0.0))
+    @test cells.formulas[1].name == "1"
+    @test get_formula_dependencies(cells.formulas[2], cells) == [cells.formulas[1]]
 end
 
 @testset "math code prints in its linear form, and the keys walk past it" begin

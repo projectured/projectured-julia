@@ -161,7 +161,8 @@ does that work with it, and runs the loop with `run_editor!(editor)`.
 """
 run_example(documents::Vector, projections::Vector, names::Vector;
             profile::Bool = false, kwargs...) =
-    _run_editor_profiled(make_example_editor(documents, projections, names; kwargs...);
+    _run_editor_profiled(_post_acquire_operations!(make_example_editor(documents, projections, names; kwargs...),
+                                                   documents);
                          profile = profile)
 
 """
@@ -462,7 +463,15 @@ function _run_window_scene(docs, projs, names; width, height, backend,
     editor = _make_window_scene_editor(docs, projs, names; width=width, height=height,
                                        backend=backend, compose=compose,
                                        content_unwrap=content_unwrap, feeds=feeds)
+    _post_acquire_operations!(editor, docs)
     _run_editor_profiled(editor; profile=profile, mcp=mcp)
+end
+
+# The documents enter the window as its loop starts: each acquire applies at the
+# first drain of the loop, so a sheet that holds no value computes off the loop.
+function _post_acquire_operations!(editor, documents)
+    foreach(document -> post_operation!(editor, AcquireDocumentOperation(document)), documents)
+    editor
 end
 
 # Build a projection that projects the screen down to each

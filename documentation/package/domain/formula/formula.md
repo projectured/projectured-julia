@@ -50,6 +50,10 @@ A key in the name of a formula renames it: the edit of the name and the new name
 
 The graphics rows draw a formula with math code as a `MathAssignment` of the math domain, followed by `= value`. A formula with Julia code is one line: `name = code = value`. These rows print only; they have no reader.
 
+`FormulaEnvironmentToTable()` draws a sheet as the grid of a spreadsheet, a `WidgetTable` for the natural renderer. A formula whose name is a cell name, such as `B3`, shows its stored value in that cell, a text without its quotes, and `⋯` while it computes. The grid has a column for each letter and a row for each number up to the last cell that a name names; a formula with another name is not in it. Each cell is a label that reads the stored value of its formula, so a new value draws only its own cell again. The grid prints only; a person edits the sheet in the text view.
+
+A sheet in a page of another domain takes the keys when it is the root of a chain of its own. The natural renderer gives each block of a Markdown page its own chain, so a row `FormulaEnvironment => make_formula_projection_example()` in its `extra` makes a sheet in a page edit as a sheet alone does (`formula_report`). A sheet that one recursion prints inside a template of another domain gets only the gesture bindings from its parent: a key writes its code at once, with no edit mode, and Enter computes nothing.
+
 ### The file
 
 The domain has no file type and no parser of its own. It stores formulas in `.pred` files of the serialization slice. `pred_arguments` writes the name, the code as text, the notation (`:math` or `:julia`) and the display mode. It does not write the value: a window that acquires the sheet computes it again. `make_pred_document` reads the code back with `parse_math` or `parse_julia`, by the notation.
@@ -95,12 +99,20 @@ sheet.formulas[1].code = parse_julia("0.5")  # get_formula_value(sheet.formulas[
 evaluate_operation(editor, ComputeFormulasOperation(sheet))  # the values that a view shows
 ```
 
-- Examples: `formula_example`, from `make_formula_document_example()` and `make_formula_projection_example()`.
-- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file`, `test_formula_math`, `test_formula_names`, `test_formula_evaluation`, `test_formula_stored_value` and `test_formula_task`.
+- Examples, each with `make_formula_projection_example()` unless it says otherwise:
+  - `formula_example`, from `make_formula_document_example()`: one feature of the sheet on each row.
+  - `formula_invoice`, from `make_formula_invoice_document_example()`: a spreadsheet, an invoice whose formulas are named by their cells, A1 to D7.
+  - `formula_invoice_grid`: the same invoice as a grid, with `make_formula_grid_projection_example()`.
+  - `formula_queue`, from `make_formula_queue_document_example()`: the M/M/1 queue in math code, with Greek names and subscripts.
+  - `formula_estimate`, from `make_formula_estimate_document_example()`: estimates of π and of the Euler–Mascheroni constant that compute for a second or more, off the loop. Its sheet holds no value when it is built, and the window computes them when it opens.
+  - `formula_report`, from `make_formula_report_document_example()` and `make_formula_report_projection_example()` of the umbrella: a Markdown page about a loan that holds the sheet that computes it.
+- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file`, `test_formula_math`, `test_formula_names`, `test_formula_evaluation`, `test_formula_stored_value`, `test_formula_task` and `test_formula_grid`. `test_formula_examples()` of the umbrella types a digit and Enter in the invoice and in the report.
 
 ## Limits
 
 - You can not type a new formula yet. `FormulaInsertion` prints a fixed label and has no reader, although its docstring describes a commit on Enter. This is Phase 5 of the plan.
 - A key edits the code of a math formula only. An identifier of Julia code prints through `FormulaIdentifierToSyntaxLeaf`, which maps no text, so a key there reads nothing. Alt+Enter has no new line of the code yet.
-- A formula inside another domain, for example in a table cell, is a goal of the plan (Phase 6). No test or example does it.
+- A formula in a cell of a table of another domain is a goal of the plan (Phase 6). A sheet in a Markdown page works through the natural renderer, as `formula_report` shows; one recursion that prints a sheet inside a template gives it no edit mode.
+- A text literal of the code, such as `"Paper"`, draws no caret. Because a key edits only math code, each input of the examples is math code.
+- The grid of `FormulaEnvironmentToTable` only shows the sheet.
 - Each evaluation of code that holds a lambda makes a new function type in the scratch module of the editor, or of the wiring of the formula, as each line of the Julia REPL does. The cost grows with the computations of such a formula, not with the frames.

@@ -32,6 +32,7 @@ export FormulaInsertionToSyntaxLeaf, FormulaIdentifierToSyntaxLeaf, FormulaFormu
        FormulaEnvironmentToSyntaxNode, FormulaToSyntax
 export FormulaInsertion
 export FormulaFormulaToLayout, FormulaEnvironmentToLayout, make_formula_graphics_entry
+export FormulaEnvironmentToTable
 
 
 include("MathToJulia.jl")
@@ -41,6 +42,7 @@ include("FormulaEdit.jl")
 include("FormulaTheme.jl")
 include("FormulaToSyntax.jl")
 include("FormulaToGraphics.jl")
+include("FormulaToTable.jl")
 
 # The row that lets the natural renderer draw a formula. The registry is
 # runtime state, so the row is added here and not at the top level.

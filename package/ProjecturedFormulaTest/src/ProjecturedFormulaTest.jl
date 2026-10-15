@@ -46,6 +46,7 @@ end
 
 include("../../../test/domain/formula/projection/FormulaToSyntaxTest.jl")
 include("../../../test/domain/formula/projection/FormulaThemeTest.jl")
+include("../../../test/domain/formula/projection/FormulaToTableTest.jl")
 include("../../../test/domain/formula/FormulaFileTest.jl")
 include("../../../test/domain/formula/FormulaMathTest.jl")
 include("../../../test/domain/formula/FormulaNameTest.jl")

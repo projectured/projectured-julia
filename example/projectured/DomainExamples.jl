@@ -114,6 +114,23 @@ const dragging_example       = Example("dragging",        make_dragging_document
 # exists to demonstrate is unaffected.
 const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
 const formula_example        = Example("formula",         make_formula_document_example,        make_formula_projection_example)
+# A spreadsheet: an invoice whose formulas are named by their cells, A1 to D7.
+const formula_invoice_example = Example("formula_invoice", make_formula_invoice_document_example, make_formula_projection_example)
+# The same invoice as the grid of a spreadsheet. Deliberately kept OUT of the
+# `examples` registry below, for the reason `math_display_example` is: the grid
+# only shows the sheet, so the reader and the type-in sweeps have nothing to read.
+# `test_formula_grid()` in the domain suite covers it.
+const formula_invoice_grid_example = Example("formula_invoice_grid", make_formula_invoice_document_example, make_formula_grid_projection_example)
+# The M/M/1 queue in the math notation, with Greek names and subscripts.
+const formula_queue_example  = Example("formula_queue",   make_formula_queue_document_example,  make_formula_projection_example)
+# Formulas that compute for a second or more, off the loop. Deliberately kept OUT
+# of the `examples` registry below: a sweep that commits a formula computes it on
+# the task of the sweep, a second or more each time. Use it with
+# `run_example(formula_estimate_example)`: the window computes the values when it
+# opens the sheet, and the editor answers while they compute.
+const formula_estimate_example = Example("formula_estimate", make_formula_estimate_document_example, make_formula_projection_example)
+# A Markdown page that holds a sheet: a loan repayment report.
+const formula_report_example = Example("formula_report",  make_formula_report_document_example, make_formula_report_projection_example)
 # `versioning_example` is deliberately kept OUT of the `examples` registry below
 # (like `clipboard_example`). The version-elimination projection selects one of
 # several `ObjectVersion`s by criterion and re-roots edits under
@@ -197,6 +214,9 @@ const domain_examples = Example[
     dragging_example,
     clipboard_example,
     formula_example,
+    formula_invoice_example,
+    formula_queue_example,
+    formula_report_example,
     versioning_example,
     undo_example,
     undo_history_example,

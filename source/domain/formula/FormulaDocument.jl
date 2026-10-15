@@ -95,8 +95,10 @@ is itself.
 function get_formula_key(name::AbstractString)
     text = String(name)
     try
-        read = convert_math_to_julia(parse_math(text))
-        read isa JuliaIdentifier && return read.name
+        # A name that reads as a number, such as `1`, is no math tree.
+        tree = parse_math(text)
+        tree isa MathDocument && (read = convert_math_to_julia(tree)) isa JuliaIdentifier &&
+            return read.name
     catch e
         e isa MathReadingException || e isa ErrorException || rethrow()
     end
@@ -122,10 +124,10 @@ function get_column_letter(col::Integer)
 end
 
 """
-    cell_name(col::Int, row::Int) -> String
+    get_cell_name(col::Int, row::Int) -> String
 
-The A1-style name for a cell at 1-based `(col, row)`: `cell_name(1, 1) == "A1"`,
-`cell_name(2, 1) == "B1"`, `cell_name(27, 3) == "AA3"`.
+The A1-style name for a cell at 1-based `(col, row)`: `get_cell_name(1, 1) == "A1"`,
+`get_cell_name(2, 1) == "B1"`, `get_cell_name(27, 3) == "AA3"`.
 """
 get_cell_name(col::Integer, row::Integer) = get_column_letter(col) * string(row)
 

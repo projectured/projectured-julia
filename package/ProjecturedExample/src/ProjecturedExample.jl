@@ -65,11 +65,12 @@ const _EXAMPLE_DIR = normpath(joinpath(@__DIR__, "../../../example/projectured")
 
 # The cross-domain compositions: a document that mixes two domains, the
 # render-anything example, the engine-feature demonstrations over a domain
-# fixture (clipboard, dragging, focusing, versioning), and the pane and table
-# layouts. A per-domain example package holds only its own domain.
+# fixture (clipboard, dragging, focusing, versioning), the page of prose that
+# holds a sheet, and the pane and table layouts. A per-domain example package holds only its own domain.
 include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "FormulaReportDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "TableDocumentExample.jl"))
@@ -79,6 +80,7 @@ include(joinpath(_EXAMPLE_DIR, "UndoDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "FormulaReportProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
@@ -117,6 +119,8 @@ export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, bo
 export build_file_editor, clipboard_example, conversation_editor_example
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
+export formula_invoice_example, formula_invoice_grid_example, formula_queue_example
+export formula_estimate_example, formula_report_example
 export chart_example, chart_line_example, chart_bar_example,
        chart_histogram_example, chart_scatter_example, chart_strip_example,
        chart_inspector_example
@@ -161,7 +165,10 @@ export make_filesystem_projection_example, make_filesystem_widget_projection_exa
 export make_focusing_document_example, make_focusing_projection_example
 export make_formula_document_example, make_formula_projection_example
 export make_formula_environment_document_example, make_formula_formula_document_example
-export make_formula_insertion_document_example
+export make_formula_insertion_document_example, make_formula_invoice_document_example
+export make_formula_queue_document_example, make_formula_estimate_document_example
+export make_formula_grid_projection_example
+export make_formula_report_document_example, make_formula_report_projection_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,

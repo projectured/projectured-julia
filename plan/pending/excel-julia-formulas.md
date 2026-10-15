@@ -296,6 +296,17 @@ consistent with how other domains add structural operations.
 
 ## Phase 6 — Embedding in host domains
 
+**2026-10-15, partly done on branch `editor-always-answers`:** a sheet in a
+Markdown page edits as a sheet alone does when the natural renderer draws the page
+and has the row `FormulaEnvironment => make_formula_projection_example()`: each
+block gets a chain of its own, so the sheet reader is the root of its chain
+(`formula_report`, `test_formula_examples`). One recursion that prints the sheet
+inside the Markdown template does not work: the template translates a claimed key
+through the mappers, so the sheet reader never runs, and a key writes the code
+with no edit mode. `FormulaEnvironmentToTable` draws a sheet as a grid of cell
+names, and prints only (`formula_invoice_grid`). A formula in a table cell is
+still open.
+
 **⏳ OPEN (verified absent 2026-08-12):** No Formula type is used in any other
 domain or projection (`grep -rl "Formula" package/*/main package/*/example
 package/*/document package/*/test | grep -v "^package/formula/"` finds only
