@@ -679,7 +679,7 @@ nothing.
   which its own feeds copy from the stores (D7); C, nothing in this plan: L21-1
   stays in the audit plan with POLICY-7. A and B both need the new way for an
   insertion to find its editor.
-- **D14. Open, found by the live check of 8.4:** a code unit can wait behind a
+- **D14. Decided by the owner, 2026-10-15: A, with C as the fallback, and the launchers** ("I agree with the recommendations, also update jp, jo, ji"). Found by the live check of 8.4: a code unit can wait behind a
   task that computes. A unit is pinned to the first default thread that is not
   the thread of the loop. The formula task, background work and the tasks that
   model code starts run on the default pool too. Julia does not preempt a task,
@@ -698,6 +698,16 @@ nothing.
     thread; pin it only when the loop runs on a default thread (D10). A unit
     then waits only when every default thread computes.
   Recommended (mine): A, with C where the process has one interactive thread.
+  The decided rule, from the threads that the process has:
+  1. an interactive thread that neither the loop nor the main task uses: the
+     unit is pinned there (A);
+  2. else, with the loop on an interactive thread: the unit starts on the default
+     pool with no pin (C);
+  3. else, with the loop on a default thread: today's pin to another default
+     thread, or inline when there is none (D10).
+  In cases 2 and 3 the window says once, in the log and on the status bar, how to
+  start Julia. `bin/projectured`, a built binary and the launcher of the omnet-julia
+  IDE start Julia with `--threads=auto,2`; the aliases `jp`, `jo` and `ji` too.
 - **D15. Open, found by the live check of 8.4:** no window watches its files. No
   code calls `make_file_change_feeds()` or `watch_document_file!` outside the
   tests, on `main` too, so a change of an open file on disk does not reach its
@@ -1535,6 +1545,12 @@ nothing.
           took 7.1 s in a run where the formula task computed. The window answers
           meanwhile (held frames), but the bar stays and a stop has no effect.
     - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
+    - [ ] 8.6 D14: the thread of a code unit by the decided rule, with a test for
+      each case; the notice in the log and on the status bar; `--threads=auto,2`
+      in `bin/projectured`, in a built binary (its main starts it again with the
+      option when it has one interactive thread) and in the launcher of the
+      omnet-julia IDE; the aliases `jp`, `jo` and `ji`; the guides; the live check
+      of the starvation again.
 
 ## Not in this plan
 
