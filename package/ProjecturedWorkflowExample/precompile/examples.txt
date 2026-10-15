@@ -1,0 +1,12 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedWorkflowExample.make_workflow_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedWorkflowExample.make_workflow_journal_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedWorkflowExample.make_workflow_projection_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_card_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_catalog_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_decision_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_entry_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_journal_document_example)}
+Tuple{typeof(ProjecturedWorkflowExample.make_workflow_step_document_example)}
