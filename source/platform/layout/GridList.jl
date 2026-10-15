@@ -150,9 +150,8 @@ end
 # One row: its cells printed through the recursion and placed in their columns,
 # as a print that the grid can keep. The path of its cells is `children[k][c]`,
 # where `k` is the count of the row from the head: a computation for a row that
-# the grid keeps, and the `k` of this link for a row that it does not keep, a
-# value that is no mutable object or a row that is nearer the head at another
-# place of the list.
+# the grid keeps, and the `k` of this link for a row that it does not keep, a row
+# that is nearer the head at another place of the list.
 function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
                               k::Int, row)
     n = state.columns
@@ -210,9 +209,11 @@ end
 
 # The count of `row` from the head, for its print at `k`: a computation when the
 # grid keeps the print, and `k` when it does not. `linked` holds the count of the
-# last link, which the computation gives when the walk does not reach the row.
+# last link, which the computation gives when the walk does not reach the row. A
+# row that is `===` to another, the same object or an equal value that is no
+# mutable object, is one row at two places, and the place nearest the head keeps
+# the print.
 function _make_grid_list_count(doc, state::GridListState, row, k::Int, linked)
-    ismutable(row) || return ImmutableCell{Any}(k)
     count = Cell(@computation something(_count_grid_list_row(doc, state, row), linked[]))
     peek(count) == k ? count : ImmutableCell{Any}(k)
 end
@@ -277,7 +278,6 @@ function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
 end
 
 function _take_kept_grid_list_row(state::GridListState, row, k::Int)
-    ismutable(row) || return nothing
     kept = get(state.kept, row, nothing)
     kept === nothing && (kept = get(state.kept_before, row, nothing))
     kept === nothing && return nothing

@@ -142,8 +142,10 @@ findings, which the owner asked to fix on 2026-10-15:
       another projection must.
     - The walk of the count stops one row past the rows linked under the head
       on each side, so a row that is not in the list ends it; then the count is
-      the count of the last link. A row that is no mutable object is not kept,
-      because `===` compares such a value by its content.
+      the count of the last link. A row that is no mutable object, such as a
+      `CellVector` (an immutable struct of cells), is kept too: `===` compares
+      such a value by its content, so two equal rows are one row at two places,
+      and the rule of the nearest place holds for them.
     - The path of a row types `children[k]` against the grid once, at the
       print, and `[c]` against the row, so a move costs no walk of the types.
     - The grid whose columns are a list (`GridColumnList.jl`) prints its rows
