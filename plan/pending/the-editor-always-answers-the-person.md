@@ -679,6 +679,35 @@ nothing.
   which its own feeds copy from the stores (D7); C, nothing in this plan: L21-1
   stays in the audit plan with POLICY-7. A and B both need the new way for an
   insertion to find its editor.
+- **D14. Open, found by the live check of 8.4:** a code unit can wait behind a
+  task that computes. A unit is pinned to the first default thread that is not
+  the thread of the loop. The formula task, background work and the tasks that
+  model code starts run on the default pool too. Julia does not preempt a task,
+  so one that computes without a wait on the thread of the unit holds the unit
+  until it ends: the bar stays, and a stop has no effect. Measured: a call that
+  only starts two busy tasks of 8 s answered after 8.1 s. The launcher starts
+  Julia with the default threads, one default thread, so the formula task and a
+  unit always share it. The options:
+  - A: pin the unit to an interactive thread other than the one of the loop
+    when the process has one, and start the application with two interactive
+    threads (`--threads=auto,2` in `bin/projectured` and the builds). No task of
+    the default pool runs there. With one interactive thread, C.
+  - B: keep the pin, and document the limit.
+  - C: start the unit on the default pool with no pin when the loop runs on an
+    interactive thread, so a unit that yields goes on on any free default
+    thread; pin it only when the loop runs on a default thread (D10). A unit
+    then waits only when every default thread computes.
+  Recommended (mine): A, with C where the process has one interactive thread.
+- **D15. Open, found by the live check of 8.4:** no window watches its files. No
+  code calls `make_file_change_feeds()` or `watch_document_file!` outside the
+  tests, on `main` too, so a change of an open file on disk does not reach its
+  tab, and row R7 can not be checked live. The options:
+  - A: the application window watches each file that a tab opens and registers
+    the feed (`run_application`, `make_application_window`), as D13 assumed.
+  - B: leave it to a later plan, and say in the guide of the slice that no
+    window uses it yet.
+  Recommended (mine): A, as its own small step after this plan, because it adds
+  a behavior that a person sees.
 - **D13. Decided by the owner, 2026-10-15: A** (step 6.1): how a drain tells a
   save from a change of another program. For a file that a person edits, the watcher reads the file on disk.
   A save of the document writes that file too, and the drain must not read the
@@ -1463,6 +1492,29 @@ nothing.
         editor, not as a document that it reaches through a wrapper. The tests of
         step 7 make the editor with a pane tree as its document, so they did not
         reach it. Fixed in `PaneProgram.jl`, with a case in `PaneReaderTest.jl`.
+      - The runs of 2026-10-15 (the application with `-t 2`: 1 interactive and 2
+        default threads, the MCP server, a driver on a default thread that calls
+        tools over HTTP, pushes SDL events and takes shots of the window):
+        - R13: the window is up at 26 s, the MCP server answers at 46 s to 50 s.
+        - R1: `sleep(4); 21 * 2` answers `42` after 4.1 s; the bar shows
+          "execute_julia_code 1 s" and "Stop (Esc)". A pushed Escape at 1.5 s of
+          `sleep(30)` answers `InterruptException` after 1.9 s.
+        - R9: a second call 0.5 s into a call of 3 s waits, and answers after it.
+        - R4: `search_guides` answers in 1.5 s; R3: `undo` answers.
+        - R15: `background = true` with `sleep(3); 7` answers `7` after 3.2 s.
+        - R14 (D4): code that computes 20 s, two pushed closes: the bar asks "The
+          code does not stop. Quit without saving?" with "Quit without saving" and
+          "Stop (Esc)"; the call ends with `:done` after 20 s.
+        - R7: the application registers no `FileChangeFeed`, on `main` too, so a
+          change of an open file on disk does not reach its tab. Open, D15.
+        - Starvation, D14: a unit is pinned to the first default thread that is
+          not the loop's. A task of the default pool that computes without a
+          wait, on that thread, delays the unit until it ends, because Julia does
+          not preempt a task. A call that only starts two busy tasks of 8 s with
+          `Threads.@spawn :default` answered after 8.1 s instead of 0.1 s: at the
+          end of the unit its task yields, and thread 2 runs a busy task. `undo`
+          took 7.1 s in a run where the formula task computed. The window answers
+          meanwhile (held frames), but the bar stays and a stop has no effect.
     - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
 
 ## Not in this plan
