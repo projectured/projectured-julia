@@ -43,17 +43,20 @@ _get_clock_seconds(time) = time isa Float64 ? time : convert(Float64, time)::Flo
 The time of `clock`. The read makes the computation that reads it depend on the
 clock, so the computation computes again after the next write of a new time.
 
-Use it in a computation that animates, so that each write of the time moves the
-animation.
+Use it to animate: read it in a computation, so that each write of the time moves
+the animation.
 
 # Example
 
     x = Cell(@computation 100 * get_reactive_clock_time(clock))
+    angle_1 = () -> 2pi * get_reactive_clock_time(editor.clock)
 
 A time that is not a real number throws a `MethodError`.
 
 See also `get_clock_time`, the read that records nothing.
 """
+function get_reactive_clock_time end
+
 get_reactive_clock_time(clock::Clock) = _get_clock_seconds(clock.time)
 
 """
@@ -74,6 +77,8 @@ A time that is not a real number throws a `MethodError`.
 
 See also `get_reactive_clock_time`.
 """
+function get_clock_time end
+
 get_clock_time(clock::Clock) = _get_clock_seconds(peek(getfield(clock, :time)))
 
 """

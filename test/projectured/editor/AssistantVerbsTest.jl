@@ -138,6 +138,16 @@ function test_assistant_verbs()
         @test get_navigator_page(last(pages)) === get_document(people[2])
     end
 
+    @testset "tell: a shape that reads the clock moves with it" begin
+        circle = GraphicsCircle(() -> 50 + 30 * cos(get_reactive_clock_time(editor.clock)), 50, 5)
+        set_clock_time!(editor.clock, 0.0)
+        @test circle.cx == 80
+        set_clock_time!(editor.clock, Float64(pi))
+        @test circle.cx == 20
+        @test occursin("2pi * get_reactive_clock_time",
+                       _run_assistant_code(editor, "read_function_documentation(\"ClockModule\", \"get_reactive_clock_time\")"))
+    end
+
     @testset "tell: a drawing, a chart and a graph draw in a tab" begin
         for (title, document) in (
                 ("Sketch", GraphicsCanvas([GraphicsRect(10, 10, 120, 40; color = color_red),
@@ -223,6 +233,13 @@ function test_assistant_documentation(api = make_editor_api())
                    !isempty(example) && !_has_example_parse_error(Meta.parseall(example))
         @test complete || error(string(nameof(entry.module_), ".", name,
                                        " lacks a \"Use it to\" line, a \"See also\" line or an example that parses"))
+        # A function that the assistant calls carries its docstring on the generic
+        # function, which the search answers. A macro has no generic form.
+        value = getfield(entry.module_, name)
+        (value isa Function && !(value isa Type) && !startswith(String(name), "@")) || continue
+        generic = any(doc -> first(doc) === Union{}, ToolModule._collect_binding_docs(entry.module_, name))
+        @test generic || error(string(nameof(entry.module_), ".", name,
+                                      " has no docstring on its generic function"))
     end
     writable = Set{String}(["editor"])
     for entry in set.api
@@ -233,13 +250,6 @@ function test_assistant_documentation(api = make_editor_api())
     for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM)
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
-        # A function that the assistant calls carries its docstring on the generic
-        # function, which the search answers. A macro has no generic form.
-        value = getfield(entry.module_, name)
-        (value isa Function && !(value isa Type) && !startswith(String(name), "@")) || continue
-        generic = any(doc -> first(doc) === Union{}, ToolModule._collect_binding_docs(entry.module_, name))
-        @test generic || error(string(nameof(entry.module_), ".", name,
-                                      " has no docstring on its generic function"))
         name = String(head.captures[1])
         @test name in writable || error("EDITOR_SYSTEM names `" * name * "`, which no model can write")
     end

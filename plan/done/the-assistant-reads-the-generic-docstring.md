@@ -1,7 +1,7 @@
 # The assistant reads the docstring of the generic function
 
-Status: a plan. Written 2026-10-15 from the answer of the owner on that day. It
-stands on the branch `docstring-above-marker`, which is not landed yet.
+Status: done 2026-10-15. It stands on the branch `docstring-above-marker`, which
+was not landed when this plan was done.
 
 ## 1. The ask of the owner (2026-10-15)
 
@@ -35,7 +35,7 @@ stands on the branch `docstring-above-marker`, which is not landed yet.
 - [x] 3. Done 2026-10-15. The documentation tests of both repositories assert, for every declared
   function, a docstring on the generic function with the form of the assistant
   plan; a test of the kernel covers the rule of step 1 on a module of its own.
-- [ ] 4. The tests, a commit per step, and the report.
+- [x] 4. Done 2026-10-15. The tests, a commit per step, and the report.
 
 ## What was built
 

@@ -362,6 +362,9 @@ make_editor_api() = Any[
                        :GraphicsCircle, :GraphicsArc, :GraphicsPolyline, :GraphicsPolygon,
                        :GraphicsSpline, :GraphicsImage),
     StyleModule => (:StyleColor, :StyleFont),
+    # The time of the animation clock of the editor, which a live coordinate of a
+    # shape reads to move.
+    ClockModule => (:get_reactive_clock_time, :get_clock_time),
     # The commands of a part, which a key or the command palette runs for the
     # person, listed and run by their words.
     GestureHelpModule => (:describe_commands, :run_command!),
@@ -432,7 +435,10 @@ const EDITOR_SYSTEM =
     "`GraphicsCircle`, `GraphicsPolyline`, with `StyleColor` and `StyleFont`. " *
     "`Chart(title, [ChartLineSeries(label, xs, ys)])` is a chart, and " *
     "`GraphGraph(vertices, edges)` of `GraphVertex(content)` and " *
-    "`GraphEdge(source, target)` is a graph. `open_page!(part)` opens a part as a " *
+    "`GraphEdge(source, target)` is a graph. A shape takes a function of no " *
+    "arguments for a coordinate, and one that reads " *
+    "`get_reactive_clock_time(editor.clock)` moves the shape on each frame. " *
+    "`open_page!(part)` opens a part as a " *
     "page of its own, `select_part!(part)` selects a part to show it, and " *
     "`write_os_clipboard!(text)` gives the person a text to paste. " *
     "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *

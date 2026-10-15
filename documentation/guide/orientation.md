@@ -19,7 +19,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `projection/higher-order-projections`, `projection/generic-projections` |
 | Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
 | Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `get_parent`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
-| Work beside the person | read: `find_selected_part`, `find_part_under_pointer`, `find_focused_pane`, `describe_undo_history`, `print_pred_text`; tell: `GraphicsCanvas`, `Chart`, `GraphGraph`, `open_page!`, `select_part!`; control: `change_setting!`, `describe_settings`; change: `describe_commands`, `run_command!`, `parse_natural_text` | `guide/orientation` |
+| Work beside the person | read: `find_selected_part`, `find_part_under_pointer`, `find_focused_pane`, `describe_undo_history`, `print_pred_text`; tell: `GraphicsCanvas`, `Chart`, `GraphGraph`, `get_reactive_clock_time`, `open_page!`, `select_part!`; control: `change_setting!`, `describe_settings`; change: `describe_commands`, `run_command!`, `parse_natural_text` | `guide/orientation` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `make_replace_document_operation` / `make_insert_elements_operation` / `make_delete_elements_operation`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
@@ -201,6 +201,18 @@ open_pane!(chart_1; title = "Sales")
 paris_1 = GraphVertex(PrimitiveString("Paris"))
 lyon_1 = GraphVertex(PrimitiveString("Lyon"))
 open_pane!(GraphGraph([paris_1, lyon_1], [GraphEdge(paris_1, lyon_1)]); title = "Roads")
+```
+
+A coordinate of a shape can be a function of no arguments. When it reads the
+clock of the editor, the shape moves on each frame, and it stops when its tab
+closes:
+
+```julia
+orbit_1 = GraphicsCanvas([
+    GraphicsCircle(() -> 100 + 60 * cos(get_reactive_clock_time(editor.clock)),
+                   () -> 100 + 60 * sin(get_reactive_clock_time(editor.clock)), 10;
+                   color = color_blue)]; w = 200, h = 200)
+open_pane!(orbit_1; title = "Orbit")
 ```
 
 `open_page!(part)` opens one part of a large document as a page of its own, and
