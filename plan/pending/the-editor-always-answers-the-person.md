@@ -708,7 +708,7 @@ nothing.
   In cases 2 and 3 the window says once, in the log and on the status bar, how to
   start Julia. `bin/projectured`, a built binary and the launcher of the omnet-julia
   IDE start Julia with `--threads=auto,2`; the aliases `jp`, `jo` and `ji` too.
-- **D15. Open, found by the live check of 8.4:** no window watches its files. No
+- **D15. Decided by the owner, 2026-10-15: A** ("agreed A"), as its own plan after this one: [a-window-watches-its-open-files.md](a-window-watches-its-open-files.md). Found by the live check of 8.4: no window watches its files. No
   code calls `make_file_change_feeds()` or `watch_document_file!` outside the
   tests, on `main` too, so a change of an open file on disk does not reach its
   tab, and row R7 can not be checked live. The options:
