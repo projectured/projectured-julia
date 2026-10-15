@@ -160,13 +160,13 @@ function _make_roster_list_table(rows, made, headers, view)
 end
 
 # The list of the cells of the rows of `rows` from the row `anchor`, the same cells
-# for a row that stays, made when a walk first reaches the row; no rows is an
-# empty vector. `made` keeps the cells from one list to the next, and forgets a
-# row that left.
+# for a row that stays, made when a walk first reaches the row; `nothing` is a
+# list with no rows. `made` keeps the cells from one list to the next, and
+# forgets a row that left.
 function _make_roster_row_list(rows, made::IdDict{Any,Any}, anchor::Int)
     present = IdDict{Any,Bool}(row => true for row in rows)
     filter!(entry -> haskey(present, entry.first), made)
-    isempty(rows) && return CellVector()
+    isempty(rows) && return nothing
     make_index_list(length(rows), anchor, i -> (row = rows[i]; get!(() -> _make_row_cells(row), made, row)))
 end
 

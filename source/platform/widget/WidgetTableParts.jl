@@ -91,9 +91,9 @@ function _check_table_parts(w::WidgetTable, height)
     headers isa ListNode || isempty(headers) ||
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
     body = _get_body_rows(w)
-    body isa ListNode || isempty(body) ||
+    body isa ListNode || body === nothing || isempty(body) ||
         error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
-              "of rows or an empty vector")
+              "of rows, `nothing` or an empty vector")
     if headers isa ListNode || w.corner !== nothing
         policy = w.row_policy
         (policy isa SizePolicy && policy.preferred !== nothing &&

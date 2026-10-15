@@ -158,6 +158,17 @@ function test_roster_table()
         runs[3].status = "done"
         again = _roster_drawn_texts(io.output)
         @test haskey(again, "3") && again["5"] === before["5"]
+        # A filter that keeps no row at the print gives a list with no rows, and
+        # the rows that it keeps later are drawn.
+        foreach(run -> run.status = "failed", runs)
+        @test !haskey(_roster_drawn_texts(io.output), "5")
+        empty_roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]), runs)
+        empty_arranged = ArrangementDocument(empty_roster, ArrangementEntry[ArrangementEntry(rows_at,
+            Any[ArrangementFilter(Any[ArrangementCondition(status, :equal, "done")])])])
+        empty_io = print_document(natural, nothing, empty_arranged, context)
+        @test !haskey(_roster_drawn_texts(empty_io.output), "5")
+        runs[5].status = "done"
+        @test haskey(_roster_drawn_texts(empty_io.output), "5")
     end
 
     # The table moves the head of its list to the row at the top when that row is

@@ -10307,9 +10307,11 @@ end
 _is_column_major(w::WidgetTable) = w.cell_order === :column_major
 
 # Whether the body of `w` is a list in either direction, which the parts of a
-# table draw one row at a time.
+# table draw one row at a time. `nothing` is a list with no rows, as in a grid,
+# so a table whose list is empty at its print draws the rows that come later.
 _is_listed_body(w::WidgetTable) =
-    w.cells isa ListNode || (_is_column_major(w) && any(column -> column isa ListNode, w.cells))
+    w.cells isa ListNode || w.cells === nothing ||
+    (_is_column_major(w) && any(column -> column isa ListNode, w.cells))
 
 # The cell in row `r` and column `c` of the body of `w`, in the order of the
 # table, or an empty cell where the body has none.
