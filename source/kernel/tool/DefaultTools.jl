@@ -105,6 +105,21 @@ function _declared_sentence(set::ToolSet)
         (chosen == 0 ? " are " : ", and " * string(chosen) * " more names, are ")
 end
 
+# What the verbs of a window of the editor do, as the description says it when
+# the declaration holds them.
+const _WINDOW_VERBS_DESCRIPTION =
+    "The verbs READ what the person does and what the window shows " *
+    "(`find_selected_part`), TELL the person with a document in a tab, a drawing " *
+    "or a chart (`open_pane!`), CONTROL the window, and CHANGE a document " *
+    "(`run_command!`). No verb but `select_part!` moves the selection of the " *
+    "person. The guide resource://guide/guide/orientation shows each in code.\n\n"
+
+function _describe_window_verbs(set::ToolSet)
+    declared = Set(name for entry in set.api for name in get_api_entry_names(entry))
+    all(name -> name in declared, (:find_selected_part, :open_pane!, :run_command!, :select_part!)) ?
+        _WINDOW_VERBS_DESCRIPTION : ""
+end
+
 function _execute_julia_code_description(set::ToolSet)
     isempty(set.api) && return _WHOLE_SURFACE_DESCRIPTION
     "Execute Julia code in the editor process. " *
@@ -112,6 +127,7 @@ function _execute_julia_code_description(set::ToolSet)
     "editor, so the code does not pass it to the verb.\n\n" *
     _declared_sentence(set) * "in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
+    _describe_window_verbs(set) *
     "FIND THEM BEFORE YOU WRITE ANY CODE, with the two tools that answer that:\n" *
     "- `search_api` lists them, with one line of description each. When you know " *
     "what you want to do but not its name, call it with mode \"description\" and " *

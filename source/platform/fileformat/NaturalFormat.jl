@@ -11,6 +11,14 @@ _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(
 
 Read and parse `path` into a document, choosing the parser by file extension.
 Errors on an extension no domain registered.
+
+Use it to read a text file of a natural format, such as JSON, into a document.
+
+# Example
+
+    people_1 = import_document("people.json")
+
+See also `export_document` and `read_document_file`.
 """
 function import_document(path::AbstractString)
     ext    = lowercase(splitext(path)[2])
@@ -29,6 +37,15 @@ the document. The guard rejects an extension whose registered parser is not the
 parser of the document's own format, because a later `import_document` would read
 the text with the wrong grammar. An extension with no parser passes, and so does a
 second name of the same format: a YAML document can go to `.yaml` or `.yml`.
+
+Use it to write a document as the natural text of its format.
+
+# Example
+
+    people_1 = import_document("people.json")
+    export_document(people_1, "people_copy.json")
+
+See also `import_document` and `print_natural_text`.
 """
 function export_document(document::Document, path::AbstractString)
     ext    = lowercase(splitext(path)[2])

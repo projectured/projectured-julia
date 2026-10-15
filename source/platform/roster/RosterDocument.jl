@@ -198,6 +198,14 @@ the editor, and the link is no editor.
 
 A filter, a sort, a group and the first items of an arrangement act on `rows` as
 on any collection.
+
+Use it to list the members of one kind from the whole window, as the rows of a table.
+
+# Example
+
+    roster_1 = Roster(TabDocuments(FileDocument); columns = ["name", "has_edits"], title = "Files")
+
+See also `show_roster!` and `describe_roster_sources`.
 """
 @document struct Roster <: Document
     source::Any

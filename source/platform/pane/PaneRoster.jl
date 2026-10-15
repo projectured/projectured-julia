@@ -11,9 +11,13 @@ shows the roster, which its link names. A tab that opens, closes or comes back
 with an undo changes the rows; an edit inside a document does not gather the tabs
 again.
 
+Use it to give a roster the documents that the tabs of the window show.
+
 # Example
 
     Roster(TabDocuments(FileDocument); columns = ["name", "folder", "has_edits"])
+
+See also `Roster` and `ItemsWithin`.
 """
 struct TabDocuments
     type::Type

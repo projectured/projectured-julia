@@ -232,6 +232,8 @@ Record a decision under the step or the option `node`: the question, its options
 and, when `chosen` is the index of one, the chosen option and the reason. Answer
 the new decision. The entry of the decision says that you made it.
 
+Use it to record a question with its options under a step or an option.
+
 Use it at an important point of the work: when a question with more than one
 answer is settled, or when the person must settle one. Record the options that
 were rejected too, with `reject_workflow_option!`, so the record shows what was
@@ -242,6 +244,8 @@ tried. Do not record every turn.
     record_workflow_decision!(step, "How to store a workflow",
                               [".pdoc binary", ".pred with markers"];
                               chosen = 2, reason = "a reference into another file is durable")
+
+See also `choose_workflow_option!`, `reject_workflow_option!`.
 """
 function record_workflow_decision!(node, question, options; chosen::Integer = 0, reason = "",
                                    editor = get_evaluation_editor())
@@ -264,6 +268,14 @@ Choose the option at the 1-based `index` of `decision`, for `reason`, and write 
 `:decision` entry by you into the journal of the decision. An option that was
 chosen before becomes `:open`. `reason = nothing` keeps the reason that the option
 has. Answer the decision.
+
+Use it to settle a decision with one of its options.
+
+# Example
+
+    choose_workflow_option!(decision_1, 2; reason = "it needs no new tool")
+
+See also `reject_workflow_option!`, `record_workflow_decision!`.
 """
 function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
@@ -283,6 +295,14 @@ end
 Reject the option at the 1-based `index` of `decision`, for `reason`. The option
 stays, with its steps and its reason, as the record of a branch that was tried.
 `reason = nothing` keeps the reason that the option has. Answer the decision.
+
+Use it to record that an option of a decision is not taken.
+
+# Example
+
+    reject_workflow_option!(decision_1, 1; reason = "no domain can add a tool")
+
+See also `choose_workflow_option!`, `record_workflow_decision!`.
 """
 function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
@@ -305,8 +325,16 @@ option. `text` is a string or a document, such as a Markdown page. `kind` is
 `:comment`, `:decision` or `:link`; `source` is the document the entry comes
 from, such as a turn of the conversation. Answer `node`.
 
+Use it to write a finding or a link into the journal of a node.
+
 Use it for a fact that the work needs later: a finding, a constraint, a result,
 a link to a document. Do not record every turn.
+
+# Example
+
+    add_workflow_entry!(step_1, "The view embeds a card through the renderer."; kind = :comment)
+
+See also `add_workflow_card!`, `collect_workflow_entries`.
 """
 function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothing,
                              editor = get_evaluation_editor())
@@ -323,6 +351,14 @@ end
 
 Add an open step that says `title` after the last child of `node`, a step or an
 option. Answer the new step.
+
+Use it to add a sub-step to a step or to an option.
+
+# Example
+
+    step_2 = add_workflow_step!(step_1, "Write the view")
+
+See also `change_workflow_state!`, `record_workflow_decision!`.
 """
 function add_workflow_step!(node, title; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_step!") do
@@ -343,6 +379,14 @@ by you that names it. A step is `:open`, `:active`, `:done` or `:dropped`; an
 option is `:open`, `:chosen`, `:rejected` or `:parked`. Answer `node`.
 
 Use it when a step starts, when it is done, or when it is dropped.
+
+Use it to mark a step or an option as active, done, dropped or parked.
+
+# Example
+
+    change_workflow_state!(step_1, :done)
+
+See also `add_workflow_step!`, `choose_workflow_option!`.
 """
 function change_workflow_state!(node, state::Symbol; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "change_workflow_state!") do
@@ -363,6 +407,12 @@ in the card edits `content`. Answer `node`.
 
 Use it to keep a document that the work needs in view: a table, a chart, a part
 of a file.
+
+# Example
+
+    card_1 = add_workflow_card!(step_1, PrimitiveString("a note"); title = "Note")
+
+See also `add_workflow_entry!`, `add_workflow_step!`.
 """
 function add_workflow_card!(node, content; title = "", editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_card!") do
@@ -391,6 +441,12 @@ Every entry of the tree under `workflow`, the oldest first, as `node => entry`.
 only the entries whose text holds it, without regard to case.
 
 Use it to read what was decided and found before you continue a workflow.
+
+# Example
+
+    entries_1 = collect_workflow_entries(workflow_1; kind = :decision)
+
+See also `add_workflow_entry!`, `WorkflowJournal`.
 """
 function collect_workflow_entries(workflow; author::Union{Nothing, Symbol} = nothing,
                                   kind::Union{Nothing, Symbol} = nothing, text::AbstractString = "")

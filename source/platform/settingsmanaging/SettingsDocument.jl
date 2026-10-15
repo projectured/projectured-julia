@@ -97,7 +97,7 @@ setting, writes it, and applies it at once. `name` is the name of a setting, as
 or that two groups have, is refused. A value that does not fit changes nothing,
 and the log of the window says why.
 
-Use it when the person asks you to change how the window looks or works.
+Use it to change how the window looks or works when the person asks for it.
 
 # Example
 

@@ -401,8 +401,8 @@ function make_unsynced_placeholder end
 
 The document that `node` stands for.
 
-Use it where code needs the document itself and may have been handed a
-transparent wrapper around it: a history, a version list, a clipboard slice. The
+Use it to get the document itself when the code can hold a transparent wrapper
+around it: a history, a version list, a clipboard slice. The
 default answers `node`, so a caller that names this asks a question every
 document can answer, and a wrapper adds one method.
 
@@ -468,5 +468,13 @@ string form. By default the result is **document-scoped**: a scalar match folds
 up to the nearest enclosing `Document`; pass `raw=true` to return the exact
 matched value. `descend(parent, child)` returns whether the walk enters `child`;
 see `walk_document`.
+
+Use it to list the documents that hold a text, or that a test accepts, anywhere in a document.
+
+# Example
+
+    matches_1 = search_documents(editor.document, "temperature")
+
+See also `get_edited_document` and `get_wrapped_document`.
 """
 function search_documents end

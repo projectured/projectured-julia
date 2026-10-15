@@ -52,6 +52,15 @@ Write `document` to `path`, choosing the format by extension: the binary snapsho
 format for `.pdoc`, the natural text format for an extension a domain parses,
 and the registered file type for any other extension that has one (`.pred`,
 `.txt`, no extension). An extension with neither is written as natural text.
+
+Use it to save a document to a file, in the format of the extension of the file.
+
+# Example
+
+    notes_1 = read_document_file("notes.json")
+    write_document_file(notes_1, "notes_copy.json")
+
+See also `read_document_file` and `export_document`.
 """
 function write_document_file(document::Document, path::AbstractString)
     _ext(path) == _BINARY_EXT && return save_document(document, path)
@@ -69,6 +78,14 @@ Read `path` into a document. When the file exists the format is chosen by
 extension, as [`write_document_file`](@ref) chooses it. When it does not exist,
 return a fresh extension-appropriate seed (see [`make_document_for`](@ref)) so a
 new file opens as an editable placeholder.
+
+Use it to read a file of any supported format into a document.
+
+# Example
+
+    notes_1 = read_document_file("notes.json")
+
+See also `write_document_file` and `import_document`.
 """
 function read_document_file(path::AbstractString)
     isfile(path) || return make_document_for(path)
@@ -126,6 +143,14 @@ from itself. The tab then holds the file that
 application gives every file it opens an overlay of its own — a history, say —
 without this layer naming one. A file that is its own content is its content, so
 `wrap` is applied to the file, and the result is what `wrap` makes.
+
+Use it to make the document of a file, with the content that the file holds on the disk.
+
+# Example
+
+    file_1 = make_file_tab("notes.json")
+
+See also `make_file_tab_content` and `read_document_file`.
 """
 function make_file_tab(path::AbstractString, wrap = identity)
     file_type = get_file_document_type(path)
@@ -145,6 +170,13 @@ The scroll is made here, where a file tab is made, and not by the tab: a tab pag
 gets no scroll of its own, because a page can hold two parts that each scroll.
 
 Use it to open a file in a tab.
+
+# Example
+
+    content_1 = make_file_tab_content("notes.json")
+    open_pane!(content_1; title = "notes.json")
+
+See also `make_file_tab` and `open_pane!`.
 """
 make_file_tab_content(path::AbstractString, wrap = identity) =
     WidgetScrollPane(make_file_tab(path, wrap))
@@ -166,6 +198,15 @@ get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 
 Write `file`'s current content to its own name. A pure side effect; the
 document is not mutated.
+
+Use it to write an open file to the disk, as Ctrl+S does.
+
+# Example
+
+    file_1 = make_file_tab("notes.json")
+    evaluate_operation(editor, SaveFileOperation(file_1))
+
+See also `ReloadFileOperation` and `write_document_file`.
 """
 struct SaveFileOperation <: Operation
     file::FileDocument
@@ -283,6 +324,15 @@ non-existent file seeds the insertion placeholder of its extension again.
 It writes no selection. Ctrl+O answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
 selection pointed into the replaced content.
+
+Use it to read an open file again from the disk, as Ctrl+O does.
+
+# Example
+
+    file_1 = make_file_tab("notes.json")
+    evaluate_operation(editor, ReloadFileOperation(file_1))
+
+See also `SaveFileOperation` and `make_file_tab`.
 """
 struct ReloadFileOperation <: Operation
     file::FileDocument

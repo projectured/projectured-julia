@@ -16,6 +16,15 @@ open when another node comes before it. The root is open at the start. It is
 view state: each write replaces the whole `IdDict` as view state, so an undo
 records no open or closed node, and a file keeps the root and the title and no
 open node.
+
+Use it to show a document and the documents under it as a tree.
+
+# Example
+
+    tree_1 = DocumentTree(get_edited_document(find_pane("people.json")))
+    open_pane!(tree_1; title = "People tree")
+
+See also `Roster` and `open_pane!`.
 """
 @document struct DocumentTree <: Document
     root::Any

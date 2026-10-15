@@ -266,6 +266,8 @@ end
 
 **Stop one task of a group**, the task at `index`, and let the others go on.
 
+Use it to stop one task of a group and let the others run.
+
 # Example
 
     stop_task!(t1, 3)
@@ -296,6 +298,8 @@ Use it to repeat the tasks that failed after a fix.
 `wait = true` runs to the end before answering. **A client of
 `execute_julia_code` never passes it**: the call holds the window until the group
 ends. A person at the REPL can: there the call waits, and the window draws.
+
+See also `stop_task!` and `describe_task_group`.
 """
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
     run_on_editor_task!(() -> rerun_task_group_document!(group, which), editor;
@@ -310,9 +314,13 @@ end
 **Close the pane of a group and its row in the Tasks tab.** A group that runs
 goes on; stop it first with `stop_tasks!(group)` when it must end.
 
+Use it to close a group when its work is over.
+
 # Example
 
     close_task_group!(t1)
+
+See also `stop_task!` and `list_task_groups`.
 """
 function close_task_group!(group::TaskGroupDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_task_group!") do

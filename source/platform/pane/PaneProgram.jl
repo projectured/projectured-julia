@@ -810,6 +810,8 @@ the tree, and put the two together.
     tree_reference = find_pane_tree_reference()
     tree = evaluate_reference(editor.document, tree_reference)
     groups = concat_references(tree_reference, @reference(tree, root.elements))
+
+See also `find_pane_reference` and `show_layout`.
 """
 function find_pane_tree_reference(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane_tree_reference") do
@@ -978,6 +980,8 @@ Use it to name a pane for a verb.
 
 The search goes down only into the documents that can hold a pane
 ([`is_pane_search_step`](@ref)); `descend` names another rule.
+
+See also `find_pane` and `focus_pane!`.
 """
 function find_pane_reference(title::AbstractString; descend = is_pane_search_step,
                              editor = get_evaluation_editor())
@@ -1012,6 +1016,8 @@ closes it.
     items_tab_1 = find_pane("items.json")
     items_1 = get_edited_document(items_tab_1)       # the data the tab shows
     items_group_1 = get_parent(editor, items_tab_1)  # the group that holds the tab
+
+See also `get_edited_document`, `find_pane_reference` and `open_pane!`.
 """
 function find_pane(title::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane") do

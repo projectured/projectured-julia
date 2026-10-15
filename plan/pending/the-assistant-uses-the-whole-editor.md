@@ -399,7 +399,7 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
       (`ACStyleColor`), and the public name is an alias. Each file now gives the
       public name the same text with `@doc`. The macro is unchanged.
 
-- [ ] **6. The documentation.**
+- [x] **6. The documentation.** Done 2026-10-15.
   - A test asserts the docstring form of §6 for every name of `make_editor_api()`
     (ProjecturedPlatformTest) and for every name that the IDE adds (OmnetIdeTest).
     `test_interface_api` becomes part of it.
@@ -409,6 +409,30 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
   - The shared paragraph of the system text gets one example line for each group.
   - The description of `execute_julia_code` names the four groups, so an MCP or
     ACP agent sees them.
+  - What was built:
+    - 90 docstrings got their "Use it to" line, example or "See also" line.
+      `test_assistant_documentation()` (ProjecturedTest, because it loads every
+      domain that registers names) checks the 236 names of the editor list, and
+      `test_ide_documentation()` (OmnetIdeTest) the 63 names that omnet-julia
+      adds. Names of a package outside the two repositories, such as DataFrames,
+      keep their own documentation and are skipped. The first test also checks
+      that each name that `EDITOR_SYSTEM` writes in backticks can be written.
+    - `EDITOR_SYSTEM` has four paragraphs, READ, TELL, CONTROL and CHANGE, each
+      with one example line. `orientation.md` has the section "Work beside the
+      person" with a worked example for each, and the guide of the IDE points to
+      it. The description of `execute_julia_code` names the four groups when the
+      declaration holds their verbs.
+  - Two facts found on the way, which are not in this plan:
+    - The search shows only the first docstring of a function with several
+      methods (`_render_doc` reads `md.order[1]`). So the docstring of the
+      internal `stop_task!(document)` became a comment, and the study library's
+      docstrings of `check_expectations!` and `save_study!` got the form. The
+      search is unchanged.
+    - Julia drops a docstring when a comment stands between it and its
+      definition, and a `# @optional:` marker is such a comment. The docstring of
+      `limit_collection!` now follows its definition with `@doc`. 12 definitions
+      in projectured-julia and 8 in omnet-julia lose their docstring the same way.
+
 - [ ] **7. The rehearsal and the live check.**
   - Six new tasks of one prompt each in `tool/assistant/rehearsal.jl`, at least
     one for each group. Examples: "what did I select?", "draw a red circle in a new

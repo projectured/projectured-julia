@@ -19,6 +19,14 @@ workflow.
 - `journal` — the `WorkflowEntry`s of the step, the oldest first.
 - `cards` — the `WorkflowCard`s that a person or the assistant added.
 - `collapsed` — the view shows the title row only.
+
+Use it to read or build a thing to do in a workflow, with its sub-steps.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+
+See also `add_workflow_step!`, `change_workflow_state!`.
 """
 @document struct WorkflowStep <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -36,6 +44,14 @@ one of them is chosen (OR).
 - `question` — what is to be decided.
 - `options` — the `WorkflowOption`s, in order.
 - `journal`, `cards` and `collapsed` — as for a `WorkflowStep`.
+
+Use it to read or build a branch point of a workflow, with its options.
+
+# Example
+
+    decision_1 = WorkflowDecision(question = PrimitiveString("Where does the view live?"))
+
+See also `record_workflow_decision!`, `WorkflowOption`.
 """
 @document struct WorkflowDecision <: WorkflowDocument
     question::PrimitiveString = PrimitiveString("")
@@ -54,6 +70,14 @@ One answer to the question of a `WorkflowDecision`.
 - `reason` — why the option has its state.
 - `children` — the steps and the decisions that follow the option.
 - `journal`, `cards` and `collapsed` — as for a `WorkflowStep`.
+
+Use it to read or build one answer of a decision, with its state and reason.
+
+# Example
+
+    option_1 = WorkflowOption(title = PrimitiveString("a widget view"), state = :chosen)
+
+See also `choose_workflow_option!`, `WorkflowDecision`.
 """
 @document struct WorkflowOption <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -78,6 +102,14 @@ A dated record on a node of a workflow.
   domain, such as a Markdown page.
 - `source` — the document the entry comes from, such as a turn of a
   conversation, or `nothing`.
+
+Use it to read a dated record in the journal of a node.
+
+# Example
+
+    entry_1 = make_workflow_entry("The view embeds a card."; author = :assistant)
+
+See also `add_workflow_entry!`, `collect_workflow_entries`.
 """
 @document struct WorkflowEntry <: WorkflowDocument
     time::String = ""
@@ -95,6 +127,14 @@ domain, shown through the view of its own domain.
 - `content` — the document. A document that another file owns is written to
   the file of the workflow as a marker into that file.
 - `collapsed` — the view shows the title only.
+
+Use it to hold a document of any domain on a step, a decision or an option.
+
+# Example
+
+    card_1 = WorkflowCard(title = PrimitiveString("Note"), content = PrimitiveString("a note"))
+
+See also `add_workflow_card!`, `WorkflowStep`.
 """
 @document struct WorkflowCard <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -111,6 +151,14 @@ entry of the tree of `workflow`, the newest first.
 - `workflow` — the root of the workflow, which the view reads and does not copy.
 - `kind` — `:all`, or the kind of the entries that the view shows, such as
   `:decision` for the log of the decisions.
+
+Use it to show the entries of a whole workflow as one document.
+
+# Example
+
+    journal_1 = WorkflowJournal(workflow = workflow_1, kind = :decision)
+
+See also `collect_workflow_entries`, `WorkflowEntry`.
 """
 @document struct WorkflowJournal <: WorkflowDocument
     workflow::Any = nothing

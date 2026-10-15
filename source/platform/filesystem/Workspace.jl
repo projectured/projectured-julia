@@ -10,6 +10,21 @@ has_document_duplicate(::WorkspaceDocument) = true
 
 # ── WorkspaceFolder ──────────────────────────────────────────────────────────
 
+"""
+    WorkspaceFolder(name, pathname)
+
+A folder that a [`Workspace`](@ref) holds. `name` is the text that the explorer
+shows, and `pathname` is the place of the folder on the disk.
+
+Use it to add a folder to the explorer.
+
+# Example
+
+    folder_1 = WorkspaceFolder("data", "/home/person/data")
+    workspace_1 = Workspace([folder_1])
+
+See also `Workspace` and `OpenFileOperation`.
+"""
 @document struct WorkspaceFolder <: WorkspaceDocument
     name::String
     pathname::String
@@ -26,6 +41,22 @@ make_pred_document(::Type{WorkspaceFolder}, positional, keywords) =
 
 # ── Workspace ────────────────────────────────────────────────────────────────
 
+"""
+    Workspace(folders = CellVector())
+
+The document of the explorer: the folders that a person opened, each a
+[`WorkspaceFolder`](@ref). The explorer shows each folder as a tree of its
+sub-folders and its files.
+
+Use it to show the files of a folder in a tab.
+
+# Example
+
+    workspace_1 = Workspace([WorkspaceFolder("data", "/home/person/data")])
+    open_pane!(workspace_1; title = "Explorer")
+
+See also `WorkspaceFolder` and `make_file_tab_content`.
+"""
 @document struct Workspace <: WorkspaceDocument
     folders::CellVector = CellVector()
 end

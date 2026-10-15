@@ -90,6 +90,12 @@ that makes one and what its items are, and the names of the stores that
 `StoreRecords` reads, each with what its records are.
 
 Use it to choose the source of a roster before `show_roster!`.
+
+# Example
+
+    describe_roster_sources()
+
+See also `show_roster!` and `describe_item_facets`.
 """
 function describe_roster_sources()
     lines = String["The kinds of sources of a roster:"]
@@ -146,6 +152,12 @@ type, which a path names. A source gives the type of its items
 ([`get_roster_item_type`](@ref)).
 
 Use it to choose the columns, the conditions and the keys of a roster.
+
+# Example
+
+    describe_item_facets(TabDocuments(FileDocument))
+
+See also `show_roster!` and `describe_roster_sources`.
 """
 function describe_item_facets(type::Type)
     lines = String[string("The keys of a roster of ", nameof(type), ":")]
@@ -178,6 +190,8 @@ parameter in all the modules that a filter keeps.
 
     rows = show_roster!(CollectionItems(runs); columns = ["id", "status"], filter = ["status" => ==("done")])
     edit_shown_items!(rows, "status" => "checked")
+
+See also `show_roster!` and `describe_item_facets`.
 """
 function edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor())
     reference = collection isa ReferencedDocument ?

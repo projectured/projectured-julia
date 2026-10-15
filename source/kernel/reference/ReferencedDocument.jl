@@ -36,6 +36,8 @@ replaces what the reference names.
     tree = ReferencedDocument(root, EmptyReference())
     first_child = tree.children[1]     # a referenced document at `.children[1]`
     first_child.name                   # the name, a plain string
+
+See also `get_document`, `get_reference` and `find_referenced_document`.
 """
 struct ReferencedDocument{T}
     document::T
@@ -49,8 +51,15 @@ The document that `x` references, as it was when it was found. Given any value
 that is not a referenced document, it answers that value, so code that unwraps
 works on a referenced document and on a plain one alike.
 
-Use it where code needs the document itself: to check its type, or to hand it to a
+Use it to get the document itself, to check its type or to hand it to a
 function that has no method for a referenced document.
+
+# Example
+
+    tab_1 = find_pane("items.json")
+    items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
+
+See also `get_reference` and `get_edited_document`.
 """
 get_document(x::ReferencedDocument) = getfield(x, :document)
 get_document(x) = x
@@ -60,8 +69,15 @@ get_document(x) = x
 
 The complete reference to the document of `x`, from the root it was found from.
 
-Use it where code needs the place and not the document, such as a reference to
+Use it to get the place and not the document, such as a reference to
 extend, to compare, or to evaluate again.
+
+# Example
+
+    tab_1 = find_pane("items.json")
+    tab_reference_1 = get_reference(tab_1)   # from the root of the editor's document
+
+See also `get_document` and `find_pane_reference`.
 """
 get_reference(x::ReferencedDocument) = getfield(x, :reference)
 
@@ -249,6 +265,8 @@ Use it to keep where a document is, and to find the document there again later.
 
     locator = DocumentLocator(root, get_reference(x))
     x = find_referenced_document(locator)
+
+See also `find_referenced_document` and `get_reference`.
 """
 struct DocumentLocator{S}
     start::S
@@ -268,6 +286,14 @@ reference that reached it; `nothing` when the reference no longer reaches a node
 Use it to find a document again after the tree changed, or to bring a
 `ReferencedDocument`, which holds the document as it was, up to date:
 `find_referenced_document(DocumentLocator(root, get_reference(x)))`.
+
+# Example
+
+    tab_1 = find_pane("items.json")
+    locator_1 = DocumentLocator(editor.document, get_reference(tab_1))
+    tab_2 = find_referenced_document(locator_1)   # the tab as it is now
+
+See also `DocumentLocator` and `get_reference`.
 """
 function find_referenced_document(locator::DocumentLocator)
     document = try_evaluate_reference(locator.start, locator.reference, _NotReached())
@@ -305,6 +331,8 @@ part, read fresh at the call.
 
     parent = Parent(Child(1))
     get_parent(parent, @reference(parent, child))   # parent itself
+
+See also `find_pane` and `get_reference`.
 """
 function get_parent(root, x::Union{Reference, ReferencedDocument})
     steps = get_reference_steps(strip_reference_types(convert(Reference, x)))
@@ -341,6 +369,8 @@ without knowing which layers hold it.
 # Example
 
     data = get_edited_document(tab)      # the document the tab shows, through its layers
+
+See also `get_document` and `find_pane`.
 """
 function get_edited_document(x::ReferencedDocument)
     for _ in 1:_MAX_EDITED_LAYERS

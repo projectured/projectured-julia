@@ -15,6 +15,14 @@ such as a navigator. When the editor has settings, the evaluation of the open
 gives the file a history, whatever started the open: around the part that
 `file_wrap` makes, so it records every edit of that part, and else around the
 content, inside the file, as a file tab has it.
+
+Use it to open a file in the editor.
+
+# Example
+
+    evaluate_operation(editor, OpenFileOperation("notes.json"))
+
+See also `make_file_tab_content` and `SaveFileOperation`.
 """
 struct OpenFileOperation <: Operation
     path::String

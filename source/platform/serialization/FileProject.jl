@@ -93,6 +93,15 @@ content of that file.
 Default reads through the `content` field: the save copies it, and the load
 fills it. A file whose whole node is its content answers with the node itself and
 says so with [`is_own_content`](@ref).
+
+Use it to read what an open file holds.
+
+# Example
+
+    file_1 = make_file_tab("notes.json")
+    content_1 = get_file_content(file_1)
+
+See also `get_edited_document` and `make_file_tab`.
 """
 function get_file_content(f)
     is_file_document(f) && return unwrap_cell(getfield(f, :content))

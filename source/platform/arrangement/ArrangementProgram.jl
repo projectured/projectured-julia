@@ -218,7 +218,14 @@ See also `limit_collection!`, `filter_collection!` and `sort_collection!`.
 group_collection!(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
     _arrange_collection!(editor, collection, _make_group(keys, aggregates), "Group")
 
-"""
+# @optional: the count is what the call says, and a call with no count takes the first
+# items away, as a call of `filter_collection!` with no condition takes the filter away.
+limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
+    _arrange_collection!(editor, collection, _make_first(count), "Limit")
+
+# The docstring follows the definition, because the marker above the definition
+# is a comment, and Julia drops a docstring that a comment parts from its code.
+@doc """
     limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> Text
 
 Show only the first `count` items of the collection at `collection`, in the order
@@ -236,11 +243,7 @@ runs after a sort.
     limit_collection!(runs_1)           # every run again
 
 See also `group_collection!` and `sort_collection!`.
-"""
-# @optional: the count is what the call says, and a call with no count takes the first
-# items away, as a call of `filter_collection!` with no condition takes the filter away.
-limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_first(count), "Limit")
+""" limit_collection!
 
 """
     make_filter_collection_operation(collection, conditions...; editor = get_evaluation_editor())

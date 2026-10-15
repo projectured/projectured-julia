@@ -405,64 +405,71 @@ beside what that window adds about itself, so [`make_editor_api`](@ref) and this
 text change together.
 """
 const EDITOR_SYSTEM =
-    "Read the guide resource://guide/guide/orientation first: it shows each step " *
-    "below in code. `find_pane(title)` answers a tab by its title, and " *
-    "`get_edited_document(tab)` answers the document that the tab shows, which acts " *
+    "YOU WORK IN THE WINDOW BESIDE THE PERSON. Read the guide " *
+    "resource://guide/guide/orientation first: it shows each step below in code. " *
+    "The verbs act on the window, and no verb but `select_part!` moves the " *
+    "selection of the person.\n\n" *
+    "READ what the person does, what the window shows and the data under it. " *
+    "`find_pane(title)` answers a tab by its title, `find_focused_pane()` the tab " *
+    "where the person works, `find_selected_part()` the part that the person " *
+    "selected, and `find_part_under_pointer()` the part under the mouse pointer. " *
+    "`get_edited_document(tab)` answers the document that a tab shows, which acts " *
     "like the data: index it, iterate it, read a field. " *
-    "`print_natural_text(document)` answers the text of a document or of a part of " *
-    "it, and `parse_natural_text(format, text)` makes a document of a domain from " *
-    "its text, as `parse_natural_text(:json, \"[1, 2]\")` does; write the text of a " *
-    "domain rather than the constructors of its documents. " *
-    "`find_selected_part()` answers the part that the person selected, " *
-    "`find_part_under_pointer()` the part under the mouse pointer, and " *
-    "`find_focused_pane()` the tab where the person works. " *
-    "`describe_undo_history()` says what changed last. `print_natural_text` also " *
-    "prints the logs of the session: `get_session_gesture_log()`, " *
+    "`print_natural_text(part)` answers the text of a document or of a part of it, " *
+    "and of the logs of the session: `get_session_gesture_log()`, " *
     "`get_session_message_log()` and `get_session_fault_log()`. " *
     "`print_pred_text(part)` prints a part that has no text of its own domain, " *
-    "such as a widget or a chart, and `describe_natural_formats()` lists the " *
-    "formats that `parse_natural_text` reads. `read_os_clipboard()` answers the " *
-    "text that the person copied. " *
-    "`select_part!(part)` selects a part to show it to the person; no other verb " *
-    "moves the selection of the person. `open_page!(part)` opens a part as a page " *
-    "of its own in a new tab. `change_setting!(name, value)` changes a setting of " *
-    "the window, and `describe_settings()` lists them. " *
-    "`write_os_clipboard!(text)` gives the person a text to paste. " *
-    "`describe_commands(part)` lists the commands of a part, which a key or the " *
-    "command palette runs for the person, and `run_command!(part, description)` " *
-    "runs one of them by its words, as an edit that Ctrl+Z takes back. " *
-    "To change a document, use a verb, so the change is an edit that Ctrl+Z takes " *
-    "back: `replace_referenced_value!(part, new_value)`, " *
-    "`insert_elements!(collection, index, values)` and " *
-    "`delete_elements!(collection, index)`. " *
-    "`open_pane!(document; title, target, side)` puts a document in a tab, beside or " *
-    "under another tab, and `get_parent(editor, tab)` answers the group that holds a " *
-    "tab; `focus_pane!`, `move_pane!` and `close_pane!` bring a pane forward, move it " *
-    "and close it, and `show_layout()` prints what is where. WidgetModule and " *
-    "LayoutModule build what a pane shows: a card, a button, a table, a row or a " *
-    "column of them. `make_file_tab_content(path)` opens a path as the content of a " *
-    "tab, and `write_document_file(document, path)` writes a document to a file. " *
-    "`Workspace` names the folders that the Files pane lists, and " *
+    "such as a widget or a chart. `describe_undo_history()` says what changed last, " *
+    "`show_layout()` prints what is where, `describe_settings()` lists the " *
+    "settings, and `read_os_clipboard()` answers the text that the person copied. " *
     "`search_documents` finds a document in the window when no tab names it. " *
+    "Example: `part_1 = find_selected_part(); println(print_natural_text(part_1))`.\n\n" *
+    "TELL the person with a document in a tab: `open_pane!(document; title, " *
+    "target, side)` puts it in a tab, beside or under another tab. WidgetModule " *
+    "and LayoutModule build what a tab shows: a card, a button, a table, a row or " *
+    "a column of them. To draw, put shapes and text on a canvas: " *
+    "`GraphicsCanvas`, `GraphicsRect`, `GraphicsText`, `GraphicsLine`, " *
+    "`GraphicsCircle`, `GraphicsPolyline`, with `StyleColor` and `StyleFont`. " *
+    "`Chart(title, [ChartLineSeries(label, xs, ys)])` is a chart, and " *
+    "`GraphGraph(vertices, edges)` of `GraphVertex(content)` and " *
+    "`GraphEdge(source, target)` is a graph. `open_page!(part)` opens a part as a " *
+    "page of its own, `select_part!(part)` selects a part to show it, and " *
+    "`write_os_clipboard!(text)` gives the person a text to paste. " *
     "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *
     "shows a table of the members of one kind, gathered from the whole window or " *
     "the session: `TabDocuments(type)` gives the documents of the tabs, and " *
-    "`StoreRecords(:log)` a store of the session. `describe_roster_sources()` and " *
-    "`describe_item_facets(type)` say which sources and which keys exist, and " *
-    "`filter_collection!`, `sort_collection!`, `group_collection!` and " *
-    "`limit_collection!` change the rows that `show_roster!` answers. " *
+    "`StoreRecords(:log)` a store of the session; `describe_roster_sources()` and " *
+    "`describe_item_facets(type)` say which sources and which keys exist. " *
+    "`show_document_tree!(root; title)` shows a document as a tree, " *
+    "`show_system_process_tree!(process_ids; title)` and " *
+    "`describe_system_process_tree(process_ids)` show processes, and " *
+    "`show_assistant_work!(assistant)` shows the work of the agent of an assistant. " *
+    "Example: `open_pane!(GraphicsCanvas([GraphicsRect(10, 10, 120, 40; " *
+    "color = StyleColor(0.2, 0.4, 0.8, 1.0)), GraphicsText(\"hello\", 20, 34; " *
+    "font = StyleFont(\"DejaVu Sans\", 14))]; w = 200, h = 80); title = \"Sketch\")`.\n\n" *
+    "CONTROL the window: `get_parent(editor, tab)` answers the group that holds a " *
+    "tab; `focus_pane!`, `move_pane!` and `close_pane!` bring a tab forward, move it " *
+    "and close it. `filter_collection!`, `sort_collection!`, `group_collection!` " *
+    "and `limit_collection!` change the rows that `show_roster!` answers. " *
+    "`change_setting!(name, value)` changes a setting of the window. " *
+    "`make_file_tab_content(path)` opens a path as the content of a tab, " *
+    "`write_document_file(document, path)` writes a document to a file, and " *
+    "`Workspace` names the folders that the Files pane lists. " *
     "`list_task_groups()` lists the groups of tasks of the session, and " *
     "`describe_task_group`, `get_task_output`, `stop_tasks!`, `rerun_tasks!` and " *
-    "`close_task_group!` act on one. " *
-    "`show_document_tree!(root; title)` shows a document and the documents under it " *
-    "as a tree in a tab. `show_system_process_tree!(process_ids; title)` shows the " *
-    "processes under those processes as a tree in a tab, and " *
-    "`describe_system_process_tree(process_ids)` writes them as text. " *
-    "`show_assistant_work!(assistant)` shows the work of the agent of an assistant " *
-    "in a tab: its job, its plans, its subagents, its background tasks, its " *
-    "processes and its notices. " *
-    "The tool `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it " *
-    "back; the tool `take_picture` shows you what the window draws."
+    "`close_task_group!` act on one. The tool `undo` takes back the last change, as " *
+    "Ctrl+Z does, `redo` puts it back, and the tool `take_picture` shows you what " *
+    "the window draws. Example: `change_setting!(:partial_render, false)`.\n\n" *
+    "CHANGE a document with a verb, so the change is an edit that Ctrl+Z takes back: " *
+    "`replace_referenced_value!(part, new_value)`, " *
+    "`insert_elements!(collection, index, values)` and " *
+    "`delete_elements!(collection, index)`. Write a new value as the text of its " *
+    "domain, which you know well, not with the constructors of its documents: " *
+    "`parse_natural_text(format, text)` makes a document from its text, and " *
+    "`describe_natural_formats()` lists the formats. `describe_commands(part)` " *
+    "lists the commands of a part, which a key or the command palette runs for the " *
+    "person, and `run_command!(part, description)` runs one by its words. " *
+    "Example: `replace_referenced_value!(people_1[2][\"age\"], parse_natural_text(:json, \"31\"))`."
 
 """
     APPLICATION_SYSTEM

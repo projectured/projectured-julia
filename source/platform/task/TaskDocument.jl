@@ -244,12 +244,9 @@ function wait_task_document(document::TaskDocument)
     document
 end
 
-"""
-    stop_task!(document) -> document
-
-Stop the current execution of the task with `SIGINT`. Nothing happens when the
-task did not start or has ended.
-"""
+# Stop the current execution of the task with `SIGINT`. Nothing happens when the
+# task did not start or has ended. The verb of a group, `stop_task!(group, index)`,
+# carries the docstring of the name.
 function stop_task!(document::TaskDocument)
     execution = getfield(document, :running)[]
     execution === nothing || stop_task_execution!(execution)

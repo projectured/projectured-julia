@@ -173,3 +173,61 @@ function _drawn_texts_of(editor)
     texts
 end
 
+# Whether `m` belongs to the editor, whose documentation this repository writes. A
+# package such as DataFrames keeps its own.
+_is_documented_module(m::Module) = startswith(String(nameof(Base.moduleroot(m))), "Projectured")
+
+# The example of a docstring: every indented line under `# Example`, up to the
+# next paragraph of prose.
+function _documented_example(doc)
+    lines = split(doc, '\n')
+    start = findfirst(==("# Example"), lines)
+    start === nothing && return ""
+    code = String[]
+    for line in lines[start + 1:end]
+        if startswith(line, "    ")
+            push!(code, strip(line))
+        elseif !isempty(strip(line)) && !isempty(code)
+            break
+        end
+    end
+    join(code, '\n')
+end
+
+_has_example_parse_error(expression) =
+    expression isa Expr && (expression.head in (:error, :incomplete) ||
+                            any(_has_example_parse_error, expression.args))
+
+"""
+    test_assistant_documentation(api = make_editor_api())
+
+Every name of `api` from a package of the editor carries what a model reads to use
+it: a "Use it to" line, an example that parses, and a "See also" line. Every name
+that `EDITOR_SYSTEM` writes in backticks is a name that the model can write.
+"""
+function test_assistant_documentation(api = make_editor_api())
+@testset "every declared name carries its use, an example and its neighbours" begin
+    set = register_editor_tools!(register_default_tools!(declare_api!(ToolSet(), api)))
+    for entry in set.api, (name, _) in get_api_entry_bindings(entry)
+        _is_documented_module(entry.module_) || continue
+        doc = ToolModule._binding_doc(entry.module_, name)
+        example = _documented_example(doc)
+        complete = occursin("\nUse it to ", doc) && occursin("\nSee also ", doc) &&
+                   !isempty(example) && !_has_example_parse_error(Meta.parseall(example))
+        @test complete || error(string(nameof(entry.module_), ".", name,
+                                       " lacks a \"Use it to\" line, a \"See also\" line or an example that parses"))
+    end
+    writable = Set{String}(["editor"])
+    for entry in set.api
+        push!(writable, String(nameof(entry.module_)))
+        union!(writable, String.(get_api_entry_names(entry)))
+    end
+    union!(writable, [tool.name for tool in list_tools(set)])
+    for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM)
+        head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
+        head === nothing && continue
+        name = String(head.captures[1])
+        @test name in writable || error("EDITOR_SYSTEM names `" * name * "`, which no model can write")
+    end
+end
+end

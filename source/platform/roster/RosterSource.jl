@@ -12,9 +12,13 @@ the document of the window that shows the roster, or the collection itself. The
 roster follows the collection: an item that comes in gets a row, and the row of
 an item that goes out goes.
 
+Use it to give a roster the items of a collection in a document.
+
 # Example
 
     Roster(CollectionItems(@reference(results)); columns = ["name", "status"])
+
+See also `Roster` and `show_roster!`.
 """
 struct CollectionItems
     collection::Any
@@ -40,10 +44,14 @@ The documents of `type` inside each item of `source`, at any depth. Each item of
 item again and of no other. The row of each such document holds the item of
 `source` that holds it, which the key `within` names.
 
+Use it to give a roster the documents of one type that lie inside other items.
+
 # Example
 
     # every call in the files of the tabs, each with its file
     Roster(ItemsWithin(TabDocuments(FileDocument), JuliaCall); columns = ["callee", "within.name"])
+
+See also `Roster` and `TabDocuments`.
 """
 struct ItemsWithin
     source::Any
@@ -99,6 +107,14 @@ get_roster_source_names() = sort!(collect(keys(_ROSTER_SOURCES)))
 The records of the store that a slice registered under `name`
 ([`register_roster_source!`](@ref)), such as `:tasks` or `:log`. A name that no
 loaded slice registered is an `ArgumentError` when the roster gathers its items.
+
+Use it to give a roster the records of a store, such as the log.
+
+# Example
+
+    show_roster!(StoreRecords(:log); columns = ["level", "message"])
+
+See also `show_roster!` and `describe_roster_sources`.
 """
 struct StoreRecords
     name::Symbol

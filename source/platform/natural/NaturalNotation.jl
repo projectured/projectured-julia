@@ -378,6 +378,15 @@ to a string, run through `print_document` and flattened.
 **A shorthand, not a seam.** It is `make_natural_projection(document, :string)`,
 `print_document`, and a `String`. A caller that wants the io map, or a different
 last rung, builds the projection itself and runs the engine.
+
+Use it to read a document as text.
+
+# Example
+
+    people_1 = get_edited_document(find_pane("people.json"))
+    people_text_1 = print_natural_text(people_1)
+
+See also `parse_natural_text` and `export_document`.
 """
 function print_natural_text(document)
     projection = make_natural_projection(document, :string)

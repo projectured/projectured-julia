@@ -648,11 +648,15 @@ the title is written while the group runs.
 It is the `make_pane_tab_title` of a group, so `open_pane!` gives each tab of a
 group this title, also when its caller gives the name as a plain string.
 
+Use it to give the tab of a group a title that shows how far the group is.
+
 # Example
 
     group = wrap_task_group_document(TaskGroup(tasks; name = "builds"))
     open_pane!(group; title = "Builds")
     start_task_group_document!(group)
+
+See also `describe_task_group` and `open_pane!`.
 """
 function make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[])
     group = get_task_group(doc)
