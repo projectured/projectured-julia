@@ -132,7 +132,8 @@ export make_list_node_document_example, make_collection_projection_example
 export make_constraint_layout_document_example, make_constraint_layout_projection_example
 export make_filtering_projection_example, make_flow_layout_document_example
 export make_graphics_canvas_document_example, make_grid_layout_document_example
-export make_scroll_layout_document_example, make_roster_document_example,
+export make_graphics_rect_document_example, make_scroll_layout_document_example,
+       make_text_gutter_atom_document_example, make_roster_document_example,
        make_terminal_document_example, make_task_document_example,
        make_task_group_document_example, make_task_group_list_document_example,
        make_task_execution_document_example, make_task_stream_document_example,

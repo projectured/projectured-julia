@@ -26,3 +26,6 @@ function make_text_gutter_document_example()
     end
     WidgetScrollPane(TextBlock(lines); size = Point2D(360, 120))
 end
+
+# A gutter on its own: the number of a line.
+make_text_gutter_atom_document_example() = TextGutter(; number = PrimitiveNumber(1))

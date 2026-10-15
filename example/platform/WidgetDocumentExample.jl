@@ -706,6 +706,10 @@ make_graphics_canvas_document_example() =
         GraphicsRect(0, 60, 120, 40; color = color_solarized_gray),
     ]; w=120, h=100)
 
+# GraphicsRect — one rounded rect on its own, as a canvas holds it.
+make_graphics_rect_document_example() =
+    GraphicsRect(0, 0, 120, 24; color = color_solarized_blue, radius = 4)
+
 function make_screen_document_document_example()
     content = WidgetLabel("A window on screen"; position = Point2D(40, 40))
     ScreenDocument([WindowDocument(; id=:screen_example, title="Example window",

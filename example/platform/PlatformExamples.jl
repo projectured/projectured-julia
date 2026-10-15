@@ -251,6 +251,10 @@ const platform_atomic_documents = AtomicDocument[
     # prefix, so two atoms answering to one name would make both ambiguous.
     AtomicDocument(:text, "bare_string",  make_text_string_atom_document_example),
     AtomicDocument(:text, "bare_line",    make_text_line_atom_document_example),
+    # The views of a text that hold a text, and the gutter of a line on its own.
+    AtomicDocument(:text, "highlighted",  make_text_highlighting_document_example),
+    AtomicDocument(:text, "filtered",     make_text_filtering_document_example),
+    AtomicDocument(:text, "gutter",       make_text_gutter_atom_document_example),
     # Widget atoms: one bare instance per widget type with a printer and no
     # atom above. Reuses whichever `make_widget_*_document_example` already
     # returns the bare type; `_atom` names the ones disambiguated from an
@@ -305,6 +309,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "screen_document",       make_screen_document_document_example),
     AtomicDocument(:widget, "window_document",       make_window_document_document_example),
     AtomicDocument(:graphics, "canvas", make_graphics_canvas_document_example),
+    AtomicDocument(:graphics, "rect",   make_graphics_rect_document_example),
     # Layout atoms.
     AtomicDocument(:layout, "anchored",          make_anchored_layout_document_example),
     AtomicDocument(:layout, "constraint",        make_constraint_layout_document_example),
