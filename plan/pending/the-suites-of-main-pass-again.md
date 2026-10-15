@@ -81,6 +81,16 @@ known; elsewhere the origin is not found yet.
    - "a closed assistant and a closed Files pane come back as they were" (`:1462`): the greeting
      prints as the representation of a `TextBlock`, so the word "Ollama" is not found.
    **All four fail alone on `main` at `5a74db9d9`** (2026-10-15, with no network).
+   **Origin of the first two: `86a16ec8f`** (2026-10-12, found by a bisect, 4 steps), "text:
+   TextToGraphics lays out lines only". The form of the evaluator holds its code in a
+   `PrimitiveString`, and `PrimitiveStringToTextBlock` drew the value as one run, which after
+   Shift+Enter held a `'\n'`. Step 7 of
+   [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) names
+   `PrimitiveToText` among the producers that give lines, and its guard walks the examples as
+   they are made, where no primitive string holds a break. **Fixed (step 2):** the projection
+   gives a line for each line of the value; `test_application` keeps one failure, the
+   greeting. The greeting fails at every commit that the bisect tried, so its origin is
+   before `70b479f5c`.
 9. **`test_catalog_coverage`, 1 failure** (`CatalogCoverageTest.jl:223`). Eleven document types
    have no entry in the catalog: `FilteredText`, `FindBarView`, `GraphicsRect`,
    `HighlightedText`, `ScrollLayout`, `TaskGroupDocument`, `TaskGroupList`, `TerminalDocument`,
@@ -89,10 +99,12 @@ known; elsewhere the origin is not found yet.
    widgets. On 2026-10-14 the list has ten names: the nine others and `Roster`, which is new. On 2026-10-15
    (`5a74db9d9`) it has 14: the task pages of `02d2b2525` add `TaskDocument`, `TaskStream`,
    `TaskStreamLines` and `ACTaskExecution`. A name with the prefix `AC` is a name of the cell
-   layout of `TaskExecution`, which the stem of the test does not take off. **Decided by the owner, 2026-10-15: (c).** A
-   real document type gets an atom of the catalog, and a type that is no document of its own,
-   such as the cell layout of a document or a part of a page, goes on the list of exclusions
-   of the test with its reason.
+   layout of `TaskExecution`, which the stem of the test does not take off. **Decided by the owner, 2026-10-15:** "ideally all
+   testable documents should be in the atomic catalog, that's an automated test suite
+   primarily, not an end user concept". Each type that a test can make gets an atom, also a
+   part of a page. A cell layout of a document counts as its document by the schema name
+   (`get_document_schema_name`). Only a type that no test can make goes on the list of
+   exclusions, with its reason.
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
