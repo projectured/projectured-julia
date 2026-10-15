@@ -112,7 +112,7 @@ function test_task_views()
                       ("state", "progress", "elapsed", "process", "processor", "memory", "result"))
             @test !("directory" in words) && !("configuration" in words)
             @test "4 DONE" in words && "1 ERROR unexpected" in words
-            @test "Press › on a row to see its task here." in words
+            @test "Press a row to see its task here." in words
         end
 
         @testset "a kind adds its columns, its facts and its buttons" begin
@@ -260,17 +260,25 @@ function test_task_views()
             press(view, map, t; count = 1, ctrl = false) = read_intent(view, map,
                 MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0))
             task(k) = getfield(document, :tasks)[][k]
-            # A press on › shows the task in the detail, a double press opens its
-            # page, and Ctrl+press opens it in a new tab.
-            pick = first(t for t in texts if t[3] == "›")
-            @test press(projection, iomap, pick) isa InvokeActionOperation
-            opened = press(projection, iomap, pick; count = 2)
-            @test opened isa OpenPageOperation && opened.document === document && opened.place === :here
-            @test evaluate_reference(document, opened.reference) === task(1)
-            @test press(projection, iomap, pick; ctrl = true).place === :new_tab
             # The detail opens the page of the task that it shows.
             opened = press(projection, iomap, only(t for t in texts if t[3] == "Open the task page"))
             @test opened isa OpenPageOperation && evaluate_reference(document, opened.reference) === task(2)
+            # The table has no column to press, and it selects the row of the task
+            # of the detail. A press anywhere on a row shows its task in the
+            # detail, a double press opens its page, and Ctrl+press opens it in a
+            # new tab.
+            @test !any(t -> t[3] == "›", texts)
+            table = iomap.step_iomaps[1][].output.children[2].child.elements[1].child.content
+            @test get_widget_table_selected_row(table) == 2
+            row = only(t for t in texts if t[3] == "alpha")
+            shown = press(projection, iomap, row)
+            @test shown isa ReplaceViewStateOperation
+            _nav_apply!(_NavHolder(document), shown)
+            @test getfield(document, :selected)[] == 1 && get_widget_table_selected_row(table) == 1
+            opened = press(projection, iomap, row; count = 2)
+            @test opened isa OpenPageOperation && opened.document === document && opened.place === :here
+            @test evaluate_reference(document, opened.reference) === task(1)
+            @test press(projection, iomap, row; ctrl = true).place === :new_tab
             # The title of a group in the Tasks pane opens the page of the group.
             list = get_session_task_group_list()
             projection, iomap = _print_task_view(list)
@@ -278,6 +286,27 @@ function test_task_views()
             opened = press(projection, iomap, title)
             @test opened isa OpenPageOperation && opened.document === list
             @test evaluate_reference(list, opened.reference) === document
+        end
+
+        @testset "a row of a list that a scroll moved far is the task at its place" begin
+            tasks = [_TaskViewProbeTask(string("task ", k), "exit 0") for k in 1:400]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "long", jobs = 1))
+            projection, iomap = _print_task_view(document)
+            pane, pane_iomap = projection.projections[1], iomap.step_iomaps[1][]
+            table = pane_iomap.output.children[2].child.elements[1].child.content
+            # A scroll far from the head writes the head of the list of the table;
+            # the pane writes the anchor of the group instead, and the list starts
+            # again from that task.
+            head = find_list_node(table.cells, 301)
+            moved = CompoundOperation(Any[ReplaceViewStateOperation(ReplaceReferencedValueOperation(table, "cells", head))])
+            answer = read_intent(pane, nothing, Intent(MouseScroll(0, -1, 10, 10, ModifierKeys(), 0.0), moved), pane_iomap)
+            _nav_apply!(_NavHolder(document), answer.operation)
+            @test getfield(document, :anchor)[] == 301
+            @test table.cells.value[2].content == "task 301"
+            row = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "task 302")
+            _nav_apply!(_NavHolder(document), read_intent(projection, iomap,
+                MouseClick(:left, row[1] + 2, row[2] + 2, 1, ModifierKeys(); time = 0.0)))
+            @test getfield(document, :selected)[] == 302 && get_widget_table_selected_row(table) == 2
         end
 
         @testset "the tab and the Tasks pane follow the group" begin

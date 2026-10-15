@@ -44,7 +44,12 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `identifier::String` — `T1`, `T2`, …: the name of the group that never
   changes, whatever the title becomes.
 - `selected::Int` — the task the detail of the pane shows, `-1` for the
-  preparation of the group, or 0 for none.
+  preparation of the group, or 0 for none. A press on a row of the table writes
+  it, and the table marks the row of that task.
+- `anchor::Int` — the task whose row is at the head of the list of rows of the
+  table of the pane. When the choice of rows does not show that task, the head is
+  the first row after it. It is view state: a scroll far from the head moves it
+  to the task at the top, and the list starts again from there.
 - `groups` — the `TaskGroupDocument` of each task that is a group, by its place:
   the pane shows it in the detail of that task.
 - `row_filter` — which rows the pane shows: `"all"`, `"running"` or
@@ -62,6 +67,7 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     shadow::Any
     identifier::String
     selected::Int
+    anchor::Int
     row_filter::Any
     groups::Any
     preparation::Any
@@ -118,7 +124,7 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
     doc = TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(make_task_group_shadow(group)),
-                            Cell(String(identifier)), Cell(0),
+                            Cell(String(identifier)), Cell(0), Cell(1),
                             Cell(PrimitiveString("all")), Cell(groups), Cell(preparation))
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.

@@ -7,7 +7,8 @@
 # `TaskGroupToWidgetTest.jl`, and the holder of an operation that of
 # `NavigatorVisitsTest.jl`.
 
-# A kind of task that marks its lines: an error line and a progress line.
+# A kind of task that shows its name in a column and marks its lines: an error
+# line and a progress line.
 struct _TaskPageProbeTask <: AbstractTask
     name::String
     script::String
@@ -23,6 +24,8 @@ end
 
 TaskModule.get_result_codes(::_TaskPageProbeTask) = RUN_RESULT_CODES
 TaskModule.format_task_parameters(task::_TaskPageProbeTask) = task.name
+TaskModule.get_task_columns(::_TaskPageProbeTask) = ["name" => 2]
+TaskModule.format_task_column(task::_TaskPageProbeTask, column::AbstractString) = column == "name" ? task.name : ""
 TaskModule.find_task_output_mark(::_TaskPageProbeTask, stream::Symbol, line::AbstractString) =
     startswith(line, "error") ? :error : startswith(line, "progress") ? :progress : nothing
 
@@ -135,14 +138,16 @@ function test_task_pages()
         end
 
         # The pages in a window, as a person reaches them: the page of the group in
-        # a navigator, a double press on the › of a task, the link to its stdout,
+        # a navigator, a double press on the row of a task, the link to its stdout,
         # and a key in the field of Find.
         @testset "in a window, a group opens a task, the task its stream, and a key reaches Find" begin
             navigator = Navigator(group)
             editor, backend = _nav_editor(navigator)
-            pick = _nav_click(backend, "›")
-            @test pick !== nothing
-            _nav_press!(editor, backend, MouseClick(:left, pick.x, pick.y, 2, ModifierKeys(); time = 0.0))
+            row = _nav_click(backend, "printer")
+            @test row !== nothing
+            _nav_press!(editor, backend, MouseClick(:left, row.x, row.y, 1, ModifierKeys(); time = 0.0))
+            @test getfield(group, :selected)[] == 1
+            _nav_press!(editor, backend, MouseClick(:left, row.x, row.y, 2, ModifierKeys(); time = 0.0))
             @test get_navigator_page(navigator) === document
             link = _nav_click(backend, "Open stdout")
             @test link !== nothing

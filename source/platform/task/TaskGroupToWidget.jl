@@ -1,16 +1,15 @@
 # The views of tasks: the pane of a group, the title of its tab, and the Tasks
 # pane. The pane of a group is a card that says what the whole group does, a
-# table with one row for each task, and the detail of the task that a person
-# picked. The card follows the `summary` of the group, which a drain writes with
+# table with one row for each task, and the detail of the task whose row a person
+# pressed. The card follows the `summary` of the group, which a drain writes with
 # each change; a row reads the cells of its own task document, so a task that
 # reports draws its own row again. What a kind of task adds — its columns, its
 # facts and its buttons — the views ask of the task.
 
 # The columns of the table, in the order a reader wants them, and how they share
-# the width: the prose most, a number least. The first column holds a square
-# button as high as a button of the theme. The columns of the kind of task
+# the width: the prose most, a number least. The columns of the kind of task
 # (`get_task_columns`) stand between the state and the progress.
-const _LEADING_COLUMNS = ["" => 0, "state" => 1]
+const _LEADING_COLUMNS = ["state" => 1]
 const _TRAILING_COLUMNS = ["progress" => 2, "elapsed" => 1, "process" => 1, "processor" => 1,
                            "memory" => 1, "result" => 6]
 
@@ -23,11 +22,7 @@ _get_columns(kind_columns) = vcat(_LEADING_COLUMNS, kind_columns, _TRAILING_COLU
 _make_share_policy(weight) = SizePolicy(nothing, nothing, nothing, Float64(weight))
 
 # The columns of a table: each holds the policy of its width.
-function _make_table_columns(p, columns)
-    Any[WidgetTableColumn(; policy = index == 1 ? Fixed(round(Int, p.button_size.y[])) :
-                                                  _make_share_policy(share))
-        for (index, (_, share)) in enumerate(columns)]
-end
+_make_table_columns(columns) = Any[WidgetTableColumn(; policy = _make_share_policy(share)) for (_, share) in columns]
 
 _get_column_headers(columns) = Any[name for (name, _) in columns]
 
@@ -306,16 +301,13 @@ function _compute_shown_indices(doc::TaskGroupDocument)
 end
 
 # The gestures of a part that opens a page: a press opens it here, in the navigator
-# around the pane, or a double press for a part whose press does something else;
-# Ctrl+press opens it in a new tab. The open names `document` and a path from it,
-# so the navigator opens the page where its content holds it
+# around the pane, and Ctrl+press opens it in a new tab. The open names `document`
+# and a path from it, so the navigator opens the page where its content holds it
 # (`find_navigator_address`).
-function _make_open_gestures(document, reference::Reference; double::Bool = false)
+function _make_open_gestures(document, reference::Reference)
     open(place) = (_, _) -> OpenPageOperation(document, reference, place)
-    here = double ? MouseClickPattern(:left; modifiers = Symbol[], guard = event -> event.count == 2,
-                                      label = "double press") :
-                    MouseClickPattern(:left; modifiers = Symbol[])
-    GestureBinding[GestureBinding(here, open(:here); description = "Open as a page", domain = "task"),
+    GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
+                                  description = "Open as a page", domain = "task"),
                    GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
                                   description = "Open in a new tab", domain = "task")]
 end
@@ -323,15 +315,11 @@ end
 # The path from a group to the document of its task `index`.
 _make_task_reference(index::Int) = Reference(FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index))
 
-function _build_table_row(p, doc::TaskGroupDocument, group, kind_columns, index::Int,
-                          document::TaskDocument)
-    # A press shows the task in the detail of the pane, and a double press opens
-    # its page.
-    pick = WidgetButton("›"; action = _ -> select_task_document!(doc, index),
-                        gestures = _make_open_gestures(doc, _make_task_reference(index); double = true))
+# The cells of the row of a task. The row takes the press, not a cell
+# (`_convert_table_answer`).
+function _build_table_row(p, doc::TaskGroupDocument, group, kind_columns, document::TaskDocument)
     task = getfield(document, :task)[]
-    Any[pick,
-        _make_live_label(() -> _get_task_state(p, group, document)),
+    Any[_make_live_label(() -> _get_task_state(p, group, document)),
         (WidgetLabel(format_task_column(task, name)) for (name, _) in kind_columns)...,
         _make_task_progress_ring(document),
         WidgetLabel(() -> _format_task_elapsed_time(doc, document)),
@@ -345,31 +333,47 @@ end
 
 _format_or_blank(value) = value === nothing ? "" : string(value)
 
+# What a press on a row of a table of tasks does, for a person who rests the
+# pointer on it.
+const _TABLE_TOOLTIP = "A press shows the task below. A double press opens its page, and Ctrl+press opens it in a new tab."
+
+# The place, among the shown rows `shown`, of the row at the head of the list of
+# the table: the row of the anchor of the group, else the first row after it
+# that the choice shows, else the last row.
+_get_head_place(doc::TaskGroupDocument, shown) =
+    clamp(searchsortedfirst(shown, getfield(doc, :anchor)[]), 1, max(1, length(shown)))
+
+# The selection of the row of the task that the detail shows, in a table whose
+# row 1 is the place `first` of the shown rows; `nothing` when the choice does
+# not show that task. A row before the head of a list has a number of zero or
+# less.
+function _find_selected_row(doc::TaskGroupDocument, shown, first::Int)
+    place = findfirst(==(getfield(doc, :selected)[]), shown)
+    place === nothing && return nothing
+    row = place - first + 1
+    ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(row - 1, row), EmptyReference()))
+end
+
 # The table. Its rows are a list built one node at a time as the viewport reaches
-# it, so a group of 22,731 runs costs what a group of twenty costs.
+# it, with its head at the anchor of the group, so a group of 22,731 runs costs
+# what a group of twenty costs. The row of the task of the detail is selected.
 function _build_table(p, doc::TaskGroupDocument)
     group = get_task_group(doc)
     kind_columns = _get_kind_columns(group)
     columns = _get_columns(kind_columns)
-    function make_row_node(shown, k)
-        documents = getfield(doc, :tasks)[]
-        index = shown[k]
-        node = ListNode(make_widget_table_row(
-            _build_table_row(p, doc, group, kind_columns, index, documents[index])))
-        set_cell_computation!(getfield(node, :next), () -> begin
-            k < length(shown) || return nothing
-            following = make_row_node(shown, k + 1)
-            set_cell_value!(getfield(following, :prev), node)
-            following
-        end)
-        node
-    end
     table = WidgetTable(; column_headers = _get_column_headers(columns),
                         cells = ListNode(make_widget_table_row(Any["" for _ in columns])),
-                        columns = _make_table_columns(p, columns))
+                        columns = _make_table_columns(columns), tooltip = _TABLE_TOOLTIP)
     set_cell_computation!(getfield(table, :cells), () -> begin
         shown = _compute_shown_indices(doc)
-        isempty(shown) ? CellVector() : make_row_node(shown, 1)
+        isempty(shown) && return CellVector()
+        make_index_list(length(shown), _get_head_place(doc, shown), place ->
+            make_widget_table_row(_build_table_row(p, doc, group, kind_columns,
+                                                   getfield(doc, :tasks)[][shown[place]])))
+    end)
+    set_cell_computation!(getfield(table, :selection), () -> begin
+        shown = _compute_shown_indices(doc)
+        _find_selected_row(doc, shown, _get_head_place(doc, shown))
     end)
     table
 end
@@ -382,9 +386,12 @@ function _build_whole_table(p, doc::TaskGroupDocument)
     kind_columns = _get_kind_columns(group)
     columns = _get_columns(kind_columns)
     documents = getfield(doc, :tasks)[]
-    rows = Any[_build_table_row(p, doc, group, kind_columns, index, documents[index])
-               for index in _compute_shown_indices(doc)]
-    WidgetTable(_get_column_headers(columns), rows; columns = _make_table_columns(p, columns))
+    shown = _compute_shown_indices(doc)
+    rows = Any[_build_table_row(p, doc, group, kind_columns, documents[index]) for index in shown]
+    table = WidgetTable(_get_column_headers(columns), rows; columns = _make_table_columns(columns),
+                        tooltip = _TABLE_TOOLTIP)
+    set_cell_computation!(getfield(table, :selection), () -> _find_selected_row(doc, shown, 1))
+    table
 end
 
 # ── The detail of one task ───────────────────────────────────────────────────
@@ -471,8 +478,9 @@ end
 # widget and layout from the root of the pane to the card holds its part of the
 # path. The walk stops at a card that holds a document of a domain: the card
 # follows the paths of its document (`make_embed_card`), and the document holds
-# its own. It leaves out the table, whose rows take no key. A constraint is on
-# the way: the split and the detail each stand in one.
+# its own. It leaves out the table, whose rows take no key and which selects the
+# row of the task of the detail itself. A constraint is on the way: the split and
+# the detail each stand in one.
 _is_embed_card(node) =
     node isa WidgetCard && node.content isa Document &&
     !(node.content isa WidgetDocument || node.content isa LayoutDocument)
@@ -498,7 +506,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, bounded)]
         documents = getfield(doc, :tasks)[]
         (1 <= index <= length(documents)) ||
-            return Cell[Cell(_make_label("Press › on a row to see its task here.", p.muted_color))]
+            return Cell[Cell(_make_label("Press a row to see its task here.", p.muted_color))]
         # A task that is a group shows its own pane: its card, its table and
         # the detail of the task picked in it.
         inner = find_task_group_document(doc, index)
@@ -755,6 +763,127 @@ function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGr
         path === nothing ? nothing : map_reference_forward(p, iomap, path)
     end; is_followed = _is_followed_by_selection)
     iomap
+end
+
+# ── A press on a row ─────────────────────────────────────────────────────────
+#
+# A table of text gives a press on a row back as the selection of the row, and a
+# scroll far from the head of its list as a write of its head, `cells`. The pane
+# turns the first into what the press does to the task of the row, and the
+# second into a write of the anchor of the group, as the owner of a list does.
+
+# The steps from the parts of a group to its table: the split is the second part,
+# in a constraint, and the table is its first pane, in a constraint and a scroll
+# pane (`_build_group_parts`).
+const _TABLE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+                      FieldReferenceStep("elements"), RangeReferenceStep(0, 1), FieldReferenceStep("child"),
+                      FieldReferenceStep("content"))
+
+# The group whose parts the detail of `doc` shows: the selected task when it is a
+# group, or the preparation when it is a group and the detail shows it.
+function _find_detail_group(doc::TaskGroupDocument)
+    index = getfield(doc, :selected)[]
+    inner = index == -1 ? get_task_group_preparation(doc) : find_task_group_document(doc, index)
+    inner isa TaskGroupDocument ? inner : nothing
+end
+
+# Each table of a group that the pane draws, as `(group, table, steps)`: the table
+# of the group of the pane, and the table of the group that its detail shows, in
+# turn. `steps` go from the root of the pane to the table; `parts` is the layout
+# of the card and the split of `doc`.
+function _collect_group_tables(doc::TaskGroupDocument, parts, head = (), found = Any[])
+    table = try_evaluate_reference(parts, _make_steps_reference(_TABLE_STEPS), nothing)
+    table isa WidgetTable && push!(found, (doc, table, (head..., _TABLE_STEPS...)))
+    inner = _find_detail_group(doc)
+    inner === nothing && return found
+    detail = try_evaluate_reference(parts, _make_steps_reference(_DETAIL_STEPS), nothing)
+    detail === nothing || _collect_group_tables(inner, detail, (head..., _DETAIL_STEPS...), found)
+    found
+end
+
+# The task of the row `row` of `table`, a table of `doc`: a list counts its rows
+# from its head, the anchor of the group, and a table of every row from the first
+# row the choice shows. `nothing` for a row that the choice does not show.
+function _find_row_task(doc::TaskGroupDocument, table::WidgetTable, row::Int)
+    shown = _compute_shown_indices(doc)
+    place = (table.cells isa ListNode ? _get_head_place(doc, shown) : 1) + row - 1
+    1 <= place <= length(shown) ? shown[place] : nothing
+end
+
+# The group, the table and the number of the row that the selection `path`, from
+# the root of the pane, names whole; `nothing` for any other path.
+function _find_selected_table_row(tables, path)
+    for (group, table, steps) in tables
+        rest = _find_path_below(path, steps)
+        rest isa ConcreteReference || continue
+        below = get_reference_steps(rest)
+        (length(below) == 2 && below[1] isa FieldReferenceStep && below[1].name == "rows" &&
+         below[2] isa RangeReferenceStep && below[2].stop == below[2].start + 1) || return nothing
+        return (group, table, below[2].stop)
+    end
+    nothing
+end
+
+# What a press on the row of task `index` of `group` does: a press shows the task
+# in the detail, a double press opens its page, in the navigator around the pane
+# or else in a new tab, and Ctrl+press opens it in a new tab. Which task the
+# detail shows is view state, so the undo does not record it.
+function _make_row_press_operation(group::TaskGroupDocument, index::Int, gesture)
+    reference = _make_task_reference(index)
+    if gesture isa MouseClick
+        gesture.modifiers.ctrl && return OpenPageOperation(group, reference, :new_tab)
+        gesture.count == 2 && return OpenPageOperation(group, reference, :here)
+    end
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(group, "selected", index))
+end
+
+# The write of the anchor of a group for a write of the head of the list of its
+# table, which moves the head to a later or an earlier node; `nothing` for any
+# other operation.
+function _convert_head_write(tables, operation)
+    operation isa ReplaceViewStateOperation || return nothing
+    write = get_wrapped_operation(operation)
+    (write isa ReplaceReferencedValueOperation && write.value isa ListNode &&
+     write.reference isa ConcreteReference && write.reference.head isa FieldReferenceStep &&
+     write.reference.head.name == "cells") || return nothing
+    entry = findfirst(entry -> entry[2] === write.document, tables)
+    entry === nothing && return nothing
+    (group, table, _) = tables[entry]
+    row = find_list_index(table.cells, write.value)
+    index = row === nothing ? nothing : _find_row_task(group, table, row)
+    index === nothing && return DoNothingOperation()
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(group, "anchor", index))
+end
+
+# The answer of the pane to a selection of a row of a table of a group, and to a
+# compound that moves the head of the list of one; `nothing` for any other. The
+# selection of a row moves with the head in that compound, but the table selects
+# the row of the task of the detail, wherever the head is, so that part does
+# nothing.
+function _convert_table_answer(doc::TaskGroupDocument, root, operation, gesture)
+    if operation isa ReplaceSelectionOperation
+        found = _find_selected_table_row(_collect_group_tables(doc, root), operation.path)
+        found === nothing && return nothing
+        (group, table, row) = found
+        index = _find_row_task(group, table, row)
+        return index === nothing ? DoNothingOperation() : _make_row_press_operation(group, index, gesture)
+    end
+    operation isa CompoundOperation || return nothing
+    tables = _collect_group_tables(doc, root)
+    anchors = Any[_convert_head_write(tables, part) for part in operation.operations]
+    all(isnothing, anchors) && return nothing
+    CompoundOperation(Any[anchor !== nothing ? anchor :
+                          part isa ReplaceSelectionOperation && _find_selected_table_row(tables, part.path) !== nothing ?
+                              DoNothingOperation() : part
+                          for (part, anchor) in zip(operation.operations, anchors)])
+end
+
+function read_intent(p::TaskGroupDocumentToWidgetPane, recursion, change::Intent, iomap)
+    operation = change.operation
+    converted = operation === nothing ? nothing :
+                _convert_table_answer(iomap.input, iomap.output, operation, change.gesture)
+    converted === nothing || (change = Intent(change.gesture, converted, change.description, change.domain))
+    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
 end
 
 # ── The Tasks pane ───────────────────────────────────────────────────────────

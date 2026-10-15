@@ -288,20 +288,29 @@ captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
 `TaskGroupDocumentToWidgetPane` draws a group as its pane: a card with the
 counts of each code, a bar of the progress, the time, the reason of what was not
 expected and the actions on the whole group; a table with one row for each task;
-and the detail of the task that a person picked, with its facts, its buttons
-and its two streams. The detail of a task that is a group is the pane of that
-group: its card, with no actions of its own, its table and its detail. The columns of the table are the pick and the state, the
-columns of the kind of the first task, and then the progress, the elapsed time,
+and the detail of the task whose row a person pressed, with its facts, its
+buttons and its two streams. The detail of a task that is a group is the pane of
+that group: its card, with no actions of its own, its table and its detail. The
+columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
 `WidgetProgressRing` while the task runs: filled to the fraction that the task
 reports, or turning when it reports none, with the position of the task in its
 tooltip. A row reads the shadow of the current execution of its own document,
 so a task that reports draws only its own row again, and the rows are a lazy
-list, so a group of 22,731 tasks costs what a group of twenty costs.
+list, so a group of 22,731 tasks costs what a group of twenty costs. The head of
+the list is the task that the `anchor` of the group names. A scroll far from the
+head writes the head of the list of the table, and the pane writes the anchor
+instead, as the owner of a list does; the list then starts again from that task.
 
-**The links.** A press on the pick `›` of a row shows the task in the detail, a
-double press opens the page of the task, and Ctrl+press opens it in a new tab.
-The detail has Open the task page, and in the Tasks pane the title of a group
+**The links.** The row is what a person presses, and no cell of it. The table
+gives a press on a row back as the selection of the row, and the pane turns it
+into what the press does to the task of the row, at the place of the anchor: a
+press shows the task in the detail, a double press opens the page of the task,
+and Ctrl+press opens it in a new tab. The press writes `selected` of the group as
+view state, so the undo does not record it. The table selects the
+row of the task of the detail, and its tooltip says what a press does. The row
+takes no key: the walk of the selection leaves the table out. The detail has
+Open the task page, and in the Tasks pane the title of a group
 opens the page of the group. Each answers `OpenPageOperation` with the document
 that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
