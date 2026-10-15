@@ -2,7 +2,9 @@
 
 Status: a proposal. Decided by the owner, 2026-10-15: D15 A of
 [the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md),
-as a step of its own after that plan ("agreed A"). Nothing is built. D15a is open.
+as a step of its own after that plan ("agreed A"). Nothing is built. D15a is
+decided too (A, 2026-10-15), so every decision is made; the work starts on the
+word of the owner.
 
 ## 1. The goal
 
@@ -49,8 +51,11 @@ A save never writes over a newer file without the person knowing.
 
 ## 4. The decision
 
-- **D15a. Open:** what the person sees when a file with unsaved edits changes on
-  disk, and when a save would write over a newer file. Today a line in the log
+- **D15a. Decided by the owner, 2026-10-15: A** ("the band looks good", after a
+  picture of the band drawn with the widgets of the editor: a light yellow strip
+  between the title of the tab and its content, one sentence and two buttons,
+  which fills the width of the tab). What the person sees when a file with
+  unsaved edits changes on disk, and when a save would write over a newer file. Today a line in the log
   says the first, which a person does not see, and the second happens with no
   sign.
   - A: a band at the top of the tab: "data.json changed on disk", with "Load it"
