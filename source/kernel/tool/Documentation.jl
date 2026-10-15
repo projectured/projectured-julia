@@ -262,23 +262,59 @@ function _render_doc(md)
     end
 end
 
+# Every docstring of the binding `mod.sym`, in every module that documents it: the
+# signature that each one documents, and its text. A docstring of the generic
+# function, which stands above `function name end`, documents the signature `Union{}`.
+function _collect_binding_docs(mod::Module, sym::Symbol)
+    binding = Base.Docs.Binding(mod, sym)
+    found = Pair{Any,String}[]
+    for documenting in Base.Docs.modules
+        table = Base.Docs.meta(documenting; autoinit = false)
+        (table === nothing || !haskey(table, binding)) && continue
+        multidoc = table[binding]
+        for signature in multidoc.order
+            push!(found, signature => String(_render_doc(multidoc.docs[signature])))
+        end
+    end
+    found
+end
+
+# The docstring that stands for a name: the one of the generic function, else the
+# one of a method that says what it is used for, else the first one.
+function _choose_binding_doc(docs)
+    generic = findfirst(doc -> first(doc) === Union{}, docs)
+    generic === nothing || return generic
+    used = findfirst(doc -> occursin("\nUse it to ", last(doc)), docs)
+    something(used, 1)
+end
+
 """
     _binding_doc(mod, sym) -> String
 
 Full documentation for the binding `mod.sym` as plain markdown, or `""` if none.
-This is the `(module, symbol)` form `@doc` lowers to — the only path that works on
-Julia 1.12, where `Base.Docs.doc(obj)` has no method for modules/types/functions.
+
+A function documents its generic function and each method apart. The answer is
+one docstring: the one of the generic function, else the one of a method that has
+a "Use it to" paragraph, else the first. When other methods have their own
+docstring, a last line says how many and how to read one, so the answer stays one
+docstring, however many methods a function has.
 """
 function _binding_doc(mod::Module, sym::Symbol)
-    md = try
-        Base.Docs._doc(Base.Docs.Binding(mod, sym))
+    docs = try
+        _collect_binding_docs(mod, sym)
     catch exception
         is_fault_exception(exception) || rethrow()
-        nothing
+        Pair{Any,String}[]
     end
-    str = _render_doc(md)
+    isempty(docs) && return ""
+    str = last(docs[_choose_binding_doc(docs)])
     (isempty(str) || startswith(str, "No documentation found")) && return ""
-    String(str)
+    others = length(docs) - 1
+    others == 0 && return str
+    str * "\n\n" * string(others) *
+        (others == 1 ? " method has a docstring of its own" : " methods have docstrings of their own") *
+        ": `read_function_documentation` with the `type_name` of an argument reads the one " *
+        "of that method."
 end
 
 # Object-based convenience: derive the binding from a module/type/function value.
@@ -610,7 +646,9 @@ end
     read_function_documentation(module_name, function_signature, type_name = nothing;
                                 api = ApiEntry[]) -> String
 
-Read the full documentation for a function within a module.
+Read the full documentation for a function within a module: the docstring of the
+generic function, as `_binding_doc` chooses it. With `type_name`, the docstring of
+the method whose signature names that type.
 """
 function read_function_documentation(module_name, function_signature, type_name = nothing;
                                     api = ApiEntry[])
@@ -624,6 +662,14 @@ function read_function_documentation(module_name, function_signature, type_name 
     sym = get_api_source_name(api, mod, sym)
     isdefined(mod, sym) ||
         return "Function '$function_signature' not found in module '$module_name'."
+    if type_name !== nothing
+        docs = _collect_binding_docs(mod, sym)
+        typed = findfirst(doc -> first(doc) !== Union{} && occursin(String(type_name), string(first(doc))),
+                          docs)
+        typed === nothing &&
+            return "No method of '$func_name' with the type '$type_name' has a docstring of its own."
+        return last(docs[typed])
+    end
     doc = _doc_string(getfield(mod, sym))
     isempty(doc) && return "No documentation available for '$function_signature'."
     doc

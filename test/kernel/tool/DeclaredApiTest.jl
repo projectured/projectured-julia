@@ -10,6 +10,49 @@ finds a function it cannot call wastes a round.
 using Test
 using ProjecturedKernel.ToolModule
 
+# A function documented as a whole and method by method, and one documented only
+# by its methods: what a search answers for each.
+module ToyDocumented
+export toy_shape, toy_size
+
+"""
+    toy_shape(x)
+
+The shape of a toy, whatever the toy is. Use it to name a shape.
+"""
+function toy_shape end
+
+"""
+    toy_shape(x::Int)
+
+The shape of a numbered toy.
+"""
+toy_shape(x::Int) = :square
+
+"""
+    toy_shape(x::String)
+
+The shape of a named toy.
+"""
+toy_shape(x::String) = :round
+
+"""
+    toy_size(x::Int)
+
+The size of a numbered toy.
+"""
+toy_size(x::Int) = x
+
+"""
+    toy_size(x::String)
+
+The size of a named toy.
+
+Use it to say how large a toy is.
+"""
+toy_size(x::String) = length(x)
+end
+
 # A module of the kind a caller declares: a few verbs and nothing more. Julia
 # allows `module` only at the top level, so the fixture lives here rather than
 # inside the testset.
@@ -135,6 +178,20 @@ function test_declared_api()
         answer = call_tool(set, "execute_julia_code"; args = Dict{String,Any}(),
                            target = nothing)
         @test occursin("No code was given", answer)
+    end
+
+    @testset "a function answers one docstring: its generic one, else the one written for use" begin
+        shape = ToolModule._binding_doc(ToyDocumented, :toy_shape)
+        @test occursin("whatever the toy is", shape)
+        @test !occursin("numbered", shape) && !occursin("named toy", shape)
+        @test occursin("2 methods have docstrings of their own", shape)
+        size = ToolModule._binding_doc(ToyDocumented, :toy_size)
+        @test occursin("how large a toy is", size)
+        @test occursin("1 method has a docstring of its own", size)
+        # A type of an argument reads the docstring of that method.
+        api = ToolModule._api_entries(Module[ToyDocumented])
+        @test occursin("numbered toy", read_function_documentation("ToyDocumented", "toy_shape", "Int"; api))
+        @test occursin("named toy", read_function_documentation("ToyDocumented", "toy_shape", "String"; api))
     end
 
     @testset "a function's documentation is reachable as a tool" begin
