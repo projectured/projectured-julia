@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; no step is started. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; no step is started. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -250,7 +250,10 @@ person.
   `reason`, `blocked_by` (the ids of other steps) and `children`.
 - **The statuses** are `:pending`, `:in_progress`, `:completed`, `:skipped`
   and `:deferred`. A pending step whose blocker is not completed shows as
-  blocked (`is_work_plan_step_blocked`); "blocked" is not a status.
+  blocked (`is_work_plan_step_blocked`); "blocked" is not a status. No agent
+  gives `:skipped` or `:deferred` in this plan (answer 2 of section 8). The
+  Markdown plans hold that information now, and a later reader of them fills
+  the two statuses.
 - **`WorkPlan`**: `id`, `title`, and one of three contents, as the content of
   an ACP plan: `steps`, a Markdown `text`, or the `uri` of a file.
 - **`compute_work_plan_progress(plan)`** counts the steps of each status, at
@@ -274,7 +277,7 @@ program. A field that is `nothing` in an update keeps its last value, as for
 
 | Event | What changes |
 | --- | --- |
-| `AgentPlanEntry` | new fields `id`, `description`, `active_title`, `reason`, `blocked_by`; new statuses `:skipped`, `:deferred` |
+| `AgentPlanEntry` | new fields `id`, `description`, `active_title`, `blocked_by` |
 | `AgentPlanUpdate` | new fields `id` (empty for the one plan of ACP version 1), `markdown`, `uri`, `is_removed` |
 | `AgentSubagentUpdate` | new: `id`, `title`, `description`, `state`, `stop_reason`, `usage`, `can_cancel`, and `event`: one event of the subagent, such as its text or a tool call. A subagent of a subagent comes as an update inside an update. |
 | `AgentBackgroundTaskUpdate` | new: `id`, `kind`, `title`, `status`, `tool_call_id`, `subagent_id`, `output_uri`, `summary`, `usage`, `start_time`, `end_time`, `can_stop` |
@@ -308,8 +311,8 @@ event, so a test of the assistant needs no agent.
 - A `plan_update` becomes an `AgentPlanUpdate` with its id, and a
   `plan_removed` becomes one with `is_removed`. A `plan` of version 1 becomes
   one with an empty id. The package reads the keys `taskId`, `description`,
-  `activeForm`, `blockedBy`, `outcome` and `reason` of `_meta.claudeCode` of an
-  entry, and no other key. acp.md lists them, as it lists `toolName` now.
+  `activeForm` and `blockedBy` of `_meta.claudeCode` of an entry, and no other
+  key. acp.md lists them, as it lists `toolName` now.
 - The notification `_session/background_task` becomes an
   `AgentBackgroundTaskUpdate`. `stop_agent_background_task!` sends the request
   `_session/stop_background_task`. `cancel_agent_subagent!` sends
@@ -394,15 +397,10 @@ The agent sends the new updates only to a client that advertises them.
 - **Plans.**
   - The plan steps of `TaskCreate`, `TaskUpdate` and `TodoWrite` go as a
     `plan_update` of the type `items`, with the id `tasks`.
-  - The id, the description, the `activeForm`, the blockers, and
-    `metadata.outcome` and `metadata.reason` of a step go in
-    `_meta.claudeCode`.
+  - The id, the description, the `activeForm` and the blockers of a step go
+    in `_meta.claudeCode`.
   - The input of `ExitPlanMode` goes as a `plan_update` of the type
     `markdown`, with the id `plan-mode`.
-- **A line in the system text.** "When you skip or defer a task, set
-  `metadata.outcome` to `skipped` or `deferred` and `metadata.reason` to why."
-  Claude Code has no such status, so this line gives the editor the two states
-  that the owner asked for.
 - **Health.**
   - `compact_boundary` sends a `compaction_update`.
   - `api_retry` and `model_fallback` send a `notice`.
@@ -439,7 +437,6 @@ every assistant of a window.
    `_meta.claudeCode` that section 4.7 lists.
 5. `AgentWork`, `AgentBackgroundTask`, `AssistantWork`, the field
    `Assistant.agent_work`, and the three columns of the assistant list.
-6. The line in the system text of ClaudeCodeACP for `metadata.outcome`.
 
 ## 6. Steps
 
@@ -453,13 +450,13 @@ For each step, run the narrowest test: the test files of the step. Do not run
 `test_all()`.
 
 - [ ] **1. Record what `claude -p` says.** In ClaudeCodeACP. This step runs
-  `claude` on the subscription of the owner, so it waits for the word of the
-  owner.
+  `claude` on the subscription of the owner, which the owner allowed on
+  2026-10-15.
   - Record four turns with the model `haiku` in an empty folder, and clean
     them as `test/recorded/README.md` says:
     - a subagent;
     - a background shell command, and a stop of a second one;
-    - a plan of three steps, one of them skipped with `metadata.outcome`;
+    - a plan of three steps, one of them blocked by another;
     - the plan mode, up to `ExitPlanMode`.
   - Write here which events of section 3.1 come, and their fields. If an
     event does not come, the steps below use what comes, and say so here.
@@ -522,7 +519,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
   - Tests with `ScriptedAgentConnection`:
     - a subagent and its transcript;
     - a background task that ends after the prompt;
-    - a plan with a skipped and a deferred step;
+    - a plan with a blocked step and a step in progress;
     - the process id of a session.
 
 - [ ] **8. The assistant: the work page.**
@@ -541,7 +538,8 @@ For each step, run the narrowest test: the test files of the step. Do not run
     owner publishes it. Then the compat bound of ProjecturedACP follows.
 
 - [ ] **10. The live check and the documentation.**
-  - With the word of the owner, run the editor with a signed-in Claude Code:
+  - Run the editor with a signed-in Claude Code, as the owner allowed on
+    2026-10-15:
     - give a prompt that starts a subagent and a background command;
     - drive the work page by pushed SDL events;
     - write here what showed.
@@ -554,6 +552,8 @@ For each step, run the narrowest test: the test files of the step. Do not run
 
 - A Markdown file of a plan, such as a file of `plan/pending/`, read as a
   `WorkPlan`.
+- A formal way for an agent to say that it skipped or deferred a plan step
+  (answer 2 of section 8).
 - A link from a background task to its system process: no key joins them
   exactly, and a match by the text of a command is a guess.
 - A tree with columns.
@@ -566,11 +566,13 @@ For each step, run the narrowest test: the test files of the step. Do not run
   internal, and the other needs an environment variable.
 - The system processes on macOS and Windows.
 
-## 8. Open questions
+## 8. The answers of the owner (2026-10-15)
 
-1. Steps 1 and 10 run `claude` on the subscription of the owner. May they run?
-2. The line of section 4.9 asks Claude to write `metadata.outcome`, because
-   Claude Code has no status "skipped" or "deferred". Is this convention
-   right?
-3. The page of a process has Interrupt and Stop. Are the two buttons right, or
-   must the page only show?
+1. **Steps 1 and 10 run `claude` on the subscription of the owner.** "agreed".
+2. **A line in the system text of ClaudeCodeACP, to ask Claude to write
+   `metadata.outcome` for a skipped or a deferred plan step.** "not necessary
+   for now, the markdown plans do have that information now, we can make the
+   formal later". So the line is not in this plan. `WorkPlanStep` keeps the
+   statuses `:skipped` and `:deferred` for a later reader of the Markdown
+   plans, and the kernel and ACP carry no such status.
+3. **The page of a process has Interrupt and Stop.** "yes, I want".
