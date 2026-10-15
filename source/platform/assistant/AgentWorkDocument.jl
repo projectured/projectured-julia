@@ -207,14 +207,15 @@ _open_agent_background_task_output(editor, task::AgentBackgroundTask) =
     evaluate_operation(editor, OpenFileOperation(chopprefix(task.output_uri, "file://")))
 
 # A press of Stop: the assistant of the window whose session runs the task asks
-# its agent to stop it, on a task of its own. The answer of the agent says whether
+# its agent to stop it, as background work. The answer of the agent says whether
 # it stopped; a later update of the task reports the end, and a refusal is a
-# notice of the work of the assistant.
+# notice of the work of the assistant, which the work posts to the editor. With
+# no loop, the work runs on the thread of the press, as a turn does.
 function _stop_agent_background_task(editor, task::AgentBackgroundTask)
-    a = _find_session_assistant(task.session_id)
+    a = _find_session_assistant(editor, task.session_id)
     a === nothing && return nothing
     session = a.agent_session
-    errormonitor(@async begin
+    stop = () -> begin
         is_stopped = try
             Base.invokelatest(stop_agent_background_task!, session.connection,
                               task.session_id, task.task_id)
@@ -228,14 +229,16 @@ function _stop_agent_background_task(editor, task::AgentBackgroundTask)
         is_stopped || run_on_editor_task!(editor; wait = false) do
             _add_agent_notice!(a.agent_work, :warning, title, "")
         end
-    end)
+    end
+    start_background_work(stop; description = "the stop of a background task", editor,
+                          parent = nothing, is_sticky = !is_editor_loop_running(editor))
     nothing
 end
 
 # The assistant whose open session has the id `session_id`, among the assistants
-# that the list of the assistants shows, or `nothing`.
-function _find_session_assistant(session_id::AbstractString)
-    for a in collect(get_session_assistant_list().assistants)
+# that the list of the assistants of `editor` shows, or `nothing`.
+function _find_session_assistant(editor, session_id::AbstractString)
+    for a in collect(get_session_assistant_list(; editor).assistants)
         session = a.agent_session
         session isa ExternalAgentSession && session.session_id == session_id && return a
     end

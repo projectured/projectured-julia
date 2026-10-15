@@ -83,10 +83,10 @@ An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_
 
 A connection keeps no `on_event` of a session, because the caller captures the editor in it. So an event of a session goes to one of two places:
 
-- **During a prompt**, to the `on_event` of `send_agent_prompt!`.
+- **During a prompt**, to the `on_event` of `send_agent_prompt!`, through the outbox of the prompt: one task gives the events to `on_event` in their order, with no lock held, so an `on_event` that waits for the editor never holds the reader. The prompt answers after each of its events reached `on_event`.
 - **Between two prompts**, to the `AgentEventQueue` that `open_agent_session!` took as `events`, after the same translation. The caller drains the queue. A session that opened with no queue drops these events. The options of a session stay current in the connection in either case, for `set_agent_option!` and a `current_mode_update`.
 
-A prompt takes the events of its session only after the last event of the time before it is in the queue. So a caller that puts the events of `on_event` into the same queue has all the events of the session in their order.
+A prompt takes the events of its session only after the last event of the time before it is in the queue. So a caller that puts the events of `on_event` into the same queue has all the events of the session in their order. A frame passes each event on at once, under the lock: its `on_event` puts it into a queue or wraps it for its parent, and never waits. So an update that comes after the answer of a prompt can reach the queue before the last events of that prompt reach `on_event`, while its outbox still delivers.
 
 The text of a session between two prompts has its own frame, as an `AcpTurn` in `session_frames`, so `claude` that starts a turn by itself after a background task ends gives framed text to the queue. The start of the next prompt closes that frame, and its last stop goes to the queue. A frame that goes for another reason also ends its open block in its queue first: at the close of its session, at a second open of the same id, and at the stop of the agent, which forgets every session of the agent.
 

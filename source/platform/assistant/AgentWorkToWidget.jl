@@ -74,7 +74,7 @@ end
 
 function _build_agent_header_lines(work::AgentWork)
     cancel = WidgetButton("Cancel"; tooltip = "Stop the work of the subagent",
-                          action = editor -> _cancel_agent_subagent_work(work))
+                          action = editor -> _cancel_agent_subagent_work(editor, work))
     set_cell_computation!(getfield(cancel, :visible),
                           () -> work.state === :running && work.can_cancel)
     Any[WidgetLabel(() -> get_document_title(work)),
@@ -151,26 +151,29 @@ function _make_agent_work_link(work::AgentWork, field::AbstractString, index::In
 end
 
 # A press of Cancel: the assistant whose session runs the subagent asks its agent
-# to stop the work of the subagent, on a task of its own, as Stop of a background
-# task finds the session at the press.
-function _cancel_agent_subagent_work(work::AgentWork)
-    a = _find_subagent_assistant(work)
+# to stop the work of the subagent, as background work, as Stop of a background
+# task finds the session at the press. With no loop, the work runs on the thread
+# of the press, as a turn does.
+function _cancel_agent_subagent_work(editor, work::AgentWork)
+    a = _find_subagent_assistant(editor, work)
     a === nothing && return nothing
     session = a.agent_session
-    errormonitor(@async try
+    cancel = () -> try
         Base.invokelatest(cancel_agent_subagent!, session.connection, session.session_id,
                           work.id)
     catch exception
         is_fault_exception(exception) || rethrow()
         @warn("The agent did not cancel its subagent.", subagent = work.id, exception)
-    end)
+    end
+    start_background_work(cancel; description = "the cancel of a subagent", editor,
+                          parent = nothing, is_sticky = !is_editor_loop_running(editor))
     nothing
 end
 
-# The assistant of the list of the assistants whose session holds the subagent
-# `work`, at any depth, or `nothing`.
-function _find_subagent_assistant(work::AgentWork)
-    for a in collect(get_session_assistant_list().assistants)
+# The assistant of the list of the assistants of `editor` whose session holds the
+# subagent `work`, at any depth, or `nothing`.
+function _find_subagent_assistant(editor, work::AgentWork)
+    for a in collect(get_session_assistant_list(; editor).assistants)
         a.agent_session isa ExternalAgentSession || continue
         _holds_agent_work(a.agent_work, work) && return a
     end

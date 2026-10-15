@@ -123,11 +123,14 @@ end
 
 # ── A prompt ─────────────────────────────────────────────────────────────────
 
-# A queue for the events of the session, which joins the feed of the window.
+# A queue for the events of the session, which joins the feed of the window. The
+# join is posted and not waited for, so the start of a session waits for the
+# editor under no lock; the posts of a task apply before a later call of that task
+# that waits, such as the start of the prompt.
 function _make_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSession)
     queue = AgentEventQueue()
     session.events = queue
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; wait = false) do
         _register_agent_event_queue!(editor, a, session, queue)
     end
     queue
@@ -172,13 +175,13 @@ function _end_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSes
 end
 
 # An event of a prompt goes into the queue of its session, behind the events that
-# came before it. An editor whose loop runs on another task applies the queue in
-# its next frame, for which the event asks; another editor, such as the one of a
-# test, applies the queue at once, on this task.
+# came before it. An editor whose loop runs applies the queue in its next frame,
+# for which the event asks, and the turn never waits for it. With no loop, such
+# as in a test, a call through the door runs at once on the task that makes it,
+# and so does the queue: the turn then runs on the thread of its caller.
 function _post_agent_event!(editor, a::Assistant, queue::AgentEventQueue, event)
     put_agent_event!(queue, event)
-    task = editor isa Editor ? editor.loop_task : nothing
-    if task !== nothing && task !== current_task()
+    if editor isa Editor && is_editor_loop_running(editor)
         wake_editor!(editor)
     else
         _drain_agent_event_queue!(editor, a, queue)

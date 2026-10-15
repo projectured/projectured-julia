@@ -167,7 +167,7 @@ function test_agent_work()
             @test compute_item_facet(a, Val(:background_tasks)) == 1
             @test compute_wake_deadline(feed, editor) == 0.25
             # Stop finds the assistant of the session in the list of the assistants.
-            list = get_session_assistant_list()
+            list = get_session_assistant_list(; editor)
             previous = list.source
             set_assistant_list_source!(list, () -> [a])
             try

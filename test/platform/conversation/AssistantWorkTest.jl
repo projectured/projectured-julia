@@ -48,7 +48,7 @@ function test_assistant_work()
                 @test _work_page_has_text(backend, text)
             end
             # Cancel asks the agent of the session that holds the subagent.
-            list = get_session_assistant_list()
+            list = get_session_assistant_list(; editor)
             previous = list.source
             set_assistant_list_source!(list, () -> [a])
             try
