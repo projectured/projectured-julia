@@ -26,8 +26,9 @@ function test_graph()
         test_graph_projection()
         test_fruchterman_reingold_layout()
         test_graph_theme()
+        test_graph_vertex_drag()
     end
 end
 
 export test_graph, test_graph_layering, test_graph_projection
-export test_fruchterman_reingold_layout, test_graph_theme, test_graph
+export test_fruchterman_reingold_layout, test_graph_theme, test_graph_vertex_drag, test_graph

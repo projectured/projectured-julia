@@ -218,6 +218,12 @@ end
 
 OperationModule.is_self_contained_operation(::ChangeScreenPointerShapeOperation) = true
 
+# The shape of the pointer is view state, and taking an edit back does not change
+# it, so the way back from a change of the shape is to do nothing. A drop answers
+# its edit and the shape together, and the edit keeps its way back.
+OperationModule.make_inverse_operation(document, ::ChangeScreenPointerShapeOperation) =
+    DoNothingOperation()
+
 """
     make_screen_pointer_shape_operation(shape) -> ReplaceViewStateOperation
 

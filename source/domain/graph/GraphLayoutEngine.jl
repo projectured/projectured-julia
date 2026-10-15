@@ -270,12 +270,17 @@ function get_straight_routes(graph::GraphGraph, positions::Dict)
         source_box = get(positions, objectid(source), nothing)
         target_box = get(positions, objectid(target), nothing)
         (source_box === nothing || target_box === nothing) && continue
-        scx = source_box[1] + source_box[3]/2; scy = source_box[2] + source_box[4]/2
-        tcx = target_box[1] + target_box[3]/2; tcy = target_box[2] + target_box[4]/2
-        routes[objectid(edge)] = Tuple{Int,Int}[_border_point(source_box, tcx, tcy),
-                                                _border_point(target_box, scx, scy)]
+        routes[objectid(edge)] = _make_straight_route(source_box, target_box)
     end
     routes
+end
+
+# The straight route between two boxes `(x, y, w, h)`: from the border of the
+# source box to the border of the target box, on the side that faces the other.
+function _make_straight_route(source_box, target_box)
+    scx = source_box[1] + source_box[3]/2; scy = source_box[2] + source_box[4]/2
+    tcx = target_box[1] + target_box[3]/2; tcy = target_box[2] + target_box[4]/2
+    Tuple{Int,Int}[_border_point(source_box, tcx, tcy), _border_point(target_box, scx, scy)]
 end
 
 """

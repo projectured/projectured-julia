@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 and 2 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; steps 1 to 3 are done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
@@ -181,7 +181,7 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   the others. The step sets `_START_TRAVEL = 0.25`, the smaller of the useful
   values, and section 8 holds the question. `test_graph()` and the check of
   `ProjecturedAdaptagrams` pass: 416 passes.
-- [ ] **3. The drag.** Section 4.3. A new test file in
+- [x] **3. The drag.** Section 4.3. A new test file in
   `test/domain/graph/projection/` prints `graph_example` one time. It reads the
   gestures through that one IO map with the drag wrapper, as
   `PaneDragTest.jl` does. It asserts:
@@ -191,6 +191,24 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   - that Escape puts the vertex back;
   - that a click with no move selects in the content;
   - that undo removes the pin.
+
+  Done 2026-10-15. Facts found:
+  - `ChangeScreenPointerShapeOperation` had no inverse, so a compound that
+    changes the shape of the pointer, such as the drop, lost its way back, and
+    the undo buffer would refuse it. The shape is view state, as the part under
+    the pointer is, so its inverse is now `DoNothingOperation`
+    (`ScreenDocument.jl`).
+  - The test drives a real `Editor` in a window of the drag tracking screen, as
+    `DragTrackingTest.jl` does, so the parts of the drag reach the graph by its
+    path through the chain. The check of undo prints the chain directly and calls
+    `evaluate_invertible_operation!`, as the undo buffer does.
+  - A press on the content of a JSON vertex reaches the vertex: that content
+    takes no press.
+  - In `graph_example`, after a drop the other two vertices moved by about 35
+    pixels, which is a quarter of `k` for its large boxes. Section 8 holds the
+    question.
+  - `test_graph()`, `test_drag_tracking()`, `test_drag_pointer_shape()`,
+    `test_pane_drag()` and `test_undo()` pass together: 918 passes.
 - [ ] **4. omnet-julia.** `SpringEmbedderLayout` and `ForceDirectedLayout` take
   `:start` as a pin. A test in the layout tests of omnet-julia covers it. Run
   `Pkg.precompile` of omnet-julia. This step lands after step 3 is on `main` of
