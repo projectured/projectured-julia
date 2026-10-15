@@ -1,13 +1,14 @@
 # The wheel scrolls faster on a fast turn
 
-> **Status (2026-10-15): pending.** The owner asked for it: "the scroll bar is
+> **Status (2026-10-15): done.** Landed on `main` at `0b9a9b3bc`. The owner asked for it: "the scroll bar is
 > too slow, perhaps it would make sense to have a speed range (min, max) and if
 > scrolling is continuous than slowly speed up to max". The owner agreed to the
 > four steps below and to a change of `MouseScroll` for the touchpad. Step 3
 > changes `MouseScroll` with a new field and not with a new type of `dx` and
 > `dy`. The owner agreed to that design and to the fix of the copies that drop
-> `modifiers` ("yes and also with the fixes"). Steps 1 to 4 are done. The
-> check in the live app and the precompile of omnet-julia are open.
+> `modifiers` ("yes and also with the fixes"). Steps 1 to 4 are done, and the
+> owner closed the open items: "the scrolling feel is right, ignore the video
+> scripts for now, the videos are already done, ignore the precompile".
 
 ## The goal
 
@@ -90,7 +91,9 @@ A new pair of fields holds the exact amount of the turn, in notches, as a
   with no Ctrl. A new test shows that Ctrl and the wheel zoom a transform pane
   in a composite; the test was not run before the fix.
 - ✅ `_self_scroll` and the pan of `WidgetTransformPane` read the exact amount.
-- ⬜ Check that omnet-julia and inet-julia precompile. A static scan found only
+- ✅ Check that omnet-julia and inet-julia precompile. After the landing,
+  omnet-julia precompiled against `main` (120 packages, no error). inet-julia
+  was not precompiled; the owner: "ignore the precompile". A static scan found only
   the keyword constructor `MouseScroll(dx, dy, x, y; time)` in both, which
   keeps working. The precompile itself waits for the landing, because a scratch
   environment over two repositories needs 16 GB.
@@ -123,7 +126,8 @@ A new pair of fields holds the exact amount of the turn, in notches, as a
   tests that send several notches at the time 0.0 made a fast run, so their
   helpers now send each notch a second after the last. 17 test functions pass:
   1012 of 1012.
-- ⬜ Tune the numbers in the live app. The live check (see the plan of the
+- ✅ Tune the numbers in the live app. The owner: "the scrolling feel is
+  right", so 80 ms, 150 ms and 1.25 stay. The live check (see the plan of the
   scroll bar) confirms the numbers in a real window: one notch scrolls 69
   pixels, three lines of 23, and three notches 50 ms apart scroll 263 pixels,
   69 + 86 + 108. Whether 80 ms, 150 ms and 1.25 feel right needs a real wheel
@@ -147,14 +151,16 @@ became of each:
 4. ✅ A merged turn grew at each later notch, so a slow frame sped up a slow
    wheel. Now the notches of a merged turn share the time since the last
    notch, so their pace decides; a merged turn that starts a run does not grow.
-5. ⬜ Open, for the owner: the video scripts `tool/video/record_data_frame.jl`,
+5. ✅ Closed by the owner ("ignore the video scripts for now, the videos are
+   already done"): the video scripts `tool/video/record_data_frame.jl`,
    `record_appearance.jl`, `record_lazy_primes.jl`, `check_assistant_undo.jl`
    and `record_assistant_window.jl` send wheel events at the time 0.0 or ten
    notches in one event. A take recorded again scrolls further than before.
 6. ✅ `pred_arguments(::WidgetTransformPane)` now writes the content first, as
    the constructor takes it, as the scroll pane does. A save of a transform
    pane still fails at `transform`, which is no document, as before.
-7. ⬜ Open: the recorded precompile statements name `WidgetScrollPane` and
+7. ✅ Closed by the owner ("ignore the precompile"): the recorded precompile
+   statements name `WidgetScrollPane` and
    `WidgetTransformPane` with the old count of type parameters, in
    `package/*/precompile/*.txt` and in omnet-julia and inet-julia. They are
    skipped until the next recording; this costs compile time and changes no
