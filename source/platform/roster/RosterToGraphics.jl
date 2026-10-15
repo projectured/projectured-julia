@@ -99,6 +99,18 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     iomap
 end
 
+# An operation that a route brings to a row or a part of it, which no printed cell
+# takes, such as the choice of the menu of the item of a row: the rows answer it
+# at that place, so the readers above carry it on. A cell of text prints a label
+# and no document, so no child takes such a route.
+function read_intent(p::RosterRowsToWidget, recursion, change::Intent, iomap::RosterRowsToWidgetIoMap)
+    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    (change.route isa ConcreteReference && change.operation !== nothing) || return answer
+    (answer isa Intent ? answer.operation : answer) === nothing || return answer
+    steps = Tuple(get_reference_steps(strip_reference_types(change.route)))
+    Intent(change.gesture, reroot_operation(change.operation, steps), change.description, change.domain)
+end
+
 # The keys of the columns: those that the roster put in the context, or else
 # those of the first row, or none.
 function _find_roster_columns(rows, ctx)

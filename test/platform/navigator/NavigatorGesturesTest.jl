@@ -97,5 +97,20 @@ function test_navigator_gestures()
             @test description in descriptions
         end
     end
+
+    # A roster needs no link of its own: the menu that the navigator gives the part
+    # under the pointer opens the item of a row.
+    @testset "the menu of a row of a roster opens its item" begin
+        chapters = _nav_vector([NavigatorTestChapter("C1", nothing), NavigatorTestChapter("C2", nothing)])
+        roster = link_roster!(Roster(CollectionItems(chapters); columns = ["title"]), chapters)
+        navigator = Navigator(roster)
+        editor, backend = _nav_editor(navigator)
+        opened = _nav_right_click(editor, backend, "C2")
+        @test opened isa OpenContextMenuOperation
+        menus = [menu for (title, menu) in opened.layers if "Open as a page" in _nav_item_labels(menu)]
+        @test length(menus) == 1
+        _nav_choose!(editor, opened, _nav_find_item(only(menus), "Open as a page"))
+        @test get_navigator_page(navigator) === chapters[2]
+    end
 end
 end
