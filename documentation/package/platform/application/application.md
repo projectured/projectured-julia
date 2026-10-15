@@ -22,7 +22,7 @@ The chrome is `make_window_menu_bar()`, `make_window_toolbar(; assistant, explor
 
 `make_application_assistant(backend; model, context, llm)` makes the `Assistant` of the window: `backend` is one of `APPLICATION_ASSISTANTS` (`:ollama`, `:anthropic`, `:none`), and `:none` answers `nothing`. Its greeting, from `get_application_greeting_text(backend)`, says what the window shows and what the assistant needs to answer.
 
-`make_editor_api()` is what the assistant of a window of the editor may write: the vocabularies that every window declares, concatenated and passed to `declare_api!`. The application declares the list as it is, and the OMNeT++ IDE adds the verbs of its simulations to it, so the two windows offer one vocabulary.
+`make_editor_api()` is what the assistant of a window of the editor may write: the vocabularies that every window declares, concatenated and passed to `declare_api!`. The application declares the list as it is, and an application that builds on the editor adds the verbs of its own domain to it, so every window offers one vocabulary.
 
 | Vocabulary | Where it comes from |
 | --- | --- |

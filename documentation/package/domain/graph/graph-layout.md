@@ -81,7 +81,7 @@ layout begins from what the person saw.
 | `FruchtermanReingoldLayout` | the vertex stays there; only the pass that removes overlaps and the rule of the extent move it |
 | `GridEmbedding` | the vertex is placed there, as a pin: a grid has nothing to refine |
 | `AdaptagramsLayout` | the vertex is placed there on the way out, as a pin: the shim takes no constraint |
-| `SpringEmbedderLayout`, `ForceDirectedLayout` (omnet-julia) | a fixed node, as a pin: the originals have no start positions |
+| `SpringEmbedderLayout`, `ForceDirectedLayout` (a package that builds on the editor) | a fixed node, as a pin: the originals have no start positions |
 
 The forces do not move a start, because an FR result is not a balanced state.
 Forces that refine one move every vertex at each drop, the vertices that the

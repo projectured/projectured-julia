@@ -130,7 +130,7 @@ run_example(graph, projection; name = "graph")
 ## Limits
 
 - Edges and labels are not selectable. No gesture adds or removes a vertex or an edge. [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md) lists these as future work.
-- A graph that a view makes keeps the places of a drop only while the view lives: the diagram of a state machine, a process diagram, the topology of an omnet simulation. The pins go on that graph, and a reprint makes a new graph. After a reprint, undo of such a drop has no visible result.
+- A graph that a view makes keeps the places of a drop only while the view lives: the diagram of a state machine, a process diagram, the topology of a network simulation. The pins go on that graph, and a reprint makes a new graph. After a reprint, undo of such a drop has no visible result.
 - During a drag, the edges of the dragged vertex are straight. An engine that routes around boxes routes them again at the drop.
 - No command removes the pins and the starts; undo is the way back.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
