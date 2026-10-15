@@ -40,12 +40,18 @@ A save never writes over a newer file without the person knowing.
 
 ## 3. The steps
 
-- [ ] 1. The store belongs to the editor: the feed of the editor owns it
-  (§3.1).
-- [ ] 2. A file document is watched while a tab shows it: `acquire_document!` of
+- [x] 1. The store belongs to the editor: the feed of the editor owns it
+  (§3.1). Done 1d0f377a9: `get_session_file_change_store(; editor)`,
+  `close_file_change_store!`, a watch with no editor does nothing; the store
+  test 56.
+- [x] 2. A file document is watched while a tab shows it: `acquire_document!` of
   a `FileDocument` watches it in the store of the editor, and `release_document!`
   stops it. The release of a closed tab reaches each layer of its content, as the
-  acquire does.
+  acquire does. Done e30c4e6f4, with the edge filechange → domain. A window
+  posts the acquire at its start outside the undo history, so no Ctrl+Z
+  releases a window. The store test 59, the pane test 105. The guard of the
+  edges between the slices fails on `main` too: the task slice uses the
+  filesystem and the navigator slices, which its row does not allow.
 - [ ] 3. The window of the application registers the feed, in `run_application`
   and `make_application_window`, which the IDE of omnet-julia uses too.
 - [ ] 4. A save compares the file on disk with the last load or save of the
