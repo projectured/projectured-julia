@@ -430,7 +430,9 @@ instead.
    so projection code does not need to change. A letter key has the name of its
    lower-case letter, a button that the event layer does not name makes no
    event, and a positive `dy` of a `MouseScroll` is a wheel turn away from the
-   user.
+   user. `dx` and `dy` are whole notches; `precise_dx` and `precise_dy` hold the
+   turn with the fraction that a touchpad gives, or the whole notches when the
+   source has no fraction.
 5. Draw each glyph where a `TextMeasure` places it, so the ink lands where the
    layout put it.
 

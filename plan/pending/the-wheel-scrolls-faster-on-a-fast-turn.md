@@ -6,7 +6,7 @@
 > four steps below and to a change of `MouseScroll` for the touchpad. Step 3
 > changes `MouseScroll` with a new field and not with a new type of `dx` and
 > `dy`. The owner agreed to that design and to the fix of the copies that drop
-> `modifiers` ("yes and also with the fixes"). Steps 1 and 2 are done.
+> `modifiers` ("yes and also with the fixes"). Steps 1, 2 and 3 are done.
 
 ## The goal
 
@@ -75,14 +75,25 @@ Proposed, and waits for the word of the owner: `dx` and `dy` stay whole notches.
 A new pair of fields holds the exact amount of the turn, in notches, as a
 `Float64`. The readers of a whole notch (fact 5) do not change.
 
-- ⬜ Add the pair to `MouseScroll`. The keyword constructor sets it from `dx` and
-  `dy`, so the code of fact 8 does not change.
-- ⬜ The SDL backend fills the pair from `preciseX` and `preciseY`. The web client
-  sends the sign as now.
-- ⬜ The eight copies of fact 6 use `shift_event_position` or
-  `map_event_position`. They then keep the pair and the modifiers.
-- ⬜ `_self_scroll` and the pan of `WidgetTransformPane` read the exact amount.
-- ⬜ Check that omnet-julia and inet-julia precompile.
+- ✅ Add the pair to `MouseScroll`: `precise_dx` and `precise_dy`, after `time`,
+  so a destructure of the first fields does not change. The keyword
+  constructors and the six-argument constructor set it from `dx` and `dy`, so
+  the code of fact 8 does not change. `MouseEvent.jl` was not sealed (⬜).
+- ✅ The SDL backend fills the pair from `preciseX` and `preciseY`, and takes the
+  whole notch where SDL gives no fraction. The merge of step 2 adds the pair
+  up too. The web client sends the sign as now.
+- ✅ The copies of fact 6 use `shift_event_position`. They then keep the pair
+  and the modifiers. The implementation found ten copies, not eight: the tabbed
+  pane and the content of a scroll pane copied the event too. Seven of the ten
+  dropped `modifiers`, so by the code a child of such a container got the wheel
+  with no Ctrl. A new test shows that Ctrl and the wheel zoom a transform pane
+  in a composite; the test was not run before the fix.
+- ✅ `_self_scroll` and the pan of `WidgetTransformPane` read the exact amount.
+- ⬜ Check that omnet-julia and inet-julia precompile. A static scan found only
+  the keyword constructor `MouseScroll(dx, dy, x, y; time)` in both, which
+  keeps working. The precompile itself waits for the landing, because a scratch
+  environment over two repositories needs 16 GB.
+- ✅ 18 test functions pass: 1022 of 1022.
 
 ### Step 4: a fast run of notches speeds up
 

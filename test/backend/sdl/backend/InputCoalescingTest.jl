@@ -50,11 +50,12 @@ _push_window_event!(kind) =
                                           Int32(0), Int32(0)))
 
 # A wheel turn of `dy` steps, as SDL reports it: a positive `dy` is a turn away from
-# the user. The fields of the event differ between the versions of the SDL bindings,
-# so each field that the turn does not name is 0.
-function _push_wheel!(dy)
+# the user. `precise` is the turn with its fraction, which a touchpad gives, and 0
+# leaves it out. The fields of the event differ between the versions of the SDL
+# bindings, so each field that the turn does not name is 0.
+function _push_wheel!(dy; precise = 0)
     T = _SDL.SDL_MouseWheelEvent
-    values = Dict(:type => _SDL_MOUSEWHEEL, :y => dy)
+    values = Dict(:type => _SDL_MOUSEWHEEL, :y => dy, :preciseY => precise)
     fields = (fieldtype(T, name)(get(values, name, 0)) for name in fieldnames(T))
     _push_sdl_event!(T(fields...))
 end
@@ -201,6 +202,19 @@ function test_input_coalescing()
         scroll = take_from_devices!(backend, Device[]).event
         @test scroll isa MouseScroll && scroll.dy == -3
         @test take_from_devices!(backend, Device[]) === nothing
+    end
+
+    @testset "a turn of a touchpad keeps its fraction" begin
+        _reset_input!(backend)
+        _push_wheel!(0; precise = -0.25)
+        _push_wheel!(-1; precise = -1.25)
+        scroll = take_from_devices!(backend, Device[]).event
+        @test scroll.dy == -1
+        @test scroll.precise_dy ≈ -1.5
+        # A wheel that gives no fraction holds its whole notches.
+        _reset_input!(backend)
+        _push_wheel!(-2)
+        @test take_from_devices!(backend, Device[]).event.precise_dy == -2.0
     end
 
     @testset "an event behind a run of turns does not overtake it" begin

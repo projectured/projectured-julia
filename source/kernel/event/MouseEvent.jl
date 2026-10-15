@@ -116,13 +116,19 @@ change.
 is_move_without_button(event) = event isa MouseMove && event.buttons == MouseButtons()
 
 """
-    MouseScroll(dx, dy, x, y[, modifiers]; time)
+    MouseScroll(dx, dy, x, y[, modifiers]; time, precise_dx = dx, precise_dy = dy)
     MouseScroll(dx, dy, x, y, modifiers, time)
 
-The mouse wheel turned. `dx` and `dy` are the amounts of the turn. A positive `dy` is
-a turn of the wheel away from the user, which scrolls up, and a positive `dx` is a
-scroll to the right, as SDL and the web page send them. `x` and `y` are the position
-of the pointer, and `time` is the time of the input.
+The mouse wheel turned. `dx` and `dy` are the amounts of the turn in whole notches.
+A positive `dy` is a turn of the wheel away from the user, which scrolls up, and a
+positive `dx` is a scroll to the right, as SDL and the web page send them.
+`precise_dx` and `precise_dy` are the same amounts in notches with their fraction,
+which a touchpad and a fine wheel give; a source that has no fraction gives the
+whole notches. `x` and `y` are the position of the pointer, and `time` is the time
+of the input.
+
+A reader that moves a view reads `precise_dx` and `precise_dy`, so a touchpad
+moves it smoothly. A reader that steps a value by a notch reads `dx` and `dy`.
 """
 struct MouseScroll <: Event
     dx::Int
@@ -131,11 +137,17 @@ struct MouseScroll <: Event
     y::Int
     modifiers::ModifierKeys
     time::Float64
+    precise_dx::Float64
+    precise_dy::Float64
 end
 
-MouseScroll(dx::Int, dy::Int, x::Int, y::Int; time::Real) =
-    MouseScroll(dx, dy, x, y, ModifierKeys(), Float64(time))
-MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
-    MouseScroll(dx, dy, x, y, modifiers, Float64(time))
+MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys, time::Real) =
+    MouseScroll(dx, dy, x, y, modifiers, Float64(time), Float64(dx), Float64(dy))
+MouseScroll(dx::Int, dy::Int, x::Int, y::Int; time::Real,
+            precise_dx::Real = dx, precise_dy::Real = dy) =
+    MouseScroll(dx, dy, x, y, ModifierKeys(), Float64(time), Float64(precise_dx), Float64(precise_dy))
+MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys; time::Real,
+            precise_dx::Real = dx, precise_dy::Real = dy) =
+    MouseScroll(dx, dy, x, y, modifiers, Float64(time), Float64(precise_dx), Float64(precise_dy))
 
 get_modifier_keys(event::Union{MouseDown,MouseUp,MouseMove,MouseScroll}) = event.modifiers

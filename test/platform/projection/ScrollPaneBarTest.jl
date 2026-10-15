@@ -171,6 +171,17 @@ function test_scroll_pane_bar()
         @test _bar_test_written(down, pane, "follow_end") == true
     end
 
+    @testset "a touchpad scrolls the pane by the fraction of a notch" begin
+        pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
+        iomap = print_document(projection, pane)
+        turn(precise) = _bar_test_xy(_bar_test_written(
+            read_intent(projection, iomap, MouseScroll(0, 0, 100, 100; time = 0.0, precise_dy = precise)),
+            pane, "scroll_position"))
+        whole = turn(-1.0)[2]
+        @test whole > 0
+        @test turn(-0.5) == (0, round(Int, whole / 2))
+    end
+
     @testset "the pointer on a bar names the bar and lights it" begin
         area = _make_bar_test_content()
         pane = WidgetScrollPane(area; size = Point2D(200, 200))

@@ -319,7 +319,7 @@ end
 
 _route_scroll(entries, evt::MouseScroll) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
+        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
 
 _route_click(entries, evt::MouseClick) =
     _route_to_children(entries, evt.x, evt.y,
@@ -1949,7 +1949,7 @@ end
 
 _route_scroll_reverse(entries, evt::MouseScroll) =
     _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
+        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
 
 _route_click_reverse(entries, evt::MouseClick) =
     _route_to_children_reverse(entries, evt.x, evt.y,

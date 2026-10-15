@@ -67,12 +67,12 @@ Each shape of `POINTER_SHAPES` but the open hand and the closed hand has a curso
 | `SDL_TEXTINPUT` | `KeyPress`, through `sdl_to_keypress` |
 | mouse button down, up | `MouseDown`, `MouseUp` |
 | mouse motion | `MouseMove`, coalesced |
-| mouse wheel | `MouseScroll` |
+| mouse wheel | `MouseScroll`, merged |
 | window close, window resize | `WindowClose`, `WindowResize` |
 | `SDL_QUIT` | `WindowQuit` on the id `:none` |
 | window focus gained | nothing; a new query of the colour settings of the system, whose change comes later as `SystemColorsChange` on the id `:none` |
 
-Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: a gesture tracking projection builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event.
+Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: a gesture tracking projection builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event. A run of wheel events of one window with the same modifiers gives one `MouseScroll` with the sum of the turns and the position and the time of the newest, so a fast turn does not take a frame for each notch. Any other event ends the run, and nothing merges while an older input, a held motion or the update of a frame waits. A wheel event holds the whole notches of SDL in `dx` and `dy`, and the turn with its fraction, `preciseX` and `preciseY`, in `precise_dx` and `precise_dy`; an SDL that gives no fraction gives the whole notches there.
 
 The held buttons and the modifiers of an event are those at its place in the queue, not at the time of the poll. A motion takes its held buttons from its own `state` mask. The backend keeps the modifiers of the last key event that it read, which `initialize_backend!` seeds from `SDL_GetModState`, and a mouse event and a text event take their modifiers from it. So a Ctrl key that goes up after a click leaves Ctrl on the click, and the last motion of a drag holds its button when the release waits behind it in the queue.
 

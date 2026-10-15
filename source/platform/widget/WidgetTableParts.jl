@@ -260,8 +260,7 @@ function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
     view_h = max(1, Int(pane.output.h) - ty)
     point_x = clamp(evt.x - x, cox, cox + view_w - 1)
     point_y = clamp(evt.y - y, coy, coy + view_h - 1)
-    read_intent(pane.projection, pane, MouseScroll(evt.dx, evt.dy, point_x, point_y, evt.modifiers;
-                                                   time = evt.time))
+    read_intent(pane.projection, pane, shift_event_position(evt, point_x - evt.x, point_y - evt.y))
 end
 
 # The rows that the grid of the cells walks: the list of rows, or `nothing`, a

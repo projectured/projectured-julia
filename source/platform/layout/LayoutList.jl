@@ -292,8 +292,7 @@ end
 
 _translate_layout_list_event(evt::MouseClick, x, y) =
     MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time)
-_translate_layout_list_event(evt::MouseScroll, x, y) =
-    MouseScroll(evt.dx, evt.dy, x, y, evt.modifiers; time = evt.time)
+_translate_layout_list_event(evt::MouseScroll, x, y) = shift_event_position(evt, x - evt.x, y - evt.y)
 _translate_layout_list_event(evt::MouseMove, x, y) =
     MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time)
 _translate_layout_list_event(evt::MouseDown, x, y) =

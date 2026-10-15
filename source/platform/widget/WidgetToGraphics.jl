@@ -1450,7 +1450,7 @@ _map_self_forward(reference) = reference isa EmptyReference ? EmptyReference() :
 
 _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
     _route_to_children(child_entries, evt,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
+        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
 
 _route_click_to_children(child_entries::Vector, evt::MouseClick) =
     _route_to_children(child_entries, evt,
@@ -3247,7 +3247,7 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     end
     res = @gesture_case evt begin
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
+            (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
         MouseClick => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                  time = evt.time))
@@ -4292,7 +4292,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     end
     res = @gesture_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
+            (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
         MouseClick => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                  time = evt.time))
@@ -5215,7 +5215,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MouseScroll(dx, dy, lx, ly; time = evt.time)
+            shift_event_position(evt, lx - x, ly - y)
         end
         MouseDwell(x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
@@ -5942,8 +5942,10 @@ function _self_scroll(p, iomap, canvas, evt)
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
     _, line = _text_size(p.measure, p.font, "M")
     scroll_step = p.lines_per_notch * line
-    dx, dy = (evt.dx != 0 && evt.dy == 0) ? (-evt.dx * scroll_step, 0) :
-                                            (0, -evt.dy * scroll_step)
+    # The turn with its fraction, so a touchpad scrolls smoothly.
+    turn_x, turn_y = evt.precise_dx, evt.precise_dy
+    dx, dy = (turn_x != 0 && turn_y == 0) ? (-round(Int, turn_x * scroll_step), 0) :
+                                            (0, -round(Int, turn_y * scroll_step))
     w = iomap.input
     room = _scroll_room(p, iomap)
     following = getfield(w, :follow_end)[] === true
@@ -6118,8 +6120,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         # variant for why intercepting here would strand a nested pane.
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = _local(x, y)
-            read_intent(content_iomap.projection, content_iomap,
-                             MouseScroll(dx, dy, lx, ly, evt.modifiers; time = evt.time))
+            read_intent(content_iomap.projection, content_iomap, shift_event_position(evt, lx - x, ly - y))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
@@ -6487,9 +6488,11 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             hit_element_at(canvas, x, y) === nothing && return nothing
             _, line = _text_size(p.measure, p.font, "M")
             step = p.lines_per_notch * line
-            return dx != 0 && dy == 0 ?
-                _write_view_state(w, "transform", _pan_by(M, dx * step, 0)) :
-                _write_view_state(w, "transform", _pan_by(M, 0, dy * step))
+            # The turn with its fraction, so a touchpad pans smoothly.
+            turn_x, turn_y = evt.precise_dx, evt.precise_dy
+            return turn_x != 0 && turn_y == 0 ?
+                _write_view_state(w, "transform", _pan_by(M, turn_x * step, 0)) :
+                _write_view_state(w, "transform", _pan_by(M, 0, turn_y * step))
         end
     end
     # Forward other events to the content, then re-root the result. Every pointer
@@ -10229,8 +10232,7 @@ _translate_pointer_event(evt::MouseUp, dx, dy) = MouseUp(evt.button, evt.x - dx,
                                                          time = evt.time)
 _translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers;
                                                              time = evt.time)
-_translate_pointer_event(evt::MouseScroll, dx, dy) = MouseScroll(evt.dx, evt.dy, evt.x - dx, evt.y - dy;
-                                                                 time = evt.time)
+_translate_pointer_event(evt::MouseScroll, dx, dy) = shift_event_position(evt, -dx, -dy)
 _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -dx, -dy)
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────

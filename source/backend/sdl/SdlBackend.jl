@@ -3980,11 +3980,12 @@ function _take_wheel_run!(backend::SdlBackend, input)
     input
 end
 
-# One wheel event for `older` and `newer`: the sum of their turns, at the position
-# and the time of `newer`.
+# One wheel event for `older` and `newer`: the sum of their turns, whole and with
+# their fractions, at the position and the time of `newer`.
 _merge_wheel_events(older::MouseScroll, newer::MouseScroll) =
     MouseScroll(older.dx + newer.dx, older.dy + newer.dy, newer.x, newer.y, newer.modifiers;
-                time = newer.time)
+                time = newer.time, precise_dx = older.precise_dx + newer.precise_dx,
+                precise_dy = older.precise_dy + newer.precise_dy)
 
 """
     _poll_window_input(backend) -> (other, motion)
@@ -4119,12 +4120,20 @@ function _poll_window_input(backend::SdlBackend)
             mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.wheel.windowID)
             dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)
-            if mods.shift && dx == 0
+            # The turn with its fraction, which a touchpad gives. SDL adds the
+            # fractions up into the whole notches of `x` and `y`. An SDL that
+            # does not fill the fraction leaves 0 beside a whole notch.
+            precise_dx, precise_dy = Float64(evt.wheel.preciseX), Float64(evt.wheel.preciseY)
+            (precise_dx == 0 && dx != 0) && (precise_dx = Float64(dx))
+            (precise_dy == 0 && dy != 0) && (precise_dy = Float64(dy))
+            if mods.shift && dx == 0 && precise_dx == 0
                 dx, dy = dy, 0
+                precise_dx, precise_dy = precise_dy, 0.0
             end
             return (WindowInput(wid,
                 MouseScroll(dx, dy, _to_logical(Int(mx_ref[]), ratio),
-                            _to_logical(Int(my_ref[]), ratio), mods; time = event_time)),
+                            _to_logical(Int(my_ref[]), ratio), mods; time = event_time,
+                            precise_dx, precise_dy)),
                 nothing)
         end
     end

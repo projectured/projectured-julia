@@ -71,6 +71,23 @@ function test_widget_transform_pane()
         @test _written(op).f ≈ 0.0
     end
 
+    @testset "a touchpad pans by the fraction of a notch" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(0, 0, 50, 50, ModifierKeys(); time = 0.0,
+                                                  precise_dy = 0.5))
+        @test _written(op).f ≈ 36.0     # half of three lines of 24
+    end
+
+    @testset "Ctrl and the wheel zoom a pane inside a composite" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = print_document(proj, WidgetComposite(Any[doc]))
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        @test _written(op).a ≈ 1.1
+    end
+
     @testset "successive zooms accumulate" begin
         doc   = _doc()
         proj  = _proj()

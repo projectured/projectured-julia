@@ -30,6 +30,11 @@ function test_event_module()
         @test KeyDown(:a, ModifierKeys(); repeat = true, time = 0.0).repeat === true
         @test KeyPress('a'; time = 0.0).text == "a"
         @test MouseMove(1, 2; time = 0.0).buttons == MouseButtons()
+        # A wheel turn with no fraction holds its whole notches as its exact amount.
+        @test MouseScroll(2, -1, 3, 4; time = 0.0).precise_dx == 2.0
+        @test MouseScroll(2, -1, 3, 4; time = 0.0).precise_dy == -1.0
+        @test MouseScroll(0, 1, 3, 4, ModifierKeys(), 0.0).precise_dy == 1.0
+        @test MouseScroll(0, 0, 3, 4; time = 0.0, precise_dy = 0.25).precise_dy == 0.25
     end
 
     @testset "each modifier predicate reads get_modifier_keys" begin
