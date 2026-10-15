@@ -1544,7 +1544,13 @@ nothing.
           end of the unit its task yields, and thread 2 runs a busy task. `undo`
           took 7.1 s in a run where the formula task computed. The window answers
           meanwhile (held frames), but the bar stays and a stop has no effect.
-    - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
+    - [x] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
+      2026-10-15: `the-pointer-shows-the-hourglass.md` moved to `plan/done/` with a
+      note on what took its place (held frames show the hourglass; a slow frame
+      outside a unit goes to the log). The plan of the branch is in `plan/done/` as
+      `a-long-evaluation-does-not-hold-the-editor.md`, with a note on which
+      decision answered each of its questions. The branch itself is deleted only on
+      the word of the owner, at the landing.
     - [x] 8.6 D14: the thread of a code unit by the decided rule, with a test for
       each case; the notice in the log and on the status bar; `--threads=auto,2`
       in `bin/projectured`, in a built binary (its main starts it again with the

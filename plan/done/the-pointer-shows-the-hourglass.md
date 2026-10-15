@@ -1,8 +1,24 @@
 # The pointer shows the hourglass while the editor is busy
 
-Status: deferred by the owner on 2026-10-02 ("defer this change"). Step 7 of
-[the-pointer-shows-what-a-press-does.md](../done/the-pointer-shows-what-a-press-does.md),
-taken out so that plan could close. Nothing is built.
+Status: closed on 2026-10-15 by
+[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md),
+which took it in. It was deferred by the owner on 2026-10-02 ("defer this
+change"), as step 7 of
+[the-pointer-shows-what-a-press-does.md](the-pointer-shows-what-a-press-does.md).
+What that plan built in its place:
+
+- A long frame of code, a code unit, no longer runs on the thread of the loop.
+  The loop runs held frames meanwhile, and a held frame shows the hourglass over
+  each window of the editor and gives the pointer back its shape after the unit
+  (`prepare_held_frames!`, `run_held_frame!` and `end_held_frames!` of the SDL
+  backend). After 0.5 s a busy bar names the unit and offers a stop. So option A
+  of §4, a watcher on a second thread with its own X connection, is not needed,
+  and the hourglass works on every system that SDL runs on.
+- The web backend shows the busy bar of a unit (`client.js`), which answers §5.
+- A frame that is slow for another reason, such as an operation or a print, shows
+  no hourglass. The loop writes it in the log with its slowest stage
+  (`SLOW_FRAME_SECONDS`, 1 s), because such a frame is a fault to find, not a wait
+  to show.
 
 ## 1. The goal
 
