@@ -254,11 +254,13 @@ NaturalModule.print_natural_text(file::FileDocument) =
     end
 
 """
-    ReloadFileOperation(file)
+    ReloadFileOperation(file; content = nothing)
 
-Re-read `file`'s own name from disk and swap the result into its `content` (a
-reactive write, so the projection re-renders). A non-existent file re-seeds
-the extension's insertion placeholder.
+Swap the document of the file of `file` into its `content`, a reactive write, so
+the projection renders it again: `content` when it is given, such as a document
+that a watcher of the file read off the loop with
+[`read_file_content_again`](@ref), or else the file read again from disk now. A
+non-existent file seeds the insertion placeholder of its extension again.
 
 It writes no selection. Ctrl+O answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
@@ -266,26 +268,37 @@ selection pointed into the replaced content.
 """
 struct ReloadFileOperation <: Operation
     file::FileDocument
+    content::Any
 end
+
+ReloadFileOperation(file::FileDocument; content = nothing) = ReloadFileOperation(file, content)
 
 function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
+    content = op.content === nothing ? _read_file_again(file) : op.content
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
-    file.content = replace_wrapped_document!(get_file_content(file), _read_file_again(file))
+    file.content = replace_wrapped_document!(get_file_content(file), content)
     nothing
 end
 
-# The document of the file of `file`, read again as its own file type reads it.
-# An opener can choose a file type that its extension does not name, such as a
-# store in a `.json` file, and the reload must not hand that file to the parser
-# of the extension.
-function _read_file_again(file::FileDocument)
-    path = get_filename(file)
-    type = Base.typename(typeof(file)).wrapper
+"""
+    read_file_content_again(type, path) -> document
+
+The document that the file at `path` holds, read as the file type `type` reads
+it. An opener can choose a file type that its extension does not name, such as a
+store in a `.json` file, and the read does not hand that file to the parser of
+the extension. Any task can call it: it reads the file and makes a new document,
+which no computation reads yet.
+"""
+function read_file_content_again(type::Type, path::AbstractString)
     is_extension_type = has_file_document_type(path) && get_file_document_type(path) === type
     (isfile(path) && !is_extension_type) ? _read_own_file(type, path) : read_document_file(path)
 end
+
+# The document of the file of `file`, read again as its own file type reads it.
+_read_file_again(file::FileDocument) =
+    read_file_content_again(Base.typename(typeof(file)).wrapper, get_filename(file))
 
 function _read_own_file(type, path::AbstractString)
     content = is_editable_file_type(type) ? get_file_content(make_file(type, basename(path), read(path, String))) :

@@ -28,17 +28,18 @@ SerializationModule.emit_text(file::_ShoutedFile) =
     lowercase(something(getfield(get_file_content(file), :value)[], ""))
 
 # A file type that a person does not edit, as a result file of a run is: it reads
-# its file itself and says only its size, and it counts its reads, so a test sees
-# that the feed reads no text of it.
+# its file itself and says only its size, and it notes the task of each read, so a
+# test sees that the drain reads none of it.
 @document struct _ReadOnlyProbeFile <: FileDocument
     filename::String
     content::Any
 end
-const _READ_ONLY_PROBE_READS = Ref(0)
+const _READ_ONLY_PROBE_READERS = Task[]
+const _READ_ONLY_PROBE_LOCK = ReentrantLock()
 SerializationModule.get_file_domain(::Type{<:_ReadOnlyProbeFile}) = Document
 SerializationModule.is_editable_file_type(::Type{<:_ReadOnlyProbeFile}) = false
 function SerializationModule.read_file_content(::Type{<:_ReadOnlyProbeFile}, path::AbstractString)
-    _READ_ONLY_PROBE_READS[] += 1
+    lock(() -> push!(_READ_ONLY_PROBE_READERS, current_task()), _READ_ONLY_PROBE_LOCK)
     PrimitiveString(string(filesize(path), " bytes"))
 end
 
@@ -152,16 +153,17 @@ function test_file_change_store()
             write(path, "12345")
             file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))
             watch_document_file!(file; store)
-            reads = _READ_ONLY_PROBE_READS[]
+            lock(() -> empty!(_READ_ONLY_PROBE_READERS), _READ_ONLY_PROBE_LOCK)
             write(path, "1234567890")
             @test _wait_for_file_change(store)
             @test drain_file_changes!(; store) == 1
             @test getfield(get_file_content(file), :value)[] == "10 bytes"
-            @test _READ_ONLY_PROBE_READS[] == reads + 1
-            # A drain with no new change reads nothing.
+            # The watcher read it on its own task, and the drain read nothing.
+            readers = lock(() -> copy(_READ_ONLY_PROBE_READERS), _READ_ONLY_PROBE_LOCK)
+            @test !isempty(readers) && all(reader -> reader !== current_task(), readers)
+            # A drain with no new change takes nothing.
             lock(() -> push!(store.changed, abspath(path)), store.lock)
             @test drain_file_changes!(; store) == 0
-            @test _READ_ONLY_PROBE_READS[] == reads + 1
             # A save writes nothing of it.
             evaluate_operation(nothing, SaveFileOperation(file))
             @test read(path, String) == "1234567890"

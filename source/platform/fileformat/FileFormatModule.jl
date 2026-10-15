@@ -53,7 +53,8 @@ export import_document, export_document,
 export write_document_file, read_document_file, make_document_for, make_document_seed,
        make_file_tab, make_file_tab_content
 export export_document
-export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation, compute_file_text
+export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation, compute_file_text,
+       read_file_content_again
 export FileToContent
 export make_file_api
 
