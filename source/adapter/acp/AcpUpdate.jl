@@ -84,8 +84,9 @@ end
 # answers the updates of the session — `config_option_update`,
 # `current_mode_update`, `usage_update`, `session_info_update` and
 # `available_commands_update` — because it keeps them for a session that has no
-# frame, and the updates that name another session — `subagent_update`, and the
-# `user_message_chunk` of a child session.
+# frame; the updates that name another session — `subagent_update`, the
+# `user_message_chunk` of a child session, `session_message` and
+# `session_message_chunk`; and the compactions, whose summary it keeps.
 function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
     kind = get(update, "sessionUpdate", "")
     events = Any[]
@@ -111,8 +112,6 @@ function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
                                       is_removed = true))
     elseif kind == "notice"
         push!(events, _read_notice(update))
-    elseif kind == "compaction_update"
-        push!(events, _read_compaction_update(update))
     end
     events
 end
@@ -234,25 +233,29 @@ function _read_compaction_update(update::Dict{String,Any})
 end
 
 # A `subagent_update` as an `AgentSubagentUpdate` with no event. A key that the
-# update leaves out gives `nothing`, which keeps the value before. The state
-# comes from `state.state`, and the stop reason of an idle state from its
-# `stopReason`. `capabilities.cancel` says whether its work can be cancelled.
+# update leaves out gives `nothing`, which keeps the value before, and a `null`
+# clears: a title or a description becomes empty, a state `:unknown`, and the
+# capabilities say that the work can not be cancelled. The state comes from
+# `state.state`, and the stop reason of an idle state from its `stopReason`.
+# `capabilities.cancel` says whether its work can be cancelled.
 # The counts come from the keys `usage.totalTokens`, `usage.toolUses`,
 # `usage.durationMs`, `lastToolName` and `summary` of `_meta.claudeCode`, as
 # `claude-code-acp` sends them, and the token count also from the `usage` of an
 # idle state.
 function _read_subagent_update(update::Dict{String,Any})
-    state = get(update, "state", nothing)
-    state isa Dict{String,Any} || (state = nothing)
-    state_usage = state === nothing ? nothing : get(state, "usage", nothing)
+    state = get(update, "state", missing)
+    state_usage = state isa Dict{String,Any} ? get(state, "usage", nothing) : nothing
     claude = _find_claude_meta(update)
     claude_usage = claude === nothing ? nothing : get(claude, "usage", nothing)
     milliseconds = _find_number(claude_usage, "durationMs")
     capabilities = get(update, "capabilities", missing)
     AgentSubagentUpdate(_read_id(get(update, "sessionId", nothing));
-                        title = _find_string(update, "title"), description = _find_string(update, "description"),
-                        state = state === nothing ? nothing : _read_subagent_state(get(state, "state", nothing)),
-                        stop_reason = state === nothing ? nothing : _find_symbol(state, "stopReason"),
+                        title = _read_patch_text(update, "title"),
+                        description = _read_patch_text(update, "description"),
+                        state = state === missing ? nothing :
+                                state isa Dict{String,Any} ? _read_subagent_state(get(state, "state", nothing)) :
+                                :unknown,
+                        stop_reason = state isa Dict{String,Any} ? _find_symbol(state, "stopReason") : nothing,
                         token_count = _find_count(something(_find_number(claude_usage, "totalTokens"),
                                                             _find_number(state_usage, "totalTokens"), Some(nothing))),
                         tool_call_count = _find_count(_find_number(claude_usage, "toolUses")),
@@ -270,22 +273,32 @@ _read_subagent_state(state) =
 
 # The extension notification `_session/background_task` as an
 # `AgentBackgroundTaskUpdate`. A key that the notification leaves out gives
-# `nothing`, which keeps the value before. The times come in milliseconds since
-# 1970.
+# `nothing`, which keeps the value before. A `null` clears a text: the title, the
+# tool call, the subagent, the output and the summary; the kernel has no empty
+# value for the kind, the status, the times and `canStop`, so a `null` there keeps
+# the value before. The times come in milliseconds since 1970.
 function _read_background_task(params::Dict{String,Any})
     start_time = _find_number(params, "startTime")
     end_time = _find_number(params, "endTime")
     can_stop = get(params, "canStop", nothing)
     AgentBackgroundTaskUpdate(_read_id(get(params, "taskId", nothing));
-                              kind = _find_symbol(params, "kind"), title = _find_string(params, "title"),
+                              kind = _find_symbol(params, "kind"), title = _read_patch_text(params, "title"),
                               status = _find_symbol(params, "status"),
-                              tool_call_id = _find_string(params, "toolCallId"),
-                              subagent_id = _find_string(params, "subagentId"),
-                              output_uri = _find_string(params, "outputUri"),
-                              summary = _find_string(params, "summary"),
+                              tool_call_id = _read_patch_text(params, "toolCallId"),
+                              subagent_id = _read_patch_text(params, "subagentId"),
+                              output_uri = _read_patch_text(params, "outputUri"),
+                              summary = _read_patch_text(params, "summary"),
                               start_time = start_time === nothing ? nothing : start_time / 1000,
                               end_time = end_time === nothing ? nothing : end_time / 1000,
                               can_stop = can_stop isa Bool ? can_stop : nothing)
+end
+
+# A text of a patch: `nothing` when the patch leaves the key out, which keeps the
+# value before, and empty for a `null`, which clears it.
+function _read_patch_text(object::Dict{String,Any}, key::String)
+    haskey(object, key) || return nothing
+    value = object[key]
+    value === nothing ? "" : value isa AbstractString ? String(value) : nothing
 end
 
 # A number of an object, or `nothing` when the object or the number is not

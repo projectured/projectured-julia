@@ -61,10 +61,12 @@ The agent reports its work as `session/update` notifications. `AcpUpdate.jl` tra
 | `plan_update` | one `AgentPlanUpdate` with the `planId`: its `items` give `entries`, its `markdown` gives `markdown`, its `file` gives `uri` |
 | `plan_removed` | one `AgentPlanUpdate` with the `planId` and `is_removed` |
 | `notice` | one `AgentNoticeUpdate` |
-| `compaction_update` | one `AgentCompactionUpdate`; its `summary` blocks are its text, one on each line |
+| `compaction_update` | one `AgentCompactionUpdate`; its `summary` blocks are its text, one on each line, else the summary that its chunks gave |
+| `compaction_summary_chunk` | one `AgentCompactionUpdate` whose summary has the text of the chunk on a new line |
 | `subagent_update` | one `AgentSubagentUpdate`; the connection keeps its child session |
 | a `session/update` of a child session | each of its events, as the `event` of an `AgentSubagentUpdate` of the child, one level for each parent |
 | `user_message_chunk` of a child session | an `LlmMessage(:user, …)`, the prompt of the subagent |
+| `session_message`, `session_message_chunk` to a child session | an `LlmMessage(:user, …)` of the child, as its prompt |
 | `session_info_update` | one `AgentSessionInfoUpdate` with its `title` and `_meta.processId` |
 | the notification `_session/background_task` | one `AgentBackgroundTaskUpdate` |
 | any other kind | no event |
@@ -84,17 +86,27 @@ A connection keeps no `on_event` of a session, because the caller captures the e
 - **During a prompt**, to the `on_event` of `send_agent_prompt!`.
 - **Between two prompts**, to the `AgentEventQueue` that `open_agent_session!` took as `events`, after the same translation. The caller drains the queue. A session that opened with no queue drops these events. The options of a session stay current in the connection in either case, for `set_agent_option!` and a `current_mode_update`.
 
-The text of a session between two prompts has its own frame, as an `AcpTurn` in `session_frames`, so `claude` that starts a turn by itself after a background task ends gives framed text to the queue. The start of the next prompt closes that frame, and its last stop goes to the queue.
+A prompt takes the events of its session only after the last event of the time before it is in the queue. So a caller that puts the events of `on_event` into the same queue has all the events of the session in their order.
 
-An agent can send an update of a new session just after its answer to `session/new`, before the call of `open_agent_session!` has the id; `claude-agent-acp` sends its commands so. While an open waits for its answer, an update of a session with no queue and no parent waits in `opening_events`, and the open puts it into the queue of its session when it has the id. The end of the last open drops the rest.
+The text of a session between two prompts has its own frame, as an `AcpTurn` in `session_frames`, so `claude` that starts a turn by itself after a background task ends gives framed text to the queue. The start of the next prompt closes that frame, and its last stop goes to the queue. A frame that goes for another reason also ends its open block in its queue first: at the close of its session, at a second open of the same id, and at the stop of the agent, which forgets every session of the agent.
+
+An agent can send an update of a new session just after its answer to `session/new`, before the call of `open_agent_session!` has the id; `claude-agent-acp` sends its commands so. While an open waits for its answer, an update of a session with no queue and no parent goes to one frame for that id, in `opening_frames`, whose events wait in `opening_events`. The open puts the events into the queue of its session when it has the id, and hands the frame to the session, so the text keeps one block. The end of the last open drops the rest.
 
 ### The work of an agent
 
 **Subagents.** A `subagent_update` on a session announces or changes a child session, the session of a subagent. The connection keeps the parent of each child in `session_parents`. A `session/update` whose `sessionId` is a child goes, after its translation, to its parent as the `event` of an `AgentSubagentUpdate` of the child, and on up to the session that the client opened, one level for each parent; from there it goes where an event of that session goes. Each child has its own `AcpTurn`, so the frame of its text is its own. An idle state of a child closes the block that the child left open. The `user_message_chunk` of a child is the prompt of its subagent, an `LlmMessage` of the role `:user`; the chunk of a session of the client is the prompt that the client sent, and gives no event. A close of a session forgets its children.
 
-The `state` of an `AgentSubagentUpdate` comes from `state.state` (`running`, `idle`, `requires_action`, `unknown`), its `stop_reason` from `state.stopReason`, and `can_cancel` from `capabilities.cancel`. A key that the update leaves out gives `nothing`, which keeps the value before.
+A child whose state turns idle has ended its work. After its last events, the connection forgets its parent, its frame and its options, and keeps only its parent in `finished_parents`, so a late update reaches the session: `claude-code-acp` sends the summary of a subagent after its idle state. Each session of the client keeps at most `FINISHED_SUBAGENT_LIMIT` (256) such children, in `finished_children`, and its close forgets them. A late update of a finished child adds no entry; a state of work, `running` or `requires_action`, makes it a child again, as ACP lets an agent use an idle child again. A `subagent_update` on a session that the connection does not know, such as one that closed, adds nothing. A `subagent_update` that names its own session, or one of the parents of that session, as its child would make the updates go round; the connection ignores it and logs a warning once.
 
-**Background tasks.** ACP has no type for them, so the extension notification `_session/background_task` carries them, with the params `{sessionId, taskId, kind, title, status, startTime, canStop, toolCallId?, subagentId?, outputUri?, summary?, endTime?}`. The first notification of a task carries its whole state, and a later one only the keys that changed, so an absent key is `nothing`. The times come in milliseconds since 1970, and the event holds seconds. The handler takes it with the method of `ACP.receive_notification` for a method that the protocol does not name, and sends it where an update of its session goes.
+The `state` of an `AgentSubagentUpdate` comes from `state.state` (`running`, `idle`, `requires_action`, `unknown`), its `stop_reason` from `state.stopReason`, and `can_cancel` from `capabilities.cancel`. A key that the update leaves out gives `nothing`, which keeps the value before. A `null` clears: a title or a description becomes empty, a state `:unknown`, and `can_cancel` `false`.
+
+**Messages between sessions.** A `session_message` or a `session_message_chunk` whose `recipientSessionId` is a child session is a prompt of its subagent, an `LlmMessage` of the role `:user` of the child, one for each update. A chunk that leaves out its recipient continues the last message of its session with the same `messageId`. A message to a session of the client, to a session that the connection does not know, or to none, is dropped: the client sends its own prompts, and the kernel has no event for a message between two sessions.
+
+**Requests of a child.** A `session/request_permission` or an `elicitation/create` of a child session goes where a request of the session of the client goes, as the event of an `AgentSubagentUpdate` of each child on the way. The `reply` of the request works the same inside the update.
+
+**Compactions.** The connection keeps the summary of a compaction while it is in progress, in `compaction_summaries`. A `compaction_summary_chunk` adds the text of its block on a line of its own, and gives an `AgentCompactionUpdate` with the summary so far. A `compaction_update` without a `summary` carries the summary that the chunks gave. The end of the compaction, the close of its session and the stop of the agent forget it.
+
+**Background tasks.** ACP has no type for them, so the extension notification `_session/background_task` carries them, with the params `{sessionId, taskId, kind, title, status, startTime, canStop, toolCallId?, subagentId?, outputUri?, summary?, endTime?}`. The first notification of a task carries its whole state, and a later one only the keys that changed, so an absent key is `nothing`. The times come in milliseconds since 1970, and the event holds seconds. A `null` clears a text, which becomes empty: the title, the tool call, the subagent, the output and the summary. The kernel has no empty value for the kind, the status, the times and `canStop`, so a `null` there keeps the value before. The handler takes it with the method of `ACP.receive_notification` for a method that the protocol does not name, and sends it where an update of its session goes.
 
 **The process of a session.** `claude-code-acp` sends the process id of the `claude` of a session in `session_info_update._meta.processId`, in the first prompt after each start of `claude`. An agent in a child process (`command` not empty) gets the id of that process, once, as `AgentSessionInfoUpdate(nothing; process_id)` at the head of the queue of each session that opens. The built-in agent runs in this process, so it gets an id only from `_meta`.
 
@@ -119,13 +131,13 @@ ACP has no field for some data that a Claude agent of ACP sends, and the agent p
 
 A `session/request_permission` request of the agent waits on a task of its own. The method of `answer_request` for `AcpClientHandler` does this:
 
-1. It looks for the prompt that runs in the session. A request outside a prompt is answered as cancelled.
+1. It looks for where an update of the session goes: the prompt that runs in the session of the client, else its queue between two prompts. A request of a child session goes there as the event of an `AgentSubagentUpdate` of each child on the way. A request of a session with no prompt and no queue is answered as cancelled.
 2. It makes an `AgentPermissionRequest` with the tool call, the options of the agent and a `reply` function.
-3. It sends the request to `on_event` and waits on a channel.
+3. It sends the request to `on_event`, or puts it into the queue, and waits on a channel.
 4. The first call of `reply` puts the id of the chosen option, or `nothing`, into the channel, and answers `true`. A later call does nothing and answers `false`, so the assistant can show that an answer came after a cancel.
 5. The answer is `selected` with the option id, or `cancelled` for `nothing`.
 
-The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the handler gives `reply(nothing)` to `add_cancel_callback!` of the request, and the agent gets the valid answer `cancelled`. A request that the agent withdrew before the handler shows it does not reach the person.
+The wait has a bound. `cancel_agent_prompt!`, the end of the prompt, `close_agent_session!` and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. A request that waits in the queue waits on in the next prompt, so the end of that prompt ends its wait. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the handler gives `reply(nothing)` to `add_cancel_callback!` of the request, and the agent gets the valid answer `cancelled`. A request that the agent withdrew before the handler shows it does not reach the person.
 
 A worked example: the agent asks to run `execute_julia_code` with the options `allow_once` and `reject_once`. The assistant draws a card with two buttons. The person clicks the first one, `reply("allow_once")` runs, and the agent gets `{"outcome": {"outcome": "selected", "optionId": "allow_once"}}`. If the person presses Escape before the click, the turn is cancelled, `reply(nothing)` runs, and the agent gets `{"outcome": {"outcome": "cancelled"}}`.
 
@@ -137,7 +149,7 @@ A worked example: the agent asks to run `execute_julia_code` with the options `a
 
 ### A question in a form
 
-The client advertises `clientCapabilities.elicitation.form`. An `elicitation/create` of the mode `form`, in the session of a prompt that runs, becomes an `AgentQuestionRequest`. Its fields come from the properties of the schema: a string with `oneOf`, `anyOf` or `enum` is a choice, an array of such items a choice of several, a number, an integer and a boolean are what they say, and any other property is a text. The library reads a JSON object into a `Dict`, which keeps no order, so the fields come in the order of their names. Values accept the form, `nothing` declines it, and a cancel of the turn or of the request cancels it. A form outside a prompt, and a request of the mode `url`, which the client does not offer, are cancelled.
+The client advertises `clientCapabilities.elicitation.form`. An `elicitation/create` of the mode `form` becomes an `AgentQuestionRequest`, which goes where a permission request goes. Its fields come from the properties of the schema: a string with `oneOf`, `anyOf` or `enum` is a choice, an array of such items a choice of several, a number, an integer and a boolean are what they say, and any other property is a text. The library reads a JSON object into a `Dict`, which keeps no order, so the fields come in the order of their names. Values accept the form, `nothing` declines it, and a cancel of the turn or of the request cancels it. A form of a session with no prompt and no queue, and a request of the mode `url`, which the client does not offer, are cancelled.
 
 ## How it fits
 
@@ -197,8 +209,7 @@ The design follows six rules. They are facts of the code, and they are not legal
 ## Limits
 
 - The package covers a turn and the state of a session: text, thinking, tool calls, the plans, permission requests, cancel, close, the config options (model, effort, mode), the slash commands, the usage meter and the session title; and the work of an agent: its subagents, its background tasks, its notices, its compactions and the process of a session. Saved sessions, the sign-in in a terminal, forms and an image in a prompt are not implemented.
-- A `compaction_summary_chunk` gives no event, so a summary shows only when its `compaction_update` carries it.
-- A permission request or a form of a child session finds no prompt, and is answered as cancelled. `claude-code-acp` asks in the session of the client.
+- A message between two sessions shows only as the prompt of a child; one to the session of the client is dropped.
 - The thinking of Claude arrives only as a summary. The setting `showThinkingSummaries` of the built-in agent turns it on. For the adapter, the `_meta` of the session names it: `claude-agent-acp` spreads `_meta.claudeCode.options` of `session/new` over its own SDK options, and a recent model streams no text of its reasoning unless `thinking.display` is `"summarized"`. The assistant sends `{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}` by default (`agent_session_meta`). Another agent ignores this `_meta`.
 - The prompt carries text only. `send_agent_prompt!` throws an `ArgumentError` for another kind of content.
 - No test runs the real `claude` or the adapter. A change that only the real agent would catch needs a live check with a signed-in Claude Code.

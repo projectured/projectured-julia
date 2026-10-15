@@ -5,11 +5,27 @@
 # the client refuses, and the work of an agent: its subagents, its plans, its
 # background tasks and the process of a session.
 
+using ProjecturedACP.AcpModule: FINISHED_SUBAGENT_LIMIT
+
 # Wait at most five seconds for `condition`, and answer whether it holds.
 _wait_until(condition) = timedwait(condition, 5.0; pollint = 0.01) === :ok
 
 function _make_fake_agent(extra = Dict{String,Function}())
     FakeAcpAgent(merge(make_fake_handlers(), extra))
+end
+
+# Wait until the client read every message that `agent` sent before: the client
+# reads a request after the notifications before it, and refuses this one.
+_sync_fake_reader(agent::FakeAcpAgent) = ask_fake_client(agent, "fs/read_text_file", Dict("sessionId" => "sync"))
+
+# A chunk of text of the agent.
+_make_text_update(text) = Dict("sessionUpdate" => "agent_message_chunk", "content" => Dict("type" => "text", "text" => text))
+
+# Every event of `queue` once at least `count` came, in at most five seconds.
+function _take_queue_events(queue::AgentEventQueue, count::Integer)
+    taken = Any[]
+    _wait_until(() -> (append!(taken, take_agent_events!(queue)); length(taken) >= count))
+    taken
 end
 
 # The ids of the subagents that an event comes through, from the outside in, and
@@ -275,7 +291,8 @@ function test_acp_connection()
             queue = AgentEventQueue()
             open_agent_session!(connection; events = queue)
             @test only(only(take_agent_events!(queue)).commands).name == "review"
-            @test isempty(connection.opening_events) && connection.opening_count == 0
+            @test isempty(connection.opening_events) && isempty(connection.opening_frames)
+            @test connection.opening_count == 0
             stop_agent_connection!(connection)
             # Without a queue, the open drops them.
             connection = make_fake_connection(make_eager_agent())
@@ -691,7 +708,10 @@ function test_acp_connection()
             @test (idle.last_tool, idle.summary) == ("Read", "Found it")
             # The text of the session has a frame of its own.
             @test inner[13:15] == Any[LlmTextStart(), LlmTextDelta("Done"), LlmTextStop()]
-            @test connection.session_parents == Dict("child-1" => session_id, "child-2" => "child-1")
+            # The two children ended their work, and only their parents stay.
+            @test isempty(connection.session_parents) && isempty(connection.session_frames)
+            @test connection.finished_parents == Dict("child-1" => session_id, "child-2" => "child-1")
+            @test connection.finished_children == Dict(session_id => ["child-2", "child-1"])
             # A child that works after the prompt reaches the queue of the session.
             send_fake_update(agent, "child-2", Dict("sessionUpdate" => "agent_message_chunk",
                 "content" => Dict("type" => "text", "text" => "Later")))
@@ -702,6 +722,7 @@ function test_acp_connection()
             # The close of the session forgets its children.
             close_agent_session!(connection, session_id)
             @test isempty(connection.session_parents) && isempty(connection.session_frames)
+            @test isempty(connection.finished_parents) && isempty(connection.finished_children)
             stop_agent_connection!(connection)
         end
 
@@ -789,6 +810,242 @@ function test_acp_connection()
             @test cancel_agent_subagent!(connection, session_id, "child-1") === nothing
             @test _wait_until(() -> !isempty(get_received(agent, "session/cancel")))
             @test only(get_received(agent, "session/cancel"))["params"]["sessionId"] == "child-1"
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a stop, a start and a resume of the same id end the old block and reach the new queue" begin
+            resume = (agent, params) -> Dict("configOptions" => FAKE_CONFIG_OPTIONS)
+            first_agent = _make_fake_agent(Dict{String,Function}("session/resume" => resume))
+            connection = make_fake_connection(first_agent)
+            first_queue = AgentEventQueue()
+            session_id = open_agent_session!(connection; events = first_queue)
+            send_fake_update(first_agent, session_id, _make_text_update("late"))
+            streamed = _take_queue_events(first_queue, 2)
+            stop_agent_connection!(connection)
+            @test vcat(streamed, take_agent_events!(first_queue)) ==
+                  Any[LlmTextStart(), LlmTextDelta("late"), LlmTextStop()]
+            @test isempty(connection.session_queues) && isempty(connection.session_frames)
+            @test isempty(connection.session_options) && isempty(connection.opening_events)
+            # The agent starts again, and the session resumes with a new queue.
+            second_agent = _make_fake_agent(Dict{String,Function}("session/resume" => resume))
+            connection.streams = client_streams(second_agent)
+            start_agent_connection!(connection)
+            second_queue = AgentEventQueue()
+            @test open_agent_session!(connection; session_id, events = second_queue) == session_id
+            send_fake_update(second_agent, session_id, _make_text_update("again"))
+            again = _take_queue_events(second_queue, 2)
+            @test again == Any[LlmTextStart(), LlmTextDelta("again")]
+            @test isempty(take_agent_events!(first_queue))
+            # A second open of the same id ends the block of the first in its queue.
+            third_queue = AgentEventQueue()
+            open_agent_session!(connection; session_id, events = third_queue)
+            @test take_agent_events!(second_queue) == Any[LlmTextStop()]
+            send_fake_update(second_agent, session_id, _make_text_update("last"))
+            last_events = _take_queue_events(third_queue, 2)
+            # A close ends the open block too.
+            close_agent_session!(connection, session_id)
+            @test vcat(last_events, take_agent_events!(third_queue)) ==
+                  Any[LlmTextStart(), LlmTextDelta("last"), LlmTextStop()]
+            stop_agent_connection!(connection)
+        end
+
+        @testset "two chunks while an open waits give one block, which goes on in the queue" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/new" => function (agent, params)
+                    send_fake_update(agent, "session-1", _make_text_update("a"))
+                    send_fake_update(agent, "session-1", _make_text_update("b"))
+                    Dict("sessionId" => "session-1", "configOptions" => FAKE_CONFIG_OPTIONS)
+                end))
+            connection = make_fake_connection(agent)
+            queue = AgentEventQueue()
+            session_id = open_agent_session!(connection; events = queue)
+            @test take_agent_events!(queue) == Any[LlmTextStart(), LlmTextDelta("a"), LlmTextDelta("b")]
+            send_fake_update(agent, session_id, _make_text_update("c"))
+            @test _take_queue_events(queue, 1) == Any[LlmTextDelta("c")]
+            send_agent_prompt!(connection, session_id, [LlmText("Hi")]; on_event = identity)
+            @test take_agent_events!(queue) == Any[LlmTextStop()]
+            stop_agent_connection!(connection)
+        end
+
+        @testset "many children that finish leave no entries, and a late update still arrives" begin
+            count = FINISHED_SUBAGENT_LIMIT + 44
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    for k in 1:count
+                        child = "child-$(k)"
+                        send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                            "sessionId" => child, "state" => Dict("state" => "running")))
+                        send_fake_update(agent, child, _make_text_update("work $(k)"))
+                        send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                            "sessionId" => child, "state" => Dict("state" => "idle", "stopReason" => "end_turn")))
+                    end
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            queue = AgentEventQueue()
+            session_id = open_agent_session!(connection; events = queue)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Go")]; on_event = event -> push!(events, event))
+            @test length(events) == 5 * count
+            @test isempty(connection.session_parents) && isempty(connection.session_frames)
+            @test collect(keys(connection.session_options)) == [session_id]
+            @test length(connection.finished_parents) == FINISHED_SUBAGENT_LIMIT
+            @test connection.finished_children[session_id] == ["child-$(k)" for k in 45:count]
+            # The late update of a child that finished reaches the queue, and adds nothing.
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "subagent_update", "sessionId" => "child-$(count)",
+                "_meta" => Dict("claudeCode" => Dict("summary" => "Done"))))
+            late = only(_take_queue_events(queue, 1))
+            @test (late.id, late.summary, late.state) == ("child-$(count)", "Done", nothing)
+            @test isempty(connection.session_parents)
+            @test collect(keys(connection.session_frames)) == [session_id]
+            # A child that comes back to work is a child again.
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "subagent_update", "sessionId" => "child-$(count)",
+                "state" => Dict("state" => "running")))
+            @test only(_take_queue_events(queue, 1)).state === :running
+            @test connection.session_parents == Dict("child-$(count)" => session_id)
+            @test !haskey(connection.finished_parents, "child-$(count)")
+            # A subagent update of a session that closed adds nothing.
+            close_agent_session!(connection, session_id)
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "subagent_update", "sessionId" => "child-x",
+                "state" => Dict("state" => "running")))
+            _sync_fake_reader(agent)
+            @test isempty(connection.session_parents) && isempty(connection.finished_parents)
+            @test isempty(connection.finished_children) && isempty(connection.session_frames)
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a subagent update that would make a cycle is ignored" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => "child-1", "state" => Dict("state" => "running")))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => session, "state" => Dict("state" => "running")))
+                    send_fake_update(agent, "child-1", Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => session, "state" => Dict("state" => "running")))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Go")]; on_event = event -> push!(events, event))
+            @test only(events).id == "child-1"
+            @test connection.session_parents == Dict("child-1" => session_id)
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a message between sessions to a child is its prompt, and another one is dropped" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => "child-1", "state" => Dict("state" => "running")))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_message", "messageId" => "m1",
+                        "senderSessionId" => session, "recipientSessionId" => "child-1",
+                        "content" => [Dict("type" => "text", "text" => "Look again")]))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_message_chunk",
+                        "messageId" => "m2", "recipientSessionId" => "child-1",
+                        "content" => Dict("type" => "text", "text" => "And")))
+                    # The next chunk of the same message names no recipient.
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_message_chunk",
+                        "messageId" => "m2", "content" => Dict("type" => "text", "text" => "this")))
+                    # A message to the session of the client, and one to nobody, are dropped.
+                    send_fake_update(agent, "child-1", Dict("sessionUpdate" => "session_message", "messageId" => "m3",
+                        "recipientSessionId" => session, "content" => [Dict("type" => "text", "text" => "Found")]))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_message_chunk",
+                        "messageId" => "m4", "content" => Dict("type" => "text", "text" => "lost")))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Go")]; on_event = event -> push!(events, event))
+            unwrapped = [_unwrap_subagent_event(event) for event in events[2:end]]
+            @test [first(pair) for pair in unwrapped] == [["child-1"], ["child-1"], ["child-1"]]
+            @test [only(last(pair).content).text for pair in unwrapped] == ["Look again", "And", "this"]
+            @test all(pair -> last(pair) isa LlmMessage && last(pair).role === :user, unwrapped)
+            @test length(events) == 4
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a request of a child reaches the prompt of its session, and between prompts the queue" begin
+            permission(session) = Dict("sessionId" => session, "toolCall" => Dict("toolCallId" => "t1", "title" => "Edit"),
+                "options" => [Dict("optionId" => "allow", "name" => "Allow", "kind" => "allow_once")])
+            answers = Any[]
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => "child-1", "state" => Dict("state" => "running")))
+                    send_fake_update(agent, "child-1", Dict("sessionUpdate" => "subagent_update",
+                        "sessionId" => "child-2", "state" => Dict("state" => "running")))
+                    push!(answers, ask_fake_client(agent, "session/request_permission", permission("child-2")))
+                    push!(answers, ask_fake_client(agent, "elicitation/create", Dict("sessionId" => "child-1",
+                        "mode" => "form", "message" => "Which?",
+                        "requestedSchema" => Dict("type" => "object",
+                                                  "properties" => Dict("name" => Dict("type" => "string"))))))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            queue = AgentEventQueue()
+            session_id = open_agent_session!(connection; events = queue)
+            requests = Any[]
+            on_event = function (event)
+                ids, inner = _unwrap_subagent_event(event)
+                inner isa AgentPermissionRequest && (push!(requests, (ids, inner)); @async inner.reply("allow"))
+                inner isa AgentQuestionRequest &&
+                    (push!(requests, (ids, inner)); @async inner.reply(Dict{String,Any}("name" => "x")))
+            end
+            @test send_agent_prompt!(connection, session_id, [LlmText("Go")]; on_event) === :end_turn
+            @test [first(request) for request in requests] == [["child-1", "child-2"], ["child-1"]]
+            @test answers[1]["result"]["outcome"] == Dict{String,Any}("outcome" => "selected", "optionId" => "allow")
+            @test answers[2]["result"] == Dict{String,Any}("action" => "accept", "content" => Dict{String,Any}("name" => "x"))
+            # Between two prompts a request of a child goes to the queue, and a
+            # person answers it there.
+            asked = @async ask_fake_client(agent, "session/request_permission", permission("child-1"))
+            ids, request = _unwrap_subagent_event(only(_take_queue_events(queue, 1)))
+            @test ids == ["child-1"] && request isa AgentPermissionRequest
+            @test request.reply("allow")
+            @test fetch(asked)["result"]["outcome"]["optionId"] == "allow"
+            # A cancel of the session answers a request that waits in the queue.
+            asked = @async ask_fake_client(agent, "session/request_permission", permission("child-1"))
+            @test only(_take_queue_events(queue, 1)) isa AgentSubagentUpdate
+            cancel_agent_prompt!(connection, session_id)
+            @test fetch(asked)["result"]["outcome"] == Dict{String,Any}("outcome" => "cancelled")
+            stop_agent_connection!(connection)
+            # A session with no queue cancels a request between two prompts.
+            plain = _make_fake_agent()
+            connection = make_fake_connection(plain)
+            session_id = open_agent_session!(connection)
+            @test ask_fake_client(plain, "session/request_permission", permission(session_id))["result"]["outcome"] ==
+                  Dict{String,Any}("outcome" => "cancelled")
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a compaction gathers the summary of its chunks" begin
+            chunk(text) = Dict("sessionUpdate" => "compaction_summary_chunk", "compactionId" => "c1",
+                               "content" => Dict("type" => "text", "text" => text))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "compaction_update",
+                                                          "compactionId" => "c1", "status" => "in_progress"))
+                    send_fake_update(agent, session, chunk("First."))
+                    send_fake_update(agent, session, chunk("Second."))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "compaction_update",
+                                                          "compactionId" => "c1", "status" => "completed"))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Go")]; on_event = event -> push!(events, event))
+            @test [(event.id, event.status, event.summary) for event in events] ==
+                  [("c1", :in_progress, nothing), ("c1", :in_progress, "First."),
+                   ("c1", :in_progress, "First.\nSecond."), ("c1", :completed, "First.\nSecond.")]
+            @test isempty(connection.compaction_summaries)
             stop_agent_connection!(connection)
         end
 

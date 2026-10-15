@@ -6,7 +6,7 @@
 
 using ProjecturedACP.AcpModule: AcpTurn, _translate_session_update!, _close_open_block!,
                                 _format_tool_content, _read_subagent_update, _read_background_task,
-                                _read_session_info_update
+                                _read_session_info_update, _read_compaction_update
 
 _update(kind; fields...) = Dict{String,Any}("sessionUpdate" => kind,
                                             (String(key) => value for (key, value) in fields)...)
@@ -135,14 +135,14 @@ function test_acp_update()
             @test (notice.severity, notice.title, notice.description) == (:warning, "API retry 1 of 3", "529")
             odd = only(_translate_session_update!(turn, _update("notice"; severity = "loud", title = "Hi")))
             @test (odd.severity, odd.description) == (:info, "")
-            started = only(_translate_session_update!(turn, _update("compaction_update"; compactionId = "c1",
-                                                                    status = "in_progress")))
+            started = _read_compaction_update(_update("compaction_update"; compactionId = "c1",
+                                                      status = "in_progress"))
             @test (started.id, started.status, started.summary) == ("c1", :in_progress, nothing)
-            completed = only(_translate_session_update!(turn, _update("compaction_update"; compactionId = "c1",
-                status = "completed", summary = Any[_text("First."), _text("Second.")])))
+            completed = _read_compaction_update(_update("compaction_update"; compactionId = "c1",
+                status = "completed", summary = Any[_text("First."), _text("Second.")]))
             @test (completed.status, completed.summary) == (:completed, "First.\nSecond.")
-            cleared = only(_translate_session_update!(turn, _update("compaction_update"; compactionId = "c1",
-                                                                    status = "completed", summary = nothing)))
+            cleared = _read_compaction_update(_update("compaction_update"; compactionId = "c1",
+                                                      status = "completed", summary = nothing))
             @test cleared.summary == ""
         end
 
@@ -171,6 +171,10 @@ function test_acp_update()
                 state = Dict{String,Any}("state" => "dreaming"))).state === :unknown
             @test _read_subagent_update(_update("subagent_update"; sessionId = "c",
                 state = Dict{String,Any}("state" => "requires_action"))).state === :requires_action
+            # A `null` clears the title, the description and the state.
+            cleared = _read_subagent_update(_update("subagent_update"; sessionId = "c", title = nothing,
+                                                    description = nothing, state = nothing))
+            @test (cleared.title, cleared.description, cleared.state, cleared.stop_reason) == ("", "", :unknown, nothing)
         end
 
         @testset "a session info update reads the process id of _meta" begin
@@ -197,13 +201,20 @@ function test_acp_update()
             @test (patch.status, patch.end_time, patch.can_stop, patch.output_uri, patch.summary) ==
                   (:completed, 1.7000000105e9, false, "file:///tmp/out.txt", "Slept")
             @test patch.kind === nothing && patch.title === nothing && patch.start_time === nothing
+            # A `null` clears a text, and keeps a value that has no empty form.
+            cleared = _read_background_task(Dict{String,Any}("sessionId" => "s", "taskId" => "task-1",
+                "summary" => nothing, "outputUri" => nothing, "title" => nothing, "status" => nothing,
+                "endTime" => nothing, "canStop" => nothing))
+            @test (cleared.summary, cleared.output_uri, cleared.title) == ("", "", "")
+            @test cleared.status === nothing && cleared.end_time === nothing && cleared.can_stop === nothing
         end
 
         @testset "an update the client does not show answers no event" begin
             turn = AcpTurn(identity)
             for kind in ("usage_update", "available_commands_update", "session_info_update",
                          "current_mode_update", "config_option_update", "user_message_chunk",
-                         "subagent_update", "an_update_from_the_future")
+                         "subagent_update", "compaction_update", "compaction_summary_chunk",
+                         "session_message", "session_message_chunk", "an_update_from_the_future")
                 @test isempty(_translate_session_update!(turn, _update(kind)))
             end
         end
