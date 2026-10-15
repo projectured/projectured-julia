@@ -75,6 +75,27 @@ A save never writes over a newer file without the person knowing.
   Recommended (mine): A. The person sees it where they work, and each choice is
   one click.
 
+- **D15b. Open:** where the document of the band lives.
+  - A: a document around the scrolled file in the tab, which holds the file and
+    the state of the band (`make_file_tab_content` makes it). The band stays at
+    the top of the tab while a long file scrolls, no file type changes, and it
+    works for every file type, also those of omnet-julia. The layer walk of a tab
+    reaches the file through it.
+  - B: a field on each file type (ten here, and those of omnet-julia). The band
+    draws in the view of the file, inside the scroll pane, so it scrolls away
+    with a long file.
+  Recommended (mine): A.
+- **D15c. Open:** an undo of an open or a close of a tab. The inverse of the
+  acquire and of the release is "do nothing" today, so an undo of an open leaves
+  the watch running, and an undo of a close leaves the file unwatched. Each one
+  becomes the inverse of the other. Recommended (mine): yes.
+- **D15d. Open:** a watch with no editor. The store belongs to the feed of an
+  editor, so each editor has its own. A call of `watch_document_file!` where no
+  editor with the feed is bound does nothing, rather than fill a store of the
+  process that nothing drains and that keeps a watcher task forever. It touches
+  `get_result_file` and the fingerprint store of omnet-julia, which watch from
+  a cache of the process, when they run outside a frame. Recommended (mine): yes.
+
 ## Not in this plan
 
 A watch of the Files pane for new and deleted files · a merge of the edits with
