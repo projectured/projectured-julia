@@ -227,10 +227,11 @@ end
 
 The wrappers of `build_editor` that the application window has, as keywords:
 its undo, its chrome, the clipboard and the walk, F1 help, the command palette,
-and the gesture log, the message log, the statistics and the fault log, which
-fill the tools of the toolbar. **One place says which wrappers this binary has.**
-[`run_application`](@ref), [`make_application_window`](@ref) and the warm-up of
-a build come here, so none of them holds a list of its own.
+the gesture log, the message log, the statistics and the fault log, which fill
+the tools of the toolbar, and the list of the assistants of its tabs, which the
+Assistants button of the toolbar opens. **One place says which wrappers this
+binary has.** [`run_application`](@ref), [`make_application_window`](@ref) and
+the warm-up of a build come here, so none of them holds a list of its own.
 
 The toolbar has the assistant when `assistant` is not `nothing`, a fresh one
 with its backend, its model and its greeting, and its explorer lists `root`.
@@ -247,13 +248,12 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
     (; undo = true,
        shell = (; assistant = _make_assistant_factory(assistant),
                   explorer = _ -> _make_application_workspace(root),
-                  tools = Any[_make_assistant_list_tool()],
                   status_bar, measure, appearance),
        clipboard = true,
        gesture_help = (; measure),
        command_palette = (; measure),
        gesture_log = _make_gesture_log_option(document), message_log = true,
-       frame_statistics = true, fault_log = true)
+       frame_statistics = true, fault_log = true, assistant_list = true)
 
 # The gesture log of a window records into the first gesture log that a tab of
 # its pane tree shows, or into a new one.
@@ -291,49 +291,6 @@ function make_application_window(paths::AbstractVector;
                                                           appearance, document)...)
     (parts.document, parts.projection)
 end
-
-"""
-    link_assistant_list!(list, tree) -> list
-
-Make the Assistants pane of `list` show the assistants of the tabs of `tree`, and
-make its Show focus the tab of an assistant, or open it again. The window of
-[`run_application`](@ref) links the list of the session of its editor to its pane
-tree, and every other list that its files gave.
-"""
-function link_assistant_list!(list::AssistantList, tree::PaneTree)
-    set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
-    set_assistant_list_opener!(list, (editor, assistant) ->
-        show_document!(assistant; title = get_document_title(assistant), editor))
-end
-
-"""
-    unlink_assistant_list!(list) -> list
-
-Undo [`link_assistant_list!`](@ref): the list reads no tabs, its Show does
-nothing, and it shows no detail, so it holds no document of a closed window.
-"""
-function unlink_assistant_list!(list::AssistantList)
-    set_assistant_list_source!(list, nothing)
-    set_assistant_list_opener!(list, nothing)
-    select_assistant!(list, nothing)
-end
-
-# Link every assistant list that a tab of the window of `editor` shows, which its
-# files gave before the editor existed, and the list of the session of the editor:
-# the first of them, or a new one. Answer the lists, for the unlink.
-function _link_session_assistant_lists!(editor::Editor, tree::PaneTree)
-    lists = collect_pane_tab_contents(tree, AssistantList)
-    session = get_session_document!(() -> isempty(lists) ? AssistantList() : first(lists), editor, AssistantList)
-    any(list -> list === session, lists) || push!(lists, session)
-    foreach(list -> link_assistant_list!(list, tree), lists)
-    lists
-end
-
-# The button of the toolbar that opens the Assistants pane, or gives the focus to
-# its tab.
-_make_assistant_list_tool() =
-    make_window_tool_command("Assistants", AssistantList; icon = :chats,
-                             tooltip = "Assistants: every assistant conversation of this window")
 
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
@@ -595,14 +552,8 @@ function run_application(paths::AbstractString...;
                                         make_application_content_projections(; measure, appearance))),
                           make_application_wrappers(; root, assistant = chat, measure, appearance,
                                                       document)...)
-    lists = _link_session_assistant_lists!(editor, document)
     start_application!(editor; mcp, assistant, model)
-    try
-        run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
-    finally
-        # The window is closed: its assistant lists let its documents go.
-        foreach(unlink_assistant_list!, lists)
-    end
+    run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
 end
 
 # ── The command line ─────────────────────────────────────────────────────────

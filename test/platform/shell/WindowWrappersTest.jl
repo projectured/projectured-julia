@@ -202,6 +202,34 @@ end
           ["Explorer", "Evaluator", "Gesture log", "Selection", "Appearance", "Settings"]
 end
 
+@testset "assistant_list: the Assistants button opens the list of the assistants of the tabs, and a stop unlinks it" begin
+    labels(bar) = [String(string(item.action.label)) for item in bar.elements]
+    one, two = Assistant(), Assistant()
+    tree = PaneTree(PaneGroup([PaneTab("One", one), PaneTab("Notes", PrimitiveString("x")),
+                               PaneTab("Two", two)]))
+    editor, _ = _ww_editor(tree; shell = (; status_bar = false), assistant_list = true)
+    list = get_session_assistant_list(; editor)
+    try
+        @test labels(editor.document.toolbar) ==
+              ["Explorer", "Evaluator", "Selection", "Appearance", "Settings", "Assistants"]
+        @test length(list.assistants) == 2
+        @test list.assistants[1] === one && list.assistants[2] === two
+        # A tool opens in the focused group. The button posts its pane edit, and
+        # the drain applies what was posted.
+        _ww_focus_first_tab!(editor)
+        button = only(item for item in editor.document.toolbar.elements
+                      if string(item.action.label) == "Assistants")
+        evaluate_operation(editor, InvokeActionOperation(button.action))
+        drain_operations!(editor)
+        @test only(collect_pane_tab_contents(tree, AssistantList)) === list
+    finally
+        foreach(step -> step(editor), editor.stop_steps)
+    end
+    @test isempty(list.assistants) && list.opener === nothing
+    editor, _ = _ww_editor(PrimitiveString("x"); shell = true)
+    @test !("Assistants" in labels(editor.document.toolbar))
+end
+
 @testset "shell: the Help menu offers the gesture help and the palette when their wrappers are on" begin
     editor, _ = _ww_editor(PrimitiveString("x"); shell = true)
     @test _ww_help_labels(editor.document) == ["Documents", "Projections", "About"]

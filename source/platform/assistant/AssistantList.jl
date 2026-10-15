@@ -1,19 +1,19 @@
 # Fragment of `AssistantModule` — the list of the open assistants of the session:
 # one document that the Assistants pane shows, whose rows compute from a source
-# that the application gives.
+# that reads the tabs of a window, and the wrapper of `build_editor` that links
+# the list to the window.
 
 """
     AssistantList()
 
 The assistants that are open in the session, as one document: `assistants`
 computes them from `source`, a function that answers them in the order of the
-rows, or `nothing` while no application gave one
-([`set_assistant_list_source!`](@ref)). The application gives a source that
-reads the tabs of its window, so a tab that opens, closes or comes back with an
-undo changes the rows, and an edit inside an assistant does not compute them
-again. `selected` is the assistant whose detail the pane shows, or `nothing`.
-`opener` is what Show does, `opener(editor, assistant)`, or `nothing` while no
-application gave one ([`set_assistant_list_opener!`](@ref)).
+rows, or `nothing` while nothing linked the list
+([`link_assistant_list!`](@ref)). The link gives a source that reads the tabs of
+a window, so a tab that opens, closes or comes back with an undo changes the
+rows, and an edit inside an assistant does not compute them again. `selected` is the assistant whose detail the pane shows, or `nothing`.
+`opener` is what Show does, `opener(editor, assistant)`, or `nothing` while
+nothing linked the list.
 
 Every list that a person opens in a window of an editor is the list of the
 session of that editor ([`get_session_assistant_list`](@ref)): the toolbar, a
@@ -79,8 +79,8 @@ make_pred_document(::Type{<:AssistantList}, positional, keywords) = get_session_
     set_assistant_list_source!(list, source) -> list
 
 Say where the open assistants come from: `source()` answers them, in the order
-of the rows. The application gives a source that reads the tabs of its window,
-with `collect_pane_tab_contents`. A source that reads cells makes the rows
+of the rows. [`link_assistant_list!`](@ref) gives a source that reads the tabs of
+a window, with `collect_pane_tab_contents`. A source that reads cells makes the rows
 follow those cells. `nothing` empties the list.
 """
 function set_assistant_list_source!(list::AssistantList, source)
@@ -92,8 +92,8 @@ end
     set_assistant_list_opener!(list, action) -> list
 
 Say what Show does: `action(editor, assistant)` puts the tab of `assistant` on
-the screen of the editor that evaluates the press. The application gives an
-action that focuses the tab that shows the assistant, or opens it again. It
+the screen of the editor that evaluates the press. [`link_assistant_list!`](@ref)
+gives an action that focuses the tab that shows the assistant, or opens it again. It
 captures no editor, because no document stores one.
 """
 function set_assistant_list_opener!(list::AssistantList, action)
@@ -104,8 +104,8 @@ end
 """
     open_assistant_tab!(editor, list, assistant)
 
-Put the tab of `assistant` on the screen of `editor`, as the application said;
-`nothing` when no application gave an opener.
+Put the tab of `assistant` on the screen of `editor`, as the opener of the list
+says; `nothing` when the list has no opener.
 """
 function open_assistant_tab!(editor, list::AssistantList, assistant::Assistant)
     action = list.opener
@@ -120,4 +120,67 @@ Show the detail of `assistant` in the pane of `list`; `nothing` shows none.
 function select_assistant!(list::AssistantList, assistant)
     list.selected = assistant
     list
+end
+
+# ── The list of a window, as a wrapper of `build_editor` ─────────────────────
+
+"""
+    link_assistant_list!(list, tree) -> list
+
+Make the Assistants pane of `list` show the assistants of the tabs of `tree`, and
+make its Show focus the tab of an assistant, or open it again. The wrapper
+`assistant_list` links the list of the session of its editor to the pane tree of
+its window, and every other list that a tab of the tree holds.
+"""
+function link_assistant_list!(list::AssistantList, tree::PaneTree)
+    set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
+    set_assistant_list_opener!(list, (editor, assistant) ->
+        show_document!(assistant; title = get_document_title(assistant), editor))
+end
+
+"""
+    unlink_assistant_list!(list) -> list
+
+Undo [`link_assistant_list!`](@ref): the list reads no tabs, its Show does
+nothing, and it shows no detail, so it holds no document of a closed window.
+"""
+function unlink_assistant_list!(list::AssistantList)
+    set_assistant_list_source!(list, nothing)
+    set_assistant_list_opener!(list, nothing)
+    select_assistant!(list, nothing)
+end
+
+"""
+    assistant_list = true
+
+The wrapper of `build_editor` that links the Assistants pane to the tabs of the
+window. A start step links every list that a tab of the pane tree holds, which a
+file gave before the editor existed, and the list of the session of the editor
+([`get_session_assistant_list`](@ref)): the first of those lists, or a new one. A
+stop step unlinks them, so no list holds a document of a closed window. While it
+is on, the `shell` wrapper puts the button of the pane on the toolbar. It is off
+by default, and the window needs a pane tree: the root that the caller gives, or
+the one that the `tabs` wrapper makes.
+"""
+function wrap_editor!(::Val{:assistant_list}, layer::Symbol, argument, parts::EditorParts)
+    tree = get_window_tree(parts.document)
+    lists = AssistantList[]
+    push!(parts.start_steps, editor -> (append!(lists, _link_session_assistant_lists!(editor, tree));
+                                        nothing))
+    push!(parts.stop_steps, _ -> (foreach(unlink_assistant_list!, lists); nothing))
+    parts
+end
+
+get_wrapper_layers(::Val{:assistant_list}) = (:screen => 40,)
+
+# Link every assistant list that a tab of `tree` shows, and the list of the
+# session of `editor`: the first of them, or a new one. Answer the lists, for the
+# unlink.
+function _link_session_assistant_lists!(editor::Editor, tree::PaneTree)
+    lists = collect_pane_tab_contents(tree, AssistantList)
+    session = get_session_document!(() -> isempty(lists) ? AssistantList() : first(lists), editor,
+                                    AssistantList)
+    any(list -> list === session, lists) || push!(lists, session)
+    foreach(list -> link_assistant_list!(list, tree), lists)
+    lists
 end

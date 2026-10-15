@@ -51,7 +51,6 @@ export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
        make_application_document, make_application_content_projections,
        make_application_projection, make_application_wrappers, make_application_window,
-       link_assistant_list!, unlink_assistant_list!,
        make_application_api, APPLICATION_SYSTEM, make_application_settings,
        run_application, parse_application_arguments, run_application_command,
        restart_with_window_threads!,

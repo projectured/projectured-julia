@@ -20,8 +20,8 @@ The bands offer a tool that shows what the window records only when the wrapper
 that fills it is on: `message_log`, `gesture_log`, `fault_log` and
 `frame_statistics` ([`RECORDED_TOOLS`](@ref)). In the same way, the Help menu
 offers the gesture help and the command palette only when `gesture_help` and
-`command_palette` are on. The argument holds the choices of
-the host:
+`command_palette` are on, and the toolbar offers the Assistants pane only when
+`assistant_list` is on. The argument holds the choices of the host:
 
 - `assistant` makes the assistant of the window from the editor; with
   `nothing`, the default, the toolbar has no assistant, which needs a model.
@@ -55,6 +55,7 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
             make_window_menu_bar(; recorded, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
                                         explorer = get(options, :explorer, nothing), recorded,
+                                        assistant_list = haskey(parts.arguments, :assistant_list),
                                         extra = collect(Any, get(options, :tools, ()))),
         status_bar = get(options, :status_bar, true) ?
             make_window_status_bar(document; extra = _make_thread_notice(parts.backend)) : nothing)

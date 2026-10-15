@@ -24,15 +24,16 @@ A window is a document and a projection built by `build_editor` with a keyword f
 
 **The order is fixed by what each wrapper reads.** From the inside out: `undo` sits next to the tabs, because it must hold every change below it, down to the pane tree itself. `shell` is around it and inside everything else, so a command of a band finds the pane tree in its content, and a verb that reads the pane tree goes past the chrome with `get_wrapped_document`. `focus_cycling` is around the chrome, so the cycle of Tab goes through the bands too, and not only through the panes. `clipboard` is around the cycle of the focus, so the Alt+arrow walk and the clipboard reach into the bands. `gesture_help` and `command_palette` are around the clipboard, so their lists name the gestures of the walk and of the clipboard too. `gesture_log` is outermost in this layer, so it sees every operation that the window makes, from any wrapper inside it.
 
-Three more features fill what a tool of the toolbar shows, instead of nesting around the content. Each adds a feed or a start step to the editor, in the layer `:screen`, which acts once, on the root:
+Four more features fill what a tool of the toolbar shows, instead of nesting around the content. Each adds a feed or a start step to the editor, in the layer `:screen`, which acts once, on the root:
 
 | What a person sees | Keyword | Slice | Layer |
 | --- | --- | --- | --- |
 | The message log fills with what the program logs | `message_log` | log | `:screen => 10` |
 | The statistics and the frame times follow the frames | `frame_statistics` | statistics | `:screen => 20` |
 | The fault log fills with what failed | `fault_log` | fault | `:screen => 30` |
+| The Assistants pane lists the assistants of the tabs | `assistant_list` | assistant | `:screen => 40` |
 
-[log.md](../log/log.md), [statistics.md](../statistics/statistics.md) and [fault.md](../fault/fault.md) describe each one; [gesturelog.md](../gesturelog/gesturelog.md) describes `gesture_log` above.
+[log.md](../log/log.md), [statistics.md](../statistics/statistics.md), [fault.md](../fault/fault.md) and [assistant.md](../assistant/assistant.md#the-assistants-pane) describe each one; [gesturelog.md](../gesturelog/gesturelog.md) describes `gesture_log` above.
 
 - **The light under the pointer is not a wrapper.** The screen gives each move to the window that the pointer leaves and to the window at the point, and each container gives it on to its children in the same way. Each document on the path writes its `mouse_target`, so a toolbar button goes dark when the pointer goes to a row in a pane, or from a window to a popup. [widget.md](../widget/widget.md) describes the light.
 - **The tooltip window and the context menu window are wrappers that the window wrapper places.** A part answers a dwell or a right click from its own gesture table. The `tooltip` and `context_menu` wrappers of `build_editor`, on by default in the layer `:window` before the `window` wrapper, give `wrap_tooltip_window` and `wrap_context_menu_window` to it through `EditorParts.window_wrappers`, and it puts them around the screen inside the trackers. [tooltip.md](../tooltip/tooltip.md) and [context-menu.md](../widget/context-menu.md) describe them.
@@ -87,7 +88,7 @@ So a host adds a command and needs no widget package of its own.
 
 Two tools need what only the window has. `assistant` makes the assistant of the window, with its backend and its greeting; when it is `nothing`, the toolbar has no assistant button. `explorer` makes the file explorer over the folder of the window; when it is `nothing`, the button opens the working directory.
 
-**A button must not open a tool that stays empty.** Five tools show what the window records, and each fills only when the wrapper of `build_editor` that fills it is also on: the message log with `message_log`, the gesture log with `gesture_log`, the fault log with `fault_log`, and the statistics and the frame times with `frame_statistics`. `RECORDED_TOOLS` names the four keywords of those wrappers. The `shell` wrapper reads which of them are on in `parts.arguments` and passes those as `recorded` to `make_window_toolbar` and `make_window_menu_bar`, so a window built with none of the four has no button and no item for a tool that would stay empty:
+**A button must not open a tool that stays empty.** Five tools show what the window records, and each fills only when the wrapper of `build_editor` that fills it is also on: the message log with `message_log`, the gesture log with `gesture_log`, the fault log with `fault_log`, and the statistics and the frame times with `frame_statistics`. `RECORDED_TOOLS` names the four keywords of those wrappers. The `shell` wrapper reads which of them are on in `parts.arguments` and passes those as `recorded` to `make_window_toolbar` and `make_window_menu_bar`, so a window built with none of the four has no button and no item for a tool that would stay empty. In the same way the toolbar has the Assistants button, after the settings, only while `assistant_list` is on, because only that wrapper links the list to the tabs of the window:
 
 ```julia
 editor = build_editor(document, projection; backend = backend,

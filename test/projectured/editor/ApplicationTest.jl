@@ -525,16 +525,14 @@ function test_application()
                                            PaneTab("Assistant", assistant)]))
                 @test make_application_wrappers(; document = tree).gesture_log == (; log = held)
                 @test make_application_wrappers(; document = PaneTree(PaneGroup(PaneTab[]))).gesture_log === true
-                editor = Editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
-                                backend = HeadlessBackend(), devices = Device[])
-                link_lists! = parentmodule(make_application_wrappers)._link_session_assistant_lists!
-                lists = link_lists!(editor, tree)
+                editor = build_editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                      backend = HeadlessBackend(), devices = Device[], window = false,
+                                      appearance = false, settings = false, assistant_list = true)
                 try
-                    @test only(lists) === files_list
                     @test get_session_assistant_list(; editor) === files_list
                     @test only(files_list.assistants) === assistant
                 finally
-                    foreach(unlink_assistant_list!, lists)
+                    foreach(step -> step(editor), editor.stop_steps)
                 end
                 @test isempty(files_list.assistants)
             end

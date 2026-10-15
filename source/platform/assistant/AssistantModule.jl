@@ -74,6 +74,7 @@ import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
 import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
                        get_insertion_aliases, make_insertion_document
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
 import ..RosterModule: get_item_facets, compute_item_facet
@@ -102,7 +103,7 @@ export compute_assistant_overview_title, find_first_prompt, find_last_prompt, co
        compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
 export AssistantList, get_session_assistant_list, set_assistant_list_source!,
-       set_assistant_list_opener!, select_assistant!
+       set_assistant_list_opener!, select_assistant!, link_assistant_list!, unlink_assistant_list!
 export AssistantListToWidgetPane
 export apply_agent_event!, AgentEventFeed
 export show_assistant_work!

@@ -162,7 +162,7 @@ make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> About
 
 """
     make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
-                        extra = []) -> WidgetToolbar
+                        assistant_list = false, extra = []) -> WidgetToolbar
 
 The tools of the window, one button each: the explorer, the assistant, the
 evaluator, the message log, the gesture log, the fault log, the frame
@@ -192,10 +192,15 @@ Five tools show what the window records, and each fills only when a wrapper of
 times with `frame_statistics`. `recorded` holds the keywords of the wrappers that
 are on, and the toolbar has no button for a tool that stays empty.
 
+`assistant_list = true` adds the button of the Assistants pane after the
+settings. The wrapper `assistant_list` of `build_editor` links the list to the
+tabs of the window, and without it the pane lists nothing.
+
 A host appends its own buttons with `extra`, which is where a command that only
 one binary has belongs.
 """
-make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS, extra = []) =
+make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
+                    assistant_list::Bool = false, extra = []) =
     WidgetToolbar(Any[
         make_window_tool_command("Explorer", Workspace; icon = :folder,
                                  tooltip = "Explorer: the files of this window's folder",
@@ -215,6 +220,9 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORD
         make_window_tool_command("Settings", Settings; icon = :settings,
                                  tooltip = "Settings: how this editor works",
                                  make = _find_tool_settings),
+        (assistant_list ?
+            (make_window_tool_command("Assistants", AssistantList; icon = :chats,
+                 tooltip = "Assistants: every assistant conversation of this window"),) : ())...,
         extra...,
     ])
 
