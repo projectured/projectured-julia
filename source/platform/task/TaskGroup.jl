@@ -270,6 +270,21 @@ _get_task_group_runs(group::TaskGroup) = lock(() -> copy(group.runs), group.runt
 _set_task_group_run!(group::TaskGroup, index::Int, run) =
     lock(() -> (group.runs[index] = run; nothing), group.runtime.lock)
 
+# Keep the execution of a task that the driver just started, and stop it when a
+# stop of the group came during its start: that stop did not see it.
+function _keep_started_task_run!(group::TaskGroup, index::Int, run)
+    stopping = lock(group.runtime.lock) do
+        group.runs[index] = run
+        group.stopping
+    end
+    stopping && _stop_task_run!(group.tasks[index], run)
+    nothing
+end
+
+# Stop one task of a group: an inner group stops its own tasks.
+_stop_task_run!(task, run) =
+    task isa TaskGroup ? stop_task_group!(task) : run === nothing || stop_task_execution!(run)
+
 # Whether a stop of the group asks that no more of its tasks start.
 _is_task_group_stopping(group::TaskGroup) = lock(() -> group.stopping, group.runtime.lock)
 
@@ -440,7 +455,7 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
                                      "The start failed: " * sprint(showerror, exception), nothing);
                     finish = finish_one)
             end
-            _set_task_group_run!(group, index, run)
+            _keep_started_task_run!(group, index, run)
             _record_task_start!(group, index)
             on_start === nothing || on_start(index, run)
             group.runtime.on_start === nothing || group.runtime.on_start(index, run)
@@ -483,7 +498,12 @@ function _run_preparation!(group::TaskGroup)
                              "The start failed: " * sprint(showerror, exception), nothing))
         failed
     end
-    lock(() -> (group.runtime.preparation_run = execution), group.runtime.lock)
+    stopping = lock(group.runtime.lock) do
+        group.runtime.preparation_run = execution
+        group.stopping
+    end
+    # A stop that came during the start of the preparation did not see it.
+    stopping && _stop_task_run!(preparation, execution)
     group.runtime.on_preparation === nothing || group.runtime.on_preparation(execution)
     wait_task_execution(execution)
     result = lock(() -> execution.result, execution.runtime.lock)
@@ -534,11 +554,9 @@ function stop_task_group!(group::TaskGroup)
         group.stopping = true
         (group.runtime.preparation_run, copy(group.runs))
     end
-    if run !== nothing && is_task_running(run)
-        group.preparation isa TaskGroup ? stop_task_group!(group.preparation) : stop_task_execution!(run)
-    end
+    run !== nothing && is_task_running(run) && _stop_task_run!(group.preparation, run)
     for (task, run) in zip(group.tasks, runs)
-        task isa TaskGroup ? stop_task_group!(task) : run === nothing || stop_task_execution!(run)
+        _stop_task_run!(task, run)
     end
     group
 end
