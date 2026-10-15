@@ -5,7 +5,9 @@ Status: a proposal. Decided by the owner, 2026-10-15: D15 A of
 as a step of its own after that plan ("agreed A"). Nothing is built. D15a is
 decided too (A, 2026-10-15), so every decision is made. STARTED 2026-10-15 (the
 owner: "let's start, ask if design questions come up"), on the branch
-`window-watches-files` in the worktree `projectured-julia-watch`.
+`window-watches-files` in the worktree `projectured-julia-watch`. D15e
+(2026-10-15) changes the design of steps 4 and 5: the watcher knows nothing of
+editing.
 
 **The owner, 2026-10-15, on the band:** "don't create synthetic event for the
 band, it should be just some document on the file document or something like
@@ -85,12 +87,14 @@ A save never writes over a newer file without the person knowing.
 - Step 3: the wrapper `file_change = true` (filechange) adds the feed, and its
   stop step closes the store; `make_application_wrappers` turns it on. The
   application needs no new edge: it passes a keyword.
-- Step 4: the file-format slice declares `request_file_save!(editor, file)`,
-  `true` by default, which `SaveFileOperation` asks before it writes. The
-  file-change slice answers it: `true` when the file on disk is the text that the
-  document last loaded or saved (`base_hash` of the watched file, or the hash of
-  its last save), else it shows the band of a save over a newer file and answers
-  `false`.
+- Step 4 (fileformat, D15e): `FilePage` holds the hash of the text of its file
+  at the last load or save. Before the save writes, the page reads the file on
+  disk and compares the two hashes. The same hash writes, and the hash of the
+  text that it wrote becomes the hash of the page. Another hash shows the band of
+  a save over a newer file and writes nothing. No watcher takes part.
+  `saved_text_hash` leaves `UndoBuffer`, with `get_saved_text_hash` and the
+  keyword `text_hash` of `record_saved_state!`. The history keeps `saved_entry`
+  and `has_unsaved_edits`.
 - Step 5 (fileformat): `FilePage(content; band = nothing)`, the document around
   the scrolled file, which `make_file_tab_content` and the open of a file give a
   tab, and `FileBand(; message, choices)`, a sentence and its choices, each a
@@ -98,8 +102,13 @@ A save never writes over a newer file without the person knowing.
   band above the content in a `VerticalLayout`, in the warning colors of the
   widget theme, and maps every path of the content, as `FindBarViewToWidget`
   does; a button answers its operation through a `GestureBinding` of a click.
-  The file-change slice makes the band and its operations: load the file, or
-  keep the edits (and, for a save, write them).
+  The page makes the band and its operations: load the file, or keep the edits
+  (and, for a save, write them). The watcher reports a change to the page, by a
+  function that the file-format slice declares and the page answers: the hash of
+  the new text and the parsed content, or the failure of the parse. The page
+  chooses (D15e): the hash of its last load or save does nothing; a content with
+  no edits loads the change; a content with edits, or one that keeps no history,
+  shows the band.
 
 ## 4. The decision
 
@@ -141,6 +150,27 @@ A save never writes over a newer file without the person knowing.
   process that nothing drains and that keeps a watcher task forever. It touches
   `get_result_file` and the fingerprint store of omnet-julia, which watch from
   a cache of the process, when they run outside a frame. Recommended (mine): yes.
+- **D15e. Decided by the owner, 2026-10-15: the watcher knows nothing of
+  editing.** The owner, on a proposal to keep the hash of the last save in the
+  `WatchedFile` of the store: "storing the hash of the edited file on the
+  watched file seems wrong, it's in the wrong dependency order. the watcher
+  watches, doesn't know and should not know about editing at all". Then "yes" to
+  the design in §3.1, steps 4 and 5:
+  - The watcher watches, reads, hashes and parses a changed file, and reports
+    the change. It keeps no hash of a load or a save, reads no edit, makes no
+    band and writes no message about edits.
+  - The page (`FilePage`, D15b) holds the state of its file against the disk:
+    the hash of the text of the last load or save, and the band. It decides what
+    a change means, and it checks the disk before a save.
+  - The history keeps `saved_entry` and `has_unsaved_edits`, because only the
+    history knows that an undo came back to the saved step. `saved_text_hash`
+    leaves `UndoBuffer`: it is a fact about the disk, not about the history.
+  - On `main`, `_bring_file_change!` in `FileChangeStore.jl` reads
+    `get_saved_text_hash` and `has_unsaved_edits`, chooses between a reload and a
+    keep, and logs a message about edits. That choice moves to the page.
+  - Open: `Ctrl+S` gives `SaveFileOperation(file)` on the file document, so the
+    page must see the save to check the disk and to keep its hash. Ask the owner
+    before the step adds an event or a payload for it.
 
 ## Not in this plan
 
