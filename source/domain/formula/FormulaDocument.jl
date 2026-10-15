@@ -18,7 +18,9 @@ end
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
 `code` (a `JuliaDocument`, a `MathDocument`, or a bare number), and
 `display_mode` (`:code`/`:result`/`:both`). The code refers to another formula by
-its name.
+its name. `draft` is `nothing` in value mode, and in edit mode a copy of the code
+that the keys edit, which a commit writes into the code
+([`CommitFormulaOperation`](@ref)); a view then shows the draft and no value.
 
 `result` is the last value that was computed, any value or a `FormulaError`, or
 `nothing` before the first computation; `result_key` is the key of the code that
@@ -32,6 +34,7 @@ formula is placed in an environment ([`wire_result!`](@ref)), code reads it with
 @document struct FormulaFormula <: FormulaDocument
     name::String
     code::Union{JuliaDocument, MathDocument, PrimitiveNumber}
+    draft::Any
     result::Any
     result_key::Any
     is_computing::Bool
@@ -44,8 +47,8 @@ end
 # (a derived thunk); the inner ctor passes a Cell through unchanged.
 function FormulaFormula(name, code::Document; result = nothing, display_mode::Symbol = :both)
     name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
-    FormulaFormula(name_cell, Cell(code), Cell(result), Cell(nothing), Cell(false), Cell(nothing),
-                   Cell(display_mode), Cell(nothing))
+    FormulaFormula(name_cell, Cell(code), Cell(nothing), Cell(result), Cell(nothing), Cell(false),
+                   Cell(nothing), Cell(display_mode), Cell(nothing))
 end
 
 """

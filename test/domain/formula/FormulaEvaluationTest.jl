@@ -8,6 +8,11 @@ _formula_sheet(pairs...) =
 # view shows only stored values.
 _compute_formula_sheet!(sheet) = (evaluate_operation(nothing, ComputeFormulasOperation(sheet)); sheet)
 
+# An editor that a path operation writes into: it holds the document only.
+struct _FormulaMockEditor
+    document::Any
+end
+
 function test_formula_evaluation()
 @testset "the evaluation of a formula by name" begin
 

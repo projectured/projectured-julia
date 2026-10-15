@@ -17,7 +17,8 @@ import ..SerializationModule: pred_arguments, make_pred_document
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward
-import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation,
+                          is_self_contained_operation
 import ..DomainModule: acquire_document!
 
 export FormulaDocument, FormulaError, wire_result!, resolve, get_column_letter, get_cell_name,
@@ -25,6 +26,7 @@ export FormulaDocument, FormulaError, wire_result!, resolve, get_column_letter, 
        convert_formula_to_expr, evaluate_formula, get_formula_value, get_formula_result,
        convert_math_to_julia, MathReadingException, get_formula_key, is_math_code
 export compute_formula_key, ComputeFormulasOperation, ReplaceFormulaResultOperation
+export BeginFormulaEditOperation, CancelFormulaEditOperation, CommitFormulaOperation
 export FormulaTheme, ScaledFormulaTheme
 export FormulaInsertionToSyntaxLeaf, FormulaIdentifierToSyntaxLeaf, FormulaFormulaToSyntaxNode,
        FormulaEnvironmentToSyntaxNode, FormulaToSyntax
@@ -35,6 +37,7 @@ export FormulaFormulaToLayout, FormulaEnvironmentToLayout, make_formula_graphics
 include("MathToJulia.jl")
 include("FormulaDocument.jl")
 include("FormulaComputation.jl")
+include("FormulaEdit.jl")
 include("FormulaTheme.jl")
 include("FormulaToSyntax.jl")
 include("FormulaToGraphics.jl")

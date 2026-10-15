@@ -77,6 +77,9 @@ read_intent(p::FormulaIdentifierToSyntaxLeaf, recursion, change::Intent, iomap) 
 #   :result → recurse into `result`                       → children [result]
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
 #
+# In edit mode the draft takes the place of the code, and no value shows, because
+# the stored value belongs to the code: `:both` is name " = " draft.
+#
 # The `code` child is recursed through the shared `recursion`; the `result` is a
 # computed value of any type, so it shows as one leaf of its text rather than
 # recursed (mirrors how EvaluatorForm renders its result). Only `code` therefore
@@ -93,9 +96,13 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     environment = get(ctx.properties, :formula_environment, nothing)
     references = Cell(@computation environment === nothing ? Base.IdSet{Any}() :
                                    _find_reference_identifiers(f, environment))
-    code_ref = with_property(make_child_context(ctx, f, @reference_step code),
-                             :formula_references, references)
-    code_iomap = Cell(@computation print_child(recursion, f.code, code_ref))
+    # The code, or the draft in edit mode, each printed under its own field.
+    code_iomap = Cell(@computation begin
+        draft = f.draft
+        step = draft === nothing ? (@reference_step code) : (@reference_step draft)
+        context = with_property(make_child_context(ctx, f, step), :formula_references, references)
+        print_child(recursion, draft === nothing ? f.code : draft, context)
+    end)
 
     # The name leaf displays the formula name; renaming is a structural
     # operation, not character editing here, so it carries no input mapping.
@@ -124,6 +131,8 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                 SyntaxDocument[code_iomap[].output]
             elseif mode === :result
                 SyntaxDocument[result_leaf]
+            elseif f.draft !== nothing  # :both, in edit mode
+                SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output]
             else  # :both (default)
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
@@ -158,15 +167,20 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
                                             rest.head isa RangeReferenceStep
             @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)
         end
-        ::FormulaFormula.code.rest... => begin
-            idx = _code_index(f)
-            idx === nothing && return nothing
-            child = iomap.child_iomaps[1]
-            inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[idx].^(inner))
-        end
+        ::FormulaFormula.code.rest... => f.draft === nothing ? _map_code_forward(f, iomap, rest) : nothing
+        ::FormulaFormula.draft.rest... => f.draft === nothing ? nothing : _map_code_forward(f, iomap, rest)
         __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
+end
+
+# The output place of a place in the code, or in the draft in edit mode, which
+# prints at the same child.
+function _map_code_forward(f::FormulaFormula, iomap::ChildrenIoMap, rest)
+    idx = _code_index(f)
+    idx === nothing && return nothing
+    child = iomap.child_iomaps[1]
+    inner = map_reference_forward(child.projection, child, rest)
+    inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[idx].^(inner))
 end
 
 function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoMap, reference)
@@ -177,10 +191,13 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
         ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             if idx !== nothing && child_i == idx
-                # This child is the code sub-tree: delegate to its mapper.
+                # This child is the code sub-tree, or the draft in edit mode:
+                # delegate to its mapper.
                 child = iomap.child_iomaps[1]
                 inner = map_reference_backward(child.projection, child, rest)
-                inner === nothing ? nothing : (@reference ::FormulaFormula.code.^(inner))
+                inner === nothing ? nothing :
+                    f.draft === nothing ? (@reference ::FormulaFormula.code.^(inner)) :
+                                          (@reference ::FormulaFormula.draft.^(inner))
             elseif child_i == 1 && f.display_mode === :both
                 # The text of the name leaf is the name.
                 @reference_case rest begin
@@ -268,7 +285,14 @@ end
 # inside a template, the parent asks only the gesture bindings of the parts.
 
 function read_intent(p::FormulaEnvironmentToSyntaxNode, recursion, change::Intent, iomap)
+    # A formula in edit mode takes Enter and Escape first.
+    own = _read_formula_edit_key(iomap.input, change)
+    own === nothing ||
+        return Intent(change.gesture, _give_formula_environment(own, iomap.input), "Edit the formula", "formula")
     answer = @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    # A commit of a formula computes it again in this sheet, and a write of the code
+    # of a formula in value mode starts its edit mode.
+    answer.operation === nothing || (answer = _read_formula_edit(iomap.input, answer))
     # A key that types in a name renames the formula; see the section below.
     answer.operation isa ReplaceStringRangeOperation && return _read_rename(iomap.input, answer)
     gesture = change.gesture

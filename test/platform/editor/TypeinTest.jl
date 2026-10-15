@@ -54,7 +54,9 @@ using ProjecturedPlatform.StyleModule: StyleFont
 using ProjecturedPlatform.TextModule: TextString, TextLine, TextBlock, TextDocument, TextGraphics,
                                       TextRangeReferenceStep, ReplaceTextRangeOperation,
                                       get_flat_string
-using ProjecturedKernel.OperationModule: CompoundOperation, ReplaceReferencedValueOperation
+using ProjecturedKernel.OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
+                                        is_self_contained_operation, evaluate_invertible_operation!,
+                                        reroot_reference
 using ProjecturedPlatform.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
@@ -445,6 +447,14 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
         return selok ? _typein_ok() : _typein_failed("$kind at the boundary: $selmsg")
     end
 
+    # 4a. A domain can stage the edit: a formula in value mode answers a key in its
+    # code with the start of its edit mode and the same edit of a copy of the code, its
+    # draft. The members before the edit name no place. The walk evaluates the whole
+    # answer, reads the string where the edit wrote, and takes the answer back with
+    # its inverse, so the remaining positions find the document as it was.
+    staged = _find_staged_typein_edit(op)
+    staged === nothing || return _check_staged_typein_edit(document, op, staged, kind, target, expected_str)
+
     # 4. The edit is expected: a ReplaceStringRangeOperation (empty replacement for the
     # deletions), alone, or first in a compound whose other members are writes that the
     # domain adds to the edit, as a rename of a formula writes its uses. The walk
@@ -472,6 +482,46 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
         return _typein_failed("$kind: expected $(repr(expected_str)) got $(repr(after))")
     selok, selmsg = _selection_caret_ok(document, target, expected_pos)
     selok || return _typein_failed("$kind: $selmsg")
+    _typein_ok()
+end
+
+# The string edit of a compound whose members before it name no place, as the
+# start of the edit mode of a formula; `nothing` for any other answer.
+function _find_staged_typein_edit(op)
+    op isa CompoundOperation || return nothing
+    index = findfirst(member -> member isa ReplaceStringRangeOperation, op.operations)
+    (index === nothing || index == 1) && return nothing
+    all(is_self_contained_operation, op.operations[1:(index - 1)]) || return nothing
+    op.operations[index]
+end
+
+# Evaluate a staged answer, check the string where its edit wrote, and take the
+# answer back with its inverse.
+function _check_staged_typein_edit(document, op, edit, kind, target, expected_str)
+    (kind !== :insert && !isempty(edit.replacement)) &&
+        return _typein_failed("$kind produced a non-empty replacement $(repr(edit.replacement))")
+    steps = get_reference_steps(edit.reference)
+    written = (cursor = reroot_reference(EmptyReference(), Tuple(steps[1:(end - 1)])), kind = target.kind,
+               first_position = target.first_position)
+    # Each member is inverted against the state it sees: the edit of the draft
+    # after the start of the edit mode made the draft.
+    inverse = try
+        evaluate_invertible_operation!((document=document,), op)
+    catch e
+        return _typein_failed("evaluate_operation of the staged edit threw: $e")
+    end
+    inverse === nothing && return _typein_failed("the staged edit $(kind) has no way back")
+    after = try
+        _read_target_string(document, written)
+    catch e
+        return _typein_failed("re-read of the staged edit threw: $e")
+    end
+    try
+        evaluate_operation((document=document,), inverse)
+    catch e
+        return _typein_failed("the inverse of the staged edit threw: $e")
+    end
+    after == expected_str || return _typein_failed("$kind (staged): expected $(repr(expected_str)) got $(repr(after))")
     _typein_ok()
 end
 

@@ -266,4 +266,53 @@ end
     @test findfirst(==(a2), order) < findfirst(==(a3), order)
 end
 
+@testset "a write of the code starts the edit mode, and it writes the draft" begin
+    sheet = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("A", parse_julia("12")),
+                                                        FormulaFormula("AB", parse_julia("5")),
+                                                        FormulaFormula("C", parse_julia("A + 1"))]))
+    C = sheet.formulas[3]
+    write = ReplaceReferencedValueOperation(nothing, @reference(sheet, formulas[3].code.left), parse_julia("AB"))
+    answer = ProjecturedFormula.FormulaModule._read_formula_edit(sheet, Intent(nothing, write))
+    evaluate_operation(_FormulaMockEditor(sheet), answer.operation)
+    @test C.draft !== nothing && print_natural_text(C.draft) == "AB + 1"
+    @test print_natural_text(C.code) == "A + 1" && get_formula_result(C) == 13
+    render_shown = render(print_document(RecursiveProjection(FormulaToSyntax()), C).output)
+    @test occursin("AB + 1", render_shown) && !occursin("13", render_shown)
+    # A move of the selection alone starts nothing.
+    select = ReplaceSelectionOperation(@reference(sheet, formulas[1].code))
+    @test ProjecturedFormula.FormulaModule._read_formula_edit(sheet, Intent(nothing, select)).operation === select
+end
+
+@testset "in edit mode, Enter commits, an undo takes back the commit, and Escape drops the draft" begin
+    sheet = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("A", parse_julia("12")),
+                                                        FormulaFormula("AB", parse_julia("5")),
+                                                        FormulaFormula("C", parse_julia("A + 1"))]))
+    C = sheet.formulas[3]
+    backend = HeadlessBackend()
+    projection = make_formula_projection_example(; measure = FixedMeasure(8, 12, 4, 0))
+    editor = build_editor(sheet, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false,
+                          undo = true)
+    run_frame!(editor)
+    press!(event) = ProjecturedPlatformTest._nav_press!(editor, backend, event)
+    shown() = render(print_document(RecursiveProjection(FormulaToSyntax()), C).output)
+    evaluate_operation(editor, BeginFormulaEditOperation(C; draft = parse_julia("AB + 1")))
+    set_selection!(sheet, @reference(sheet, formulas[3].draft))
+    run_frame!(editor)
+    # Enter commits: the code takes the draft, and the formula computes again.
+    press!(KeyPress('\n'; time = 0.0))
+    @test C.draft === nothing && print_natural_text(C.code) == "AB + 1"
+    @test get_formula_result(C) == 6 && occursin("6", shown())
+    # One undo takes back the commit: the old code and the old value together, and
+    # the draft is back.
+    press!(KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0))
+    @test print_natural_text(C.code) == "A + 1" && get_formula_result(C) == 13
+    @test C.draft !== nothing && print_natural_text(C.draft) == "AB + 1"
+    # Escape drops the draft, and the formula shows its code and its value again.
+    set_selection!(sheet, @reference(sheet, formulas[3].draft))
+    run_frame!(editor)
+    press!(KeyDown(:escape, ModifierKeys(); time = 0.0))
+    @test C.draft === nothing && print_natural_text(C.code) == "A + 1" && occursin("13", shown())
+end
+
 end # test_formula_to_syntax
