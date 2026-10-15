@@ -3148,13 +3148,19 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         () -> Any[c for c in w.elements
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
         (i, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
-    # The natural extent of the children together, before the box around them.
+    # The natural extent of the children together, before the box around them. A
+    # context with a minimum width, as a slot that the composite fills gives, makes
+    # the box at least that wide, so a box of a `Fill` composite reaches the edge
+    # of its slot.
+    minimum_width = ctx isa PrinterContext ? ctx.minimum_width : nothing
     extent = Cell(@computation begin
         content_width, content_height = 0, 0
         for cim in child_cells[]
             ew, eh = _element_size(cim.output, _p_measure(p))
             content_width = max(content_width, ew); content_height = max(content_height, eh)
         end
+        minimum_width === nothing ||
+            (content_width = max(content_width, Int(minimum_width[]) - _inset_total(p, w)[1]))
         (content_width, content_height)
     end)
     # The box around the children is a canvas of its own, so the list of the
