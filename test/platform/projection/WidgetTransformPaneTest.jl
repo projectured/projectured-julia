@@ -82,6 +82,16 @@ function test_widget_transform_pane()
         @test _written(op).f ≈ 36.0     # half of three lines of 24
     end
 
+    @testset "Ctrl and the wheel zoom a step for each notch, and not for a fraction" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(0, 2, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        @test _written(op).a ≈ 1.1^2
+        @test read_intent(proj, iomap, MouseScroll(0, 0, 50, 50, ModifierKeys(ctrl=true); time = 0.0,
+                                                   precise_dy = 0.3)) === nothing
+    end
+
     @testset "Ctrl and the wheel zoom a pane inside a composite" begin
         doc   = _doc()
         proj  = _proj()

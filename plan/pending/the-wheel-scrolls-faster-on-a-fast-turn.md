@@ -72,7 +72,7 @@ more at each notch, up to one view less one line. A touchpad scrolls smoothly.
 
 ### Step 3: a touchpad scrolls smoothly
 
-Proposed, and waits for the word of the owner: `dx` and `dy` stay whole notches.
+The owner agreed to this design: `dx` and `dy` stay whole notches.
 A new pair of fields holds the exact amount of the turn, in notches, as a
 `Float64`. The readers of a whole notch (fact 5) do not change.
 
@@ -128,6 +128,46 @@ A new pair of fields holds the exact amount of the turn, in notches, as a
   pixels, three lines of 23, and three notches 50 ms apart scroll 263 pixels,
   69 + 86 + 108. Whether 80 ms, 150 ms and 1.25 feel right needs a real wheel
   in the hand of the owner.
+
+## The review (2026-10-15)
+
+A reviewer agent read the whole diff of the branch. Its findings, and what
+became of each:
+
+1. ✅ Ctrl and the wheel zoomed one step for a merged turn of many notches, by
+   the sign of `dy`. `_zoom_op` now takes a count of steps, and the wheel
+   zooms a step for each notch; a turn with no whole notch, from a touchpad,
+   zooms nothing (before the branch it zoomed in).
+2. ✅ A notch was never shorter than three lines, so in a view less than four
+   lines tall it passed lines that never showed. Now the largest notch is the
+   view less one line and at least one line, and a notch is never more.
+3. ✅ The pan of a transform pane read `w.size`. It now reads the canvas that
+   it drew, as the scroll pane does. The case of the finding, a pane with no
+   size, can not happen: the constructor refuses a size of `nothing`.
+4. ✅ A merged turn grew at each later notch, so a slow frame sped up a slow
+   wheel. Now the notches of a merged turn share the time since the last
+   notch, so their pace decides; a merged turn that starts a run does not grow.
+5. ⬜ Open, for the owner: the video scripts `tool/video/record_data_frame.jl`,
+   `record_appearance.jl`, `record_lazy_primes.jl`, `check_assistant_undo.jl`
+   and `record_assistant_window.jl` send wheel events at the time 0.0 or ten
+   notches in one event. A take recorded again scrolls further than before.
+6. ✅ `pred_arguments(::WidgetTransformPane)` now writes the content first, as
+   the constructor takes it, as the scroll pane does. A save of a transform
+   pane still fails at `transform`, which is no document, as before.
+7. ⬜ Open: the recorded precompile statements name `WidgetScrollPane` and
+   `WidgetTransformPane` with the old count of type parameters, in
+   `package/*/precompile/*.txt` and in omnet-julia and inet-julia. They are
+   skipped until the next recording; this costs compile time and changes no
+   result.
+8. ✅ The table took the scroll of any document as its own, also of a pane in a
+   cell. `_find_written_offset` now takes only the scroll of the pane of the
+   cells.
+
+The reviewer found no fault in the order of the SDL merge, in the readers of
+the compound answer, in the positional constructors, or in the `.pred` of a
+scroll pane. One caveat it did not check: a bar that stops being drawn during
+its show keeps the clock read until the bar computes again or is collected,
+as a progress ring does.
 
 ## Decisions
 

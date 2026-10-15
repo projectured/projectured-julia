@@ -5943,23 +5943,29 @@ const _WHEEL_RUN_END_GAP = 0.15
 # moves `step`. A notch in the same direction less than `_WHEEL_RUN_GROWTH_GAP`
 # seconds after the last one moves `growth` times the distance of that one, and
 # up to `_WHEEL_RUN_END_GAP` seconds as much; a longer gap or the other direction
-# starts a new run. Each later notch of a merged turn grows too. No notch moves
-# more than `largest`. A turn with a fraction comes from a touchpad, which the
-# system already speeds up: it moves `turn` steps and ends the run.
+# starts a new run. The notches of a merged turn share the time since the last
+# notch evenly, so the pace of the notches decides, and not the length of a
+# frame; a merged turn that starts a run moves `step` for each notch. No notch
+# moves more than `largest`. A turn with a fraction comes from a touchpad, which
+# the system already speeds up: it moves `turn` steps and ends the run.
 function _compute_wheel_turn(run, turn::Float64, time::Float64, step::Real, largest::Real,
                              growth::Real)
     turn == 0 && return (0, run)
     isinteger(turn) || return (round(Int, turn * step), nothing)
     direction = turn > 0 ? 1 : -1
+    notches = Int(abs(turn))
     distance = Float64(step)
     grows = false
-    if run !== nothing && run.direction == direction && 0 <= time - run.time < _WHEEL_RUN_END_GAP
-        distance = run.distance
-        grows = time - run.time < _WHEEL_RUN_GROWTH_GAP
+    if run !== nothing && run.direction == direction
+        pace = (time - run.time) / notches
+        if 0 <= pace < _WHEEL_RUN_END_GAP
+            distance = min(Float64(largest), run.distance)
+            grows = pace < _WHEEL_RUN_GROWTH_GAP
+        end
     end
     total = 0.0
-    for notch in 1:Int(abs(turn))
-        (grows || notch > 1) && (distance = min(Float64(largest), distance * growth))
+    for _ in 1:notches
+        grows && (distance = min(Float64(largest), distance * growth))
         total += distance
     end
     (direction * round(Int, total), (time = time, direction = direction, distance = distance))
@@ -5982,8 +5988,8 @@ function _self_scroll(p, iomap, canvas, evt)
     turn_x, turn_y = evt.precise_dx, evt.precise_dy
     horizontal = turn_x != 0 && turn_y == 0
     view_w, view_h = _get_pane_scroll_view(p, iomap)
-    step = p.lines_per_notch * line
-    largest = max(step, (horizontal ? view_w : view_h) - line)
+    largest = max(line, (horizontal ? view_w : view_h) - line)
+    step = min(p.lines_per_notch * line, largest)
     w = iomap.input
     distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
                                         step, largest, p.wheel_growth)
@@ -6508,13 +6514,15 @@ _zoom_about(M::AffineTransform, factor, ax, ay) =
 # Pan: prepend a screen-space translation. `M' = T(dx, dy) ∘ M`.
 _pan_by(M::AffineTransform, dx, dy) = make_affine_translate(dx, dy) ∘ M
 
-# One zoom step about `(ax, ay)`: `dir > 0` zooms in, `dir < 0` out. Returns the
-# write of the transform, or `nothing` if the clamp leaves the scale unchanged
-# (already at `_ZOOM_MIN`/`_ZOOM_MAX`). Shared by the wheel and keyboard readers.
-# The transform is view state, so every write of it is one a history skips.
-function _zoom_op(w, M::AffineTransform, dir, ax, ay)
+# `steps` zoom steps about `(ax, ay)`: a positive count zooms in, a negative one
+# out, and 0 does nothing. Returns the write of the transform, or `nothing` if the
+# clamp leaves the scale unchanged (already at `_ZOOM_MIN`/`_ZOOM_MAX`). Shared by
+# the wheel, which zooms a step for each notch, and keyboard readers. The
+# transform is view state, so every write of it is one a history skips.
+function _zoom_op(w, M::AffineTransform, steps::Integer, ax, ay)
+    steps == 0 && return nothing
     cur = M.a == 0.0 ? 1.0 : M.a
-    f = dir > 0 ? _ZOOM_STEP : 1.0 / _ZOOM_STEP
+    f = Float64(_ZOOM_STEP)^steps
     new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
     f = new_scale / cur
     f == 1.0 && return nothing
@@ -6533,7 +6541,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         # Ctrl+wheel: zoom about the cursor.
         MouseScroll(dx, dy, x, y; ctrl) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
-            return _zoom_op(w, M, dy >= 0 ? 1 : -1, Float64(x - cox), Float64(y - coy))
+            return _zoom_op(w, M, dy, Float64(x - cox), Float64(y - coy))
         end
         # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, `lines_per_notch`
         # lines for each notch.
@@ -6544,9 +6552,9 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             # pans more at each notch, and at most the view less one line.
             turn_x, turn_y = evt.precise_dx, evt.precise_dy
             horizontal = turn_x != 0 && turn_y == 0
-            size = w.size
-            step = p.lines_per_notch * line
-            largest = max(step, Int(horizontal ? size.x[] : size.y[]) - line)
+            tx, ty = _inset_total(p, w)
+            largest = max(line, (horizontal ? Int(canvas.w) - tx : Int(canvas.h) - ty) - line)
+            step = min(p.lines_per_notch * line, largest)
             distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
                                                 step, largest, p.wheel_growth)
             pan = horizontal ? _pan_by(M, distance, 0) : _pan_by(M, 0, distance)
@@ -6788,21 +6796,21 @@ function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, w::WidgetScro
     end
 end
 
-# A cell of the value that `read()` gives and the clock time of its last change,
-# as `(value, time)`. `is_change(old, new)` says what a change is. The first run
-# sees no change, and the time is -Inf until a change. The time is read with
-# `get_clock_time`, which records nothing, so the cell computes again only when
-# what `read` reads changes. With no clock the time stays -Inf.
-function _make_change_time_cell(read::Function, clock, is_change::Function = !=)
-    last = Ref{Union{Some, Nothing}}(nothing)
+# A cell of the value that `get_value()` gives and the clock time of its last
+# change, as `(value, time)`. `is_change(old, new)` says what a change is. The
+# first run sees no change, and the time is -Inf until a change. The time is read
+# with `get_clock_time`, which records nothing, so the cell computes again only
+# when what `get_value` reads changes. With no clock the time stays -Inf.
+function _make_change_time_cell(get_value::Function, clock, is_change::Function = !=)
+    previous = Ref{Union{Some, Nothing}}(nothing)
     at = Ref(-Inf)
     Cell(@computation begin
-        value = read()
-        seen = last[]
+        value = get_value()
+        seen = previous[]
         if seen !== nothing && clock !== nothing && is_change(something(seen), value)
             at[] = get_clock_time(clock)
         end
-        last[] = Some(value)
+        previous[] = Some(value)
         (value, at[])
     end)
 end

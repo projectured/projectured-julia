@@ -3607,10 +3607,9 @@ pred_arguments(shell::WidgetShell) =
 # this kind.
 pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
 
-# A transform pane writes its fields as a document of data does, but the run of
-# the wheel.
-pred_arguments(pane::WidgetTransformPane) =
-    (), filter(keyword -> first(keyword) !== :wheel_run, last(invoke(pred_arguments, Tuple{Any}, pane)))
+# A transform pane writes what it holds first, as its constructor takes it, and
+# its other fields, but the run of the wheel.
+pred_arguments(pane::WidgetTransformPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
 
 # The keywords that a file writes for `widget` by default, but for its content,
 # which is written as the first argument, and for the fields `left_out`.

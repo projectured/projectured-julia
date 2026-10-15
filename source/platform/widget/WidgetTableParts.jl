@@ -1586,19 +1586,19 @@ end
 # keeps more rows reachable from the head.
 const _TABLE_RELOCATION_DISTANCE = 200
 
-# The offset that a scroll writes, also inside a compound, or `nothing` for any
-# other answer.
-function _find_written_offset(op)
+# The offset that a scroll of the pane `pane` writes, also inside a compound, or
+# `nothing` for any other answer. The scroll of a pane inside a cell is not it.
+function _find_written_offset(op, pane)
     if op isa CompoundOperation
         for operation in op.operations
-            offset = _find_written_offset(operation)
+            offset = _find_written_offset(operation, pane)
             offset === nothing || return offset
         end
         return nothing
     end
     op isa ReplaceViewStateOperation || return nothing
     inner = get_wrapped_operation(op)
-    (inner isa ReplaceReferencedValueOperation && inner.value isa Point2D &&
+    (inner isa ReplaceReferencedValueOperation && inner.document === pane && inner.value isa Point2D &&
      inner.reference isa ConcreteReference && inner.reference.head isa FieldReferenceStep &&
      inner.reference.head.name == "scroll_position") || return nothing
     inner.value::Point2D
@@ -1613,7 +1613,8 @@ end
 # the rows turns the write of `cells` into an edit of its own.
 function _add_top_row(iomap::WidgetTableListIoMap, op)
     w = iomap.input
-    offset = _find_written_offset(op)
+    pane = iomap.state.cells_pane.input
+    offset = _find_written_offset(op, pane)
     offset === nothing && return op
     st = iomap.state
     x, y = Int(offset.x[]), Int(offset.y[])
@@ -1622,7 +1623,7 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     # The writes of the answer but the scroll, such as the run of the wheel, stay
     # beside a move of the head.
     others = op isa CompoundOperation ?
-        Any[o for o in op.operations if _find_written_offset(o) === nothing] : Any[]
+        Any[o for o in op.operations if _find_written_offset(o, pane) === nothing] : Any[]
     if abs(k - 1) <= _TABLE_RELOCATION_DISTANCE
         moved = st.column_list ? _move_head_column(iomap, x, y) : nothing
         moved === nothing || return CompoundOperation(Any[others..., moved.operations...])
