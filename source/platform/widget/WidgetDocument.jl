@@ -1369,7 +1369,8 @@ space.
 
 The pane draws a scroll bar on each axis over the content, at the inner edge of
 its border, and the bar takes no space. A bar shows nothing at rest. It shows
-while the pointer is on it or its thumb is dragged. Each of `vertical_scroll_bar` and
+while the pointer is on it or its thumb is dragged, and its thumb shows for a
+second after a scroll. Each of `vertical_scroll_bar` and
 `horizontal_scroll_bar` is `:auto`, `nothing` or a `WidgetScrollBar`:
 
 - `:auto`: the pane makes the bar from the extents of its content and its view,
@@ -1495,7 +1496,8 @@ to 1, is the place of the view in the content, and `thumb_size`, from 0 to 1,
 is the part of the content that the view shows.
 
 The bar shows nothing at rest, so it hides no content. It shows while the
-pointer is on it or its thumb is dragged.
+pointer is on it or its thumb is dragged. Its thumb also shows for a second after
+a scroll, which is a change of `value` that keeps `thumb_size`.
 
 A press on the track moves the value one page toward the pointer, and
 Shift and a press put the middle of the thumb under the pointer. A press on the

@@ -138,5 +138,39 @@ function test_widget_scroll_bar()
     sized = print_document(projection, nothing,
                            WidgetScrollBar(:vertical; size = Point2D(20, 100)), offer)
     @test (Int(sized.output.w), Int(sized.output.h)) == (20, 100)
+
+    @testset "the thumb shows for a while after a scroll, and not after a change of size" begin
+        clock = Clock()
+        set_time!(seconds) = ProjecturedKernel.ClockModule.set_clock_time!(clock, seconds)
+        set_time!(10.0)
+        timed = ProjecturedKernel.ProjectionModule.with_clock(offer, clock)
+        scrolled = WidgetScrollBar(:vertical; value = 0.5, thumb_size = 0.2)
+        timed_iomap = print_document(projection, nothing, scrolled, timed)
+        p = timed_iomap.projection
+        thumb = timed_iomap.output.elements[end - 1]
+        reads_clock() = has_dependent_cells(getfield(clock, :time))
+        # A new bar shows nothing.
+        @test thumb.color == color_transparent
+        # A change of the value and of the thumb size is a change of the content.
+        getfield(scrolled, :value)[] = 0.4
+        getfield(scrolled, :thumb_size)[] = 0.3
+        @test thumb.color == color_transparent
+        @test !reads_clock()
+        # A change of the value alone is a scroll: the thumb shows for one second.
+        getfield(scrolled, :value)[] = 0.6
+        @test thumb.color == p.thumb_scrolled_color
+        @test reads_clock()
+        set_time!(10.9)
+        @test thumb.color == p.thumb_scrolled_color
+        # The pointer on the bar wins.
+        getfield(scrolled, :mouse_target)[] = EmptyReference()
+        @test thumb.color == p.thumb_hovered_color
+        getfield(scrolled, :mouse_target)[] = nothing
+        @test thumb.color == p.thumb_scrolled_color
+        # After the second the thumb shows nothing, and nothing reads the clock.
+        set_time!(11.1)
+        @test thumb.color == color_transparent
+        @test !reads_clock()
+    end
 end
 end

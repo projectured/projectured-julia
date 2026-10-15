@@ -4,7 +4,7 @@
 > should auto hide and show only if its being dragged or the mouse is over the
 > bar, this is typical in modern UIs so the scroll bar doesn't hide anything".
 > The owner agreed to step 2 (show the bar after a scroll) and step 3 (fade).
-> Step 1 is done.
+> Steps 1 and 2 are done.
 
 ## The goal
 
@@ -60,18 +60,28 @@ A projection that wants a bar at rest passes `thumb_color`. No setting is added.
 
 ### Step 2: a bar shows after a scroll
 
-- ⬜ The printer keeps the clock time of the last scroll in a cell. A scroll is
+- ✅ The printer keeps the clock time of the last scroll in a cell. A scroll is
   a change of `value` that keeps `thumb_size`. A change of both is a change of
   the size of the content, such as a typed line or a log that grows, and does
   not show the bar.
-- ⬜ The first print starts with no scroll, so a new pane does not show its bar.
-- ⬜ The bar shows while `lit` is true or for `show_duration` seconds after the
+- ✅ The first print starts with no scroll, so a new pane does not show its bar.
+  The cell keeps the last value and thumb size in the closure of its
+  computation (`_make_change_time_cell`), because the cell layer gives a
+  computation no value of its last run.
+- ✅ The bar shows while `lit` is true or for `show_duration` seconds after the
   last scroll. The cell reads `get_reactive_clock_time` only during that time,
   so a bar at rest makes no frames. With no clock, the bar shows only while
   `lit` is true.
-- ⬜ `show_duration` is a field of the projection with a keyword, 1.0 s by
+- ✅ `show_duration` is a field of the projection with a keyword, 1.0 s by
   default.
-- ⬜ Test with a `Clock` that the test writes with `set_clock_time!`.
+- ✅ After a scroll only the thumb shows, in the new style field
+  `thumb_scrolled_color` (the theme `border`, the color of the thumb at rest
+  before step 1). The track shows only under the pointer, as macOS and GTK do.
+- ✅ A context whose clock no code writes keeps a thumb that a scroll showed. Two
+  overlays print so: `FaultLogOverlay` and `GestureLogOverlay`. A bar then
+  stays visible, never hidden under the pointer.
+- ✅ Test with a `Clock` that the test writes with `set_clock_time!`
+  (`WidgetScrollBarTest.jl`). The five bar tests pass: 218 of 218.
 
 ### Step 3: a bar fades in and out
 
