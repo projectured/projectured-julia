@@ -1,6 +1,6 @@
 # The suites of main pass again
 
-**Status (2026-10-14): IN PROGRESS.** The owner asked to record these failures in a plan, and
+**Status (2026-10-15): IN PROGRESS.** The owner asked to record these failures in a plan, and
 then to start step 1 with the type-in of item 7. Items 1, 3, 6, 7 and 10 are fixed, and items 2 and 4 pass on
 `main` with no change of their own.
 
@@ -139,7 +139,18 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
 11. **`test_documentation`, 2 failures** (`ProjecturedSuite.jl:415` and `:417`), found on
     2026-10-15: `documentation/package/platform/application/application.md:25` names
     OMNeT, which the guard treats as a private name. **Origin: `5942fd51c`** (2026-10-15),
-    the commit that wrote the line.
+    the commit that wrote the line. **Fixed (`70cd7dbb8`, step 2):** the line says what the
+    thing is; two lines of the graph guides from `b0ed5e78b` the same day had the same
+    problem and are fixed too. `documentation_violations` is empty.
+12. **The layering guard, 1 failure** (`CheckLayering.jl:922`), new on 2026-10-15:
+    `undo/UndoModule.jl` uses `..NaturalModule`, which the table does not allow for the slice
+    undo. Origin, by the history of the file: `6a2b5a6d0` (2026-10-15), "the undo slice
+    registers the row that draws a history with the natural renderer".
+13. **`FileSystemDocumentTest.jl:42`, 1 failure**, new on 2026-10-15: the pathname of a
+    closed folder has 1 element where the test expects 0. Origin, not bisected: `fd3e0cc36`
+    or `b5739a653` (2026-10-15), the two commits of that day that changed the slice.
+14. **`test_catalog_coverage`, 1 failure**, new on 2026-10-15: `FilePage` has a printer and
+    no atom since `fd3e0cc36`.
 
 ## 2. The steps
 
@@ -151,3 +162,11 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
   item 1 skips a document that is not Julia, item 9 adds the catalog entries or the
   exclusions, and item 10 asserts the newest entry and not the length of the log.
 - [ ] **Step 3: the check.** Run each test of §1 again. Each shows no unmarked failure.
+  *Run on 2026-10-15, `main` at `6430bbb54` with the fix of item 11:* items 1 to 11 show no
+  unmarked failure: `test_julia_expression` 80, the whole `test_platform` 162270 (items 2,
+  3, 4 and 10), `test_parse_markdown_blocks` 13, `test_catalog` of the progress bar 1723,
+  `test_catalog_typeins` 102 and 6 broken, `test_application` 380 and 2 broken. The whole
+  `test_platform` needs a loopback that is up: in `unshare -rn` the loopback is down, and
+  the tests of the agents and the assistant fail about 115 times; `unshare -rn sh -c 'ip
+  link set lo up && exec …'` keeps the outside network away and the local servers working.
+  Items 12, 13 and 14 came on `main` the same day.
