@@ -1340,6 +1340,40 @@ nothing.
     this step. Julia code can have more than one line, so Enter can not always
     commit. The commit of `FormulaInsertion` on Enter (`formula.md:94`) uses the
     same gestures.
+  - The parts, 2026-10-15:
+    - [ ] 7.1 The stored value. `result` is a plain cell that only
+      `ReplaceFormulaResultOperation` writes, with `result_key`, the key of the
+      code and of the inputs that the value came from: the hash of the text of the
+      code and of the keys of the stored values of the formulas that it names. A
+      print reads only the stored value, and shows a mark while the stored key is
+      not the key of the code and the inputs now. `get_formula_value` answers the
+      stored value when it is current, and else computes the stale formulas in the
+      order of their dependencies on the task that calls it, as a script and a
+      check need; no print calls it. `wire_result!` goes.
+    - [ ] 7.2 The formula task of each editor. `ComputeFormulasOperation(env,
+      formulas)` queues formulas; one task of the default pool for each editor
+      takes them one at a time, asks the loop through the door for the code as an
+      `Expr`, the values of its inputs and the key, runs the code in the scratch
+      module of that editor, and posts the value back with
+      `ReplaceFormulaResultOperation`, which drops a value whose key is no longer
+      the key now, and queues the formulas that name the formula whose value
+      changed.
+    - [ ] 7.3 A3: `acquire_document!(editor, document)` and
+      `AcquireDocumentOperation` in the domain slice, the counterpart of
+      `release_document!`. The open of a tab adds it, and the start of a window
+      acquires the documents of its tabs. The formula domain queues every formula
+      of a sheet that the editor acquires; a document that holds a sheet forwards.
+    - [ ] 7.4 Edit mode. `draft` holds a copy of the code while the formula is in
+      edit mode; the print shows the draft in place of the code and no value. A
+      key that edits the code in value mode becomes `BeginFormulaEditOperation` and
+      the same edit of the draft. `CommitFormulaOperation` writes the draft into
+      the code as one operation and queues the formula; its inverse restores the
+      old code and the old value. `CancelFormulaEditOperation` drops the draft.
+      The gestures, mine, as Excel: Enter commits, Alt+Enter is a new line of the
+      code, and Escape cancels.
+    - [ ] 7.5 omnet-julia follows (the sheet of a study, `add_study_formula!`, the
+      check of an expectation, the label of a reference, the precompile
+      workload), and the guide of the formula domain.
 - [ ] **8. The rules, the guides and the checks:** a new invariant for the units
   and the held frames, and one for the drains of feeds; the guarantee, in the
   form that the owner agreed on 2026-10-14: "The editor stays responsive while a
