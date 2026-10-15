@@ -62,6 +62,8 @@ Use it to save a document to a file, in the format of the extension of the file.
 
 See also `read_document_file` and `export_document`.
 """
+function write_document_file end
+
 function write_document_file(document::Document, path::AbstractString)
     _ext(path) == _BINARY_EXT && return save_document(document, path)
     _is_registered_file_path(path) && return _write_registered_file(document, path)
@@ -87,6 +89,8 @@ Use it to read a file of any supported format into a document.
 
 See also `write_document_file` and `import_document`.
 """
+function read_document_file end
+
 function read_document_file(path::AbstractString)
     isfile(path) || return make_document_for(path)
     _ext(path) == _BINARY_EXT && return load_document(path)
@@ -152,6 +156,8 @@ Use it to make the document of a file, with the content that the file holds on t
 
 See also `make_file_tab_content` and `read_document_file`.
 """
+function make_file_tab end
+
 function make_file_tab(path::AbstractString, wrap = identity)
     file_type = get_file_document_type(path)
     content = read_document_file(path)
@@ -178,6 +184,8 @@ Use it to open a file in a tab.
 
 See also `make_file_tab` and `open_pane!`.
 """
+function make_file_tab_content end
+
 make_file_tab_content(path::AbstractString, wrap = identity) =
     WidgetScrollPane(make_file_tab(path, wrap))
 

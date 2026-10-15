@@ -132,9 +132,11 @@ end
 """
 The lines a `# @optional:` marker stands above: under each marker, the first line
 that is neither blank nor a comment, and when that line opens a docstring, also
-the first line after the docstring. A documented definition has its marker above
-the docstring, because Julia drops a docstring that a comment parts from its
-definition, and the parser gives such a definition the line of its docstring.
+the first line after the docstring, and after a `function name end` that the
+docstring documents, the definition under it. A documented definition has its
+marker above the docstring, because Julia drops a docstring that a comment parts
+from its definition, and the parser gives such a definition the line of its
+docstring.
 """
 function _find_optional_markers(text::AbstractString)
     lines = split(text, '\n')
@@ -150,6 +152,9 @@ function _find_optional_markers(text::AbstractString)
                 push!(marked, next)
                 next = _find_after_docstring(lines, next)
             elseif startswith(stripped, "\"") && endswith(stripped, "\"") && length(stripped) > 1
+                push!(marked, next)
+                next += 1
+            elseif occursin(r"^function\s+\S+\s+end$", stripped)
                 push!(marked, next)
                 next += 1
             else

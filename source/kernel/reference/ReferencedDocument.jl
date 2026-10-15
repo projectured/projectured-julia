@@ -61,6 +61,8 @@ function that has no method for a referenced document.
 
 See also `get_reference` and `get_edited_document`.
 """
+function get_document end
+
 get_document(x::ReferencedDocument) = getfield(x, :document)
 get_document(x) = x
 
@@ -79,6 +81,8 @@ extend, to compare, or to evaluate again.
 
 See also `get_document` and `find_pane_reference`.
 """
+function get_reference end
+
 get_reference(x::ReferencedDocument) = getfield(x, :reference)
 
 # A value that a read answers as a referenced document: a document or a collection.
@@ -295,6 +299,8 @@ Use it to find a document again after the tree changed, or to bring a
 
 See also `DocumentLocator` and `get_reference`.
 """
+function find_referenced_document end
+
 function find_referenced_document(locator::DocumentLocator)
     document = try_evaluate_reference(locator.start, locator.reference, _NotReached())
     document isa _NotReached && return nothing
@@ -334,6 +340,8 @@ part, read fresh at the call.
 
 See also `find_pane` and `get_reference`.
 """
+function get_parent end
+
 function get_parent(root, x::Union{Reference, ReferencedDocument})
     steps = get_reference_steps(strip_reference_types(convert(Reference, x)))
     while !isempty(steps)
@@ -372,6 +380,8 @@ without knowing which layers hold it.
 
 See also `get_document` and `find_pane`.
 """
+function get_edited_document end
+
 function get_edited_document(x::ReferencedDocument)
     for _ in 1:_MAX_EDITED_LAYERS
         field = get_edited_field(get_document(x))

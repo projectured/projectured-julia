@@ -190,6 +190,8 @@ each gesture, with its keys or its click and the operation that it ran.
 
 See also `describe_undo_history`, `find_selected_part`.
 """
+function get_session_gesture_log end
+
 get_session_gesture_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(GestureLog, editor, GestureLog) : GestureLog()
 

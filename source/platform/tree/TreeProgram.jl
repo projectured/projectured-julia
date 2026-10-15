@@ -22,6 +22,8 @@ agent started.
 
 See also `show_roster!`, which shows the members of one kind as a table.
 """
+function show_document_tree! end
+
 function show_document_tree!(root; title::Union{Nothing,AbstractString} = nothing,
                              editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_document_tree!") do

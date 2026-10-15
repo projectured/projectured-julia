@@ -77,6 +77,8 @@ to put into a document.
 
 See also `write_os_clipboard!`, `parse_natural_text`.
 """
+function read_os_clipboard end
+
 read_os_clipboard()::Union{String,Nothing} = _READER[]()
 
 """
@@ -94,6 +96,8 @@ or a line of code.
 
 See also `read_os_clipboard`, `print_natural_text`.
 """
+function write_os_clipboard! end
+
 write_os_clipboard!(text::AbstractString)::Bool = _WRITER[](text)
 
 """

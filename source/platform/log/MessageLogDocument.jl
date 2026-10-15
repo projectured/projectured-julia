@@ -87,6 +87,8 @@ its level.
 
 See also `get_session_fault_log`, `get_session_gesture_log`.
 """
+function get_session_message_log end
+
 get_session_message_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(MessageLog, editor, MessageLog) : MessageLog()
 

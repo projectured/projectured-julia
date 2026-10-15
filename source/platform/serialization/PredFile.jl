@@ -245,6 +245,8 @@ of those, a document, a value of a type that [`is_pred_constructible`](@ref)
 says a file may build, such a type by its bare name, and a reference are all of
 it.
 """
+function print_pred_text end
+
 function print_pred_text(document)
     io = IOBuffer()
     _print_pred_value(io, document, "", 0)

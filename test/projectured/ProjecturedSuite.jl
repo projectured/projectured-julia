@@ -365,8 +365,17 @@ function test_arguments()
                 \"\"\"
                 take_first(items, count = 1; editor = nothing) = items[1:count]
                 unmarked(items, count = 1; editor = nothing) = items
+                # @optional: the count stands second, as at a command line.
+                \"\"\"
+                    take_last(items, count = 1; editor = nothing)
+
+                The last `count` items.
+                \"\"\"
+                function take_last end
+
+                take_last(items, count = 1; editor = nothing) = items[end - count + 1:end]
                 """)
-            @test [d.name for d in find_argument_definitions(fixture) if d.marked] == ["take_first"]
+            @test [d.name for d in find_argument_definitions(fixture) if d.marked] == ["take_first", "take_last"]
         end
     end
 end

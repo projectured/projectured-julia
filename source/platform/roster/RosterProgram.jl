@@ -32,6 +32,8 @@ session: the files with edits, the documents of each type, the errors of the log
 See also `describe_roster_sources` and `describe_item_facets`, which say what a
 roster can show, and `edit_shown_items!`.
 """
+function show_roster! end
+
 function show_roster!(source; title::AbstractString = "Roster", columns = String[], filter = Any[],
                       sort = Any[], group = Any[], aggregates = Any[:count], first = nothing,
                       editor = get_evaluation_editor())
@@ -97,6 +99,8 @@ Use it to choose the source of a roster before `show_roster!`.
 
 See also `show_roster!` and `describe_item_facets`.
 """
+function describe_roster_sources end
+
 function describe_roster_sources()
     lines = String["The kinds of sources of a roster:"]
     for type in _collect_source_types()
@@ -159,6 +163,8 @@ Use it to choose the columns, the conditions and the keys of a roster.
 
 See also `show_roster!` and `describe_roster_sources`.
 """
+function describe_item_facets end
+
 function describe_item_facets(type::Type)
     lines = String[string("The keys of a roster of ", nameof(type), ":")]
     for (name, words) in collect_item_facets(type)
@@ -193,6 +199,8 @@ parameter in all the modules that a filter keeps.
 
 See also `show_roster!` and `describe_item_facets`.
 """
+function edit_shown_items! end
+
 function edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor())
     reference = collection isa ReferencedDocument ?
         extend_reference(get_reference(collection), get_arranged_collection_steps(get_document(collection))...) :

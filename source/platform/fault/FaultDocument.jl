@@ -150,6 +150,8 @@ for each fault, with its place, its message and its count.
 
 See also `get_session_message_log`, `get_session_gesture_log`.
 """
+function get_session_fault_log end
+
 get_session_fault_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(FaultLog, editor, FaultLog) : FaultLog()
 

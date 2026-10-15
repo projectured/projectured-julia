@@ -160,6 +160,8 @@ prints, so it runs on the editor's task.
 
 See also `sort_collection!`.
 """
+function filter_collection! end
+
 filter_collection!(collection, conditions...; editor = get_evaluation_editor()) =
     run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_filter(conditions), "Filter"), editor; description = "filter_collection!")
 
@@ -186,6 +188,8 @@ order that a person asks for, without a change of the data.
 
 See also `filter_collection!`.
 """
+function sort_collection! end
+
 sort_collection!(collection, keys...; editor = get_evaluation_editor()) =
     run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_sort(keys), "Sort"), editor; description = "sort_collection!")
 
@@ -215,6 +219,8 @@ runs of each state, without a change of the data.
 
 See also `limit_collection!`, `filter_collection!` and `sort_collection!`.
 """
+function group_collection! end
+
 group_collection!(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
     _arrange_collection!(editor, collection, _make_group(keys, aggregates), "Group")
 
@@ -239,6 +245,8 @@ runs after a sort.
 
 See also `group_collection!` and `sort_collection!`.
 """
+function limit_collection! end
+
 limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
     _arrange_collection!(editor, collection, _make_first(count), "Limit")
 

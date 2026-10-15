@@ -244,6 +244,8 @@ rather than the constructors of its documents.
 
 See also `describe_natural_formats`, `print_natural_text`.
 """
+function parse_natural_text end
+
 function parse_natural_text(format::Symbol, text::AbstractString)
     parse = _lookup(_PARSERS, format)
     parse === nothing &&
@@ -268,6 +270,8 @@ documents can be written as text at all.
 
 See also `parse_natural_text`, `print_natural_text`.
 """
+function describe_natural_formats end
+
 function describe_natural_formats()
     lines = String[]
     for (T, (format, extension)) in _FORMATS
@@ -388,6 +392,8 @@ Use it to read a document as text.
 
 See also `parse_natural_text` and `export_document`.
 """
+function print_natural_text end
+
 function print_natural_text(document)
     projection = make_natural_projection(document, :string)
     if projection === nothing

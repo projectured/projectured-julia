@@ -233,6 +233,13 @@ function test_assistant_documentation(api = make_editor_api())
     for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM)
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
+        # A function that the assistant calls carries its docstring on the generic
+        # function, which the search answers. A macro has no generic form.
+        value = getfield(entry.module_, name)
+        (value isa Function && !(value isa Type) && !startswith(String(name), "@")) || continue
+        generic = any(doc -> first(doc) === Union{}, ToolModule._collect_binding_docs(entry.module_, name))
+        @test generic || error(string(nameof(entry.module_), ".", name,
+                                      " has no docstring on its generic function"))
         name = String(head.captures[1])
         @test name in writable || error("EDITOR_SYSTEM names `" * name * "`, which no model can write")
     end

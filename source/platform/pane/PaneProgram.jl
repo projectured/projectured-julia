@@ -225,6 +225,8 @@ still says something. **Each application writes the methods for the documents it
 holds**, beside those documents — this package can only describe what it knows,
 which is a layout and an empty pane.
 """
+function describe_document end
+
 describe_document(content) = String(nameof(typeof(content)))
 describe_document(x::ReferencedDocument) = describe_document(get_document(x))
 describe_document(::Nothing) = "empty"
@@ -337,6 +339,8 @@ example to put a file that the Files pane opens beside the other files. `group` 
 The answer holds the new tab and its complete reference, from the root of the
 editor's document.
 """
+function open_pane! end
+
 function open_pane!(document; title = nothing, group = nothing, target = nothing,
                     side = nothing, editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_pane!") do
@@ -509,6 +513,8 @@ reference from the tree.
 Throws when the path reaches nothing, naming the path, because a path that no
 longer resolves is a layout that moved under the caller.
 """
+function get_referenced_value end
+
 function get_referenced_value(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "get_referenced_value") do
         root = _get_root_document(editor)
@@ -578,6 +584,8 @@ It refuses a write it can see is wrong — an empty reference, a range outside i
 collection, or a value of a type that slot can not hold — rather than leaving the
 window in a shape nothing can draw.
 """
+function replace_referenced_value! end
+
 function replace_referenced_value!(reference::Reference, value; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "replace_referenced_value!") do
         _refuse_stale(reference)
@@ -755,6 +763,8 @@ of the editor and evaluated at once, so every document from the root down holds
 its part of the new selection. A caller that holds a tree and no editor passes
 the tree as `editor`, and a reference from the tree.
 """
+function focus_pane! end
+
 function focus_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "focus_pane!") do
         _refuse_stale(reference)
@@ -813,6 +823,8 @@ the tree, and put the two together.
 
 See also `find_pane_reference` and `show_layout`.
 """
+function find_pane_tree_reference end
+
 function find_pane_tree_reference(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane_tree_reference") do
         found = _find_focused_tree_route(editor)
@@ -923,6 +935,8 @@ The reference is complete: it starts at the root of the editor's document. The
 close is made through the readers of the editor and evaluated at once, as the
 close button of the tab does it, so the person undoes it with one press.
 """
+function close_pane! end
+
 function close_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_pane!") do
         _refuse_stale(reference)
@@ -983,6 +997,8 @@ The search goes down only into the documents that can hold a pane
 
 See also `find_pane` and `focus_pane!`.
 """
+function find_pane_reference end
+
 function find_pane_reference(title::AbstractString; descend = is_pane_search_step,
                              editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane_reference") do
@@ -1019,6 +1035,8 @@ closes it.
 
 See also `get_edited_document`, `find_pane_reference` and `open_pane!`.
 """
+function find_pane end
+
 function find_pane(title::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane") do
         reference = find_pane_reference(title; editor)
@@ -1048,6 +1066,8 @@ with [`open_pane!`](@ref) and its `target`.
 
 See also `find_pane`, `find_selected_part`, `show_layout`.
 """
+function find_focused_pane end
+
 function find_focused_pane(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_focused_pane") do
         root = _get_root_document(editor)
@@ -1155,6 +1175,8 @@ group is the one [`pane_group_to_avoid`](@ref) names, the duplicate goes where
 whose content has no duplicate, such as a set of runs that goes on, raises an
 `ArgumentError` that says why.
 """
+function duplicate_pane! end
+
 function duplicate_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "duplicate_pane!") do
         _refuse_stale(reference)
@@ -1232,6 +1254,8 @@ complete, and both name parts of one pane tree. The move is made through the
 readers of the editor and evaluated at once, so the person undoes it with one
 press.
 """
+function move_pane! end
+
 function move_pane!(reference::Reference, target::Reference; side = nothing,
                     editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "move_pane!") do
@@ -1339,6 +1363,8 @@ groups and the tabs, and a pane tree inside a tab below that tab.
 It answers a `Text`, not a `String`, so the tree arrives as the lines it is. A
 `String` would reach a model through `repr`, as one line of `\\n` escapes.
 """
+function show_layout end
+
 function show_layout(; include = is_layout_line, descend = is_pane_search_step,
                      editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_layout") do

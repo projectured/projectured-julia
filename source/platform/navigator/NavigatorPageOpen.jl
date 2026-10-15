@@ -66,6 +66,8 @@ such as one record of a table or one section of a file.
 
 See also `open_pane!`, `select_part!`.
 """
+function open_page! end
+
 function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_page!") do
         evaluate_operation(editor, OpenPageOperation(nothing, get_reference(part)))

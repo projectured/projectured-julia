@@ -41,6 +41,8 @@ new element of a JSON array or the order of the entries of an object.
 
 See also `run_command!`, `find_selected_part`.
 """
+function describe_commands end
+
 function describe_commands(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_commands") do
         rows = _collect_runnable_rows(editor, part)
@@ -70,6 +72,8 @@ the end of a JSON array.
 
 See also `describe_commands`, `replace_referenced_value!`.
 """
+function run_command! end
+
 function run_command!(part::ReferencedDocument, description::AbstractString;
                       editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "run_command!") do

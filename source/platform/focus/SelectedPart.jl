@@ -36,6 +36,8 @@ the text of the part, to say what it is, or to change it.
 
 See also `find_part_under_pointer`, `select_part!`, `print_natural_text`.
 """
+function find_selected_part end
+
 function find_selected_part(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_selected_part") do
         root = getfield(editor, :document)
@@ -62,6 +64,8 @@ this?" when nothing is selected.
 
 See also `find_selected_part`, `describe_document`.
 """
+function find_part_under_pointer end
+
 function find_part_under_pointer(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_part_under_pointer") do
         root = getfield(editor, :document)
@@ -89,6 +93,8 @@ Use it to show the person the part that you talk about.
 
 See also `find_selected_part`, `focus_pane!`.
 """
+function select_part! end
+
 function select_part!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "select_part!") do
         evaluate_operation(editor, ReplaceSelectionOperation(get_reference(part)))

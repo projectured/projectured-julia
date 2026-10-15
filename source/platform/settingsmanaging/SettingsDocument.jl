@@ -68,6 +68,8 @@ Use it to find the name of a setting before you change it with
 
 See also `change_setting!`.
 """
+function describe_settings end
+
 function describe_settings(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_settings") do
         settings = find_editor_settings(; editor)
@@ -106,6 +108,8 @@ Use it to change how the window looks or works when the person asks for it.
 
 See also `describe_settings`.
 """
+function change_setting! end
+
 function change_setting!(name::Symbol, value; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "change_setting!") do
         settings = find_editor_settings(; editor)

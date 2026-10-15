@@ -81,6 +81,8 @@ collection of a document that the editor shows.
 
 See also `delete_elements!` and `replace_referenced_value!`.
 """
+function insert_elements! end
+
 insert_elements!(collection, index::Integer, values; editor::Editor = get_evaluation_editor()) =
     run_on_editor_task!(editor; description = "insert_elements!") do
         _replace_elements!(editor, collection, index - 1, index - 1, values,
@@ -106,6 +108,8 @@ any collection of a document that the editor shows.
 
 See also `insert_elements!` and `replace_referenced_value!`.
 """
+function delete_elements! end
+
 delete_elements!(collection, index::Integer; count::Integer = 1,
                  editor::Editor = get_evaluation_editor()) =
     run_on_editor_task!(editor; description = "delete_elements!") do

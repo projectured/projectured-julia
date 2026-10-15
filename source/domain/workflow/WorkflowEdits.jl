@@ -247,6 +247,8 @@ tried. Do not record every turn.
 
 See also `choose_workflow_option!`, `reject_workflow_option!`.
 """
+function record_workflow_decision! end
+
 function record_workflow_decision!(node, question, options; chosen::Integer = 0, reason = "",
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "record_workflow_decision!") do
@@ -277,6 +279,8 @@ Use it to settle a decision with one of its options.
 
 See also `reject_workflow_option!`, `record_workflow_decision!`.
 """
+function choose_workflow_option! end
+
 function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "choose_workflow_option!") do
@@ -304,6 +308,8 @@ Use it to record that an option of a decision is not taken.
 
 See also `choose_workflow_option!`, `record_workflow_decision!`.
 """
+function reject_workflow_option! end
+
 function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "reject_workflow_option!") do
@@ -336,6 +342,8 @@ a link to a document. Do not record every turn.
 
 See also `add_workflow_card!`, `collect_workflow_entries`.
 """
+function add_workflow_entry! end
+
 function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothing,
                              editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_entry!") do
@@ -360,6 +368,8 @@ Use it to add a sub-step to a step or to an option.
 
 See also `change_workflow_state!`, `record_workflow_decision!`.
 """
+function add_workflow_step! end
+
 function add_workflow_step!(node, title; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_step!") do
         parent = get_document(node)
@@ -388,6 +398,8 @@ Use it to mark a step or an option as active, done, dropped or parked.
 
 See also `add_workflow_step!`, `choose_workflow_option!`.
 """
+function change_workflow_state! end
+
 function change_workflow_state!(node, state::Symbol; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "change_workflow_state!") do
         _evaluate_workflow_operation!(editor, node,
@@ -414,6 +426,8 @@ of a file.
 
 See also `add_workflow_entry!`, `add_workflow_step!`.
 """
+function add_workflow_card! end
+
 function add_workflow_card!(node, content; title = "", editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_card!") do
         card = WorkflowCard(title = _make_text(title), content = get_document(content))
@@ -448,6 +462,8 @@ Use it to read what was decided and found before you continue a workflow.
 
 See also `add_workflow_entry!`, `WorkflowJournal`.
 """
+function collect_workflow_entries end
+
 function collect_workflow_entries(workflow; author::Union{Nothing, Symbol} = nothing,
                                   kind::Union{Nothing, Symbol} = nothing, text::AbstractString = "")
     found = Pair{Any, WorkflowEntry}[]

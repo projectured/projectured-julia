@@ -658,6 +658,8 @@ Use it to give the tab of a group a title that shows how far the group is.
 
 See also `describe_task_group` and `open_pane!`.
 """
+function make_task_group_tab_title end
+
 function make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[])
     group = get_task_group(doc)
     state() = (status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),

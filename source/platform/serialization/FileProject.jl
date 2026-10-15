@@ -103,6 +103,8 @@ Use it to read what an open file holds.
 
 See also `get_edited_document` and `make_file_tab`.
 """
+function get_file_content end
+
 function get_file_content(f)
     is_file_document(f) && return unwrap_cell(getfield(f, :content))
     # A layer a person sees through, such as the scroll pane of a file tab, answers

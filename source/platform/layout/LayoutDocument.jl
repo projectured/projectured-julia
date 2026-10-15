@@ -57,6 +57,8 @@ of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
 
 See also `Content`, `Relative` and `Fill`, the other three policies.
 """
+function Fixed end
+
 Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
 
 """
@@ -96,6 +98,8 @@ takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
 
 See also `Fill`, `Fixed` and `Content`.
 """
+function Relative end
+
 Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
 
 """

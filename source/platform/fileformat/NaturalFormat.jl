@@ -20,6 +20,8 @@ Use it to read a text file of a natural format, such as JSON, into a document.
 
 See also `export_document` and `read_document_file`.
 """
+function import_document end
+
 function import_document(path::AbstractString)
     ext    = lowercase(splitext(path)[2])
     text   = read(path, String)
@@ -47,6 +49,8 @@ Use it to write a document as the natural text of its format.
 
 See also `import_document` and `print_natural_text`.
 """
+function export_document end
+
 function export_document(document::Document, path::AbstractString)
     ext    = lowercase(splitext(path)[2])
     parser = find_natural_parser(_ext_symbol(ext))

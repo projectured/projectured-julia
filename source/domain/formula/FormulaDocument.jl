@@ -579,6 +579,8 @@ it, or to state an expectation from it.
 
 See also `get_edited_document`, `print_natural_text`.
 """
+function get_formula_value end
+
 get_formula_value(formula::FormulaFormula) = formula.current_value
 
 """

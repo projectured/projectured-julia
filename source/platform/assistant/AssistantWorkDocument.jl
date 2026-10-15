@@ -93,6 +93,8 @@ subagents and background tasks run.
 
 See also `show_document_tree!`, which shows any document as a tree.
 """
+function show_assistant_work! end
+
 function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_assistant_work!") do
         root = editor.document

@@ -22,6 +22,8 @@ of a simulation, the shells and the commands of a terminal.
 See also `describe_system_process_tree`, which writes the same tree once as
 text, and `show_document_tree!`.
 """
+function show_system_process_tree! end
+
 function show_system_process_tree!(root_process_ids; title::AbstractString = _format_tree_title(root_process_ids),
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_system_process_tree!") do
@@ -61,6 +63,8 @@ does now.
 See also `show_system_process_tree!`, which shows the tree in a tab and keeps it
 up to date.
 """
+function describe_system_process_tree end
+
 function describe_system_process_tree(root_process_ids)
     isdir("/proc") || return Text("This system has no /proc, so no process can be read.")
     records = read_system_processes(root_process_ids)

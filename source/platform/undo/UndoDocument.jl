@@ -428,6 +428,8 @@ the tool `undo` would take back before you call it.
 
 See also `find_selected_part`, `print_natural_text`.
 """
+function describe_undo_history end
+
 function describe_undo_history(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_undo_history") do
         buffer = find_undo_buffer(getfield(editor, :document))

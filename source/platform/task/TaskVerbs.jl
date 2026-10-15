@@ -45,6 +45,8 @@ Use it to find a group that another person or another conversation started.
 
 See also `find_task_group`, `describe_task_group`.
 """
+function list_task_groups end
+
 function list_task_groups(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "list_task_groups") do
         groups = collect(get_session_task_group_list().groups)
@@ -68,6 +70,8 @@ started is the value its start verb answered.
 
 See also `list_task_groups`.
 """
+function find_task_group end
+
 function find_task_group(name::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_task_group") do
         groups = collect(get_session_task_group_list().groups)
@@ -112,6 +116,8 @@ Use it to tell the person how a group of tasks went, and which tasks failed.
 
 See also `describe_task`, `get_task_output`, `list_task_groups`.
 """
+function describe_task_group end
+
 function describe_task_group(group::TaskGroupDocument; tasks::Symbol = :unexpected,
                              limit::Integer = 20, editor = get_evaluation_editor())
     run_on_editor_task!(() -> _describe_task_group(group, tasks, limit), editor; description = "describe_task_group")
@@ -154,6 +160,8 @@ Use it to tell the person why one task failed.
 
 See also `get_task_output`, `describe_task_group`.
 """
+function describe_task end
+
 function describe_task(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
     run_on_editor_task!(() -> _describe_task(group, index), editor; description = "describe_task")
 end
@@ -200,6 +208,8 @@ Use it to read what a task printed, such as the error of a task that failed.
 
 See also `describe_task`.
 """
+function get_task_output end
+
 function get_task_output(group::TaskGroupDocument, index::Integer;
                          stream::Symbol = :stdout, lines::Integer = 50, editor = get_evaluation_editor())
     stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")
@@ -254,6 +264,8 @@ Use it to stop, cancel or abort a group of tasks.
 
 See also `stop_task!` for one task, `rerun_tasks!`.
 """
+function stop_tasks! end
+
 function stop_tasks!(group::TaskGroupDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_tasks!") do
         stop_task_group_document!(group)
@@ -274,6 +286,8 @@ Use it to stop one task of a group and let the others run.
 
 See also `stop_tasks!`.
 """
+function stop_task! end
+
 function stop_task!(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_task!") do
         run = get_task_group(group).runs[index]
@@ -301,6 +315,8 @@ ends. A person at the REPL can: there the call waits, and the window draws.
 
 See also `stop_task!` and `describe_task_group`.
 """
+function rerun_tasks! end
+
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
     run_on_editor_task!(() -> rerun_task_group_document!(group, which), editor;
                         description = "rerun_tasks!")
@@ -322,6 +338,8 @@ Use it to close a group when its work is over.
 
 See also `stop_task!` and `list_task_groups`.
 """
+function close_task_group! end
+
 function close_task_group!(group::TaskGroupDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_task_group!") do
         found = search_references(getfield(editor, :document),
