@@ -11,8 +11,9 @@ Draw a [`TaskDocument`](@ref) as the page of a task: its name and its state, the
 facts of its kind, its process and its verdict; Stop, Run again and the buttons of
 its kind; its executions, each a link to its page; and the last lines of each
 stream of its current execution, with a link to the page of the stream. A task
-of a group stops and runs again through its group. A task that is a group links
-to the page of its group.
+of a group stops and runs again through its group. A kind that the editor does
+not start has only the buttons of its kind. A task that is a group links to the
+page of its group.
 """
 @projection UntrackedCell struct TaskDocumentToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -115,7 +116,9 @@ end
 
 # Stop, Run again and the buttons of the kind. A task of a group acts through its
 # group, so the counts of the group follow; a task of no group acts on itself. A
-# task that is a group links to the page of its group.
+# kind that the editor does not start (`start_task`), such as a task that an agent
+# runs and the editor only watches, has no Stop and no Run again: the buttons of
+# its kind act on it. A task that is a group links to the page of its group.
 function _build_task_page_actions(p, document::TaskDocument, task, place)
     if place === nothing
         stop = WidgetButton("Stop"; size = p.button_size,
@@ -132,8 +135,9 @@ function _build_task_page_actions(p, document::TaskDocument, task, place)
         set_cell_computation!(getfield(again, :enabled), () -> !(getfield(group, :status)[] in (:running, :stopping)))
     end
     set_cell_computation!(getfield(stop, :enabled), () -> get_task_document_status(document) === :running)
-    buttons = Any[stop, again, (_make_task_action_button(p, label, action, task)
-                                for (label, action) in get_task_actions(task))...]
+    runs = applicable(start_task, task) ? Any[stop, again] : Any[]
+    buttons = Any[runs..., (_make_task_action_button(p, label, action, task)
+                            for (label, action) in get_task_actions(task))...]
     if place !== nothing && task isa TaskGroup
         inner = find_task_group_document(place[1], place[2])
         inner === nothing || push!(buttons, _make_link_button(p, "Open the group", inner, EmptyReference()))

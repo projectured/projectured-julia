@@ -10,10 +10,12 @@ conversations and the turns that run, a table with one row for each open
 assistant, and below it, in a split that a person can drag, the detail of the
 assistant that the person picked with the `›` of its row.
 
-A row has the `›` and a button that shows the tab of the assistant, then its
+A row has the `›`, a button that shows the tab of the assistant and a button
+that shows the work page of its agent ([`show_assistant_work!`](@ref)), then its
 title, the state of its work, whose turn it is, what its turn does now, how many
-prompts it has, how much of its context it uses, when it started and how long it
-runs.
+prompts it has, how much of its context it uses, how far the plan of its agent
+is, how many subagents and background tasks of its agent run, when it started
+and how long it runs.
 Each value is a label that reads the cells of the assistant, so a row follows
 its assistant while a turn streams. The elapsed time of a turn that runs reads
 the clock of the editor, so it moves while the turn runs. Between turns no label
@@ -35,7 +37,8 @@ AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme
                                 muted_color = get_conversation_style(theme, :placeholder_color))
 
 const _ASSISTANT_LIST_COLUMNS = ("", "title", "work", "turn", "activity", "prompts", "context",
-                                 "started", "elapsed")
+                                 "plan", "subagents", "background tasks", "started",
+                                 "elapsed")
 
 # The words of a state of the work, and the role of its badge.
 _format_work_state(state::Symbol) = replace(String(state), "_" => " ")
@@ -74,17 +77,23 @@ end
 function _build_assistant_row(list::AssistantList, a::Assistant, clock)
     pick = WidgetButton("›"; action = _ -> select_assistant!(list, a))
     show = WidgetButton("Show"; action = editor -> open_assistant_tab!(editor, list, a))
+    show_work = editor -> (show_assistant_work!(a; editor); nothing)
+    work_page = WidgetButton("Work"; tooltip = "Show the work of the agent",
+                             action = show_work)
     work = WidgetBadge(() -> _format_work_state(a.work_state))
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
-    Any[HorizontalLayout(Any[pick, show]; vertical_align = :center),
+    Any[HorizontalLayout(Any[pick, show, work_page]; vertical_align = :center),
         WidgetLabel(() -> compute_assistant_overview_title(a)),
         work,
         turn,
         WidgetLabel(() -> describe_assistant_activity(a)),
         WidgetLabel(() -> string(compute_prompt_count(a))),
         WidgetLabel(() -> format_agent_usage(a.agent_usage)),
+        WidgetLabel(() -> compute_item_facet(a, Val(:plan))),
+        WidgetLabel(() -> string(compute_item_facet(a, Val(:subagents)))),
+        WidgetLabel(() -> string(compute_item_facet(a, Val(:background_tasks)))),
         WidgetLabel(() -> _format_assistant_time(find_assistant_start_time(a))),
         WidgetLabel(() -> _format_elapsed_time(a, clock))]
 end

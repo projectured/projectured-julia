@@ -1,6 +1,6 @@
 # The assistant shows the work of its agent
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 7 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
+> **Kind:** plan · **Status:** pending; written 2026-10-15; the owner answered the questions of section 8 on 2026-10-15; steps 1 to 8 are done. · **Stands on:** [acp.md](../../documentation/package/adapter/acp/acp.md), [agent.md](../../documentation/package/kernel/agent.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md), [roster.md](../../documentation/package/platform/roster/roster.md), [navigator.md](../../documentation/package/platform/navigator/navigator.md), [task.md](../../documentation/package/platform/task/task.md), [cross-cutting-views.md](../done/cross-cutting-views.md)
 
 ## 1. The request
 
@@ -1054,7 +1054,7 @@ For each step, run the narrowest test: the test files of the step. Do not run
       `TextDocument.jl:438`.
     - Not checked: a real agent, and the views of step 8.
 
-- [ ] **8. The assistant: the work page.**
+- [x] **8. The assistant: the work page.** Done 2026-10-15.
   - `AssistantWork` and its view, the page of a subagent, the Work button, the
     three columns of the assistant list, and `show_assistant_work!`.
   - Tests in a real `Editor`:
@@ -1062,6 +1062,92 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - a press on a subagent opens its page, and Back returns;
     - a row of a background task opens its detail;
     - the column `plan` of the assistant list follows a plan update.
+  - **What the step found and decided:**
+    - **The navigator slice loads before the assistant slice**, just after
+      `task`: `show_assistant_work!` makes a `Navigator`. The assistant gets the
+      edges `navigator`, `pane` and `tree`, and the task slice the edge `tree`.
+    - **`AssistantWork(assistant)`** holds the assistant, the computed fields
+      `subagents`, `background_tasks`, `plans` and `processes`, which follow the
+      `agent_work` of a new session, and two trees: `work_tree`, a
+      `DocumentTree` whose root is the page itself, labelled "This session", and
+      `process_tree`, a `DocumentTree` of `processes` computed while the agent
+      names a process. An address names a part of the work through the computed
+      fields, such as `subagents[1]` or `subagents[1].background_tasks[2]`, so no
+      container and no root work stands on it: Parent from a top-level subagent
+      returns to the page, and `is_navigator_stop` needs no method.
+    - **The walk.** `AssistantWork` is opaque to the walk, as `AssistantList`
+      and `Roster` are: a walk reaches the work once, through the tab of the
+      assistant. A file keeps only the assistant of the page
+      (`pred_arguments`); the page draws the work again.
+    - **The view** `AssistantWorkToWidget` is the natural row
+      `ChainingProjection(AssistantWorkToWidget, VerticalLayoutToGraphicsCanvas())`:
+      a column of cards in a scroll pane of its own, which fills the page: The
+      job, the plan of the plan mode, Now, each other plan, Work, Processes (or
+      "The agent gives no process."), and Notices, the newest first. A plan and a
+      tree stand in `make_embed_card`. The card of a plan follows its plan, which
+      holds its own paths; a tree takes its paths from its card, as the step tree
+      of `WorkPlanToWidget` does, because the page made it. The maps lead
+      `subagents…` and `background_tasks…` to `content.root…` of the card of the
+      work tree, `processes…` to `content.root…` of the card of the processes,
+      and `plans[j]…` to `content…` of the card of the plan. The elapsed time of
+      Now reads the clock only while a turn runs.
+    - **A double click inside a scroll pane opened nothing.** The reader of a
+      scroll pane (`_retarget_op` in `WidgetToGraphics.jl`) re-rooted only a list
+      of operation types and passed any other on unchanged, so an
+      `OpenPageOperation` lost the step `content`, while a selection kept it. Its
+      fallback now maps any operation that names a place through
+      `operation_reference` and `retarget_operation`, as `reroot_operation` of
+      the kernel does. This also re-roots `OpenTooltipOperation` and
+      `ArrangeCollectionOperation` from inside a scroll pane; the suites of the
+      navigator, the tree, the work plan, the tooltip, the scroll pane, the
+      routed gestures and the arrangement pass.
+    - **The page of a subagent** is the natural row of `AgentWork`,
+      `AgentWorkToWidget`: a header with its title, its type (`description`), its
+      state, its tokens, tool calls and duration, its last tool and its summary,
+      and Cancel while it runs and `can_cancel`; its plans; its transcript, the
+      card of its `conversation`, which the renderer draws as a transcript; and
+      a link to each of its subagents and its background tasks, a button that
+      answers `OpenPageOperation(work, subagents[i])`. Cancel finds, at the
+      press, the assistant of the list of the assistants whose work holds the
+      subagent, and calls `cancel_agent_subagent!` on a task of its own.
+    - **A lone `TaskDocument`** has a natural row of the task slice,
+      `TaskDocumentToWidgetPane`, which shows the detail of the task with the
+      builder that the pane of a group uses (`_build_task_detail_parts`): its
+      name and state, its facts, its process and its elapsed time, its result,
+      its earlier executions, its buttons and its two streams. Stop shows while
+      the execution has a process; a lone task has no Run again and no cards.
+      The node of a task in a tree is a leaf: "name · status · elapsed", with an
+      icon of its status.
+    - **The nodes of the work.** The children of a work are its subagents, then
+      its background tasks. A subagent says its title, its state, its last tool
+      while it runs and its tokens, with an icon of its state.
+    - **`show_assistant_work!(assistant; editor)`** shows the page of the
+      assistant that a tab of the window shows already, which it reads with
+      `collect_pane_tab_contents` over each `PaneTree` of the window, else opens
+      `Navigator(AssistantWork(assistant))` titled "Work · " and the title of the
+      assistant, and answers the `AssistantWork` in its window.
+      `find_pane_tab_layer` is not exported, and a qualified use of it breaks
+      `PAR-MODULE-BOUNDARY-IS-API`. The verb is declared to the assistant
+      (`AssistantModule => (:show_assistant_work!,)` and one sentence in
+      `APPLICATION_SYSTEM`); its docstring says neither "find" nor "pane".
+    - The tab of an assistant with an external agent has a Work button (the icon
+      `:list`) after the picture button, and each row of the Assistants pane a
+      Work button after Show, and the columns `plan`, `subagents` and
+      `background tasks`.
+    - Tests: `test_assistant_work()` is new, in
+      `test/platform/conversation/AssistantWorkTest.jl`, in a real editor; it
+      ran 78 tests. `test_agent_work()` ran 151, `test_external_agent_turn()`
+      269, `test_assistant_overview()` 63, `test_assistant_list()` 49, the
+      layering 21, the edges 1, `test_assistant_composer_panel()` 84 and
+      `test_referenced_document_editor()` 110, all passing. For the scroll pane
+      and the task detail: the navigator suites (326), `test_document_tree` 66,
+      `test_work_plan` 82, `test_system_process` 78, `test_task_views` 36,
+      `test_task_document` 83, `test_task_group` 76, and the tooltip, scroll
+      pane, routed gesture, widget forward, mouse target and arrangement tests
+      pass. The naming, export and argument guards pass; the style guard has
+      only its known failure.
+    - Not checked: a real agent, the page in a live window, the Cancel of a
+      nested subagent, and a tooltip inside a scroll pane in a live window.
 
 - [ ] **9. ClaudeCodeACP: the new updates.** This step can start after step 1.
   - The translation of section 4.9, from the recordings of step 1.

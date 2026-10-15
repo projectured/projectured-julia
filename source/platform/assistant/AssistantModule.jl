@@ -21,7 +21,10 @@ The events of an external agent also fill the work of its session, an
 tasks as tasks of the task slice, its notices and its processes
 (`AgentWorkDocument.jl`). Each event of a session goes into the queue of the
 session, in a prompt and between two prompts, and the feed of the window applies
-the events in the order in which they came (`AgentEventFeed.jl`).
+the events in the order in which they came (`AgentEventFeed.jl`). The work page
+of an assistant shows that work in a navigator, and a subagent has a page of its
+own (`AssistantWorkDocument.jl`, `AssistantWorkToWidget.jl`,
+`AgentWorkToWidget.jl`).
 """
 module AssistantModule
 
@@ -39,12 +42,15 @@ using ..FaultModule
 using ..FeedModule
 using ..FocusModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..LayoutModule
 using ..LlmModule
 using ..NaturalModule
+using ..NavigatorModule
 using ..OperationModule
+using ..PaneModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -59,6 +65,7 @@ using ..TaskModule
 using ..TerminalModule
 using ..TextModule
 using ..ToolModule
+using ..TreeModule
 using ..WidgetModule
 using ..WorkPlanModule
 
@@ -74,6 +81,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
                      format_task_column, format_task_details, get_task_actions
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
@@ -97,6 +105,9 @@ export AssistantList, get_session_assistant_list, set_assistant_list_source!,
        set_assistant_list_opener!, select_assistant!
 export AssistantListToWidgetPane
 export apply_agent_event!, AgentEventFeed
+export show_assistant_work!
+export AssistantWorkToWidget
+export AgentWorkToWidget
 
 
 include("AgentWorkDocument.jl")
@@ -110,5 +121,8 @@ include("AssistantList.jl")
 include("AssistantListToWidget.jl")
 include("AssistantApi.jl")
 include("AgentEventFeed.jl")
+include("AssistantWorkDocument.jl")
+include("AssistantWorkToWidget.jl")
+include("AgentWorkToWidget.jl")
 
 end # module

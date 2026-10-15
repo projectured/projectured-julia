@@ -97,6 +97,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # declares its height.
     items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
     if a.backend === :acp
+        push!(items, _make_assistant_work_button(a))
         usage = WidgetLabel("")
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
         set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
@@ -338,8 +339,10 @@ end
 """
     build_assistant_graphics_entry(; measure = nothing, appearance) -> Vector{Pair{Type,Any}}
 
-The rows of the natural renderer that draw an assistant and the Assistants pane
-([`AssistantListToWidgetPane`](@ref)), each with the scaled `ConversationTheme`
+The rows of the natural renderer that draw an assistant, the Assistants pane
+([`AssistantListToWidgetPane`](@ref)), the work page of an assistant
+([`AssistantWorkToWidget`](@ref)) and the page of a subagent
+([`AgentWorkToWidget`](@ref)), each with the scaled `ConversationTheme`
 of `appearance`, the `Appearance` of the window. `measure` is what the registry
 gives every row; these rows draw widgets, which the renderer measures.
 """
@@ -349,7 +352,11 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
     # renderer draws the widgets inside, as for the MCP log.
     Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme),
                    AssistantList => ChainingProjection(AssistantListToWidgetPane(theme),
-                                                       VerticalLayoutToGraphicsCanvas())]
+                                                       VerticalLayoutToGraphicsCanvas()),
+                   AssistantWork => ChainingProjection(AssistantWorkToWidget(theme),
+                                                       VerticalLayoutToGraphicsCanvas()),
+                   AgentWork => ChainingProjection(AgentWorkToWidget(theme),
+                                                   VerticalLayoutToGraphicsCanvas())]
 end
 
 function __init__()
@@ -385,6 +392,12 @@ make_assistant_picture_button(a::Assistant) =
     WidgetButton(""; icon = :camera,
                  tooltip = "Add a picture of the selected part, or else of the window, to the message",
                  action = editor -> evaluate_operation(editor, AddDraftPictureOperation(a)))
+
+# The button that shows the work page of the agent of an assistant in a tab.
+_make_assistant_work_button(a::Assistant) =
+    WidgetButton(""; icon = :list,
+                 tooltip = "Show the work of the agent: its plans, subagents and tasks",
+                 action = editor -> (show_assistant_work!(a; editor); nothing))
 
 # The options of an external agent that the bar shows, in this order, with the
 # word that names each one.

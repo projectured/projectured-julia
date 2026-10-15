@@ -84,6 +84,32 @@ get_document_title(work::AgentWork) = isempty(work.title) ? "Agent" : work.title
 has_document_duplicate(::AgentWork) = false
 accepts_pasted_document(::AgentWork) = false
 
+# ── The nodes of a tree ──────────────────────────────────────────────────────
+
+# The work of an agent is a node whose children are its subagents, then its
+# background tasks.
+get_tree_children_steps(::AgentWork) =
+    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
+
+# The node of a subagent: its title, its state, the tool that it calls while it
+# runs, and the tokens that it used.
+function format_tree_node_label(work::AgentWork)
+    words = String[get_document_title(work), _describe_agent_work_state(work.state)]
+    work.state === :running && !isempty(work.last_tool) && push!(words, work.last_tool)
+    tokens = work.token_count
+    tokens === nothing || push!(words, _format_token_count(tokens) * " tokens")
+    join(words, " · ")
+end
+
+get_tree_node_icon(work::AgentWork) =
+    work.state === :running ? :loader : work.state === :idle ? :circle_check :
+    work.state === :requires_action ? :warning : :bot
+
+# The state of the work of an agent in words for a person: "running", "idle",
+# "waits for you" or "unknown".
+_describe_agent_work_state(state::Symbol) =
+    state === :requires_action ? "waits for you" : replace(String(state), "_" => " ")
+
 # ── A background task ────────────────────────────────────────────────────────
 
 """

@@ -1507,7 +1507,12 @@ function _retarget_op(p, iomap, op)
                    intent.description, intent.domain)
             for intent in op.intents])
     else
-        return op
+        # An operation that names a place through `operation_reference`, such as
+        # the open of a page, maps that place as any path; any other goes as it is.
+        reference = operation_reference(op)
+        reference === nothing && return op
+        new_ref = map_reference_backward(p, iomap, reference)
+        return new_ref === nothing ? nothing : retarget_operation(op, new_ref)
     end
 end
 

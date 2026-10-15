@@ -402,6 +402,8 @@ make_application_api() = Any[
     # The verbs that show the processes under a process as a tree, and write them
     # as text.
     SystemProcessModule => (:show_system_process_tree!, :describe_system_process_tree),
+    # The verb that shows the work of the agent of an assistant as a page.
+    AssistantModule => (:show_assistant_work!,),
     PaneModule => (:TabDocuments,),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.
@@ -450,6 +452,9 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "show_system_process_tree!(process_ids; title) shows the processes under " *
     "those processes as a tree in a tab, and describe_system_process_tree(process_ids) " *
     "writes them as text. " *
+    "show_assistant_work!(assistant) shows the work of the agent of an assistant in a " *
+    "tab: its job, its plans, its subagents, its background tasks, its processes and " *
+    "its notices. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."

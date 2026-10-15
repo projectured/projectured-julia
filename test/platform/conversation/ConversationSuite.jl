@@ -11,6 +11,7 @@ function test_conversation()
         test_conversation_theme()
         test_external_agent_turn()
         test_agent_work()
+        test_assistant_work()
     end
 end
 
@@ -21,3 +22,4 @@ export test_assistant_list
 export test_conversation_theme
 export test_external_agent_turn
 export test_agent_work
+export test_assistant_work
