@@ -641,6 +641,52 @@ For each step, run the narrowest test: the test files of the step. Do not run
   - Tests with the fake `claude` of the package, on the new recordings.
   - Prepare a new version of the package and its entry in the registry. The
     owner publishes it. Then the compat bound of ProjecturedACP follows.
+  - **The code is done** (ClaudeCodeACP `976708f` and `51cc8fc`, 282 tests
+    pass). The version and the entry in the registry are not prepared yet.
+    What the code found and decided:
+    - **One reader for each `claude` process** (`_follow_claude!`) replaces
+      `_follow_turn!`. While a prompt runs, it gives the events to the prompt,
+      and the prompt waits on `session.prompt_end`. Between two prompts, it
+      sends each event as an update at once. So the turn that `claude` starts
+      by itself reaches the editor at once.
+    - The messages:
+      - `_session/background_task` has the params `{sessionId, taskId, kind,
+        title, status, startTime, canStop, toolCallId?, subagentId?,
+        outputUri?, summary?, endTime?}`. Each notification holds the whole
+        state of the task. The times are epoch milliseconds. `claude` gives no
+        start time, so `startTime` is the time at which the agent reads
+        `task_started`. `killed` becomes `stopped`. `canStop` is true only
+        while the task runs. `subagentId` names the subagent whose `Bash` call
+        started the task, when the agent finds it.
+      - `_session/stop_background_task {sessionId, taskId}` answers `{}`, or
+        `INVALID_PARAMS` for a task that is unknown or does not run. It sends
+        the control request `stop_task` to `claude`.
+      - `_meta.claudeCode` of a plan entry is `{taskId?, description?,
+        activeForm?, blockedBy?}`.
+      - `_meta.claudeCode` of a subagent update is `{usage?: {totalTokens,
+        toolUses, durationMs}, lastToolName?, summary?}`. It grows, and each
+        update sends all of it. The idle state goes once.
+      - `session_info_update` with `_meta: {"processId": <int>}` and no title.
+        It goes in the first prompt after each start of `claude`, because at
+        `session/new` the client does not know the id of the session yet. It
+        needs no capability.
+      - A cancel of a child session sends `stop_task` for that subagent.
+    - **The plan of the plan mode comes from the permission request.** The
+      `tool_use` of `ExitPlanMode` has the input `{}` in the stream; the plan
+      is only in the question for the permission. So the agent sends the
+      `PlanMarkdown` when it asks the editor. A `plan` in the input of the tool
+      is read too, and not sent twice.
+    - **The end of `claude` ends its work.** When `claude` ends or starts
+      again, each subagent that runs becomes idle with `cancelled`, and each
+      background task that runs gets a last notification: `stopped` when the
+      agent closed or interrupted `claude`, `failed` when `claude` ended by
+      itself. Events of a process that the session no longer holds are
+      dropped.
+    - A client with no `plan` capability now gets the old `plan` update from
+      `TodoWrite` too; it got nothing before.
+    - Not checked against a real `claude`: whether `claude -p` takes
+      `stop_task` on its input, the health events (their shapes come from the
+      binary), and a subagent of a subagent (a unit test covers it).
 
 - [ ] **10. The live check and the documentation.**
   - Run the editor with a signed-in Claude Code, as the owner allowed on
