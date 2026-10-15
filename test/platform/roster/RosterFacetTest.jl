@@ -24,7 +24,8 @@ function test_roster_facets()
         @test [row.values[1] for row in roster.rows] == ["PrimitiveString", "PrimitiveNumber", "own"]
         @test !any(facet -> first(facet) == "type", collect_item_facets(_RosterTyped))
         @test first.(collect_item_facets(PrimitiveString)) == ["type"]
-        @test first.(collect_item_facets(Assistant)) == ["title", "turn", "tokens", "type"]
+        @test first.(collect_item_facets(Assistant)) ==
+              ["title", "turn", "tokens", "plan", "subagents", "background_tasks", "type"]
         @test first.(collect_item_facets(TextFile)) == ["name", "folder", "has_edits", "type"]
     end
 
