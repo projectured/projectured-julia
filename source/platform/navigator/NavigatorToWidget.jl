@@ -70,10 +70,14 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     actions = (back = _make_action("Back", :arrow_left, () -> !isempty(navigator.back)),
                forward = _make_action("Forward", :arrow_right, () -> !isempty(navigator.forward)),
                parent = _make_action("Parent", :arrow_up,
-                                     () -> find_navigator_parent_address(navigator) !== nothing))
+                                     () -> find_navigator_parent_address(navigator) !== nothing),
+               open_tab = _make_action("Open in a tab", :external_link, () -> true))
     buttons = Any[WidgetToolbarItem(actions.back; tooltip = "Go back to the page before (Ctrl+[)."),
                   WidgetToolbarItem(actions.forward; tooltip = "Go forward to the next page (Ctrl+])."),
                   WidgetToolbarItem(actions.parent; tooltip = "Go to the page that holds this page (Ctrl+Up).")]
+    # The bar ends with Open in a tab, after the address, so the path view keeps its
+    # place in the bar.
+    open_tab = WidgetToolbarItem(actions.open_tab; tooltip = "Open this page in a new tab.")
     crumbs = Cell(@computation _make_address_crumbs(navigator))
     switch = _make_view_switch(navigator.address_draft)
     address_projection = make_navigator_address_projection(navigator; p.syntax_theme)
@@ -81,7 +85,8 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     path = _make_path_action(navigator)
     bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., switch,
                                                             _make_address_part(navigator, crumbs[], address_iomap.output,
-                                                                               path)...])),
+                                                                               path)...,
+                                                            open_tab])),
                            Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
     page = VerticalLayout(CellVector(@computation Any[get_navigator_page(navigator)]),
                           Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
@@ -407,6 +412,10 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
            operation.action === actions.forward ? make_navigator_forward_operation :
            operation.action === actions.parent ? make_navigator_parent_operation : nothing
     make === nothing || return something(make(navigator), DoNothingOperation())
+    # Open in a tab: an open of the page in a new tab, rooted at the content, which
+    # goes on up to the editor.
+    operation.action === actions.open_tab &&
+        return OpenPageOperation(navigator.content, get_navigator_page_address(navigator), :new_tab)
     operation.action === actions.path &&
         return something(make_navigator_address_edit_operation(navigator), DoNothingOperation())
     # A press on an item of the address opens its page, with the page that the

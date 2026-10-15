@@ -146,7 +146,14 @@ function make_pred_document(::Type{Navigator}, positional, keywords)
     Navigator(content, annotate_reference_types(content, parse_path_text(values[:address])))
 end
 
-# A tab of a navigator keeps its name, as every tab does, and its tooltip says the
-# address of the page that it shows now.
-make_pane_tab_title(navigator::Navigator, name::AbstractString) =
-    PaneTabTitle(name; tooltip = () -> join(first.(_get_address_parts(navigator)), " › "))
+# A tab of a navigator is called by its page, as a tab of a browser is. Its name
+# is empty, so the strip shows the title of the navigator, which is the title of
+# its page, and a name that a person types stays. The icon, the role of the icon
+# and the badges are those that the page has in a tab of its own, so the tab of a
+# page that reports its work says how far it is. The tooltip says the address.
+function make_pane_tab_title(navigator::Navigator, name::AbstractString)
+    page_title = Cell(@computation make_pane_tab_title(get_navigator_page(navigator), ""))
+    PaneTabTitle(""; icon = () -> page_title[].icon, icon_role = () -> page_title[].icon_role,
+                 badges = () -> page_title[].badges,
+                 tooltip = () -> join(first.(_get_address_parts(navigator)), " › "))
+end

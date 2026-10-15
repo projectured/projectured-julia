@@ -124,13 +124,15 @@ end
 
 The operation that opens the node at `reference` from `document` as a new visit.
 When `document` is the content of `navigator`, or a document on the address of its
-page, the page is the path from the content. Otherwise `document` becomes the
-content of the new visit, and Back returns to the content before it. `nothing`
-when `reference` reaches no node, or when the node is the page that `navigator`
-shows.
+page, the page is the path from the content. When the content answers the path of
+`document` in it ([`find_navigator_address`](@ref)), the page is that path.
+Otherwise `document` becomes the content of the new visit, and Back returns to the
+content before it. `nothing` when `reference` reaches no node, or when the node is
+the page that `navigator` shows.
 
 The navigator does not search its content for `document`: a search walks every
-value of the content, which can be a frame of ten million rows.
+value of the content, which can be a frame of ten million rows. Only the domain of
+the content knows where its parts are.
 """
 function make_navigator_open_operation(navigator::Navigator, document, reference::Reference)
     content = navigator.content
@@ -141,6 +143,9 @@ function make_navigator_open_operation(navigator::Navigator, document, reference
         evaluate_reference(content, prefix) === document &&
             return make_navigator_open_operation(navigator, concat_references(prefix, reference))
     end
+    held = find_navigator_address(content, document)
+    held === nothing ||
+        return make_navigator_open_operation(navigator, concat_references(strip_reference_types(held), reference))
     try_evaluate_reference(document, reference, _NOT_REACHED) === _NOT_REACHED && return nothing
     address = annotate_reference_types(document, reference)
     _make_visit_operation(navigator, NavigatorVisit(document, address, address),

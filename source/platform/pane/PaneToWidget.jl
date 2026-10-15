@@ -375,12 +375,13 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
 end
 
 # The label of a tab in the strip: its name, and the icon, the role of the icon,
-# the badges and the tooltip of its title. The four are cells of their own that
+# the badges and the tooltip of its title. The five are cells of their own that
 # read the title, so a title that follows a state redraws the strip and does not
-# rebuild the pages.
+# rebuild the pages. A title with no name shows the title of its document, which
+# can follow a state too, such as the page of a navigator.
 function _make_tab_label(tab::PaneTab)
     title = tab.title
-    WidgetTabLabel(get_pane_tab_title_string(tab);
+    WidgetTabLabel(() -> get_pane_tab_title_string(tab);
                    icon = () -> title.icon, icon_role = () -> title.icon_role,
                    badges = () -> title.badges, tooltip = () -> title.tooltip)
 end

@@ -73,6 +73,18 @@ adds a method for its root and its file document.
 """
 find_navigator_target(root, target::AbstractString) = nothing
 
+"""
+    find_navigator_address(root, document) -> Reference or nothing
+
+The path of `document` in `root`, for a navigator whose content is `root`, so a
+link that names `document` opens it at its place, with the address, the parent
+and the siblings that it has there. The default answers `nothing`, and the link
+then makes `document` the content of a new visit. A domain adds a method for its
+root, and answers from what it keeps, such as an index of its parts: the
+navigator never searches a content, which can hold ten million rows.
+"""
+find_navigator_address(root, document) = nothing
+
 # An open that no navigator took: a new tab with a navigator on the page. This
 # runs while the editor evaluates the open, so the new tab is posted, and the loop
 # evaluates it at the top of the next frame, as the open of a file does.

@@ -2,6 +2,11 @@
 # the address, a duplicate that browses on its own, and a tab whose tooltip says
 # the address of the page. The content is the shelf of `NavigatorVisitsTest.jl`.
 
+# A chapter in a tab of its own says its title as a badge, with the icon of a file,
+# as a document whose tab follows its work does.
+ProjecturedPlatform.PaneModule.make_pane_tab_title(chapter::NavigatorTestChapter, name::AbstractString) =
+    PaneTabTitle(name; icon = :file, badges = Any[WidgetBadge(chapter.title)])
+
 function test_navigator_document()
 @testset "Navigator document" begin
 
@@ -46,15 +51,23 @@ function test_navigator_document()
         @test _nav_is(navigator.address, @reference(shelf, books[2]))
     end
 
-    @testset "the tooltip of a tab says the address of the page" begin
+    @testset "a tab is called by its page, and its tooltip says the address" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf)
         title = make_pane_tab_title(navigator, "Books")
-        @test title.name.value == "Books"
+        @test title.name.value == ""
+        @test get_document_title(navigator) == "Shelf"
         @test title.tooltip == "Shelf"
+        @test title.icon === nothing
         _nav_apply!(_NavHolder(navigator), make_navigator_open_operation(navigator, @reference(shelf, books[2])))
+        @test get_document_title(navigator) == "B"
         @test title.tooltip == "Shelf › B"
-        @test title.name.value == "Books"
+        # A page whose own tab says more gives the tab of the navigator its icon and
+        # its badges.
+        _nav_apply!(_NavHolder(navigator),
+                    make_navigator_open_operation(navigator, @reference(shelf, books[2].chapters[1])))
+        @test title.icon === :file
+        @test [badge.content for badge in title.badges] == ["B1"]
     end
 end
 end

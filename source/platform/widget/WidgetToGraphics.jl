@@ -8669,6 +8669,7 @@ const LUCIDE_ICON_GLYPHS = (
     :palette        => 0xe1dd,  # palette
     :settings       => 0xe154,  # settings: a gear
     :sigma          => 0xe201,  # sigma
+    :external_link  => 0xe0b9,  # external-link: open a page in a tab of its own
     # Who speaks
     :user           => 0xe19f,  # user
     :bot            => 0xe1bb,  # bot

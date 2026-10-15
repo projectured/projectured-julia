@@ -34,7 +34,16 @@ end
 
 function _open_selected_page(navigator::Navigator)
     address = find_navigator_selected_address(navigator)
-    address === nothing ? nothing : make_navigator_open_operation(navigator, address)
+    address === nothing ? nothing : make_navigator_open_operation(navigator, _find_part_page(navigator, address))
+end
+
+# The address that a part at `address` opens at: where the content holds it, when
+# the domain of the content answers that ([`find_navigator_address`](@ref)), such
+# as an item that a list on the page shows; else its path on the page.
+function _find_part_page(navigator::Navigator, address::Reference)
+    content = navigator.content
+    held = find_navigator_address(content, evaluate_reference(content, address))
+    held === nothing ? address : annotate_reference_types(content, strip_reference_types(held))
 end
 
 function _make_part_menu_operation(navigator::Navigator, gesture)
@@ -42,9 +51,10 @@ function _make_part_menu_operation(navigator::Navigator, gesture)
     address = _find_part_address(navigator, path)
     address === nothing && return nothing
     content = navigator.content
+    page = _find_part_page(navigator, address)
     menu = WidgetMenu(Any[
-        WidgetMenuItem("Open as a page"; operation = OpenPageOperation(content, address)),
-        WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(content, address, :new_tab))])
+        WidgetMenuItem("Open as a page"; operation = OpenPageOperation(content, page)),
+        WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(content, page, :new_tab))])
     part = evaluate_reference(content, address)
     # The part of the menu is the part under the pointer, with the types of its
     # nodes, as a place that a reader can follow down.
