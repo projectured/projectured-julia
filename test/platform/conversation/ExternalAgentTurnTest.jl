@@ -344,6 +344,36 @@ function test_external_agent_turn()
             @test form.source == "2 + 2"
         end
 
+        @testset "a list or a dictionary in the input of a tool is JSON text" begin
+            todo(content, status) =
+                Dict{String,Any}("content" => content, "status" => status)
+            todos = Any[todo("Read the code", "completed"),
+                        todo("Write the code", "pending")]
+            input = Dict{String,Any}("todos" => todos, "files" => Any["a.jl", 2, nothing],
+                                     "note" => "say \"hi\"")
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; name = "TodoWrite", status = :completed,
+                                    input = input)]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Plan")
+            parts = collect(collect(a.conversation.turns)[end].parts)
+            form = only(part.content for part in parts if part.content isa EvaluatorForm)
+            # A short value is one line; a long one is indented over several lines.
+            @test get_flat_string(form.form) == """
+                files: ["a.jl", 2, null]
+                note: say "hi"
+                todos: [
+                  {
+                    "content": "Read the code",
+                    "status": "completed"
+                  },
+                  {
+                    "content": "Write the code",
+                    "status": "pending"
+                  }
+                ]"""
+        end
+
         @testset "a reset of the conversation stops the agent" begin
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
             a = _make_agent_assistant(connection)

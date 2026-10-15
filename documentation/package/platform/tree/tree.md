@@ -24,7 +24,7 @@ The slice names no kind of node. A slice that owns a kind adds methods to three 
 | Generic | Answers | Default |
 | --- | --- | --- |
 | `get_tree_children_steps(document)` | the reference steps from the node to each collection of its children, in order, as a tuple of tuples | `()`: the node is a leaf |
-| `format_tree_node_label(document)` | the text of the node | the title of the document, else the name of its type that a person sees |
+| `format_tree_node_label(document)` | the text of the node, in one line: the node draws a line break as a space | the title of the document, else the name of its type that a person sees |
 | `get_tree_node_icon(document)` | a Lucide glyph, as a `Symbol` | `nothing`: no icon |
 
 The children of a node are the elements of its collections, one collection after the other. So a node can have two kinds of children. The work of an agent has two: its subagents, then its background tasks. A process has one, the field `children`. A collection whose path reaches nothing gives no children.

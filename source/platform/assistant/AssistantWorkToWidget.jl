@@ -158,7 +158,8 @@ function _describe_active_work_step(work::AssistantWork)
         isempty(plan.steps) && continue
         step = _find_running_plan_step(plan.steps)
         step === nothing && return ""
-        return "Step: " * (isempty(step.active_title) ? step.title : step.active_title)
+        shown = isempty(step.active_title) ? step.title : step.active_title
+        return "Step: " * _format_one_line(shown)
     end
     ""
 end
@@ -203,7 +204,8 @@ end
 function _format_agent_notice(notice::AgentNotice)
     line = string(Libc.strftime("%H:%M:%S", notice.time), " · ", notice.severity, " · ",
                   notice.title)
-    isempty(notice.description) ? line : line * " — " * notice.description
+    line = isempty(notice.description) ? line : line * " — " * notice.description
+    _format_one_line(line)
 end
 
 # ── The paths of the cards ───────────────────────────────────────────────────

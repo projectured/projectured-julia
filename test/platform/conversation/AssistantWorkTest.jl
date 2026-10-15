@@ -95,8 +95,70 @@ function test_assistant_work()
             EditorModule.run_frame!(editor)
             @test _work_page_has_text(backend, "Stop")
             @test _work_page_has_text(backend, "Open the output")
-            @test startswith(format_tree_node_label(document), "watch the build · running · ")
+            # A task that runs says in its node when it started, and reads no clock.
+            execution = get_current_task_execution(document)
+            started = Libc.strftime("%H:%M:%S", execution.start_time)
+            @test format_tree_node_label(document) ==
+                  "watch the build · running since " * started
             @test get_tree_node_icon(document) === :loader
+            # A task that ended says how long it ran.
+            ended = AgentBackgroundTaskUpdate("bg1"; status = :completed,
+                                              end_time = execution.start_time + 2)
+            apply_agent_event!((document = a,), a, ended)
+            drain_task_feed!()
+            @test format_tree_node_label(document) ==
+                  "watch the build · DONE · " * format_elapsed_time(2.0; precision = 1)
+            # A task that ended can not be stopped.
+            EditorModule.run_frame!(editor)
+            @test !_work_page_has_text(backend, "Stop")
+        end
+
+        @testset "a summary is a block of lines, and a label is one line" begin
+            a, _ = _make_worked_assistant()
+            child = only(collect(a.agent_work.subagents))
+            child.title = "Explore\nthe tests"
+            child.summary = "Read two files:\n1. todo.txt\n2. notes.txt"
+            plans = collect(a.agent_work.plans)
+            plan = first(plan for plan in plans if !isempty(plan.steps))
+            first(collect(plan.steps)).title = "Read\nthe code"
+            editor, backend = _work_page_editor(Navigator(AssistantWork(a)))
+            texts = [entry[1] for entry in _work_page_texts(backend)]
+            @test !any(text -> occursin('\n', text), texts)
+            @test _work_page_has_text(backend, "Explore the tests · running since ")
+            @test _work_page_has_text(backend, "Read the code · completed")
+            _work_page_double_click!(editor, backend, "Explore the tests · running")
+            texts = [entry[1] for entry in _work_page_texts(backend)]
+            @test !any(text -> occursin('\n', text), texts)
+            @test all(in(texts), ("Explore the tests", "Summary:", "Read two files:",
+                                  "1. todo.txt", "2. notes.txt"))
+            task = AgentBackgroundTask("s", "t", :local_bash, "watch\nthe build", "", "",
+                                       "", "one\ntwo", false)
+            @test format_task_parameters(task) == "watch the build"
+            @test "summary: one two" in format_task_details(task, nothing)
+        end
+
+        @testset "the shown page is in a tab of any window, and no walk finds it" begin
+            a, _ = _make_worked_assistant()
+            b, _ = _make_worked_assistant()
+            work = AssistantWork(a)
+            make_tree(name, page) =
+                PaneTree(PaneGroup(PaneTab[PaneTab(name, PrimitiveString(name)),
+                                           PaneTab("Work", Navigator(page))]))
+            first_tree = make_tree("x", AssistantWork(b))
+            second_tree = make_tree("y", work)
+            screen = ScreenDocument([WindowDocument(; id = :one, content = first_tree),
+                                     WindowDocument(; id = :two,
+                                                    content = UndoBuffer(second_tree))])
+            routes = AssistantModule._collect_window_tree_routes(screen)
+            @test length(routes) == 2
+            @test last(routes[1]) === first_tree && last(routes[2]) === second_tree
+            editor = (document = screen,)
+            (shown, steps) = AssistantModule._get_shown_assistant_work(editor, a)
+            @test shown === work
+            tab = try_evaluate_reference(screen, Reference(steps...), nothing)
+            @test tab isa PaneTab && tab.content.content === work
+            other = Assistant()
+            @test AssistantModule._get_shown_assistant_work(editor, other) === nothing
         end
 
         @testset "the column plan of the list of the assistants follows a plan" begin
@@ -105,7 +167,7 @@ function test_assistant_work()
             set_assistant_list_source!(list, () -> [a])
             _, iomap = _print_assistant_list(list; width = 1800)
             words = _collect_assistant_list_words(iomap)
-            @test all(in(words), ("plan", "subagents", "background tasks", "Work"))
+            @test all(in(words), ("plan", "subagents", "tasks", "Work"))
             @test "1/3" in words
             entries = [AgentPlanEntry("Read the code", :high, :completed; id = "1"),
                        AgentPlanEntry("Write the code", :medium, :completed; id = "2"),
@@ -127,7 +189,7 @@ function test_assistant_work()
             _work_page_press!(editor, backend, press_work())
             EditorModule.run_frame!(editor)
             @test count_tabs() == 2
-            shown = AssistantModule._get_shown_assistant_work(editor, a)
+            (shown, _) = AssistantModule._get_shown_assistant_work(editor, a)
             @test shown isa AssistantWork && shown.assistant === a
             @test _work_page_has_text(backend, "The job")
             # The list again, and a second press shows the same tab.
@@ -140,7 +202,7 @@ function test_assistant_work()
             EditorModule.run_frame!(editor)
             @test count_tabs() == 2
             @test _work_page_has_text(backend, "The job")
-            @test AssistantModule._get_shown_assistant_work(editor, a) === shown
+            @test first(AssistantModule._get_shown_assistant_work(editor, a)) === shown
             # The verb shows the same page and answers it in its window.
             answer = show_assistant_work!(a; editor)
             @test answer isa ReferencedDocument
@@ -163,11 +225,17 @@ function test_assistant_work()
             @test get_tree_node_icon(child) === :loader
             child.last_tool = "Grep"
             child.token_count = 1200
+            # A subagent that runs says when it started, and reads no clock.
+            started = Libc.strftime("%H:%M:%S", child.start_time)
             @test format_tree_node_label(child) ==
-                  "Explore · running · Grep · 1k tokens"
+                  "Explore · running since " * started * " · Grep · 1k tokens"
             child.state = :requires_action
             @test format_tree_node_label(child) == "Explore · waits for you · 1k tokens"
             @test get_tree_node_icon(child) === :warning
+            # One that ended says how long it worked.
+            child.state = :idle
+            child.duration = 75.0
+            @test format_tree_node_label(child) == "Explore · idle · 1:15 · 1k tokens"
             @test pred_arguments(work) == ((a,), Pair{Symbol,Any}[])
             @test is_walk_opaque(work) && !has_document_duplicate(work)
             @test search_references(work, node -> node === child) |> isempty

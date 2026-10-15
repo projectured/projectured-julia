@@ -204,11 +204,71 @@ get_evaluation_section_labels(f::EvaluatorForm) =
     make_evaluator_arguments_text(input) -> TextBlock
 
 The form of a tool call that is not an evaluation: one `key: value` line per
-argument, in key order.
+argument, in key order. A value that is a list or a dictionary is JSON text,
+indented over several lines when it is longer than a line.
 """
 make_evaluator_arguments_text(input::AbstractDict) =
-    make_text_block(join(["$(key): $(value)" for (key, value) in sort(collect(input); by = first)], "\n"),
+    make_text_block(join([string(key, ": ", _format_argument_value(value))
+                          for (key, value) in sort(collect(input); by = first)], "\n"),
                     _EVALUATOR_TEXT_STYLE)
+
+# A value of an argument as the line writes it: a list or a dictionary as JSON,
+# in one line when it fits, else indented; any other value as it prints.
+function _format_argument_value(value)
+    value isa Union{AbstractVector,AbstractDict} || return string(value)
+    line = sprint(_write_json, value)
+    length(line) <= _ARGUMENT_LINE_WIDTH ? line : sprint(_write_json, value, 0)
+end
+
+# How many characters of JSON a line takes before the value is indented.
+const _ARGUMENT_LINE_WIDTH = 80
+
+# JSON text of `value`, in one line, or indented by two spaces a level from
+# `depth` when `depth` is given. The keys of a dictionary are in key order.
+function _write_json(io::IO, value, depth::Union{Nothing,Int} = nothing)
+    if value isa AbstractDict
+        items = sort!([(string(key), item) for (key, item) in value]; by = first)
+        _write_json_items(io, items, depth, '{', '}') do (key, item)
+            _write_json(io, key)
+            print(io, ": ")
+            _write_json(io, item, depth === nothing ? nothing : depth + 1)
+        end
+    elseif value isa Union{AbstractVector,Tuple}
+        _write_json_items(io, collect(value), depth, '[', ']') do item
+            _write_json(io, item, depth === nothing ? nothing : depth + 1)
+        end
+    elseif value isa AbstractString || value isa Symbol
+        print(io, '"')
+        for c in string(value)
+            c == '"' ? print(io, "\\\"") : c == '\\' ? print(io, "\\\\") :
+            c == '\n' ? print(io, "\\n") : c == '\t' ? print(io, "\\t") :
+            c == '\r' ? print(io, "\\r") :
+            c < ' ' ? print(io, "\\u", lpad(string(UInt16(c), base = 16), 4, '0')) :
+            print(io, c)
+        end
+        print(io, '"')
+    elseif value === nothing || value === missing
+        print(io, "null")
+    elseif value isa Union{Bool,Integer} || (value isa AbstractFloat && isfinite(value))
+        print(io, value)
+    else
+        _write_json(io, string(value))
+    end
+    nothing
+end
+
+# The items of a list or a dictionary between `open` and `close`, each written by
+# `write_item`: in one line, or one item a line, indented, from `depth`.
+function _write_json_items(write_item, io::IO, items, depth, open::Char, close::Char)
+    print(io, open)
+    for (index, item) in enumerate(items)
+        depth === nothing ? (index > 1 && print(io, ", ")) :
+            print(io, index > 1 ? ",\n" : "\n", "  "^(depth + 1))
+        write_item(item)
+    end
+    depth === nothing || isempty(items) || print(io, "\n", "  "^depth)
+    print(io, close)
+end
 
 # Convenience: build a result document from a plain output string, a line for each
 # of its lines.

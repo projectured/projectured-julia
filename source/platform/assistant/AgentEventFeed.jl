@@ -233,7 +233,8 @@ const _COMPACTION_NOTICES = Dict(
 
 # The subagent of an update under `parent`, found by its id or added, with the
 # fields that the update gives, and the event of the update applied to it. A
-# subagent that becomes idle ends its turn.
+# subagent that starts to run keeps the time, and one that becomes idle ends its
+# turn.
 function _apply_subagent_update!(editor, a::Assistant, parent::AgentWork,
                                  update::AgentSubagentUpdate)
     child = _find_subagent(parent, update.id)
@@ -241,6 +242,7 @@ function _apply_subagent_update!(editor, a::Assistant, parent::AgentWork,
         child = AgentWork(update.id)
         push!(parent.subagents, child)
     end
+    update.state === :running && child.state !== :running && (child.start_time = time())
     for (name, value) in (:title => update.title, :description => update.description,
                           :state => update.state, :stop_reason => update.stop_reason,
                           :token_count => update.token_count,
@@ -408,7 +410,10 @@ function _follow_background_task_status!(document::TaskDocument,
     (code === nothing || execution.result !== nothing) && return nothing
     ended = something(update.end_time, time())
     elapsed = ended - something(execution.start_time, ended)
-    result = AgentBackgroundTaskResult(task, code, "DONE", nothing, elapsed)
+    # A stop ends a task on purpose: a stopped task expects CANCEL, and a task
+    # that failed expects DONE.
+    expected = code == "CANCEL" ? code : "DONE"
+    result = AgentBackgroundTaskResult(task, code, expected, nothing, elapsed)
     finish_task_execution!(execution, result)
     update.end_time === nothing ||
         update_task_execution!(e -> (e.end_time = ended), execution)
@@ -515,7 +520,7 @@ function _end_running_agent_work!(a::Assistant, work::AgentWork)
         isequal(task, document.task) || (document.task = task)
         ended = time()
         elapsed = ended - something(execution.start_time, ended)
-        result = AgentBackgroundTaskResult(task, "CANCEL", "DONE", "The agent ended.",
+        result = AgentBackgroundTaskResult(task, "CANCEL", "CANCEL", "The agent ended.",
                                            elapsed)
         finish_task_execution!(execution, result)
     end

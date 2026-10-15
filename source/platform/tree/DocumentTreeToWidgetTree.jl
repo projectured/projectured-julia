@@ -58,8 +58,13 @@ function _make_tree_entry(document, path::Vector{Int})
 end
 
 _make_tree_node(entry::_TreeEntry) =
-    WidgetTreeNode(get_tree_node_icon(entry.document), format_tree_node_label(entry.document), entry.nodes;
-                   gestures = _make_open_page_bindings(entry.path))
+    WidgetTreeNode(get_tree_node_icon(entry.document), _format_node_line(entry.document),
+                   entry.nodes; gestures = _make_open_page_bindings(entry.path))
+
+# The text of a node is one line: each line break of the label, with the blanks
+# around it, is a space.
+_format_node_line(document) =
+    replace(format_tree_node_label(document), r"\s*\R\s*" => " ")
 
 # Each collection of the children of `document`, with the steps that reach it, or
 # `nothing` for a path that reaches nothing.

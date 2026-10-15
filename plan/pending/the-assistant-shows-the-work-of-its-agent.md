@@ -1243,6 +1243,34 @@ For each step, run the narrowest test: the test files of the step. Do not run
   - Changes to `acp.md`, `agent.md`, `assistant.md`, `roster.md`,
     `navigator.md` and `task.md`, and the index of the package documents.
   - `test_documentation()` passes.
+  - Done 2026-10-15: the faults that the first live run found.
+    - `show_assistant_work!` walked the window twice (`search_references`,
+      `maxdepth = 24`), and the first press stalled for 19 s. It now reads the
+      windows, their pane trees and the content of each tab, builds the answered
+      reference from the path of the tab, and focuses a shown tab with
+      `make_focus_pane_operation`, because `focus_pane!` prints the layout, which
+      walks the window. The first call in a fresh process took 11.4 s before and
+      takes 4.8 s now, which is the compile of the open of the tab and of the first
+      print of the page; the lookup alone takes 0.35 s, and a second call 0.025 s
+      (1.5 s before).
+    - A node of a task or a subagent that runs says `running since 14:02:11` and
+      reads no clock; an ended one says how long it ran. `AgentWork` keeps
+      `start_time`, the time when the window saw the subagent start to run.
+    - The page of a lone task and the page of a process stand in a
+      `WidgetComposite` with the padding of a card; a long command wraps between
+      its words in a `FlowLayout`.
+    - A stopped background task expects `CANCEL`, also when the agent ends; a
+      failed one is an unexpected `ERROR`.
+    - A tree draws every label in one line, and so do the title, the links and
+      the facts of a subagent, the title and the summary of a background task,
+      a notice and the step of the card Now. The summary of a subagent is a block
+      of its lines.
+    - The list of the assistants calls the column of the background tasks
+      `tasks`; the facet keeps its name `background_tasks`.
+    - A list or a dictionary in the input of a tool is JSON text, indented when
+      its line is longer than 80 characters (`make_evaluator_arguments_text`).
+    - A prompt that fails after `stop_external_agent!` closed its connection is no
+      fault (`ExternalAgentSession.is_stopped`).
 
 ## 7. Not in this plan
 

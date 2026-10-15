@@ -94,25 +94,72 @@ subagents and background tasks run.
 See also `show_document_tree!`, which shows any document as a tree.
 """
 function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
+    root = editor.document
     shown = _get_shown_assistant_work(editor, a)
-    work = shown === nothing ? AssistantWork(a) : shown
-    title = "Work · " * compute_assistant_overview_title(a)
-    show_document!(shown === nothing ? Navigator(work) : work; title, editor)
-    found = search_references(editor.document, node -> node === work; maxdepth = 24)
-    isempty(found) &&
-        throw(ArgumentError(string("The window shows no page \"", title,
-                                   "\" after the show.")))
-    ReferencedDocument(work, strip_reference_types(found[1]))
+    if shown === nothing
+        work = AssistantWork(a)
+        title = "Work · " * compute_assistant_overview_title(a)
+        tab = open_pane!(Navigator(work); title, editor)
+        route = get_reference_steps(strip_reference_types(get_reference(tab)))
+    else
+        work, route = shown
+        # The operation of the focus alone: `focus_pane!` would also print the
+        # layout of the window, which walks it.
+        tab_path = annotate_reference_types(root, Reference(route...))
+        focus = make_focus_pane_operation(tab_path; editor)
+        focus === nothing || evaluate_operation(editor, focus)
+    end
+    # The work is the content of the navigator that the tab holds.
+    content = FieldReferenceStep("content")
+    reference = Reference(route..., content, content)
+    ReferencedDocument(work, annotate_reference_types(root, reference))
 end
 
-# The work page of `a` that a tab of the window of `editor` shows, or `nothing`.
+# The work page of `a` that a tab of a window of `editor` shows, and the steps from
+# the root to that tab, or `nothing`. It reads only the windows, their pane trees
+# and the content of each tab: a navigator whose content is the work of `a`.
 function _get_shown_assistant_work(editor, a::Assistant)
-    root = editor.document
-    for path in search_references(root, node -> node isa PaneTree; maxdepth = 24)
-        tree = evaluate_reference(root, path)
-        for work in collect_pane_tab_contents(tree, AssistantWork)
-            work.assistant === a && return work
+    for (route, tree) in _collect_window_tree_routes(editor.document)
+        for group in get_pane_groups(tree), tab in group.tabs
+            navigator = tab.content
+            navigator isa Navigator || continue
+            work = navigator.content
+            work isa AssistantWork && work.assistant === a || continue
+            path = get_reference_steps(strip_reference_types(get_pane_path(tree, tab)))
+            return (work, Any[route..., path...])
         end
     end
     nothing
+end
+
+# Each pane tree of the windows of `root`, with the steps from `root` to it: the
+# wrappers of the root, the windows of a screen, and the wrappers of the content
+# of each window, one field at a time.
+function _collect_window_tree_routes(root)
+    routes = Tuple{Vector{Any},PaneTree}[]
+    _add_window_tree_routes!(routes, root, Any[])
+    routes
+end
+
+function _add_window_tree_routes!(routes, node, steps::Vector{Any})
+    if node isa PaneTree
+        push!(routes, (steps, node))
+    elseif hasproperty(node, :windows)
+        windows = node.windows
+        for i in 1:length(windows)
+            inside = Any[steps..., FieldReferenceStep("windows"), ElementReferenceStep(i),
+                         FieldReferenceStep("content")]
+            _add_window_tree_routes!(routes, windows[i].content, inside)
+        end
+    else
+        wrapped = get_wrapped_document(node)
+        wrapped === node && return routes
+        for name in fieldnames(typeof(node))
+            child = getproperty(node, name)
+            child !== node && get_wrapped_document(child) === wrapped || continue
+            inside = Any[steps..., FieldReferenceStep(String(name))]
+            return _add_window_tree_routes!(routes, child, inside)
+        end
+    end
+    routes
 end

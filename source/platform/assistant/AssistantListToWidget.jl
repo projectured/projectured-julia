@@ -36,9 +36,10 @@ AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme
     AssistantListToWidgetPane(; stack_gap = get_conversation_style(theme, :section_gap),
                                 muted_color = get_conversation_style(theme, :placeholder_color))
 
+# The column `tasks` counts the background tasks that run, as the facet
+# `background_tasks` does; the short name keeps the column narrow.
 const _ASSISTANT_LIST_COLUMNS = ("", "title", "work", "turn", "activity", "prompts", "context",
-                                 "plan", "subagents", "background tasks", "started",
-                                 "elapsed")
+                                 "plan", "subagents", "tasks", "started", "elapsed")
 
 # The words of a state of the work, and the role of its badge.
 _format_work_state(state::Symbol) = replace(String(state), "_" => " ")

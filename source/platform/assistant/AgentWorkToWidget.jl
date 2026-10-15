@@ -80,16 +80,35 @@ function _build_agent_header_lines(work::AgentWork)
     Any[WidgetLabel(() -> get_document_title(work)),
         _make_shown_label(() -> _format_agent_fact("Type: ", work.description)),
         WidgetLabel(() -> "State: " * _describe_agent_work_state(work.state) *
+                          _format_agent_start(work) *
                           _format_agent_stop_reason(work.stop_reason)),
         _make_shown_label(() -> _format_agent_work_use(work)),
         _make_shown_label(() -> _format_agent_fact("Last tool: ", work.last_tool)),
-        _make_shown_label(() -> _format_agent_fact("Summary: ", work.summary)),
+        _build_agent_summary_lines(work),
         cancel]
 end
 
-# `prefix` and `fact`, or nothing while the fact is empty.
+# `prefix` and `fact` in one line, or nothing while the fact is empty.
 _format_agent_fact(prefix::AbstractString, fact::AbstractString) =
-    isempty(fact) ? "" : prefix * fact
+    isempty(fact) ? "" : prefix * _format_one_line(fact)
+
+# When a subagent that runs started; it reads no clock.
+_format_agent_start(work::AgentWork) =
+    work.state === :running && work.start_time !== nothing ?
+        " since " * Libc.strftime("%H:%M:%S", work.start_time) : ""
+
+# The summary of the work as a block of its lines under the word `Summary`, or
+# nothing while it is empty.
+function _build_agent_summary_lines(work::AgentWork)
+    lines = VerticalLayout(Any[]; child_width = Fill)
+    set_cell_computation!(getfield(lines.children, :elements), () -> begin
+        summary = strip(work.summary)
+        isempty(summary) && return Cell[]
+        texts = ["Summary:"; split(summary, r"\R")]
+        Cell[Cell(WidgetLabel(String(rstrip(text)))) for text in texts]
+    end)
+    lines
+end
 
 _format_agent_stop_reason(reason) = reason === nothing ? "" : " · ended " * String(reason)
 
@@ -128,7 +147,7 @@ function _make_agent_work_link(work::AgentWork, field::AbstractString, index::In
                              description = "Open the page of a part of the work",
                              domain = "assistant")
     link = WidgetButton(""; tooltip = "Open its page", gestures = GestureBinding[binding])
-    set_cell_computation!(link, () -> format_tree_node_label(child))
+    set_cell_computation!(link, () -> _format_one_line(format_tree_node_label(child)))
 end
 
 # A press of Cancel: the assistant whose session runs the subagent asks its agent

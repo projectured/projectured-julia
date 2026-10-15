@@ -20,10 +20,11 @@ function get_tree_children_steps end
 """
     format_tree_node_label(document) -> String
 
-The text of the node of `document` in a tree. It runs inside the computation of
-the node, so it reads cells, and the node draws again when what it reads
-changes, and no other node does. The default is the title of the document, or
-the name of its type that a person sees.
+The text of the node of `document` in a tree, in one line: the node draws a line
+break as a space. It runs inside the computation of the node, so it reads cells,
+and the node draws again when what it reads changes, and no other node does. The
+default is the title of the document, or the name of its type that a person
+sees.
 """
 function format_tree_node_label end
 

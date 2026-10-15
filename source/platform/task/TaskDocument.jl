@@ -160,15 +160,22 @@ get_item_facets(::Type{TaskDocument}) = [
 compute_item_facet(document::TaskDocument, ::Val{:name}) = format_task_parameters(getfield(document, :task)[])
 compute_item_facet(document::TaskDocument, ::Val{:status}) = get_task_document_status(document)
 
-# The node of a task in a tree is a leaf: its name, its status or the code of its
-# result, and how long it ran, with an icon of its status.
+# The node of a task in a tree is a leaf: its name, its status and the time when
+# it started while it runs, or the code of its result and how long it ran, with an
+# icon of its status. It reads no clock, so it changes only when the task does.
 function format_tree_node_label(document::TaskDocument)
     words = String[format_task_parameters(getfield(document, :task)[])]
     result = get_task_document_result(document)
     status = get_task_document_status(document)
-    push!(words, result === nothing ? String(status) : result.result)
-    elapsed = _format_task_document_elapsed(document)
-    isempty(elapsed) || push!(words, elapsed)
+    state = result === nothing ? String(status) : result.result
+    (started, ended) = _get_task_document_times(document)
+    if started === nothing
+        push!(words, state)
+    elseif ended === nothing
+        push!(words, state * " since " * Libc.strftime("%H:%M:%S", started))
+    else
+        push!(words, state, format_elapsed_time(ended - started; precision = 1))
+    end
     join(words, " · ")
 end
 
@@ -179,14 +186,10 @@ function get_tree_node_icon(document::TaskDocument)
     status === :skipped ? :skip_forward : :circle
 end
 
-# How long the current execution ran, up to its end or to its last sync; empty
-# before it starts.
-function _format_task_document_elapsed(document::TaskDocument)
+# The start and the end of the current execution, each `nothing` before it.
+function _get_task_document_times(document::TaskDocument)
     current = get_current_task_execution(document)
-    current === nothing && return ""
-    started = current.start_time
-    started === nothing && return ""
-    format_elapsed_time(something(current.end_time, time()) - started; precision = 1)
+    current === nothing ? (nothing, nothing) : (current.start_time, current.end_time)
 end
 
 """

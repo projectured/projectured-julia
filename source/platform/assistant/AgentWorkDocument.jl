@@ -33,6 +33,8 @@ events of the agent fill it ([`apply_agent_event!`](@ref)).
 - `stop_reason` — why its last work ended, such as `:end_turn`, or `nothing`.
 - `token_count`, `tool_call_count`, `duration` — how many tokens and tool calls
   its work used, and how many seconds it worked; `nothing` until the agent says.
+- `start_time` — when the window saw it start to run, in seconds of `time()`, or
+  `nothing` before.
 - `last_tool` — the name of the last tool that it called; empty before.
 - `summary` — what it did, in a few words; empty before.
 - `can_cancel` — whether its work can be cancelled.
@@ -61,6 +63,7 @@ one.
     token_count::Union{Nothing,Int}
     tool_call_count::Union{Nothing,Int}
     duration::Union{Nothing,Float64}
+    start_time::Union{Nothing,Float64}
     last_tool::String
     summary::String
     can_cancel::Bool
@@ -73,11 +76,13 @@ one.
 end
 
 AgentWork(id::AbstractString) =
-    AgentWork(String(id), "", "", :unknown, nothing, nothing, nothing, nothing, "", "",
-              false, ConversationConversation(), CellVector(Any[]), CellVector(Any[]),
-              CellVector(Any[]), CellVector(Any[]), nothing)
+    AgentWork(String(id), "", "", :unknown, nothing, nothing, nothing, nothing, nothing,
+              "", "", false, ConversationConversation(),
+              (CellVector(Any[]) for _ in 1:4)..., nothing)
 
-get_document_title(work::AgentWork) = isempty(work.title) ? "Agent" : work.title
+# The title is one line, as a tab, a node and the bar of a navigator show it.
+get_document_title(work::AgentWork) =
+    isempty(work.title) ? "Agent" : _format_one_line(work.title)
 
 # The work of a session is a record of the agent: a duplicate of it would be a
 # copy of a live state, and a paste does not replace it.
@@ -91,15 +96,30 @@ accepts_pasted_document(::AgentWork) = false
 get_tree_children_steps(::AgentWork) =
     ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
 
-# The node of a subagent: its title, its state, the tool that it calls while it
-# runs, and the tokens that it used.
+# The node of a subagent: its title, its state with the time when it started
+# while it runs, the tool that it calls then, how long it worked once it ended,
+# and the tokens that it used. It reads no clock.
 function format_tree_node_label(work::AgentWork)
-    words = String[get_document_title(work), _describe_agent_work_state(work.state)]
+    words = String[get_document_title(work), _describe_agent_work_time(work)]
     work.state === :running && !isempty(work.last_tool) && push!(words, work.last_tool)
     tokens = work.token_count
     tokens === nothing || push!(words, _format_token_count(tokens) * " tokens")
     join(words, " · ")
 end
+
+# The state of the work, with the time when it started while it runs, or with how
+# long it worked once it ended and the agent says.
+function _describe_agent_work_time(work::AgentWork)
+    state = _describe_agent_work_state(work.state)
+    started = work.start_time
+    work.state === :running && started !== nothing &&
+        return state * " since " * Libc.strftime("%H:%M:%S", started)
+    work.state === :running || work.duration === nothing ? state :
+        state * " · " * _format_assistant_duration(work.duration)
+end
+
+# A text in one line: each line break, with the blanks around it, is a space.
+_format_one_line(text::AbstractString) = replace(text, r"\s*\R\s*" => " ")
 
 get_tree_node_icon(work::AgentWork) =
     work.state === :running ? :loader : work.state === :idle ? :circle_check :
@@ -145,7 +165,8 @@ end
 
 What a background task of an agent ended with: `DONE` when it completed, `ERROR`
 when it failed and `CANCEL` when it was stopped, of `RUN_RESULT_CODES`, with the
-seconds that it ran.
+seconds that it ran. A stop ends a task on purpose, so a task that ends as
+`CANCEL` expects `CANCEL`; one that fails expects `DONE`.
 """
 struct AgentBackgroundTaskResult <: TaskResult
     task::AgentBackgroundTask
@@ -157,7 +178,7 @@ end
 
 get_result_codes(::AgentBackgroundTask) = RUN_RESULT_CODES
 format_task_parameters(task::AgentBackgroundTask) =
-    isempty(task.title) ? task.task_id : task.title
+    isempty(task.title) ? task.task_id : _format_one_line(task.title)
 get_task_columns(::AgentBackgroundTask) = ["kind" => 2]
 format_task_column(task::AgentBackgroundTask, column::AbstractString) =
     column == "kind" ? String(task.kind) : ""
@@ -168,7 +189,7 @@ function format_task_details(task::AgentBackgroundTask, result)
     isempty(task.subagent_id) || push!(lines, "subagent: " * task.subagent_id)
     isempty(task.output_uri) ||
         push!(lines, "output: " * chopprefix(task.output_uri, "file://"))
-    isempty(task.summary) || push!(lines, "summary: " * task.summary)
+    isempty(task.summary) || push!(lines, "summary: " * _format_one_line(task.summary))
     lines
 end
 

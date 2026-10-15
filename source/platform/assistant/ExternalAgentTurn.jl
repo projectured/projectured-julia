@@ -29,6 +29,8 @@ The live link of an assistant to its external agent:
 - `has_answered` — whether the agent answered a prompt since the session opened;
 - `is_cancelled` — whether the person stopped the turn that runs; the end of
                   the turn clears it;
+- `is_stopped`  — whether the window stopped the agent, at the close of the tab
+                  or at a stop; a prompt that fails then is no fault;
 - `start_lock`  — held while the agent starts and its session opens, so a turn
                   and a start from the option bar open one session;
 - `events`      — the `AgentEventQueue` of the open session, which takes every
@@ -59,6 +61,7 @@ mutable struct ExternalAgentSession
     is_resumed::Bool
     has_answered::Bool
     is_cancelled::Bool
+    is_stopped::Bool
     start_lock::ReentrantLock
     events::Union{Nothing,AgentEventQueue}
     prompt_turn::Any
@@ -70,7 +73,7 @@ end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
-                         ReentrantLock(), nothing, nothing, nothing, Any[],
+                         false, ReentrantLock(), nothing, nothing, nothing, Any[],
                          IdDict{Any,Any}(), -Inf)
 
 is_walk_opaque(::ExternalAgentSession) = true
@@ -169,6 +172,8 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         end
         _close_external_agent_session!(session)
         is_closed = true
+        # The window closed the connection, so the prompt that it cut is no fault.
+        session.is_stopped && return nothing
         rethrow()
     finally
         # A cancel holds for the turn that it stopped, and the next turn starts
@@ -546,6 +551,7 @@ function stop_external_agent!(a::Assistant)
     session isa ExternalAgentSession || return nothing
     _end_agent_work!(a, session)
     a.agent_session = nothing
+    session.is_stopped = true
     session.events = nothing
     a.agent_options = AgentOption[]
     a.agent_usage = nothing

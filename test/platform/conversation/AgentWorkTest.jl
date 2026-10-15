@@ -39,6 +39,10 @@ function test_agent_work()
             @test (child.state, child.stop_reason) == (:idle, :end_turn)
             @test (child.token_count, child.tool_call_count, child.duration) ==
                   (1200, 1, 2.5)
+            # It started to run, so it keeps the time; it ended, so its node says how
+            # long it worked.
+            @test child.start_time isa Float64
+            @test format_tree_node_label(child) == "Explore · idle · 2 s · 1k tokens"
             @test (child.last_tool, child.summary, child.can_cancel) ==
                   ("Grep", "Found a.jl", true)
             turns = collect(child.conversation.turns)
@@ -400,6 +404,7 @@ function test_agent_work()
             document = only(collect(a.agent_work.background_tasks))
             result = get_task_document_result(document)
             @test (result.result, result.reason) == ("CANCEL", "The agent ended.")
+            @test is_expected(result)
             @test !document.task.can_stop && isempty(get_task_actions(document.task))
             child = only(collect(a.agent_work.subagents))
             @test (child.state, child.stop_reason) == (:idle, :cancelled)
@@ -463,13 +468,27 @@ function test_agent_work()
             @test compute_item_facet(work, Val(:tokens)) == 300
             @test compute_item_facet(AgentWork("x"), Val(:tokens)) == 0
             @test [first(pair) for pair in get_item_facets(AgentWork)] == ["tokens"]
-            # The task ends, so the feed of the tasks of the session lets it go.
+            # The task ends, so the feed of the tasks of the session lets it go. A
+            # stop ends a task on purpose, so CANCEL is the code that it expects.
             stopped = AgentBackgroundTaskUpdate("b1"; status = :stopped)
             apply_agent_event!(editor, a, stopped)
             drain_task_feed!()
             watch = only(collect(a.agent_work.background_tasks))
-            @test get_task_document_result(watch).result == "CANCEL"
+            result = get_task_document_result(watch)
+            @test (result.result, result.expected_result) == ("CANCEL", "CANCEL")
+            @test is_expected(result)
+            @test !occursin("unexpected", format_task_result(result))
             @test compute_item_facet(a, Val(:background_tasks)) == 0
+            # A task that failed is an unexpected ERROR.
+            for status in (:running, :failed)
+                update = AgentBackgroundTaskUpdate("b2"; title = "build", status)
+                apply_agent_event!(editor, a, update)
+            end
+            drain_task_feed!()
+            build = last(collect(a.agent_work.background_tasks))
+            result = get_task_document_result(build)
+            @test (result.result, is_expected(result)) == ("ERROR", false)
+            @test occursin("(unexpected)", format_task_result(result))
         end
     end
 end
