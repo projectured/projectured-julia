@@ -40,8 +40,8 @@ A save never writes over a newer file without the person knowing.
 
 ## 3. The steps
 
-- [ ] 1. The store belongs to the editor: a document of its session
-  (`get_session_document!`), and `FileChangeFeed` takes the store of its editor.
+- [ ] 1. The store belongs to the editor: the feed of the editor owns it
+  (§3.1).
 - [ ] 2. A file document is watched while a tab shows it: `acquire_document!` of
   a `FileDocument` watches it in the store of the editor, and `release_document!`
   stops it. The release of a closed tab reaches each layer of its content, as the
@@ -54,6 +54,42 @@ A save never writes over a newer file without the person knowing.
 - [ ] 6. The tests of each layer, and a live check in the application: a change
   of an open file reaches its tab; a change under unsaved edits, and a save over
   a newer file, show what D15a decided.
+
+## 3.1 The design of the steps (2026-10-15, after D15b to D15d)
+
+- Step 1 (filechange): `FileChangeFeed(; store = FileChangeStore())` owns its
+  store, so each editor that has the feed has its own, and
+  `SESSION_FILE_CHANGE_STORE` goes. `get_session_file_change_store(; editor)`
+  keeps its name and gives the store of the feed of the editor, or a new store
+  that nothing keeps, as the logs of the session do. The default store of
+  `watch_document_file!`, `unwatch_document_file!` and
+  `is_document_file_watched` is the store of the feed of the editor of the
+  evaluation; with none, they do nothing (D15d). `close_file_change_store!`
+  stops the watchers of a store.
+- Step 2: `AcquireDocumentOperation` and `ReleaseDocumentOperation` are each
+  other's inverse (D15c). The close of a tab posts `ReleaseDocumentOperation(tab)`,
+  and `release_document!(editor, tab::PaneTab)` reaches each layer, as the
+  acquire does. The file-change slice adds `acquire_document!` and
+  `release_document!` for a `FilePage` (the watch keeps the page, which shows the
+  band) and for a bare `FileDocument` (no band). New edge: filechange → domain.
+- Step 3: the wrapper `file_change = true` (filechange) adds the feed, and its
+  stop step closes the store; `make_application_wrappers` turns it on. The
+  application needs no new edge: it passes a keyword.
+- Step 4: the file-format slice declares `request_file_save!(editor, file)`,
+  `true` by default, which `SaveFileOperation` asks before it writes. The
+  file-change slice answers it: `true` when the file on disk is the text that the
+  document last loaded or saved (`base_hash` of the watched file, or the hash of
+  its last save), else it shows the band of a save over a newer file and answers
+  `false`.
+- Step 5 (fileformat): `FilePage(content; band = nothing)`, the document around
+  the scrolled file, which `make_file_tab_content` and the open of a file give a
+  tab, and `FileBand(; message, choices)`, a sentence and its choices, each a
+  label and the operation that its button answers. `FilePageToWidget` draws the
+  band above the content in a `VerticalLayout`, in the warning colors of the
+  widget theme, and maps every path of the content, as `FindBarViewToWidget`
+  does; a button answers its operation through a `GestureBinding` of a click.
+  The file-change slice makes the band and its operations: load the file, or
+  keep the edits (and, for a save, write them).
 
 ## 4. The decision
 
