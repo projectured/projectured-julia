@@ -67,9 +67,28 @@ A save never writes over a newer file without the person knowing.
   apart. The facts are in §3.2.
 - [x] 5. What the person sees, by the decision of D15a. Done: the page decides
   what a reported change means, and shows its band (§3.2).
-- [ ] 6. The tests of each layer, and a live check in the application: a change
+- [x] 6. The tests of each layer, and a live check in the application: a change
   of an open file reaches its tab; a change under unsaved edits, and a save over
-  a newer file, show what D15a decided.
+  a newer file, show what D15a decided. Done:
+  - The layers: `test_filechange()` 98, `test_undo()` 115, `test_file_dialog()`
+    14, `test_roster_facets()` 20, the layering guard 7, `test_file_tab()` 33.
+    `test_application()` 375 pass with 2 fail, 2 errors and 2 broken, the same
+    four cases as on `window-watches-files` before steps 4 and 5 (the evaluator
+    and the greeting of the assistant).
+  - The window: `test_file_watch_window()` 16, the window of `run_application`
+    on a headless backend, each gesture through the loop. A test that runs no
+    loop calls `start_application!` and `drain_operations!` once, and
+    `drain_feeds!` before each `run_frame!`, as a frame of the loop does.
+  - The live check: 7 of 7 in the real SDL window, driven on the main task by
+    pushed SDL events (`/var/tmp/watch-save/live_check.jl`, not kept in the
+    repository): a change reaches the tab, a typed character is an edit, a change
+    under it shows the band and keeps it, "Keep mine" takes the band away, and
+    `Ctrl+S` writes the edit over the file.
+  - Open: the band does not fill the width of the tab, as D15a says; it ends
+    after its last button. `WidgetComposite` sizes its box from what its children
+    draw, so neither `width = Fill` on the band nor `child_width = Fill` on the
+    composite widens it. The band needs a widget that takes the width of its slot,
+    or that rule in the composite.
 
 ## 3.1 The design of the steps (2026-10-15, after D15b to D15d)
 
