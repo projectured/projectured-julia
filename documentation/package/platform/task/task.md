@@ -28,6 +28,12 @@ are plain values:
   command, the exit code and the error line, from what the task ended with;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
   press calls with the editor that evaluates the press and the task;
+- `find_task_output_mark(task, stream, line)` gives the mark of one line that the
+  task printed: `:error`, `:warning`, `:notice`, `:progress` or `nothing`. It runs
+  for each line under the lock of the execution, so it answers from the line
+  alone;
+- `get_task_output_folder(task)` gives the folder of the files of its streams, or
+  `nothing` for the folder of the process;
 - `get_task_result_document(task, result)` gives a document that shows the
   result in more than lines of text, such as the table of the scalars that a
   statistical test compared. The task document holds it in `result_document`,
@@ -101,7 +107,25 @@ group that waits for it would wait forever.
 
 Each stream is a `TaskOutput`: the first 100 lines, the last 1000, and the count
 of the lines between, so a process that prints without end cannot fill the
-memory. `read_line(execution, line)` sees each line of stdout under the lock, and
+memory. It also counts the lines of each mark that the kind gives
+(`mark_counts`) and keeps the number of the first line of each
+(`first_mark_lines`).
+
+**Every line is in a file.** The reader of a stream writes each line to the file
+of the stream, `path` of its `TaskOutput`: `<n>.stdout` and `<n>.stderr`, the
+same `n` for both streams of one execution. The file is flushed at most five
+times a second while lines come, and once at the end, so a view that reads it
+while the process runs is at most that far behind. The folder is the one of the
+kind (`get_task_output_folder`), or the folder of the process,
+`get_session_output_folder!()`: `projectured/task-output/<process>` under the state
+folder of the user (`XDG_STATE_HOME`, or `~/.local/state`), never the temporary
+folder, which can be a disk in memory. The process removes its folder when it
+ends, and the first use removes the folders of processes that no longer run. A
+close of a group (`remove_task_group!`) removes the files of its tasks at every
+depth (`remove_task_output_files!`); a folder that can not be made leaves the
+stream with its bounded lines alone.
+
+`read_line(execution, line)` sees each line of stdout under the lock, and
 is where a kind of task reads its progress and its position: a simulation writes
 `event #4200 t=1.5`. When the process has ended and both streams are read,
 `finish(process, cancelled, elapsed)` makes the result and calls

@@ -64,6 +64,20 @@ copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_result_document!(copy_document_fields(policy, document; running = nothing,
                                                   executions = Any[], result_document = nothing))
 
+"""
+    remove_task_output_files!(document::TaskDocument) -> document
+
+Remove the files of the streams of every execution of the task; the kept lines
+stay.
+"""
+function remove_task_output_files!(document::TaskDocument)
+    for shadow in getfield(document, :executions)[]
+        remove_task_output_files!(shadow.output)
+        remove_task_output_files!(shadow.error_output)
+    end
+    document
+end
+
 # The document of the result follows the result of the current execution.
 function _follow_result_document!(document::TaskDocument)
     set_cell_computation!(getfield(document, :result_document), () -> begin

@@ -52,11 +52,13 @@ end
 """
     remove_task_group!(list, group) -> list
 
-Take the row of `group` out of the list. The group goes on if it runs.
+Take the row of `group` out of the list, and remove the files of the streams of
+its tasks. The group goes on if it runs, and its tasks keep their bounded lines.
 """
 function remove_task_group!(list::TaskGroupList, group)
     index = findfirst(g -> g === group, collect(list.groups))
     index === nothing || deleteat!(list.groups, index)
+    index === nothing || remove_task_output_files!(group)
     list
 end
 

@@ -137,6 +137,20 @@ find_task_group_document(doc::TaskGroupDocument, index::Integer) =
 _task_documents(doc::TaskGroupDocument) =
     TaskDocument[document for document in getfield(doc, :tasks)[]]
 
+"""
+    remove_task_output_files!(doc::TaskGroupDocument) -> doc
+
+Remove the files of the streams of every task of the group, at every depth, and
+of its preparation.
+"""
+function remove_task_output_files!(doc::TaskGroupDocument)
+    foreach(remove_task_output_files!, _task_documents(doc))
+    foreach(remove_task_output_files!, values(getfield(doc, :groups)[]))
+    preparation = getfield(doc, :preparation)[]
+    preparation === nothing || remove_task_output_files!(preparation)
+    doc
+end
+
 # Each task of the group is watched from the moment it starts: the session
 # `TaskFeedStore` syncs the shadow of its execution, and tells the slot of the
 # task in the group, on the task that reads the documents. The pool names the

@@ -151,6 +151,27 @@ any document. A kind with no such document answers `nothing`.
 """
 get_task_result_document(::AbstractTask, result) = nothing
 
+"""
+    find_task_output_mark(task, stream, line) -> Symbol or nothing
+
+The mark of one line that `task` printed on `stream`, `:output` or
+`:error_output`: `:error`, `:warning`, `:notice` or `:progress`, or `nothing` for a
+line with no mark. The stream counts the lines of each mark and keeps the number
+of the first line of each, and the page of a stream draws a mark in the colour of
+its role. It runs for each line under the lock of the execution, so a method
+answers from the line alone. A kind with no marks answers `nothing`.
+"""
+find_task_output_mark(::AbstractTask, stream::Symbol, line::AbstractString) = nothing
+
+"""
+    get_task_output_folder(task) -> String or nothing
+
+The folder where the streams of each execution of `task` are written, one file for
+each stream. `nothing`, the default, is the folder of the process
+([`get_session_output_folder!`](@ref)).
+"""
+get_task_output_folder(::AbstractTask) = nothing
+
 # ── Words ────────────────────────────────────────────────────────────────────
 
 """

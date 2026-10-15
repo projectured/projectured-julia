@@ -43,9 +43,11 @@ export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODE
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,
        get_error_message, format_task_parameters, get_task_columns, format_task_column,
        get_task_actions, format_task_details, get_task_result_document,
+       find_task_output_mark, get_task_output_folder,
        format_elapsed_time, PAST_TENSE, format_past_tense, format_task_result
 export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_lines,
-       find_last_output_line, format_output_text, TaskRuntime, TaskExecution,
+       find_last_output_line, format_output_text, get_session_output_folder!,
+       remove_task_output_files!, TaskRuntime, TaskExecution,
        update_task_execution!, get_task_execution_version, make_task_execution_shadow,
        describe_task_execution, is_task_running, wait_task_execution, stop_task_execution!,
        get_task_status, finish_task_execution!, TaskFinishFailure, start_process_task!,
