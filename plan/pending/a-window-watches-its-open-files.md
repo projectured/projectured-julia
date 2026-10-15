@@ -75,7 +75,7 @@ A save never writes over a newer file without the person knowing.
   Recommended (mine): A. The person sees it where they work, and each choice is
   one click.
 
-- **D15b. Open:** where the document of the band lives.
+- **D15b. Decided by the owner, 2026-10-15: A** ("agreed, it's A"). Where the document of the band lives.
   - A: a document around the scrolled file in the tab, which holds the file and
     the state of the band (`make_file_tab_content` makes it). The band stays at
     the top of the tab while a long file scrolls, no file type changes, and it
@@ -85,11 +85,11 @@ A save never writes over a newer file without the person knowing.
     draws in the view of the file, inside the scroll pane, so it scrolls away
     with a long file.
   Recommended (mine): A.
-- **D15c. Open:** an undo of an open or a close of a tab. The inverse of the
+- **D15c. Decided by the owner, 2026-10-15: yes.** An undo of an open or a close of a tab. The inverse of the
   acquire and of the release is "do nothing" today, so an undo of an open leaves
   the watch running, and an undo of a close leaves the file unwatched. Each one
   becomes the inverse of the other. Recommended (mine): yes.
-- **D15d. Open:** a watch with no editor. The store belongs to the feed of an
+- **D15d. Decided by the owner, 2026-10-15: yes** ("agreed"). A watch with no editor. The store belongs to the feed of an
   editor, so each editor has its own. A call of `watch_document_file!` where no
   editor with the feed is bound does nothing, rather than fill a store of the
   process that nothing drains and that keeps a watcher task forever. It touches
