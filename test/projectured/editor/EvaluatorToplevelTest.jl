@@ -132,12 +132,13 @@ end
     @test 0 <= last(prompts_y()) < 120
     @test first(prompts_y()) < 0
     # A wheel turn toward the start takes the view off the end, and moves the
-    # forms down by one line, which is 24 pixels with this measure.
+    # forms down. A notch is three lines of 24 pixels, but the view of the forms
+    # is 92 pixels tall, so the notch moves the view less one line: 68 pixels.
     at_end = last(prompts_y())
     change = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 50, 50; time = 0.0)), iomap)
     evaluate_operation(ed, change.operation)
     @test toplevel.follow_end == false
-    @test last(prompts_y()) == at_end + 24
+    @test last(prompts_y()) == at_end + 68
     # The options stay where they are, and the forms move under them.
     @test options_y() == [0]
     # An evaluation brings the end back into view, where the next key goes.

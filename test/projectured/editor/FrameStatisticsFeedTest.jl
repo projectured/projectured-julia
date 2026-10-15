@@ -374,8 +374,11 @@ function test_frame_statistics_feed()
                                        if t[3] == string(frame) && t[1] < 80)
         # The table is as wide as its columns: the wheel turns over its body.
         body_x = only(t[1] for t in _get_drawn_texts(io.output) if t[3] == "frame_time (ms)") + 8
+        # Each turn comes a second after the last, so no two make a fast run.
+        wheel_time = Ref(0.0)
         wheel(dy) = read_intent(projection, nothing,
-                                Intent(MouseScroll(0, dy, body_x, 300; time = 0.0), nothing), io).operation
+                                Intent(MouseScroll(0, dy, body_x, 300; time = (wheel_time[] += 1.0)),
+                                       nothing), io).operation
         @test y_of(999) > y_of(1000)
         step = y_of(999) - y_of(1000)
         # A turn near the head moves the rows by one turn of the wheel.
@@ -385,8 +388,9 @@ function test_frame_statistics_feed()
         @test turn > 0
         @test statistics.anchor == 1
         # Three hundred rows down, a turn moves the anchor to the row at the top,
-        # and every row moves by one turn as before.
-        getfield(statistics, :scroll_position)[] = Point2D(0, 300 * step)
+        # and every row moves by one turn as before. The turn ends one line, 16
+        # pixels, past three hundred rows.
+        getfield(statistics, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
         before = y_of(696; limit = 400)       # the row 305 from the head
         evaluate_operation(nothing, wheel(-1))
         @test statistics.anchor == 301

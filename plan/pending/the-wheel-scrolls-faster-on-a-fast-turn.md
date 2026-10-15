@@ -169,6 +169,26 @@ scroll pane. One caveat it did not check: a bar that stops being drawn during
 its show keeps the clock read until the bar computes again or is collected,
 as a progress ring does.
 
+## The sweep (2026-10-15)
+
+One process for each suite, with no network (`unshare -rn`), on the branch at
+`b2b08d031`. Each suite that failed ran again on the base of the branch,
+`cfe8a93f0`, in the same conditions.
+
+- Pass: kernel 4761, pivot 299, chart 377, sequence chart 290.
+- Platform: 153501 pass, 7 broken, 1 failure at `FileSystemDocumentTest.jl:42`,
+  which fails on the base too.
+- Data frames (55 failures, 4 errors) and web (5 failures, 2 errors): the
+  failing places are the same on the base, line by line.
+- Editor (`test_history_sweep`, `test_frame_statistics_feed`,
+  `test_evaluator_toplevel`, `test_referenced_document_editor`,
+  `test_application`): `ApplicationTest.jl` 1091, 1102, 1139 and 1487 fail on
+  the base too. Two tests were mine and now pass: the frame statistics test
+  started its far turn as the table tests did, and the forms of the evaluator
+  have a view of 92 pixels, so a notch moves them 68, the view less one line.
+- SDL: 955 pass, and 1 error in `TreeRenderTest.jl`, a known failure on `main`
+  since 2026-10-14 (`WidgetTree` has no field `size`).
+
 ## Decisions
 
 - The speed-up applies where a pane scrolls, and not where a notch steps a value
