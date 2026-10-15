@@ -7,7 +7,7 @@
 > circumstances. [...] If this needs new tasks, threads, etc. then we should
 > design it that way. Of course, race conditions, dead locks, live locks should
 > be avoided at all costs." The owner started the work on 2026-10-13. Later work:
-> [a-window-watches-its-open-files.md](../pending/a-window-watches-its-open-files.md)
+> [a-window-watches-its-open-files.md](a-window-watches-its-open-files.md)
 > (D15), the stores of the producers that are one for the process (D12 A), and
 > the `@async` tasks of omnet-julia (step 5).
 >

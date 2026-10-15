@@ -1,13 +1,11 @@
 # A window watches its open files
 
-Status: a proposal. Decided by the owner, 2026-10-15: D15 A of
-[the-editor-always-answers-the-person.md](../done/the-editor-always-answers-the-person.md),
-as a step of its own after that plan ("agreed A"). Nothing is built. D15a is
-decided too (A, 2026-10-15), so every decision is made. STARTED 2026-10-15 (the
-owner: "let's start, ask if design questions come up"), on the branch
-`window-watches-files` in the worktree `projectured-julia-watch`. D15e
-(2026-10-15) changes the design of steps 4 and 5: the watcher knows nothing of
-editing.
+Status: done, 2026-10-15. Decided by the owner, 2026-10-15: D15 A of
+[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md),
+as a step of its own after that plan ("agreed A"). D15a is decided too (A,
+2026-10-15). D15e (2026-10-15) gives the design of steps 4 and 5: the watcher
+knows nothing of editing. Every step is on main; the two open items of step 6
+are fixed on main too.
 
 **The owner, 2026-10-15, on the band:** "don't create synthetic event for the
 band, it should be just some document on the file document or something like
@@ -86,11 +84,15 @@ A save never writes over a newer file without the person knowing.
     repository): a change reaches the tab, a typed character is an edit, a change
     under it shows the band and keeps it, "Keep mine" takes the band away, and
     `Ctrl+S` writes the edit over the file.
-  - Open: the band does not fill the width of the tab, as D15a says; it ends
-    after its last button. `WidgetComposite` sizes its box from what its children
-    draw, so neither `width = Fill` on the band nor `child_width = Fill` on the
-    composite widens it. The band needs a widget that takes the width of its slot,
-    or that rule in the composite.
+  - Fixed: the band fills the width of the tab, as D15a says. The owner chose the
+    rule in the composite ("width = Fill would make sense and would not break
+    existing stuff then its fine"): a `WidgetComposite` whose context gives a
+    minimum width, as a `Fill` slot does, draws its box at least that wide. A
+    composite with no visible box draws nothing, so its size does not change. The
+    live check passes 7 of 7 with the full band. `test_platform()` in one process
+    has 75 failures and 43 errors in the agent and conversation tests; the six
+    functions of those files pass alone (271, 158, 100, 16, 82, 63), so the
+    failures come from the order of the tests in one process, not from the rule.
 
 ## 3.1 The design of the steps (2026-10-15, after D15b to D15d)
 
