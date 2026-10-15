@@ -84,7 +84,8 @@ sections(specs) = Sections(Any[specs...])
 function _make_template_child_context(context, doc::Document, first::ReferenceStep,
                                       rest::ReferenceStep...)
     relative = ConcreteReference(typeof(doc), first, Reference(rest...))
-    make_child_context(context, concat_references(context.reference, relative))
+    path = make_reference_cell(reference -> concat_references(reference, relative), context)
+    make_child_context(context, path)
 end
 _make_template_child_context(context, doc, steps::ReferenceStep...) =
     make_child_context(context, steps...)

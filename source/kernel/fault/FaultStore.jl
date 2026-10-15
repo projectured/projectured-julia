@@ -171,7 +171,7 @@ full and no key can make room. The overflow record counts that fault (see
 
 # Example
 
-    record_fault!(store, :print; origin = p.inner, reference = ctx.reference, exception,
+    record_fault!(store, :print; origin = p.inner, reference = peek(ctx.reference), exception,
                   traceback = catch_backtrace())
 
 See also [`FaultStore`](@ref) and [`drain_faults!`](@ref).

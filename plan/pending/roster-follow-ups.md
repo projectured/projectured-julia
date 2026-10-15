@@ -49,7 +49,7 @@ findings, which the owner asked to fix on 2026-10-15:
   not an issue"): the grid of a list keeps the print of a row by the row, and
   the table of a roster becomes a table of a list, so the grid of a list prints
   its rows. Three parts, one commit each:
-  - [ ] **2a. The path of a printer context is a cell.** A print keeps its
+  - [x] **2a. The path of a printer context is a cell.** A print keeps its
     printer context: the fault barrier keeps it for a retry, and the dispatch
     by path keeps it in the computation of its choice. The context holds the
     path of the input as a value, and a row of a list names its place by its
@@ -85,6 +85,28 @@ findings, which the owner asked to fix on 2026-10-15:
     - A child of a vector (`make_reconciled_child_iomaps_cell`) is kept by its
       object and its index, because its path held the index. With the path in
       a cell it can be kept by its object alone; that is not part of this plan.
+    - Done 2026-10-15. The field is `Union{ImmutableCell{Any}, Cell}`, so the
+      read has two cases. `make_reference_cell(f, ctx)` makes a cell of `f` of
+      the path: `make_child_context` uses it, the template (`ProjectionTemplate.jl`)
+      and the picks of an arrangement too. A new method
+      `make_child_context(ctx, cell)` gives a child the cell as its path.
+    - A read at the print, or in the origin of a fault, is `peek`, so the
+      computation that runs it does not depend on the path: the dispatch with a
+      fixed choice, the type of a place (`InsertionToSyntax`), the three reads
+      of the fault barrier, and the example in `FaultStore.jl` (the owner gave
+      the permission for that line; the file stays sealed). The choice of the
+      dispatch reads `ctx.reference[]` in its computation.
+    - The base of an arrangement is the cell, and a pick holds one cell of its
+      `source` and its `place`. Whether a place is below the arrangement is
+      read once, at the print, because a move does not take it out.
+    - omnet-julia has three copies of the path, as `ConversationToWidget.jl`
+      had (`SimulationBatchToWidget.jl`, `LegacySimulationResultToWidget.jl`,
+      `SimulationToWidget.jl`). They pass the cell to `make_child_context`,
+      which gives the same path, so they work with no change.
+    - Tests: `test_printer_context_range` (53), and the tests of the readers:
+      the template, the fault barrier, the type-in, the conversation, the
+      window shell and wrap, the clipboard, every arrangement test, every roster
+      test, and the insertion; all pass. The naming guard passes.
   - [ ] **2b. The grid of a list keeps the print of a row** (`GridList.jl`).
     - The grid keeps the print of each row by the row document itself, in an
       `IdDict` that keeps the row alive: the IO maps of its cells, the cells in

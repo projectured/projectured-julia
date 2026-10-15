@@ -21,9 +21,11 @@ The function-based form takes a `reference -> Projection` callable, enabling
 `reads_context = true` it takes `(reference, context) -> Projection`, so it can
 also read a property of the printer context.
 
-The choice is a computation. A function that reads a cell chooses again when the
-cell changes, and when it answers another projection, the position prints again
-through the same IO map. A function that reads no cell chooses once.
+The choice is a computation. It reads the path of the position from the printer
+context, so it chooses again when that path moves, as a row of a list does. A
+function that reads a cell chooses again when the cell changes, and when it
+answers another projection, the position prints again through the same IO map.
+A function that reads no cell, at a path that can not move, chooses once.
 
 `applies(context)`, when given, says whether the choice can change at a position.
 Where it answers `false`, the dispatch prints `default`, or the projection that
@@ -69,8 +71,8 @@ function _dispatch_proj(rdp::ReferenceDispatchingProjection, reference, ctx)
     return rdp.default
 end
 
-# The dispatch key is `ctx.reference`, the path to this position, and what the
-# function reads. `inner_iomap` is reconciled by the chosen projection: a new
+# The dispatch key is the path to this position, which the cell `ctx.reference`
+# gives, and what the function reads. `inner_iomap` is reconciled by the chosen projection: a new
 # choice prints the position again, and the same choice keeps the inner IO map.
 # The inner print runs in a computation that is only peeked, so what it reads as
 # it prints is no dependency of the choice. `output` forwards the output of the
@@ -85,7 +87,6 @@ struct ReferenceDispatchingIoMap <: IoMap
     projection::Any
     input::Any
     output::Any           # the cell of the output of the inner IO map
-    reference::Any        # the `reference` arg used at print time
     inner_iomap::Any      # the cell of the iomap of the chosen inner projection
 end
 
@@ -101,15 +102,15 @@ Base.propertynames(iomap::ReferenceDispatchingIoMap, private::Bool = false) =
 
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     if rdp.applies !== nothing && !rdp.applies(ctx)
-        fixed = rdp.default === nothing ? _dispatch_proj(rdp, ctx.reference, ctx) : rdp.default
+        fixed = rdp.default === nothing ? _dispatch_proj(rdp, peek(ctx.reference), ctx) : rdp.default
         return print_document(fixed, recursion, input, ctx)
     end
-    inner = make_reconciled_child_iomap_cell(() -> _dispatch_proj(rdp, ctx.reference, ctx),
+    inner = make_reconciled_child_iomap_cell(() -> _dispatch_proj(rdp, ctx.reference[], ctx),
         proj -> peek(Cell(@computation print_document(proj, recursion, input, ctx))))
     # The choice and the print happen now, as the rest of the pipeline assumes, and
     # the peek keeps the printer of this position from reading the choice.
     peek(inner)
-    ReferenceDispatchingIoMap(rdp, input, Cell(@computation inner[].output), ctx.reference, inner)
+    ReferenceDispatchingIoMap(rdp, input, Cell(@computation inner[].output), inner)
 end
 
 # The reader and the maps go to the projection of the inner IO map that stands.

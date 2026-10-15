@@ -30,10 +30,11 @@ struct ArrangingProjection <: Projection end
 end
 
 # What the dispatch reads of an arrangement in the printer context: the
-# arrangement, the path of its document, and the chain built for each entry.
+# arrangement, the cell of the path of its document, and the chain built for
+# each entry.
 struct _Arrangement
     arrangement::ArrangementDocument
-    base::Reference
+    base::Union{ImmutableCell{Any}, Cell}
     chains::IdDict{Any,Any}
 end
 
@@ -158,12 +159,12 @@ place already, the answer is `default`.
 function find_arranged_projection(reference, context, default; bar = nothing)
     arrangement = get_property(context, :arrangement, nothing)
     arrangement === nothing && return default
-    relative = _find_relative_reference(arrangement.base, reference)
+    relative = _find_relative_reference(arrangement.base[], reference)
     relative === nothing && return default
     picks = get_property(context, :arranged_picks, Any[])
     # A place that a stage above picked already is arranged, as a document that
     # two recursions print at one path, one inside the other, shows.
-    any(pick -> pick.source == relative && pick.rows[] !== nothing, picks) && return default
+    any(pick -> pick.paths[].source == relative && pick.rows[] !== nothing, picks) && return default
     relative = _find_source_reference(relative, picks)
     entries = arrangement.arrangement.entries
     entry = something(_find_entry_at(entries, relative, Reference), _find_entry_at(entries, relative, AbstractVector),
@@ -194,7 +195,9 @@ _is_entry_at(at::AbstractVector, relative) = match_reference_pattern(:at, at, re
 function _find_source_reference(relative, picks)
     for pick in Iterators.reverse(picks)
         rows = pick.rows[]
-        rows === nothing || (relative = _replace_picked_index(relative, pick.place, pick.source, rows))
+        rows === nothing && continue
+        paths = pick.paths[]
+        paths.place === nothing || (relative = _replace_picked_index(relative, paths.place, paths.source, rows))
     end
     relative
 end
@@ -277,18 +280,23 @@ function _make_chain_stage(stage, recursion, previous::Cell, ctx)
 end
 
 # `ctx` with the picks of the stages added to the picks of the places above it:
-# the path of this place below the arrangement, the path where its items print,
-# below the steps that a stage such as the bar puts above them
+# a cell of the path of this place below the arrangement and of the path where
+# its items print, below the steps that a stage such as the bar puts above them
 # (`get_arranged_wrap_steps`), and the index in the input of the stages for each
-# index of their output.
+# index of their output. The paths follow the path of the place, which moves
+# when the place is in a row of a list; a place stays below its arrangement, so
+# whether it is below is read once.
 function _with_picked_rows(ctx, stage_cells, stages)
     arrangement = get_property(ctx, :arrangement, nothing)
     arrangement === nothing && return ctx
-    source = _find_relative_reference(arrangement.base, ctx.reference)
-    source === nothing && return ctx
-    place = extend_reference(source, (step for stage in stages for step in get_arranged_wrap_steps(stage))...)
+    _find_relative_reference(peek(arrangement.base), peek(ctx.reference)) === nothing && return ctx
+    wrap = Any[step for stage in stages for step in get_arranged_wrap_steps(stage)]
+    paths = make_reference_cell(ctx) do reference
+        source = _find_relative_reference(arrangement.base[], reference)
+        (source = source, place = source === nothing ? nothing : extend_reference(source, wrap...))
+    end
     rows = Cell(@computation _compose_picked_rows(stage_cells))
-    picks = Any[get_property(ctx, :arranged_picks, Any[])..., (place = place, source = source, rows = rows)]
+    picks = Any[get_property(ctx, :arranged_picks, Any[])..., (paths = paths, rows = rows)]
     with_property(ctx, :arranged_picks, picks)
 end
 

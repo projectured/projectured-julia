@@ -12,18 +12,21 @@ Confirms:
 - `with_inner_size` keeps the state of each axis and reduces each extent, and
   `with_size_range` sets both ends of an axis;
 - `get_property` reads a property with a default, and `with_property` copies;
-- a child context of a document records the type of each node.
+- a child context of a document records the type of each node;
+- the path of a context is a cell: a fixed path is an `ImmutableCell`, and the
+  child of a path that can move follows it, as does a path derived from it.
 """
 
 using Test
 using ProjecturedKernel.ProjectionModule: PrinterContext, make_child_context, with_exact_size,
     with_bounded_size, get_exact_width, get_exact_height, with_free_axis, with_clock,
-    with_property, with_inner_size, with_size_range, get_property
-using ProjecturedKernel.CellModule: Cell
+    with_property, with_inner_size, with_size_range, get_property, make_reference_cell
+using ProjecturedKernel.CellModule: Cell, ImmutableCell, @computation
 using ProjecturedKernel.ClockModule: Clock
 using ProjecturedKernel.DocumentModule: @document
 using ProjecturedKernel.ReferenceModule: EmptyReference, FieldReferenceStep, Reference,
-    strip_reference_types, get_reference_node_type, is_fully_typed_reference
+    strip_reference_types, get_reference_node_type, is_fully_typed_reference,
+    ElementReferenceStep, extend_reference, get_reference_steps
 
 @document struct ContextProbeLeaf
     text::String
@@ -136,17 +139,43 @@ function test_printer_context_range()
         leaf = ContextProbeLeaf("text", nothing)
         ctx = with_bounded_size(PrinterContext(); width = Cell(250))
         child = make_child_context(ctx, leaf, FieldReferenceStep("text"))
-        @test strip_reference_types(child.reference) ==
+        @test strip_reference_types(child.reference[]) ==
               Reference(FieldReferenceStep("text"))
-        @test child.reference.type === get_reference_node_type(leaf)
-        @test is_fully_typed_reference(child.reference)
+        @test child.reference[].type === get_reference_node_type(leaf)
+        @test is_fully_typed_reference(child.reference[])
         @test child.maximum_width === ctx.maximum_width
         # The steps alone record no type.
         untyped = make_child_context(ctx, FieldReferenceStep("text"))
-        @test untyped.reference.type === nothing
+        @test untyped.reference[].type === nothing
         # A whole reference is the reference of the child as it is.
         reference = Reference(FieldReferenceStep("other"))
-        @test make_child_context(ctx, reference).reference === reference
+        @test make_child_context(ctx, reference).reference[] === reference
+    end
+
+    @testset "the path is a cell, and the child of a path that moves follows it" begin
+        # A fixed path, and the path of its child, are computed at once.
+        rows = make_child_context(PrinterContext(), FieldReferenceStep("rows"))
+        @test rows.reference isa ImmutableCell
+        @test rows.reference[] == Reference(FieldReferenceStep("rows"))
+        # A row of a list names its place by its count from the head, which moves.
+        count = Cell(3)
+        row = make_child_context(rows,
+            Cell(@computation extend_reference(rows.reference[], ElementReferenceStep(count[]))))
+        name = make_child_context(row, FieldReferenceStep("name"))
+        @test !(name.reference isa ImmutableCell)
+        seen = Cell(@computation name.reference[])
+        @test seen[] == Reference(FieldReferenceStep("rows"), ElementReferenceStep(3),
+                                  FieldReferenceStep("name"))
+        count[] = 2
+        @test seen[] == Reference(FieldReferenceStep("rows"), ElementReferenceStep(2),
+                                  FieldReferenceStep("name"))
+        # A path derived from the path of a context follows it, and is fixed
+        # where that path is fixed.
+        index = make_reference_cell(reference -> get_reference_steps(reference)[2], name)
+        @test index[] == ElementReferenceStep(2)
+        count[] = 5
+        @test index[] == ElementReferenceStep(5)
+        @test make_reference_cell(length ∘ get_reference_steps, rows) isa ImmutableCell
     end
 
 end

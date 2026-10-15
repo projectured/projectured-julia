@@ -229,10 +229,10 @@ function _take_print_fault!(barrier::FaultCatchingIoMap, exception, traceback)
     barrier.failed_computation = nothing
     barrier.fault = if exception isa RecordedCellFaultException
         make_fault_record(:print; origin = barrier.projection.inner,
-                          reference = barrier.context.reference,
+                          reference = peek(barrier.context.reference),
                           exception = exception.exception)
     else
-        _take_fault(barrier.store, barrier.projection.inner, barrier.context.reference,
+        _take_fault(barrier.store, barrier.projection.inner, peek(barrier.context.reference),
                     exception, traceback)
     end
     _show_mark!(barrier)
@@ -297,7 +297,7 @@ function record_cell_fault!(barrier::FaultCatchingIoMap, computation, exception;
         return _record_in_enclosing_scope!(barrier, computation, exception; traceback)
     barrier.is_noted && return true
     barrier.fault = _take_fault(barrier.store, _get_fault_origin(barrier),
-                              barrier.context.reference, exception, traceback)
+                              peek(barrier.context.reference), exception, traceback)
     barrier.failed_computation = computation
     _note_barrier!(barrier)
     true

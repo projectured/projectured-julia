@@ -181,7 +181,7 @@ end
 # commitability feedback updates per keystroke with no re-print.
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
-    place = ctx isa PrinterContext ? find_declared_place_type(ctx.reference) : nothing
+    place = ctx isa PrinterContext ? find_declared_place_type(peek(ctx.reference)) : nothing
     place === p.place ||
         return print_document(_with_insertion_place(p, place), recursion, ins, ctx)
     iomap_cell = Cell(nothing)

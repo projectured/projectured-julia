@@ -8,9 +8,12 @@
 
 Downward-flowing per-invocation context for `print_document`.
 
-- `reference` — `Reference` describing where the current input sits
-  relative to the document root. Tree depth is `length(reference)` — derive
-  it on demand rather than caching a redundant field.
+- `reference` — a cell of the `Reference` that says where the current input
+  sits relative to the document root; read it with `ctx.reference[]`. A fixed
+  path is an `ImmutableCell`. The path of a place that can move after the print,
+  such as a row of a list counted from its head, is a computation, so a print
+  that keeps its context reads the path that holds when it reads. Tree depth is
+  `length(ctx.reference[])`.
 - `minimum_width` / `maximum_width` and `minimum_height` / `maximum_height` —
   the range that the parent gives on each axis, as reactive cells. The
   maximum is the edge: the child does not draw past it, and the container
@@ -29,7 +32,8 @@ Downward-flowing per-invocation context for `print_document`.
 
 `PrinterContext(reference, width, height, properties[, clock])` makes a context
 whose range is exact on each axis where a cell is given, as the root of a
-window gives its size, and free where `nothing` is given.
+window gives its size, and free where `nothing` is given. A `Reference` given as
+the path becomes an `ImmutableCell`.
 
 `get_exact_width(ctx)` and `get_exact_height(ctx)` read the extent of an exact
 range, and `nothing` for a bounded or a free one.
@@ -44,11 +48,13 @@ properties that a parent sets for its subtree.
     context = PrinterContext(EmptyReference(), width, height, Dict{Symbol, Any}())
     iomap = print_document(projection, projection, document, context)
 
-See also `make_child_context`, which makes the context of a child, and
-`with_exact_size`, `with_bounded_size` and `with_property`, which change one part.
+See also `make_child_context`, which makes the context of a child,
+`make_reference_cell`, which makes a cell of a path that follows the path of a
+context, and `with_exact_size`, `with_bounded_size` and `with_property`, which
+change one part.
 """
 struct PrinterContext
-    reference::Reference
+    reference::Union{ImmutableCell{Any}, Cell}
     minimum_width::Union{Nothing, Cell}
     maximum_width::Union{Nothing, Cell}
     minimum_height::Union{Nothing, Cell}
@@ -56,6 +62,11 @@ struct PrinterContext
     properties::Dict{Symbol, Any}
     clock::Clock
 end
+
+PrinterContext(reference::Reference, minimum_width, maximum_width, minimum_height,
+               maximum_height, properties::Dict{Symbol, Any}, clock::Clock) =
+    PrinterContext(ImmutableCell{Any}(reference), minimum_width, maximum_width,
+                   minimum_height, maximum_height, properties, clock)
 
 PrinterContext(reference::Reference, width::Union{Nothing, Cell}, height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}, clock::Clock) =
@@ -103,9 +114,30 @@ _get_width_range(ctx::PrinterContext) = (ctx.minimum_width, ctx.maximum_width)
 _get_height_range(ctx::PrinterContext) = (ctx.minimum_height, ctx.maximum_height)
 
 """
+    make_reference_cell(f, ctx) -> Union{ImmutableCell{Any}, Cell}
+
+A cell of `f` of the path of `ctx`. When the path is fixed, `f` runs now and the
+cell is an `ImmutableCell`; when the path can move, the cell is a computation
+that reads it, so it follows the move.
+
+Use it where a print keeps a path that it derives from its own: the path of a
+child, or the place of the print below a base.
+
+# Example
+
+    below = make_reference_cell(ctx) do reference
+        extend_reference(reference, FieldReferenceStep("content"))
+    end
+"""
+make_reference_cell(f, ctx::PrinterContext) = _make_reference_cell(f, ctx.reference)
+
+_make_reference_cell(f, reference::ImmutableCell{Any}) = ImmutableCell{Any}(f(reference[]))
+_make_reference_cell(f, reference::Cell) = Cell(@computation f(reference[]))
+
+"""
     make_child_context(ctx, steps...) -> PrinterContext
 
-Return a context for a child position: extends `ctx.reference` by `steps`.
+Return a context for a child position: extends the path of `ctx` by `steps`.
 The ranges, the clock and the properties are inherited unchanged —
 pass-through wrappers keep the parent's range; a layout that gives its child a
 range of its own calls `with_exact_size`, `with_bounded_size` or
@@ -131,13 +163,13 @@ which gives the child a range of its own.
 """
 function make_child_context(ctx::PrinterContext, steps::ReferenceStep...)
     _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx);
-                 reference = extend_reference(ctx.reference, steps...))
+                 reference = make_reference_cell(reference -> extend_reference(reference, steps...), ctx))
 end
 
 """
     make_child_context(ctx, current_doc, steps...) -> PrinterContext
 
-Child context whose reference is `ctx.reference` extended by `steps`, kept
+Child context whose path is the path of `ctx` extended by `steps`, kept
 **fully typed**: the appended steps are annotated against `current_doc` (the
 document `ctx` currently points at, e.g. the `print_document` input) so every
 new node — and the terminal — records its type, then concatenated onto the
@@ -150,19 +182,34 @@ function make_child_context(ctx::PrinterContext, current_doc::Document,
                             first::ReferenceStep, rest::ReferenceStep...)
     relative = annotate_reference_types(current_doc, Reference(first, rest...))
     _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx);
-                 reference = concat_references(ctx.reference, relative))
+                 reference = make_reference_cell(reference -> concat_references(reference, relative), ctx))
 end
 
 """
     make_child_context(ctx, ref::Reference) -> PrinterContext
 
-Build a child context whose `reference` is the given path directly (rather
-than extending `ctx.reference`). Inherits the ranges, the clock and the
+Build a child context whose path is the given path directly (rather than
+extending the path of `ctx`). Inherits the ranges, the clock and the
 properties. Useful when the caller already constructed the full child path
 with `@reference`.
 """
 function make_child_context(ctx::PrinterContext, ref::Reference)
-    _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx); reference = ref)
+    _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx);
+                 reference = ImmutableCell{Any}(ref))
+end
+
+"""
+    make_child_context(ctx, reference::Union{ImmutableCell{Any}, Cell}) -> PrinterContext
+
+A child context whose path is the cell `reference`. Inherits the ranges, the
+clock and the properties.
+
+Use it where the place of a child can move after its print, such as a row of a
+list counted from its head: a computation gives the path that holds now. A cell
+from `make_reference_cell` gives a path that follows the path of a context.
+"""
+function make_child_context(ctx::PrinterContext, reference::Union{ImmutableCell{Any}, Cell})
+    _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx); reference)
 end
 
 # The keyword default of the size helpers: the axis keeps the range it has.

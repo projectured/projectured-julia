@@ -167,12 +167,12 @@ end
 
 function print_document(projection::ConversationConversationToWidgetComposite,
                           recursion, c::ConversationConversation, ctx)
-    rec, ref = recursion, ctx.reference
+    rec = recursion
     # Cache the child turn iomaps (recomputed only when the turn list changes),
     # so the produced cards keep a stable identity that the toggle reader can
     # match against. The layout reads each iomap's `.output`.
     ioms = Cell(@computation(Any[
-        print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
+        print_document(rec, rec, c.turns[i], ctx)
         for i in eachindex(c.turns)
     ]))
     # Every turn fills the width it is given and grows with what it holds.
@@ -188,9 +188,9 @@ end
 
 function print_document(projection::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
-    rec, ref = recursion, ctx.reference
+    rec = recursion
     ioms = Cell(@computation(Any[
-        print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
+        print_document(rec, rec, t.parts[i], ctx)
         for i in eachindex(t.parts)
     ]))
     # And so does every part inside a turn.
