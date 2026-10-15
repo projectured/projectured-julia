@@ -8,8 +8,8 @@
 # ── One event ────────────────────────────────────────────────────────────────
 
 # The events of the work of an agent, of its session or of a subagent.
-const _AgentWorkUpdate = Union{AgentSubagentUpdate,AgentBackgroundTaskUpdate,AgentNoticeUpdate,
-                               AgentCompactionUpdate}
+const _AgentWorkUpdate = Union{AgentSubagentUpdate,AgentBackgroundTaskUpdate,
+                               AgentNoticeUpdate,AgentCompactionUpdate}
 
 """
     apply_agent_event!(editor, assistant, event)
@@ -33,7 +33,8 @@ order in which the events came ([`AgentEventFeed`](@ref)).
 
 # Example
 
-    apply_agent_event!(editor, assistant, AgentNoticeUpdate(:warning, "The model is busy", ""))
+    apply_agent_event!(editor, assistant,
+                       AgentNoticeUpdate(:warning, "The model is busy", ""))
 """
 function apply_agent_event!(editor, a::Assistant, event)
     session = a.agent_session
@@ -43,18 +44,22 @@ function apply_agent_event!(editor, a::Assistant, event)
         a.agent_usage = event
         # The usage that the agent reports between two prompts ends the turn that
         # it started by itself.
-        session isa ExternalAgentSession && session.prompt_turn === nothing && _end_agent_turn!(a, session)
+        session isa ExternalAgentSession && session.prompt_turn === nothing &&
+            _end_agent_turn!(a, session)
     elseif event isa AgentCommandsUpdate
         a.agent_commands = event.commands
     elseif event isa AgentSessionInfoUpdate
         event.title === nothing || (a.agent_title = event.title)
-        event.process_id === nothing || _set_agent_work_process!(a.agent_work, event.process_id)
+        event.process_id === nothing ||
+            _set_agent_work_process!(a.agent_work, event.process_id)
     elseif event isa _AgentWorkUpdate
         _apply_agent_work_update!(editor, a, a.agent_work, event)
     else
-        state = session isa ExternalAgentSession ? _find_session_turn!(a, session, event) : nothing
+        state = session isa ExternalAgentSession ?
+                _find_session_turn!(a, session, event) : nothing
         state === nothing ||
-            _handle_external_agent_event!(event, a, state[:turn], state, _find_editor_tool_set(editor))
+            _handle_external_agent_event!(event, a, state[:turn], state,
+                                          _find_editor_tool_set(editor))
         event isa AgentPlanUpdate && _apply_work_plan_update!(a.agent_work, event)
     end
     nothing
@@ -93,15 +98,15 @@ end
 
 # The turn of `state` ends: its open blocks close, and it gets its stop reason and
 # the time of its end. An empty turn leaves `conversation`.
-function _end_agent_turn_state!(a::Assistant, conversation::ConversationConversation, state,
-                                stop_reason::Symbol)
+function _end_agent_turn_state!(a::Assistant, conversation::ConversationConversation,
+                                state, stop_reason::Symbol)
     _close_agent_blocks!(a, state)
     _finish_turn!(conversation, state[:turn], stop_reason)
 end
 
 function _cancel_agent_questions!(state)
-    foreach(request -> answer_permission_request!(request, nothing), state[:permission_requests])
-    foreach(request -> answer_question_request!(request, nothing), state[:question_requests])
+    foreach(_cancel_agent_request!, state[:permission_requests])
+    foreach(_cancel_agent_request!, state[:question_requests])
     nothing
 end
 
@@ -111,7 +116,8 @@ function _end_agent_turn!(a::Assistant, session::ExternalAgentSession)
     state = session.agent_turn
     state === nothing && return nothing
     session.agent_turn = nothing
-    append!(session.waiting_requests, state[:permission_requests], state[:question_requests])
+    append!(session.waiting_requests, state[:permission_requests],
+            state[:question_requests])
     _end_agent_turn_state!(a, a.conversation, state, :end_turn)
 end
 
@@ -121,13 +127,16 @@ end
 function _make_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSession)
     queue = AgentEventQueue()
     session.events = queue
-    run_on_editor_task!(() -> _register_agent_event_queue!(editor, a, session, queue), editor)
+    run_on_editor_task!(editor) do
+        _register_agent_event_queue!(editor, a, session, queue)
+    end
     queue
 end
 
 # The work of the session `session_id`: the work that the assistant has when it is
 # the work of that session, as after a resume, else an empty one.
-function _start_agent_work!(a::Assistant, session::ExternalAgentSession, session_id::AbstractString)
+function _start_agent_work!(a::Assistant, session::ExternalAgentSession,
+                            session_id::AbstractString)
     a.agent_work.id == session_id && return nothing
     empty!(session.subagent_turns)
     a.agent_work = AgentWork(session_id)
@@ -138,8 +147,8 @@ end
 # before it apply first, a turn that the agent started by itself ends, and the
 # turn of the prompt joins the conversation. The questions of the agent between
 # two prompts that still wait end with this prompt.
-function _start_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession, state,
-                                   queue::AgentEventQueue)
+function _start_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession,
+                                   state, queue::AgentEventQueue)
     _drain_agent_event_queue!(editor, a, queue)
     _end_agent_turn!(a, session)
     foreach(request -> _hold_agent_request!(state, request), session.waiting_requests)
@@ -151,7 +160,8 @@ end
 
 # The prompt ends: its events that wait apply, and a question that the person did
 # not answer is cancelled. The events after it begin a turn of their own.
-function _end_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession, state, queue)
+function _end_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession,
+                                 state, queue)
     _drain_agent_event_queue!(editor, a, queue)
     _cancel_agent_questions!(state)
     if session.prompt_turn === state
@@ -167,7 +177,8 @@ end
 # test, applies the queue at once, on this task.
 function _post_agent_event!(editor, a::Assistant, queue::AgentEventQueue, event)
     put_agent_event!(queue, event)
-    if editor isa Editor && editor.loop_task !== nothing && editor.loop_task !== current_task()
+    task = editor isa Editor ? editor.loop_task : nothing
+    if task !== nothing && task !== current_task()
         wake_editor!(editor)
     else
         _drain_agent_event_queue!(editor, a, queue)
@@ -187,8 +198,10 @@ function _drain_agent_event_queue!(editor, a::Assistant, queue)
         catch exception
             is_fault_exception(exception) || rethrow()
             traceback = catch_backtrace()
-            record_fault!(get_fault_store(editor), :evaluate; origin = :Assistant, exception, traceback)
-            @error "An event of the agent did not apply." exception = (exception, traceback)
+            record_fault!(get_fault_store(editor), :evaluate; origin = :Assistant,
+                          exception, traceback)
+            @error("An event of the agent did not apply.",
+                   exception = (exception, traceback))
         end
     end
     length(events)
@@ -204,33 +217,38 @@ function _apply_agent_work_update!(editor, a::Assistant, work::AgentWork, event)
     elseif event isa AgentNoticeUpdate
         _add_agent_notice!(work, event.severity, event.title, event.description)
     elseif event isa AgentCompactionUpdate
-        severity, title = get(_COMPACTION_NOTICES, event.status, (:info, "The context was compacted"))
+        severity, title = get(_COMPACTION_NOTICES, event.status,
+                              (:info, "The context was compacted"))
         _add_agent_notice!(work, severity, title, something(event.summary, ""))
     end
     nothing
 end
 
 # The notice of a compaction of the context, by its status.
-const _COMPACTION_NOTICES = Dict(:in_progress => (:info, "The context is being compacted"),
-                                 :completed => (:info, "The context was compacted"),
-                                 :failed => (:warning, "The compaction of the context failed"),
-                                 :cancelled => (:info, "The compaction of the context was cancelled"))
+const _COMPACTION_NOTICES = Dict(
+    :in_progress => (:info, "The context is being compacted"),
+    :completed => (:info, "The context was compacted"),
+    :failed => (:warning, "The compaction of the context failed"),
+    :cancelled => (:info, "The compaction of the context was cancelled"))
 
 # The subagent of an update under `parent`, found by its id or added, with the
 # fields that the update gives, and the event of the update applied to it. A
 # subagent that becomes idle ends its turn.
-function _apply_subagent_update!(editor, a::Assistant, parent::AgentWork, update::AgentSubagentUpdate)
+function _apply_subagent_update!(editor, a::Assistant, parent::AgentWork,
+                                 update::AgentSubagentUpdate)
     child = _find_subagent(parent, update.id)
     if child === nothing
         child = AgentWork(update.id)
         push!(parent.subagents, child)
     end
-    for (name, value) in (:title => update.title, :description => update.description, :state => update.state,
-                          :stop_reason => update.stop_reason, :token_count => update.token_count,
-                          :tool_call_count => update.tool_call_count, :duration => update.duration,
-                          :last_tool => update.last_tool, :summary => update.summary,
-                          :can_cancel => update.can_cancel)
-        value === nothing || isequal(getproperty(child, name), value) || setproperty!(child, name, value)
+    for (name, value) in (:title => update.title, :description => update.description,
+                          :state => update.state, :stop_reason => update.stop_reason,
+                          :token_count => update.token_count,
+                          :tool_call_count => update.tool_call_count,
+                          :duration => update.duration, :last_tool => update.last_tool,
+                          :summary => update.summary, :can_cancel => update.can_cancel)
+        value === nothing || isequal(getproperty(child, name), value) ||
+            setproperty!(child, name, value)
     end
     update.event === nothing || _apply_subagent_event!(editor, a, child, update.event)
     update.state === :idle && _end_subagent_turn!(a, child)
@@ -254,10 +272,12 @@ function _apply_subagent_event!(editor, a::Assistant, child::AgentWork, event)
         event.role === :user && _add_subagent_prompt!(a, child, event)
     elseif event isa Union{AgentPermissionRequest,AgentQuestionRequest}
         _add_subagent_request!(a, child, event)
-    elseif !(event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentCommandsUpdate,AgentSessionInfoUpdate})
+    elseif !(event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentCommandsUpdate,
+                             AgentSessionInfoUpdate})
         state = _find_subagent_turn!(a, child, event)
         state === nothing ||
-            _handle_external_agent_event!(event, a, state[:turn], state, _find_editor_tool_set(editor))
+            _handle_external_agent_event!(event, a, state[:turn], state,
+                                          _find_editor_tool_set(editor))
         event isa AgentPlanUpdate && _apply_work_plan_update!(child, event)
     end
     nothing
@@ -283,7 +303,8 @@ function _end_subagent_turn!(a::Assistant, child::AgentWork)
     state = pop!(session.subagent_turns, child, nothing)
     state === nothing && return nothing
     _cancel_agent_questions!(state)
-    _end_agent_turn_state!(a, child.conversation, state, something(child.stop_reason, :end_turn))
+    _end_agent_turn_state!(a, child.conversation, state,
+                           something(child.stop_reason, :end_turn))
 end
 
 # A question of a subagent for the person shows in two places that hold the one
@@ -300,7 +321,8 @@ function _add_subagent_request!(a::Assistant, child::AgentWork,
         _add_agent_request!(state, request)
     end
     session = a.agent_session
-    shown = session isa ExternalAgentSession ? _find_session_turn!(a, session, event) : nothing
+    shown = session isa ExternalAgentSession ? _find_session_turn!(a, session, event) :
+            nothing
     if shown !== nothing
         _close_agent_blocks!(a, shown)
         push!(shown[:turn].parts, Cell(ConversationPart(request)))
@@ -312,20 +334,24 @@ end
 # turn of the subagent before it.
 function _add_subagent_prompt!(a::Assistant, child::AgentWork, message::LlmMessage)
     _end_subagent_turn!(a, child)
-    parts = Any[ConversationPart(content.text) for content in message.content if content isa LlmText]
+    parts = Any[ConversationPart(content.text) for content in message.content
+                if content isa LlmText]
     isempty(parts) || push!(child.conversation.turns, _make_instant_turn(:user, parts))
     nothing
 end
 
 # The result code of a background task that ended, by its status.
-const _BACKGROUND_TASK_CODES = Dict(:completed => "DONE", :failed => "ERROR", :stopped => "CANCEL")
+const _BACKGROUND_TASK_CODES =
+    Dict(:completed => "DONE", :failed => "ERROR", :stopped => "CANCEL")
 
 # The task of an update in the work, found by its task id or added as a
 # `TaskDocument`, with the fields that the update gives.
-function _apply_background_task_update!(a::Assistant, work::AgentWork, update::AgentBackgroundTaskUpdate)
+function _apply_background_task_update!(a::Assistant, work::AgentWork,
+                                        update::AgentBackgroundTaskUpdate)
     document = _find_background_task_document(work, update.id)
     if document === nothing
-        blank = AgentBackgroundTask(a.agent_work.id, update.id, :other, "", "", "", "", "", false)
+        blank = AgentBackgroundTask(a.agent_work.id, update.id, :other, "", "", "", "",
+                                    "", false)
         task = _merge_background_task(blank, update)
         document = TaskDocument(task)
         push!(work.background_tasks, document)
@@ -345,12 +371,15 @@ end
 
 # The task with what an update gives. A field that the update leaves out keeps its
 # value, and a task that ended can not be stopped.
-function _merge_background_task(task::AgentBackgroundTask, update::AgentBackgroundTaskUpdate)
+function _merge_background_task(task::AgentBackgroundTask,
+                                update::AgentBackgroundTaskUpdate)
     is_ended = update.status !== nothing && haskey(_BACKGROUND_TASK_CODES, update.status)
     AgentBackgroundTask(task.session_id, task.task_id, something(update.kind, task.kind),
-                        something(update.title, task.title), something(update.tool_call_id, task.tool_call_id),
+                        something(update.title, task.title),
+                        something(update.tool_call_id, task.tool_call_id),
                         something(update.subagent_id, task.subagent_id),
-                        something(update.output_uri, task.output_uri), something(update.summary, task.summary),
+                        something(update.output_uri, task.output_uri),
+                        something(update.summary, task.summary),
                         !is_ended && something(update.can_stop, task.can_stop))
 end
 
@@ -358,24 +387,31 @@ end
 # execution that has no process, and a status that ends the task ends it, with the
 # times that the agent gives. The feed of the tasks syncs the shadow of the
 # execution, as for any execution.
-function _follow_background_task_status!(document::TaskDocument, task::AgentBackgroundTask,
+function _follow_background_task_status!(document::TaskDocument,
+                                         task::AgentBackgroundTask,
                                          update::AgentBackgroundTaskUpdate)
     update.status === nothing && return nothing
     execution = document.running
     if execution === nothing
         execution = TaskExecution(task)
         started = something(update.start_time, time())
-        update_task_execution!(e -> (e.status = :running; e.start_time = started), execution)
+        update_task_execution!(execution) do e
+            e.status = :running
+            e.start_time = started
+        end
         shadow = make_task_execution_shadow(execution)
         add_task_execution!(document, execution, shadow)
-        register_task_execution!(get_session_task_feed_store(), execution, document; shadow)
+        register_task_execution!(get_session_task_feed_store(), execution, document;
+                                 shadow)
     end
     code = get(_BACKGROUND_TASK_CODES, update.status, nothing)
     (code === nothing || execution.result !== nothing) && return nothing
     ended = something(update.end_time, time())
     elapsed = ended - something(execution.start_time, ended)
-    finish_task_execution!(execution, AgentBackgroundTaskResult(task, code, "DONE", nothing, elapsed))
-    update.end_time === nothing || update_task_execution!(e -> (e.end_time = ended), execution)
+    result = AgentBackgroundTaskResult(task, code, "DONE", nothing, elapsed)
+    finish_task_execution!(execution, result)
+    update.end_time === nothing ||
+        update_task_execution!(e -> (e.end_time = ended), execution)
     nothing
 end
 
@@ -405,8 +441,9 @@ function _apply_work_plan_update!(work::AgentWork, update::AgentPlanUpdate)
     end
     steps = _build_work_plan_steps(plan, update.entries)
     current = collect(plan.steps)
-    (length(current) == length(steps) && all(k -> current[k] === steps[k], eachindex(steps))) ||
-        set_work_plan_steps!(plan, steps)
+    is_same = length(current) == length(steps) &&
+              all(k -> current[k] === steps[k], eachindex(steps))
+    is_same || set_work_plan_steps!(plan, steps)
     text = something(update.markdown, "")
     plan.text == text || (plan.text = text)
     uri = something(update.uri, "")
@@ -427,17 +464,70 @@ function _build_work_plan_steps(plan::WorkPlan, entries)
         step = get(known, id, nothing)
         if step === nothing
             step = WorkPlanStep(id, entry.content; active_title = entry.active_title,
-                                description = entry.description, status, priority, blocked_by = entry.blocked_by)
+                                description = entry.description, status, priority,
+                                blocked_by = entry.blocked_by)
         else
-            for (name, value) in (:title => entry.content, :active_title => entry.active_title,
-                                  :description => entry.description, :status => status, :priority => priority)
+            for (name, value) in (:title => entry.content,
+                                  :active_title => entry.active_title,
+                                  :description => entry.description, :status => status,
+                                  :priority => priority)
                 isequal(getproperty(step, name), value) || setproperty!(step, name, value)
             end
-            collect(step.blocked_by) == entry.blocked_by || (step.blocked_by = copy(entry.blocked_by))
+            collect(step.blocked_by) == entry.blocked_by ||
+                (step.blocked_by = copy(entry.blocked_by))
         end
         push!(steps, step)
     end
     steps
+end
+
+# ── The end of the work ──────────────────────────────────────────────────────
+
+# The connection of the session ended: the agent stopped, its connection failed
+# or stopped, the agent starts again, or the assistant was reset. The agent may
+# send nothing more, as when its process died, so the work that ran ends here: a
+# turn that the agent started by itself ends, a question that waits is
+# cancelled, and the work of the assistant ends (`_end_running_agent_work!`).
+function _end_agent_work!(a::Assistant, session::ExternalAgentSession)
+    _end_agent_turn!(a, session)
+    foreach(_cancel_agent_request!, session.waiting_requests)
+    empty!(session.waiting_requests)
+    _end_running_agent_work!(a, a.agent_work)
+    empty!(session.subagent_turns)
+    nothing
+end
+
+# A question that waits is answered as cancelled.
+_cancel_agent_request!(request::ConversationPermissionRequest) =
+    answer_permission_request!(request, nothing)
+_cancel_agent_request!(request::ConversationQuestionRequest) =
+    answer_question_request!(request, nothing)
+
+# Each background task of the work that runs ends as CANCEL, "The agent ended.",
+# and each subagent that runs becomes idle with the stop reason `:cancelled`, its
+# turn ends and its questions are cancelled; at every depth.
+function _end_running_agent_work!(a::Assistant, work::AgentWork)
+    for document in collect(work.background_tasks)
+        execution = document.running
+        (execution === nothing || execution.result !== nothing) && continue
+        stop = AgentBackgroundTaskUpdate(document.task.task_id; can_stop = false)
+        task = _merge_background_task(document.task, stop)
+        isequal(task, document.task) || (document.task = task)
+        ended = time()
+        elapsed = ended - something(execution.start_time, ended)
+        result = AgentBackgroundTaskResult(task, "CANCEL", "DONE", "The agent ended.",
+                                           elapsed)
+        finish_task_execution!(execution, result)
+    end
+    for child in collect(work.subagents)
+        if child.state in (:running, :requires_action)
+            child.state = :idle
+            child.stop_reason = :cancelled
+        end
+        _end_subagent_turn!(a, child)
+        _end_running_agent_work!(a, child)
+    end
+    nothing
 end
 
 # ── The feed ─────────────────────────────────────────────────────────────────
@@ -495,7 +585,8 @@ end
 # Whether the queue of `source` is still the queue of an open session of its
 # assistant.
 _is_agent_event_source_open(source) =
-    source.session.events === source.queue && source.assistant.agent_session === source.session
+    source.session.events === source.queue &&
+    source.assistant.agent_session === source.session
 
 function drain_changes!(feed::AgentEventFeed, editor)
     now = time()
@@ -515,10 +606,15 @@ function compute_wake_deadline(feed::AgentEventFeed, editor)
     now = time()
     deadline = nothing
     for source in feed.sources
+        # A session that closed wakes nothing; its source leaves at the next drain.
+        _is_agent_event_source_open(source) || continue
         work = source.assistant.agent_work
-        (_count_running_subagents(work) > 0 || _count_running_background_tasks(work) > 0 ||
-         now - source.session.prompt_end_time < _AGENT_EVENT_LINGER) && return _AGENT_EVENT_INTERVAL
-        deadline = _get_earlier_deadline(deadline, _compute_agent_work_process_deadline(work, now))
+        is_awake = _count_running_subagents(work) > 0 ||
+                   _count_running_background_tasks(work) > 0 ||
+                   now - source.session.prompt_end_time < _AGENT_EVENT_LINGER
+        is_awake && return _AGENT_EVENT_INTERVAL
+        deadline = _get_earlier_deadline(deadline,
+                                         _compute_agent_work_process_deadline(work, now))
     end
     deadline
 end
@@ -528,16 +624,21 @@ end
 function _drain_agent_work_processes!(work::AgentWork, now)
     tree = work.processes
     count = tree === nothing ? 0 : drain_system_process_tree!(tree; now)
-    count + sum((_drain_agent_work_processes!(child, now) for child in collect(work.subagents)); init = 0)
+    for child in collect(work.subagents)
+        count += _drain_agent_work_processes!(child, now)
+    end
+    count
 end
 
 # The seconds until the next sample of a tree of the processes of the work that a
 # view reads, or `nothing`.
 function _compute_agent_work_process_deadline(work::AgentWork, now)
     tree = work.processes
-    deadline = tree === nothing ? nothing : compute_system_process_tree_deadline(tree; now)
+    deadline = tree === nothing ? nothing :
+               compute_system_process_tree_deadline(tree; now)
     for child in collect(work.subagents)
-        deadline = _get_earlier_deadline(deadline, _compute_agent_work_process_deadline(child, now))
+        deadline = _get_earlier_deadline(deadline,
+                                         _compute_agent_work_process_deadline(child, now))
     end
     deadline
 end

@@ -72,8 +72,8 @@ import ..OperationModule: evaluate_operation
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
-import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns, format_task_column,
-                     format_task_details, get_task_actions
+import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
+                     format_task_column, format_task_details, get_task_actions
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,

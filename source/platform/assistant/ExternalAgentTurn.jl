@@ -70,7 +70,8 @@ end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
-                         ReentrantLock(), nothing, nothing, nothing, Any[], IdDict{Any,Any}(), -Inf)
+                         ReentrantLock(), nothing, nothing, nothing, Any[],
+                         IdDict{Any,Any}(), -Inf)
 
 is_walk_opaque(::ExternalAgentSession) = true
 
@@ -125,6 +126,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
     end
     is_open = false
+    is_closed = false
     queue = nothing
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
@@ -142,10 +144,14 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             session.sent_turn_count = turn_count
             return nothing
         end
-        queue = session.events === nothing ? _make_agent_event_queue!(editor, a, session) : session.events
-        run_on_editor_task!(() -> _start_agent_prompt_turn!(editor, a, session, state, queue), editor)
-        reason = Base.invokelatest(send_agent_prompt!, session.connection, session.session_id, prompt;
-                                   on_event = event -> _post_agent_event!(editor, a, queue, event))
+        queue = session.events
+        queue === nothing && (queue = _make_agent_event_queue!(editor, a, session))
+        run_on_editor_task!(editor) do
+            _start_agent_prompt_turn!(editor, a, session, state, queue)
+        end
+        post = event -> _post_agent_event!(editor, a, queue, event)
+        reason = Base.invokelatest(send_agent_prompt!, session.connection,
+                                   session.session_id, prompt; on_event = post)
         session.sent_turn_count = max(turn_count, session.steered_turn_count)
         session.has_answered = true
         run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
@@ -162,14 +168,19 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             _remove_empty_turn!(a, turn)
         end
         _close_external_agent_session!(session)
+        is_closed = true
         rethrow()
     finally
         # A cancel holds for the turn that it stopped, and the next turn starts
         # with none.
         session.is_cancelled = false
         # The events of the prompt that wait apply first, and a question that the
-        # person did not answer before the end is cancelled.
-        run_on_editor_task!(() -> _end_agent_prompt_turn!(editor, a, session, state, queue), editor; wait = false)
+        # person did not answer before the end is cancelled. A connection that
+        # ended ends the work that ran in it.
+        run_on_editor_task!(editor; wait = false) do
+            _end_agent_prompt_turn!(editor, a, session, state, queue)
+            is_closed && _end_agent_work!(a, session)
+        end
     end
     run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
     nothing
@@ -248,9 +259,12 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             session_id = Base.invokelatest(open_agent_session!, session.connection;
                 directory = session.directory, mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
                 session_id = is_resumable ? kept_id : "",
-                on_event = event -> _post_agent_options!(editor, a, event), events = queue)
+                on_event = event -> _post_agent_options!(editor, a, event),
+                events = queue)
             session.session_id = session_id
-            run_on_editor_task!(() -> _start_agent_work!(a, session, session_id), editor; wait = false)
+            run_on_editor_task!(editor; wait = false) do
+                _start_agent_work!(a, session, session_id)
+            end
             session.is_resumed = is_resumable && session_id == kept_id
             if session.is_resumed
                 session.sent_turn_count = kept_count
@@ -320,8 +334,11 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
         _start_external_agent_session!(editor, a, _make_external_agent_session!(editor, a))
     catch exception
         # The task reads the assistant through the door, as a turn does.
-        started = run_on_editor_task!(() -> a.agent_session, editor)
-        started isa ExternalAgentSession && _close_external_agent_session!(started)
+        failed = run_on_editor_task!(() -> a.agent_session, editor)
+        if failed isa ExternalAgentSession
+            _close_external_agent_session!(failed)
+            run_on_editor_task!(() -> _end_agent_work!(a, failed), editor; wait = false)
+        end
         if exception isa AgentSignInException
             run_on_editor_task!(() -> _add_agent_sign_in_request!(a, exception), editor; wait = false)
         else
@@ -520,12 +537,14 @@ end
 
 Stop the external agent of `assistant` and its MCP server. The assistant keeps
 the id, the folder and the title of the session, so the next turn starts the
-agent again and resumes that session. It does nothing for an assistant with no
-agent.
+agent again and resumes that session. The work that ran in the session ends: a
+background task as cancelled, a subagent as idle, and a question as cancelled.
+It does nothing for an assistant with no agent. Call it on the editor task.
 """
 function stop_external_agent!(a::Assistant)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
+    _end_agent_work!(a, session)
     a.agent_session = nothing
     session.events = nothing
     a.agent_options = AgentOption[]
@@ -576,15 +595,21 @@ end
 # and thinking blocks, the form of each tool call, the part of each plan, and the
 # questions for the person that the end of the turn cancels when nobody answered.
 _make_agent_turn_state(turn::ConversationTurn) =
-    Dict{Symbol,Any}(:turn => turn, :current_block => nothing, :current_thinking => nothing,
-                     :tool_forms => Dict{String,EvaluatorForm}(), :plan_parts => Dict{String,ConversationPart}(),
+    Dict{Symbol,Any}(:turn => turn, :current_block => nothing,
+                     :current_thinking => nothing,
+                     :tool_forms => Dict{String,EvaluatorForm}(),
+                     :plan_parts => Dict{String,ConversationPart}(),
                      :permission_requests => ConversationPermissionRequest[],
-                     :question_requests => ConversationQuestionRequest[], :live_results => Set{String}())
+                     :question_requests => ConversationQuestionRequest[],
+                     :live_results => Set{String}())
 
 # The open text and thinking blocks of the turn of `state` close.
 function _close_agent_blocks!(a::Assistant, state)
-    state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, state[:turn], state, nothing)
-    state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, state[:turn], state, nothing)
+    turn = state[:turn]
+    state[:current_block] === nothing ||
+        _handle_agent_event!(LlmTextStop(), a, turn, state, nothing)
+    state[:current_thinking] === nothing ||
+        _handle_agent_event!(LlmThinkingStop(), a, turn, state, nothing)
     nothing
 end
 
@@ -594,7 +619,8 @@ end
 # stop of a text block reads the text part again in place of the last part, so a
 # part of another kind closes the open blocks before it comes, and text after it
 # opens a new block.
-function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTurn, state, tools)
+function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTurn, state,
+                                       tools)
     if event isa LlmTextDelta && state[:current_block] === nothing
         _handle_agent_event!(LlmTextStart(), a, turn, state, nothing)
     elseif event isa LlmThinkingDelta && state[:current_thinking] === nothing
@@ -616,11 +642,15 @@ end
 
 # The card of a question of `asker` for the person, which waits for the answer: a
 # permission to run a tool, or a form. Its reply goes to the agent.
-function _make_agent_request(event::Union{AgentPermissionRequest,AgentQuestionRequest}, asker::AbstractString)
+function _make_agent_request(event::Union{AgentPermissionRequest,AgentQuestionRequest},
+                             asker::AbstractString)
     event isa AgentQuestionRequest &&
-        return ConversationQuestionRequest(event.message, event.fields; reply = event.reply)
-    title = _remove_agent_tool_prefix(something(event.tool_call.title, event.tool_call.name, "a tool"))
-    ConversationPermissionRequest(asker * " asks to run: " * title, event.options; reply = event.reply)
+        return ConversationQuestionRequest(event.message, event.fields;
+                                           reply = event.reply)
+    call = event.tool_call
+    title = _remove_agent_tool_prefix(something(call.title, call.name, "a tool"))
+    ConversationPermissionRequest(asker * " asks to run: " * title, event.options;
+                                  reply = event.reply)
 end
 
 # A card joins the turn of `state`, whose end cancels it when nobody answered.
@@ -632,8 +662,8 @@ end
 
 # The end of the turn of `state` cancels `request` when nobody answered it.
 _hold_agent_request!(state, request) =
-    push!(request isa ConversationPermissionRequest ? state[:permission_requests] : state[:question_requests],
-          request)
+    push!(request isa ConversationPermissionRequest ? state[:permission_requests] :
+          state[:question_requests], request)
 
 # Whether `event` puts a part of another kind than text into the turn: a new tool
 # call, a plan that shows, or a question.
@@ -644,7 +674,8 @@ _puts_agent_part(event, state) =
 
 # A tool call becomes a form at its first event, and each update fills it: the
 # input, the text that the tool answered, and a failure.
-function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentToolCallUpdate, tools)
+function _apply_tool_call_update!(turn::ConversationTurn, state,
+                                  update::AgentToolCallUpdate, tools)
     forms = state[:tool_forms]
     form = get(forms, update.id, nothing)
     if form === nothing
@@ -653,7 +684,8 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         output = something(update.output, "")
         form = EvaluatorForm(_eval_form_doc(LlmToolUse(update.id, name, input));
                              source = name == "execute_julia_code" ? string(get(input, "code", "")) : "",
-                             result = _make_agent_tool_result(state, tools, update.id, name, output,
+                             result = _make_agent_tool_result(state, tools, update.id,
+                                                              name, output,
                                                               update.status === :failed;
                                                               mime_type = update.output_mime_type,
                                                               uri = update.output_uri),
@@ -685,7 +717,8 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         form.output = update.output
         # A live result stays when a later update repeats the output.
         update.id in state[:live_results] ||
-            (form.result = _make_agent_tool_result(state, tools, update.id, form.tool_name, update.output,
+            (form.result = _make_agent_tool_result(state, tools, update.id,
+                                                   form.tool_name, update.output,
                                                    update.status === :failed || form.is_error;
                                                    mime_type = update.output_mime_type,
                                                    uri = update.output_uri))
@@ -703,7 +736,8 @@ end
 # text, from the media type that the tool declares: a Markdown page for a
 # documentation tool. Another tool, and an error, keep their text.
 function _make_agent_tool_result(state, tools, id::AbstractString, name::AbstractString,
-                                 output::AbstractString, is_error::Bool; mime_type = nothing, uri = nothing)
+                                 output::AbstractString, is_error::Bool;
+                                 mime_type = nothing, uri = nothing)
     if tools !== nothing && !is_error && name == "execute_julia_code"
         value = take_tool_call_value!(tools, id)
         if value !== nothing

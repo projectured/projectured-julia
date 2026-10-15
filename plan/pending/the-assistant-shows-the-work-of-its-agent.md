@@ -996,17 +996,37 @@ For each step, run the narrowest test: the test files of the step. Do not run
     - A compaction is a notice whose title says its status, such as "The context
       was compacted", with its summary as the description.
     - A reset of the conversation starts an empty `AgentWork` too.
+    - **The end of a connection ends its work** (a review of the step). The ends
+      are `stop_external_agent!` (also the close of a tab and a reset), a turn
+      whose connection failed or stopped, and a start of the agent that failed;
+      the next start of the agent comes after one of them. The work of the
+      session then ends at once on the editor task, because the agent may send
+      nothing more, as when its process died: each background task that runs
+      ends as `CANCEL` with the reason "The agent ended.", each subagent that
+      runs or waits for a person becomes idle with `:cancelled` and its turn
+      ends, every question that waits is cancelled, and a turn that the agent
+      started by itself ends. After a failed prompt, the end comes after the
+      events of the prompt that still wait. The feed asks for no frame for a
+      session that closed, and lets its queue go at the next drain.
+    - The new lines keep to 90 characters, in the style of their neighbours.
     - Tests: `test_agent_work()` is new, in
-      `test/platform/conversation/AgentWorkTest.jl`; it ran 117 tests:
-      the eight cases of the brief, the order of a queued event and an event of
-      a prompt, a turn that the agent starts by itself, a question of a subagent
-      that the person answers, and a question between two prompts.
-      `test_external_agent_turn()` ran 269, `test_assistant_overview()` 63,
-      `test_assistant_list()` 49, the layering 21 and the edges 1, all passing;
-      the naming, export and argument guards pass, and the style guard has only
-      its known failure at `TextDocument.jl:438`.
-    - Not checked: the wake path of a running loop (the tests use an editor with
-      no loop), a real agent, and the views of step 8.
+      `test/platform/conversation/AgentWorkTest.jl`; it ran 151 tests: the
+      eight cases of the brief, the order of a queued event and an event of a
+      prompt, a turn that the agent starts by itself, a question of a subagent
+      that the person answers, a question between two prompts, the end of the
+      work at a stop and at a failed connection, and a live loop. The live loop
+      is `run_editor!` on a `HeadlessBackend`, whose default wait sleeps 10 ms;
+      a step of the script reads the work just after it sent a notice, and the
+      notice is not applied yet, because the feed of the loop applies it in a
+      frame. `test_external_agent_turn()` ran 269, `test_assistant_overview()`
+      63, `test_assistant_list()` 49, the layering 21, the edges 1,
+      `test_acp()` 301, `test_assistant_mvp()` 186 with its 4 known broken,
+      `test_assistant_composer_panel()` 84, all passing; `test_application()`
+      has 368 passing, 2 broken, and the 2 failures and 2 errors of item 8 of
+      `the-suites-of-main-pass-again.md`. The naming, export and argument
+      guards pass, and the style guard has only its known failure at
+      `TextDocument.jl:438`.
+    - Not checked: a real agent, and the views of step 8.
 
 - [ ] **8. The assistant: the work page.**
   - `AssistantWork` and its view, the page of a subagent, the Work button, the

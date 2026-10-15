@@ -251,6 +251,7 @@ function evaluate_operation(editor, op::ResetConversationOperation)
     a.conversation = ConversationConversation()
     _set_input!(a, "")
     stop_external_agent!(a)
+    _end_running_agent_work!(a, a.agent_work)
     a.agent_work = AgentWork("")
     a.agent_session_id = ""
     a.agent_session_directory = ""
@@ -978,7 +979,8 @@ end
 _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol) =
     _finish_turn!(a.conversation, turn, stop_reason)
 
-function _finish_turn!(conversation::ConversationConversation, turn::ConversationTurn, stop_reason::Symbol)
+function _finish_turn!(conversation::ConversationConversation, turn::ConversationTurn,
+                       stop_reason::Symbol)
     turn.stop_reason = stop_reason
     turn.finish_time = time()
     if isempty(turn.parts)

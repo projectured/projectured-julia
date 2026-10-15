@@ -289,8 +289,8 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 # it at the next message, and a `.pred` file runs no code. So `agent_command` and
 # `agent_session_meta` come from the settings of the application, never from a
 # file. A live connection is not data either: `llm`
-# is a fake or a running client, `agent_session` is a running agent, `agent_work` is the work of its
-# session, `status` is what a turn is doing right now,
+# is a fake or a running client, `agent_session` is a running agent, `agent_work`
+# is the work of its session, `status` is what a turn is doing right now,
 # and `conversation`/`input`/`draft` are this session's exchange, not the
 # next one's — so a save keeps only the settings that describe an assistant
 # rather than a moment of one, and a load starts a fresh, empty conversation.
@@ -357,7 +357,8 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_session_directory = "", agent_session_turn_count = 0,
                                 agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
-                                agent_commands = AgentCommand[], agent_work = AgentWork(""))
+                                agent_commands = AgentCommand[],
+                                agent_work = AgentWork(""))
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&

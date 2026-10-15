@@ -159,14 +159,18 @@ end
 get_item_facets(::Type{Assistant}) = [
     "title" => "the title of the conversation, as the Assistants pane shows it",
     "turn" => "whose turn it is: assistant or you",
-    "tokens" => "how many tokens of its context the conversation uses, or 0 before the first answer",
-    "plan" => "how far the plan of its agent is, as the completed steps over all the steps of the first " *
-              "plan with steps, such as 3/7; empty without such a plan",
+    "tokens" => "how many tokens of its context the conversation uses, or 0 before the " *
+                "first answer",
+    "plan" => "how far the plan of its agent is, as the completed steps over all the " *
+              "steps of the first plan with steps, such as 3/7; empty without one",
     "subagents" => "how many subagents of its agent run, at every depth",
-    "background_tasks" => "how many background tasks of its agent and of their subagents run"]
+    "background_tasks" =>
+        "how many background tasks of its agent and of their subagents run"]
 compute_item_facet(a::Assistant, ::Val{:title}) = compute_assistant_overview_title(a)
 compute_item_facet(a::Assistant, ::Val{:turn}) = compute_assistant_turn_side(a) === :assistant ? "assistant" : "you"
 compute_item_facet(a::Assistant, ::Val{:tokens}) = (usage = a.agent_usage; usage === nothing ? 0 : usage.used)
 compute_item_facet(a::Assistant, ::Val{:plan}) = _format_agent_plan_progress(a.agent_work)
-compute_item_facet(a::Assistant, ::Val{:subagents}) = _count_running_subagents(a.agent_work)
-compute_item_facet(a::Assistant, ::Val{:background_tasks}) = _count_running_background_tasks(a.agent_work)
+compute_item_facet(a::Assistant, ::Val{:subagents}) =
+    _count_running_subagents(a.agent_work)
+compute_item_facet(a::Assistant, ::Val{:background_tasks}) =
+    _count_running_background_tasks(a.agent_work)

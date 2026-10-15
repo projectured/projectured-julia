@@ -73,9 +73,9 @@ one.
 end
 
 AgentWork(id::AbstractString) =
-    AgentWork(String(id), "", "", :unknown, nothing, nothing, nothing, nothing, "", "", false,
-              ConversationConversation(), CellVector(Any[]), CellVector(Any[]), CellVector(Any[]),
-              CellVector(Any[]), nothing)
+    AgentWork(String(id), "", "", :unknown, nothing, nothing, nothing, nothing, "", "",
+              false, ConversationConversation(), CellVector(Any[]), CellVector(Any[]),
+              CellVector(Any[]), CellVector(Any[]), nothing)
 
 get_document_title(work::AgentWork) = isempty(work.title) ? "Agent" : work.title
 
@@ -87,8 +87,8 @@ accepts_pasted_document(::AgentWork) = false
 # ── A background task ────────────────────────────────────────────────────────
 
 """
-    AgentBackgroundTask(session_id, task_id, kind, title, tool_call_id, subagent_id, output_uri, summary,
-                        can_stop)
+    AgentBackgroundTask(session_id, task_id, kind, title, tool_call_id, subagent_id,
+                        output_uri, summary, can_stop)
 
 A background task of an external agent as a task of the task slice: work that
 the agent started and that runs after the call that started it, such as a
@@ -130,15 +130,18 @@ struct AgentBackgroundTaskResult <: TaskResult
 end
 
 get_result_codes(::AgentBackgroundTask) = RUN_RESULT_CODES
-format_task_parameters(task::AgentBackgroundTask) = isempty(task.title) ? task.task_id : task.title
+format_task_parameters(task::AgentBackgroundTask) =
+    isempty(task.title) ? task.task_id : task.title
 get_task_columns(::AgentBackgroundTask) = ["kind" => 2]
-format_task_column(task::AgentBackgroundTask, column::AbstractString) = column == "kind" ? String(task.kind) : ""
+format_task_column(task::AgentBackgroundTask, column::AbstractString) =
+    column == "kind" ? String(task.kind) : ""
 
 function format_task_details(task::AgentBackgroundTask, result)
     lines = String["kind: " * String(task.kind)]
     isempty(task.tool_call_id) || push!(lines, "tool call: " * task.tool_call_id)
     isempty(task.subagent_id) || push!(lines, "subagent: " * task.subagent_id)
-    isempty(task.output_uri) || push!(lines, "output: " * chopprefix(task.output_uri, "file://"))
+    isempty(task.output_uri) ||
+        push!(lines, "output: " * chopprefix(task.output_uri, "file://"))
     isempty(task.summary) || push!(lines, "summary: " * task.summary)
     lines
 end
@@ -148,7 +151,8 @@ end
 function get_task_actions(task::AgentBackgroundTask)
     actions = Pair{String,Function}[]
     task.can_stop && push!(actions, "Stop" => _stop_agent_background_task)
-    isempty(task.output_uri) || push!(actions, "Open the output" => _open_agent_background_task_output)
+    isempty(task.output_uri) ||
+        push!(actions, "Open the output" => _open_agent_background_task_output)
     actions
 end
 
@@ -165,15 +169,17 @@ function _stop_agent_background_task(editor, task::AgentBackgroundTask)
     session = a.agent_session
     errormonitor(@async begin
         is_stopped = try
-            Base.invokelatest(stop_agent_background_task!, session.connection, task.session_id, task.task_id)
+            Base.invokelatest(stop_agent_background_task!, session.connection,
+                              task.session_id, task.task_id)
         catch exception
             is_fault_exception(exception) || rethrow()
-            @warn "The agent did not stop its background task." task = task.task_id exception
+            @warn("The agent did not stop its background task.", task = task.task_id,
+                  exception)
             false
         end
+        title = "The agent did not stop " * format_task_parameters(task) * "."
         is_stopped || run_on_editor_task!(editor; wait = false) do
-            _add_agent_notice!(a.agent_work, :warning,
-                               "The agent did not stop " * format_task_parameters(task) * ".", "")
+            _add_agent_notice!(a.agent_work, :warning, title, "")
         end
     end)
     nothing
@@ -189,20 +195,29 @@ function _find_session_assistant(session_id::AbstractString)
     nothing
 end
 
-_add_agent_notice!(work::AgentWork, severity::Symbol, title::AbstractString, description::AbstractString) =
+_add_agent_notice!(work::AgentWork, severity::Symbol, title::AbstractString,
+                   description::AbstractString) =
     push!(work.notices, AgentNotice(severity, String(title), String(description), time()))
 
 # ── What a roster reads ──────────────────────────────────────────────────────
 
 # How many subagents of the work run, at every depth.
-_count_running_subagents(work::AgentWork) =
-    sum((Int(child.state === :running) + _count_running_subagents(child) for child in collect(work.subagents));
-        init = 0)
+function _count_running_subagents(work::AgentWork)
+    count = 0
+    for child in collect(work.subagents)
+        count += Int(child.state === :running) + _count_running_subagents(child)
+    end
+    count
+end
 
 # How many background tasks of the work and of its subagents run.
 function _count_running_background_tasks(work::AgentWork)
-    own = count(document -> get_task_document_status(document) === :running, collect(work.background_tasks))
-    own + sum((_count_running_background_tasks(child) for child in collect(work.subagents)); init = 0)
+    running = count(document -> get_task_document_status(document) === :running,
+                    collect(work.background_tasks))
+    for child in collect(work.subagents)
+        running += _count_running_background_tasks(child)
+    end
+    running
 end
 
 # The progress of the first plan of the work that has steps, as its completed
