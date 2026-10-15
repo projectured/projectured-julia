@@ -470,8 +470,11 @@ B is ever needed.
 | `Editor` fields `code_unit`, `owner_posts`, `has_loop_ended`, `held_faults`, `unapplied_operations` | the running unit, the queue of I3, the end of I1, the faults of held frames, what an interrupted drain did not apply | `Editor.jl` |
 | `Tool(...; reads_documents)` | T4: a tool that reads no document runs on the calling task | `Tool.jl` |
 | `acquire_document!(editor, document)`, `AcquireDocumentOperation` | the counterpart of `release_document!` (A3) | `DocumentRelease.jl` |
-| formula fields `result` (stored), `result_key`, `draft` | the last value, the inputs that it came from, the code in edit mode | `FormulaDocument.jl` |
-| `EditFormulaOperation`, `CommitFormulaOperation`, `CancelFormulaEditOperation`, `ReplaceFormulaResultOperation` | the edit mode and the value of a formula (step 7) | `source/domain/formula/FormulaComputation.jl` (new) |
+| formula fields `result` (stored), `result_key`, `is_computing`, `draft` | the last value, the inputs that it came from, the mark of a computation, the code in edit mode | `FormulaDocument.jl` |
+| `ComputeFormulasOperation`, `ReplaceFormulaResultOperation`, `compute_formula_key`, the formula task | the value of a formula, off the loop (step 7) | `source/domain/formula/FormulaComputation.jl` (new) |
+| `BeginFormulaEditOperation`, `CommitFormulaOperation`, `CancelFormulaEditOperation` | the edit mode of a formula (step 7) | `source/domain/formula/FormulaEdit.jl` (new) |
+| `BackgroundWork`, `start_background_work` | work that no frame waits for (D9) | `source/kernel/tool/BackgroundWork.jl` (new) |
+| `run_with_evaluation_editor`, `find_evaluation_editor`, `get_session_document!` | the editor of the evaluation, bound by the loop and a frame too; the documents of the session of an editor (step 5) | `CodeExecution.jl`, `Editor.jl` |
 
 The backend defaults make a backend with no held frames still work:
 `run_held_frame!` waits one slice and answers `:none`, and the other two do
@@ -1420,6 +1423,40 @@ nothing.
   loop bind now (5.3); the tests of each layer, and a live check of each row of §6
   with the real application. The hourglass plan and the branch
   `plan-evaluation-off-editor` close.
+    - [x] 8.0 Formula examples (the owner, 2026-10-15: "I need formula based
+      examples ... similar to a spreadsheet, or one which combines with
+      markdown"). `formula_invoice` (a spreadsheet named A1 to D7),
+      `formula_invoice_grid` (the same as a grid, `FormulaEnvironmentToTable`,
+      printer-only), `formula_queue` (the M/M/1 queue in math code),
+      `formula_estimate` (formulas of a second or more, off the loop; out of the
+      registry) and `formula_report` (a Markdown page that holds a sheet). The
+      gallery posts `AcquireDocumentOperation` for its documents when its loop
+      starts, as a window of the application does. Found on the way:
+      - A key edits only math code, as on `main`, so each input of the examples
+        is math code. A Julia literal and a text literal take no key.
+      - A sheet that one recursion prints inside the Markdown template gets no
+        edit mode: the template translates a claimed key through the mappers,
+        and the sheet reader never runs. The natural renderer gives each block
+        its own chain, so the report uses it with a row for `FormulaEnvironment`.
+      - `get_formula_key("1")` threw `MethodError` (a number is no math tree),
+        which a Delete in the name `A1` reached. A refusal of a rename to a name
+        that is no Julia name was tried and dropped: it also refused the empty
+        name while a person retypes a name, 13 more type-in failures of
+        `formula` than `main` has.
+    - [x] 8.1 The rules: `PAR-LOOP-RUNS-NO-USER-CODE` (units, held frames,
+      background work, rules a to d, the guarantee), `PAR-DRAIN-MOVES-PREPARED-DATA`,
+      and the text of `PAR-PER-EDITOR-STATE` on the editor of the evaluation.
+      The documentation guard flags personified verbs ("tells"); the new text
+      uses none.
+    - [x] 8.2 The guides: the door and the units in `editor.md` and `agent.md`,
+      the table of feeds in `editor.md`, the limits in `mcp.md`, `mcp-guide.md`
+      and `assistant.md`; the table of names of 5.11. The table of feeds named a
+      `TooltipFeed` that no longer exists; it now lists the MCP log, task,
+      reflection and file-change feeds. `assistant.md` keeps "a tool call that
+      runs is not stopped" for a stop of a turn: the live check of 8.4 tells.
+    - [ ] 8.3 The tests of each layer.
+    - [ ] 8.4 A live check of each row of §6 with the real application.
+    - [ ] 8.5 The hourglass plan and the branch `plan-evaluation-off-editor` close.
 
 ## Not in this plan
 
