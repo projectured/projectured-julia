@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** done on the branch `graph-vertex-drag` of projectured-julia and of omnet-julia, 2026-10-15; steps 1 to 6 are done; nothing is landed; section 8 holds a question for the owner · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** done; steps 1 to 6 landed 2026-10-15 (projectured `92ed6406b`, omnet-julia `521c0e43`); step 7 on the branch `graph-start-stays` · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
@@ -17,6 +17,8 @@ the drag and a layout that starts from the last positions.
 | D2 | What do the other vertices do at a drop? | The engine starts the layout from the current positions of all vertices and refines it. The drop writes a `:start` position for every vertex that has no pin, at the place where it is drawn. The layout run never writes them. | The owner, 2026-10-15, after the question "why can't we start the layout from the current pinned and unpinned positions?" ("agreed") |
 | D3 | How does the drag work? | With the drag mechanism that exists, as the drag of a tab and the rubber band of a chart do. Section 4.3 gives the details. | My design, given in the first answer; the owner did not object |
 | D4 | Which engine is the default? | `DeferredLayout`, made by `make_deferred_layout_engine()`, in `GraphGraphToGraphLayout()`, `GraphToGraphLayout()`, `GraphToGraphics()` and `make_graph_projection_example`. With nothing registered it is `FruchtermanReingoldLayout`. A graph in a tab and `graph_example` then refine after a drop. The cost: about 0.13 s for each layout run at 300 vertices, where the grid takes 0.0002 s. | The owner, 2026-10-15 ("I agree with recommendation"), after the question "why not use FruchtermanReingoldLayout by default" |
+| D5 | What does a vertex with a start do? | It stays: the forces do not move it, and only the pass that removes overlaps and the rule of the extent move it. In that pass, a pinned body never moves, a body with a start yields only to a pin, and a free body yields first. This replaces the travel of a quarter of `k` that D2 gave. | The owner, 2026-10-15 ("Q1: agreed"), to option (b) of section 8 |
+| D6 | Does undo put back view state? | No: a write of view state has a way back that does nothing (`Inversion.jl`), so undo of a drop leaves the drag ended, and a tab drop has a way back. | The owner, 2026-10-15 ("Q2: agreed") |
 
 D1 changes a design decision of [graph.md](../../documentation/package/domain/graph/graph.md):
 "`GraphLayout` holds the positions outside `GraphGraph`, so a saved graph holds
@@ -277,6 +279,19 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
   `test_position_navigation` of `graph_example` pass together: 17449 passes.
   The naming guard passes, and the live check passes again: 15 of 15.
 
+- [x] **7. A vertex with a start stays.** D5 in `FruchtermanReingoldLayout`:
+  a body with a start is no movable body of the simulation, and the overlap pass
+  moves the body that holds its place less. The per-body temperature and
+  `_START_TRAVEL` of step 2 go. Tests: a layout from an earlier one keeps every
+  vertex; a drop far away moves no other vertex; a drop on a vertex pushes it
+  aside with no overlap; a new vertex finds a free place and the others stay.
+
+  Done 2026-10-15 on the branch `graph-start-stays`. `test_graph()`,
+  `test_fsm()` and `test_process()` pass together: 959 passes. The live check
+  passes 16 of 16, with a new check: after the drop, the two other vertices of
+  `graph_example` stay at their corners, where before this step they moved
+  about 80 pixels.
+
 ## 6. Limits
 
 - A graph that a view makes keeps its pins only while the view lives. Examples
@@ -295,7 +310,7 @@ table of `graph_example` does; a command that removes the pins and the start pos
 out again); a drag of an edge, of a bend, or of the empty canvas; feeding start
 positions to libcola through a wider C interface.
 
-## 8. Open question
+## 8. The question of the travel of a start (answered)
 
 - **What does a vertex with a start do?** The measurement of step 2 shows that
   D2, as agreed, moves every vertex at each drop, and the moves add up.
@@ -308,4 +323,5 @@ positions to libcola through a wider C interface.
     the start positions. This is a new algorithm, and I did not try it.
 
   My recommendation: (b), because with (a) the drift is as large as the
-  adaptation, so the person can not tell one from the other. Open.
+  adaptation, so the person can not tell one from the other. The owner chose
+  (b) on 2026-10-15 ("Q1: agreed"): D5 and step 7.

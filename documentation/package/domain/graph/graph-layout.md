@@ -64,10 +64,11 @@ here does. With a pin, the pin is a place in the extent, so the drawing keeps
 its scale and every other body is moved just far enough to lie inside it. A
 start is a place in the extent too.
 
-A body with a start begins at its start and cool: its first temperature is
-`2 * _START_TRAVEL * k / (iterations + 1)`, so the forces move it at most a
-quarter of `k` in all the rounds together. A body without a start begins on the
-spiral at the full temperature, so a new vertex finds its place among the others.
+A body with a start stays at its start: it pushes and pulls the others, and the
+forces do not move it. A body without a start begins on the spiral, so a new
+vertex finds its place among the others. When two boxes still overlap, the body
+that holds its place less moves: a pinned body never moves, a body with a start
+yields only to a pin, and a free body yields first.
 
 ## Start positions
 
@@ -77,15 +78,17 @@ layout begins from what the person saw.
 
 | engine | what a `:start` does |
 | --- | --- |
-| `FruchtermanReingoldLayout` | the body begins there and moves at most a quarter of `k` |
+| `FruchtermanReingoldLayout` | the vertex stays there; only the pass that removes overlaps and the rule of the extent move it |
 | `GridEmbedding` | the vertex is placed there, as a pin: a grid has nothing to refine |
 | `AdaptagramsLayout` | the vertex is placed there on the way out, as a pin: the shim takes no constraint |
 | `SpringEmbedderLayout`, `ForceDirectedLayout` (omnet-julia) | a fixed node, as a pin: the originals have no start positions |
 
-An FR result is not a balanced state, so a layout that begins from one moves
-each started vertex by about the travel. A drop therefore moves every vertex a
-little, and the moves add up over drops: on a chain of 12, five such layouts
-moved a vertex by 1.24 `k`. The plan of the drag holds the measurement.
+The forces do not move a start, because an FR result is not a balanced state.
+Forces that refine one move every vertex at each drop, the vertices that the
+drop does not touch as much as its neighbours, and the moves add up over drops:
+on a chain of 12, five such layouts moved a vertex by 1.24 `k`. So after a drop,
+only the dropped vertex moves, as in a diagram editor. The plan of the drag
+holds the measurement.
 
 ## Which engine runs
 

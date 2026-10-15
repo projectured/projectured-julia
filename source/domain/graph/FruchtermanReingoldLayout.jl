@@ -13,8 +13,9 @@
 #   that the forces read are measured between the rims of two bodies, not
 #   between their centres, so a large card gets the room it needs.
 # - **Constraints.** A pinned vertex is a body that does not move. A vertex with
-#   a start position is a body that begins there and moves a short way only. A
-#   cluster is one body that carries its members at their offsets.
+#   a start position is a body that the forces do not move; only the pass that
+#   removes overlaps and the rule of the extent move it. A cluster is one body
+#   that carries its members at their offsets.
 # - **Parts that are not connected** feel a weak pull to the centre of the
 #   drawing, so no part drifts away from the others.
 # - **No overlap.** After the simulation, each pair of boxes that still overlap
@@ -30,10 +31,10 @@
 The force-directed engine of this package. `iterations` is the number of
 rounds of the simulation, and `spacing` the gap it keeps between two boxes.
 It implements `:pin`, `:start`, `:fixed_size` and `:cluster`, and it routes
-edges as straight lines. A vertex with a `:start` begins at that corner, and
-the forces move it at most a quarter of `k`, the ideal distance, so a
-placement that begins from an earlier one changes little. The pass that removes
-overlaps can push it further.
+edges as straight lines. A vertex with a `:start` stays at that corner: the
+forces do not move it, and only the pass that removes overlaps and the rule of
+the extent do, when another box overlaps it or it lies outside the extent. A
+vertex without a start is placed by the forces among the others.
 """
 struct FruchtermanReingoldLayout <: GraphLayoutEngine
     iterations::Int
@@ -54,11 +55,6 @@ const _GOLDEN_ANGLE = pi * (3 - sqrt(5))
 # ten times the ideal distance it is a fifth of that distance, which keeps the
 # parts of a graph near each other and does not press a connected part together.
 const _CENTRE_PULL = 0.02
-
-# How far a body with a start position can move in all the rounds together, as a
-# share of the ideal distance. It moves the neighbours of a dropped vertex toward
-# it, and it keeps the rest of an earlier placement where the person saw it.
-const _START_TRAVEL = 0.25
 
 # One thing that moves as a whole: a free vertex, a pinned vertex, or the
 # family of a cluster. `members` are indices into the vertices, `offsets` the
@@ -93,7 +89,7 @@ function layout_graph(engine::FruchtermanReingoldLayout, graph::GraphGraph, size
     _place_on_spiral!(x, y, bodies, vertices, widths, heights, pins, starts, body_starts, k)
     edges = _collect_body_edges(graph, vertices, body_of)
     _simulate_forces!(x, y, bodies, edges, k, engine.iterations, body_starts)
-    _remove_overlaps!(x, y, bodies, widths, heights, engine.spacing / 2)
+    _remove_overlaps!(x, y, bodies, body_starts, widths, heights, engine.spacing / 2)
 
     cx = zeros(Float64, n); cy = zeros(Float64, n)
     _place_members!(cx, cy, x, y, bodies)
@@ -223,21 +219,14 @@ end
 # The simulation of the paper: repulsion between every pair of bodies,
 # attraction along every edge, and a displacement capped by a temperature that
 # falls to nothing. The distances are measured between the rims of two bodies,
-# and a weak pull to the centre keeps the parts of a graph together.
-#
-# Each body has its own first temperature. A body with a start position begins
-# cool: the temperature falls in a straight line, so the rounds add up to
-# `(iterations + 1) / 2` times the first one, and the body moves at most
-# `_START_TRAVEL * k` in all.
+# and a weak pull to the centre keeps the parts of a graph together. A body with
+# a start position pushes and pulls the others, and the forces do not move it.
 function _simulate_forces!(x, y, bodies, edges, k, iterations, body_starts)
     m = length(bodies)
-    movable = [b for b in 1:m if !bodies[b].fixed]
+    movable = [b for b in 1:m if !bodies[b].fixed && body_starts[b] === nothing]
     isempty(movable) && return nothing
     dx = zeros(Float64, m); dy = zeros(Float64, m)
-    free_temperature = k * sqrt(length(movable))
-    started_temperature = 2 * _START_TRAVEL * k / (iterations + 1)
-    start_temperature = [body_starts[b] === nothing ? free_temperature : started_temperature
-                         for b in 1:m]
+    start_temperature = k * sqrt(length(movable))
     rim(a, b, distance) = max(distance - bodies[a].radius - bodies[b].radius, 0.05 * k)
     for round in 1:iterations
         fill!(dx, 0.0); fill!(dy, 0.0)
@@ -261,13 +250,13 @@ function _simulate_forces!(x, y, bodies, edges, k, iterations, body_starts)
         end
         centre_x = sum(x[b] for b in movable) / length(movable)
         centre_y = sum(y[b] for b in movable) / length(movable)
-        cooling = 1 - (round - 1) / iterations
+        temperature = start_temperature * (1 - (round - 1) / iterations)
         for b in movable
             gx = dx[b] - _CENTRE_PULL * (x[b] - centre_x)
             gy = dy[b] - _CENTRE_PULL * (y[b] - centre_y)
             length_ = hypot(gx, gy)
             length_ == 0 && continue
-            step = min(length_, start_temperature[b] * cooling)
+            step = min(length_, temperature)
             x[b] += gx / length_ * step
             y[b] += gy / length_ * step
         end
@@ -286,10 +275,13 @@ function _place_members!(cx, cy, x, y, bodies)
 end
 
 # Push apart every two boxes of different bodies that overlap, with `margin`
-# around each box, along the axis where they overlap less. A pinned body does
-# not move, so its partner moves the whole way. It stops when nothing overlaps,
-# or after a bounded number of passes.
-function _remove_overlaps!(x, y, bodies, widths, heights, margin)
+# around each box, along the axis where they overlap less. The body that holds
+# its place less moves the whole way: a pinned body never moves, a body with a
+# start position yields only to a pin, and a free body yields first. Two bodies
+# that hold equally share the move. It stops when nothing overlaps, or after a
+# bounded number of passes.
+function _remove_overlaps!(x, y, bodies, body_starts, widths, heights, margin)
+    hold(b) = bodies[b].fixed ? 2 : body_starts[b] === nothing ? 0 : 1
     n = length(widths)
     cx = zeros(Float64, n); cy = zeros(Float64, n)
     owner = zeros(Int, n)
@@ -306,7 +298,7 @@ function _remove_overlaps!(x, y, bodies, widths, heights, margin)
             ox = (widths[i] + widths[j]) / 2 + 2margin - abs(cx[i] - cx[j])
             oy = (heights[i] + heights[j]) / 2 + 2margin - abs(cy[i] - cy[j])
             (ox > 0 && oy > 0) || continue
-            share_a = bodies[a].fixed ? 0.0 : bodies[b].fixed ? 1.0 : 0.5
+            share_a = hold(a) > hold(b) ? 0.0 : hold(a) < hold(b) ? 1.0 : 0.5
             if ox <= oy
                 direction = cx[i] < cx[j] || (cx[i] == cx[j] && i < j) ? -1.0 : 1.0
                 x[a] += direction * ox * share_a; x[b] -= direction * ox * (1 - share_a)

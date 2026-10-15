@@ -220,6 +220,8 @@ end
     inverse = evaluate_invertible_operation!(editor, drop)
     @test inverse !== nothing
     @test _gvd_corners(layout)[3] == before[3] .+ (70, 0)
+    # The other vertices stay where they were drawn.
+    @test _gvd_corners(layout)[1:2] == before[1:2]
     @test layout.drag === nothing
     apply!(inverse)
     @test isempty(graph.constraints)

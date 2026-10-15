@@ -146,34 +146,34 @@ function test_fruchterman_reingold_layout()
         end
     end
 
-    @testset "a layout that begins from an earlier one moves each vertex a short way" begin
+    @testset "a vertex with a start stays where it is, unless it must make room" begin
         vertices = [GraphVertex(JsonString("v$i")) for i in 1:12]
         edges = [GraphEdge(vertices[i], vertices[i+1]) for i in 1:11]
         graph = GraphGraph(vertices, edges)
         sizes = Dict(objectid(v) => (60, 24) for v in vertices)
-        # The ideal distance of these boxes, and the travel that the engine
-        # promises for a vertex with a start: a quarter of it, and a pixel of
-        # rounding.
-        k = sqrt(60 * 24) + 20
-        travel = k / 4 + 1
         earlier, _ = layout_graph(engine, graph, sizes, [])
         starts = [GraphConstraint(v, :start, earlier[objectid(v)][1:2]) for v in vertices]
-        again, _ = layout_graph(engine, graph, sizes, starts)
-        @test again == layout_graph(engine, graph, sizes, starts)[1]
-        @test all(_box_distance(earlier[objectid(v)], again[objectid(v)]) <= travel
-                  for v in vertices)
-        @test _are_boxes_disjoint(again)
+        # A layout that begins from an earlier one keeps every vertex.
+        @test layout_graph(engine, graph, sizes, starts)[1] == earlier
 
-        # A dropped vertex is a pin, and it stays where it was dropped.
+        # A vertex dropped far from the others is a pin, and no other vertex moves.
         first_box = earlier[objectid(vertices[1])]
-        dropped = (first_box[1] + 240, first_box[2])
+        far = (maximum(box[1] + box[3] for box in values(earlier)) + 200, first_box[2])
         after, _ = layout_graph(engine, graph, sizes,
-                                vcat([GraphConstraint(vertices[1], :pin, dropped)], starts[2:end]))
-        @test after[objectid(vertices[1])][1:2] == dropped
-        @test all(_box_distance(earlier[objectid(v)], after[objectid(v)]) <= travel
-                  for v in vertices[2:end])
+                                vcat([GraphConstraint(vertices[1], :pin, far)], starts[2:end]))
+        @test after[objectid(vertices[1])][1:2] == far
+        @test all(after[objectid(v)] == earlier[objectid(v)] for v in vertices[2:end])
 
-        # A new vertex with no start finds a place that no other box holds.
+        # A vertex dropped on another pushes it aside, just enough for no overlap.
+        onto = earlier[objectid(vertices[6])][1:2]
+        after, _ = layout_graph(engine, graph, sizes,
+                                vcat([GraphConstraint(vertices[1], :pin, onto)], starts[2:end]))
+        @test after[objectid(vertices[1])][1:2] == onto
+        @test after[objectid(vertices[6])] != earlier[objectid(vertices[6])]
+        @test _are_boxes_disjoint(after)
+
+        # A new vertex with no start finds a place that no other box holds, and
+        # the others stay.
         newcomer = GraphVertex(JsonString("new"))
         bigger = GraphGraph(vcat(vertices, [newcomer]),
                             vcat(edges, [GraphEdge(vertices[6], newcomer)]))
@@ -181,6 +181,7 @@ function test_fruchterman_reingold_layout()
                                  merge(sizes, Dict(objectid(newcomer) => (60, 24))), starts)
         @test haskey(placed, objectid(newcomer))
         @test _are_boxes_disjoint(placed)
+        @test all(placed[objectid(v)] == earlier[objectid(v)] for v in vertices)
     end
 
     @testset "a cluster moves as one body and keeps its offsets" begin
