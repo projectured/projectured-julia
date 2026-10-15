@@ -84,6 +84,15 @@ read_os_clipboard()::Union{String,Nothing} = _READER[]()
 
 Write `text` to the OS clipboard. Returns `true` on success, `false` when no
 clipboard tool is available or the write fails.
+
+Use it to give the person a text to paste elsewhere, such as the text of a part
+or a line of code.
+
+# Example
+
+    write_os_clipboard!(print_natural_text(find_selected_part()))
+
+See also `read_os_clipboard`, `print_natural_text`.
 """
 write_os_clipboard!(text::AbstractString)::Bool = _WRITER[](text)
 

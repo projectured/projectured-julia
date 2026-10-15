@@ -26,6 +26,8 @@ using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
+using ..AgentModule: run_on_editor_task!
+using ..ToolModule: get_evaluation_editor
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -53,7 +55,7 @@ export get_navigator_page_address, get_navigator_address_steps, get_navigator_pa
 export find_navigator_choices, make_navigator_choice_operation
 export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
        make_navigator_address_reset_operation, is_navigator_address_selected
-export find_navigator_target, find_navigator_address
+export open_page!, find_navigator_target, find_navigator_address
 export make_navigator_address_projection, ReferenceStepToSyntaxLeaf
 export NavigatorToWidget, make_navigator_projection
 export NavigatorChoiceListToWidget, make_navigator_choice_list_projection

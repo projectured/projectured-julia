@@ -76,5 +76,39 @@ function test_assistant_verbs()
         @test occursin(":json", formats) && occursin(":md", formats)
         @test occursin(":json", _run_assistant_code(editor, "describe_natural_formats()"))
     end
+
+    @testset "control: a part is selected to show it to the person" begin
+        cleo = people[1]
+        @test select_part!(cleo; editor) === cleo
+        run_frame!(editor)
+        @test get_document(find_selected_part(; editor)) === get_document(cleo)
+        # The selection is written at the root, and names the part from there.
+        @test strip_reference_types(get_selection(editor.document)) ==
+              strip_reference_types(get_reference(cleo))
+    end
+
+    @testset "control: a setting of the window changes and applies" begin
+        settings = string(describe_settings(; editor))
+        @test occursin("render.partial_render = ", settings)
+        before = occursin("render.partial_render = true", settings)
+        @test change_setting!(:partial_render, !before; editor) == !before
+        @test occursin("render.partial_render = " * string(!before), string(describe_settings(; editor)))
+        @test change_setting!(:partial_render, before; editor) == before
+        @test_throws ArgumentError change_setting!(:no_such_setting, 1; editor)
+        # Each group has the fields of a document too, and those are no setting.
+        @test_throws ArgumentError change_setting!(:selection, nothing; editor)
+    end
+
+    @testset "tell: a part opens as a page in a new tab with a navigator" begin
+        is_page(node) = node isa Navigator
+        before = length(search_documents(editor.document, is_page))
+        @test open_page!(people[2]; editor) isa Text
+        # The open posts the new tab, which the loop of a window drains.
+        drain_operations!(editor)
+        run_frame!(editor)
+        pages = search_documents(editor.document, is_page)
+        @test length(pages) == before + 1
+        @test get_navigator_page(last(pages)) === get_document(people[2])
+    end
 end
 end

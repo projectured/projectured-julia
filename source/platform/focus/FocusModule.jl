@@ -23,7 +23,8 @@ with the four Alt + arrow keys (`SelectionWalkingProjection`). Tab starts over
 at the ends of a document in `FocusCyclingProjection`. A selection can also name
 a widget that a projection drew for a document (`OutputReferenceStep`). A model of
 an assistant reads the part that the person selected and the part under the
-pointer with `find_selected_part` and `find_part_under_pointer`.
+pointer with `find_selected_part` and `find_part_under_pointer`, and shows the
+person a part with `select_part!`.
 """
 module FocusModule
 
@@ -57,7 +58,7 @@ export SelectionWalkingProjection, SelectionWalkingIoMap,
 export OutputReferenceStep, make_output_reference, find_output_path,
        follow_output_selection!, follow_output_mouse_target!,
        find_output_node_path, map_held_node_forward, map_held_node_backward
-export find_selected_part, find_part_under_pointer
+export find_selected_part, find_part_under_pointer, select_part!
 
 
 include("Focus.jl")

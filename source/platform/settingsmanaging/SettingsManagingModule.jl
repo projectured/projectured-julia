@@ -51,7 +51,8 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-export SettingsDocument, make_settings_document, find_editor_settings,
+export SettingsDocument, make_settings_document, find_editor_settings, describe_settings,
+       change_setting!,
        make_toggle_setting_operation
 export SettingsManagingProjection, SettingsManagingIoMap, wrap_setting_writes
 export start_settings!

@@ -320,13 +320,29 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
   - Tests: an editor with a JSON tab and a Markdown tab. After a selection, a
     pointer motion and an edit, each verb answers the part, the tab and the entry
     that the person made.
-- [ ] **3. Control and tell.**
+- [x] **3. Control and tell.** Done 2026-10-15.
   - `select_part!`, `change_setting!` and `open_page!`.
   - Declare `find_editor_settings`, `find_editor_appearance` and
     `write_os_clipboard!`.
   - Tests: `select_part!` writes the complete selection at the root, and the status
     bar shows the part. `change_setting!` is undone by `undo`. `open_page!` opens a
     tab with a navigator.
+  - What was built, and what changed against the lines above:
+    - Neither the settings nor the appearance print as `.pred` text: a `Settings`
+      holds a `Dict` of groups, and an `Appearance` holds the system colors. So
+      the step adds `describe_settings()`, one line for each setting with its
+      group, value and sentence, and declares it in place of
+      `find_editor_settings`. `find_editor_appearance` is not declared; the zoom
+      and the colors change through the commands of step 4.
+    - `change_setting!(name, value)` finds the one group that describes `name`.
+      Each group also has the fields `selection` and `mouse_target` of a
+      document, which are no setting, so a test of the fields would be wrong.
+    - The settings are above the history of the window, so `undo` does not take
+      back a change of a setting. The test reads the value back instead.
+    - `open_page!` posts the new tab, as the "Open as a page" command does, and
+      answers one sentence. A headless test drains the posted operation.
+    - The application slice may now use the navigator and settingsmanaging
+      slices.
 - [ ] **4. The commands.**
   - `collect_commands(part)` and `run_command!(part, description)`, by D8.
   - They ask the chain from the editor with

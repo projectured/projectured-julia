@@ -37,6 +37,8 @@ end
 The `Settings` of `editor`: those of the `SettingsDocument` at its root, or
 under the `content` of the documents around it, such as the `AppearanceDocument`. `nothing` for an editor with no
 `settings` wrapper.
+
+Use [`describe_settings`](@ref) to read the settings of the window as text.
 """
 function find_editor_settings(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_editor_settings") do
@@ -47,6 +49,76 @@ function find_editor_settings(; editor = get_evaluation_editor())
             document = document.content
         end
         nothing
+    end
+end
+
+"""
+    describe_settings(; editor = get_evaluation_editor()) -> Text
+
+The settings of the window, one line each: the group, the name, the value now,
+and the sentence that says what the setting does, with the values it can take
+when they are few. A window with no settings says so.
+
+Use it to find the name of a setting before you change it with
+[`change_setting!`](@ref), or to answer how the window is set up.
+
+# Example
+
+    println(describe_settings())
+
+See also `change_setting!`.
+"""
+function describe_settings(; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "describe_settings") do
+        settings = find_editor_settings(; editor)
+        settings === nothing && return Text("This window has no settings.")
+        lines = String[]
+        for group in get_settings_groups(settings)
+            T = get_settings_group_type(group)
+            for description in get_setting_descriptions(T)
+                values = description.values isa Tuple ?
+                         " (" * join(repr.(description.values), ", ") * ")" : ""
+                push!(lines, get_settings_name(T) * "." * String(description.name) * " = " *
+                             repr(getproperty(group, description.name)) * ": " *
+                             description.text * values)
+            end
+        end
+        Text(join(lines, "\n"))
+    end
+end
+
+"""
+    change_setting!(name, value; editor = get_evaluation_editor()) -> value
+
+Change the setting `name` of the window to `value`, as a person does in the tab of
+the settings: the window checks the value against the description of the
+setting, writes it, and applies it at once. `name` is the name of a setting, as
+[`describe_settings`](@ref) writes it after the group; a name that no group has,
+or that two groups have, is refused. A value that does not fit changes nothing,
+and the log of the window says why.
+
+Use it when the person asks you to change how the window looks or works.
+
+# Example
+
+    println(describe_settings())
+    change_setting!(:partial_render, false)
+
+See also `describe_settings`.
+"""
+function change_setting!(name::Symbol, value; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "change_setting!") do
+        settings = find_editor_settings(; editor)
+        settings === nothing && throw(ArgumentError("This window has no settings."))
+        groups = [group for group in get_settings_groups(settings)
+                  if find_setting_description(get_settings_group_type(group), name) !== nothing]
+        isempty(groups) && throw(ArgumentError("No group of the settings has the setting " * repr(name) * "."))
+        length(groups) == 1 ||
+            throw(ArgumentError(string(length(groups), " groups of the settings have the setting ",
+                                       repr(name), ".")))
+        group = only(groups)
+        evaluate_operation(editor, ApplySettingOperation(group, name, value))
+        getproperty(group, name)
     end
 end
 

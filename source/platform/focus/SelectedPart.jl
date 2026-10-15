@@ -69,3 +69,28 @@ function find_part_under_pointer(; editor = get_evaluation_editor())
         _find_deepest_part(root, target)
     end
 end
+
+"""
+    select_part!(part; editor = get_evaluation_editor()) -> part
+
+Select `part` as a whole, as an Alt+click on it does: the window shows it
+selected, the tab that holds it gets the focus, and the keys of the person act on
+it. `part` is a `ReferencedDocument` that a verb answered, such as a value read
+from `get_edited_document(tab)`. It is the one verb that moves the selection of
+the person; the other verbs leave it where the person put it.
+
+Use it to show the person the part that you talk about.
+
+# Example
+
+    people_1 = get_edited_document(find_pane("people.json"))
+    select_part!(people_1[2])
+
+See also `find_selected_part`, `focus_pane!`.
+"""
+function select_part!(part::ReferencedDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "select_part!") do
+        evaluate_operation(editor, ReplaceSelectionOperation(get_reference(part)))
+    end
+    part
+end

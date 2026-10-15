@@ -350,12 +350,16 @@ make_editor_api() = Any[
     # What the person does and did: the part that the person selected, the part
     # under the pointer, the history of the changes, the gestures, the messages and
     # the faults of the window, and the text that the person copied.
-    FocusModule => (:find_selected_part, :find_part_under_pointer),
+    FocusModule => (:find_selected_part, :find_part_under_pointer, :select_part!),
     UndoModule => (:describe_undo_history,),
     GestureLogModule => (:get_session_gesture_log,),
     MessageLogModule => (:get_session_message_log,),
     FaultViewModule => (:get_session_fault_log,),
-    ClipboardModule => (:read_os_clipboard,),
+    ClipboardModule => (:read_os_clipboard, :write_os_clipboard!),
+    # What controls the window and what shows the person a part: a part as a page
+    # of a navigator, and the settings of the window.
+    NavigatorModule => (:open_page!,),
+    SettingsManagingModule => (:describe_settings, :change_setting!),
     # The verbs that edit a collection of a document, as edits of the editor.
     EditorModule => (:insert_elements!, :delete_elements!),
     # The verbs that filter, sort, group and limit a collection, which change how
@@ -410,6 +414,11 @@ const EDITOR_SYSTEM =
     "such as a widget or a chart, and `describe_natural_formats()` lists the " *
     "formats that `parse_natural_text` reads. `read_os_clipboard()` answers the " *
     "text that the person copied. " *
+    "`select_part!(part)` selects a part to show it to the person; no other verb " *
+    "moves the selection of the person. `open_page!(part)` opens a part as a page " *
+    "of its own in a new tab. `change_setting!(name, value)` changes a setting of " *
+    "the window, and `describe_settings()` lists them. " *
+    "`write_os_clipboard!(text)` gives the person a text to paste. " *
     "To change a document, use a verb, so the change is an edit that Ctrl+Z takes " *
     "back: `replace_referenced_value!(part, new_value)`, " *
     "`insert_elements!(collection, index, values)` and " *

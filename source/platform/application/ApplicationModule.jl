@@ -21,20 +21,25 @@ using ..GraphicsModule
 using ..KernelModule
 using ..ArrangementModule
 using ..AssistantModule
+using ..ClipboardModule
 using ..CollectionModule
 using ..ConversationModule
 using ..DomainModule
 using ..FileFormatModule
 using ..FaultViewModule
 using ..FileSystemModule
+using ..FocusModule
 using ..GestureLogModule
+using ..MessageLogModule
 using ..NaturalModule
+using ..NavigatorModule
 using ..PaneModule
 using ..RosterModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ScreenModule
 using ..SerializationModule
+using ..SettingsManagingModule
 using ..SettingsModule
 using ..ShellModule
 using ..StyleModule
@@ -47,7 +52,6 @@ using ..WidgetModule
 
 import ..SettingsModule: is_settings_group_read_at_start
 import ..TaskModule: make_task_api
-import ..ClipboardModule, ..FocusModule, ..MessageLogModule
 
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,

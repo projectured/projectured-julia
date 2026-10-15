@@ -47,6 +47,32 @@ function evaluate_operation(editor, operation::OpenPageOperation)
     nothing
 end
 
+"""
+    open_page!(part; editor = get_evaluation_editor()) -> Text
+
+Open `part` as a page in a new tab with a navigator, as the "Open as a page"
+command does: the page shows the part alone, its address names its place in the
+document of its tab, and Back, Forward and Parent move from it. The tab opens at
+the next frame of the window. `part` is a `ReferencedDocument` that a verb
+answered, such as a record read from `get_edited_document(tab)`.
+
+Use it to show the person one part of a large document on a page of its own,
+such as one record of a table or one section of a file.
+
+# Example
+
+    people_1 = get_edited_document(find_pane("people.json"))
+    open_page!(people_1[2])
+
+See also `open_pane!`, `select_part!`.
+"""
+function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_page!") do
+        evaluate_operation(editor, OpenPageOperation(nothing, get_reference(part)))
+    end
+    Text("The page of " * describe_document(part) * " opens in a new tab.")
+end
+
 # The content and the address of the navigator of an open that no navigator took.
 # An operation with its own root opens a navigator on that root. A path from the
 # root of the editor opens a navigator on the document of the tab that holds the
