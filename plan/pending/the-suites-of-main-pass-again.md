@@ -117,7 +117,13 @@ known; elsewhere the origin is not found yet.
    the text or the marks that they hold, the reason that marks the layouts broken; the atom
    of `GraphicsRect` fails twice with `getindex(nothing)`. **New on `main`:** `AgentWork`,
    `AssistantWork`, `DocumentTree`, `SystemProcess`, `SystemProcessTree`, `WorkPlan` and
-   `WorkPlanStep` have a printer and no atom (2026-10-15).
+   `WorkPlanStep` have a printer and no atom (2026-10-15). Another session added atoms for five of
+   them the same day, and the test counts the rest. **Fixed (step 2):** the four held atoms
+   came back, the three views of a text marked broken for the reason of the layouts, and
+   the catalog skips a projection that a test package defines: it had taken `_SlFill`, a
+   fixture of `ScrollLayoutTest`, for the rect. `test_catalog_coverage` has no failure,
+   `test_catalog` 684713 and 2274 broken, no failure. The testing guide says that a new
+   printer brings its atom.
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
@@ -129,6 +135,11 @@ A hypothesis, checked and wrong for item 4: items 4 and the first two tests of i
 a separate text for the second line of code, and the change "a run of a compound is one entry
 on its line" (`a9cf7bbaa`) was a candidate origin. Item 4 passes alone at that commit and
 after it. The first two tests of item 8 can depend on the order of the tests in the same way.
+
+11. **`test_documentation`, 2 failures** (`ProjecturedSuite.jl:415` and `:417`), found on
+    2026-10-15: `documentation/package/platform/application/application.md:25` names
+    OMNeT, which the guard treats as a private name. **Origin: `5942fd51c`** (2026-10-15),
+    the commit that wrote the line.
 
 ## 2. The steps
 
