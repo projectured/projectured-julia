@@ -45,10 +45,10 @@ export AbstractCell, is_cell_valid, invalidate_cell!, unwrap_cell, get_cell_valu
 export Computation, @computation
 export ReactiveCell, Cell, run_without_cell_tracking, CellCycleException, set_cell_value!,
        set_cell_computation!
+export ForeignCellWriteException, add_cell_writer!, remove_cell_writer!,
+       take_foreign_cell_writes!
 export run_in_cell_fault_scope, RecordedCellFaultException, get_cell_fault_scope,
        find_cell_fault_scope
-export add_cell_writer!, remove_cell_writer!, take_foreign_cell_writes!,
-       ForeignCellWriteException
 export MutableCell
 export ImmutableCell
 export UntrackedCell
