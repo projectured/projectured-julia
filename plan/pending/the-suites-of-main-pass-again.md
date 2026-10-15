@@ -42,7 +42,11 @@ known; elsewhere the origin is not found yet.
    `test_platform` too, so no search is needed.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word. **Fails alone on
-   `main` at `5a74db9d9`** (2026-10-15).
+   `main` at `5a74db9d9`** (2026-10-15). **Origin: `ba1957607`** (2026-10-12, found by a bisect from
+   `5d4c1269e`, 10 steps), "conversation, assistant: a part and the body of a draft are
+   lines". The change is on purpose: the fenced text is now a block of lines. The helper
+   `_cp_flat` of the test reads only the spans directly in a block, so it reads an empty
+   string: a change of the test, to `get_flat_string`.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
    (`NavigationTest.jl:180`). The walk reaches no state: Ctrl+Home, the seed of the walk,
    gives `nothing`. **Origin: `8389450e8`** (2026-10-06, found by a bisect from `5d4c1269e`,
