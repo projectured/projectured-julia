@@ -6,13 +6,8 @@
 # blocks fall back to fenced text.
 
 
-function _cp_flat(t::TextBlock)
-    io = IOBuffer()
-    for s in t.elements
-        hasproperty(s, :content) && s.content isa AbstractString && print(io, s.content)
-    end
-    String(take!(io))
-end
+# The text of a block, of spans or of lines, as one string.
+_cp_flat(t::TextBlock) = get_flat_string(t)
 
 # The inline/block children of a container Markdown node (root, paragraph, …),
 # which forward the vector protocol over their children (@forward_vector_protocol).
