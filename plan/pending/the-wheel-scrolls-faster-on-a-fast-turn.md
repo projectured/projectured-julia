@@ -6,7 +6,7 @@
 > four steps below and to a change of `MouseScroll` for the touchpad. Step 3
 > changes `MouseScroll` with a new field and not with a new type of `dx` and
 > `dy`. The owner agreed to that design and to the fix of the copies that drop
-> `modifiers` ("yes and also with the fixes"). Step 1 is done.
+> `modifiers` ("yes and also with the fixes"). Steps 1 and 2 are done.
 
 ## The goal
 
@@ -58,12 +58,16 @@ more at each notch, up to one view less one line. A touchpad scrolls smoothly.
 
 ### Step 2: the backend merges a run of wheel events
 
-- ⬜ `take_from_devices!` of the SDL backend merges a run of wheel events of the
+- ✅ `take_from_devices!` of the SDL backend merges a run of wheel events of the
   same window with the same modifiers into one `MouseScroll`. The event holds
-  the sum of the turns, and the position and the time of the newest event.
-- ⬜ The order of events stays. An event that is not a wheel event ends the run,
-  as it ends a run of motion.
-- ⬜ Test the merge, and test that a press after a turn comes after it.
+  the sum of the turns, and the position and the time of the newest event
+  (`_take_wheel_run!`, `_merge_wheel_events`).
+- ✅ The order of events stays. An event that is not a wheel event ends the run,
+  as it ends a run of motion. A motion sample that ends a run waits in
+  `pending_motion`, and any other event in `pending_inputs`. Nothing merges
+  while an older input, a held motion or the update of a frame waits.
+- ✅ Test the merge, and test that a press after a turn comes after it
+  (`InputCoalescingTest.jl`, 63 of 63).
 
 ### Step 3: a touchpad scrolls smoothly
 

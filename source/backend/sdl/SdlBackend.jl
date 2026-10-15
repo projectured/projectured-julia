@@ -3894,6 +3894,10 @@ Order is preserved. An event that is not motion ends the run: the held motion is
 answered first and the other event is kept in `backend.pending_inputs` for the
 next call, so a click never overtakes the motion that led to it.
 
+A run of wheel events of one window with the same modifiers is merged the same
+way, into one `MouseScroll` with the sum of the turns and the position and the
+time of the newest. Any other event ends it, so the order stays.
+
 Idle motion (no button held) is still rate-limited to one sample per
 `_HOVER_MOTION_INTERVAL`. A blocked sample is *held* in
 `backend.pending_motion`, not dropped: a pointer that stops sends nothing more,
@@ -3907,7 +3911,7 @@ as a motion sample too, after the `DisplayUpdate` of that frame.
 function BackendModule.take_from_devices!(backend::SdlBackend, devices)
     # What a previous call owes: the event that ended a motion run, and the
     # `KeyPress` of a Return or a Tab.
-    isempty(backend.pending_inputs) || return popfirst!(backend.pending_inputs)
+    isempty(backend.pending_inputs) || return _take_wheel_run!(backend, popfirst!(backend.pending_inputs))
     # A window that showed a changed frame: the readers find their part of the
     # view again before they read the input that came after it.
     isempty(backend.display_updates) || return popfirst!(backend.display_updates)
@@ -3926,7 +3930,7 @@ function BackendModule.take_from_devices!(backend::SdlBackend, devices)
         end
         other === nothing && break        # queue empty
         # An event that is not motion ends the run. Answer the motion first.
-        motion === nothing && return other
+        motion === nothing && return _take_wheel_run!(backend, other)
         # Before the `KeyPress` that the poll of `other` owes.
         pushfirst!(backend.pending_inputs, other)
         return motion
@@ -3946,6 +3950,41 @@ function BackendModule.take_from_devices!(backend::SdlBackend, devices)
     end
     motion
 end
+
+# `input`, with the wheel events of the same window and the same modifiers that
+# come right after it on the queue added to it. A fast turn puts many notches on
+# the queue. Without the merge each takes a frame of its own, and a slow frame
+# keeps the view behind the wheel. The merged event holds the sum of the turns,
+# and the position and the time of the newest. Any other event ends the run and
+# waits for the next call, so the order stays. Nothing merges while an older
+# input or the update of a frame waits.
+function _take_wheel_run!(backend::SdlBackend, input)
+    (input isa WindowInput && input.event isa MouseScroll) || return input
+    while isempty(backend.pending_inputs) && isempty(backend.display_updates) &&
+          backend.pending_motion === nothing
+        other, newer = _poll_window_input(backend)
+        if newer !== nothing
+            backend.pending_motion = newer
+            break
+        end
+        other === nothing && break
+        if other isa WindowInput && other.window_id == input.window_id &&
+           other.event isa MouseScroll && other.event.modifiers == input.event.modifiers
+            input = WindowInput(input.window_id, _merge_wheel_events(input.event, other.event))
+            continue
+        end
+        # Before the `KeyPress` that the poll of `other` owes.
+        pushfirst!(backend.pending_inputs, other)
+        break
+    end
+    input
+end
+
+# One wheel event for `older` and `newer`: the sum of their turns, at the position
+# and the time of `newer`.
+_merge_wheel_events(older::MouseScroll, newer::MouseScroll) =
+    MouseScroll(older.dx + newer.dx, older.dy + newer.dy, newer.x, newer.y, newer.modifiers;
+                time = newer.time)
 
 """
     _poll_window_input(backend) -> (other, motion)

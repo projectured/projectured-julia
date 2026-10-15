@@ -1,4 +1,5 @@
-# `take_from_devices!` collapses a run of pointer motion into its newest sample.
+# `take_from_devices!` collapses a run of pointer motion into its newest sample,
+# and a run of wheel turns into their sum.
 # The events are pushed onto the real SDL queue, so what is tested is the path
 # the editor actually runs, not a stand-in for it.
 
@@ -190,6 +191,37 @@ function test_input_coalescing()
         scroll = take_from_devices!(backend, Device[]).event
         @test scroll isa MouseScroll && scroll.dy > 0
         _reset_input!(backend)
+    end
+
+    @testset "a run of wheel turns answers with their sum" begin
+        _reset_input!(backend)
+        for _ in 1:3
+            _push_wheel!(-1)
+        end
+        scroll = take_from_devices!(backend, Device[]).event
+        @test scroll isa MouseScroll && scroll.dy == -3
+        @test take_from_devices!(backend, Device[]) === nothing
+    end
+
+    @testset "an event behind a run of turns does not overtake it" begin
+        _reset_input!(backend)
+        _push_wheel!(1)
+        _push_wheel!(1)
+        _push_button_down!(7, 9)
+        _push_wheel!(1)
+        first_input = take_from_devices!(backend, Device[]).event
+        @test first_input isa MouseScroll && first_input.dy == 2
+        @test take_from_devices!(backend, Device[]).event isa MouseDown
+        last_input = take_from_devices!(backend, Device[]).event
+        @test last_input isa MouseScroll && last_input.dy == 1
+        # A move after a turn comes after it.
+        _reset_input!(backend)
+        _push_wheel!(1)
+        _push_motion!(20, 20)
+        @test take_from_devices!(backend, Device[]).event isa MouseScroll
+        moved = take_from_devices!(backend, Device[]).event
+        @test moved isa MouseMove && (moved.x, moved.y) == (_logical(20), _logical(20))
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "a press holds the modifiers of its own place in the queue" begin
