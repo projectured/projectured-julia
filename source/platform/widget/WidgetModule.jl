@@ -98,6 +98,7 @@ export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_ope
 export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
        make_context_menu_binding
 export OpenPageOperation
+export OpenFileOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window
@@ -129,6 +130,7 @@ include("FindBarViewToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("ContextMenuOperation.jl")
 include("OpenPageOperation.jl")
+include("OpenFileOperation.jl")
 include("ContextMenuWindow.jl")
 include("DocumentComposition.jl")
 

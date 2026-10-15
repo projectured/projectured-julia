@@ -18,7 +18,6 @@ using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
 using ..FeedModule
-using ..FileSystemModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule

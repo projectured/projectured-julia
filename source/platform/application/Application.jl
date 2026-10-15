@@ -378,7 +378,8 @@ make_application_api() = Any[
     make_file_api()...,
     # What this application holds and the file slice does not name: the tree the
     # Files pane lists, and the operation that opens a row of it.
-    FileSystemModule => (:OpenFileOperation, :Workspace, :WorkspaceFolder),
+    FileSystemModule => (:Workspace, :WorkspaceFolder),
+    WidgetModule => (:OpenFileOperation,),
     # How a model reads what a tab holds, which is what a window of files is
     # asked about: find a document in the window, see through the history a file
     # carries, take the content of a file document, and read or write a document

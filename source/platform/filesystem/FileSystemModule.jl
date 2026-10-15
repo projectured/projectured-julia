@@ -8,9 +8,8 @@ a `CellVector`). Both carry their `pathname` as identity.
 `Workspace` groups one or more named folder roots (`WorkspaceFolder`) into a
 single container; `WorkspaceToFileSystem` projects it onto a file-system tree.
 A workspace is the tool view a person opens by typing `explorer`, seeded with
-the working directory. `OpenFileOperation` names a file to open without
-naming where: the slice that knows the destination defines
-`evaluate_operation` for it.
+the working directory. The slice evaluates `OpenFileOperation`: it reads the
+file into the document of its type and opens it in a new tab.
 """
 module FileSystemModule
 
@@ -49,7 +48,7 @@ import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: make_pred_document
 
-export FileSystemDocument, make_filesystem_pathname, OpenFileOperation
+export FileSystemDocument, make_filesystem_pathname
 export FileSystemTheme, ScaledFileSystemTheme
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        is_filesystem_marker_eligible

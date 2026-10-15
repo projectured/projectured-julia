@@ -66,34 +66,6 @@ make_filesystem_chooser(directory::AbstractString) =
 
 # ── Open a file ───────────────────────────────────────────────────────────────
 
-"""
-    OpenFileOperation(path; wrap = identity, file_wrap = identity)
-
-Names a file to open at `path`. This slice draws a file tree; it does not know
-where an opened file goes — a tab, a pane, a page — so it names the intent and
-nothing else. The slice that knows the destination defines
-`evaluate_operation` for it.
-
-`wrap` is applied to the content that the file document holds, and `file_wrap`
-to the file document: an opener puts a part of its own around the file there,
-such as a navigator. When the editor has settings, the evaluation of the open
-gives the file a history, whatever started the open: around the part that
-`file_wrap` makes, so it records every edit of that part, and else around the
-content, inside the file, as a file tab has it.
-"""
-struct OpenFileOperation <: Operation
-    path::String
-    wrap::Any
-    file_wrap::Any
-end
-
-OpenFileOperation(path::AbstractString; wrap = identity, file_wrap = identity) =
-    OpenFileOperation(String(path), wrap, file_wrap)
-
-# It carries its own subject and names no reference, so every reader between
-# the gesture and the editor passes it up unchanged.
-OperationModule.is_self_contained_operation(::OpenFileOperation) = true
-
 # The destination is a pane tree, in a new tab: `make_file_tab` reads the file into
 # the document type its extension owns, in a scroll pane, and `get_pane_file_group`
 # asks the pane tree where a file belongs. An editor with settings gives the file a

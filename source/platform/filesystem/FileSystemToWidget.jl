@@ -28,9 +28,9 @@ opening. Enter on the selected file and a double click on a file row call it
 and return that operation. The view does not open anything itself: the editor
 evaluates the operation, so the view stays free of side effects.
 
-The default is `OpenFileOperation`, the intent this slice declares — it names
-the file and nothing about where it goes. A caller that knows the destination
-(the pane tree, a specific pane) passes its own operation instead.
+The default is `OpenFileOperation`, which names the file and nothing about
+where it goes. A caller that knows the destination (the pane tree, a specific
+pane) passes its own operation instead.
 """
 struct FileSystemToWidgetTree <: Projection
     position::Point2D
