@@ -1271,6 +1271,64 @@ For each step, run the narrowest test: the test files of the step. Do not run
       its line is longer than 80 characters (`make_evaluator_arguments_text`).
     - A prompt that fails after `stop_external_agent!` closed its connection is no
       fault (`ExternalAgentSession.is_stopped`).
+  - **What the rebase decided** (onto `main` at `830905db0`, 2026-10-15):
+    - **`OpenPageOperation`** stays in the widget slice. `find_navigator_address`
+      of main, with its docstring, is in `NavigatorPageOpen.jl` beside
+      `find_navigator_target`, and `NavigatorModule` exports both. The task slice
+      reaches `OpenPageOperation` and `OpenFileOperation` through the widget slice,
+      so it no longer uses the navigator and the file-system slices, and its edges
+      are those of main with `systemprocess` and `tree`.
+    - **The load order** is `navigator`, `task`, `assistant`, `shell`, `mcplog`:
+      the navigator before the task slice, as on main, and the assistant after the
+      task slice and before the shell, as step 7 needs. The navigator now loads just
+      before `task`, not just after it as step 8 says; every edge allows that.
+    - **The page of a lone task is the one of main**, `TaskDocumentToWidgetPane` of
+      `TaskPagesToWidget.jl`. The projection of the same name of step 8, its builder
+      `_build_task_detail_parts`, its padding and `_format_task_document_time` went
+      away, and the detail of the pane of a group is the one of main again, with
+      the cards of step 3 (`_CARD_FIELDS`: the process tree, then the result
+      document). So the process tree of a running task shows in the detail of the
+      pane of a group, and not on the page of a task.
+    - **A kind that the editor does not start** (`applicable(start_task, task)` is
+      false), such as `AgentBackgroundTask`, has no Stop and no Run again on the page
+      of a task: the Stop of main for a task of no group interrupts a process, which
+      the execution of such a task does not have. Its kind gives Stop while the
+      agent can stop it, and Open the output.
+    - The page of a task says how long it ran (`elapsed …`, as main writes it at its
+      print), and not `started 14:02:11`. The node of a task in a tree still says
+      `running since 14:02:11`. `test_assistant_work` checks the texts of the page of
+      main, Stop and Open the output while the agent can stop the task, no Run
+      again, and no Stop once the task ended.
+    - **The roster** has one `read_intent` for `RosterRowsToWidget`: the answer of
+      main to an operation that a route brings to a row, and the double click of
+      step 2, which the route of main does not give. Both tests stay: the menu of a
+      row in `NavigatorGesturesTest.jl` and the double click in `TreeTest.jl`.
+    - `AgentBackgroundTask` needed no change for the shapes of main: its
+      `TaskDocument` has no group (`find_task_document_group` answers `nothing`),
+      `add_task_execution!` pushes its shadow to the `CellVector` of the executions,
+      and its streams have no file, so the page of a stream shows no line.
+    - Two failures came from step 8 and not from the rebase; `main` passes both
+      tests. `test_roster_facets` expects the facets `title`, `turn`, `tokens` and
+      `type` of `Assistant`, and step 8 added `plan`, `subagents` and
+      `background_tasks` (`RosterFacetTest.jl:27`). In `test_application`, the four
+      columns of step 8 make the column `title` of the Assistants pane so narrow
+      that "Window assistant" wraps into two texts, so the test finds no Show and
+      no › in its row (`ApplicationTest.jl:517` and `:569`, 2 errors).
+    - Tests after the rebase, each alone: `test_document_tree` 66,
+      `test_system_process` 78, `test_work_plan` 82, `test_navigator` 357,
+      `test_roster` 39, `test_roster_table` 9, `test_roster_sources` 19,
+      `test_roster_program` 21, `test_task_execution` 57, `test_task_document` 83,
+      `test_task_views` 43, `test_task_group` 76, `test_task_group_verbs` 23,
+      `test_task_pages` 44, `test_agent_work` 158, `test_assistant_work` 100,
+      `test_external_agent_turn` 271, `test_assistant_list` 49,
+      `test_assistant_overview` 63, the layering 21, the edges 1,
+      `test_agent_connection_event` 39, `test_scripted_agent_connection` 12,
+      `test_acp` 301, `test_assistant_mvp` 186 and 4 broken,
+      `test_assistant_composer_panel` 84 and `test_referenced_document_editor` 110
+      pass. `test_roster_facets` has 19 passes and the failure above;
+      `test_application` has 360 passes, 2 broken, the 2 failures and 2 errors of
+      item 8 of `the-suites-of-main-pass-again.md`, and the 2 errors above. The
+      naming, export and argument guards pass.
 
 ## 7. Not in this plan
 
