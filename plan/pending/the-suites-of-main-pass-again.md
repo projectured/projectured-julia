@@ -85,7 +85,10 @@ known; elsewhere the origin is not found yet.
    widgets. On 2026-10-14 the list has ten names: the nine others and `Roster`, which is new. On 2026-10-15
    (`5a74db9d9`) it has 14: the task pages of `02d2b2525` add `TaskDocument`, `TaskStream`,
    `TaskStreamLines` and `ACTaskExecution`. A name with the prefix `AC` is a name of the cell
-   layout of `TaskExecution`, which the stem of the test does not take off.
+   layout of `TaskExecution`, which the stem of the test does not take off. **Decided by the owner, 2026-10-15: (c).** A
+   real document type gets an atom of the catalog, and a type that is no document of its own,
+   such as the cell layout of a document or a part of a page, goes on the list of exclusions
+   of the test with its reason.
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
