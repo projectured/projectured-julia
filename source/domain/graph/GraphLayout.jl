@@ -49,6 +49,16 @@ such as `:adaptagrams`. A caller that asks for
 the engine that defers its choice does not otherwise learn which one ran, and
 without that a view cannot say what a reader is looking at and a test cannot
 assert that the choice went the way it should have.
+
+`graph` is the `GraphGraph` that this layout places, held by identity. A drop of
+a vertex writes its pin and the start positions into `graph.constraints`.
+
+`drag` is the drag of a vertex while the button is down, as view state: a
+`NamedTuple` `(vertex, index, origin, offset, started)`, or `nothing`. `vertex`
+is the `GraphVertex` and `index` its place in `vertex_layouts`; `origin` is the
+point of the press and `offset` how far the pointer moved from it; `started` is
+false until the pointer moved far enough to start the drag. Only the drawing
+reads it, so a move of the pointer repaints and does not run the engine.
 """
 @document struct GraphLayout <: GraphLayoutDocument
     vertex_layouts::CellVector = CellVector()
@@ -59,12 +69,15 @@ assert that the choice went the way it should have.
     highlight_vertex::Any = nothing
     highlight_edge::Any = nothing
     engine::Symbol = :unknown
+    graph::Any = nothing
+    drag::Any = nothing
 end
 
 """
-Per-vertex/edge policy wrapper. `kind` is one of `:pin`, `:same_rank`,
-`:align`, `:fixed_size`, `:min_separation`, `:cluster` (v1 ships `:pin` +
-`:fixed_size`); `payload` carries kind-specific data.
+Per-vertex/edge policy wrapper. `kind` is one of `GRAPH_CONSTRAINT_KINDS`, and
+`payload` carries kind-specific data: a corner `(x, y)` for `:pin` and
+`:start`. An engine lists the kinds it implements in
+`get_supported_constraint_kinds`.
 """
 @document struct GraphConstraint <: GraphLayoutDocument
     target::Document

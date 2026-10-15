@@ -65,7 +65,7 @@ a typing mistake; a kind inside it that an engine does not implement is a
 refusal, never a silent drop. See [`check_constraints`](@ref).
 """
 const GRAPH_CONSTRAINT_KINDS =
-    (:pin, :fixed_size, :cluster, :align, :same_rank, :min_separation)
+    (:pin, :start, :fixed_size, :cluster, :align, :same_rank, :min_separation)
 
 """
     get_supported_constraint_kinds(engine) -> Tuple{Vararg{Symbol}}
@@ -112,16 +112,37 @@ The `:pin` constraints as `objectid(vertex) => (x, y)`, where `(x, y)` is the
 **top-left** corner the vertex is pinned to — the same corner `positions`
 reports. Two pins on one vertex: the last one wins.
 """
-function get_constraint_pins(constraints)
-    pins = Dict{UInt,Tuple{Float64,Float64}}()
+get_constraint_pins(constraints) = _collect_constraint_corners(constraints, :pin)
+
+"""
+    get_constraint_starts(constraints) -> Dict{UInt,Tuple{Float64,Float64}}
+
+The `:start` constraints as `objectid(vertex) => (x, y)`, where `(x, y)` is the
+**top-left** corner where the layout begins to place the vertex. An engine that
+refines a placement moves the vertex from there; an engine that can not refine
+one places the vertex there, as it places a pin. A vertex with a pin has no
+start here, because its pin wins. Two starts on one vertex: the last one wins.
+"""
+function get_constraint_starts(constraints)
+    starts = _collect_constraint_corners(constraints, :start)
+    for id in keys(get_constraint_pins(constraints))
+        delete!(starts, id)
+    end
+    starts
+end
+
+# The constraints of `kind` as `objectid(vertex) => (x, y)`, for a kind whose
+# payload is a corner.
+function _collect_constraint_corners(constraints, kind::Symbol)
+    corners = Dict{UInt,Tuple{Float64,Float64}}()
     for constraint in constraints
-        constraint.kind === :pin || continue
+        constraint.kind === kind || continue
         payload = constraint.payload
         (payload isa Tuple && length(payload) == 2) || throw(ArgumentError(
-            "a :pin constraint's payload must be (x, y), got $(repr(payload))."))
-        pins[objectid(constraint.target)] = (Float64(payload[1]), Float64(payload[2]))
+            "a $(repr(kind)) constraint's payload must be (x, y), got $(repr(payload))."))
+        corners[objectid(constraint.target)] = (Float64(payload[1]), Float64(payload[2]))
     end
-    pins
+    corners
 end
 
 """

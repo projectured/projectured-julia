@@ -22,7 +22,8 @@ export GraphDocument
 export GraphLayoutDocument
 export GraphLayoutEngine, GridEmbedding, layout_graph, layout_engine_name,
        get_supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
-       get_constraint_pins, get_constraint_fixed_sizes, get_constraint_clusters,
+       get_constraint_pins, get_constraint_starts, get_constraint_fixed_sizes,
+       get_constraint_clusters,
        layout_vertices, get_vertex_sizes,
        get_straight_routes, get_extent_transform, fit_into_extent!
 export FruchtermanReingoldLayout

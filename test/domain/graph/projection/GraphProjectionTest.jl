@@ -231,6 +231,40 @@ end
     @test vl2.w > w_before
 end
 
+@testset "a pin of a vertex wins over its start" begin
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    constraints = [GraphConstraint(v1, :start, (1, 2)), GraphConstraint(v2, :start, (3, 4)),
+                   GraphConstraint(v1, :pin, (5, 6))]
+    @test get_constraint_starts(constraints) == Dict(objectid(v2) => (3.0, 4.0))
+    @test get_constraint_pins(constraints) == Dict(objectid(v1) => (5.0, 6.0))
+    @test_throws ArgumentError get_constraint_starts([GraphConstraint(v1, :start, 7)])
+end
+
+@testset "the constraints of the graph reach the engine after those of the projection" begin
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    g = GraphGraph([v1, v2], [GraphEdge(v1, v2)])
+    @test isempty(g.constraints)
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    stage = GraphGraphToGraphLayout(GridEmbedding();
+                                    constraints = _ -> [GraphConstraint(v1, :pin, (10, 10)),
+                                                        GraphConstraint(v2, :pin, (200, 10))])
+    layout = print_document(stage, content, g, _gctx()).output
+    @test layout.graph === g
+    @test layout.drag === nothing
+    corner(i) = (Int(layout.vertex_layouts[i].x), Int(layout.vertex_layouts[i].y))
+    @test corner(1) == (10, 10)
+    @test corner(2) == (200, 10)
+
+    # One write of the constraints of the graph places the vertex again, and its
+    # pin wins over the pin of the projection.
+    evaluate_operation(nothing, ReplaceReferencedValueOperation(
+        g, "constraints", [GraphConstraint(v1, :pin, (120, 80))]))
+    @test corner(1) == (120, 80)
+    @test corner(2) == (200, 10)
+end
+
 @testset "GraphLayoutToGraphics printer" begin
     v1 = GraphVertex(JsonString("a"))
     v2 = GraphVertex(JsonString("b"))
@@ -267,7 +301,7 @@ end
     chain = GraphToGraphics()
     @test chain isa ChainingProjection
     @test chain.projections[1] isa GraphGraphToGraphLayout
-    @test chain.projections[1].engine isa GridEmbedding
+    @test chain.projections[1].engine isa DeferredLayout
     @test chain.projections[2] isa GraphLayoutToGraphicsCanvas
     canvas = print_document(NestingProjection(chain; recursion=content), g).output
     @test canvas isa GraphicsCanvas

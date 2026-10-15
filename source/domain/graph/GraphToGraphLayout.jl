@@ -26,10 +26,13 @@
 end
 
 """
-    GraphGraphToGraphLayout(engine = GridEmbedding(); extent = nothing, border = 0,
-                            constraints = nothing)
+    GraphGraphToGraphLayout(engine = make_deferred_layout_engine(); extent = nothing,
+                            border = 0, constraints = nothing)
 
 Size the vertices, place them, and build the `GraphLayout`.
+
+The default engine is the one that defers its choice to the time of the layout:
+`FruchtermanReingoldLayout`, or an engine that a package registered.
 
 `extent` is the box the view has room for, as `(width, height)`, and `border` is
 the inset kept inside it. They live on the projection rather than on the engine,
@@ -40,7 +43,9 @@ projections and two extents. Naming no extent asks for an unbounded placement.
 `Vector{GraphConstraint}`. It is a function because a constraint names a vertex,
 and the vertices are known only once there is a document. It is read inside the
 layout cell, so a constraint derived from a reactive field re-runs the layout
-when that field changes.
+when that field changes. The engine gets these constraints first and
+`graph.constraints` after them, so a pin of the graph wins over a pin of the
+projection.
 """
 struct GraphGraphToGraphLayout <: Projection
     engine::GraphLayoutEngine
@@ -51,7 +56,7 @@ end
 
 # @optional: the layout engine stands first, as the algorithm the pipeline runs;
 # the rest is its chrome.
-GraphGraphToGraphLayout(engine::GraphLayoutEngine = GridEmbedding();
+GraphGraphToGraphLayout(engine::GraphLayoutEngine = make_deferred_layout_engine();
                         extent = nothing, border::Integer = 0, constraints = nothing) =
     GraphGraphToGraphLayout(engine,
                             extent === nothing ? nothing :
@@ -95,7 +100,10 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v isa GraphVertex || continue
             sizes[objectid(v)] = _canvas_wh(i <= length(ims) ? ims[i] : nothing)
         end
-        constraints = p.constraints === nothing ? GraphConstraint[] : p.constraints(graph)
+        # The graph's own constraints come last, so a pin that the person dropped
+        # wins over a pin of the projection.
+        constraints = vcat(p.constraints === nothing ? GraphConstraint[] : p.constraints(graph),
+                           graph.constraints)
         positions, routes = layout_graph(p.engine, graph, sizes, constraints;
                                          extent = p.extent, border = p.border)
         # Which engine really ran is decided inside this cell, because an engine
@@ -138,6 +146,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         Cell(@computation graph.highlight_vertex),
         Cell(@computation graph.highlight_edge),
         Cell(@computation placed[][3]),
+        Cell(graph), Cell(nothing),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
         end),
@@ -170,14 +179,14 @@ function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
 end
 
 """
-    GraphToGraphLayout(; engine=GridEmbedding(), extent=nothing, border=0,
-                       constraints=nothing)
+    GraphToGraphLayout(; engine=make_deferred_layout_engine(), extent=nothing,
+                       border=0, constraints=nothing)
 
-Convenience: the type-dispatching graph→layout projection. Defaults to the pure-
-Julia `GridEmbedding`; pass an `AdaptagramsLayout` (when available) to
-swap the native engine in behind the same interface.
+Convenience: the type-dispatching graph→layout projection. The default engine
+defers its choice to the time of the layout; pass `GridEmbedding()` for a grid,
+or an `AdaptagramsLayout` (when available) for the native engine.
 """
-function GraphToGraphLayout(; engine::GraphLayoutEngine=GridEmbedding(),
+function GraphToGraphLayout(; engine::GraphLayoutEngine=make_deferred_layout_engine(),
                             extent = nothing, border::Integer = 0,
                             constraints = nothing)
     GraphGraphToGraphLayout(engine; extent = extent, border = border,

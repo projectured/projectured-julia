@@ -1,6 +1,6 @@
 # The mouse drags a vertex of a graph
 
-> **Kind:** plan · **Status:** pending; written 2026-10-15; no step is done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
+> **Kind:** plan · **Status:** in progress on the branch `graph-vertex-drag`; written 2026-10-15; step 1 is done · **Stands on:** [graph.md](../../documentation/package/domain/graph/graph.md), [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md), [graph-domain.md](../done/graph-domain.md), [graph-layout-engines.md](../done/graph-layout-engines.md)
 
 ## 1. The request
 
@@ -16,6 +16,7 @@ the drag and a layout that starts from the last positions.
 | D1 | Where does a dropped position live? | In the graph: a `constraints` field of `GraphGraph` holds a `:pin` `GraphConstraint` for each dropped vertex. A drop is an edit, so undo removes it, and every view of the graph shows it. | The owner, 2026-10-15 ("Q1: agreed") |
 | D2 | What do the other vertices do at a drop? | The engine starts the layout from the current positions of all vertices and refines it. The drop writes a `:start` position for every vertex that has no pin, at the place where it is drawn. The layout run never writes them. | The owner, 2026-10-15, after the question "why can't we start the layout from the current pinned and unpinned positions?" ("agreed") |
 | D3 | How does the drag work? | With the drag mechanism that exists, as the drag of a tab and the rubber band of a chart do. Section 4.3 gives the details. | My design, given in the first answer; the owner did not object |
+| D4 | Which engine is the default? | `DeferredLayout`, made by `make_deferred_layout_engine()`, in `GraphGraphToGraphLayout()`, `GraphToGraphLayout()`, `GraphToGraphics()` and `make_graph_projection_example`. With nothing registered it is `FruchtermanReingoldLayout`. A graph in a tab and `graph_example` then refine after a drop. The cost: about 0.13 s for each layout run at 300 vertices, where the grid takes 0.0002 s. | The owner, 2026-10-15 ("I agree with recommendation"), after the question "why not use FruchtermanReingoldLayout by default" |
 
 D1 changes a design decision of [graph.md](../../documentation/package/domain/graph/graph.md):
 "`GraphLayout` holds the positions outside `GraphGraph`, so a saved graph holds
@@ -47,10 +48,13 @@ A start position that the engine keeps without a move is a correct answer: the
 contract of `:start` is "begin here, and you can move it". So no engine drops
 the constraint.
 
-`graph_example` and a graph in a tab use `GridEmbedding` now
+Before this plan, `graph_example` and a graph in a tab used `GridEmbedding`
 ([GraphProjectionExample.jl:11](../../example/domain/graph/GraphProjectionExample.jl#L11),
 the `__init__` in [GraphLayoutToGraphics.jl](../../source/domain/graph/GraphLayoutToGraphics.jl)).
-So with the defaults, the person sees no refinement. Section 7 has the question.
+D4 makes `DeferredLayout` their engine, so they refine after a drop. The state
+machine example names `GridEmbedding` itself and keeps it. The process example
+already uses the deferred engine, and omnet-julia and inet-julia name their own
+engines.
 
 ## 4. The design
 
@@ -136,10 +140,17 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
 
 ## 5. Steps
 
-- [ ] **1. The documents and the `:start` kind.** Section 4.1, and the
-  constraint part of section 4.2. Tests in `GraphProjectionTest.jl`:
+- [x] **1. The documents, the `:start` kind and the default engine.** Section
+  4.1, the constraint part of section 4.2, and D4. A test that uses a default
+  and tests the grid names `GridEmbedding()`. Tests in `GraphProjectionTest.jl`:
   - a pin in `graph.constraints` places the vertex at the pin;
   - the pin of the graph wins over a pin of the projection.
+
+  Done 2026-10-15. `get_constraint_starts` leaves out a vertex that has a pin,
+  so every engine gets the rule "a pin wins over a start" from one place; it and
+  `get_constraint_pins` share `_collect_constraint_corners`. Only one test
+  depended on the grid default: it asserted the engine type of `GraphToGraphics()`.
+  `test_graph()`, `test_fsm()` and `test_process()` pass together: 898 passes.
 - [ ] **2. The engines.** `FruchtermanReingoldLayout` as in section 4.2.
   `GridEmbedding` and `AdaptagramsLayout` place a start as a pin. Tests in
   `FruchtermanReingoldLayoutTest.jl`:
@@ -187,11 +198,7 @@ the input of the view as a whole, so the chain reads them at the deepest stage.
 - During a drag, the edges of the dragged vertex are straight. An engine that
   routes around boxes routes them again at the drop.
 
-## 7. Open question
-
-- **Does `graph_example` use the deferred engine?** With the grid, the person
-  sees no refinement. My recommendation: `graph_example` uses
-  `make_deferred_layout_engine()`, and a graph in a tab keeps the grid. Open.
+## 7. Not in this plan
 
 Not in this plan: a command that removes the pins and the start positions (lay
 out again); a drag of an edge, of a bend, or of the empty canvas; feeding start

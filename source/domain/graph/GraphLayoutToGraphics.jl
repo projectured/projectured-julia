@@ -429,8 +429,8 @@ end
 # @optional: the layout engine stands first, as the algorithm the pipeline runs;
 # the rest is its chrome.
 """
-    GraphToGraphics(engine = GridEmbedding(); extent = nothing, border = 0,
-                    constraints = nothing, theme = nothing) -> ChainingProjection
+    GraphToGraphics(engine = make_deferred_layout_engine(); extent = nothing,
+                    border = 0, constraints = nothing, theme = nothing) -> ChainingProjection
 
 The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
 `TextToGraphics` step, like `TableToGraphics`: the chain of
@@ -439,7 +439,7 @@ The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
 the content of a vertex prints through the recursion that encloses the chain,
 for example a `NestingProjection`.
 """
-GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
+GraphToGraphics(engine::GraphLayoutEngine = make_deferred_layout_engine();
                 extent = nothing, border::Integer = 0, constraints = nothing,
                 theme = nothing) =
     ChainingProjection(GraphGraphToGraphLayout(engine; extent = extent, border = border,

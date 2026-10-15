@@ -279,7 +279,7 @@ function print_document(p::ProcessDiagramToGraph, recursion,
         nothing
     end)
 
-    graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge,
+    graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge, Cell(GraphConstraint[]),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, diagram.selection)
         end),

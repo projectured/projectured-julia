@@ -74,6 +74,14 @@ measured sizes and re-running the whole layout. Both hold the referent by
 identity, like an edge's endpoints; a `VertexLayout` is rebuilt on every layout
 recompute and must never be held here.
 
+`constraints` is a `Vector` of `GraphConstraint` that the graph gives every
+layout of it: the places that the person gave its vertices. A drop of a dragged
+vertex writes a `:pin` for that vertex and a `:start` for each other vertex at
+the place where it is drawn, so the next layout begins from what the person saw.
+Each write replaces the whole vector, which makes a drop one edit. A layout
+gives the engine these constraints after the ones of its projection, so a pin
+here wins over a pin of the projection.
+
 Use it to draw nodes and the links between them: a map, a network or a state machine.
 
 # Example
@@ -89,6 +97,7 @@ See also `GraphVertex` and `GraphEdge`.
     edges::CellVector = CellVector()
     highlight_vertex::Any = nothing
     highlight_edge::Any = nothing
+    constraints::Any = GraphConstraint[]
 end
 
 # Two-CellVector convenience: Rule C only covers a single CellVector, so this
@@ -96,5 +105,5 @@ end
 function GraphGraph(vertices::Vector, edges::Vector)
     GraphGraph(CellVector(Cell[v isa Cell ? v : Cell(v) for v in vertices]),
                CellVector(Cell[e isa Cell ? e : Cell(e) for e in edges]),
-               Cell(nothing), Cell(nothing), Cell(nothing))
+               Cell(nothing), Cell(nothing), Cell(GraphConstraint[]), Cell(nothing))
 end

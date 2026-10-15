@@ -3,12 +3,13 @@
 # two graph stages run as a ChainingProjection; a NestingProjection threads the
 # content projection as their recursion (mirrors make_table_projection_example).
 #
-# Defaults to the pure-Julia GridEmbedding. Pass an engine to swap it
+# Defaults to the engine that defers its choice to the time of the layout:
+# FruchtermanReingoldLayout, or an engine that a package registered. Pass an engine to swap it
 # (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
 # behind the same interface.
 
 function make_graph_projection_example(; measure=FontFileMeasure(),
-                                       engine=GridEmbedding(),
+                                       engine=make_deferred_layout_engine(),
                                        content=nothing)
     # A vertex's content can be any domain. Dispatch on the root content type to a
     # complete per-domain pipeline to GraphicsCanvas: tables render directly via
