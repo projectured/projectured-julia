@@ -47,6 +47,7 @@ using ..WidgetModule
 
 import ..SettingsModule: is_settings_group_read_at_start
 import ..TaskModule: make_task_api
+import ..ClipboardModule, ..FocusModule, ..MessageLogModule
 
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,

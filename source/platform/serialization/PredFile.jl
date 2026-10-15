@@ -222,15 +222,18 @@ end
 
 Write a document as the text that builds it again.
 
-Use it to save a document to a file, or to compare two documents by what they
-would be saved as. The text is the document's own constructor call, and reading
-it back gives a document that prints the same text.
+Use it to save a document to a file, to compare two documents by what they
+would be saved as, or to read the data of a part that has no text of its own
+domain, such as a widget, a chart or a graph. The text is the document's own
+constructor call, and reading it back gives a document that prints the same text.
 
 # Example
 
-    write("study.pred", print_pred_text(study))
+    write("notes.pred", print_pred_text(notes))
+    println(print_pred_text(find_selected_part()))
 
-See also `parse_pred_text`, which reads it back.
+See also `parse_pred_text`, which reads it back, and `print_natural_text`, which
+prints a part of a domain that has a text of its own.
 
 `document` as its own constructor, in one canonical form: every declared field
 in declaration order, and one way to write each value. The write gate compares
@@ -247,6 +250,8 @@ function print_pred_text(document)
     _print_pred_value(io, document, "", 0)
     String(take!(io))
 end
+
+print_pred_text(document::ReferencedDocument) = print_pred_text(get_document(document))
 
 const _PRED_INDENT = "    "
 

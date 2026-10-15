@@ -200,7 +200,7 @@ function test_referenced_document_editor()
         @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
         # A domain with a parser is written as its text, so its constructors are
         # not declared, and a search for a document from text finds the parser.
-        @test first(first_names("a document from its text"; mode = "description")) == "parse_natural_text"
+        @test first(first_names("make a document of a domain from its text"; mode = "description")) == "parse_natural_text"
         @test first(first_names("open a pane under another pane"; mode = "description")) == "open_pane!"
     end
 

@@ -290,11 +290,33 @@ If a rank moves, the fix is a word of a docstring, not the scorer of `search_api
   - Tests: `ApplicationTest` "the assistant's verbs", `test_interface_api`,
     `test_referenced_document_editor`. In omnet-julia: `test_prompt_names`,
     `CampaignVerbsTest`, `MeaningSearchMeasurementTest`.
-- [ ] **2. Read.**
+- [x] **2. Read.** Done 2026-10-15.
   - `find_selected_part`, `find_part_under_pointer`, `find_focused_pane` and
     `describe_natural_formats`.
   - Declare `print_pred_text`, the three log getters, `find_undo_buffer` and
     `read_os_clipboard`.
+  - What was built, and what changed against the lines above:
+    - `find_selected_part` and `find_part_under_pointer` are in the focus slice
+      (`SelectedPart.jl`). Each answers the deepest document on the path, so a
+      caret inside a string answers the string.
+    - The three logs printed only as raw structs. Each registered its syntax
+      projection with `register_natural_syntax!`, whose rows serve the renderer
+      only. Each now registers it with `register_natural_notation!`, which serves
+      the renderer and `print_natural_text` alike. So `print_natural_text` prints
+      every log, and no new display was needed.
+    - `find_undo_buffer` answers the buffer, and its display is a raw struct. A
+      model needs the changes, so the step adds `describe_undo_history()` in its
+      place: one line for each change to take back and to put back.
+    - `print_pred_text` takes a `ReferencedDocument`. It refuses a document that
+      holds runtime state, such as a tab with its history, and its error names
+      the field.
+    - The rank of `find_pane` moved again with the new names. Its first sentence
+      now says "pane", and its "Use it to" line is one short sentence; the rest
+      of that paragraph moved to the next paragraph, which the search does not
+      score.
+    - The application slice may now use the clipboard, focus and log slices.
+    - The test is `test_assistant_verbs()` (`AssistantVerbsTest.jl`) in
+      ProjecturedTest, and the later steps add to it.
   - Tests: an editor with a JSON tab and a Markdown tab. After a selection, a
     pointer motion and an edit, each verb answers the part, the tab and the entry
     that the person made.

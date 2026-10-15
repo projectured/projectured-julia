@@ -67,6 +67,15 @@ const _WRITER = Ref{Function}(_default_write)
 
 Return the OS clipboard's text, or `nothing` when no clipboard tool is available or
 the read fails.
+
+Use it to read what the person copied, such as a text that the person asks you
+to put into a document.
+
+# Example
+
+    copied_1 = read_os_clipboard()
+
+See also `write_os_clipboard!`, `parse_natural_text`.
 """
 read_os_clipboard()::Union{String,Nothing} = _READER[]()
 

@@ -180,6 +180,15 @@ into. With no editor, a new empty log, which nothing keeps and nothing fills.
 Every gesture log a person opens in a window of the editor is this document, so
 two of them show the same history rather than two halves of it. A view that
 shows only part of the history is a filter over this log, not a log of its own.
+
+Use it to see what the person did last: `print_natural_text` prints one line for
+each gesture, with its keys or its click and the operation that it ran.
+
+# Example
+
+    println(print_natural_text(get_session_gesture_log()))
+
+See also `describe_undo_history`, `find_selected_part`.
 """
 get_session_gesture_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(GestureLog, editor, GestureLog) : GestureLog()

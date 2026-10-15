@@ -77,7 +77,8 @@ import ..EditorModule: make_document_projection
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
        register_natural_parser!, register_natural_expression!, register_natural_rung!,
        make_natural_projection, get_natural_extension, get_natural_format,
-       get_natural_entries, parse_natural_text, make_prose_document, has_natural_parser,
+       get_natural_entries, parse_natural_text, describe_natural_formats,
+       make_prose_document, has_natural_parser,
        find_natural_parser, make_natural_expression, has_natural_expression,
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,

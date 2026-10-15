@@ -343,7 +343,19 @@ make_editor_api() = Any[
     # of any domain as its own text.
     DocumentModule => (:search_documents, :get_wrapped_document),
     FileFormatModule => (:get_file_content,),
-    NaturalModule => (:print_natural_text, :parse_natural_text),
+    NaturalModule => (:print_natural_text, :parse_natural_text, :describe_natural_formats),
+    # The text of a part that has no text of its own domain: the constructor that
+    # builds it.
+    SerializationModule => (:print_pred_text,),
+    # What the person does and did: the part that the person selected, the part
+    # under the pointer, the history of the changes, the gestures, the messages and
+    # the faults of the window, and the text that the person copied.
+    FocusModule => (:find_selected_part, :find_part_under_pointer),
+    UndoModule => (:describe_undo_history,),
+    GestureLogModule => (:get_session_gesture_log,),
+    MessageLogModule => (:get_session_message_log,),
+    FaultViewModule => (:get_session_fault_log,),
+    ClipboardModule => (:read_os_clipboard,),
     # The verbs that edit a collection of a document, as edits of the editor.
     EditorModule => (:insert_elements!, :delete_elements!),
     # The verbs that filter, sort, group and limit a collection, which change how
@@ -388,6 +400,16 @@ const EDITOR_SYSTEM =
     "it, and `parse_natural_text(format, text)` makes a document of a domain from " *
     "its text, as `parse_natural_text(:json, \"[1, 2]\")` does; write the text of a " *
     "domain rather than the constructors of its documents. " *
+    "`find_selected_part()` answers the part that the person selected, " *
+    "`find_part_under_pointer()` the part under the mouse pointer, and " *
+    "`find_focused_pane()` the tab where the person works. " *
+    "`describe_undo_history()` says what changed last. `print_natural_text` also " *
+    "prints the logs of the session: `get_session_gesture_log()`, " *
+    "`get_session_message_log()` and `get_session_fault_log()`. " *
+    "`print_pred_text(part)` prints a part that has no text of its own domain, " *
+    "such as a widget or a chart, and `describe_natural_formats()` lists the " *
+    "formats that `parse_natural_text` reads. `read_os_clipboard()` answers the " *
+    "text that the person copied. " *
     "To change a document, use a verb, so the change is an edit that Ctrl+Z takes " *
     "back: `replace_referenced_value!(part, new_value)`, " *
     "`insert_elements!(collection, index, values)` and " *

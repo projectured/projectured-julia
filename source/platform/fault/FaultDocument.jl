@@ -140,6 +140,15 @@ A window fills it once it is attached to the store of its editor:
 
 Every fault log that a person opens in a window of the editor is this document,
 so two of them show the same faults rather than two halves of them.
+
+Use it to read what failed in the window: `print_natural_text` prints one line
+for each fault, with its place, its message and its count.
+
+# Example
+
+    println(print_natural_text(get_session_fault_log()))
+
+See also `get_session_message_log`, `get_session_gesture_log`.
 """
 get_session_fault_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(FaultLog, editor, FaultLog) : FaultLog()

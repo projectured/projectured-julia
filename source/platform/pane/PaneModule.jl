@@ -93,7 +93,7 @@ export show_layout, get_referenced_value, replace_referenced_value!,
        open_pane!, make_open_pane_operation, focus_pane!, make_focus_pane_operation,
        close_pane!, make_close_pane_operation, duplicate_pane!, make_duplicate_pane_operation,
        move_pane!, make_move_pane_operation, is_layout_line,
-       find_pane, find_pane_reference, find_pane_tree_reference, is_pane_search_step,
+       find_pane, find_focused_pane, find_pane_reference, find_pane_tree_reference, is_pane_search_step,
        post_pane_operation!,
        get_window_tree, describe_document,
        pane_group_to_avoid, make_pane_api, make_interface_api

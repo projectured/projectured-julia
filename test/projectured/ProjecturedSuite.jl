@@ -177,6 +177,7 @@ include("editor/EvaluatorToplevelTest.jl")
 include("editor/EvaluatorDuplicateTest.jl")
 include("editor/ValueViewerTest.jl")
 include("editor/ReferencedDocumentEditorTest.jl")
+include("editor/AssistantVerbsTest.jl")
 include("editor/GalleryWrapperTest.jl")
 include("projection/CommandPaletteTest.jl")
 include("projection/DocumentInsertionTest.jl")
@@ -569,6 +570,7 @@ function test_integration()
     test_evaluator_duplicate()
     test_value_viewer()
     test_referenced_document_editor()
+    test_assistant_verbs()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -641,7 +643,7 @@ export test_undo_round_trip
 export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
-       test_value_viewer, test_referenced_document_editor,
+       test_value_viewer, test_referenced_document_editor, test_assistant_verbs,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql

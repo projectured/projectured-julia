@@ -49,6 +49,7 @@ using ..SelectionModule
 using ..SettingsModule
 using ..ToolModule
 using ..EditorModule
+using ..AgentModule: run_on_editor_task!
 using ..ProjectionAlgebraModule
 using ..NaturalModule
 
@@ -69,7 +70,7 @@ export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        push_undo_entry!, clear_undo_history!, is_undo_step,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,
        TYPING_PAUSE, get_typing_caret,
-       find_undo_buffer, register_undo_tools!,
+       find_undo_buffer, describe_undo_history, register_undo_tools!,
        UndoBufferToAnyProjection, UndoBufferToAnyIoMap,
        UndoTheme, ScaledUndoTheme, UndoBufferToSyntax, make_undo_projection,
        HistorySettings

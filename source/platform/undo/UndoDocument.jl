@@ -412,6 +412,40 @@ function find_undo_buffer(document)
 end
 
 """
+    describe_undo_history(; editor = get_evaluation_editor()) -> Text
+
+The changes of the window that the tool `undo` and Ctrl+Z take back, and the
+changes that the tool `redo` puts back, newest last: one line each, in the words
+that say what the change did. The changes are those of the person and those of
+an assistant alike. A window with no history says so.
+
+Use it to answer "what did I just do?", to say what changed last, or to see what
+the tool `undo` would take back before you call it.
+
+# Example
+
+    println(describe_undo_history())
+
+See also `find_selected_part`, `print_natural_text`.
+"""
+function describe_undo_history(; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "describe_undo_history") do
+        buffer = find_undo_buffer(getfield(editor, :document))
+        buffer === nothing && return Text("This window keeps no history.")
+        undo = [entry.label for entry in buffer.undo_entries]
+        redo = [entry.label for entry in buffer.redo_entries]
+        lines = String[isempty(undo) ? "Nothing to take back." :
+                       "To take back, newest last:"]
+        append!(lines, "  " .* undo)
+        if !isempty(redo)
+            push!(lines, "To put back, newest last:")
+            append!(lines, "  " .* redo)
+        end
+        Text(join(lines, "\n"))
+    end
+end
+
+"""
     register_undo_tools!(set) -> set
 
 Add the `undo` and the `redo` tool to `set`.

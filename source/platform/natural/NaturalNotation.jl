@@ -226,14 +226,55 @@ find_natural_parser(format::Symbol) = _lookup(_PARSERS, format)
 """
     parse_natural_text(format::Symbol, text) -> Document
 
-Read `text` of `format` into a document. Errors when no domain claimed the
-format; ask [`has_natural_parser`](@ref) first when that is a normal answer.
+Read `text` of `format` into a document. The text can be a whole file or a part
+of one: one JSON value, one Julia expression, one Markdown paragraph. Errors when
+no domain claimed the format; ask [`has_natural_parser`](@ref) first when that is
+a normal answer.
+
+Use it to make a document of a domain from its text: a new value for
+`replace_referenced_value!`, a new element for `insert_elements!`, or a whole
+document for `open_pane!`. Write the text of the domain, which you know well,
+rather than the constructors of its documents.
+
+# Example
+
+    price_1 = parse_natural_text(:json, "12")
+    item_1 = parse_natural_text(:json, \"\"\"{"name": "lamp", "price": 25}\"\"\")
+    note_1 = parse_natural_text(:md, "# Notes\\n\\nThe first line.")
+
+See also `describe_natural_formats`, `print_natural_text`.
 """
 function parse_natural_text(format::Symbol, text::AbstractString)
     parse = _lookup(_PARSERS, format)
     parse === nothing &&
         error("parse_natural_text: no parser registered for $(repr(format))")
     parse(text)
+end
+
+"""
+    describe_natural_formats() -> Text
+
+The formats that [`parse_natural_text`](@ref) reads, one line each: the format,
+the extension of its files, and the kind of document that it makes, such as
+`:json   .json   JsonDocument`. Only the domains that this session loaded are in
+the list.
+
+Use it to find the format of a domain before you write its text, or to see which
+documents can be written as text at all.
+
+# Example
+
+    println(describe_natural_formats())
+
+See also `parse_natural_text`, `print_natural_text`.
+"""
+function describe_natural_formats()
+    lines = String[]
+    for (T, (format, extension)) in _FORMATS
+        has_natural_parser(format) || continue
+        push!(lines, rpad(repr(format), 8) * rpad(extension, 10) * String(nameof(T)))
+    end
+    Text(join(sort(lines), "\n"))
 end
 
 """

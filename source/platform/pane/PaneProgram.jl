@@ -94,7 +94,7 @@ make_pane_api() = Any[
     # a model names a part by a complete reference from the root.
     PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
                           :open_pane!, :focus_pane!, :close_pane!, :move_pane!,
-                          :duplicate_pane!, :find_pane, :find_pane_reference,
+                          :duplicate_pane!, :find_pane, :find_focused_pane, :find_pane_reference,
                           :find_pane_tree_reference, :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
@@ -995,15 +995,17 @@ end
 """
     find_pane(title; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
 
-The tab whose title is `title`, in any window, together with its complete reference
-from the root of the editor's document: a `ReferencedDocument` that acts like the
-tab. `nothing` when no tab has that title; when two tabs have it, an
-`ArgumentError` names both.
+The pane whose tab has the title `title`, in any window: the tab, together with its
+complete reference from the root of the editor's document, as a
+`ReferencedDocument` that acts like the tab. `nothing` when no tab has that title;
+when two tabs have it, an `ArgumentError` names both.
 
-Use it to find a pane by the title of its tab: to read the data it shows with
-[`get_edited_document`](@ref), to reach the group that holds it with
-[`get_parent`](@ref), to open a new tab beside it with [`open_pane!`](@ref) and its
-`target`, or to hand it to a verb that moves, focuses or closes it.
+Use it to find a pane by its title.
+
+Then read the data that it shows with [`get_edited_document`](@ref), reach the
+group that holds it with [`get_parent`](@ref), open a new tab beside it with
+[`open_pane!`](@ref) and its `target`, or hand it to a verb that moves, focuses or
+closes it.
 
 # Example
 
@@ -1016,6 +1018,40 @@ function find_pane(title::AbstractString; editor = get_evaluation_editor())
         reference = find_pane_reference(title; editor)
         reference === nothing && return nothing
         ReferencedDocument(get_referenced_value(reference; editor), reference)
+    end
+end
+
+"""
+    find_focused_pane(; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
+
+The tab that has the focus, which is the tab where the person works: the deepest
+tab on the path of the selection, together with its complete reference from the
+root of the editor's document. `nothing` when the selection is in no tab.
+
+Use it to find the tab that the person looks at: to read the data it shows with
+[`get_edited_document`](@ref), to say its title, or to open a new tab beside it
+with [`open_pane!`](@ref) and its `target`.
+
+# Example
+
+    tab_1 = find_focused_pane()
+    data_1 = get_edited_document(tab_1)
+    println(print_natural_text(data_1))
+
+See also `find_pane`, `find_selected_part`, `show_layout`.
+"""
+function find_focused_pane(; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "find_focused_pane") do
+        root = _get_root_document(editor)
+        selection = get_selection(root)
+        selection === nothing && return nothing
+        steps = collect(get_reference_steps(strip_reference_types(selection)))
+        for count in length(steps):-1:1
+            prefix = foldr(ConcreteReference, steps[1:count]; init = EmptyReference())
+            node = try_evaluate_reference(root, prefix, nothing)
+            node isa PaneTab && return ReferencedDocument(node, annotate_reference_types(root, prefix))
+        end
+        nothing
     end
 end
 

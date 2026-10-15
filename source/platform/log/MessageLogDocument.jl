@@ -76,6 +76,16 @@ Every message log that a person opens in a window of the editor is this
 document, so two of them show the same messages rather than two halves of them.
 A view that shows only part of the history is a filter over this log, not a log
 of its own.
+
+Use it to read the messages of the window, such as a warning of a file that
+could not be read: `print_natural_text` prints one line for each message, with
+its level.
+
+# Example
+
+    println(print_natural_text(get_session_message_log()))
+
+See also `get_session_fault_log`, `get_session_gesture_log`.
 """
 get_session_message_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(MessageLog, editor, MessageLog) : MessageLog()
