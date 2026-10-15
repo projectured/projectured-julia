@@ -258,11 +258,32 @@ findings, which the owner asked to fix on 2026-10-15:
     cells of the row read the edges of the columns, which have a reader for
     each row. That cascade, about 33 computations for a moved row, is what
     remains; a print of the row was about 45.
-- [ ] **3. The record of a new reader.** Done only when, after step 2, the probe
+- [x] **3. The record of a new reader.** Done only when, after step 2, the probe
   of `plan/done/dependency-reads.md` still walks more than one million entries
   in a step of S4b or S4d. Then a record that knows the reader is new to the
   list puts it at the end with no scan, and the dead readers go out in a bounded
   way, so the list can not grow with no limit; a test pins the bound.
+  - Due: after step 2 the probe walked 4.59 M entries in S4b and 1.65 M in
+    S4b-w for each step.
+  - Done 2026-10-15 in `ReactiveCell.jl`, which the owner left unsealed. A run
+    detaches its cell from all that it read before it starts, so the reader of
+    a read in a run is new to the list, unless the run read that cell already.
+    `_register_dependent!` looks at the last entry and puts the reader at the
+    end. A run that reads a cell again after another reader came leaves a
+    second entry, which the next detach removes with the first, because a
+    detach removes every entry of its reader: about 12 in a step of S4b.
+  - The bound: a list is swept of collected readers when it grows past twice
+    its length after the last sweep, plus 8 (`_SWEEP_MINIMUM`). The length
+    after the sweep is the new field `swept_length::UInt32`, which fills the
+    padding after the one byte of `state`. A test churns a thousand readers,
+    fifty alive at a time, beside ten that stay, and pins the list within
+    2 * 60 + 8; the test of discarded readers now asserts that bound.
+  - The walk of the record, per step, old → new: S4b 6.04 M → 7.9 K, S4b-w
+    1.50 M → 782, S4d 0.88 M → 3.0 K (the probe copies the new record). The
+    detach still walks: 1.34 M in S4b-w, 0.11 M in S4b.
+  - The kernel suite passes (4582), and the platform suite (152602 pass, 7
+    broken, and the 2 failures of `InterfaceApiTest.jl` that the base has and
+    `main` fixed in `4fcc4ab1d`).
 - [ ] **4. The time.** The six scenarios of the measure on an idle machine,
   `main` at the start of this plan against the branch, two rounds each, with a
   wait for an idle machine.

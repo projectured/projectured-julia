@@ -25,6 +25,13 @@ end
     (_count_live_dependents(source), WeakRef(cells[1]))
 end
 
+# Fifty computed cells that read `source`, each forced once, and then dropped, in
+# a frame of their own, as `_make_discarded_readers` does.
+@noinline function _read_and_drop(source)
+    foreach(_ -> (cell = Cell(@computation source[] + 1); cell[]), 1:50)
+    nothing
+end
+
 function test_cell()
 @testset "Cell" begin
 
@@ -111,11 +118,11 @@ x[] = 999          # x is no longer a dep after last eval
     @test discarded.value === nothing             # ...so the reader really was collected
     @test live(source) <= 1                       # nothing live remains behind it
 
-    # The emptied slots are pruned by the next scan, which registration is doing anyway,
-    # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.
+    # The emptied slots go at the next sweep, when the list has grown to twice its
+    # length after the last one, so dead `WeakRef`s never pile up past that.
     keep = Cell(@computation source[] + 1)
     keep[]
-    @test length(getfield(source, :dependents)) == live(source)
+    @test length(getfield(source, :dependents)) <= 2 * 100 + 8 + 1
 
     # And the weak edge still propagates invalidation to a reader that IS alive.
     source[] = 41
@@ -447,6 +454,25 @@ end
     @test !is_cell_valid(middle) && !is_cell_valid(reader)
     source[] = 3
     @test reader[] == 5
+end
+
+@testset "a list of readers stays within twice its live readers" begin
+    # A record puts a reader at the end with no scan, and the readers that were
+    # collected go when the list grows to twice its length after the last sweep.
+    # Ten readers stay; a thousand come and go, fifty at a time, so at most sixty
+    # are alive at a sweep, and the list stays within 2 * 60 + 8.
+    source = Cell(0)
+    held = [Cell(@computation source[] + k) for k in 1:10]
+    foreach(getindex, held)
+    for _ in 1:20
+        _read_and_drop(source)
+        GC.gc(true)
+    end
+    @test 10 <= length(getfield(source, :dependents)) <= 2 * 60 + 8
+    @test _count_live_dependents(source) >= 10
+    # The readers that stay still follow a write.
+    source[] = 1
+    @test [cell[] for cell in held] == collect(2:11)
 end
 
 @testset "a run keeps one edge for each cell it read, in the order of the first read" begin

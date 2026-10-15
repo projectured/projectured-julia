@@ -70,6 +70,8 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     computation::Union{Nothing, Function}
     state::_CellState
+    # The length of `dependents` after its last sweep of collected readers.
+    swept_length::UInt32
     # The cells that the last computation read, in the order of the first read of
     # each. The edges are strong, so a cell keeps alive the cells that it computes
     # from. A check of a "maybe invalid" cell follows the order.
@@ -79,7 +81,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, _VALID, nothing, nothing)
+        new{T}(value, nothing, _VALID, UInt32(0), nothing, nothing)
     # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
     # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
     # field can not hold a placeholder. An invalid cell makes `_recompute!` assign
@@ -89,6 +91,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         nothing isa T && (c.value = nothing)
         c.computation = marker.computation
         c.state = _INVALID
+        c.swept_length = UInt32(0)
         c.dependencies = nothing
         c.dependents = nothing
         return c
@@ -605,16 +608,22 @@ end
 # any more. A reader removes its edges only when it computes again or is written,
 # and a cell that nothing holds never does either.
 #
-# The edges are in a `Vector`, which a linear scan by identity searches, and not
-# in a hash set, because the set is small. Across a live pipeline the mean size is
-# 0.85, the median 1, the 99th percentile 3 and the largest 40, and one cell in
-# 4173 has more than 16. Against a `Set`, the vector is about 3 times faster to
-# register a reader, 1.4 times faster to detach one and 4 to 10 times faster to
-# invalidate. A `WeakKeyDict` is 7 times slower than the `Set`, because its lock
-# costs the most. The measurements are in plan/done/reactive-dependents-leak.md.
+# The edges are in a `Vector`, and not in a hash set, because the set is small.
+# Across a live pipeline the mean size is 0.85, the median 1, the 99th percentile
+# 3 and the largest 40, and one cell in 4173 has more than 16. Against a `Set`,
+# the vector is about 3 times faster to register a reader, 1.4 times faster to
+# detach one and 4 to 10 times faster to invalidate. A `WeakKeyDict` is 7 times
+# slower than the `Set`, because its lock costs the most. The measurements are in
+# plan/done/reactive-dependents-leak.md.
 #
-# Both helpers remove the entries of collected readers in the scan that they do
-# anyway, so dead `WeakRef`s do not collect in the vector.
+# A run detaches its cell from every cell that it read before it starts
+# (`_detach_upstream!`), so the reader of a read in a run is new to the list of
+# the cell that it reads, unless the run read that cell already. A record puts
+# the reader at the end with no scan. A run that reads a cell again after another
+# reader came puts a second entry of itself there; the next run, or a write,
+# removes both, because a detach removes every entry of its reader. Collected
+# readers are swept when a list grows to twice its length after the last sweep,
+# and by every detach, so the list stays within about twice its live readers.
 
 # `@nospecialize` on both: `observer` comes from the computing stack and `c` from
 # the `dependencies` of another cell, and both of those hold `ReactiveCell` with a
@@ -623,23 +632,29 @@ end
 function _register_dependent!(@nospecialize(c::ReactiveCell),
                               @nospecialize(observer::ReactiveCell))
     ds = _get_dependents!(c)
-    i, n = 1, length(ds)
+    n = length(ds)
     # A run that reads `c` again finds itself at the end, where its first read put
-    # it, unless another reader came after it: so the end is looked at first.
+    # it, unless another reader came after it.
     n > 0 && (@inbounds ds[n]).value === observer && return nothing
-    @inbounds while i <= n
-        v = ds[i].value
-        if v === nothing
-            # The reader was collected: move the last entry here, and look at
-            # slot `i` again.
-            ds[i] = ds[n]; pop!(ds); n -= 1
-        elseif v === observer
-            return nothing                      # already registered
-        else
-            i += 1
-        end
-    end
     push!(ds, WeakRef(observer))
+    n + 1 > 2 * Int(c.swept_length) + _SWEEP_MINIMUM && _sweep_dependents!(c, ds)
+    return nothing
+end
+
+# The length under which a list of readers is not swept.
+const _SWEEP_MINIMUM = 8
+
+# Remove the entries of collected readers from `ds`, the readers of `c`.
+function _sweep_dependents!(@nospecialize(c::ReactiveCell), ds::Vector{WeakRef})
+    kept = 0
+    @inbounds for i in eachindex(ds)
+        entry = ds[i]
+        entry.value === nothing && continue
+        kept += 1
+        ds[kept] = entry
+    end
+    resize!(ds, kept)
+    c.swept_length = UInt32(kept)
     return nothing
 end
 
