@@ -105,12 +105,25 @@ function print_document(rdp::ReferenceDispatchingProjection, recursion, input, c
         fixed = rdp.default === nothing ? _dispatch_proj(rdp, peek(ctx.reference), ctx) : rdp.default
         return print_document(fixed, recursion, input, ctx)
     end
-    inner = make_reconciled_child_iomap_cell(() -> _dispatch_proj(rdp, ctx.reference[], ctx),
+    inner = make_reconciled_child_iomap_cell(_make_dispatch_choice(rdp, ctx),
         proj -> peek(Cell(@computation print_document(proj, recursion, input, ctx))))
     # The choice and the print happen now, as the rest of the pipeline assumes, and
     # the peek keeps the printer of this position from reading the choice.
     peek(inner)
     ReferenceDispatchingIoMap(rdp, input, Cell(@computation inner[].output), inner)
+end
+
+# The function that gives the choice of the dispatch, read by the reconciled IO
+# map. At a path that can move, as the path of a row of a list can, the choice is
+# a cell of its own, and the IO map reads only its identity, a number: a move with
+# the same choice stops at the identity, and the IO map and its output stay as
+# they are. A fixed path never moves, so there the IO map reads the choice itself,
+# with no cell more.
+function _make_dispatch_choice(rdp::ReferenceDispatchingProjection, ctx)
+    ctx.reference isa ImmutableCell && return () -> _dispatch_proj(rdp, ctx.reference[], ctx)
+    choice = Cell(@computation _dispatch_proj(rdp, ctx.reference[], ctx))
+    choice_id = Cell(@computation objectid(choice[]))
+    () -> (choice_id[]; peek(choice))
 end
 
 # The reader and the maps go to the projection of the inner IO map that stands.

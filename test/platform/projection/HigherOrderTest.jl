@@ -69,3 +69,37 @@ function test_empty_nesting()
 
 end
 end
+
+function test_reference_dispatching_path()
+@testset "a dispatch by path whose path moves with the same choice leaves its output" begin
+    # The path of a row of a list moves when a row before it goes. The choice reads
+    # the path; with the same projection chosen, the IO map and its output stay,
+    # so a reader of the output does not compute again.
+    count = Cell(3)
+    path = Cell(@computation extend_reference(EmptyReference(), FieldReferenceStep("rows"),
+                                              ElementReferenceStep(count[])))
+    context = make_child_context(PrinterContext(), path)
+    chosen = Ref{Any}(nothing)
+    rule = reference -> (chosen[] = reference; IdentityProjection())
+    io = print_document(ReferenceDispatchingProjection(rule), IdentityProjection(),
+                        PrimitiveNumber(7), context)
+    runs = Ref(0)
+    reader = Cell(@computation (runs[] += 1; io.output))
+    @test reader[] isa PrimitiveNumber && runs[] == 1
+    count[] = 2
+    @test reader[] isa PrimitiveNumber
+    @test runs[] == 1
+    @test strip_reference_types(chosen[]) ==
+          extend_reference(EmptyReference(), FieldReferenceStep("rows"), ElementReferenceStep(2))
+
+    @testset "a new choice prints the position again" begin
+        other = Cell(:identity)
+        projections = Dict(:identity => IdentityProjection(), :copy => CopyingProjection())
+        switch = ReferenceDispatchingProjection(reference -> projections[other[]])
+        io = print_document(switch, IdentityProjection(), PrimitiveNumber(7), PrinterContext())
+        first = io.inner_iomap
+        other[] = :copy
+        @test io.inner_iomap !== first
+    end
+end
+end

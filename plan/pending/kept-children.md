@@ -114,9 +114,29 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     an element at two places is kept at neither). The list layout (71), the
     tables of a list (250), the roster and the data frames (608) give the
     counts of before.
-- [ ] **3. The dispatch by path confines a change of its path** (decision 3). A
+- [x] **3. The dispatch by path confines a change of its path** (decision 3). A
   test: a dispatch whose path moves and whose choice stays leaves the output
   cell of its IO map valid.
+  - Done 2026-10-16. `_make_dispatch_choice` in `ReferenceDispatching.jl`: at
+    a path that can move, a computed path cell, the choice is a cell and the
+    reconciled IO map reads only a cell of its `objectid`. At a fixed path, an
+    `ImmutableCell`, the IO map reads the choice itself, as before: the first
+    form split every choice, and a fresh print then had two more cells for
+    each dispatch, which made S4b with no window 21 % dearer (1533 → 1856
+    computes).
+  - Counts, per step, with a new probe (`count-s4bw.jl`, the probes of the
+    roster plan are gone), step 2 → step 3: S4b-w 1166 → 978 computes, S4b
+    with no window 1533 → 1533. The detach walk stays at 1.47 M entries in
+    S4b-w: it does not come from the cascade. A choice of the arranged
+    dispatch still computes when its path moves, and it reads cells that every
+    place of the arrangement reads (its base, its picks), so each detach of a
+    choice scans a long list. This goes to the owner with the two ideas for the
+    engine at step 10.
+  - Tests: `test_reference_dispatching_path` in `HigherOrderTest.jl` (a reader
+    of the output of a dispatch whose path moves runs once; a new choice
+    prints again).
+  - The platform suite (162719, 7 broken, no failure) and the data frame suite
+    (608) pass. Part 1 lands with this step.
 - [ ] **4. The reconciler of a vector keeps a child by its object** (decision
   1), and its 15 callers. A test: a delete of the first member of a JSON object
   keeps the prints of the other members, with the paths of their new places.
