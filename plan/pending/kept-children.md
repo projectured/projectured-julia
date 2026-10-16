@@ -38,3 +38,17 @@ time (2026-10-16); this plan holds each decision.
    projection and a cell of its `objectid`, plain data, which the reconciled
    cell reads; the same choice then stops at the dispatch. S4b-w is measured
    again after it, before the two ideas for the engine are decided.
+4. **The linear list keeps its children** (option A, the owner, 2026-10-16).
+   `_print_layout_list` in `LayoutList.jl` keeps the print of a child by the
+   child document, as the grid of a list keeps a row; no view in `source/` uses
+   the linear list today, only tests and examples.
+5. **The grid whose columns are a list keeps its cells** (option A, the owner,
+   2026-10-16): a cell is kept by its row document and its column document,
+   with counts for the head row and for the head column. Its one user is the
+   view of a data frame with more than 64 columns.
+6. **The view of a data frame keeps its row objects** (option A, the owner,
+   2026-10-16). `_make_row_list` in `DataFrameView.jl` makes a new `CellVector`
+   for each row each time it builds its list, so after a filter, a sort or a
+   move of the anchor the grid of a list finds no kept print. The view keeps
+   the row of each row of the frame by its number in the frame, as the roster
+   keeps `made`, and forgets the rows that left.
