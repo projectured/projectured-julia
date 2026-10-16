@@ -72,7 +72,7 @@ The nearest navigator around the tree takes the open, shows the document of the 
 
 ## How it fits
 
-The slice uses the collection, graphics, natural, projection, roster, screen, serialization, style and widget slices of the platform. It uses the roster slice for the facet `type` of a document, which the default label reads. It loads after `roster` and before `systemprocess` and `workplan`.
+The slice uses the collection, domain, graphics, natural, projection, roster, screen, serialization, style and widget slices of the platform. It uses the domain slice to hold the documents of its open nodes: the acquire of a tree holds them, and a chevron changes what it holds (`ChangeHeldDocumentsOperation`). It uses the roster slice for the facet `type` of a document, which the default label reads. It loads after `roster` and before `systemprocess` and `workplan`.
 
 These slices add kinds of node:
 
