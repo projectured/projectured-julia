@@ -296,6 +296,46 @@ end
     @test (path_count(first_cell(grid_io, 2)), path_count(first_cell(grid_io, 4))) == (2, 4)
 end
 
+# The IO map of child `k` of a column that a walk reached, and the count in its path.
+child_iomap(list_io, k) = list_io.state.built[k][3]
+child_count(cim) = get_reference_steps(strip_reference_types(cim.context.reference[]))[end].stop
+
+@testset "a child of a column that stays keeps its print, at the place and the path of its new count" begin
+    labels = [WidgetLabel("child $(i)") for i in 1:6]
+    layout = column(list_of(labels))
+    io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(300, 200)), context())
+    list_io = io.content_iomap
+    y_of(i) = place(io, "child $(i)")[2]
+    ys = [y_of(i) for i in 1:6]
+    printed = [child_iomap(list_io, k) for k in 1:6]
+    @test child_count(printed[3]) == 3
+    getfield(layout, :children)[] = list_of(labels[[1, 3, 4, 5, 6]])
+    @test y_of(3) == ys[2] && y_of(6) == ys[5]
+    @test all(child_iomap(list_io, k) === printed[i] for (k, i) in enumerate([1, 3, 4, 5, 6]))
+    @test [child_count(child_iomap(list_io, k)) for k in 1:5] == 1:5
+    @test isempty(filter(t -> t[3] == "child 2", texts(viewport(io))))
+    getfield(layout, :children)[] = list_of(labels)
+    @test y_of(2) == ys[2]
+    @test child_iomap(list_io, 2) !== printed[2]
+    @test child_iomap(list_io, 3) === printed[3]
+end
+
+@testset "a child in a column two times prints at both places, each with the path of its place" begin
+    labels = [WidgetLabel("child $(i)") for i in 1:3]
+    layout = column(list_of(labels[[1, 2, 1, 3]]))
+    io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(300, 200)), context())
+    list_io = io.content_iomap
+    @test length(filter(t -> t[3] == "child 1", texts(viewport(io)))) == 2
+    first, again, other = child_iomap(list_io, 1), child_iomap(list_io, 3), child_iomap(list_io, 2)
+    @test first !== again
+    @test (child_count(first), child_count(again)) == (1, 3)
+    getfield(layout, :children)[] = list_of(labels[[2, 1, 3, 1]])
+    @test length(filter(t -> t[3] == "child 1", texts(viewport(io)))) == 2
+    @test child_iomap(list_io, 1) === other
+    @test child_iomap(list_io, 2) !== first && child_iomap(list_io, 2) !== again
+    @test (child_count(child_iomap(list_io, 2)), child_count(child_iomap(list_io, 4))) == (2, 4)
+end
+
 # A list of `count` values, built one at a time as a walk reaches them, that
 # reaches both ways from index `at`. `value_of(i)` makes the value of node `i`.
 function make_list_of(count::Int, value_of; at::Int = 1, built = Ref(0))

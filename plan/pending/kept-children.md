@@ -167,7 +167,18 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     suite hung once at `ProcessDebugTest.jl:185` under the load of the other
     suites: a race in that test, which passed 315 of 315 three times alone, as
     on `main`. Part 2 lands with this step.
-- [ ] **5. The linear list keeps its children** (decision 4), on helper 2.
+- [x] **5. The linear list keeps its children** (decision 4), on helper 2.
+  - Done 2026-10-16 in `LayoutList.jl`. `_LayoutListChild` is the print of a
+    child: its IO map, the output of the IO map at the print, the output that
+    the layout draws, and its width and height. `_link_layout_list_child` takes
+    a kept print when its IO map gives the same output; each link makes a new
+    wrapper with new `x` and `y` cells. The path of a child is
+    `make_element_context(ctx, doc, count, ...)` from step 4: it gives the same
+    path as the row context of the grid, so no new helper is needed.
+  - Tests: two testsets in `LayoutListTest.jl` (a filter keeps the children
+    that stay, at their new places and paths, and a child that comes back
+    prints again; a child at two places is kept at neither). The file passes
+    86 checks, 71 before.
 - [ ] **6. The grid whose columns are a list keeps its cells** (decision 5), on
   two of helper 2.
 - [ ] **7. The view of a data frame keeps its row objects** (decision 6). A
