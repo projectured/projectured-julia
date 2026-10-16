@@ -89,7 +89,7 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
-       add_task_group!, remove_task_group!, set_task_group_opener!, open_task_group_pane
+       add_task_group!, remove_task_group!
 export TaskTheme, ScaledTaskTheme
 export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,

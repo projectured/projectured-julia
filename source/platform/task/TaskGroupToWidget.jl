@@ -930,10 +930,10 @@ end
 
 Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open group of
 the session, newest first, with its identifier, its title, its kind, the word of
-its state, its counts, how far it is and the time, and the buttons that show its
-pane, stop it, run its unexpected tasks again, and close its row. A group whose
-pane was closed keeps its row, and Show opens the pane again. A closed row leaves
-a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
+its state, its counts, how far it is and the time, and the buttons that stop it,
+run its unexpected tasks again, and close its row. The title is a link to the page
+of the group. A closed row leaves a [`ClosedTaskGroup`](@ref) in the list, which
+the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -947,19 +947,22 @@ a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
 
-const _LIST_COLUMNS = ("", "group", "title", "kind", "state", "counts", "progress", "elapsed", "")
+const _LIST_COLUMNS = ("group", "title", "kind", "state", "counts", "progress", "elapsed", "")
 
 """
     make_task_group_list_tab_title(list) -> PaneTabTitle
 
 The title of the Tasks tab: its name, and a badge with the count of the groups
-that run while any does.
+that run while any does. It is the `make_pane_tab_title` of a list, so a
+navigator whose page is the list gives its tab the same icon and badge.
 """
-make_task_group_list_tab_title(list::TaskGroupList) =
-    PaneTabTitle("Tasks"; icon = :list,
+make_task_group_list_tab_title(list::TaskGroupList; name = "Tasks") =
+    PaneTabTitle(String(name); icon = :list,
                  badges = () -> (n = count(g -> getfield(g, :status)[] in (:running, :stopping),
                                            collect_task_group_documents(list));
                                  n == 0 ? Any[] : Any[WidgetBadge(string(n, " running"); role = :accent)]))
+
+make_pane_tab_title(list::TaskGroupList, name::AbstractString) = make_task_group_list_tab_title(list; name)
 
 function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
     group = get_task_group(doc)
@@ -968,16 +971,13 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
                          gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
                                                                         RangeReferenceStep(index - 1, index))))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    show_button = _make_action_button(p, "Show", editor -> open_task_group_pane(editor, list, doc);
-                                      enabled = () -> true)
     stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going)
     again_button = _make_action_button(p, "Run unexpected again",
                                        () -> rerun_task_group_document!(doc, :unexpected);
                                        enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected)
     close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, doc);
                                        enabled = () -> !is_going())
-    Any[show_button,
-        WidgetLabel(getfield(doc, :identifier)[]),
+    Any[WidgetLabel(getfield(doc, :identifier)[]),
         title,
         WidgetLabel(group.name),
         _make_live_label(() -> _get_group_state(p, doc, group)),

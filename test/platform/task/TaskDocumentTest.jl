@@ -14,6 +14,11 @@ TaskModule.record_task_execution_sync!(owner::_TaskDocumentFeedOwner, execution,
                                        before::Symbol, made::Bool) =
     (push!(owner.syncs, (before, made)); nothing)
 
+# A content that holds the list of groups in a field, as a workspace does.
+@document struct TaskTestListHolder
+    groups::Any
+end
+
 function test_task_document()
     @testset "task document" begin
         @testset "a document follows its execution through a drain" begin
@@ -126,6 +131,15 @@ function test_task_document()
             start_task_group_document!(named; editor)
             @test last(get_session_task_group_list(; editor).groups) === named
             wait_task_group_document(named)
+            # The editor of a window takes the list that a tab shows, or that the
+            # content of a tab holds a few documents down, such as a navigator.
+            for wrap in (list -> list, list -> Navigator(TaskTestListHolder(list)))
+                shown = TaskGroupList()
+                window = build_editor(wrap(shown), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                      backend = HeadlessBackend(), devices = Device[], window = false,
+                                      tabs = true, appearance = false, settings = false)
+                @test get_session_task_group_list(; editor = window) === shown
+            end
             wait_task_group_document(document)
             @test get_task_group_document_status(document) === :finished
             counts = build_task_group_document_counts(document)

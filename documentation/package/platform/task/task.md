@@ -296,8 +296,10 @@ change as a group of five.
 starts, which the Tasks pane shows newest first. It is a session document of the
 editor (`get_session_task_group_list(; editor = find_evaluation_editor())`), and
 no module constant holds it. The first call with an editor takes the list that a
-tab of its window shows, because a window can make its Tasks tab before its
-editor exists; else it makes a new list. A group adds itself at the end of the
+tab of its window shows, or that the content of a tab holds a few documents down,
+such as the content of a navigator, because a window can make its Tasks tab before
+its editor exists; else it makes a new list. The search enters no collection, so
+it reads no lazy part of a content. A group adds itself at the end of the
 list of the editor of the evaluation when it starts. A group that starts outside
 every editor, such as from a script, joins no list.
 
@@ -307,8 +309,7 @@ identifier, the title and the line that sums the group up. The tasks and their
 executions go with the group, so their memory goes. The Tasks pane and the
 records of the tasks hide a closed group, `collect_task_group_documents` gives the
 open groups, and the page of a closed group says that it closed. A group that
-runs again goes back into its place. `set_task_group_opener!` says what Show
-does; a window sets it, and it captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
+runs again goes back into its place.
 
 ## The views
 
@@ -348,8 +349,12 @@ In a tree, the text of a task is its name and its status with the time when it s
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
-pane, one row for each open group of the session, newest first, with Show, Stop,
-Run unexpected again and Close. `ClosedTaskGroupToWidgetPane` draws the page of a
+pane, one row for each open group of the session, newest first, with Stop, Run
+unexpected again and Close. The title of a row is a link to the page of the group.
+`make_task_group_list_tab_title` is the title of the Tasks tab, and the
+`make_pane_tab_title` of a list: the icon of a list, and a badge with the count of
+the groups that run. So a navigator whose page is the list gives its tab the same
+icon and badge. `ClosedTaskGroupToWidgetPane` draws the page of a
 closed group.
 
 The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of

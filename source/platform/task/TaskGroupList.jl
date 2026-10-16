@@ -10,8 +10,7 @@
 The groups of a session, in the order of their starts: `groups` holds one group
 document for each group that started, or a [`ClosedTaskGroup`](@ref) in the place
 of a group whose row a person closed. The Tasks pane shows the open groups,
-newest first. A window sets what Show does with [`set_task_group_opener!`](@ref);
-with no window, Show does nothing.
+newest first, and the title of each is a link to its page.
 
 # Example
 
@@ -19,11 +18,8 @@ with no window, Show does nothing.
     [getfield(group, :title)[] for group in collect_task_group_documents(list)]
 """
 @document struct TaskGroupList <: Document
-    groups::CellVector
-    opener::Any                       # Ref, holding what Show does, or nothing
+    groups::CellVector = CellVector()
 end
-
-TaskGroupList() = TaskGroupList(CellVector(), Ref{Any}(nothing))
 
 get_document_title(::TaskGroupList) = "Tasks"
 
@@ -35,8 +31,8 @@ accepts_pasted_document(::TaskGroupList) = false
 
 The list of the groups of the session of `editor`: by default the editor of the
 evaluation, or of the loop that runs the calling code. Each editor has its own,
-made at the first call: the list that a tab of its window shows, which a window
-made before its editor existed, or else a new list. With no editor, such as a
+made at the first call: the list that a tab of its window shows or holds in its
+content, which a window made before its editor existed, or else a new list. With no editor, such as a
 script that runs outside every window, a new list, which nothing keeps; so a
 group that starts there joins no list.
 """
@@ -46,8 +42,10 @@ get_session_task_group_list(; editor = find_evaluation_editor()) =
                               TaskGroupList) :
         TaskGroupList()
 
-# The list that a tab of the window of `editor` shows, or `nothing`. A document that
-# holds no pane tree, such as one page in an editor of its own, shows none.
+# The list that a tab of the window of `editor` shows, or that the content of a tab
+# holds a few documents down, such as the workspace of a navigator; `nothing` when
+# no tab has one. A document that holds no pane tree, such as one page in an editor
+# of its own, shows none.
 function _find_window_task_group_list(editor::Editor)
     tree = try
         get_window_tree(getfield(editor, :document))
@@ -55,9 +53,21 @@ function _find_window_task_group_list(editor::Editor)
         nothing
     end
     tree isa PaneTree || return nothing
-    lists = collect_pane_tab_contents(tree, TaskGroupList)
-    isempty(lists) ? nothing : first(lists)
+    for group in get_pane_groups(tree), tab in group.tabs
+        found = search_documents(tab.content, document -> document isa TaskGroupList;
+                                 maxdepth = _LIST_SEARCH_DEPTH, descend = _is_held_document)
+        isempty(found) || return first(found)
+    end
+    nothing
 end
+
+# How many documents down the content of a tab the search for the list goes: a
+# history, an explorer, its navigator, the content of the navigator and the list.
+const _LIST_SEARCH_DEPTH = 5
+
+# The search enters a document that a field holds, and no collection, so it reads
+# no lazy part of a content, such as the files of a project.
+_is_held_document(_, child) = child isa Document && !is_element_collection(child)
 
 """
     ClosedTaskGroup(identifier, title, summary)
@@ -136,25 +146,6 @@ function remove_task_group!(list::TaskGroupList, group::TaskGroupDocument)
                                          Cell(_format_closed_task_group_summary(group)))
     remove_task_output_files!(group)
     list
-end
-
-"""
-    set_task_group_opener!(list, action) -> list
-
-Say what Show does: `action(editor, group)` puts the pane of `group` on the
-screen of the editor that evaluates the press. A window sets it when it opens.
-It captures no editor, because no document stores one
-(PAR-NO-EDITOR-IN-DOCUMENT).
-"""
-function set_task_group_opener!(list::TaskGroupList, action)
-    getfield(list, :opener)[][] = action
-    list
-end
-
-"""Put the pane of `group` on the screen of `editor`, as the window said; `nothing` when no window did."""
-function open_task_group_pane(editor, list::TaskGroupList, group)
-    action = getfield(list, :opener)[][]
-    action === nothing ? nothing : action(editor, group)
 end
 
 # The tasks of the groups of the session, as a roster reads them: one part for
