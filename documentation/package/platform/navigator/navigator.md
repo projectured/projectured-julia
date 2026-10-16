@@ -113,11 +113,11 @@ Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
 | `Ctrl+Up` | go to the parent page |
 | `Ctrl+Return` | open the selected part as a page |
 | `Ctrl+L` | edit the path of the address |
-
-Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 | right click on a part of the page | the menu of the part: "Open as a page" and "Open in a new tab" |
 | a press on the arrow before a name of the address | the list of the choices at the place of the name |
 | the back and the forward side button of the mouse | go back, go forward |
+
+Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 
 The menu belongs to the innermost document under the pointer, below the page, which the navigator reads from its own `mouse_target`. A command with no pointer reads the selection. The source of the menu is the path of that part, with its types, so the context menu window lifts an item from the part through the reader of the navigator. Each item holds an `OpenPageOperation` rooted at the content, so it opens the same page also from the outer layer of a part that has a menu of its own (F2). The page is the place where the content holds the part, when its domain answers it (`find_navigator_address`), such as an item that a list on the page shows; else the path of the part on the page. Ctrl+Return opens the selected part the same way.
 

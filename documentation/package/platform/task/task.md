@@ -280,7 +280,11 @@ A caller with no window drains the store itself: `wait_task_document` and
 
 `TaskGroupDocument` is a group on the screen: the native `TaskGroup`, its
 shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
-never changes. The slot of each task syncs the shadow of the group after the
+never changes. A roster reads the group and its tasks by facets. A task has the
+facets `name`, `status`, `result`, `expected` and `reason`; a group has `kind`,
+the name of its `TaskGroup`. The `:tasks` source of the roster slice lists the
+tasks of the open groups of the session, each with its group as `within`
+([roster.md](../roster/roster.md)). The slot of each task syncs the shadow of the group after the
 task (`get_task_group_document_summary`, `get_task_group_document_counts`). Each task that is
 a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
 `TaskDocument` holds in the field `inner_group`
@@ -288,7 +292,10 @@ a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
 `tasks[i].inner_group`. Only the outer group has a row in the Tasks pane.
 `start_task_group_document!`, `rerun_task_group_document!` and
 `stop_task_group_document!` act on the group, and its status is `:pending`,
-`:running`, `:stopping` or `:finished`. The status reads the counts of the
+`:running`, `:stopping` or `:finished`. A start and a rerun take the keyword
+`editor`, which defaults to the editor of the evaluation. The group joins the list
+of that editor. A caller that runs at once, such as a verb with an editor of its
+own, passes it. The status reads the counts of the
 shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 
@@ -334,7 +341,8 @@ instead, as the owner of a list does; the list then starts again from that task.
 gives a press on a row back as the selection of the row, and the pane turns it
 into what the press does to the task of the row, at the place of the anchor: a
 press shows the task in the detail, a double press opens the page of the task,
-and Ctrl+press opens it in a new tab. The press writes `selected` of the group as
+and Ctrl+press opens it in a new tab. A double press opens the page in the
+navigator around the pane, or in a new tab when no navigator is there. The press writes `selected` of the group as
 view state, so the undo does not record it. The table selects the
 row of the task of the detail, and its tooltip says what a press does. The row
 takes no key: the walk of the selection leaves the table out. The detail has
