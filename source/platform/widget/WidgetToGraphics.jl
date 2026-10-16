@@ -11763,7 +11763,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
 
     # One row: a canvas at the place of the row, whose content the renderer reads
     # only when it draws the row. The content reads the node, and whether the node
-    # has children, which for a folder is one read of its listing. The chevron
+    # has children: its own answer when it gives one, else a read of its children.
+    # The chevron
     # reads whether the row is open in a cell of its own, so a toggle changes the
     # glyph of a chevron and not the content of a row.
     function make_row_canvas(row::WTreeRow)
@@ -11913,6 +11914,7 @@ end
 # Whether `node` has children. For a node whose children are computed, this reads
 # them: a folder reads its listing.
 function _wtree_has_children(node)
+    node isa WidgetTreeNode && node.has_children !== nothing && return node.has_children() === true
     kids = _tree_children(node)
     kids !== nothing && !isempty(kids)
 end

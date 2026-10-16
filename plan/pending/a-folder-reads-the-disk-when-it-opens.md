@@ -115,9 +115,20 @@ shared parts, which the plan of omnet-julia also uses.
     holds its page and a visit moves the hold). The layering guards, the tree
     (79), the navigator suites, the pane surgery (105), the file change suite (98)
     and the formula suite pass.
-- [ ] **2. `has_tree_children`** (decision 4). The tree slice declares it, and
+- [x] **2. `has_tree_children`** (decision 4). The tree slice declares it, and
   the widget tree draws a chevron from it, so a closed row reads no children.
   Tests: `test_tree()` and the tests of the widget tree.
+  - Done 2026-10-16. `WidgetTreeNode` has an optional `has_children`, a function
+    with no argument; when a node gives it, the row draws its chevron from it and
+    reads no children while it is closed (`_wtree_has_children`). The tree slice
+    declares `has_tree_children(document)`; its default reads the children, so a
+    plain document keeps its chevron. `DocumentTreeToWidgetTree` gives each node
+    `has_children = () -> has_tree_children(document) === true`.
+  - Tests: a testset in `WidgetTreeTest.jl` (a closed node with an answer reads
+    no children; an open node reads them) and one in `TreeTest.jl` (`true`,
+    `false` and `nothing`). The widget tree (46), the tree (82), the reflection
+    (28), the system processes (78), the work plan (82), the file system (84) and
+    the task views (60) pass.
 - [ ] **3. The read task with a wait** (decisions 2 and 5): a helper that runs a
   read on a task, waits for it a short time, and answers through
   `run_on_editor_task!` with an apply operation. The step decides the slice that

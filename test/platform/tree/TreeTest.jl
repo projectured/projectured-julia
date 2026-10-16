@@ -30,6 +30,13 @@ end
 
 const _DOCTREE_HOLD_EVENTS = Tuple{Symbol,String}[]
 
+# A node that says whether it has children: `true`, `false`, or `nothing` while
+# that is not known, whatever its collection holds.
+@document struct _DocTreeKnown
+    known::Any
+    children::CellVector
+end
+
 ProjecturedPlatform.DomainModule.acquire_document!(editor, node::_DocTreeHeld) =
     (push!(_DOCTREE_HOLD_EVENTS, (:acquire, node.name)); nothing)
 ProjecturedPlatform.DomainModule.release_document!(editor, node::_DocTreeHeld) =
@@ -46,6 +53,8 @@ const _DOCTREE_LABEL_COUNTS = IdDict{Any,Int}()
 
 TreeModule.get_tree_children_steps(::_DocTreeNode) = ((FieldReferenceStep("children"),),)
 TreeModule.get_tree_children_steps(::_DocTreeHeld) = ((FieldReferenceStep("children"),),)
+TreeModule.get_tree_children_steps(::_DocTreeKnown) = ((FieldReferenceStep("children"),),)
+TreeModule.has_tree_children(node::_DocTreeKnown) = node.known
 TreeModule.get_tree_children_steps(::_DocTreePair) = ((FieldReferenceStep("parts"),), (FieldReferenceStep("notes"),))
 TreeModule.get_tree_node_icon(::_DocTreePair) = :folder
 DocumentModule.get_document_title(pair::_DocTreePair) = pair.name
@@ -186,6 +195,19 @@ function test_document_tree()
         @test widget.expanded == Set([[1]])
         evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 3])))
         @test _doctree_is_open(tree, root, root.notes[1])
+    end
+
+    @testset "a node draws a chevron only when its document is known to have children" begin
+        root = _doctree_node("root", _DocTreeKnown(true, CellVector()),
+                             _DocTreeKnown(false, CellVector(Any[_doctree_node("x")])),
+                             _DocTreeKnown(nothing, CellVector(Any[_doctree_node("y")])))
+        widget = print_document(projection, nothing, DocumentTree(root), nothing).output
+        has_chevron(node) = WidgetModule._wtree_has_children(node)
+        nodes = widget.roots[1].children
+        @test has_chevron(nodes[1]) && !has_chevron(nodes[2]) && !has_chevron(nodes[3])
+        # A plain document has children when a collection of them has an element.
+        @test has_chevron(widget.roots[1])
+        @test has_tree_children(root) && !has_tree_children(_doctree_node("leaf"))
     end
 
     @testset "a tree holds the documents of its open nodes while a tab holds the tree" begin

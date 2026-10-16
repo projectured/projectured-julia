@@ -59,7 +59,8 @@ end
 
 _make_tree_node(entry::_TreeEntry) =
     WidgetTreeNode(get_tree_node_icon(entry.document), _format_node_line(entry.document),
-                   entry.nodes; gestures = _make_open_page_bindings(entry.path))
+                   entry.nodes; gestures = _make_open_page_bindings(entry.path),
+                   has_children = () -> has_tree_children(entry.document) === true)
 
 # The text of a node is one line: each line break of the label, with the blanks
 # around it, is a space.

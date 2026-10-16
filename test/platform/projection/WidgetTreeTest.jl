@@ -163,6 +163,25 @@ end
     @test doc_chevron.text == right
 end
 
+@testset "a node that answers whether it has children reads no children while it is closed" begin
+    reads = Ref(0)
+    counted(names...) = CellVector(@computation((reads[] += 1; Any[names...])); element = name -> name)
+    full = WidgetTreeNode("", "full", counted("a", "b"); has_children = () -> true)
+    empty = WidgetTreeNode("", "empty", counted("c"); has_children = () -> false)
+    w = WidgetTree(Any[full, empty]; expanded = Set{Vector{Int}}())
+    io = print_document(_treeproj, w)
+    marks = (string(WidgetModule.find_icon_character(:chevron_right)),
+             string(WidgetModule.find_icon_character(:chevron_down)))
+    chevrons(row) = [e for e in row.elements if e isa GraphicsText && e.text in marks]
+    rows = collect(_rows_canvas(io).elements)
+    @test length(chevrons(rows[1])) == 1 && isempty(chevrons(rows[2]))
+    @test reads[] == 0
+    # An open node reads its children, to draw the rows under it.
+    getfield(w, :expanded)[] = Set([[1]])
+    @test length(_rows_canvas(io).elements) == 4
+    @test reads[] == 1
+end
+
 @testset "the whole tree canvas is a hit target (nested routability)" begin
     w, io = _fresh()
     _ = io.geometry

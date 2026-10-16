@@ -2990,7 +2990,7 @@ _describe_table_header(header) =
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 """
-    WidgetTreeNode(icon, label, children = [])
+    WidgetTreeNode(icon, label, children = []; gestures = GestureBinding[], has_children = nothing)
 
 A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
 distinct from its text **label** (the decoration model used by typical widget
@@ -3003,22 +3003,29 @@ The tree reads `children` only for a row that it draws, to know if the row has
 a chevron, and for an open node, to draw the rows under it. So a `CellVector`
 whose elements are computed one at a time reads nothing for a node that is not
 drawn, and one element for each child row that is drawn.
+
+`has_children` is `nothing`, or a function with no argument that answers whether
+the node has children. When a node gives it, its row draws a chevron from it and
+reads no children while it is closed, so the children of a closed row are not
+read, for example a folder whose entries are not read yet.
 """
 struct WidgetTreeNode
     icon::Any
     label::Any
     children::Any                # a Vector, or a CellVector read only when needed
     gestures::Any
+    has_children::Any            # nothing, or a function () -> Bool for the chevron
 end
 # A node is a plain value (not a `Document`), so it has no `selection`; its
 # per-instance `gestures` are fired by `read_bound_gesture` against the enclosing
 # tree's selection. `gestures` defaults empty so existing 2-/3-arg calls are
 # unaffected; pass `gestures=[…]` to give a node its own behavior (e.g. a
 # right-click / Enter binding that opens what the node stands for).
-WidgetTreeNode(icon, label, children; gestures=GestureBinding[]) =
-    WidgetTreeNode(icon, label, children, gestures)
+WidgetTreeNode(icon, label, children, gestures) = WidgetTreeNode(icon, label, children, gestures, nothing)
+WidgetTreeNode(icon, label, children; gestures=GestureBinding[], has_children=nothing) =
+    WidgetTreeNode(icon, label, children, gestures, has_children)
 WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
-    WidgetTreeNode(icon, label, Any[], gestures)
+    WidgetTreeNode(icon, label, Any[], gestures, nothing)
 
 get_instance_gesture_bindings(node::WidgetTreeNode) = node.gestures
 

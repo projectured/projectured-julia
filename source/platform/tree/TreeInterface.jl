@@ -29,6 +29,20 @@ sees.
 function format_tree_node_label end
 
 """
+    has_tree_children(document) -> Bool or nothing
+
+Whether the node of `document` in a tree has children, answered from what the
+document holds: `true`, `false`, or `nothing` while that is not known. The node
+draws a chevron only for `true`, so a node whose children are not known looks
+empty, and a closed node reads no children. A document whose children come from
+the disk or a process answers it from its stored state, such as a folder whose
+emptiness the read of its parent found. It runs inside the computation of the
+row, so it reads cells. The default reads the children: `true` when a collection
+of the children has an element.
+"""
+function has_tree_children end
+
+"""
     get_tree_node_icon(document) -> Symbol or nothing
 
 The icon of the node of `document` in a tree, a name of an icon of the widget
