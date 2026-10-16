@@ -338,7 +338,7 @@ that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
 holds it, and an open that no navigator takes opens a tab.
 
-In a tree, a task is a leaf whose text is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does.
+In a tree, the text of a task is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does. A task is a leaf, but a task that is a group has the tasks of its inner group under its node. A group has its tasks under its node, and its text says its identifier, its title, how many of its tasks finished and each code that came back unexpected (`T3 fingerprint tests · 37/40 · 2 FAIL`), with the icon of its tab. The list of groups has a node for each group, and a closed group says that it closed.
 
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group

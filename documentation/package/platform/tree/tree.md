@@ -80,7 +80,7 @@ These slices add kinds of node:
 | --- | --- | --- |
 | [systemprocess.md](../systemprocess/systemprocess.md) | `SystemProcessTree`, `SystemProcess` | the roots; the children of a process |
 | [workplan.md](../workplan/workplan.md) | `WorkPlan`, `WorkPlanStep` | the steps; the steps under a step |
-| [task.md](../task/task.md) | `TaskDocument` | none; a task is a leaf |
+| [task.md](../task/task.md) | `TaskGroupList`, `TaskGroupDocument`, `TaskDocument`, `ClosedTaskGroup` | the groups; the tasks of a group; the tasks of the inner group of a task that is a group, else none |
 | [assistant.md](../assistant/assistant.md) | `AgentWork`, `AssistantWork` | the subagents, then the background tasks |
 
 ## Design decisions
