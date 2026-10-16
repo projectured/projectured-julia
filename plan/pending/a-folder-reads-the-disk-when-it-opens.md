@@ -145,9 +145,25 @@ shared parts, which the plan of omnet-julia also uses.
     not an `Editor` reads at once on the calling task.
   - Tests: `DocumentReadTest.jl` (7): a fast read, a slow read that the next
     drain applies, a read that throws, and a stand-in editor.
-- [ ] **4. The watch of a folder** (decision 3) in the file change slice. A watch
+- [x] **4. The watch of a folder** (decision 3) in the file change slice. A watch
   of a folder for a receiver reports only "this folder changed". An editor has a
   limit of watches. Tests: `test_file_change()`.
+  - Done 2026-10-16. `watch_folder!(path; store, receiver) -> Bool`,
+    `unwatch_folder!` and `is_folder_watched` in `FileChangeStore.jl`. The store
+    holds a `WatchedFolder` for each receiver, and a folder shares one watcher
+    with its watched files and its other receivers; the watcher stops when nothing
+    watches the folder. An event of the folder, or in poll mode a new time of the
+    folder, marks it in `changed_folders`, and the drain calls the new generic
+    `receive_folder_change!(editor, receiver, folder) -> Bool` on the editor task.
+    The watcher reads nothing of the folder.
+  - The limit is of the store, `watch_limit` (by default `FOLDER_WATCH_LIMIT`,
+    1000): a watch of a folder starts no new watcher past it and answers `false`;
+    a folder that is watched already costs nothing, and a file that a tab shows is
+    watched past the limit. A coalesce of fast changes is the receiver's: the
+    changes of one folder before a drain are one report.
+  - Tests: two testsets in `FileChangeStoreTest.jl` (a change reaches each
+    receiver, a shared watcher stops with its last receiver; the limit). The file
+    change suite (115) passes.
 - [ ] **5. The documents of the file system** (decisions 1, 2, 3, M3). The stored
   entries, the read state, the emptiness, the acquire and the release, and the
   apply operations. Tests in a folder of the test:

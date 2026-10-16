@@ -75,8 +75,63 @@ function _wait_for_file_change(store::FileChangeStore; seconds::Real = 10.0)
     false
 end
 
+# A receiver that watches folders, and notes each folder that a drain reports.
+struct _FolderChangeProbe
+    folders::Vector{String}
+end
+ProjecturedPlatform.FileChangeModule.receive_folder_change!(editor, probe::_FolderChangeProbe, folder) =
+    (push!(probe.folders, folder); true)
+
+# Wait until the store holds a change of a watched folder, for at most `seconds`.
+function _wait_for_folder_change(store::FileChangeStore; seconds::Real = 10.0)
+    deadline = time() + seconds
+    while time() < deadline
+        lock(() -> !isempty(store.changed_folders), store.lock) && return true
+        sleep(0.05)
+    end
+    false
+end
+
 function test_file_change_store()
     @testset "file change store" begin
+        @testset "a receiver that watches a folder learns that an entry came or went" begin
+            store = FileChangeStore()
+            folder = mktempdir()
+            receiver = _FolderChangeProbe(String[])
+            @test watch_folder!(folder; store, receiver)
+            @test is_folder_watched(folder; store) && is_folder_watched(folder * "/"; store, receiver)
+            write(joinpath(folder, "new.txt"), "x")
+            @test _wait_for_folder_change(store)
+            @test drain_file_changes!(; store) == 1
+            @test receiver.folders == [folder]
+            # A second receiver shares the watcher of the folder.
+            other = _FolderChangeProbe(String[])
+            @test watch_folder!(folder; store, receiver = other)
+            @test length(store.watchers) == 1
+            unwatch_folder!(folder; store, receiver)
+            @test !is_folder_watched(folder; store, receiver) && is_folder_watched(folder; store)
+            rm(joinpath(folder, "new.txt"))
+            @test _wait_for_folder_change(store)
+            @test drain_file_changes!(; store) == 1
+            @test other.folders == [folder] && receiver.folders == [folder]
+            # The watcher stops when nothing watches the folder.
+            unwatch_folder!(folder; store, receiver = other)
+            @test isempty(store.watchers)
+        end
+
+        @testset "a store starts no more watchers of folders than its limit" begin
+            store = FileChangeStore(; watch_limit = 1)
+            (first_folder, second_folder) = (mktempdir(), mktempdir())
+            receiver = _FolderChangeProbe(String[])
+            @test watch_folder!(first_folder; store, receiver)
+            @test !watch_folder!(second_folder; store, receiver)
+            # A folder that is watched already costs no new watcher.
+            @test watch_folder!(first_folder; store, receiver = _FolderChangeProbe(String[]))
+            @test !watch_folder!(joinpath(first_folder, "missing"); store, receiver)
+            close_file_change_store!(store)
+            @test isempty(store.watchers) && isempty(store.folders)
+        end
+
         @testset "a change of a file reaches a page whose file has no edits" begin
             store = FileChangeStore()
             (path, page) = _make_watched_text_file("one\n")

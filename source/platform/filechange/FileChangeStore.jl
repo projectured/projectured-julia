@@ -1,8 +1,9 @@
-# Fragment of `FileChangeModule` — the store of the watched files: the file
-# documents that watch their files, a watcher for each folder that holds one,
-# and the paths that changed since the last drain. A watcher reads and parses a
-# changed file on its own task and keeps the new document in the store; only a
-# drain, on the editor task, reports the change to the receiver of the file.
+# Fragment of `FileChangeModule` — the store of the watched files and folders: the
+# file documents that watch their files, the receivers that watch a folder, a
+# watcher for each folder that holds one of them, and what changed since the last
+# drain. A watcher reads and parses a changed file on its own task and keeps the
+# new document in the store; of a watched folder it notes only that the folder
+# changed. Only a drain, on the editor task, reports a change to its receiver.
 
 # One file document, the absolute path of its file, the file type that reads it,
 # whether its text is read, the receiver that a change is reported to, and what
@@ -24,6 +25,14 @@ mutable struct WatchedFile
     prepared::Any
 end
 
+# A receiver that watches a folder, the absolute path of the folder, and the time
+# of the folder at the last look of a poll, or at the start of the watch.
+mutable struct WatchedFolder
+    path::String
+    receiver::Any
+    stamp::Any
+end
+
 # What a watcher read of a changed file: the hash of the file, and the new
 # document, or the exception of its parse.
 struct _PreparedFile
@@ -40,26 +49,40 @@ function WatchedFile(file::FileDocument, path::String, receiver)
 end
 
 """
-    FileChangeStore(; poll_interval = 1.0)
+    FOLDER_WATCH_LIMIT
 
-The file documents that watch their files, and the paths that changed since the
-last drain. A watcher task for each folder writes a change into it; a drain, on
-the editor task, reports each change to the receiver of its file
+How many folders a store watches at most for receivers of folders
+([`watch_folder!`](@ref)): the system limits the watches of each person, and the
+editor shares them with every other program. A file that a tab shows is watched
+past the limit.
+"""
+const FOLDER_WATCH_LIMIT = 1000
+
+"""
+    FileChangeStore(; poll_interval = 1.0, watch_limit = FOLDER_WATCH_LIMIT)
+
+The file documents that watch their files, the receivers that watch a folder,
+and what changed since the last drain. A watcher task for each folder writes a
+change into it; a drain, on the editor task, reports each change to its receiver
 ([`drain_file_changes!`](@ref)). A folder where the system gives no
-notification is polled every `poll_interval` seconds.
+notification is polled every `poll_interval` seconds. A watch of a folder for a
+receiver starts no new watcher once the store has `watch_limit` of them.
 """
 mutable struct FileChangeStore
     lock::ReentrantLock
     files::Vector{WatchedFile}
     changed::Set{String}
+    folders::Vector{WatchedFolder}
+    changed_folders::Set{String}
     watchers::Dict{String,Any}     # a folder, and its `FolderMonitor` or `:poll`
     wakes::Vector{Any}             # the wake functions of the editors that drain it
     poll_interval::Float64
+    watch_limit::Int
 end
 
-FileChangeStore(; poll_interval::Real = 1.0) =
-    FileChangeStore(ReentrantLock(), WatchedFile[], Set{String}(), Dict{String,Any}(), Any[],
-                    Float64(poll_interval))
+FileChangeStore(; poll_interval::Real = 1.0, watch_limit::Integer = FOLDER_WATCH_LIMIT) =
+    FileChangeStore(ReentrantLock(), WatchedFile[], Set{String}(), WatchedFolder[], Set{String}(),
+                    Dict{String,Any}(), Any[], Float64(poll_interval), Int(watch_limit))
 
 """
     get_session_file_change_store(; editor = find_evaluation_editor()) -> FileChangeStore
@@ -138,16 +161,110 @@ function unwatch_document_file!(file::FileDocument;
         index === nothing && return
         folder = dirname(store.files[index].path)
         deleteat!(store.files, index)
-        any(w -> dirname(w.path) == folder, store.files) && return
-        watcher = pop!(store.watchers, folder, nothing)
-        watcher isa FolderMonitor && close(watcher)
+        _stop_unused_folder_watch!(store, folder)
     end
     file
+end
+
+# Stop the watcher of `folder`, with the lock held, when no watched file is in
+# the folder and no receiver watches it.
+function _stop_unused_folder_watch!(store::FileChangeStore, folder::String)
+    any(w -> dirname(w.path) == folder, store.files) && return nothing
+    any(w -> w.path == folder, store.folders) && return nothing
+    watcher = pop!(store.watchers, folder, nothing)
+    watcher isa FolderMonitor && close(watcher)
+    nothing
 end
 
 """Whether `file` watches its file in `store`, by default the one that [`watch_document_file!`](@ref) takes."""
 is_document_file_watched(file::FileDocument; store::Union{FileChangeStore,Nothing} = _find_watch_store()) =
     store !== nothing && lock(() -> any(w -> w.file === file, store.files), store.lock)
+
+# ── The watches of folders ───────────────────────────────────────────────────
+
+"""
+    receive_folder_change!(editor, receiver, folder) -> Bool
+
+Tell `receiver` that an entry of `folder` came, went or changed: a drain of the
+store calls it on the editor task for each receiver that watches the folder
+([`watch_folder!`](@ref)). The watcher read nothing of the folder, so the
+receiver reads it, off the loop, such as with `start_document_read!`. It answers
+whether the receiver took the change. The default takes none.
+"""
+receive_folder_change!(editor, receiver, folder) = false
+
+# The absolute path of a folder, with no separator at its end.
+function _normalize_folder_path(path::AbstractString)
+    folder = normpath(abspath(path))
+    length(folder) > 1 && endswith(folder, '/') ? folder[1:(end - 1)] : folder
+end
+
+"""
+    watch_folder!(path; store, receiver) -> Bool
+
+Report each change of the entries of the folder at `path` to `receiver`: a drain
+of the store calls [`receive_folder_change!`](@ref). The watcher of the folder
+notes only that the folder changed, and reads nothing of it. A folder that a file
+or another receiver watches shares its watcher. A new watcher starts only while
+the store has fewer than its `watch_limit`, so the answer is whether the folder
+is watched: `false` past the limit, for a folder that does not exist, and with no
+store. A receiver that watches the folder already is left as it is.
+
+Call it on the task that reads the documents, such as from an acquire. `store` is
+by default the store of the [`FileChangeFeed`](@ref) of the editor of the
+evaluation; with no such editor nothing is watched. While Julia writes a
+precompile cache, nothing is watched.
+"""
+function watch_folder!(path::AbstractString; store::Union{FileChangeStore,Nothing} = _find_watch_store(),
+                       receiver)
+    (store === nothing || Base.generating_output()) && return false
+    folder = _normalize_folder_path(path)
+    lock(store.lock) do
+        any(w -> w.path == folder && w.receiver === receiver, store.folders) && return true
+        isdir(folder) || return false
+        if !haskey(store.watchers, folder)
+            length(store.watchers) >= store.watch_limit && return false
+            _start_folder_watch!(store, folder)
+        end
+        push!(store.folders, WatchedFolder(folder, receiver, _get_folder_stamp(folder)))
+        true
+    end
+end
+
+"""
+    unwatch_folder!(path; store, receiver) -> nothing
+
+Stop reporting the changes of the folder at `path` to `receiver`. The watcher of
+the folder stops when nothing else watches the folder. `store` is by default the
+one that [`watch_folder!`](@ref) takes.
+"""
+function unwatch_folder!(path::AbstractString; store::Union{FileChangeStore,Nothing} = _find_watch_store(),
+                         receiver)
+    store === nothing && return nothing
+    folder = _normalize_folder_path(path)
+    lock(store.lock) do
+        index = findfirst(w -> w.path == folder && w.receiver === receiver, store.folders)
+        index === nothing && return
+        deleteat!(store.folders, index)
+        _stop_unused_folder_watch!(store, folder)
+    end
+    nothing
+end
+
+"""
+    is_folder_watched(path; store, receiver = nothing) -> Bool
+
+Whether a receiver watches the folder at `path` in `store`: `receiver`, or any
+receiver when it is `nothing`. `store` is by default the one that
+[`watch_folder!`](@ref) takes.
+"""
+function is_folder_watched(path::AbstractString; store::Union{FileChangeStore,Nothing} = _find_watch_store(),
+                           receiver = nothing)
+    store === nothing && return false
+    folder = _normalize_folder_path(path)
+    lock(() -> any(w -> w.path == folder && (receiver === nothing || w.receiver === receiver), store.folders),
+         store.lock)
+end
 
 # A file that enters the window watches its file in the store of the editor while
 # a tab shows it, and the release of the tab stops the watch. An editor with no
@@ -187,6 +304,8 @@ function close_file_change_store!(store::FileChangeStore)
         empty!(store.watchers)
         empty!(store.files)
         empty!(store.changed)
+        empty!(store.folders)
+        empty!(store.changed_folders)
         empty!(store.wakes)
     end
     store
@@ -225,6 +344,7 @@ function _wait_folder(store::FileChangeStore, folder::String, monitor::FolderMon
             rethrow()
         end
         _prepare_folder_changes!(store, folder)
+        _mark_watched_folder!(store, folder)
     end
 end
 
@@ -234,8 +354,39 @@ end
 function _poll_folder(store::FileChangeStore, folder::String)
     while lock(() -> get(store.watchers, folder, nothing) === :poll, store.lock)
         _update_folder_stamps!(store, folder) && _prepare_folder_changes!(store, folder)
+        _update_watched_folder_stamps!(store, folder) && _mark_watched_folder!(store, folder)
         sleep(store.poll_interval)
     end
+end
+
+# Take the time of the folder for each receiver that watches it, and answer
+# whether it differs from the time before: an entry that comes or goes changes it.
+function _update_watched_folder_stamps!(store::FileChangeStore, folder::String)
+    lock(store.lock) do
+        changed = false
+        for watched in store.folders
+            watched.path == folder || continue
+            stamp = _get_folder_stamp(folder)
+            changed |= stamp != watched.stamp
+            watched.stamp = stamp
+        end
+        changed
+    end
+end
+
+# The time of the folder, or `nothing` when there is no folder.
+_get_folder_stamp(folder::String) = isdir(folder) ? mtime(folder) : nothing
+
+# Note that `folder` changed for its receivers, and wake each editor that drains
+# the store. The watcher reads nothing of the folder: the receiver reads it.
+function _mark_watched_folder!(store::FileChangeStore, folder::String)
+    is_marked = lock(store.lock) do
+        any(w -> w.path == folder, store.folders) || return false
+        push!(store.changed_folders, folder)
+        true
+    end
+    is_marked && foreach(wake -> wake(), lock(() -> copy(store.wakes), store.lock))
+    nothing
 end
 
 # Take the stamp of each watched file of the folder, and answer whether one of
@@ -322,7 +473,9 @@ end
     drain_file_changes!(; editor = nothing, store = get_session_file_change_store(; editor)) -> Int
 
 Report each change that the watchers read and parsed to the receiver of its file
-(`receive_file_change!`), and answer how many receivers took the new document.
+(`receive_file_change!`), and each folder that changed to each receiver that
+watches it ([`receive_folder_change!`](@ref)), and answer how many receivers took
+their change.
 Run it on the task that reads the documents. The drain reads no file: a watcher
 read it, off the loop. What a change means is the choice of the receiver: a
 [`FilePage`](@ref) knows its own save and the edits of its file, and the drain
@@ -330,6 +483,12 @@ knows neither. A change is reported once. A parse that failed is thrown after th
 other changes, so the editor records it.
 """
 function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_session_file_change_store(; editor))
+    folders = lock(store.lock) do
+        isempty(store.changed_folders) && return WatchedFolder[]
+        paths = copy(store.changed_folders)
+        empty!(store.changed_folders)
+        WatchedFolder[watched for watched in store.folders if watched.path in paths]
+    end
     changed = lock(store.lock) do
         isempty(store.changed) && return Tuple{WatchedFile,_PreparedFile}[]
         paths = copy(store.changed)
@@ -343,6 +502,7 @@ function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_se
         changed
     end
     taken = count(((watched, prepared),) -> _bring_file_change!(watched, prepared, editor), changed)
+    taken += count(watched -> receive_folder_change!(editor, watched.receiver, watched.path) === true, folders)
     for (_, prepared) in changed
         prepared.failure === nothing || throw(prepared.failure)
     end

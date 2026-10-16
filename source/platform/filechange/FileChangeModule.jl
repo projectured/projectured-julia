@@ -5,7 +5,9 @@ The changes of files, brought to the documents that the files hold.
 
 A file document that watches its file ([`watch_document_file!`](@ref)) learns
 of a change that another program makes: a tool in a terminal, a checkout of
-git, a task that writes a store. A watcher task for each folder takes the
+git, a task that writes a store. A receiver that watches a folder
+([`watch_folder!`](@ref)) learns that an entry of the folder came, went or
+changed, and reads the folder itself. A watcher task for each folder takes the
 notifications of the system, or polls the times of the files where no
 notification works, and stores the paths that changed. The editor drains the
 store on its own task ([`FileChangeFeed`](@ref)), and the drain reports each
@@ -32,7 +34,8 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export FileChangeStore, get_session_file_change_store, watch_document_file!,
        unwatch_document_file!, is_document_file_watched, close_file_change_store!,
-       drain_file_changes!
+       drain_file_changes!, watch_folder!, unwatch_folder!, is_folder_watched, receive_folder_change!,
+       FOLDER_WATCH_LIMIT
 export FileChangeFeed, make_file_change_feeds
 
 include("FileChangeStore.jl")
