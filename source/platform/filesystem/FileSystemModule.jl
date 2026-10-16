@@ -18,6 +18,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventModule
+using ..FileChangeModule
 using ..FileFormatModule
 using ..FocusModule
 using ..GestureBindingModule
@@ -42,13 +43,16 @@ using ..UndoModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, has_document_duplicate
-import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file
+import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
+import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file,
+                       acquire_document!, release_document!
+import ..FileChangeModule: receive_folder_change!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: make_pred_document
+import ..SerializationModule: make_pred_document, pred_arguments
 
-export FileSystemDocument, make_filesystem_pathname
+export FileSystemDocument, make_filesystem_pathname, read_filesystem_folder!, has_folder_entries,
+       ApplyFolderListingOperation, ApplyFolderEmptinessOperation
 export FileSystemTheme, ScaledFileSystemTheme
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        is_filesystem_marker_eligible
@@ -56,7 +60,7 @@ export FileSystemToWidgetTree, FileSystemToWidget
 export FileSystemFile, FileSystemDirectory
 export FileSystemChooser, make_filesystem_chooser, get_chosen_path
 export FileSystemChooserToWidget, WriteChosenNameOperation
-export WorkspaceDocument, Workspace, WorkspaceFolder
+export WorkspaceDocument, Workspace, WorkspaceFolder, WorkspaceExplorer
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
 

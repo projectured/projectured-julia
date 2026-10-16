@@ -93,12 +93,17 @@ editor, or an editor that has no such feed, a new store that nothing keeps and
 nothing drains.
 """
 function get_session_file_change_store(; editor = find_evaluation_editor())
-    store = _find_editor_file_change_store(editor)
+    store = find_file_change_store(editor)
     store === nothing ? FileChangeStore() : store
 end
 
-# The store of the `FileChangeFeed` of `editor`, or `nothing` when it has none.
-function _find_editor_file_change_store(editor)
+"""
+    find_file_change_store(editor) -> FileChangeStore or nothing
+
+The store of the [`FileChangeFeed`](@ref) of `editor`, or `nothing` when it has
+none, so a caller watches only in a store that a drain empties.
+"""
+function find_file_change_store(editor)
     editor isa Editor || return nothing
     index = findfirst(feed -> feed isa FileChangeFeed, editor.feeds)
     index === nothing ? nothing : editor.feeds[index].store
@@ -107,7 +112,7 @@ end
 # The store that a watch takes by default: the store of the feed of the editor of
 # the evaluation, or `nothing`, and then a watch does nothing, because no drain
 # would bring its changes and its watcher would run forever.
-_find_watch_store() = _find_editor_file_change_store(find_evaluation_editor())
+_find_watch_store() = find_file_change_store(find_evaluation_editor())
 
 """
     watch_document_file!(file; store, receiver = file) -> file
@@ -272,21 +277,21 @@ end
 # page of a file watches the file as its receiver, and the file itself, which comes
 # next, watches already.
 acquire_document!(editor, file::FileDocument) =
-    (watch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
+    (watch_document_file!(file; store = find_file_change_store(editor)); nothing)
 
 release_document!(editor, file::FileDocument) =
-    (unwatch_document_file!(file; store = _find_editor_file_change_store(editor)); nothing)
+    (unwatch_document_file!(file; store = find_file_change_store(editor)); nothing)
 
 function acquire_document!(editor, page::FilePage)
     file = find_page_file(page)
     file === nothing ||
-        watch_document_file!(file; store = _find_editor_file_change_store(editor), receiver = page)
+        watch_document_file!(file; store = find_file_change_store(editor), receiver = page)
     nothing
 end
 
 function release_document!(editor, page::FilePage)
     file = find_page_file(page)
-    file === nothing || unwatch_document_file!(file; store = _find_editor_file_change_store(editor))
+    file === nothing || unwatch_document_file!(file; store = find_file_change_store(editor))
     nothing
 end
 

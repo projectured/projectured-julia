@@ -21,12 +21,12 @@ struct WorkspaceFolderToFileSystemDirectory <: Projection end
 
 function print_document(p::WorkspaceFolderToFileSystemDirectory,
                            recursion, folder::WorkspaceFolder, ctx)
-    # Reactive output so a pathname change re-derives through the held iomap. The
-    # paths (the selection, the mouse target) are computed on their first read, so
-    # this computation depends on the pathname alone, and a path that moves reads
-    # the disk again never.
+    # The output is the document of the folder, which holds what its reads found,
+    # so the view reads no disk. The paths (the selection, the mouse target) are
+    # computed on their first read, so this computation depends on the document of
+    # the folder alone.
     SimpleIoMap(p, folder, Cell(@computation begin
-        directory = make_filesystem_pathname(folder.pathname)
+        directory = folder.directory
         set_output_path_computations!(directory, folder, path -> map_reference_forward(p, nothing, path))
         directory
     end))

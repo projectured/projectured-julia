@@ -200,7 +200,7 @@ shared parts, which the plan of omnet-julia also uses.
   - Tests: two testsets in `FileChangeStoreTest.jl` (a change reaches each
     receiver, a shared watcher stops with its last receiver; the limit). The file
     change suite (115) passes.
-- [ ] **5. The documents of the file system** (decisions 1, 2, 3, M1, M1a, M3).
+- [x] **5. The documents of the file system** (decisions 1, 2, 3, M1, M1a, M3).
   The stored entries, the read state, the emptiness, the acquire and the release,
   and the apply operations; `WorkspaceFolder` with its folder,
   `WorkspaceExplorer` and the open set of `FileSystemChooser`;
@@ -211,6 +211,37 @@ shared parts, which the plan of omnet-julia also uses.
   - a folder of 5,000 files is one read, and a frame draws only the rows on the
     screen (R2);
   - an empty sub-folder shows no chevron in its first frame (R3).
+  - Done 2026-10-16 (it lands with step 6, because the views of the file system
+    read the new documents). `FileSystemDirectory` holds `elements` (stored, in
+    the order of the names), `state`, `failure`, `has_entries` and `read_count`;
+    `has_folder_entries(folder)` answers from the entries of a read folder, else
+    from `has_entries`. The acquire watches the folder and its sub-folders (the
+    sub-folders for their emptiness, with the folder as the receiver) and reads it
+    with `start_document_read!`; a read lists the names with their kinds
+    (`Base.Filesystem._readdirx`) and checks each sub-folder with one `readdir`.
+    `ApplyFolderListingOperation` walks the entries and the listing by name: a
+    kept entry keeps its document, and each run of gone and new entries is one
+    splice of `elements`, a `ReplaceReferencedValueOperation` on a range, so the
+    plan of the splices can move the paths. The answer of an older read is dropped
+    by `read_count`. A change of the folder reads it again, and a change of a
+    sub-folder checks its emptiness (`ApplyFolderEmptinessOperation`). Both
+    operations go in a `ReplaceViewStateOperation`, so undo records no read.
+  - `WorkspaceFolder(name, pathname)` makes its `directory`; a file keeps the name
+    and the place only. `WorkspaceExplorer(workspace)` holds `open`, the folders of
+    the workspace at the start, and holds its open folders; its duplicate shares
+    the workspace. `FileSystemChooser(directory)` holds `open`, the directory at
+    the start. `read_filesystem_folder!(folder; depth)` reads at once, and the two
+    examples of the file system read their fixture with it.
+  - The file system slice uses the file change slice (a new edge), whose store of
+    an editor is public: `find_file_change_store(editor)`.
+  - A known cost: the empty check of a sub-folder reads its whole listing.
+  - Tests: `FileSystemDocumentTest.jl` (33): unread at the start; the acquire
+    reads names, kinds and emptiness; a new file is one entry more and kept entries
+    keep their documents; a sub-folder that gets an entry says so; the release
+    keeps the entries; a read at once to a depth; two explorers share one read; a
+    folder that can not be read fails; 5,000 files are one read. The guards and
+    the file change suite (115) pass.
+
 - [ ] **6. The views of the Files tab, the Open dialog and the text view** (M1,
   M1a, decision 6). The drawing stage reads the open set of the explorer and what
   the folders hold; the step decides whether that is a tree view of the file
