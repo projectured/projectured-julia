@@ -318,16 +318,48 @@ end
 
 # ── The list of rows ─────────────────────────────────────────────────────────
 
+# The rows that the lists of rows of one table made, by their number in the
+# frame: the rows linked under this list and under the list before it, for the
+# frame, its version, the shown columns and the column anchor that made them. A
+# row that stays in the next list is the same object, so the grid of the table
+# keeps its print; a row that no link of a list takes goes with the list after it.
+mutable struct _MadeRows
+    key::Any                       # (frame, version, columns, column anchor), or nothing
+    current::Dict{Int,Any}         # number in the frame => row, linked under this list
+    before::Dict{Int,Any}          # number in the frame => row, linked under the list before it
+end
+
+_MadeRows() = _MadeRows(nothing, Dict{Int,Any}(), Dict{Int,Any}())
+
+# Starts a new list of rows made for `key`: the rows of the list before wait for
+# one list, and none waits when the key differs.
+function _start_made_rows!(made::_MadeRows, key)
+    made.before = isequal(made.key, key) ? made.current : Dict{Int,Any}()
+    made.key = key
+    made.current = Dict{Int,Any}()
+    nothing
+end
+
+# The row of number `i` in the frame for a link of this list: the row made under
+# this list or the list before it, or a new one that `make_row(i)` makes.
+function _take_made_row!(make_row, made::_MadeRows, i::Int)
+    row = get(made.current, i, nothing)
+    row === nothing || return row
+    row = pop!(made.before, i, nothing)
+    made.current[i] = row === nothing ? make_row(i) : row
+end
+
 # The list of the `kept` rows of the frame of `view` with its head at the place
 # `anchor`, or an empty vector when it keeps no row: a table draws an empty
 # vector as no rows. A row is a vector of its cells in the `columns` that the view
 # shows, or, when `column_anchor` is given, a list of them with its head at that
 # column. A cell shows the document of its value, or the document of its entry
-# while it is open.
+# while it is open. `made` gives a row that the list before made the same object.
 function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
-                        anchor::Int, column_anchor = nothing)
-    isempty(kept) && return CellVector()
+                        anchor::Int, column_anchor, made::_MadeRows)
     frame = view.frame
+    _start_made_rows!(made, (objectid(frame), view.frame_version, columns, column_anchor))
+    isempty(kept) && return CellVector()
     types = Dict(name => eltype(frame[!, name]) for name in columns)
     shown(i, name) = (base = make_data_frame_cell(frame[i, name], types[name]);
                       () -> _get_shown_cell_document(view, i, name, base))
@@ -338,7 +370,7 @@ function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vect
         foreach(((cell, name),) -> set_cell_computation!(cell, shown(i, name)), zip(cells, columns))
         CellVector(cells)
     end
-    make_index_list(length(kept), anchor, k -> row_of(kept[k]))
+    make_index_list(length(kept), anchor, k -> _take_made_row!(row_of, made, kept[k]))
 end
 
 # The document that the cell in row `i` of the frame and column `name` shows: the

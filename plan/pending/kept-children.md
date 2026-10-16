@@ -199,8 +199,18 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     the row, as the grid of a list does.
   - Tests: a testset in `LayoutListTest.jl` (a filter keeps the cells of the
     rows that stay, at their new places and paths). The file passes 94 checks.
-- [ ] **7. The view of a data frame keeps its row objects** (decision 6). A
+- [x] **7. The view of a data frame keeps its row objects** (decision 6). A
   test: a filter keeps the drawn text of a row that stays.
+  - Done 2026-10-16 in `DataFrameView.jl`. `_MadeRows` is the keep of the rows
+    of one table, made in its print: the rows linked under this list and under
+    the list before it, by their number in the frame, as helper 2 keeps prints,
+    so a row that left goes after one list and the keep holds no row that the
+    walk did not reach. The key of the rows is the frame, its version, the
+    shown columns and the column anchor; a new key keeps no row, so an edit of
+    the frame and a scroll to the side make new rows, as before.
+  - Tests: a testset in `DataFrameFilterTest.jl` (a filter keeps the drawn text
+    of a row that stays, at the place of its new row; a new frame version
+    prints the rows again). The data frame suite passes 612, 608 before.
 - [ ] **8. `Copying.jl` and `CollectionToSyntax.jl` keep the prints of their
   elements** (decision 8), on helper 2.
 - [ ] **9. The test of an insert inside one head** (decision 2): the rows and

@@ -131,7 +131,9 @@ end
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::WidgetScrollBar)
     headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
-    rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
+    made = _MadeRows()
+    rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
+                                            nothing, made))
     row_headers, corner = _make_row_numbers(p, view)
     # The data of the shown columns. A column that a person gave a width has it,
     # and the others share the rest.
@@ -217,8 +219,9 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, 
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
         make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
+    made = _MadeRows()
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
-                                            view.column_anchor))
+                                            view.column_anchor, made))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
     column_of = _make_column_documents(view, nothing)

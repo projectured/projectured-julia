@@ -109,6 +109,45 @@ function test_data_frame_filter()
             @test "item 4" ∉ found
         end
 
+        # The node that draws each text of the table, through the lists that a
+        # walk of fifty nodes each way reaches.
+        function drawn_nodes(node, found = Dict{String,Any}())
+            if node isa GraphicsCanvas
+                elements = node.elements
+                if elements isa ListNode
+                    for (n, step) in ((elements, :next), (elements.prev, :prev))
+                        seen = 0
+                        while n !== nothing && seen < 50
+                            drawn_nodes(n.value, found); n = getproperty(n, step); seen += 1
+                        end
+                    end
+                else
+                    foreach(element -> drawn_nodes(element, found), elements)
+                end
+            elseif node isa GraphicsViewport
+                drawn_nodes(node.content, found)
+            elseif node isa GraphicsText
+                found[string(node.text)] = node
+            end
+            found
+        end
+
+        @testset "a filter keeps the drawn text of a row that stays, at the place of its new row" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            before = drawn_nodes(io.output)
+            heights(text) = only(t[2] for t in _data_frame_texts(io.output) if t[3] == text)
+            first_height = heights("item 1")
+            set_filter!(view, "id", "> 1")
+            after = drawn_nodes(io.output)
+            @test !haskey(after, "item 1")
+            @test after["item 2"] === before["item 2"] && after["item 5"] === before["item 5"]
+            @test heights("item 2") == first_height
+            # An edit of the frame moves its version, and the rows print again.
+            getfield(view, :frame_version)[] = view.frame_version + 1
+            @test drawn_nodes(io.output)["item 2"] !== before["item 2"]
+        end
+
         function read_event(io, event)
             change = read_intent(projection, nothing, Intent(event, nothing), io)
             change isa Intent ? change.operation : change
