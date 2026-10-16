@@ -204,7 +204,8 @@ _make_current_visit(navigator::Navigator) =
                    _find_content_selection(navigator))
 
 # The writes that make `visit` the current one, with `back` and `forward` as the
-# lists, as view state; then the move of the selection into its page.
+# lists, and the move of the hold of the navigator from the page that it shows to
+# the page of `visit`, as view state; then the move of the selection into its page.
 function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back, forward)
     writes = Any[ReplaceReferencedValueOperation(navigator, "address", visit.address),
                  ReplaceReferencedValueOperation(navigator, "back", back),
@@ -218,6 +219,9 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
         push!(writes, ReplaceReferencedValueOperation(draft, "steps", CellVector()))
         push!(writes, ReplaceReferencedValueOperation(draft, "unreached_step", 0))
     end
+    page = evaluate_reference(visit.content, get_valid_reference_prefix(visit.content, visit.address))
+    shown = get_navigator_page(navigator)
+    page === shown || push!(writes, ChangeHeldDocumentsOperation(navigator, Any[shown], Any[page]))
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,
                              annotate_reference_types(visit.content, selection))

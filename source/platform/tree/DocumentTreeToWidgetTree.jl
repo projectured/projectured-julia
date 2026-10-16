@@ -144,8 +144,10 @@ end
 
 # The write of the open nodes of the widget that a chevron makes, as a write of the
 # open nodes of the tree document: the documents of the nodes at the paths that
-# the write gives, so the tree holds no document that left it. `nothing` for any
-# other answer.
+# the write gives, so the tree holds no document that left it. The tree then holds
+# the documents of the nodes that open and no longer those of the nodes that
+# close, in the same write of view state, so an undo records neither. `nothing`
+# for any other answer.
 function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
     operation isa ReplaceViewStateOperation || return nothing
     write = get_wrapped_operation(operation)
@@ -158,7 +160,13 @@ function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
         entry = _find_tree_entry(root, path)
         entry === nothing || (open[entry.document] = nothing)
     end
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(iomap.input, "expanded", open))
+    tree = iomap.input
+    before = tree.expanded
+    opened = Any[document for document in keys(open) if !haskey(before, document)]
+    closed = Any[document for document in keys(before) if !haskey(open, document)]
+    open_write = ReplaceReferencedValueOperation(tree, "expanded", open)
+    isempty(opened) && isempty(closed) && return ReplaceViewStateOperation(open_write)
+    ReplaceViewStateOperation(CompoundOperation(Any[open_write, ChangeHeldDocumentsOperation(tree, closed, opened)]))
 end
 
 # ── Printer ──────────────────────────────────────────────────────────────────

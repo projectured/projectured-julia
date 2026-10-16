@@ -66,8 +66,12 @@ uses steps 1 to 4 of this plan.
   open nodes are keyed by document (`TreeDocument.jl:13`), and not by index paths
   as `FileSystemToWidgetTree` keys them now. An insert above an open folder then
   keeps the right folder open. `FileSystemToWidgetTree` goes.
-- **M2.** An acquire counts. A folder that is open in the Files tab and also shown
-  as a page stays watched until its last release.
+- **M2. An acquire counts** — decided: a generic count (option A, the owner,
+  2026-10-16: "it's A"), not a count in the watch of a folder alone (option B). The
+  domain slice keeps one count for each document, for each editor;
+  `acquire_document!` runs at the first holder and `release_document!` at the last.
+  A folder that is open in the Files tab and also shown as a page stays watched
+  until its last release, and so does every other document, such as a terminal.
 - **M3.** The kind of an entry comes with its name from one call:
   `Base.Filesystem._readdirx` gives a `DirEntry` with its type, with no `stat`.
   It is internal in Julia 1.13. The read falls back to `readdir` and `isdir` when
@@ -78,12 +82,39 @@ uses steps 1 to 4 of this plan.
 Each step is one commit with its tests, in a worktree. Steps 1 to 4 are the
 shared parts, which the plan of omnet-julia also uses.
 
-- [ ] **1. The tree and the navigator acquire what they show** (decision 7, M2).
+- [x] **1. The tree and the navigator acquire what they show** (decision 7, M2).
   The reader of `DocumentTreeToWidgetTree` adds an acquire for each node that
   opens and a release for each node that closes. The acquire and the release of a
   `DocumentTree` reach its open nodes. A visit of a navigator acquires its new page
   and releases the old one, and the acquire of a navigator reaches its page. An
   acquire counts. Tests: `test_tree()`, `test_navigator()`, and a test of the count.
+  - Done 2026-10-16. The domain slice (`DocumentRelease.jl`) keeps the holders of
+    an editor as a session document: `add_document_holder!` and
+    `remove_document_holder!` count, and run the hooks at the first and the last
+    holder; `AcquireDocumentOperation` and `ReleaseDocumentOperation` call them.
+    A holder passes holds on with `hold_documents!`, and the editor records what
+    each holder holds, so `release_held_documents!` releases the same documents
+    also after the holder shows others. A tab, a pane tree, a `DocumentTree` and a
+    `Navigator` are holders.
+  - A tree or a navigator changes what it holds by a new operation,
+    `ChangeHeldDocumentsOperation(holder, released, acquired)`, which acts only
+    while the holder is held. So a tree or a navigator that no tab shows, such as
+    the navigator of an explorer whose explorer passes nothing on, holds nothing.
+    A chevron answers it inside the same `ReplaceViewStateOperation` as the write
+    of the open nodes, and a visit inside the view state of the visit, so undo
+    records neither.
+  - The acquire, the release and the change are self-contained operations, so
+    they go up the readers of the views around a tree.
+  - An editor that is not an `Editor`, such as the stand-in of a pane test, counts
+    nothing and runs the hooks at each call, as before.
+  - The omnet-julia explorer passes no acquire to its tree and its navigator yet;
+    step 1 of the plan of omnet-julia does it. Its study passes its acquire to its
+    formulas through the hook directly, which still runs at the first holder.
+  - Tests: two testsets in `TreeTest.jl` (a tree holds its open nodes only while a
+    tab holds it; a document of two holders is released at its last; a navigator
+    holds its page and a visit moves the hold). The layering guards, the tree
+    (79), the navigator suites, the pane surgery (105), the file change suite (98)
+    and the formula suite pass.
 - [ ] **2. `has_tree_children`** (decision 4). The tree slice declares it, and
   the widget tree draws a chevron from it, so a closed row reads no children.
   Tests: `test_tree()` and the tests of the widget tree.

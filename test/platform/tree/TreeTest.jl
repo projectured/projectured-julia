@@ -22,10 +22,30 @@ end
     value::Int
 end
 
+# A node that notes each acquire and each release of it, by its name.
+@document struct _DocTreeHeld
+    name::String
+    children::CellVector
+end
+
+const _DOCTREE_HOLD_EVENTS = Tuple{Symbol,String}[]
+
+ProjecturedPlatform.DomainModule.acquire_document!(editor, node::_DocTreeHeld) =
+    (push!(_DOCTREE_HOLD_EVENTS, (:acquire, node.name)); nothing)
+ProjecturedPlatform.DomainModule.release_document!(editor, node::_DocTreeHeld) =
+    (push!(_DOCTREE_HOLD_EVENTS, (:release, node.name)); nothing)
+
+_doctree_held(name, children...) = _DocTreeHeld(name, CellVector(Any[children...]))
+
+# An editor that counts the holders of the documents, and draws nothing.
+_doctree_hold_editor(document) =
+    Editor(document, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+
 # How often the label of each node is computed.
 const _DOCTREE_LABEL_COUNTS = IdDict{Any,Int}()
 
 TreeModule.get_tree_children_steps(::_DocTreeNode) = ((FieldReferenceStep("children"),),)
+TreeModule.get_tree_children_steps(::_DocTreeHeld) = ((FieldReferenceStep("children"),),)
 TreeModule.get_tree_children_steps(::_DocTreePair) = ((FieldReferenceStep("parts"),), (FieldReferenceStep("notes"),))
 TreeModule.get_tree_node_icon(::_DocTreePair) = :folder
 DocumentModule.get_document_title(pair::_DocTreePair) = pair.name
@@ -147,7 +167,9 @@ function test_document_tree()
         # A chevron writes the open nodes of the tree document, as view state.
         write = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1]))
         @test write isa ReplaceViewStateOperation
-        @test get_wrapped_operation(write).document === tree
+        writes = get_wrapped_operation(write).operations
+        @test first(writes).document === tree
+        @test last(writes) isa ChangeHeldDocumentsOperation && last(writes).acquired == Any[alpha]
         evaluate_operation(nothing, write)
         @test _doctree_is_open(tree, root, alpha)
         @test widget.expanded == Set([[1], [1, 1]])
@@ -164,6 +186,64 @@ function test_document_tree()
         @test widget.expanded == Set([[1]])
         evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 3])))
         @test _doctree_is_open(tree, root, root.notes[1])
+    end
+
+    @testset "a tree holds the documents of its open nodes while a tab holds the tree" begin
+        empty!(_DOCTREE_HOLD_EVENTS)
+        root = _doctree_held("root", _doctree_held("a", _doctree_held("a1")), _doctree_held("b"))
+        tree = DocumentTree(root)
+        iomap = print_document(projection, nothing, tree, nothing)
+        widget = iomap.output
+        editor = _doctree_hold_editor(PrimitiveString("x"))
+        chevron!(paths...) = evaluate_operation(editor, read_intent(projection, iomap, _doctree_chevron(widget, paths...)))
+        # A tree that nothing holds passes nothing on.
+        chevron!([1], [1, 1])
+        @test isempty(_DOCTREE_HOLD_EVENTS)
+        # A tab that shows the tree holds it, and the tree holds its open nodes.
+        tab = PaneTab("tree", tree)
+        evaluate_operation(editor, AcquireDocumentOperation(tab))
+        @test sort(_DOCTREE_HOLD_EVENTS) == [(:acquire, "a"), (:acquire, "root")]
+        # A node that opens is acquired, and a node that closes is released.
+        empty!(_DOCTREE_HOLD_EVENTS)
+        chevron!([1], [1, 1], [1, 1, 1])
+        @test _DOCTREE_HOLD_EVENTS == [(:acquire, "a1")]
+        chevron!([1])
+        @test sort(_DOCTREE_HOLD_EVENTS) == [(:acquire, "a1"), (:release, "a"), (:release, "a1")]
+        # A document that two holders show is released at its last holder.
+        empty!(_DOCTREE_HOLD_EVENTS)
+        other = PaneTab("root", root)
+        evaluate_operation(editor, AcquireDocumentOperation(other))
+        evaluate_operation(editor, ReleaseDocumentOperation(tab))
+        @test isempty(_DOCTREE_HOLD_EVENTS)
+        evaluate_operation(editor, ReleaseDocumentOperation(other))
+        @test _DOCTREE_HOLD_EVENTS == [(:release, "root")]
+        # A release of a document that nothing holds releases nothing.
+        evaluate_operation(editor, ReleaseDocumentOperation(other))
+        @test _DOCTREE_HOLD_EVENTS == [(:release, "root")]
+    end
+
+    @testset "a navigator holds its page, and a visit moves the hold" begin
+        empty!(_DOCTREE_HOLD_EVENTS)
+        root = _doctree_held("root", _doctree_held("a"))
+        navigator = Navigator(root)
+        editor = _doctree_hold_editor(navigator)
+        tab = PaneTab("page", navigator)
+        # The tab holds the navigator and its content, and the navigator holds its
+        # page, the content, which is acquired once.
+        evaluate_operation(editor, AcquireDocumentOperation(tab))
+        @test _DOCTREE_HOLD_EVENTS == [(:acquire, "root")]
+        child = _doctree_path(FieldReferenceStep("children"), ElementReferenceStep(1))
+        evaluate_operation(editor, make_navigator_open_operation(navigator, root, child))
+        @test get_navigator_page(navigator) === root.children[1]
+        # The content stays held by the tab when the navigator leaves it.
+        @test _DOCTREE_HOLD_EVENTS == [(:acquire, "root"), (:acquire, "a")]
+        evaluate_operation(editor, make_navigator_back_operation(navigator))
+        @test _DOCTREE_HOLD_EVENTS == [(:acquire, "root"), (:acquire, "a"), (:release, "a")]
+        # The close of the tab releases the page of the navigator and its content.
+        empty!(_DOCTREE_HOLD_EVENTS)
+        evaluate_operation(editor, make_navigator_open_operation(navigator, root, child))
+        evaluate_operation(editor, ReleaseDocumentOperation(tab))
+        @test sort(_DOCTREE_HOLD_EVENTS) == [(:acquire, "a"), (:release, "a"), (:release, "root")]
     end
 
     @testset "a change of one document computes its own node again, and no other" begin

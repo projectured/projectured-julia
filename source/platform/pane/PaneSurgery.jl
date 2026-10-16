@@ -401,19 +401,20 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
                           AcquireDocumentOperation(tab)])
 end
 
-# A tab acquires each layer of what it shows, from its content inward, such as the
-# sheet in a file, and releases each one; a pane tree acquires each of its tabs.
-acquire_document!(editor, tab::PaneTab) =
-    (find_pane_tab_layer(tab, layer -> (acquire_document!(editor, layer); false)); nothing)
+# A tab holds each layer of what it shows, from its content inward, such as the
+# sheet in a file, and releases each one; a pane tree holds each of its tabs.
+acquire_document!(editor, tab::PaneTab) = hold_documents!(editor, tab, _collect_tab_layers(tab))
 
-release_document!(editor, tab::PaneTab) =
-    (find_pane_tab_layer(tab, layer -> (release_document!(editor, layer); false)); nothing)
+release_document!(editor, tab::PaneTab) = release_held_documents!(editor, tab, _collect_tab_layers(tab))
 
-function acquire_document!(editor, tree::PaneTree)
-    for group in get_pane_groups(tree), tab in group.tabs
-        acquire_document!(editor, tab)
-    end
-    nothing
+acquire_document!(editor, tree::PaneTree) =
+    hold_documents!(editor, tree, Any[tab for group in get_pane_groups(tree) for tab in group.tabs])
+
+# The layers of what `tab` shows, from its content inward.
+function _collect_tab_layers(tab::PaneTab)
+    layers = Any[]
+    find_pane_tab_layer(tab, layer -> (push!(layers, layer); false))
+    layers
 end
 
 # Where the selection goes in a tab that is about to exist, given the pairs that

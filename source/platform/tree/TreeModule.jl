@@ -15,6 +15,7 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
@@ -36,6 +37,7 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
+import ..DomainModule: acquire_document!, release_document!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..WidgetModule: make_graphics_projection

@@ -24,11 +24,13 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..EditorModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
-import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation,
+                          is_self_contained_operation
 
 export DocumentBase
 export compute_loaded_subtypes, var"@domain", var"@insertion",
@@ -40,7 +42,9 @@ export compute_loaded_subtypes, var"@domain", var"@insertion",
        replace_selected_document
 export DocumentNothing, DocumentInsertion
 export compute_context_menu
-export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation
+export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
+       add_document_holder!, remove_document_holder!, hold_documents!, release_held_documents!,
+       ChangeHeldDocumentsOperation
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 

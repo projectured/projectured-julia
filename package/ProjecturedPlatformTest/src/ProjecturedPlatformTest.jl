@@ -546,7 +546,7 @@ using ProjecturedKernel.DeviceModule: Device
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedKernelExample: HeadlessBackend
-using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation
+using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation, ChangeHeldDocumentsOperation
 using ProjecturedPlatform.PaneModule: PaneTab
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane
 

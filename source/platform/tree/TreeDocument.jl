@@ -37,6 +37,14 @@ DocumentTree(root; title::AbstractString = format_tree_node_label(root)) =
 
 get_document_title(tree::DocumentTree) = tree.title
 
+# A tree holds the documents of its open nodes, so a document whose node is open
+# starts what it needs, such as the read of a folder, while the tree is shown. A
+# chevron changes what the tree holds (`ChangeHeldDocumentsOperation`).
+acquire_document!(editor, tree::DocumentTree) = hold_documents!(editor, tree, collect(keys(tree.expanded)))
+
+release_document!(editor, tree::DocumentTree) =
+    release_held_documents!(editor, tree, collect(keys(tree.expanded)))
+
 # A file keeps what a tree shows, its root and its title. The open nodes are view
 # state, so a tree read from a file has its root open.
 pred_arguments(tree::DocumentTree) = (tree.root,), Pair{Symbol,Any}[:title => tree.title]

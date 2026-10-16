@@ -120,6 +120,14 @@ end
 # it is the content.
 get_edited_field(::Navigator) = :content
 
+# A navigator holds its page, so a page starts what it needs, such as the read of a
+# folder, while the navigator is shown. A visit changes what it holds
+# (`ChangeHeldDocumentsOperation`).
+acquire_document!(editor, navigator::Navigator) = hold_documents!(editor, navigator, Any[get_navigator_page(navigator)])
+
+release_document!(editor, navigator::Navigator) =
+    release_held_documents!(editor, navigator, Any[get_navigator_page(navigator)])
+
 # A navigator is called by its page, as a tab of a browser is called by the page
 # that it shows.
 function get_document_title(navigator::Navigator)
