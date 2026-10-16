@@ -41,9 +41,10 @@ function print_document(p::FrameTimeSeriesToChart, recursion, plot::FrameTimeSer
 end
 
 # One line: the column `index` of the plot in milliseconds, over the frame
-# numbers. Both columns derive from the plot.
+# numbers. Both columns derive from the plot. The frames are a list of cells in the
+# plot, and a line reads a plain vector, which it searches for its visible range.
 _make_measurement_line(plot::FrameTimeSeries, index::Integer, name::AbstractString) =
-    ChartLineSeries(name, @computation(plot.frames),
+    ChartLineSeries(name, @computation(collect(plot.frames)),
                     @computation(_get_frame_time_milliseconds(plot, index)),
                     true, :linear, :solid, 1, :none, 4, nothing, true, nothing)
 
