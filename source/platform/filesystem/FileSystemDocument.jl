@@ -69,8 +69,8 @@ which is what Save As is for, and a path that does exist is a row of the tree,
 which is what Open is for. What happens to the chosen path belongs to whoever
 opened the chooser.
 
-`name` is the whole of what a person types. A directory row sets `directory` and
-a file row sets `name`, so the two together always say one path, and
+`name` is the whole of what a person types, and a file row of the tree writes its
+own name there. The directory and the name together always say one path, and
 [`get_chosen_path`](@ref) is that path.
 
 `open` holds the open folders of the chooser, by their documents, as an explorer

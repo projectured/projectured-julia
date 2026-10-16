@@ -281,7 +281,7 @@ shared parts, which the plan of omnet-julia also uses.
     main; there are more such places, because a workspace folder holds its folder
     tree (`files`: 3771 against 294 on main) and the folders hold more fields.
 
-- [ ] **6b. The Open dialog draws and works** (the owner, 2026-10-16: "agreed, B":
+- [x] **6b. The Open dialog draws and works** (the owner, 2026-10-16: "agreed, B":
   a step of its own after the Files tab lands). The view of a `FileSystemChooser`
   is unfinished: it is not registered with the renderer, its reader drops every
   press, and it builds the action that writes the name and never uses it; no test
@@ -291,5 +291,26 @@ shared parts, which the plan of omnet-julia also uses.
   changes what the chooser holds; a press on a file writes its name. Tests: a
   dialog drawn in an editor, a chevron that opens a folder that then reads, and a
   press on a file that writes `name`.
+  - Done 2026-10-16. `FileSystemChooserToWidget` draws a `GridLayout` of one
+    column, the tree over the field, with the rows `[Fill, Content]`: the tree is
+    built as the tree of an explorer, from `open` of the chooser, with the file
+    action `WriteChosenNameOperation`; the field is a `WidgetText` whose content
+    is the name of the chooser. The paths map `children[1].roots[1].children[a]…`
+    to `directory.elements[a]…` and `children[2].content<rest>` to
+    `name<rest>`, so a key in the field edits `name`. A chevron answers the write
+    of `open` and the change of the holds. The renderer takes the view through
+    `make_graphics_projection(::Type{<:FileSystemChooser})`, chained with
+    `GridLayoutToGraphicsCanvas`, so the tree and the field draw as widgets. The
+    file system slice uses the layout slice (a new edge).
+  - The docstring of the chooser said that a folder row sets `directory`; no
+    code did, and this step builds no such row, so the docstring says what is.
+  - The first read of a session can take longer than the wait, because its code
+    compiles at that call; the test waits for the read, and a person sees the
+    reading row for that moment.
+  - Tests: a testset in `FileDialogTest.jl` (22 with the others): the dialog draws
+    its folder; a double press on a file writes the name; a chevron opens a folder
+    that then reads; a key in the field edits the name. The file system suite
+    (116), the window shell (138) and the guards pass.
+
 - [ ] **7. The documents:** `filesystem.md`, `filechange.md`, `tree.md`,
   `navigator.md`, and the acquire in `domain.md`.

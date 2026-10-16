@@ -180,11 +180,13 @@ end
 
 # The answer to a write of the open nodes of the widget: the write of the open
 # folders of `holder` and the change of what it holds, together as view state, so
-# undo records neither. `nothing` for any other answer.
+# undo records neither. `widget` is the tree whose write it takes, or `nothing`
+# for the one tree of a view that draws only one. `nothing` for any other answer.
 function _read_open_folder_write(holder, folders::Vector, widget, operation)
     operation isa ReplaceViewStateOperation || return nothing
     write = get_wrapped_operation(operation)
-    (write isa ReplaceReferencedValueOperation && write.document === widget) || return nothing
+    write isa ReplaceReferencedValueOperation || return nothing
+    (widget === nothing ? write.document isa WidgetTree : write.document === widget) || return nothing
     steps = get_reference_steps(strip_reference_types(write.reference))
     (length(steps) == 1 && steps[1] == FieldReferenceStep("expanded")) || return nothing
     open = IdDict{Any,Nothing}()

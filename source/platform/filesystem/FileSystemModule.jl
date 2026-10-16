@@ -26,6 +26,7 @@ using ..GestureModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
+using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
@@ -49,6 +50,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_o
 import ..FileChangeModule: receive_folder_change!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..WidgetModule: make_graphics_projection
 import ..SerializationModule: make_pred_document, pred_arguments
 
 export FileSystemDocument, make_filesystem_pathname, read_filesystem_folder!, has_folder_entries,
