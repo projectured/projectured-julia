@@ -147,10 +147,14 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
     undo. Origin, by the history of the file: `6a2b5a6d0` (2026-10-15), "the undo slice
     registers the row that draws a history with the natural renderer".
 13. **`FileSystemDocumentTest.jl:42`, 1 failure**, new on 2026-10-15: the pathname of a
-    closed folder has 1 element where the test expects 0. Origin, not bisected: `fd3e0cc36`
-    or `b5739a653` (2026-10-15), the two commits of that day that changed the slice.
+    closed folder has 1 element where the test expects 0. **An artefact of the run:** in
+    `unshare -rn` the process is root of its user namespace and owns the folder, so a folder
+    with mode `000` stays readable. Outside the namespace the test passes, 13 of 13
+    (2026-10-16). No change.
 14. **`test_catalog_coverage`, 1 failure**, new on 2026-10-15: `FilePage` has a printer and
-    no atom since `fd3e0cc36`.
+    no atom since `fd3e0cc36`. **Fixed (step 2):** an atom of a page of a text file that is
+    not on disk, and an atom of `ClosedTaskGroup`, which `6525d8ff7` added on 2026-10-16.
+    `test_catalog_coverage` has no failure.
 
 ## 2. The steps
 
