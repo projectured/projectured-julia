@@ -62,10 +62,46 @@ uses steps 1 to 4 of this plan.
 
 **My recommendations for the design** (to confirm at the step that needs each):
 
-- **M1.** The Files tab draws through `DocumentTree` over the `Workspace`, so its
-  open nodes are keyed by document (`TreeDocument.jl:13`), and not by index paths
-  as `FileSystemToWidgetTree` keys them now. An insert above an open folder then
-  keeps the right folder open. `FileSystemToWidgetTree` goes.
+- **M1. The documents of the Files tab and the Open dialog** — decided with the
+  owner, 2026-10-16 (option 2). One listing of a folder is shared, and each
+  explorer keeps its own open folders, so two explorers of one workspace can show
+  different open folders over the same read:
+
+  ```julia
+  project   = FileSystemDirectory(pathname = "/home/p/project", state = :read,
+                                  entries = [src, test, build, readme], has_entries = true)
+  workspace = Workspace(folders = [WorkspaceFolder("project", "/home/p/project", project)])
+
+  left    = WorkspaceExplorer(workspace = workspace, open = {project, src})
+  right   = WorkspaceExplorer(workspace = workspace, open = {project, test})
+  chooser = FileSystemChooser(directory = project, open = {project}, name = "")
+  ```
+
+  - A folder document holds only what the disk held: its listing, its read state
+    and whether it is empty. The open state is not in it, unlike `collapsed` of a
+    JSON node, because two views of a shared folder must differ (the owner).
+  - The Files tab shows a `WorkspaceExplorer`, and the Open dialog shows a
+    `FileSystemChooser`; the two differ only in what is around the folders. A
+    duplicate of a tab makes a new `WorkspaceExplorer` with a copy of the open set,
+    and shares the `Workspace`: it owns what the person controls, and shares what
+    it reads.
+  - An explorer holds the folders that are open in it. A folder that is open in
+    two explorers has two holders and is read once.
+  - What a press on a file does is not in these documents. The row of a file
+    answers `OpenFileOperation(path)`, and the document around the tree decides:
+    the Files tab opens the file, the chooser writes the name, and any other
+    holder gives it its own meaning.
+  - The drawing stage (a tree view of the file system, or `DocumentTree`) is
+    decided at step 6.
+- **M1a. Three more decisions** (the owner, 2026-10-16: "agreed"):
+  - `WorkspaceFolder` holds its folder document, made unread with the folder, so
+    a document holds what was read;
+  - `make_filesystem_pathname(path)` makes an unread folder, and
+    `read_filesystem_folder!(folder; depth)` reads at once on the calling task,
+    for scripts, examples and tests, never in a print; the `filesystem` example
+    reads its fixture so its output stays the same;
+  - the text view of a folder draws only what the folders hold, a folder that is
+    not read shows a reading marker, and it holds nothing more than its tab.
 - **M2. An acquire counts** — decided: a generic count (option A, the owner,
   2026-10-16: "it's A"), not a count in the watch of a folder alone (option B). The
   domain slice keeps one count for each document, for each editor;
@@ -164,17 +200,21 @@ shared parts, which the plan of omnet-julia also uses.
   - Tests: two testsets in `FileChangeStoreTest.jl` (a change reaches each
     receiver, a shared watcher stops with its last receiver; the limit). The file
     change suite (115) passes.
-- [ ] **5. The documents of the file system** (decisions 1, 2, 3, M3). The stored
-  entries, the read state, the emptiness, the acquire and the release, and the
-  apply operations. Tests in a folder of the test:
+- [ ] **5. The documents of the file system** (decisions 1, 2, 3, M1, M1a, M3).
+  The stored entries, the read state, the emptiness, the acquire and the release,
+  and the apply operations; `WorkspaceFolder` with its folder,
+  `WorkspaceExplorer` and the open set of `FileSystemChooser`;
+  `read_filesystem_folder!`. Tests in a folder of the test:
   - nothing is read before the acquire (R1);
   - a new file is one insert, and a kept entry keeps its document (R1);
   - a file that a test writes appears after a drain (R1);
   - a folder of 5,000 files is one read, and a frame draws only the rows on the
     screen (R2);
   - an empty sub-folder shows no chevron in its first frame (R3).
-- [ ] **6. The Files tab on `DocumentTree`** (M1, decision 6).
-  `FileSystemToWidgetTree` goes. Tests: the tests of the file system views, and
+- [ ] **6. The views of the Files tab, the Open dialog and the text view** (M1,
+  M1a, decision 6). The drawing stage reads the open set of the explorer and what
+  the folders hold; the step decides whether that is a tree view of the file
+  system or `DocumentTree`. Tests: the tests of the file system views, and
   `test_ide_file_navigator()` of omnet-julia.
 - [ ] **7. The documents:** `filesystem.md`, `filechange.md`, `tree.md`,
   `navigator.md`, and the acquire in `domain.md`.
