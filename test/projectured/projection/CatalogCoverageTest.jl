@@ -73,21 +73,14 @@ _coverage_covered() = begin
 end
 
 # ── The standing debt ──────────────────────────────────────────────────────
-# Every document type below has a printer and no atom — mostly editor-chrome
-# widgets (panes, the fault/gesture logs, the evaluator forms, the frame
-# plot/statistics overlays, …) that nobody has written a minimal instance for
-# yet. Kept as a set rather than skipped silently, so a *different*,
-# unregistered type still lands as an unmarked `Fail` at `unregistered ==
-# String[]` below — the way `_CATALOG_EDIT_BROKEN` records a failing one.
+# Every document type below has a printer and no atom. The view of a data frame
+# holds a `DataFrame`, and the catalog loads no package of the DataFrames adapter,
+# so no atom of the catalog can make one. Kept as a set rather than skipped
+# silently, so a *different*, unregistered type still lands as an unmarked `Fail`
+# at `unregistered == String[]` below — the way `_CATALOG_EDIT_BROKEN` records a
+# failing one.
 const _NO_ATOM = Set{String}([
-    "AboutPage", "AppearanceDocument", "ArrangementChips", "ArrangementDocument", "Assistant", "AssistantList", "CommandPalette", "ContextMenuWindowState",
-    "DataFrameView", "DataFrameViewRow", "DragTrackingState", "EvaluatorForm",
-    "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
-    "FrameStatistics", "FrameTimeSeries", "GestureLog", "GestureTrackingState", "JuliaToplevel",
-    "McpLog", "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",
-    "SelectionInspector", "Settings", "SettingsDocument", "TextGraphics", "TextSpacing",
-    "TooltipContent", "TooltipWindowState", "WidgetHighlight",
-    "WidgetToolbarItem",
+    "DataFrameView", "DataFrameViewRow",
 ])
 
 
@@ -110,12 +103,19 @@ _coverage_name(T) = string(ProjecturedAll.DocumentModule.get_document_schema_nam
 # ── Atoms the natural renderer cannot take ─────────────────────────────────
 # `NaturalToGraphics` sends text through `WordWrapping → TextToGraphics`, and
 # wrapping is a block-level operation: `WordWrapping` has a method for a
-# `TextBlock` and none for a bare span. These two atoms are the span itself,
-# which is exactly what makes them worth having — `TextStringToString` and its
-# siblings print a span directly — so they are rendered by their own printer in
-# the catalog and skipped here rather than being called a defect.
+# `TextBlock` and none for a bare span. The `bare_*` atoms and the gutter of a
+# line are the span or the part itself, which is exactly what makes them worth
+# having — `TextStringToString` and its siblings print a span directly — so they
+# are rendered by their own printer in the catalog and skipped here rather than
+# being called a defect. The file chooser has no row of the natural renderer: the
+# dialog that asks for a file draws it with its own projection. Neither has the
+# document of an appearance, which the editor draws around a window: the natural
+# renderer falls back to the view of an object, which stops at a slot with nothing
+# in it in a `Memory` of the appearance, and which, past that slot, would walk the
+# whole graph of the appearance.
 const _NO_NATURAL_RENDER = Set{String}([
-    "text/bare_string", "text/bare_line",
+    "text/bare_string", "text/bare_line", "text/bare_spacing", "text/bare_graphics",
+    "text/gutter", "filesystem/chooser", "appearance/document",
 ])
 
 """
@@ -234,9 +234,8 @@ function test_catalog_coverage()
         @test stale == String[]
 
         # And the whole point: nothing is owed.
-        # @broken: 32 document types in `_NO_ATOM` have a printer and no atom
-        # yet; this stays broken until each one gets a hand-authored atomic
-        # document and is removed from that set.
+        # @broken: the two types of a data frame in `_NO_ATOM` have a printer and
+        # no atom, because the catalog loads no package of the DataFrames adapter.
         @test_broken isempty(gap)
     end
 end

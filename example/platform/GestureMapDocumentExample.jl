@@ -9,3 +9,11 @@ make_gesture_map_document_example() =
         GestureRow("Ctrl+V", "Paste", "clipboard", nothing),
         GestureRow("", "Sort the entries", "clipboard", DoNothingOperation()),
     ])
+
+# A command palette with the query "sort" over three rows, one of which cannot run.
+make_command_palette_document_example() =
+    CommandPalette(query = "sort", rows = [
+        GestureRow("Ctrl+C", "Copy the selection", "clipboard", DoNothingOperation()),
+        GestureRow("", "Sort the entries", "clipboard", DoNothingOperation()),
+        GestureRow("Ctrl+V", "Paste", "clipboard", nothing),
+    ])

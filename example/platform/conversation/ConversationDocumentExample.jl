@@ -110,3 +110,11 @@ make_conversation_turn_document_example()  = ConversationTurn(:user, [make_conve
 make_conversation_conversation_document_example() =
     ConversationConversation([make_conversation_turn_document_example()])
 make_conversation_draft_document_example() = make_conversation_editor_document_example()
+
+# An evaluation of a Julia form that has run: the form and its result.
+make_evaluator_form_document_example() =
+    EvaluatorForm(JuliaIdentifier("factorial(5)"); result = TextBlock(TextLine(TextString("120"))))
+
+# An evaluator with one evaluation that has run and one empty form to type into.
+make_evaluator_toplevel_document_example() =
+    EvaluatorToplevel([make_evaluator_form_document_example(), EvaluatorForm(PrimitiveString(""))])

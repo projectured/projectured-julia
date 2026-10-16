@@ -108,3 +108,9 @@ make_text_string_atom_document_example() = TextString("Hello")
 
 make_text_line_atom_document_example() =
     TextLine(TextString("alpha", _atom_font(), color_default); indentation=2)
+
+# A gap of four pixels between two words, as the span itself.
+make_text_spacing_atom_document_example() = TextSpacing(4; font=_atom_font())
+
+# An inline image of 24 by 24 pixels with no pixels, as the span itself.
+make_text_graphics_atom_document_example() = TextGraphics(ImageMemory(nothing), 24, 24)

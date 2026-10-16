@@ -57,7 +57,7 @@ const _CATALOG_EDIT_BROKEN = (
     "text/highlighted/", "text/filtered/", "text/gutter/",
     # @catalog-broken bare text spans: `WordWrapping` is block-level and has no
     #   method for a lone `TextString`/`TextLine`.
-    "text/bare_string/", "text/bare_line/",
+    "text/bare_string/", "text/bare_line/", "text/bare_spacing/", "text/bare_graphics/",
 )
 _catalog_edit_broken(name) =
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
@@ -70,6 +70,8 @@ _catalog_edit_broken(name) =
 # @catalog-broken yaml/sequence: graphics Ctrl+Home seed returns nothing (0 states).
 # @catalog-broken filesystem/directory: under-typed @reference on the walk.
 # @catalog-broken sql/where_filter_condition: TypeError (SyntaxNavigation) on the walk.
+# @catalog-broken inspector/selection, projection/fault_report: a view that a person
+#   reads and does not edit, so Ctrl+Home finds no caret to seed (0 states).
 # @catalog-broken julia/empty: renders to nothing, so there is no caret to seed (0 states).
 #   Arguably not a bug — `JuliaEmpty` is the absent return type of a function that
 #   declares none, and absent is what it should draw. It is marked rather than
@@ -86,7 +88,9 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
                              "layout/", "widget/composite/",
                              "widget/reference_inspector/", "graph/layout/",
                              "text/bare_string/", "text/bare_line/",
-                             "text/highlighted/", "text/filtered/", "text/gutter/")
+                             "text/bare_spacing/", "text/bare_graphics/",
+                             "text/highlighted/", "text/filtered/", "text/gutter/",
+                             "inspector/selection/", "projection/fault_report/")
 # Entries whose PRINTER cannot force its own output. Distinct from the edit set:
 # these fail before any gesture, when the walk reads the cells the printer built.
 # @catalog-broken layouts / widget composite / graph layout / the views of a text
@@ -98,6 +102,7 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
 const _CATALOG_PRINT_BROKEN = ("layout/", "widget/composite/",
                                "widget/reference_inspector/", "graph/layout/",
                                "text/bare_string/", "text/bare_line/",
+                               "text/bare_spacing/", "text/bare_graphics/",
                                "text/highlighted/", "text/filtered/", "text/gutter/")
 _catalog_print_broken(name) =
     any(p -> occursin(p, name), _CATALOG_PRINT_BROKEN) ?

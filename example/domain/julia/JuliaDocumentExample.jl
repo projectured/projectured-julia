@@ -16,6 +16,7 @@ make_julia_binary_op_document_example()  = JuliaBinaryOperation(:+, JuliaIdentif
 make_julia_call_document_example()       = JuliaCall(JuliaIdentifier("f"), [JuliaIdentifier("x")])
 make_julia_assignment_document_example() = JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1))
 make_julia_block_document_example()      = JuliaBlock([JuliaInteger(1)])
+make_julia_toplevel_document_example()   = JuliaToplevel([JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1)), JuliaIdentifier("x")])
 make_julia_function_document_example()   = JuliaFunction(JuliaIdentifier("f"), [JuliaIdentifier("x")], JuliaBlock([JuliaIdentifier("x")]))
 make_julia_array_document_example()      = JuliaArray([JuliaInteger(1)])
 make_julia_begin_document_example()      = JuliaBegin(JuliaBlock([JuliaInteger(1)]))

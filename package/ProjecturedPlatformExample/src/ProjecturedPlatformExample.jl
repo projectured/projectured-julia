@@ -84,6 +84,20 @@ include("../../../example/platform/NavigatorDocumentExample.jl")
 include("../../../example/platform/TreeDocumentExample.jl")
 include("../../../example/platform/WorkPlanDocumentExample.jl")
 include("../../../example/platform/SystemProcessDocumentExample.jl")
+include("../../../example/platform/FaultDocumentExample.jl")
+include("../../../example/platform/ProjectionDocumentExample.jl")
+include("../../../example/platform/MessageLogDocumentExample.jl")
+include("../../../example/platform/McpLogDocumentExample.jl")
+include("../../../example/platform/GestureLogDocumentExample.jl")
+include("../../../example/platform/StatisticsDocumentExample.jl")
+include("../../../example/platform/SettingsDocumentExample.jl")
+include("../../../example/platform/SettingsManagingDocumentExample.jl")
+include("../../../example/platform/HelpDocumentExample.jl")
+include("../../../example/platform/InspectorDocumentExample.jl")
+include("../../../example/platform/TooltipDocumentExample.jl")
+include("../../../example/platform/DragTrackingDocumentExample.jl")
+include("../../../example/platform/GestureTrackingDocumentExample.jl")
+include("../../../example/platform/ArrangementDocumentExample.jl")
 include("../../../example/platform/RotatingVectorDocumentExample.jl")
 
 include("../../../example/platform/SyntaxProjectionExample.jl")
@@ -140,6 +154,19 @@ export make_graphics_rect_document_example, make_scroll_layout_document_example,
        make_task_group_document_example, make_task_group_list_document_example,
        make_task_execution_document_example, make_task_stream_document_example,
        make_task_stream_lines_document_example
+export make_fault_log_document_example, make_fault_report_document_example,
+       make_message_log_document_example, make_mcp_log_document_example,
+       make_gesture_log_document_example, make_frame_statistics_document_example,
+       make_frame_time_series_document_example, make_settings_document_example,
+       make_settings_document_document_example, make_about_page_document_example,
+       make_selection_inspector_document_example, make_tooltip_content_document_example,
+       make_tooltip_window_state_document_example, make_drag_tracking_state_document_example,
+       make_gesture_tracking_state_document_example, make_arrangement_document_example,
+       make_arrangement_chips_document_example, make_text_spacing_atom_document_example,
+       make_text_graphics_atom_document_example, make_pane_group_document_example,
+       make_pane_split_document_example, make_appearance_document_document_example,
+       make_command_palette_document_example, make_widget_toolbar_item_atom_document_example,
+       make_widget_highlight_document_example, make_context_menu_window_state_document_example
 export make_horizontal_layout_document_example, make_layout_constraint_document_example
 export make_layout_document_example, make_layout_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
@@ -294,6 +321,7 @@ include("../../../example/platform/filesystem/FilesProjectionExample.jl")
 
 export filesystem_example_root
 export make_filesystem_document_example, make_filesystem_file_document_example, make_filesystem_directory_document_example
+export make_filesystem_chooser_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_files_document_example, make_files_projection_example
 export make_workspace_folder_document_example, make_workspace_document_example

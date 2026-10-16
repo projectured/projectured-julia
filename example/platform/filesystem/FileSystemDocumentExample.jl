@@ -24,3 +24,7 @@ make_filesystem_file_document_example() = FileSystemModule.FileSystemFile("/home
 # Minimal non-empty directory — one file child, for the catalog.
 make_filesystem_directory_document_example() =
     FileSystemModule.FileSystemDirectory("/home/user", [FileSystemModule.FileSystemFile("/home/user/notes.txt")])
+
+# A chooser over the directory above, with no name typed.
+make_filesystem_chooser_document_example() =
+    FileSystemChooser(make_filesystem_directory_document_example())

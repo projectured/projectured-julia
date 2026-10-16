@@ -28,3 +28,13 @@ function make_pane_document_example()
     set_selection!(tree, get_pane_tab_reference(tree, left, 1))
     tree
 end
+
+# A tab group of two tabs.
+make_pane_group_document_example() =
+    PaneGroup(PaneTab[PaneTab("notes", PrimitiveString("Drag a tab onto another group to move it.")),
+                      PaneTab("scratch", PrimitiveString(""))])
+
+# Two tab groups side by side.
+make_pane_split_document_example() =
+    PaneSplit(:vertical, [PaneGroup(PaneTab[PaneTab("left", PrimitiveString("The left group."))]),
+                          PaneGroup(PaneTab[PaneTab("right", PrimitiveString("The right group."))])])

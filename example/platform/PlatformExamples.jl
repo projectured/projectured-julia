@@ -352,4 +352,41 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:task, "execution",    make_task_execution_document_example),
     AtomicDocument(:task, "stream",       make_task_stream_document_example),
     AtomicDocument(:task, "stream_lines", make_task_stream_lines_document_example),
+    # The spans of a text that print on their own: a gap and an inline image.
+    AtomicDocument(:text, "bare_spacing",  make_text_spacing_atom_document_example),
+    AtomicDocument(:text, "bare_graphics", make_text_graphics_atom_document_example),
+    # A toolbar button, an area called out, and the state of the context menu window.
+    AtomicDocument(:widget, "toolbar_item",        make_widget_toolbar_item_atom_document_example),
+    AtomicDocument(:widget, "highlight",           make_widget_highlight_document_example),
+    AtomicDocument(:widget, "context_menu_window", make_context_menu_window_state_document_example),
+    # The layout of the panes: a whole tree, a split and a group.
+    AtomicDocument(:pane, "tree",  make_pane_document_example),
+    AtomicDocument(:pane, "split", make_pane_split_document_example),
+    AtomicDocument(:pane, "group", make_pane_group_document_example),
+    # One field of an object.
+    AtomicDocument(:primitive, "object_field", make_object_field_document_example),
+    # The appearance and the settings of an editor around a document.
+    AtomicDocument(:appearance, "document",       make_appearance_document_document_example),
+    AtomicDocument(:settings, "settings",         make_settings_document_example),
+    AtomicDocument(:settingsmanaging, "document", make_settings_document_document_example),
+    # The states that wrap the document of an editor: the drag, the gesture and the two windows.
+    AtomicDocument(:dragtracking, "state",        make_drag_tracking_state_document_example),
+    AtomicDocument(:gesturetracking, "state",     make_gesture_tracking_state_document_example),
+    AtomicDocument(:tooltip, "content",           make_tooltip_content_document_example),
+    AtomicDocument(:tooltip, "window_state",      make_tooltip_window_state_document_example),
+    # The logs and the tables of the tools of an editor.
+    AtomicDocument(:log, "message_log",           make_message_log_document_example),
+    AtomicDocument(:mcplog, "log",                make_mcp_log_document_example),
+    AtomicDocument(:gesturelog, "log",            make_gesture_log_document_example),
+    AtomicDocument(:fault, "log",                 make_fault_log_document_example),
+    AtomicDocument(:projection, "fault_report",   make_fault_report_document_example),
+    AtomicDocument(:statistics, "frame_statistics", make_frame_statistics_document_example),
+    AtomicDocument(:statistics, "frame_time_series", make_frame_time_series_document_example),
+    # The pages and the views of an editor: the page about the program, the command palette,
+    # the inspector of a selection and the arrangement of a collection.
+    AtomicDocument(:help, "about_page",           make_about_page_document_example),
+    AtomicDocument(:gesturehelp, "command_palette", make_command_palette_document_example),
+    AtomicDocument(:inspector, "selection",       make_selection_inspector_document_example),
+    AtomicDocument(:arrangement, "document",      make_arrangement_document_example),
+    AtomicDocument(:arrangement, "chips",         make_arrangement_chips_document_example),
 ]

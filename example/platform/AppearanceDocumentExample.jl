@@ -5,3 +5,7 @@ function make_appearance_document_example()
     set_theme!(appearance, WidgetTheme())
     appearance
 end
+
+# The appearance of the example above around a string.
+make_appearance_document_document_example() =
+    AppearanceDocument(make_appearance_document_example(), PrimitiveString("content"))

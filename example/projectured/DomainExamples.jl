@@ -346,6 +346,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:julia, "call",       make_julia_call_document_example),
     AtomicDocument(:julia, "assignment", make_julia_assignment_document_example),
     AtomicDocument(:julia, "block",      make_julia_block_document_example),
+    AtomicDocument(:julia, "toplevel",   make_julia_toplevel_document_example),
     AtomicDocument(:julia, "function",   make_julia_function_document_example),
     AtomicDocument(:julia, "array",            make_julia_array_document_example),
     AtomicDocument(:julia, "begin",             make_julia_begin_document_example),
@@ -404,6 +405,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:workflow, "catalog",  make_workflow_catalog_document_example),
     AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
     AtomicDocument(:filesystem, "directory", make_filesystem_directory_document_example),
+    AtomicDocument(:filesystem, "chooser",   make_filesystem_chooser_document_example),
     AtomicDocument(:sql, "all_columns",  make_sql_all_columns_document_example),
     AtomicDocument(:sql, "column_name",  make_sql_column_name_document_example),
     AtomicDocument(:sql, "table_name",   make_sql_table_name_document_example),
@@ -463,6 +465,12 @@ const domain_atomic_documents = AtomicDocument[
     # The work page of an assistant, and the page of one of its subagents.
     AtomicDocument(:assistant, "work",       make_assistant_work_document_example),
     AtomicDocument(:assistant, "agent_work", make_agent_work_document_example),
+    # An assistant with no transcript, and the list of the open assistants.
+    AtomicDocument(:assistant, "assistant",  make_assistant_atom_document_example),
+    AtomicDocument(:assistant, "list",       make_assistant_list_document_example),
+    # An evaluation that has run, and an evaluator that holds it.
+    AtomicDocument(:conversation, "evaluator_form",     make_evaluator_form_document_example),
+    AtomicDocument(:conversation, "evaluator_toplevel", make_evaluator_toplevel_document_example),
     AtomicDocument(:dbcatalog, "column",   make_db_catalog_column_document_example),
     AtomicDocument(:dbcatalog, "database", make_db_catalog_database_document_example),
     AtomicDocument(:dbcatalog, "rdbms",    make_db_catalog_rdbms_document_example),

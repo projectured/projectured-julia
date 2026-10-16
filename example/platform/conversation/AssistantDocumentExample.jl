@@ -23,3 +23,9 @@ function make_assistant_document_example(; backend::Symbol = :none,
         ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
     assistant
 end
+
+# An assistant with an empty conversation that answers from a fake model.
+make_assistant_atom_document_example() = Assistant(; llm = FakeLlm())
+
+# The list of the open assistants, with none linked.
+make_assistant_list_document_example() = AssistantList()

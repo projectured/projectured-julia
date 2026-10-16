@@ -258,6 +258,18 @@ make_widget_toolbar_item_document_example() =
                       WidgetToolbarItem("Stop"; icon = :stop, enabled = false),
                       WidgetToolbarItem("Log")])
 
+# WidgetToolbarItem — a single button, as the item itself and not in a toolbar.
+make_widget_toolbar_item_atom_document_example() =
+    WidgetToolbarItem("Run"; icon = :play)
+
+# WidgetHighlight — a single area called out.
+make_widget_highlight_document_example() =
+    WidgetHighlight(; position = Point2D(40, 40), width = 160, height = 60)
+
+# ContextMenuWindowState — the state of the context menu window around a menu, with no menu open.
+make_context_menu_window_state_document_example() =
+    ContextMenuWindowState(; content = make_widget_menu_document_example())
+
 # WidgetComposite — a positioned container of child widgets.
 make_widget_composite_document_example() =
     WidgetComposite(Any[
