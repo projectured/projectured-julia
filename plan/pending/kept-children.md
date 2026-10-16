@@ -231,5 +231,35 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
 - [ ] **10. The counts and the time**: S4b-w, S4b, S4d, and a filter of a data
   frame, base against branch, on an idle machine with the owner's word. The
   numbers go back to the owner with the two ideas for the engine.
+  - The counts, 2026-10-16. The base is `6b3ec5073`, the last commit of this
+    plan before its code; the branch is the base and the eight code commits of
+    this plan only (`kept-children-measure`), so the commits of other sessions
+    between the parts do not count. The probe is
+    `/var/tmp/kept-children/count-step10.jl`, one process for each scenario,
+    40 steps after two, with a walk of the paint that goes 60 nodes each way
+    along a list (a walk of the whole list built all 10,000 rows of the frame
+    on each step). S4d is X4 again: 20 Julia files of 10 calls, the roster of
+    the calls of `f` grouped by file, and a step that changes one callee
+    between `f` and `g`. DF-w is a frame of 10,000 rows in a window, and a step
+    that moves the filter of `id` between `> 1` and `> 2`. Per step:
+
+    | scenario | computes, base | computes, branch | detach walk, base | detach walk, branch |
+    |---|---|---|---|---|
+    | S4b-w, a window | 1166.5 | 979.5 | 1.53 M | 1.56 M |
+    | S4b, no window | 1533.5 | 1533.5 | 140 K | 128 K |
+    | S4d-w, a window | 503 | 622 | 177 K | 250 K |
+    | S4d, no window | 528 | 528 | 134 K | 129 K |
+    | DF-w, a window | 4420 | 1198 | 13.6 K | 17.8 K |
+
+  - S4d-w computes more. A probe that tells the first computation of a new
+    cell from a computation again found the cause: the base has 447 first
+    computations and 56 again for each step, the branch 585 and 37. The
+    roster of S4d-w is an eager table, which prints again on each step on both
+    sides. In the branch the reconciler of the panes gives each pane a cell of
+    its index (step 4), so every path inside a pane is a computation, and a
+    fresh print there makes a cell for each path (42 per step) and two cells
+    for each dispatch by path (step 3, 96 per step). The computations again
+    fall, as step 3 meant: the reconciled IO maps and the fault barriers of
+    the dispatch no longer compute again.
 - [ ] **11. The texts**: the guides of the collection, the layout, the
   projection system, the data frames and the roster.
