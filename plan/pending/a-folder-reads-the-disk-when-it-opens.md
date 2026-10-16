@@ -129,10 +129,22 @@ shared parts, which the plan of omnet-julia also uses.
     `false` and `nothing`). The widget tree (46), the tree (82), the reflection
     (28), the system processes (78), the work plan (82), the file system (84) and
     the task views (60) pass.
-- [ ] **3. The read task with a wait** (decisions 2 and 5): a helper that runs a
+- [x] **3. The read task with a wait** (decisions 2 and 5): a helper that runs a
   read on a task, waits for it a short time, and answers through
   `run_on_editor_task!` with an apply operation. The step decides the slice that
   holds the helper. Tests: a test of the helper with a fast and a slow read.
+  - Done 2026-10-16: `start_document_read!(editor, read, apply; wait)` in
+    `DocumentRead.jl` of the domain slice, beside the acquire, because its users
+    call it from an acquire. It runs `read()` with `Threads.@spawn` and waits at
+    most `DOCUMENT_READ_WAIT` (0.05 s). A read inside the wait is applied at once,
+    in the evaluation that started it. A longer read posts `apply(answer)` with
+    `post_operation!`, not `run_on_editor_task!`: the post is the thread-safe door
+    for a watcher to change what an editor shows, and `run_on_editor_task!` runs
+    a code unit on a thread of its own. The answer is the value of the read or the
+    exception that it threw, so the apply writes a failure too. An editor that is
+    not an `Editor` reads at once on the calling task.
+  - Tests: `DocumentReadTest.jl` (7): a fast read, a slow read that the next
+    drain applies, a read that throws, and a stand-in editor.
 - [ ] **4. The watch of a folder** (decision 3) in the file change slice. A watch
   of a folder for a receiver reports only "this folder changed". An editor has a
   limit of watches. Tests: `test_file_change()`.

@@ -193,6 +193,7 @@ function test_platform()
         test_object_conversion()
         test_text_pattern()
         test_pane_surgery()
+        test_document_read()
         test_pane_geometry()
         test_document_duplicate()
         # text / graphics projections
@@ -396,7 +397,7 @@ export _text_leaf_length, _walk_document, collect_position_selections, collect_t
 export test_point_reference
 export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback, test_font_face,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
-       test_primitive, test_primitive_type_in, test_pane_surgery, test_pane_geometry, test_pane_to_widget,
+       test_primitive, test_primitive_type_in, test_pane_surgery, test_document_read, test_pane_geometry, test_pane_to_widget,
        test_pane_reader, test_pane_gestures, test_pane_drag,
        test_pane_rename, test_pane_construct, test_interface_api
 export test_projection_template_hygiene, test_projection_template_fixed_children

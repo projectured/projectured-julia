@@ -6,8 +6,10 @@ documents: a base abstract type, a nothing-document, an insertion placeholder,
 and a reference document.
 
 The acquire of a document that enters the window, `acquire_document!` and
-`AcquireDocumentOperation`, and the release of a document that leaves it,
-`release_document!` and `ReleaseDocumentOperation`, live in `DocumentRelease.jl`.
+`AcquireDocumentOperation`, the release of a document that leaves it,
+`release_document!` and `ReleaseDocumentOperation`, and the count of the holders
+of each document live in `DocumentRelease.jl`. The read of outside state for a
+document on a task of its own, `start_document_read!`, lives in `DocumentRead.jl`.
 
 The load/save/import/export document operations live with the serializers:
 binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
@@ -25,6 +27,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..EditorModule
+using ..FaultModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
@@ -44,7 +47,7 @@ export DocumentNothing, DocumentInsertion
 export compute_context_menu
 export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
        add_document_holder!, remove_document_holder!, hold_documents!, release_held_documents!,
-       ChangeHeldDocumentsOperation
+       ChangeHeldDocumentsOperation, start_document_read!, DOCUMENT_READ_WAIT
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 
@@ -52,6 +55,7 @@ export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
 include("DocumentCore.jl")
 include("Domain.jl")
 include("DocumentRelease.jl")
+include("DocumentRead.jl")
 
 
 end # module
