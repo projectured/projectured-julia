@@ -263,6 +263,21 @@ path_count(cim) = get_reference_steps(strip_reference_types(cim.context.referenc
     @test first_cell(grid_io, 3) === printed[3]
 end
 
+@testset "a kept row whose cell holds a new document prints again, and draws it" begin
+    # A cell of a row can change its document while the row stays, as a cell of a
+    # table does when it opens for an edit; the kept print then shows the old one.
+    rows = [CellVector(Cell[Cell(WidgetLabel("r$(i) c$(c)")) for c in 1:3]) for i in 1:4]
+    layout = grid(list_of(rows))
+    io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(400, 200)), context())
+    grid_io = io.content_iomap
+    texts(viewport(io))
+    other = first_cell(grid_io, 3)
+    rows[2][1] = WidgetLabel("r2 open")
+    drawn = [t[3] for t in texts(viewport(io))]
+    @test "r2 open" in drawn && !("r2 c1" in drawn)
+    @test first_cell(grid_io, 3) === other
+end
+
 @testset "a row in the list two times prints at both places, each with the path of its place" begin
     rows = label_rows(3)
     layout = grid(list_of(rows[[1, 2, 1, 3]]))

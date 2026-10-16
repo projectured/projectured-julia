@@ -47,11 +47,12 @@ mutable struct GridListState
 end
 
 # The print of one row of a vector of columns, which the grid keeps by the row
-# document: the IO maps of its cells with their places in the row, the output
-# of each IO map when the row printed, the outputs in their slots, and the
-# height of the row. `count` gives the count of the row from the head, which
+# document: the document of each cell when the row printed, the IO maps of its
+# cells with their places in the row, the output of each IO map when the row
+# printed, the outputs in their slots, and the height of the row. `count` gives the count of the row from the head, which
 # the path of its cells reads, and `linked` holds the count of its last link.
 struct _GridListRow
+    documents::Vector{Any}        # the document of each cell at the print, or nothing
     entries::Vector{Any}          # (x, y, iomap) of each column
     outputs::Vector{Any}          # the output of each IO map at the print, or nothing
     cells::Vector{Any}            # the outputs in their slots
@@ -169,10 +170,12 @@ function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, 
     linked = Ref(k)
     count = _make_grid_list_count(doc, state, row, k, linked)
     row_ctx = ctx === nothing ? nothing : _make_grid_list_row_context(ctx, doc, k, count)
+    documents = Any[]
     entries = Any[]
     outputs = Any[]
     for c in 1:n
         document = (row !== nothing && 1 <= c <= length(row)) ? row[c] : nothing
+        push!(documents, document)
         cctx = row_ctx === nothing ? nothing : _make_grid_list_cell_context(row_ctx, row, c)
         if cctx !== nothing
             withheld = column_offers isa AbstractVector && c <= length(column_offers) &&
@@ -207,7 +210,7 @@ function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, 
                                         clip_x = true, clip_y = fixed_h !== nothing))
         entries[c] = (x_cell, y_cell, cim)
     end
-    printed = _GridListRow(entries, outputs, cells, row_h, count, linked)
+    printed = _GridListRow(documents, entries, outputs, cells, row_h, count, linked)
     count isa ImmutableCell || (state.kept[row] = printed)
     printed
 end
@@ -291,8 +294,10 @@ end
 
 # The print of `row` for its link at `k`: the print that the grid keeps, or a new
 # one. A kept print serves when its count is `k`, the row is at no other place
-# that the counts reach, and each IO map of its cells gives the output that it
-# placed; the link reads the outputs, as a print reads them.
+# that the counts reach, each cell of the row holds the document that it printed,
+# as a cell that opens for an edit does not, and each IO map of its cells gives
+# the output that it placed. The link reads the documents and the outputs, as a
+# print reads them, so a new one links the row again.
 function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
                              k::Int, row)
     kept = _take_kept_grid_list_row(state, row, k)
@@ -307,6 +312,10 @@ function _take_kept_grid_list_row(state::GridListState, row, k::Int)
     kept === nothing && (kept = get(state.kept_before, row, nothing))
     kept === nothing && return nothing
     peek(kept.count) == k || return nothing
+    for (c, document) in enumerate(kept.documents)
+        now = (row !== nothing && 1 <= c <= length(row)) ? row[c] : nothing
+        now === document || return nothing
+    end
     for (entry, output) in zip(kept.entries, kept.outputs)
         entry[3] === nothing || entry[3].output === output || return nothing
     end
