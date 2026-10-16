@@ -52,3 +52,55 @@ time (2026-10-16); this plan holds each decision.
    move of the anchor the grid of a list finds no kept print. The view keeps
    the row of each row of the frame by its number in the frame, as the roster
    keeps `made`, and forgets the rows that left.
+7. **Two helpers for lazy lists** (option A, the owner, 2026-10-16). Helper 1,
+   `make_mapped_list(source, f)` in the collection module: the node at count k
+   holds `f(source_node, k, neighbor)`, built when a walk first reaches it and
+   linked both ways, where `neighbor` is the mapped node that the walk came
+   from. It replaces the links built by hand in ten files (19 computations of a
+   link): `LayoutList.jl`, `GridList.jl`, `GridColumnList.jl`,
+   `WidgetTableParts.jl` (with its private `_make_mapped_node`),
+   `WidgetTableHeaderLevels.jl`, `TextToGraphics.jl`, `SyntaxToText.jl`,
+   `Copying.jl`, `CollectionToSyntax.jl` and `make_index_list`. Helper 2, the
+   kept prints of a list, in the collection module, which knows nothing of
+   grids: the prints of this head and of the head before it, the counts of a
+   head with their reach, the count of one element, the rule of an element at
+   two places, the take of a kept print and the record of a new one. It takes
+   over the code of 2b from `GridList.jl`. The order: helper 1 as a pure
+   refactor, then helper 2 as a pure refactor, each shown by the tests that
+   stand, then the users.
+8. **The projections that print the elements of a list keep their prints**
+   (the owner, 2026-10-16): `Copying.jl` and `CollectionToSyntax.jl` use helper
+   2, so a new head prints only the elements that are new to it.
+
+The two ideas for the cell engine, a stop for the same object and a detach with
+no scan, wait for the measure of step 10, by decision 3.
+
+## Steps
+
+Each step is one commit, with its tests, in the worktree `kept-children`.
+
+- [ ] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
+  on it. No behavior changes: the tests of the layouts of a list, the tables, the
+  syntax and the text pass as they are.
+- [ ] **2. Helper 2, the kept prints of a list** (decision 7), and the grid of a
+  list on it. No behavior changes: the tests of 2b pass as they are.
+- [ ] **3. The dispatch by path confines a change of its path** (decision 3). A
+  test: a dispatch whose path moves and whose choice stays leaves the output
+  cell of its IO map valid.
+- [ ] **4. The reconciler of a vector keeps a child by its object** (decision
+  1), and its 15 callers. A test: a delete of the first member of a JSON object
+  keeps the prints of the other members, with the paths of their new places.
+- [ ] **5. The linear list keeps its children** (decision 4), on helper 2.
+- [ ] **6. The grid whose columns are a list keeps its cells** (decision 5), on
+  two of helper 2.
+- [ ] **7. The view of a data frame keeps its row objects** (decision 6). A
+  test: a filter keeps the drawn text of a row that stays.
+- [ ] **8. `Copying.jl` and `CollectionToSyntax.jl` keep the prints of their
+  elements** (decision 8), on helper 2.
+- [ ] **9. The test of an insert inside one head** (decision 2): the rows and
+  their paths are right.
+- [ ] **10. The counts and the time**: S4b-w, S4b, S4d, and a filter of a data
+  frame, base against branch, on an idle machine with the owner's word. The
+  numbers go back to the owner with the two ideas for the engine.
+- [ ] **11. The texts**: the guides of the collection, the layout, the
+  projection system, the data frames and the roster.
