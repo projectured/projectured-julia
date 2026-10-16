@@ -75,14 +75,60 @@ function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     Text("The page of " * describe_document(part) * " opens in a new tab.")
 end
 
+# The navigators of the window of `root`: the content of a tab that is one, and a
+# navigator that the content of a tab holds in a field, such as the navigator of
+# an explorer beside its tree.
+function _collect_window_navigators(root)
+    tree = try
+        get_window_tree(root)
+    catch
+        nothing
+    end
+    tree isa PaneTree || return Navigator[]
+    found = Navigator[]
+    for group in get_pane_groups(tree), tab in group.tabs
+        content = tab.content
+        if content isa Navigator
+            push!(found, content)
+        elseif content isa Document
+            for name in fieldnames(typeof(content))
+                value = getproperty(content, name)
+                value isa Navigator && push!(found, value)
+            end
+        end
+    end
+    found
+end
+
+# The content of a navigator of the window that holds `document`
+# (`find_navigator_address`), and the path of `document` in it; `nothing` when no
+# navigator of the window holds it.
+function _find_holding_content(root, document)
+    for navigator in _collect_window_navigators(root)
+        content = navigator.content
+        held = find_navigator_address(content, document)
+        held === nothing || return (content, strip_reference_types(held))
+    end
+    nothing
+end
+
 # The content and the address of the navigator of an open that no navigator took.
-# An operation with its own root opens a navigator on that root. A path from the
+# An operation with its own root opens a navigator on the content of a navigator of
+# the window that holds that root, at its full address there, so a page of a part
+# keeps its breadcrumb and its parent; else on that root. A path from the
 # root of the editor opens a navigator on the document of the tab that holds the
 # part, past the layers around that document, such as a history, up to a file,
 # whose name a link is relative to; with no tab on the path, on the part itself.
 function _find_opened_content(root, operation::OpenPageOperation)
     reference = strip_reference_types(operation.reference)
     if operation.document !== nothing
+        holding = _find_holding_content(root, operation.document)
+        if holding !== nothing
+            (content, held) = holding
+            path = concat_references(held, reference)
+            try_evaluate_reference(content, path, _NOT_REACHED) === _NOT_REACHED ||
+                return (content, annotate_reference_types(content, path))
+        end
         content = operation.document
         try_evaluate_reference(content, reference, _NOT_REACHED) === _NOT_REACHED && return (nothing, nothing)
         return (content, annotate_reference_types(content, reference))

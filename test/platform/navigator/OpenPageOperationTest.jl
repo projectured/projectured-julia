@@ -67,6 +67,12 @@ end
     content::Any
 end
 
+# A content of a tab that holds a navigator in a field, as an explorer holds the
+# navigator beside its tree.
+@document struct NavigatorTestFrame
+    navigator::Any
+end
+
 _nav_link(target; place = :here) = OpenPageOperation(nothing, EmptyReference(), place; target)
 
 _nav_tabs(editor) = editor.document.root.tabs
@@ -227,6 +233,42 @@ function test_open_page_operation()
         @test length(tabs) == 2
         @test tabs[2].content.content === site
         @test get_navigator_page(tabs[2].content) === shelf.books[2]
+    end
+
+    @testset "a new tab of a document opens over the content of the navigator that holds it" begin
+        shelf = _nav_make_shelf()
+        site = _nav_make_site(shelf)
+        navigator = Navigator(site, @reference(site, home))
+        editor, backend = _nav_editor(navigator; tabs = true)
+        book = shelf.books[2]
+        evaluate_operation(editor, OpenPageOperation(book, @reference(book, chapters[1]), :new_tab))
+        drain_operations!(editor)
+        run_frame!(editor)
+        tabs = _nav_tabs(editor)
+        @test length(tabs) == 2
+        # The content of the new tab is the site, so the page has its parent there.
+        @test tabs[2].content.content === site
+        @test get_navigator_page(tabs[2].content) === book.chapters[1]
+        @test evaluate_reference(site, find_navigator_parent_address(tabs[2].content)) === book
+        @test get_navigator_page(navigator) === site.home
+        # A navigator that the content of a tab holds in a field holds the document
+        # too, as the navigator of an explorer beside its tree does.
+        shelf = _nav_make_shelf()
+        site = _nav_make_site(shelf)
+        frame = NavigatorTestFrame(Navigator(site, @reference(site, home)))
+        editor, backend = _nav_editor(frame; tabs = true)
+        evaluate_operation(editor, OpenPageOperation(shelf.books[1], EmptyReference(), :new_tab))
+        drain_operations!(editor)
+        run_frame!(editor)
+        tabs = _nav_tabs(editor)
+        @test length(tabs) == 2 && tabs[2].content.content === site
+        @test get_navigator_page(tabs[2].content) === shelf.books[1]
+        # A document that no navigator of the window holds is the content of its tab.
+        other = NavigatorTestChapter("Elsewhere", nothing)
+        evaluate_operation(editor, OpenPageOperation(other, EmptyReference(), :new_tab))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test _nav_tabs(editor)[3].content.content === other
     end
 
     @testset "a target that names a file opens it with a navigator, in a history with settings" begin
