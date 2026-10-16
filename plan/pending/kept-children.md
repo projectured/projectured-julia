@@ -77,7 +77,10 @@ no scan, wait for the measure of step 10, by decision 3.
 
 ## Steps
 
-Each step is one commit, with its tests, in the worktree `kept-children`.
+Each step is one commit, with its tests, in the worktree `kept-children`. The owner wants small
+parts, each landed after its tests (2026-10-16): part 1 is steps 1 to 3, part 2
+step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
+10 and 11.
 
 - [ ] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
   on it. No behavior changes: the tests of the layouts of a list, the tables, the
