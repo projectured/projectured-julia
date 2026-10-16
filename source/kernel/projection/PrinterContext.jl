@@ -212,6 +212,42 @@ function make_child_context(ctx::PrinterContext, reference::Union{ImmutableCell{
     _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx); reference)
 end
 
+"""
+    make_element_context(ctx, index, make_steps) -> PrinterContext
+    make_element_context(ctx, current_doc, index, make_steps) -> PrinterContext
+
+The context of an element of a vector whose index is the cell `index`: the path
+of `ctx` extended by `make_steps(i)`, the steps to the element at the index `i`,
+such as `(FieldReferenceStep("windows"), ElementReferenceStep(i))`. The path is a
+computation that reads the index, so it follows the element when an insert or a
+delete moves it; it is an `ImmutableCell` when the path of `ctx` and the index are
+both fixed. With `current_doc`, the steps are typed against it, as
+`make_child_context(ctx, current_doc, steps...)` types them.
+
+Use it in the `make_iomap` of `make_reconciled_child_iomaps_cell`, which gives the
+index cell.
+
+# Example
+
+    make_reconciled_child_iomaps_cell(() -> input.windows, (index, window) ->
+        print_child(recursion, window,
+            make_element_context(ctx, index, i -> (FieldReferenceStep("windows"), ElementReferenceStep(i)))))
+"""
+make_element_context(ctx::PrinterContext, index::AbstractCell, make_steps) =
+    _make_element_context(ctx, index, i -> Reference(make_steps(i)...))
+
+make_element_context(ctx::PrinterContext, current_doc::Document, index::AbstractCell, make_steps) =
+    _make_element_context(ctx, index, i -> annotate_reference_types(current_doc, Reference(make_steps(i)...)))
+
+function _make_element_context(ctx::PrinterContext, index::AbstractCell, make_relative)
+    reference = if ctx.reference isa ImmutableCell && index isa ImmutableCell
+        ImmutableCell{Any}(concat_references(ctx.reference[], make_relative(index[])))
+    else
+        Cell(@computation concat_references(ctx.reference[], make_relative(index[])))
+    end
+    make_child_context(ctx, reference)
+end
+
 # The keyword default of the size helpers: the axis keeps the range it has.
 struct _KeepRange end
 

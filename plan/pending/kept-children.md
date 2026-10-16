@@ -137,9 +137,36 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     prints again).
   - The platform suite (162719, 7 broken, no failure) and the data frame suite
     (608) pass. Part 1 lands with this step.
-- [ ] **4. The reconciler of a vector keeps a child by its object** (decision
+- [x] **4. The reconciler of a vector keeps a child by its object** (decision
   1), and its 15 callers. A test: a delete of the first member of a JSON object
   keeps the prints of the other members, with the paths of their new places.
+  - Built 2026-10-16. `make_reconciled_child_iomaps_cell` keys a child by the
+    element in an `IdDict`, with the index of its last placing. One computed
+    cell maps each element to its index for each change, and each child gets a
+    cell of its index that reads the map; an element at two places gets a fixed
+    index and is not kept. `make_element_context(ctx, [current_doc,] index,
+    make_steps)` in `PrinterContext.jl` makes the context of an element from
+    its index cell: `make_steps(i)` gives the steps to the element at `i`, and
+    the path is an `ImmutableCell` when the path of the context and the index
+    are fixed. The template has `_make_template_element_context`, which types
+    the steps by the type of the document, as `_make_template_child_context`
+    does.
+  - The callers: eleven read the index only in the path and use
+    `make_element_context` (Reversing, Copying, Sorting, ObjectToSyntax,
+    WorkspaceToFileSystem, ScreenToScreen, two in PaneToWidget, the menu, two
+    in the template); four do not read it (the composite, the tabbed pane, the
+    toolbar, the accordion). No caller reads it for a form, such as a comma.
+  - Tests: the reconciler test pins the new rule (a delete or a front insert
+    keeps the children that stay, and their index cells give the new indexes;
+    an object at two places is not kept), and `ObjectFieldToSyntaxTest.jl` has
+    a delete at the front of a collection that keeps the outputs of the others.
+    The test of the plan named a JSON object; the collection form of
+    `ObjectToSyntax` is the caller, so the test uses it.
+  - The kernel suite (4772), the platform suite (162732, 7 broken), the data
+    frames (608) and the 19 domain suites pass (yaml has 2 broken). The process
+    suite hung once at `ProcessDebugTest.jl:185` under the load of the other
+    suites: a race in that test, which passed 315 of 315 three times alone, as
+    on `main`. Part 2 lands with this step.
 - [ ] **5. The linear list keeps its children** (decision 4), on helper 2.
 - [ ] **6. The grid whose columns are a list keeps its cells** (decision 5), on
   two of helper 2.

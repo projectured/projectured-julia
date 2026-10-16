@@ -267,12 +267,13 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # struct branch below cannot reflect over them (e.g. an RGBA color stored
     # as NTuple{4,UInt8}).
     if is_element_collection(obj) || obj isa AbstractArray || obj isa Tuple
-        # Reconcile the element IoMaps by identity: unchanged elements reuse theirs, a
-        # new/moved slot rebuilds. The output cell re-derives the braced list when the
-        # element set changes (append/pop/reassign).
+        # Reconcile the element IoMaps by identity: an element that stays keeps its
+        # IoMap, also when an insert or a delete moves it, and its path follows its
+        # index; only a new element prints. The output cell re-derives the braced
+        # list when the element set changes (append/pop/reassign).
         elem_ims = make_reconciled_child_iomaps_cell(
             () -> _visible_elements(p, obj),
-            (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
+            (index, x) -> print_child(recursion, x, make_element_context(ctx, index, i -> (ElementReferenceStep(i),))))
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
             open = _object_delimiter(p, _make_open_text(p.open_delimiter, ind)),
             close = _object_delimiter(p, _make_close_text(p.close_delimiter, ind)),

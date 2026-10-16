@@ -90,6 +90,14 @@ end
 _make_template_child_context(context, doc, steps::ReferenceStep...) =
     make_child_context(context, steps...)
 
+# The context of the element at the index cell `index` of the field that `field`
+# names, typed as `_make_template_child_context` types it, with a path that follows
+# the index.
+_make_template_element_context(context, doc::Document, field::ReferenceStep, index::AbstractCell) =
+    _make_element_context(context, index, i -> ConcreteReference(typeof(doc), field, Reference(ElementReferenceStep(i))))
+_make_template_element_context(context, doc, field::ReferenceStep, index::AbstractCell) =
+    make_element_context(context, index, i -> (field, ElementReferenceStep(i)))
+
 # Resolve a `project(:f; as=…)` override for a concrete child value.
 _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 
@@ -519,9 +527,9 @@ _project_output_cell(child_cell) = Cell(@computation child_cell[].output)
 # The child IoMaps of the collection `doc.<field>`, each element printed by its own
 # projection. An element that stays at its index keeps its IoMap across an edit.
 _reconcile_element_iomaps(doc, field::Symbol; recursion, context) =
-    make_reconciled_child_iomaps_cell(() -> getproperty(doc, field), (i, x) ->
-        print_child(recursion, x, _make_template_child_context(context, doc,
-            FieldReferenceStep(String(field)), ElementReferenceStep(i))))
+    make_reconciled_child_iomaps_cell(() -> getproperty(doc, field), (index, x) ->
+        print_child(recursion, x, _make_template_element_context(context, doc,
+            FieldReferenceStep(String(field)), index)))
 
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
 # node with the projected children and deferred path cells, and store the
@@ -534,10 +542,10 @@ function _node_print(p, doc, out; recursion, context, children_field, collection
         _reconcile_element_iomaps(doc, input_field; recursion, context)
     else
         # templated: build a fixed-children node per element via the element builder
-        make_reconciled_child_iomaps_cell(elements_fn, (i, x) ->
+        make_reconciled_child_iomaps_cell(elements_fn, (index, x) ->
             _fixed_print(p, x, collection.element(x); recursion,
-                context = _make_template_child_context(context, doc,
-                    FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))
+                context = _make_template_element_context(context, doc,
+                    FieldReferenceStep(String(input_field)), index)))
     end
     iomap_cell = Cell(nothing)
     children = make_children_container(() -> [im.output for im in child_iomaps[]])

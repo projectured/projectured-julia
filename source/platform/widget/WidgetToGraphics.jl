@@ -3073,10 +3073,10 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
     row_width = Cell(nothing)
     child_cells = make_reconciled_child_iomaps_cell(
         () -> w.elements,
-        (i, item) -> item isa WidgetDocument ?
+        (index, item) -> item isa WidgetDocument ?
             print_child(recursion, item,
-                make_child_context(_menu_item_context(w, ctx, item, row_width),
-                                   FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))) :
+                make_element_context(_menu_item_context(w, ctx, item, row_width), index,
+                                     i -> (FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)))) :
             nothing)
     w.orientation === :horizontal ||
         set_cell_computation!(row_width, () -> _menu_row_width(child_cells[]))
@@ -3147,7 +3147,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[c for c in w.elements
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
-        (i, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
+        (_, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
     # The natural extent of the children together, before the box around them. A
     # context with a minimum width, as a slot that the composite fills gives, makes
     # the box at least that wide, so a box of a `Fill` composite reaches the edge
@@ -4735,7 +4735,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
     all_cims = make_reconciled_child_iomaps_cell(
         () -> Any[pair.element for pair in w.selector_element_pairs],
-        (i, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
+        (_, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
 
     # The page. A tabbed pane hands its content a bounded extent above, so it is the
     # tabbed pane that keeps the promise: the page is a viewport at the content
@@ -6637,7 +6637,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         # no slot on the main axis: an item that took a slot would stretch to the
         # whole band. It gives its edge instead, as a bounded range, so an item
         # draws its content and a text in it wraps at the band's edge.
-        (i, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
+        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         item_gap = p.item_gap
@@ -10040,7 +10040,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
     item_ctx = _get_accordion_item_context(p, w, ctx)
     title_iomaps = make_reconciled_child_iomaps_cell(
         () -> Any[item.title for item in w.items],
-        (i, title) -> title isa Document ? print_child(recursion, title, item_ctx) : nothing)
+        (_, title) -> title isa Document ? print_child(recursion, title, item_ctx) : nothing)
     body_iomap = make_reconciled_child_iomap_cell(() -> _get_open_accordion_body(w),
         body -> body isa Document ? print_child(recursion, body, item_ctx) : nothing)
     build = Cell(@computation begin

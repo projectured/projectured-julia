@@ -86,4 +86,19 @@ end # @testset
 
 end # @testset
 
+@testset "a delete at the front keeps the print of each element that stays" begin
+
+    stage = _ofs_stage()
+    servers = [FormServer("s$k", k, true, Any[], nothing) for k in 1:3]
+    items = CellVector(Cell[Cell(server) for server in servers])
+    iomap = print_document(stage, stage, items, PrinterContext())
+    before = collect(iomap.output.children)
+    @test length(before) == 3
+    deleteat!(items, 1)
+    after = collect(iomap.output.children)
+    @test length(after) == 2
+    @test after[1] === before[2] && after[2] === before[3]
+
+end # @testset
+
 end # test_object_field_to_syntax

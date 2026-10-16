@@ -20,8 +20,8 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
     # structural edit rebuilds only moved slots (PAR-STABLE-IOMAP-IDENTITY).
     child_iomaps = make_reconciled_child_iomaps_cell(
         () -> input,
-        (i, x) -> print_child(recursion, x,
-            make_child_context(ctx, ElementReferenceStep(i))))
+        (index, x) -> print_child(recursion, x,
+            make_element_context(ctx, index, i -> (ElementReferenceStep(i),))))
     # Output is the reversed child outputs, derived reactively into a persistent
     # CellVector: the IoMap keeps its identity while the output tracks input edits.
     output = CellVector(@computation reverse([im.output for im in child_iomaps[]]))

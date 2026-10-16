@@ -46,8 +46,8 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
     pointer_shape = getfield(input, :pointer_shape)
     window_iomaps = make_reconciled_child_iomaps_cell(
         () -> input.windows,
-        (i, x) -> _print_window(p, recursion, x,
-            make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i)),
+        (index, x) -> _print_window(p, recursion, x,
+            make_element_context(ctx, index, i -> (FieldReferenceStep("windows"), ElementReferenceStep(i))),
             pointer_shape))
     out_windows = Cell(@computation CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
     paths = make_output_path_cells(input, path -> begin

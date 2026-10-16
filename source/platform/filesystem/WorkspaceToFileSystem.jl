@@ -69,8 +69,8 @@ function print_document(p::WorkspaceToFileSystemDirectory,
     # so a structural edit propagates through the held iomap (PAR-STABLE-IOMAP-IDENTITY).
     child_iomaps = make_reconciled_child_iomaps_cell(
         () -> w.folders,
-        (i, elem) -> print_child(recursion, elem,
-            make_child_context(ctx, FieldReferenceStep("folders"), ElementReferenceStep(i))))
+        (index, elem) -> print_child(recursion, elem,
+            make_element_context(ctx, index, i -> (FieldReferenceStep("folders"), ElementReferenceStep(i)))))
     # The output is the first folder's output for single-root workspaces.
     # Multi-root rendering can be refined later with a composite output.
     output = Cell(@computation (ims = child_iomaps[]; isempty(ims) ? nothing : ims[1].output))

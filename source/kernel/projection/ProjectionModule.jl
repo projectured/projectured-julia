@@ -96,9 +96,9 @@ export make_output_path_cells, set_output_path_computations!, map_mouse_target_f
 export read_move_answer
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        has_introduced_step, find_introduced_path, normalize_named_node_reference
-export PrinterContext, make_child_context, make_reference_cell, with_exact_size,
-       with_bounded_size, with_size_range, with_inner_size, get_exact_width, get_exact_height,
-       with_free_axis, with_clock, with_property, get_property
+export PrinterContext, make_child_context, make_element_context, make_reference_cell,
+       with_exact_size, with_bounded_size, with_size_range, with_inner_size, get_exact_width,
+       get_exact_height, with_free_axis, with_clock, with_property, get_property
 export make_children_container, get_children_container_type,
        get_projection_gesture_bindings
 export read_projection_gesture

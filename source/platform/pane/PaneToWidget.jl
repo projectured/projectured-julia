@@ -271,8 +271,8 @@ end
 function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSplit, ctx)
     element_iomaps = make_reconciled_child_iomaps_cell(
         () -> split.elements,
-        (i, element) -> _recurse(recursion, element,
-            make_child_context(ctx, split, (@reference_step elements), (@reference_step [i]))))
+        (index, element) -> _recurse(recursion, element,
+            make_element_context(ctx, split, index, i -> ((@reference_step elements), (@reference_step [i])))))
 
     axis = get_pane_split_axis(split)
     # `axis` is what the widget calls its orientation: a vertical split lays its
@@ -349,10 +349,10 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     # a composer, would scroll as one block.
     content_iomaps = make_reconciled_child_iomaps_cell(
         () -> Any[tab.content for tab in group.tabs],
-        (i, content) -> begin
+        (index, content) -> begin
             child = _recurse(recursion, content,
-                make_child_context(ctx, group, (@reference_step tabs), (@reference_step [i]),
-                                   (@reference_step content)))
+                make_element_context(ctx, group, index,
+                                     i -> ((@reference_step tabs), (@reference_step [i]), (@reference_step content))))
             (iomap = child, pane = child.output)
         end)
 
