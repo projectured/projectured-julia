@@ -1,8 +1,10 @@
 # The suites of main pass again
 
-**Status (2026-10-15): IN PROGRESS.** The owner asked to record these failures in a plan, and
-then to start step 1 with the type-in of item 7. Items 1, 3, 6, 7 and 10 are fixed, and items 2 and 4 pass on
-`main` with no change of their own.
+**Status (2026-10-16): DONE.** The owner asked to record these failures in a plan, and then to
+start step 1 with the type-in of item 7. Items 1, 3, 5 to 12 and 14 are fixed. Items 2 and 4
+pass on `main` with no change of their own, and item 13 is an artefact of a run in a user
+namespace. The 36 older types of `_NO_ATOM` get their atoms in a later step that the owner
+asked for, not in this plan.
 
 **Goal:** each failure of §1 is fixed, or marked with `@test_broken` and its reason, so that a
 suite on `main` shows no unmarked failure.
@@ -145,7 +147,10 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
 12. **The layering guard, 1 failure** (`CheckLayering.jl:922`), new on 2026-10-15:
     `undo/UndoModule.jl` uses `..NaturalModule`, which the table does not allow for the slice
     undo. Origin, by the history of the file: `6a2b5a6d0` (2026-10-15), "the undo slice
-    registers the row that draws a history with the natural renderer".
+    registers the row that draws a history with the natural renderer". **Fixed (`fdc8edeec`,
+    step 2, the owner's choice):** the table allows the edge from undo to natural, as for the
+    other slices that register a row with the natural renderer; natural does not depend on
+    undo. `test_platform_slice_edges` 1, `test_platform_layering` 21.
 13. **`FileSystemDocumentTest.jl:42`, 1 failure**, new on 2026-10-15: the pathname of a
     closed folder has 1 element where the test expects 0. **An artefact of the run:** in
     `unshare -rn` the process is root of its user namespace and owns the folder, so a folder
@@ -158,14 +163,14 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
 
 ## 2. The steps
 
-- [ ] **Step 1: the origin of each failure.** For each item of §1 with no known origin, find the
+- [x] **Step 1: the origin of each failure.** For each item of §1 with no known origin, find the
   commit that made it fail, by a bisect in a detached worktree, and write it into §1.
-- [ ] **Step 2: a fix or a mark for each item**, one commit each. The fix is in the code, or in a
+- [x] **Step 2: a fix or a mark for each item**, one commit each. The fix is in the code, or in a
   test that asserts a fact that changed on purpose, or a `@test_broken` with the reason in a
   `# @broken:` comment (testing-guide.md). Items 1, 9 and 10 are likely changes of the test:
   item 1 skips a document that is not Julia, item 9 adds the catalog entries or the
   exclusions, and item 10 asserts the newest entry and not the length of the log.
-- [ ] **Step 3: the check.** Run each test of §1 again. Each shows no unmarked failure.
+- [x] **Step 3: the check.** Run each test of §1 again. Each shows no unmarked failure.
   *Run on 2026-10-15, `main` at `6430bbb54` with the fix of item 11:* items 1 to 11 show no
   unmarked failure: `test_julia_expression` 80, the whole `test_platform` 162270 (items 2,
   3, 4 and 10), `test_parse_markdown_blocks` 13, `test_catalog` of the progress bar 1723,
@@ -173,4 +178,6 @@ after it. The first two tests of item 8 can depend on the order of the tests in 
   `test_platform` needs a loopback that is up: in `unshare -rn` the loopback is down, and
   the tests of the agents and the assistant fail about 115 times; `unshare -rn sh -c 'ip
   link set lo up && exec …'` keeps the outside network away and the local servers working.
-  Items 12, 13 and 14 came on `main` the same day.
+  Items 12, 13 and 14 came on `main` the same day; their fixes were checked one by one.
+  The origins of items 2 and 4 were not found: both pass now, and item 2 failed in a run in
+  `unshare -rn`, which takes the loopback down.
