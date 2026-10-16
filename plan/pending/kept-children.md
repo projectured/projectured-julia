@@ -213,8 +213,12 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     prints the rows again). The data frame suite passes 612, 608 before.
 - [ ] **8. `Copying.jl` and `CollectionToSyntax.jl` keep the prints of their
   elements** (decision 8), on helper 2.
-- [ ] **9. The test of an insert inside one head** (decision 2): the rows and
+- [x] **9. The test of an insert inside one head** (decision 2): the rows and
   their paths are right.
+  - Done 2026-10-16: a testset in `LayoutListTest.jl`. A row goes between rows
+    2 and 3 of a grid of a list in place, with the same head: the new row takes
+    the place of row 3, the rows after it move down by one row, and the cells of
+    rows 1 to 6 have the paths of counts 1 to 6. The file passes 101 checks.
 - [ ] **10. The counts and the time**: S4b-w, S4b, S4d, and a filter of a data
   frame, base against branch, on an idle machine with the owner's word. The
   numbers go back to the owner with the two ideas for the engine.

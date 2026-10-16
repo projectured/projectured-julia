@@ -296,6 +296,31 @@ end
     @test (path_count(first_cell(grid_io, 2)), path_count(first_cell(grid_io, 4))) == (2, 4)
 end
 
+@testset "a row inserted inside the list under the same head takes its place, and the rows after it the paths of their new counts" begin
+    rows = label_rows(6)
+    head = list_of(rows[1:5])
+    layout = grid(head)
+    io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(400, 200)), context())
+    grid_io = io.content_iomap
+    y_of(i) = place(io, "r$(i) c1")[2]
+    ys = [y_of(i) for i in 1:5]
+    @test [path_count(first_cell(grid_io, k)) for k in 1:5] == 1:5
+    # The new row goes between rows 2 and 3 of the list, in place: the head stays.
+    second = head.next
+    third = second.next
+    inserted = ListNode(rows[6])
+    set_cell_value!(getfield(inserted, :prev), second)
+    set_cell_value!(getfield(inserted, :next), third)
+    set_cell_value!(getfield(second, :next), inserted)
+    set_cell_value!(getfield(third, :prev), inserted)
+    @test getfield(layout, :children)[] === head
+    @test y_of(1) == ys[1] && y_of(2) == ys[2]
+    @test y_of(6) == ys[3]
+    @test y_of(3) == ys[4] && y_of(4) == ys[5] && y_of(5) > y_of(4)
+    @test [path_count(first_cell(grid_io, k)) for k in 1:6] == 1:6
+    @test first_cell(grid_io, 3).output !== first_cell(grid_io, 4).output
+end
+
 # The IO map of child `k` of a column that a walk reached, and the count in its path.
 child_iomap(list_io, k) = list_io.state.built[k][3]
 child_count(cim) = get_reference_steps(strip_reference_types(cim.context.reference[]))[end].stop
