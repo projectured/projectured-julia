@@ -14,6 +14,13 @@ TaskModule.record_task_execution_sync!(owner::_TaskDocumentFeedOwner, execution,
                                        before::Symbol, made::Bool) =
     (push!(owner.syncs, (before, made)); nothing)
 
+# An operation that notes that it ran, as the end of a group posts it.
+struct _TaskEndProbe <: ProjecturedKernel.OperationModule.Operation
+    ran::Vector{Int}
+end
+ProjecturedKernel.OperationModule.evaluate_operation(editor, operation::_TaskEndProbe) =
+    (push!(operation.ran, 1); nothing)
+
 # A content that holds the list of groups in a field, as a workspace does.
 @document struct TaskTestListHolder
     groups::Any
@@ -131,6 +138,17 @@ function test_task_document()
             start_task_group_document!(named; editor)
             @test last(get_session_task_group_list(; editor).groups) === named
             wait_task_group_document(named)
+            # The end of a group posts its end operation to its editor.
+            ended = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "ended"))
+            probe = _TaskEndProbe(Int[])
+            start_task_group_document!(ended; editor, end_operation = probe)
+            wait_task_group_document(ended)
+            deadline = time() + 10
+            while isempty(probe.ran) && time() < deadline
+                drain_operations!(editor)
+                sleep(0.02)
+            end
+            @test probe.ran == [1]
             # The editor of a window takes the list that a tab shows, or that the
             # content of a tab holds a few documents down, such as a navigator.
             for wrap in (list -> list, list -> Navigator(TaskTestListHolder(list)))

@@ -295,7 +295,9 @@ a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
 `:running`, `:stopping` or `:finished`. A start and a rerun take the keyword
 `editor`, which defaults to the editor of the evaluation. The group joins the list
 of that editor. A caller that runs at once, such as a verb with an editor of its
-own, passes it. The status reads the counts of the
+own, passes it. A start also takes `end_operation`, an operation that the editor
+evaluates when the group ends, such as a new read of what a build changes. A task
+of its own waits for the group and posts it, so no document holds the editor. The status reads the counts of the
 shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 

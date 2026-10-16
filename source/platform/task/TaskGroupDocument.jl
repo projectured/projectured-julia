@@ -324,7 +324,7 @@ function _refresh_status!(doc::TaskGroupDocument)
 end
 
 """
-    start_task_group_document!(doc; editor = find_evaluation_editor()) -> doc
+    start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing) -> doc
 
 Start every task of the group, `doc.jobs` at a time, and answer at once. Each
 task reports into its own document while it goes. The group joins the end of the
@@ -332,8 +332,15 @@ list of the session of `editor`, which the Tasks pane shows
 ([`get_session_task_group_list`](@ref)); with no editor, it joins no list. A verb
 that names its editor passes it, because a call that runs at once binds no
 editor of the evaluation.
+
+`end_operation` is an operation that `editor` evaluates when the group ends:
+its tasks ended, or it stopped. A build passes the operation that reads again
+what the build changes, such as the configurations of a project. A task of its
+own waits for the group and posts the operation, so no document holds the
+editor; with no editor, nothing is posted.
 """
-function start_task_group_document!(doc::TaskGroupDocument; editor = find_evaluation_editor())
+function start_task_group_document!(doc::TaskGroupDocument; editor = find_evaluation_editor(),
+                                    end_operation = nothing)
     group = get_task_group(doc)
     # A group that runs goes on as it is: its Run is off while it goes.
     group.runtime.scheduler !== nothing && !istaskdone(group.runtime.scheduler) && return doc
@@ -343,7 +350,30 @@ function start_task_group_document!(doc::TaskGroupDocument; editor = find_evalua
     start_task_group!(group)
     _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(; editor), doc)
+    _post_at_group_end!(editor, group, end_operation)
     doc
+end
+
+# Post `operation` to `editor` when the scheduler of `group` ends: its tasks
+# ended, or it stopped. A waiter task waits for the scheduler, so nothing stores
+# the editor; an editor whose loop ended takes no post.
+function _post_at_group_end!(editor, group, operation)
+    (operation === nothing || !(editor isa Editor)) && return nothing
+    scheduler = group.runtime.scheduler
+    scheduler === nothing && return nothing
+    errormonitor(@async begin
+        try
+            wait(scheduler)
+        catch exception
+            exception isa TaskFailedException || rethrow()
+        end
+        try
+            post_operation!(editor, operation)
+        catch exception
+            exception isa InvalidStateException || rethrow()
+        end
+    end)
+    nothing
 end
 
 """
