@@ -74,9 +74,18 @@ time (2026-10-16); this plan holds each decision.
    over the code of 2b from `GridList.jl`. The order: helper 1 as a pure
    refactor, then helper 2 as a pure refactor, each shown by the tests that
    stand, then the users.
-8. **The projections that print the elements of a list keep their prints**
-   (the owner, 2026-10-16): `Copying.jl` and `CollectionToSyntax.jl` use helper
-   2, so a new head prints only the elements that are new to it.
+8. **The projections that print the elements of a list keep no prints** (the
+   owner, 2026-10-16, option A of a second question). The first form had
+   `Copying.jl` and `CollectionToSyntax.jl` use helper 2. At step 8 a fact
+   stopped it: these projections get the head of the list as their input
+   document, so a new head is a new print with a new IO map, and a keep in the
+   IO map never sees a second head. A layout reads its head from a field cell
+   in a computation of its own IO map, which is why its keep works. No code in
+   `source/` prints a list through these two projections; seven examples do,
+   and their lists keep their head. A keep comes when a view prints a list that
+   changes its head through one of them. The other two ways, a head in a cell
+   that the IO map reads or a print that gets the IO map before it, are new
+   mechanisms with no user.
 
 The two ideas for the cell engine, a stop for the same object and a detach with
 no scan, wait for the measure of step 10, by decision 3.
@@ -86,7 +95,7 @@ no scan, wait for the measure of step 10, by decision 3.
 Each step is one commit, with its tests, in the worktree `kept-children`. The owner wants small
 parts, each landed after its tests (2026-10-16): part 1 is steps 1 to 3, part 2
 step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
-10 and 11.
+10 and 11. Parts 1 to 4 are on `main`.
 
 - [x] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
   on it. No behavior changes: the tests of the layouts of a list, the tables, the
@@ -211,8 +220,8 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
   - Tests: a testset in `DataFrameFilterTest.jl` (a filter keeps the drawn text
     of a row that stays, at the place of its new row; a new frame version
     prints the rows again). The data frame suite passes 612, 608 before.
-- [ ] **8. `Copying.jl` and `CollectionToSyntax.jl` keep the prints of their
-  elements** (decision 8), on helper 2.
+- [x] **8. `Copying.jl` and `CollectionToSyntax.jl` keep no prints**
+  (decision 8): no code changes.
 - [x] **9. The test of an insert inside one head** (decision 2): the rows and
   their paths are right.
   - Done 2026-10-16: a testset in `LayoutListTest.jl`. A row goes between rows
