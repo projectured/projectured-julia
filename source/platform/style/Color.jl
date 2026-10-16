@@ -71,7 +71,7 @@ See also `StyleText`, which pairs a colour with a font, and `GraphicsRect`.
     red::Float64
     green::Float64
     blue::Float64
-    alpha::Float64
+    alpha::Float64 = 1.0
     selection::Nothing
 end
 
