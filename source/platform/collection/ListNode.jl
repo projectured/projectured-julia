@@ -266,26 +266,79 @@ with its head at the row its owner keeps as an anchor.
     squares.prev.value    # 89401, built on this read
 """
 make_index_list(count::Int, at::Int, value_of; computed::Bool = false) =
-    _make_index_node(count, clamp(at, 1, count), value_of, nothing, nothing; computed)
+    _make_index_node(count, clamp(at, 1, count), value_of; computed)
 
-# The node of the index `i`. A neighbour that is given is linked as a value, and
-# the other link builds its neighbour when it is first read.
-function _make_index_node(count::Int, i::Int, value_of, before, after; computed::Bool = false)
+# The node of the index `i`, whose links build the nodes of the indices around it.
+function _make_index_node(count::Int, i::Int, value_of; computed::Bool = false)
     node = computed ? ListNode(nothing) : ListNode(value_of(i))
     computed && set_cell_computation!(getfield(node, :value), value_of(i))
-    if after === nothing
-        set_cell_computation!(getfield(node, :next),
-            () -> i < count ? _make_index_node(count, i + 1, value_of, node, nothing; computed) : nothing)
-    else
-        set_cell_value!(getfield(node, :next), after)
-    end
-    if before === nothing
-        set_cell_computation!(getfield(node, :prev),
-            () -> i > 1 ? _make_index_node(count, i - 1, value_of, nothing, node; computed) : nothing)
-    else
-        set_cell_value!(getfield(node, :prev), before)
-    end
+    set_lazy_link!(node, :next, () -> i < count ? _make_index_node(count, i + 1, value_of; computed) : nothing)
+    set_lazy_link!(node, :prev, () -> i > 1 ? _make_index_node(count, i - 1, value_of; computed) : nothing)
+end
+
+"""
+    set_lazy_link!(node, direction, make_neighbor) -> ListNode
+
+Makes the link `direction` of `node`, `:next` or `:prev`, a computation: its
+first read calls `make_neighbor()`, which answers the node on that side or
+`nothing` at an end, and that node links back to `node`. So a walk forth and back
+meets the same nodes, and a link is built only when a walk reaches it. Answers
+`node`.
+
+Use it to build a list that a walk builds as it goes: the canvases of the rows
+that a viewport reaches, the lines of a text, the nodes of a list that mirrors
+another one (`make_mapped_list`).
+
+# Example
+
+    node = ListNode(1)
+    set_lazy_link!(node, :next, () -> ListNode(2))
+    node.next.prev === node        # true
+"""
+function set_lazy_link!(node::ListNode, direction::Symbol, make_neighbor)
+    back = direction === :next ? :prev :
+           direction === :prev ? :next :
+           throw(ArgumentError("set_lazy_link!: the direction is :next or :prev, not :$direction"))
+    set_cell_computation!(getfield(node, direction), () -> begin
+        neighbor = make_neighbor()
+        neighbor === nothing || set_cell_value!(getfield(neighbor, back), node)
+        neighbor
+    end)
     node
+end
+
+"""
+    make_mapped_list(f, source; at = 1, computed = false) -> ListNode
+
+A list that mirrors the list `source`, built when a walk first reaches a node.
+The node at count `k` holds `f(source_node, k, before, after)`, where
+`source_node` is the node of `source` at that place, and `k` counts from `at`,
+the count of `source` itself. `before` is the mapped node at `k - 1` when the walk
+came from there, `after` the one at `k + 1` when it came from there, and the
+first node has neither, so a value can place itself after the one before it.
+With `computed`, the value of a node is a computation of `f`, so it follows the
+cells that `f` reads.
+
+Use it for a list that shows another one, one node for one node: the canvases of
+the rows of a list, the outputs of the elements of a list, the rows of a table
+that mirror a list of headers.
+
+# Example
+
+    words = make_index_list(3, 1, i -> ("one", "two", "three")[i])
+    lengths = make_mapped_list((node, k, before, after) -> length(node.value), words)
+    lengths.next.value     # 3
+"""
+make_mapped_list(f, source::ListNode; at::Int = 1, computed::Bool = false) =
+    _make_mapped_list_node(f, source, at, nothing, nothing, computed)
+
+function _make_mapped_list_node(f, source::ListNode, k::Int, before, after, computed::Bool)
+    node = computed ? ListNode(nothing) : ListNode(f(source, k, before, after))
+    computed && set_cell_computation!(getfield(node, :value), () -> f(source, k, before, after))
+    set_lazy_link!(node, :next, () -> (following = source.next;
+        following === nothing ? nothing : _make_mapped_list_node(f, following, k + 1, node, nothing, computed)))
+    set_lazy_link!(node, :prev, () -> (preceding = source.prev;
+        preceding === nothing ? nothing : _make_mapped_list_node(f, preceding, k - 1, nothing, node, computed)))
 end
 
 # Append a new node at the end of the right (next) tail.

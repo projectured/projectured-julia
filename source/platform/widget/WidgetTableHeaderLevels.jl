@@ -308,19 +308,15 @@ function _make_level_header_row_node(w::WidgetTable, header_node::ListNode, k::I
         end))
     end
     node = ListNode(CellVector(cells))
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = header_node.next
         following === nothing && return nothing
-        next_node = _make_level_header_row_node(w, following, k + 1, levels)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_level_header_row_node(w, following, k + 1, levels)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = header_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_level_header_row_node(w, preceding, k - 1, levels)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_level_header_row_node(w, preceding, k - 1, levels)
     end)
     node
 end

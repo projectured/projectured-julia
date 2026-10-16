@@ -53,23 +53,19 @@ function _make_grid_column_node(hgap::Cell, k::Int, policy_node::ListNode, align
             () -> Int32(Int(after_canvas.x) - Int(canvas.w) - Int(hgap[])))
     end
     node = ListNode(canvas)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = policy_node.next
         following === nothing && return nothing
-        next_node = _make_grid_column_node(hgap, k + 1, following,
-                                           align_node isa ListNode ? align_node.next : nothing,
-                                           aligns, node, nothing)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_grid_column_node(hgap, k + 1, following,
+                               align_node isa ListNode ? align_node.next : nothing,
+                               aligns, node, nothing)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = policy_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_grid_column_node(hgap, k - 1, preceding,
-                                           align_node isa ListNode ? align_node.prev : nothing,
-                                           aligns, nothing, node)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_grid_column_node(hgap, k - 1, preceding,
+                               align_node isa ListNode ? align_node.prev : nothing,
+                               aligns, nothing, node)
     end)
     node
 end
@@ -116,21 +112,17 @@ function _make_grid_cell_node(recursion, doc, ctx, state::GridListState, k::Int,
                        CellVector(), layout_none, true, Cell(nothing))
     end
     node = ListNode(element)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         (following, following_column) = (cell_node.next, column_node.next)
         (following === nothing || following_column === nothing) && return nothing
-        next_node = _make_grid_cell_node(recursion, doc, ctx, state, k, c + 1, following,
-                                         following_column, height, cells, node, nothing)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_grid_cell_node(recursion, doc, ctx, state, k, c + 1, following,
+                             following_column, height, cells, node, nothing)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         (preceding, preceding_column) = (cell_node.prev, column_node.prev)
         (preceding === nothing || preceding_column === nothing) && return nothing
-        prev_node = _make_grid_cell_node(recursion, doc, ctx, state, k, c - 1, preceding,
-                                         preceding_column, height, cells, nothing, node)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_grid_cell_node(recursion, doc, ctx, state, k, c - 1, preceding,
+                             preceding_column, height, cells, nothing, node)
     end)
     node
 end

@@ -377,6 +377,46 @@ end
     end
 end
 
+@testset "a lazy link builds its neighbour when first read, and the neighbour links back" begin
+    built = Ref(0)
+    node = ListNode(1)
+    set_lazy_link!(node, :next, () -> (built[] += 1; ListNode(2)))
+    set_lazy_link!(node, :prev, () -> nothing)
+    @test built[] == 0
+    @test node.next.value == 2
+    @test node.next.prev === node
+    @test node.next === node.next && built[] == 1
+    @test node.prev === nothing
+    @test_throws ArgumentError set_lazy_link!(node, :up, () -> nothing)
+end
+
+@testset "a mapped list mirrors a list, with the count and the neighbour of each node" begin
+    words = make_index_list(4, 2, i -> ("one", "two", "three", "four")[i])
+    seen = Tuple{String,Int,Any,Any}[]
+    mapped = make_mapped_list(words) do node, k, before, after
+        push!(seen, (node.value, k, before === nothing ? nothing : before.value,
+                     after === nothing ? nothing : after.value))
+        length(node.value)
+    end
+    @test mapped.value == 3                               # "two", the head of `words`
+    @test mapped.next.value == 5 && mapped.next.prev === mapped
+    @test mapped.prev.value == 3 && mapped.prev.next === mapped
+    @test mapped.next.next.value == 4 && mapped.next.next.next === nothing
+    @test mapped.prev.prev === nothing
+    @test seen[1] == ("two", 1, nothing, nothing)
+    @test ("three", 2, 3, nothing) in seen                # reached from the node before it
+    @test ("one", 0, nothing, 3) in seen                  # reached from the node after it
+    @test make_mapped_list((node, k, _, _) -> k, words; at = 7).next.value == 8
+
+    @testset "a computed value follows the cells that it reads" begin
+        factor = Cell(2)
+        doubled = make_mapped_list((node, _, _, _) -> length(node.value) * factor[], words; computed = true)
+        @test doubled.value == 6
+        factor[] = 3
+        @test doubled.value == 9
+    end
+end
+
 @testset "an index list builds a node when a walk reaches it, and stops at both ends" begin
     built = Int[]
     head = make_index_list(5, 3, i -> (push!(built, i); i * 10))

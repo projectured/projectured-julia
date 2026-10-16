@@ -1673,21 +1673,17 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
     end
     cache[input_node] = (first = first_out, last = last_out, count = length(lines), iomap = child_iomap)
 
-    set_cell_computation!(getfield(last_out, :next), () -> begin
+    set_lazy_link!(last_out, :next, () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
-        next_first = _syntax_list_to_text_node(input_next, recursion, ctx, cache)
-        set_cell_value!(getfield(next_first, :prev), last_out)
-        next_first
+        _syntax_list_to_text_node(input_next, recursion, ctx, cache)
     end)
 
-    set_cell_computation!(getfield(first_out, :prev), () -> begin
+    set_lazy_link!(first_out, :prev, () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         _syntax_list_to_text_node(input_prev, recursion, ctx, cache)
-        prev_last = cache[input_prev].last
-        set_cell_value!(getfield(prev_last, :next), first_out)
-        prev_last
+        cache[input_prev].last
     end)
 
     first_out

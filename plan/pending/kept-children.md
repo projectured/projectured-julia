@@ -82,9 +82,23 @@ parts, each landed after its tests (2026-10-16): part 1 is steps 1 to 3, part 2
 step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
 10 and 11.
 
-- [ ] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
+- [x] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
   on it. No behavior changes: the tests of the layouts of a list, the tables, the
   syntax and the text pass as they are.
+  - Done 2026-10-16. Helper 1 is two functions in `ListNode.jl`:
+    `set_lazy_link!(node, direction, make_neighbor)`, the link that builds its
+    neighbor when first read and links it back, and
+    `make_mapped_list(f, source; at, computed)` on it. Three places do not mirror
+    one node for one node (the lines of `SyntaxToText.jl`, the running offset
+    of `TextToGraphics.jl`, the two lists of `GridColumnList.jl`), so they use
+    `set_lazy_link!`; 36 computations of a link in ten files are on it, the
+    turned row of the table parts too, and the private `_make_mapped_node` of
+    the table parts is `make_mapped_list` with `computed = true`.
+  - Tests: two testsets in `CollectionDocumentTest.jl`. The platform suite
+    gives the result of `main` (one failure of the layering guard: the slice
+    undo uses `NaturalModule`, from `b5739a653`), and the data frame suite too
+    (44 failures and 7 errors in the edit of a cell, which `main` has; see the
+    fix after this step).
 - [ ] **2. Helper 2, the kept prints of a list** (decision 7), and the grid of a
   list on it. No behavior changes: the tests of 2b pass as they are.
 - [ ] **3. The dispatch by path confines a change of its path** (decision 3). A

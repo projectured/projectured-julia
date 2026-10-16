@@ -60,23 +60,17 @@ function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, i
     out_node = ListNode(elem_iomap.output)
 
     # Lazy next
-    set_cell_computation!(getfield(out_node, :next), () -> begin
+    set_lazy_link!(out_node, :next, () -> begin
         next_input = input_node.next
         next_input === nothing && return nothing
-        next_out = _map_node(p, next_input, recursion, ctx, index + 1)
-        # Link back: prevent recreating current node on backward traversal
-        set_cell_value!(getfield(next_out, :prev), out_node)
-        next_out
+        _map_node(p, next_input, recursion, ctx, index + 1)
     end)
 
     # Lazy prev
-    set_cell_computation!(getfield(out_node, :prev), () -> begin
+    set_lazy_link!(out_node, :prev, () -> begin
         prev_input = input_node.prev
         prev_input === nothing && return nothing
-        prev_out = _map_node(p, prev_input, recursion, ctx, index - 1)
-        # Link forward: prevent recreating current node on forward traversal
-        set_cell_value!(getfield(prev_out, :next), out_node)
-        prev_out
+        _map_node(p, prev_input, recursion, ctx, index - 1)
     end)
 
     out_node

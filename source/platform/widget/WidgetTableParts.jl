@@ -318,19 +318,16 @@ _get_place_cell(::Nothing) = nothing
 function _make_turned_row_node(places)
     node = ListNode(nothing)
     set_cell_computation!(getfield(node, :value), () -> _make_turned_row(places))
-    set_cell_computation!(getfield(node, :next), () -> _make_turned_neighbour(node, places, 1))
-    set_cell_computation!(getfield(node, :prev), () -> _make_turned_neighbour(node, places, -1))
+    set_lazy_link!(node, :next, () -> _make_turned_neighbour(places, 1))
+    set_lazy_link!(node, :prev, () -> _make_turned_neighbour(places, -1))
     node
 end
 
-# The node of the row `d` rows from `node`, the row at `places`, or nothing past
-# an end.
-function _make_turned_neighbour(node::ListNode, places, d::Int)
+# The node of the row `d` rows from the row at `places`, or nothing past an end.
+function _make_turned_neighbour(places, d::Int)
     stepped = _step_places(places, d)
     _has_turned_row(stepped) || return nothing
-    neighbour = _make_turned_row_node(stepped)
-    set_cell_value!(getfield(neighbour, d > 0 ? :prev : :next), node)
-    neighbour
+    _make_turned_row_node(stepped)
 end
 
 _step_places(places::ListNode, d::Int) = _make_mapped_node(places, place -> _step_place(place, d))
@@ -345,26 +342,10 @@ _make_turned_row(places::ListNode) = _make_mapped_node(places, _get_place_cell)
 _make_turned_row(places) = CellVector(Cell[Cell(@computation _get_place_cell(place)) for place in places])
 
 # A list that mirrors `source`, whose node holds `f` of the value of its node of
-# `source`, built when a walk first reaches it.
-function _make_mapped_node(source::ListNode, f)
-    node = ListNode(nothing)
-    set_cell_computation!(getfield(node, :value), () -> f(source.value))
-    set_cell_computation!(getfield(node, :next), () -> begin
-        following = source.next
-        following === nothing && return nothing
-        next_node = _make_mapped_node(following, f)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
-    end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
-        preceding = source.prev
-        preceding === nothing && return nothing
-        prev_node = _make_mapped_node(preceding, f)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
-    end)
-    node
-end
+# `source`, built when a walk first reaches it, and computed again when that value
+# changes.
+_make_mapped_node(source::ListNode, f) =
+    make_mapped_list((node, _, _, _) -> f(node.value), source; computed = true)
 
 # The writes that move the head of the body of `w` to its row `k`: `cells` to
 # node `k` of a list of rows. In a column-major table, `cells` to a list that
@@ -407,19 +388,15 @@ _print_table_corner(recursion, w::WidgetTable, inner) =
 function _make_header_row_node(header_node::ListNode)
     header = header_node.value
     node = ListNode(CellVector(Cell[Cell(header === nothing ? _wt_empty_cell() : header)]))
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = header_node.next
         following === nothing && return nothing
-        next_node = _make_header_row_node(following)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_header_row_node(following)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = header_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_header_row_node(preceding)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_header_row_node(preceding)
     end)
     node
 end
@@ -503,19 +480,15 @@ end
 function _make_header_column_graphics_node(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
                                            st::WidgetTablePartsState, k::Int, row_node::ListNode)
     node = ListNode(_make_header_column_row_graphics(p, w, st, k, row_node))
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = row_node.next
         following === nothing && return nothing
-        next_node = _make_header_column_graphics_node(p, w, st, k + 1, following)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_header_column_graphics_node(p, w, st, k + 1, following)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = row_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_header_column_graphics_node(p, w, st, k - 1, preceding)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_header_column_graphics_node(p, w, st, k - 1, preceding)
     end)
     node
 end
@@ -840,19 +813,15 @@ end
 function _make_row_graphics_node(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
                                  st::WidgetTablePartsState, k::Int, row_node::ListNode)
     node = ListNode(_make_row_graphics(p, w, st, k, row_node))
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = row_node.next
         following === nothing && return nothing
-        next_node = _make_row_graphics_node(p, w, st, k + 1, following)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_row_graphics_node(p, w, st, k + 1, following)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = row_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_row_graphics_node(p, w, st, k - 1, preceding)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_row_graphics_node(p, w, st, k - 1, preceding)
     end)
     node
 end
@@ -1066,20 +1035,18 @@ function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, hea
         cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, k)
         Fixed(max(width, cell === nothing ? 0 : _get_part_child_width(cell[3])))
     end)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = header_node.next
         following === nothing && return nothing
         next_node = _make_column_policy_node(following, k + 1, width, header_grid,
                                              given isa ListNode ? given.next : nothing)
-        set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = header_node.prev
         preceding === nothing && return nothing
         prev_node = _make_column_policy_node(preceding, k - 1, width, header_grid,
                                              given isa ListNode ? given.prev : nothing)
-        set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
     node
@@ -1094,19 +1061,15 @@ function _make_column_align_node(column_node::ListNode)
         align = column isa WidgetTableColumn ? column.align : nothing
         align === nothing ? :left : align
     end)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = column_node.next
         following === nothing && return nothing
-        next_node = _make_column_align_node(following)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_column_align_node(following)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = column_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_column_align_node(preceding)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_column_align_node(preceding)
     end)
     node
 end
@@ -1137,19 +1100,15 @@ function _make_column_rules_node(st::WidgetTablePartsState, column_node::ListNod
                             Cell(@computation Int32(Int(column.w) + hgap)), Cell(Int32(0)), elements,
                             layout_none, true, Cell(nothing))
     node = ListNode(canvas)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = column_node.next
         following === nothing && return nothing
-        next_node = _make_column_rules_node(st, following, top, height, color; edge_regions)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_column_rules_node(st, following, top, height, color; edge_regions)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = column_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_column_rules_node(st, preceding, top, height, color; edge_regions)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_column_rules_node(st, preceding, top, height, color; edge_regions)
     end)
     node
 end
@@ -1679,19 +1638,15 @@ function _make_advanced_row_node(row_node, c::Int)
     row_node isa ListNode || return row_node
     node = ListNode(nothing)
     set_cell_computation!(getfield(node, :value), () -> _find_list_node(row_node.value, c))
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = row_node.next
         following === nothing && return nothing
-        next_node = _make_advanced_row_node(following, c)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_advanced_row_node(following, c)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = row_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_advanced_row_node(preceding, c)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_advanced_row_node(preceding, c)
     end)
     node
 end

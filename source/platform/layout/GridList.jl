@@ -344,21 +344,17 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
             () -> Int32(Int(after_canvas.y) - Int(canvas.h) - Int(vgap[])))
     end
     node = ListNode(canvas)
-    set_cell_computation!(getfield(node, :next), () -> begin
+    set_lazy_link!(node, :next, () -> begin
         following = document_node.next
         following === nothing && return nothing
-        next_node = _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w,
-                                         k + 1, following, node, nothing)
-        set_cell_value!(getfield(next_node, :prev), node)
-        next_node
+        _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w,
+                             k + 1, following, node, nothing)
     end)
-    set_cell_computation!(getfield(node, :prev), () -> begin
+    set_lazy_link!(node, :prev, () -> begin
         preceding = document_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w,
-                                         k - 1, preceding, nothing, node)
-        set_cell_value!(getfield(prev_node, :next), node)
-        prev_node
+        _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w,
+                             k - 1, preceding, nothing, node)
     end)
     node
 end

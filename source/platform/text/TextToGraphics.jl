@@ -1233,20 +1233,16 @@ function _build_line_node(p::TextToGraphics, input_node::ListNode, y_offset::Flo
                             CellVector(Cell[Cell(_make_list_line_graphic(placement)) for placement in laid.spans]),
                             layout_none, false, Cell(nothing))
     out_node = ListNode(canvas)
-    set_cell_computation!(getfield(out_node, :next), () -> begin
+    set_lazy_link!(out_node, :next, () -> begin
         next_input = input_node.next
         next_input === nothing && return nothing
-        next_out = _build_line_node(p, next_input, y_offset + laid.distance)
-        set_cell_value!(getfield(next_out, :prev), out_node)
-        next_out
+        _build_line_node(p, next_input, y_offset + laid.distance)
     end)
-    set_cell_computation!(getfield(out_node, :prev), () -> begin
+    set_lazy_link!(out_node, :prev, () -> begin
         prev_input = input_node.prev
         prev_input === nothing && return nothing
         distance = _layout_list_line(p, prev_input.value::TextLine, false).distance
-        prev_out = _build_line_node(p, prev_input, y_offset - distance)
-        set_cell_value!(getfield(prev_out, :next), out_node)
-        prev_out
+        _build_line_node(p, prev_input, y_offset - distance)
     end)
     out_node
 end
