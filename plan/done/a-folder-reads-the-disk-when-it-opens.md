@@ -312,5 +312,14 @@ shared parts, which the plan of omnet-julia also uses.
     that then reads; a key in the field edits the name. The file system suite
     (116), the window shell (138) and the guards pass.
 
-- [ ] **7. The documents:** `filesystem.md`, `filechange.md`, `tree.md`,
+- [x] **7. The documents:** `filesystem.md`, `filechange.md`, `tree.md`,
   `navigator.md`, and the acquire in `domain.md`.
+  - Done 2026-10-16. The five guides describe the folder documents, the read when
+    a holder acquires a folder, the explorer and the chooser, the watch of a
+    folder, the holders of a document, `start_document_read!`, and
+    `has_tree_children`; `documentation/package/README.md` names the four generics
+    of the tree. The documentation check gives no new violation.
+
+**Plan A is done** (2026-10-16). Steps 1 to 6 landed on main; steps 6b and 7 land
+together. The plans that follow are `an-insert-moves-the-paths-after-it.md` and,
+in omnet-julia, `the-explorer-reads-a-project-when-it-opens.md`.
