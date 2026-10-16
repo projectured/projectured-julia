@@ -26,6 +26,11 @@ TaskModule.get_result_codes(::_TaskPageProbeTask) = RUN_RESULT_CODES
 TaskModule.format_task_parameters(task::_TaskPageProbeTask) = task.name
 TaskModule.get_task_columns(::_TaskPageProbeTask) = ["name" => 2]
 TaskModule.format_task_column(task::_TaskPageProbeTask, column::AbstractString) = column == "name" ? task.name : ""
+
+# A part that the kind of the probe links to among its facts.
+const _TASK_PAGE_LINKED = PrimitiveString("the linked part")
+TaskModule.get_task_links(task::_TaskPageProbeTask) =
+    [(label = "linked", text = "the part of " * task.name, document = _TASK_PAGE_LINKED, reference = EmptyReference())]
 TaskModule.find_task_output_mark(::_TaskPageProbeTask, stream::Symbol, line::AbstractString) =
     startswith(line, "error") ? :error : startswith(line, "progress") ? :progress : nothing
 
@@ -79,6 +84,10 @@ function test_task_pages()
             opened = _press_task_page(projection, iomap, _find_task_page_text(iomap, "Open stdout"); ctrl = true)
             @test opened.place === :new_tab
             @test evaluate_reference(document, opened.reference) isa TaskStream
+            # The kind links to a part among the facts.
+            @test "linked" in words && "the part of printer" in words
+            opened = _press_task_page(projection, iomap, _find_task_page_text(iomap, "the part of printer"))
+            @test opened isa OpenPageOperation && opened.document === _TASK_PAGE_LINKED
         end
 
         @testset "the page of an execution links to its streams" begin
@@ -86,7 +95,7 @@ function test_task_pages()
             @test startswith(get_document_title(shadow), "execution ")
             projection, iomap = _print_task_view(shadow)
             words = [t[3] for t in _collect_task_view_texts(iomap.output)]
-            @test "printer" in words && "stderr · 0 lines" in words
+            @test "printer" in words && "stderr · 0 lines" in words && "the part of printer" in words
             opened = _press_task_page(projection, iomap, _find_task_page_text(iomap, "Open stderr"))
             @test opened isa OpenPageOperation && opened.document === shadow
             @test evaluate_reference(shadow, opened.reference) === shadow.stderr_page

@@ -95,6 +95,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     end
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.inline_gap))
     push!(parts, _build_task_details(p, task, document))
+    push!(parts, _build_task_links(p, task))
     push!(parts, WidgetLabel(() -> begin
         facts = String[]
         process = _get_current_field(document, :process_id)
@@ -113,6 +114,14 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
         map_mouse_target_forward(document, path -> map_reference_forward(p, iomap, path)))
     iomap
 end
+
+# The links of the kind of a task among its facts, one a line: the name of the
+# fact, and the link (`get_task_links`). A kind with no links shows none.
+_build_task_links(p, task) =
+    VerticalLayout(Any[HorizontalLayout(Any[_make_label(link.label, p.muted_color),
+                                            _make_link_button(p, link.text, link.document, link.reference)];
+                                        vertical_align = :center, gap = p.inline_gap)
+                       for link in get_task_links(task)]; gap = p.stack_gap, child_width = Fill)
 
 # Stop, Run again and the buttons of the kind. A task of a group acts through its
 # group, so the counts of the group follow; a task of no group acts on itself. A
@@ -208,7 +217,7 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
                    _build_stream_preview(p, shadow, (), shadow, :error_output))
     root = VerticalLayout(Any[HorizontalLayout(Any[WidgetLabel(get_document_title(shadow)), state];
                                                 vertical_align = :center, gap = p.inline_gap),
-                              facts, streams...];
+                              facts, _build_task_links(p, task), streams...];
                           horizontal_align = :left, gap = p.stack_gap, child_width = Fill)
     iomap = ChildrenIoMap(p, shadow, root, Cell(Any[]))
     follow_output_mouse_target!(root, () ->

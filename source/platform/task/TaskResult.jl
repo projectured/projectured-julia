@@ -141,6 +141,23 @@ ended. A kind with nothing to say answers none.
 format_task_details(::AbstractTask, result) = String[]
 
 """
+    get_task_links(task) -> Vector{NamedTuple}
+
+The links that a kind of task adds to the facts of a task, one a line: each is
+`(label = …, text = …, document = …, reference = …)`, the name of the fact, the
+text of the link, and the document and the path from it of the part that the
+link opens, as an `OpenPageOperation` names them. The navigator around the page
+opens the part where its content holds the document
+([`find_navigator_address`](@ref)). A kind with nothing to link answers none.
+
+# Example
+
+    get_task_links(task) = [(label = "configuration", text = config.name,
+                             document = config, reference = EmptyReference())]
+"""
+get_task_links(::AbstractTask) = NamedTuple[]
+
+"""
     get_task_result_document(task, result) -> Document or nothing
 
 A document that shows what `task` ended with in more than lines of text, such as

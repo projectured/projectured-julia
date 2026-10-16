@@ -28,6 +28,11 @@ are plain values:
   command, the exit code and the error line, from what the task ended with;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
   press calls with the editor that evaluates the press and the task;
+- `get_task_links(task)` gives its links, each `(label, text, document,
+  reference)`: the name of a fact, the text of the link, and the document and the
+  path from it of the part that the link opens. The task page and the execution
+  page draw them among the facts, and the navigator around the page opens the
+  part where its content holds the document;
 - `find_task_output_mark(task, stream, line)` gives the mark of one line that the
   task printed: `:error`, `:warning`, `:notice`, `:progress` or `nothing`. It runs
   for each line under the lock of the execution, so it answers from the line
@@ -428,7 +433,7 @@ A domain adds a kind of task in five steps. The example is a build that runs
    `finish_task_execution!` with `on_finish`.
 4. If the views must show more than every task has, answer the functions of the
    views: `get_task_columns`, `format_task_column`, `format_task_details`,
-   `get_task_actions` and `get_task_result_document`.
+   `get_task_actions`, `get_task_links` and `get_task_result_document`.
 5. Give a model the verbs: the verbs of the domain that start a group, and
    `make_task_api()` for the rest.
 
