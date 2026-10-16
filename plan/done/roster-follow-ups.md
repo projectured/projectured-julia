@@ -284,10 +284,34 @@ findings, which the owner asked to fix on 2026-10-15:
   - The kernel suite passes (4582), and the platform suite (152602 pass, 7
     broken, and the 2 failures of `InterfaceApiTest.jl` that the base has and
     `main` fixed in `4fcc4ab1d`).
-- [ ] **4. The time.** The six scenarios of the measure on an idle machine,
+- [x] **4. The time.** The six scenarios of the measure on an idle machine,
   `main` at the start of this plan against the branch, two rounds each, with a
   wait for an idle machine.
-- [ ] **5. The texts.** The limits and the cost of a change in
+  - Done 2026-10-16 07:03 to 07:07, load 0.48 to 1.58, cores 28, 30 and 31, in
+    a plain environment with no counters on each side: the base `e8198106f`,
+    and the branch before its rebase, `c45bc7597`, which is the base and the
+    commits of this plan only. The script is `time.jl` of
+    `plan/done/computed-cell-stop-measure.md`, with S4b-w added and the walk of
+    a paint that takes the value of a node of a list. The medians of the two
+    rounds, in ms:
+
+    | scenario | base | branch |
+    |---|---|---|
+    | S1 | 0.41 / 0.41 | 0.40 / 0.38 |
+    | S2 | 1.97 / 1.99 | 2.01 / 2.04 |
+    | S3 | 3.73 / 3.71 | 3.66 / 3.72 |
+    | S4a | 1.73 / 1.71 | 1.67 / 1.70 |
+    | S4b, no window | 24.3 / 24.0 | 15.8 / 16.0 |
+    | S4c | 14.5 / 14.7 | 14.6 / 14.7 |
+    | S4d | 10.3 / 10.1 | 7.6 / 7.7 |
+    | S4b-w, a window | 31.5 / 32.3 | 9.3 / 9.5 |
+    | S5 | 1.69 / 1.72 | 1.54 / 1.54 |
+    | S6 | 12.7 / 12.6 | 12.2 / 12.5 |
+
+    S4b-w is 3.4 times faster, and its p90 goes from 45 ms to 11 ms. The time
+    falls more than the count of computations (2179 → 1572), because a print of
+    a row made new objects, and a kept row only checks its path.
+- [x] **5. The texts.** The limits and the cost of a change in
   `documentation/package/platform/roster/roster.md`, with the counts of steps 2
   to 4. The place that follows its row in the document of the projection
   system, and the kept rows in the document of the layout.
@@ -296,5 +320,4 @@ findings, which the owner asked to fix on 2026-10-15:
     children apart from their print; the forwarders; the kept rows of a grid
     of a list; a body of `nothing`), `roster.md` (the table with a height, the
     move of the head, the cost of S4b-w), `cell.md` (the list of readers). The
-    documentation guard passes. The time of step 4 goes into `roster.md` when
-    it is measured.
+    documentation guard passes. The time of step 4 is in `roster.md` too.

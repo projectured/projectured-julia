@@ -111,7 +111,7 @@ The cell engine computes only what a change invalidated and what the screen read
 
 A change that gives a value that a reader already has costs nothing more when it is plain data, by a write or by a computation. The undo buffer writes `has_unsaved_edits`, so a key in a file that has edits invalidates no row.
 
-A table with a height keeps the print of a row that a new list of rows keeps. The cost was measured per step with 50 files and a filter that a save moves file 1 in or out of, in a window, on 2026-10-15. A change then costs about 1572 computations, where a print of the whole table again costs about 2179. A save moves every row after file 1, so each of those rows checks its path and the dispatch of each cell again. That costs about 33 computations for a row, where a print of the row costs about 45.
+A table with a height keeps the print of a row that a new list of rows keeps. The cost was measured per step with 50 files and a filter that a save moves file 1 in or out of, in a window, on 2026-10-15. A change then costs about 1572 computations, where a print of the whole table again costs about 2179. A save moves every row after file 1, so each of those rows checks its path and the dispatch of each cell again. That costs about 33 computations for a row, where a print of the row costs about 45. On an idle machine on 2026-10-16, the median time of such a step is about 9.4 ms, where a print of the whole table again takes about 32 ms. A table with no height takes about 16 ms for the same step, where it took about 24 ms.
 
 The counters measured this on a headless window, with the walk of the paint counted, for each step after the first:
 
