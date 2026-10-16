@@ -54,6 +54,8 @@ the list with the reason that no test can make it. When the list is empty, the c
   skipped, the view walks the whole graph of the appearance and does not end, and
   `precompile_workload` renders every atom, so a build would hang. The atom fails at once as
   it is, and is on `_NO_NATURAL_RENDER`.
+  **The owner, 2026-10-16:** no row of the natural renderer for it "this time"; the
+  document stays excluded.
 - **The check:** `test_catalog` 747542 and 2284 broken, `test_catalog_coverage` and
   `test_natural_renders_every_atom` no failure, `test_catalog_typeins` and
   `test_natural_round_trips_every_atom` no failure, `test_chart` 377,
