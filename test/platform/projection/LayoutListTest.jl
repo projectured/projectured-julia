@@ -251,10 +251,10 @@ path_count(cim) = get_reference_steps(strip_reference_types(cim.context.referenc
     @test [path_count(first_cell(grid_io, k)) for k in 1:5] == 1:5
     @test isempty(filter(t -> t[3] == "r2 c1", texts(viewport(io))))
     # The second row waits one head, and goes with the head after it.
-    @test haskey(grid_io.state.kept_before, rows[2])
+    @test haskey(grid_io.state.prints.before, rows[2])
     getfield(layout, :children)[] = list_of(rows[[1, 3, 4, 5, 6]])
     y_of(1)
-    @test !haskey(grid_io.state.kept, rows[2]) && !haskey(grid_io.state.kept_before, rows[2])
+    @test !haskey(grid_io.state.prints.current, rows[2]) && !haskey(grid_io.state.prints.before, rows[2])
     @test first_cell(grid_io, 2) === printed[3]
     # It comes back as a new print.
     getfield(layout, :children)[] = list_of(rows)

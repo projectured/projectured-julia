@@ -99,8 +99,21 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     undo uses `NaturalModule`, from `b5739a653`), and the data frame suite too
     (44 failures and 7 errors in the edit of a cell, which `main` has; see the
     fix after this step).
-- [ ] **2. Helper 2, the kept prints of a list** (decision 7), and the grid of a
+- [x] **2. Helper 2, the kept prints of a list** (decision 7), and the grid of a
   list on it. No behavior changes: the tests of 2b pass as they are.
+  - Done 2026-10-16 in `KeptListPrints.jl` of the collection module:
+    `KeptListPrints` and `KeptListPrint`, and `make_kept_list_prints`,
+    `start_kept_list_head!`, `note_kept_list_link!`, `make_kept_list_count`,
+    `take_kept_list_print!` and `record_kept_list_print!`. The keep counts the
+    lowest and the highest count linked under a head itself, where the grid
+    read the keys of `built`. The grid keeps its row data (`_GridListRow`: the
+    documents, the IO maps, the outputs, the cells and the height) and its own
+    check, `_is_grid_list_row_current`, which `take_kept_list_print!` calls.
+  - Tests: a testset of the helper in `CollectionDocumentTest.jl` (a new head
+    keeps three elements at their new counts, an element goes after two heads,
+    an element at two places is kept at neither). The list layout (71), the
+    tables of a list (250), the roster and the data frames (608) give the
+    counts of before.
 - [ ] **3. The dispatch by path confines a change of its path** (decision 3). A
   test: a dispatch whose path moves and whose choice stays leaves the output
   cell of its IO map valid.

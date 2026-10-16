@@ -40,25 +40,19 @@ mutable struct GridListState
     head::Cell               # the canvas node of the head row, or nothing
     column_head::Union{Nothing,Cell}   # the canvas node of the head column when the columns are a list
     column_aligns::Dict{Int,Any}       # the node of the alignment of each column built, when they are a list
-    kept::IdDict{Any,Any}              # row document => _GridListRow, linked under this head
-    kept_before::IdDict{Any,Any}       # row document => _GridListRow, linked under the head before it
-    counts::Cell                       # row document => its count from the head, for the rows near it
-    extent::Tuple{Int,Int}             # the lowest and the highest count linked under the head before
+    prints::Union{Nothing,KeptListPrints}  # the kept prints of the rows, when the columns are a vector
 end
 
 # The print of one row of a vector of columns, which the grid keeps by the row
-# document: the document of each cell when the row printed, the IO maps of its
-# cells with their places in the row, the output of each IO map when the row
-# printed, the outputs in their slots, and the height of the row. `count` gives the count of the row from the head, which
-# the path of its cells reads, and `linked` holds the count of its last link.
+# document (`KeptListPrints`): the document of each cell when the row printed,
+# the IO maps of its cells with their places in the row, the output of each IO
+# map when the row printed, the outputs in their slots, and the height of the row.
 struct _GridListRow
     documents::Vector{Any}        # the document of each cell at the print, or nothing
     entries::Vector{Any}          # (x, y, iomap) of each column
     outputs::Vector{Any}          # the output of each IO map at the print, or nothing
     cells::Vector{Any}            # the outputs in their slots
     height::Cell
-    count::AbstractCell
-    linked::Base.RefValue{Int}
 end
 
 """
@@ -127,18 +121,15 @@ function _print_grid_list(p, recursion, doc, ctx)
     total_w = Cell(@computation Int32(sum((Int(col_w[k][])::Int for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
     state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}(),
-                          IdDict{Any,Any}(), IdDict{Any,Any}(), Cell(nothing), (1, 0))
-    set_cell_computation!(state.counts, () -> _count_grid_list_rows(doc, state))
+                          make_kept_list_prints(() -> doc.children))
     # A new head in `children` links its rows again from the head, and takes the
     # prints of the rows linked under the head before it; a print that no link of
     # the new head takes goes with the head after it. A grid whose children are no
     # list draws no rows.
     set_cell_computation!(state.head, () -> begin
         list = doc.children
-        state.extent = (minimum(keys(state.built); init = 1), maximum(keys(state.built); init = 0))
+        start_kept_list_head!(state.prints)
         empty!(state.built)
-        state.kept_before = state.kept
-        state.kept = IdDict{Any,Any}()
         list isa ListNode ?
             _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w, 1, list,
                                  nothing, nothing) :
@@ -167,8 +158,7 @@ function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, 
     halign = doc.horizontal_align
     valign = doc.vertical_align
     column_align = doc.column_align
-    linked = Ref(k)
-    count = _make_grid_list_count(doc, state, row, k, linked)
+    count, linked = make_kept_list_count(state.prints, row, k)
     row_ctx = ctx === nothing ? nothing : _make_grid_list_row_context(ctx, doc, k, count)
     documents = Any[]
     entries = Any[]
@@ -210,35 +200,10 @@ function _print_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, 
                                         clip_x = true, clip_y = fixed_h !== nothing))
         entries[c] = (x_cell, y_cell, cim)
     end
-    printed = _GridListRow(documents, entries, outputs, cells, row_h, count, linked)
-    count isa ImmutableCell || (state.kept[row] = printed)
+    printed = _GridListRow(documents, entries, outputs, cells, row_h)
+    record_kept_list_print!(state.prints, row, KeptListPrint(printed, count, linked))
     printed
 end
-
-# The count of `row` from the head, for its print at `k`: a computation when the
-# grid keeps the print, and `k` when it does not. `linked` holds the count of the
-# last link, which the computation gives when the counts of the head do not reach
-# the row, or find it at two places. A row that is `===` to another, the same
-# object or an equal value that is no mutable object, is one row at two places,
-# and the grid keeps no print of it.
-function _make_grid_list_count(doc, state::GridListState, row, k::Int, linked)
-    _is_repeated_grid_list_row(state, row) && return ImmutableCell{Any}(k)
-    count = Cell(@computation _get_grid_list_count(state.counts[], row, linked[]))
-    peek(count) == k ? count : ImmutableCell{Any}(k)
-end
-
-# The count of `row` in `counts`, or `linked` for a row that the counts do not
-# reach or find at two places.
-function _get_grid_list_count(counts, row, linked::Int)
-    count = get(counts, row, nothing)
-    (count === nothing || count == _REPEATED_GRID_LIST_ROW) ? linked : count
-end
-
-# The mark in the counts of a head of a row that is at two places.
-const _REPEATED_GRID_LIST_ROW = typemin(Int)
-
-_is_repeated_grid_list_row(state::GridListState, row) =
-    get(peek(state.counts), row, nothing) == _REPEATED_GRID_LIST_ROW
 
 # The context of the cells of a row: the path of the grid and `children[k]`, with
 # the types of the print at `k`, and the count that `count` gives.
@@ -262,66 +227,25 @@ _with_grid_list_count(typed::ConcreteReference, k::Int) =
     ConcreteReference(typed.type, typed.head,
                       ConcreteReference(typed.tail.type, ElementReferenceStep(k), typed.tail.tail))
 
-# The count of each row of the children of `doc` from the head: 1 at the head,
-# and 0 and less before it; a row that the walk meets two times is marked
-# `_REPEATED_GRID_LIST_ROW`. One walk for the head, which every count of a row
-# reads, so a change of the list computes the counts once. On each side the walk
-# goes as far as the rows linked under this head and under the head before it,
-# and reads no link past them, so it builds no row that no link built; a row that
-# is linked past it takes the count of its link until the counts are computed
-# again.
-function _count_grid_list_rows(doc, state::GridListState)
-    counts = IdDict{Any,Int}()
-    head = doc.children
-    head isa ListNode || return counts
-    lowest = min(state.extent[1], minimum(keys(state.built); init = 1))
-    highest = max(state.extent[2], maximum(keys(state.built); init = 0))
-    steps_before = max(0, 1 - lowest)
-    after = highest >= 1 ? head : nothing
-    before = steps_before >= 1 ? head.prev : nothing
-    for i in 1:max(highest, steps_before)
-        if after !== nothing && i <= highest
-            counts[after.value] = haskey(counts, after.value) ? _REPEATED_GRID_LIST_ROW : i
-            after = i < highest ? after.next : nothing
-        end
-        if before !== nothing && i <= steps_before
-            counts[before.value] = haskey(counts, before.value) ? _REPEATED_GRID_LIST_ROW : 1 - i
-            before = i < steps_before ? before.prev : nothing
-        end
-    end
-    counts
-end
-
 # The print of `row` for its link at `k`: the print that the grid keeps, or a new
-# one. A kept print serves when its count is `k`, the row is at no other place
-# that the counts reach, each cell of the row holds the document that it printed,
-# as a cell that opens for an edit does not, and each IO map of its cells gives
-# the output that it placed. The link reads the documents and the outputs, as a
-# print reads them, so a new one links the row again.
+# one. A kept print serves when the kept prints take it (its count is `k`, and the
+# row is at no other place that the counts reach), each cell of the row holds the
+# document that it printed, as a cell that opens for an edit does not, and each IO
+# map of its cells gives the output that it placed. The link reads the documents
+# and the outputs, as a print reads them, so a new one links the row again.
 function _link_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, col_w,
                              k::Int, row)
-    kept = _take_kept_grid_list_row(state, row, k)
-    kept === nothing && return _print_grid_list_row(recursion, doc, ctx, state, col_x, col_w, k, row)
-    kept.linked[] = k
-    kept
+    kept = take_kept_list_print!(state.prints, row, k, kept -> _is_grid_list_row_current(kept.value, row))
+    kept === nothing ? _print_grid_list_row(recursion, doc, ctx, state, col_x, col_w, k, row) : kept.value
 end
 
-function _take_kept_grid_list_row(state::GridListState, row, k::Int)
-    _is_repeated_grid_list_row(state, row) && return nothing
-    kept = get(state.kept, row, nothing)
-    kept === nothing && (kept = get(state.kept_before, row, nothing))
-    kept === nothing && return nothing
-    peek(kept.count) == k || return nothing
-    for (c, document) in enumerate(kept.documents)
+function _is_grid_list_row_current(printed::_GridListRow, row)
+    for (c, document) in enumerate(printed.documents)
         now = (row !== nothing && 1 <= c <= length(row)) ? row[c] : nothing
-        now === document || return nothing
+        now === document || return false
     end
-    for (entry, output) in zip(kept.entries, kept.outputs)
-        entry[3] === nothing || entry[3].output === output || return nothing
-    end
-    delete!(state.kept_before, row)
-    state.kept[row] = kept
-    kept
+    all(((entry, output),) -> entry[3] === nothing || entry[3].output === output,
+        zip(printed.entries, printed.outputs))
 end
 
 # The canvas of a row for one link: the cells of the print in their slots, as tall
@@ -342,6 +266,7 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
         _make_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
     end
     state.built[k] = (canvas, entries, row_h)
+    state.prints === nothing || note_kept_list_link!(state.prints, k)
     vgap = getfield(doc, :vertical_gap)
     if before !== nothing
         before_canvas = before.value

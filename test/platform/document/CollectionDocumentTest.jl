@@ -417,6 +417,46 @@ end
     end
 end
 
+@testset "the kept prints of a list follow an element to its new count" begin
+    a, b, c, d = Any["a"], Any["b"], Any["c"], Any["d"]
+    list_of(values) = make_index_list(length(values), 1, i -> values[i])
+    head = Cell(list_of([a, b, c, d]))
+    keep = make_kept_list_prints(() -> head[])
+    # The first head: each element prints, with the count of its link.
+    function link!(element, k)
+        kept = take_kept_list_print!(keep, element, k, _ -> true)
+        fresh = kept === nothing
+        if fresh
+            count, linked = make_kept_list_count(keep, element, k)
+            kept = record_kept_list_print!(keep, element, KeptListPrint("print of $(element[1])", count, linked))
+        end
+        note_kept_list_link!(keep, k)
+        (kept, fresh)
+    end
+    start_kept_list_head!(keep)
+    first = Dict(element => link!(element, k)[1] for (k, element) in enumerate([a, b, c, d]))
+    @test all(p -> p.count[] == findfirst(==(p.value), ["print of a", "print of b", "print of c", "print of d"]),
+              values(first))
+    # A new head without b: a, c and d keep their prints, at their new counts.
+    head[] = list_of([a, c, d])
+    start_kept_list_head!(keep)
+    taken = [link!(element, k) for (k, element) in enumerate([a, c, d])]
+    @test all(t -> !t[2], taken)
+    @test [t[1] for t in taken] == [first[a], first[c], first[d]]
+    @test [first[x].count[] for x in (a, c, d)] == [1, 2, 3]
+    @test haskey(keep.before, b)
+    # b waits for one head and then goes.
+    head[] = list_of([a, c, d])
+    start_kept_list_head!(keep)
+    foreach(((k, element),) -> link!(element, k), enumerate([a, c, d]))
+    @test !haskey(keep.before, b) && !haskey(keep.current, b)
+    # An element at two places is kept at neither, and each print takes its link.
+    head[] = list_of([a, c, a])
+    start_kept_list_head!(keep)
+    @test link!(a, 1)[2] && link!(a, 3)[2]
+    @test !haskey(keep.current, a)
+end
+
 @testset "an index list builds a node when a walk reaches it, and stops at both ends" begin
     built = Int[]
     head = make_index_list(5, 3, i -> (push!(built, i); i * 10))
