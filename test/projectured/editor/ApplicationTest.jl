@@ -74,8 +74,19 @@ function _app_write_files(dir)
 end
 
 # The window scene and its reader state, as `run_application` builds them.
+# The window of the application. A window of a test runs no window start, which
+# would acquire the Files pane, so the folder of the pane is read at once, as a
+# script reads a folder that it shows.
+function _app_make_window(paths; keywords...)
+    document, projection = make_application_window(paths; keywords...)
+    for explorer in search_documents(document, node -> node isa WorkspaceExplorer)
+        foreach(folder -> read_filesystem_folder!(folder.directory), explorer.workspace.folders)
+    end
+    (document, projection)
+end
+
 function _app_make_scene(paths, dir; assistant = nothing)
-    document, projection = make_application_window(paths; root = dir, assistant = assistant)
+    document, projection = _app_make_window(paths; root = dir, assistant = assistant)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -466,11 +477,11 @@ function test_application()
                 # So Ctrl+C copies the pane that has the focus.
                 copy = _app_fire(composed, editor.iomap, KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))
                 copy isa Operation && evaluate_operation(editor, copy)
-                @test document.slice isa Workspace
+                @test document.slice isa WorkspaceExplorer
             end
 
             @testset "an editor made before its loop takes a verb through the readers" begin
-                document, projection = make_application_window(paths[1:2]; root = dir,
+                document, projection = _app_make_window(paths[1:2]; root = dir,
                                                                assistant = nothing)
                 editor = build_editor(document, projection; backend = HeadlessBackend(),
                                       tabs = false,
@@ -494,7 +505,7 @@ function test_application()
             end
 
             @testset "the settings button opens the settings of the editor in a tab" begin
-                document, projection = make_application_window(paths[1:1]; root = dir,
+                document, projection = _app_make_window(paths[1:1]; root = dir,
                                                                assistant = nothing)
                 editor = build_editor(document, projection; backend = HeadlessBackend(),
                                       tabs = false,
@@ -541,7 +552,7 @@ function test_application()
             @testset "the Assistants button lists the assistants of the tabs, and Show reaches a tab" begin
                 assistant = Assistant(; llm = FakeLlm("ok"))
                 assistant.agent_title = "Window assistant"
-                document, projection = make_application_window(paths[1:1]; root = dir, assistant)
+                document, projection = _app_make_window(paths[1:1]; root = dir, assistant)
                 editor = build_editor(document, projection; backend = HeadlessBackend(),
                                       tabs = false,
                                       window = (; title = "ProjecturEd", width = 1600,
@@ -593,7 +604,7 @@ function test_application()
             @testset "a key edits the description where the detail of the Assistants pane shows it" begin
                 assistant = Assistant(; llm = FakeLlm("ok"), description = "Fix")
                 assistant.agent_title = "Window assistant"
-                document, projection = make_application_window(paths[1:1]; root = dir, assistant)
+                document, projection = _app_make_window(paths[1:1]; root = dir, assistant)
                 editor = build_editor(document, projection; backend = HeadlessBackend(),
                                       tabs = false,
                                       window = (; title = "ProjecturEd", width = 1600,
@@ -787,7 +798,7 @@ function test_application()
                 # file tab, so the sweep skips what it cannot open.
                 openable = [p for p in paths if has_file_document_type(p)]
                 for path in vcat([String[]], [[p] for p in openable])
-                    document, projection = make_application_window(path; root = dir,
+                    document, projection = _app_make_window(path; root = dir,
                         assistant = make_application_assistant(:ollama))
                     errors, _ = walk_printer_output(document, projection)
                     @test isempty(errors)
@@ -1489,14 +1500,14 @@ function test_application()
                 @test occursin("Ollama", greeting(again))
 
                 # The Files pane comes back over the folder the window lists.
-                close!(Workspace)
+                close!(WorkspaceExplorer)
                 _app_apply!(editor, InvokeActionOperation(button("Explorer").action))
-                (group, index) = only(holding(Workspace))
-                @test get_wrapped_document(group.tabs[index].content).folders[1].pathname == abspath(dir)
+                (group, index) = only(holding(WorkspaceExplorer))
+                @test get_wrapped_document(group.tabs[index].content).workspace.folders[1].pathname == abspath(dir)
             end
 
             @testset "a press on the picture opens the tool, and the pointer at rest names it" begin
-                document, projection = make_application_window(paths[1:1]; root = dir,
+                document, projection = _app_make_window(paths[1:1]; root = dir,
                                                                assistant = nothing)
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
@@ -1530,7 +1541,7 @@ function test_application()
                 # and of the context menu window sit in the tracking screen. The
                 # time of the move is long past, so the wait of the dwell ends in
                 # the same frame.
-                document, projection = make_application_window(paths[1:1]; root = dir,
+                document, projection = _app_make_window(paths[1:1]; root = dir,
                                                                assistant = nothing)
                 backend = HeadlessBackend()
                 editor = build_editor(document, projection; backend = backend, tabs = false,
@@ -1568,7 +1579,7 @@ function test_application()
             end
 
             @testset "the pointer drags, lights, and leaves no history" begin
-                document, projection = make_application_window(paths[1:1]; root = dir,
+                document, projection = _app_make_window(paths[1:1]; root = dir,
                     assistant = nothing)
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
@@ -1761,17 +1772,16 @@ function test_application()
                 window() = get_iomap_output(editor.iomap).windows[1].content
                 ring() = [box for box in _app_drawn_outlines(window()) if box[1] < 400 && box[4] > 500]
                 path() = repr(strip_reference_types(get_selection(scene)))
-                # The file the selected row names, read from the tree the row is in.
+                # The file the selected row names: the row is the document of its entry.
                 function selected_file()
-                    step = last(get_reference_steps(get_selection(scene)))
-                    step isa ProjectionReferenceStep || return nothing
-                    evaluate_reference(make_filesystem_pathname(dir), step.output_path).pathname
+                    entry = try_evaluate_reference(scene, get_selection(scene), nothing)
+                    entry isa FileSystemDocument ? entry.pathname : nothing
                 end
                 names = readdir(dir)
                 next = names[findfirst(==("a.json"), names) + 1]
 
                 # The window opens on the root row, which is the folder as a whole.
-                @test endswith(path(), ".tabs[1].content.folders[1]")
+                @test endswith(path(), ".tabs[1].content.workspace.folders[1]")
                 @test isempty(ring())
 
                 (x, y) = first((x, y) for (text, x, y) in _app_drawn_at(window())

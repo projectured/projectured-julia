@@ -33,8 +33,10 @@ See also `Workspace` and `OpenFileOperation`.
     directory::Any                    # the FileSystemDirectory of the folder
 end
 
+# The folder of a workspace is a folder also when nothing is at its place yet, so
+# its read says that it can not read it.
 WorkspaceFolder(name::AbstractString, pathname::AbstractString) =
-    WorkspaceFolder(name, pathname, make_filesystem_pathname(pathname))
+    WorkspaceFolder(name, pathname, FileSystemDirectory(String(pathname), CellVector(), :unread))
 
 # A file keeps the name and the place of a folder, and not what a read found.
 pred_arguments(folder::WorkspaceFolder) = (), Pair{Symbol,Any}[:name => folder.name, :pathname => folder.pathname]
@@ -67,14 +69,8 @@ See also `WorkspaceFolder` and `make_file_tab_content`.
     folders::CellVector = CellVector()
 end
 
-# The name the tab calls itself, and the names a person types into an empty
-# tab to open one.
+# The name the tab calls itself.
 get_document_title(::Workspace) = "Explorer"
-get_insertion_aliases(::Type{Workspace}) = ["explorer", "file explorer"]
-
-# `Workspace()` holds no folder, and an empty explorer shows nothing — so a
-# person who opens one by typing its name gets the working directory instead.
-make_insertion_document(::Type{Workspace}) = Workspace([WorkspaceFolder(basename(pwd()), pwd())])
 
 # A file opens beside the explorer it was found in, never over it.
 accepts_opened_file(::Workspace) = false
@@ -113,6 +109,16 @@ WorkspaceExplorer(workspace::Workspace) =
     WorkspaceExplorer(workspace, IdDict{Any,Nothing}(folder.directory => nothing for folder in workspace.folders))
 
 get_document_title(::WorkspaceExplorer) = "Explorer"
+
+# The names a person types into an empty tab to open an explorer. An explorer of
+# no folder shows nothing, so a person who opens one by its name gets the working
+# directory.
+get_insertion_aliases(::Type{WorkspaceExplorer}) = ["explorer", "file explorer"]
+make_insertion_document(::Type{WorkspaceExplorer}) =
+    WorkspaceExplorer(Workspace([WorkspaceFolder(basename(pwd()), pwd())]))
+
+# A file opens beside the explorer it was found in, never over it.
+accepts_opened_file(::WorkspaceExplorer) = false
 
 acquire_document!(editor, explorer::WorkspaceExplorer) = hold_documents!(editor, explorer, collect(keys(explorer.open)))
 

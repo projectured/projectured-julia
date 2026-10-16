@@ -108,18 +108,18 @@ function make_application_document(paths::AbstractVector;
     _make_application_pane_tree(tabs, workspace, assistant)
 end
 
-# The folder the window lists. The toolbar's explorer opens the same one, so a
-# Files pane a person closed comes back as it was.
+# The explorer of the folder the window lists. The toolbar's explorer opens the
+# same one, so a Files pane a person closed comes back as it was.
 function _make_application_workspace(root::AbstractString)
     folder = abspath(root)
-    Workspace([WorkspaceFolder(basename(folder), folder)])
+    WorkspaceExplorer(Workspace([WorkspaceFolder(basename(folder), folder)]))
 end
 
 # The Files pane, the files and the assistant side by side. The focus starts
 # inside the first file, or on the root row of the Files pane when no file is
 # open, so the first key reaches that document and not the tab strip. The root
-# row is the first folder of the workspace as a whole; the workspace itself is
-# not selected, so its page shows no ring.
+# row is the first folder of the workspace of the explorer as a whole; the
+# explorer itself is not selected, so its page shows no ring.
 function _make_application_pane_tree(tabs, workspace, assistant)
     files = PaneGroup(PaneTab[PaneTab(get_document_title(tab), tab) for tab in tabs])
     places = PaneGroup(PaneTab[PaneTab("Files", workspace)])
@@ -135,6 +135,7 @@ function _make_application_pane_tree(tabs, workspace, assistant)
     if isempty(tabs)
         tab = get_pane_tab_reference(tree, places, 1)
         set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
+                                              FieldReferenceStep("workspace"),
                                               FieldReferenceStep("folders"),
                                               ElementReferenceStep(1)))
     else
@@ -172,6 +173,17 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         # gives every file it opens a history.
         # The file system stage has no mark of its own, so a fault in it costs the
         # workspace, at the barrier of the renderer that draws it.
+        # An explorer draws the folders of its workspace itself, with its own open
+        # folders, so it comes before the row of any workspace document.
+        WorkspaceExplorer => ChainingProjection(
+            RecursiveProjection(FaultCatchingProjection(
+                inner = FileSystemToWidget(),
+                substitute = FaultToWidget())),
+            RecursiveProjection(FaultCatchingProjection(
+                inner = WidgetToGraphics(; measure = measure,
+                                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                substitute = FaultToGraphics()))),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FaultCatchingProjection(
@@ -336,7 +348,7 @@ make_editor_api() = Any[
     make_interface_api()...,
     make_file_api()...,
     # The tree that the Files pane lists, and the operation that opens a row of it.
-    FileSystemModule => (:Workspace, :WorkspaceFolder),
+    FileSystemModule => (:Workspace, :WorkspaceFolder, :WorkspaceExplorer),
     WidgetModule => (:OpenFileOperation,),
     # How a model reads what a tab holds, which is what a window of files is
     # asked about: find a document in the window, see through the history a file

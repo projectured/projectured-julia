@@ -1,8 +1,9 @@
 # The Explorer over a folder of a thousand entries, in a pane of about ten rows.
-# The renderer draws the rows in the pane, and only those rows read their entries
-# from the disk; a folder among them reads its listing for its chevron.
+# The folder is read once, before the view, and the view reads no disk; the
+# renderer draws the rows in the pane, and only those rows build their nodes. A
+# folder among them shows its chevron from what the read of its parent found.
 function test_tree_render()
-@testset "a tree reads the entries of the rows it draws" begin
+@testset "a tree builds the nodes of the rows it draws" begin
     SDL = ProjecturedSDL.SdlModule
     mktempdir() do dir
         for k in 1:100
@@ -13,15 +14,18 @@ function test_tree_render()
         for k in 1:900
             write(joinpath(dir, string("f", lpad(k, 4, '0'), ".jl")), "")
         end
-        folder = make_filesystem_pathname(dir)
+        folder = read_filesystem_folder!(make_filesystem_pathname(dir))
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
-        pane.size = Point2D(300, 240)
         widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20);
                                                        measure = FixedMeasure(8, 12, 4, 0)))
-        canvas = print_document(widgets, pane).output
-        entries = getfield(folder.elements, :elements)[]
-        read_entries() = [k for k in eachindex(entries) if is_cell_valid(entries[k])]
-        is_listing_read(d) = is_cell_valid(getfield(d.elements, :elements))
+        # The tree scrolls itself in the slot that its parent offers.
+        projection_module = ProjecturedKernel.ProjectionModule
+        offer = projection_module.with_exact_size(projection_module.PrinterContext();
+                                                  width = ProjecturedKernel.CellModule.Cell(Int32(300)),
+                                                  height = ProjecturedKernel.CellModule.Cell(Int32(240)))
+        canvas = print_document(widgets, nothing, pane, offer).output
+        nodes = getfield(pane.roots[1].children, :elements)[]
+        built_nodes() = [k for k in eachindex(nodes) if is_cell_valid(nodes[k])]
         function render()
             off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
             try
@@ -30,26 +34,26 @@ function test_tree_render()
                 SDL.close_offscreen_renderer(off)
             end
         end
-        @test length(entries) == 1000
-        @test isempty(read_entries())
+        @test length(folder.elements) == 1000 && length(nodes) == 1000
+        @test isempty(built_nodes())
 
         # A row is 20 pixels high, so the pane shows the root and about twelve entries.
         render()
-        shown = read_entries()
+        shown = built_nodes()
         @test first(shown) == 1 && shown == collect(1:length(shown))
         @test 10 <= length(shown) <= 13
-        # The folders it shows read their listings; a folder it does not show
-        # reads none.
-        @test all(k -> is_listing_read(folder.elements[k]), shown)
-        @test !is_listing_read(folder.elements[50])
+        # A folder that it shows reads nothing: its chevron is what the read of
+        # its parent found.
+        @test all(k -> folder.elements[k].state === :unread, 1:100)
+        @test ProjecturedPlatform.WidgetModule._wtree_has_children(nodes[1][])
 
         # Scrolled to row 501, the pane shows about entries 500 to 510, and the
-        # entries between were never read.
+        # nodes between were never built.
         pane.scroll_position = Point2D(0, 20 * 500)
         render()
-        scrolled = setdiff(read_entries(), shown, [50])
+        scrolled = setdiff(built_nodes(), shown)
         @test !isempty(scrolled) && all(k -> 499 <= k <= 512, scrolled)
-        @test length(read_entries()) < 30
+        @test length(built_nodes()) < 30
     end
 end
 end

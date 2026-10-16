@@ -9,6 +9,8 @@ function test_workspace_to_filesystem()
         mkpath(joinpath(dir, "sub"))
         write(joinpath(dir, "sub", "c.jl"), "")
         workspace = Workspace([WorkspaceFolder("here", dir)])
+        # A view reads no disk, so the test reads the folder at once.
+        read_filesystem_folder!(workspace.folders[1].directory; depth = 2)
         projection = ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
                                         RecursiveProjection(FileSystemToWidget()))
         iomap = print_document(projection, workspace)

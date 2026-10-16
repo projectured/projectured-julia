@@ -202,9 +202,9 @@ one binary has belongs.
 make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
                     assistant_list::Bool = false, extra = []) =
     WidgetToolbar(Any[
-        make_window_tool_command("Explorer", Workspace; icon = :folder,
+        make_window_tool_command("Explorer", WorkspaceExplorer; icon = :folder,
                                  tooltip = "Explorer: the files of this window's folder",
-                                 make = something(explorer, _make_default_tool(Workspace))),
+                                 make = something(explorer, _make_default_tool(WorkspaceExplorer))),
         (assistant === nothing ? () :
             (make_window_tool_command("Assistant", Assistant; icon = :chat,
                                       tooltip = "Assistant: ask a model about what this window shows",

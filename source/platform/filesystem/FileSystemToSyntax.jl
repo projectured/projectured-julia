@@ -96,8 +96,10 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(d.elements)]))
 
+    # The view draws what the folder holds, and a folder that holds no entries yet
+    # says so on its name line: it is not read yet, or it can not be read.
     name_leaf = SyntaxLeaf(
-        TextString(() -> " " * _dir_name(d.pathname), p.directory_text);
+        TextString(() -> " " * _dir_name(d.pathname) * _format_folder_mark(d), p.directory_text);
         selection=d.selection)
 
     body_node = SyntaxNode(
@@ -196,6 +198,13 @@ end
 
 # ── Utility ───────────────────────────────────────────────────────────────────
 
+# The mark after the name of a folder that holds no entries yet.
+function _format_folder_mark(d::FileSystemDirectory)
+    isempty(d.elements) || return ""
+    d.state === :failed && return " (can not read)"
+    d.state === :read ? "" : " …"
+end
+
 function _dir_name(pathname::AbstractString)
     p = rstrip(pathname, '/')
     isempty(p) && return "/"
@@ -231,6 +240,16 @@ function __init__()
     register_natural_syntax!(:filesystem, (; appearance) -> Pair{Type,Any}[
         FileSystemDocument => FileSystemToSyntax(; theme = get_scaled_theme!(appearance, FileSystemTheme))])
     register_natural_graphics!(:workspace, (; measure, appearance) -> Pair{Type,Any}[
+        # An explorer draws the folders of its workspace itself, with its own open
+        # folders, so it comes before the row of any workspace document.
+        WorkspaceExplorer => ChainingProjection(
+            RecursiveProjection(FaultCatchingProjection(inner = FileSystemToWidget(),
+                                                        substitute = FaultToWidget())),
+            RecursiveProjection(FaultCatchingProjection(
+                inner = WidgetToGraphics(; measure = measure,
+                                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                substitute = FaultToGraphics()))),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FaultCatchingProjection(inner = FileSystemToWidget(),

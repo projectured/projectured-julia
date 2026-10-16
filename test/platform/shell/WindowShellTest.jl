@@ -290,7 +290,7 @@ end
     first_tab()
     editor = _ShellFakeEditor(tree)
     bar = make_window_toolbar(; assistant = _ -> Assistant())
-    types = [Workspace, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
+    types = [WorkspaceExplorer, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
              FrameStatistics, FrameTimeSeries, SelectionInspector]
     holding(type) = count(tab -> get_wrapped_document(tab.content) isa type, group.tabs)
     for (item, type) in zip(bar.elements, types)
@@ -304,9 +304,9 @@ end
 end
 
 @testset "the explorer opens the folder the window names, else the working directory" begin
-    folders(tree) = [get_wrapped_document(tab.content).folders[1].pathname
+    folders(tree) = [get_wrapped_document(tab.content).workspace.folders[1].pathname
                      for group in get_pane_groups(tree) for tab in group.tabs
-                     if get_wrapped_document(tab.content) isa Workspace]
+                     if get_wrapped_document(tab.content) isa WorkspaceExplorer]
     press_explorer(bar) = begin
         tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
         apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))
@@ -315,7 +315,7 @@ end
     end
     @test press_explorer(make_window_toolbar()) == [pwd()]
     folder = mktempdir()
-    named = make_window_toolbar(; explorer = _ -> Workspace([WorkspaceFolder("here", folder)]))
+    named = make_window_toolbar(; explorer = _ -> WorkspaceExplorer(Workspace([WorkspaceFolder("here", folder)])))
     @test press_explorer(named) == [folder]
 end
 

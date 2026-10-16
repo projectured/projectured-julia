@@ -34,7 +34,8 @@ end
         mkpath(joinpath(dir, "full", "inner"))
         write(joinpath(dir, "full", "a.jl"), "")
         write(joinpath(dir, "top.jl"), "")
-        tree = print_document(RecursiveProjection(FileSystemToWidget()), make_filesystem_pathname(dir)).output
+        folder = read_filesystem_folder!(make_filesystem_pathname(dir); depth = typemax(Int))
+        tree = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         @test tree.expanded == Set([[1]])
         widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
@@ -56,61 +57,97 @@ end
     end
 end
 
-# The tree opens its root, and shows each entry under it closed. It reads the
-# listing of the root, and of each folder it shows, to know if the folder has a
-# chevron; it reads nothing below them.
-@testset "FileSystemToWidget reads the folders it shows" begin
+# The tree draws what the folders hold and reads no disk: a folder that is not
+# read shows no rows, and a folder shows a chevron only when it is known to hold
+# entries, so an empty folder looks empty the first time it appears.
+@testset "FileSystemToWidget draws what the folders hold" begin
     mktempdir() do dir
         mkpath(joinpath(dir, "full", "inner"))
         write(joinpath(dir, "full", "a.jl"), "")
         mkpath(joinpath(dir, "none"))
         write(joinpath(dir, "top.jl"), "")
-        folder = make_filesystem_pathname(dir)
+        folder = read_filesystem_folder!(make_filesystem_pathname(dir))
         tree = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
-        widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
-        tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
-        iomap = print_document(tree_projection, tree)
-        is_listing_read(d) = is_cell_valid(getfield(d.elements, :elements))
-
-        # The rows are made from the listing of the root, and read no entry.
-        @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2], [1, 3]]
-        @test is_listing_read(folder)
-        @test !any(is_cell_valid, getfield(folder.elements, :elements)[])
-
-        # Draw the rows, as the renderer does: a row reads its node, and a folder
-        # row reads the listing of its folder to know if it has a chevron.
-        rows_canvas = only(el for el in iomap.output.elements
-                           if el isa GraphicsCanvas && el.layout == layout_vertical)
-        foreach(row -> collect(row.elements), rows_canvas.elements)
-        full = folder.elements[1]
-        @test is_listing_read(full) && is_listing_read(folder.elements[2])
-        @test !is_listing_read(full.elements[2])            # `inner`, not shown
-
         node(path) = ProjecturedPlatform.WidgetModule._wtree_node_at(tree, path)
         has_children(path) = ProjecturedPlatform.WidgetModule._wtree_has_children(node(path))
         @test [node([1, k]).label for k in 1:3] == ["full", "none", "top.jl"]
-        @test [1] in tree.expanded && !([1, 1] in tree.expanded)
-        # A folder with entries has a chevron, and an empty folder has none.
         @test has_children([1, 1]) && !has_children([1, 2]) && !has_children([1, 3])
+        # The sub-folders are not read: a folder that holds nothing yet shows nothing.
+        @test folder.elements[1].state === :unread && isempty(folder.elements[1].elements)
     end
 end
 
-# A drag of the thumb of the tree starts in the output of two views: the tree
-# that `FileSystemToWidgetTree` makes, under the stage of the workspace. The
-# start of the drag names the tree through both views, and each part of the drag
-# goes back along that path to the tree, which scrolls.
+# An explorer draws a root for each folder of its workspace, with its own open
+# folders. A chevron opens a folder: the answer writes the open folders of the
+# explorer and holds the folder, so it reads; a folder that is open stays open
+# when a new entry comes before it.
+@testset "an explorer draws its open folders, and a chevron opens and holds a folder" begin
+    mktempdir() do dir
+        mkpath(joinpath(dir, "full"))
+        write(joinpath(dir, "full", "a.jl"), "")
+        mkpath(joinpath(dir, "none"))
+        write(joinpath(dir, "top.jl"), "")
+        editor = _make_folder_editor()
+        explorer = WorkspaceExplorer(Workspace([WorkspaceFolder("here", dir)]))
+        project = explorer.workspace.folders[1].directory
+        projection = FileSystemToWidget()
+        iomap = print_document(projection, nothing, explorer, PrinterContext())
+        tree = iomap.output
+        node(path) = ProjecturedPlatform.WidgetModule._wtree_node_at(tree, path)
+        has_children(path) = ProjecturedPlatform.WidgetModule._wtree_has_children(node(path))
+        # Before the acquire nothing is read: the root is open and shows that it reads.
+        @test node([1]).label == "here" && tree.expanded == Set([[1]])
+        @test node([1, 1]).label == "reading"
+        evaluate_operation(editor, AcquireDocumentOperation(explorer))
+        @test _wait_for_folder(() -> project.state === :read, editor)
+        @test [node([1, k]).label for k in 1:3] == ["full", "none", "top.jl"]
+        @test has_children([1, 1]) && !has_children([1, 2]) && !has_children([1, 3])
+        full = project.elements[1]
+        @test full.state === :unread
+        # The chevron of `full`: the widget writes its open nodes, and the explorer
+        # turns that into its open folders and a hold of `full`, as view state.
+        widget_write = ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "expanded",
+                                                                                 Set([[1], [1, 1]])))
+        answer = read_intent(projection, nothing, Intent(nothing, widget_write, "", ""), iomap).operation
+        @test answer isa ReplaceViewStateOperation
+        (open_write, hold) = get_wrapped_operation(answer).operations
+        @test open_write.document === explorer
+        @test hold isa ChangeHeldDocumentsOperation && hold.acquired == Any[full] && isempty(hold.released)
+        evaluate_operation(editor, answer)
+        @test haskey(explorer.open, full)
+        @test _wait_for_folder(() -> full.state === :read, editor)
+        @test node([1, 1, 1]).label == "a.jl" && tree.expanded == Set([[1], [1, 1]])
+        # A new folder before `full` keeps `full` open, at its new place.
+        mkpath(joinpath(dir, "aaa"))
+        @test _wait_for_folder(() -> length(project.elements) == 4, editor)
+        @test tree.expanded == Set([[1], [1, 2]]) && node([1, 2]).label == "full"
+        # The row of a folder is the path of its document in the explorer, both ways.
+        row = @reference(tree, roots[1].children[2])
+        path = map_reference_backward(projection, iomap, row)
+        @test evaluate_reference(explorer, path) === full
+        @test repr(strip_reference_types(map_reference_forward(projection, iomap, path))) == ".roots[1].children[2]"
+        evaluate_operation(editor, ReleaseDocumentOperation(explorer))
+        store = find_file_change_store(editor)
+        @test !is_folder_watched(dir; store) && !is_folder_watched(full.pathname; store)
+    end
+end
+
+# A drag of the thumb of the tree starts in the output of the tree that
+# `FileSystemToWidgetTree` makes of an explorer. The start of the drag names the
+# tree through the view, and each part of the drag goes back along that path to
+# the tree, which scrolls.
 @testset "a drag of the thumb of the tree comes back through the views" begin
     mktempdir() do dir
         for name in ("a", "b", "c", "d", "e", "f", "g", "h")
             write(joinpath(dir, name * ".jl"), "")
         end
-        workspace = Workspace([WorkspaceFolder("here", dir)])
-        projection = ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
-                                        RecursiveProjection(FileSystemToWidget()),
+        explorer = WorkspaceExplorer(Workspace([WorkspaceFolder("here", dir)]))
+        read_filesystem_folder!(explorer.workspace.folders[1].directory)
+        projection = ChainingProjection(RecursiveProjection(FileSystemToWidget()),
                                         NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0)))
         offer = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(60)))
-        iomap = print_document(projection, nothing, workspace, offer)
-        tree = iomap.step_iomaps[2][].output
+        iomap = print_document(projection, nothing, explorer, offer)
+        tree = iomap.step_iomaps[1][].output
         rows = get_content_iomap(iomap.step_iomaps[end][])
         bar = only(b for b in get_content_iomap(rows.pane).bars if b.field == "vertical_scroll_bar")
         @test Int(bar.place.w) > 0
@@ -130,8 +167,8 @@ end
         press = read(MouseDown(:left, x, y, plain; time = 0.0))
         @test press isa CompoundOperation
         start = only(o for o in press.operations if o isa StartDragOperation)
-        # The path names the tree through both views, so it starts at the folder.
-        @test first(get_reference_steps(strip_reference_types(start.path))) == FieldReferenceStep("folders")
+        # The path names the tree through the view, as a part that the view drew.
+        @test start.path isa Reference
         apply!(press)
         @test bar.document.thumb_drag !== nothing
         apply!(read(DragMove(x, y + 30, plain; time = 0.0), start.path))

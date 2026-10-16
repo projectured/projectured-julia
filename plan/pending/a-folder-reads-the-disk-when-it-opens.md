@@ -242,10 +242,54 @@ shared parts, which the plan of omnet-julia also uses.
     folder that can not be read fails; 5,000 files are one read. The guards and
     the file change suite (115) pass.
 
-- [ ] **6. The views of the Files tab, the Open dialog and the text view** (M1,
+- [x] **6. The views of the Files tab, the Open dialog and the text view** (M1,
   M1a, decision 6). The drawing stage reads the open set of the explorer and what
   the folders hold; the step decides whether that is a tree view of the file
   system or `DocumentTree`. Tests: the tests of the file system views, and
   `test_ide_file_navigator()` of omnet-julia.
+  - Work 2026-10-16 (it lands with step 5). The drawing stage stays a tree view
+    of the file system, `FileSystemToWidgetTree`, and not `DocumentTree`, because
+    the open folders are in the explorer, which `DocumentTree` would hold a second
+    time. Its input is a `WorkspaceExplorer`: a root for each folder of the
+    workspace, named as the folder; the open nodes come from `open` of the
+    explorer, by document; a chevron answers the write of `open` and a
+    `ChangeHeldDocumentsOperation`, in one `ReplaceViewStateOperation`. A row is
+    the path `workspace.folders[k].directory.elements[a]…` of the explorer, both
+    ways. A bare folder keeps the view of before, with its root open.
+  - The nodes read only what the folders hold: a folder has a chevron when it is
+    known to hold entries, or while it reads; an open folder with no entries yet
+    shows a row "reading", and one that can not be read a row "can not read: …".
+    The text view puts " …" or " (can not read)" after the name of such a folder.
+  - A row of the renderer for `WorkspaceExplorer` comes before the row of
+    `WorkspaceDocument`, in the slice and in the application. The `explorer`
+    insertion, the Explorer tool of the window and the Files pane of the
+    application make a `WorkspaceExplorer`; omnet-julia's IDE too, on its branch
+    `folder-reads-on-open`. A `WorkspaceFolder` always holds a folder document, also
+    for a path where nothing is yet.
+  - The file action stays a parameter of the view (`open_file`), so each user of
+    the tree passes its own.
+  - The SDL render test checks R2 in the view: only the rows that the pane draws
+    build their nodes. It also gets its size by an offer, which fixes its known
+    error on main (`WidgetTree` has no field `size`).
+  - The windows of the application test run no window start, so the test reads
+    the Files pane of each window at once (`_app_make_window`).
+  - Tests: the file system suite (116), the window shell (138), the file dialogs
+    (14), the application (380, 2 broken, as on main), the SDL render test (8),
+    and the omnet-julia IDE tests with the baselines of main (the file navigator
+    27/1, the window wrap 49, select and paste 47/1/8). The sweeps of the three
+    examples of the file system fail only at a type-in into a `pathname`, as on
+    main; there are more such places, because a workspace folder holds its folder
+    tree (`files`: 3771 against 294 on main) and the folders hold more fields.
+
+- [ ] **6b. The Open dialog draws and works** (the owner, 2026-10-16: "agreed, B":
+  a step of its own after the Files tab lands). The view of a `FileSystemChooser`
+  is unfinished: it is not registered with the renderer, its reader drops every
+  press, and it builds the action that writes the name and never uses it; no test
+  draws the dialog. The step: the view draws the tree of the folders from the open
+  folders of the chooser, with the rows, the chevrons and the reading row of the
+  Files tab, and the name field under it; a chevron opens or closes a folder and
+  changes what the chooser holds; a press on a file writes its name. Tests: a
+  dialog drawn in an editor, a chevron that opens a folder that then reads, and a
+  press on a file that writes `name`.
 - [ ] **7. The documents:** `filesystem.md`, `filechange.md`, `tree.md`,
   `navigator.md`, and the acquire in `domain.md`.
