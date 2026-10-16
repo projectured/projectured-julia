@@ -42,10 +42,16 @@ time (2026-10-16); this plan holds each decision.
    `_print_layout_list` in `LayoutList.jl` keeps the print of a child by the
    child document, as the grid of a list keeps a row; no view in `source/` uses
    the linear list today, only tests and examples.
-5. **The grid whose columns are a list keeps its cells** (option A, the owner,
-   2026-10-16): a cell is kept by its row document and its column document,
-   with counts for the head row and for the head column. Its one user is the
-   view of a data frame with more than 64 columns.
+5. **The grid whose columns are a list keeps its rows** (the owner,
+   2026-10-16, option A of a second question). Its one user is the view of a
+   data frame with more than 64 columns. The first form kept a cell by its row
+   and by its column, with counts for both heads. At step 6 the column half had
+   nothing to keep there: the columns are a list of `SizePolicy` values, equal
+   at many places, and a scroll to the side makes new rows and new documents
+   for every cell. So the grid keeps a row by its row document, with counts for
+   the head row, as the grid of a list does; a new head column prints the cells
+   of each row again, as before. The keep of the columns waits for a producer
+   that gives columns as objects that stay.
 6. **The view of a data frame keeps its row objects** (option A, the owner,
    2026-10-16). `_make_row_list` in `DataFrameView.jl` makes a new `CellVector`
    for each row each time it builds its list, so after a filter, a sort or a
@@ -179,8 +185,20 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     that stay, at their new places and paths, and a child that comes back
     prints again; a child at two places is kept at neither). The file passes
     86 checks, 71 before.
-- [ ] **6. The grid whose columns are a list keeps its cells** (decision 5), on
-  two of helper 2.
+- [x] **6. The grid whose columns are a list keeps its rows** (decision 5), on
+  helper 2.
+  - Done 2026-10-16 in `GridColumnList.jl`. `_GridColumnListRow` is the print
+    of a row: the row, its context, the list of its cells from the head column
+    as a computation, the cells drawn so far and the height. A link takes a kept
+    print and makes a new canvas whose elements forward the list of the print.
+    The state of the grid always has its `KeptListPrints` now.
+  - A fact found: the path `children[k][c]`, typed against the grid in one
+    call, reads `doc.children`, so the list of cells of every row depended on
+    the head of the rows, and a kept row printed its cells again. The row now
+    types `children[k]` once at its print, and each cell types `[c]` against
+    the row, as the grid of a list does.
+  - Tests: a testset in `LayoutListTest.jl` (a filter keeps the cells of the
+    rows that stay, at their new places and paths). The file passes 94 checks.
 - [ ] **7. The view of a data frame keeps its row objects** (decision 6). A
   test: a filter keeps the drawn text of a row that stays.
 - [ ] **8. `Copying.jl` and `CollectionToSyntax.jl` keep the prints of their

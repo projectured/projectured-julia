@@ -403,6 +403,28 @@ end
     @test column_step isa RangeReferenceStep && column_step.start == -1  # one before the head: 0
 end
 
+@testset "a row of a grid lazy both ways that stays keeps its cells, at the place and the path of its new count" begin
+    rows = [make_list_of(4, c -> WidgetLabel("r$(i) c$(c)")) for i in 1:6]
+    layout = GridLayout(list_of(rows), 1; column_policies = make_list_of(4, c -> Fixed(90)),
+                        row_policy = Fixed(20), horizontal_gap = 6, vertical_gap = 4)
+    io = print_document(barred, nothing, WidgetScrollPane(layout; size = Point2D(400, 200)), context())
+    grid_io = io.content_iomap
+    y_of(i) = place(io, "r$(i) c2")[2]
+    ys = [y_of(i) for i in 1:6]
+    cell(k) = find_grid_list_cell(grid_io, k, 2)[3]
+    printed = [cell(k) for k in 1:6]
+    @test path_count(printed[3]) == 3
+    getfield(layout, :children)[] = list_of(rows[[1, 3, 4, 5, 6]])
+    @test y_of(3) == ys[2] && y_of(6) == ys[5]
+    @test all(cell(k) === printed[i] for (k, i) in enumerate([1, 3, 4, 5, 6]))
+    @test [path_count(cell(k)) for k in 1:5] == 1:5
+    @test isempty(filter(t -> t[3] == "r2 c2", texts(viewport(io))))
+    getfield(layout, :children)[] = list_of(rows)
+    @test y_of(2) == ys[2]
+    @test cell(2) !== printed[2]
+    @test cell(3) === printed[3]
+end
+
 @testset "a grid lazy both ways needs Fixed columns and Fixed rows" begin
     rows = make_list_of(3, i -> make_list_of(3, c -> WidgetLabel("x")))
     @test_throws ErrorException print_document(rec, nothing,

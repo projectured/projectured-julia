@@ -22,14 +22,14 @@
 # columns, so a container can draw graphics around the cells: a layout
 # positions and draws nothing.
 #
-# **A row that stays keeps its print.** When the columns are a vector, the grid
-# keeps the print of a row by the row document: a new head with the same rows,
-# such as the rows that a filter keeps or the rows of a table that moved its
-# head, links the prints it has, and only a new row prints. The path of the
-# cells of a kept row counts the row from the head as a computation, so it
-# follows the row, and a link makes a new canvas for the row, so no computation
-# writes a cell of a print. One walk for each head counts the rows, and the
-# count of a row reads it.
+# **A row that stays keeps its print.** The grid keeps the print of a row by the
+# row document: a new head with the same rows, such as the rows that a filter
+# keeps or the rows of a table that moved its head, links the prints it has, and
+# only a new row prints. The path of the cells of a kept row counts the row from
+# the head as a computation, so it follows the row, and a link makes a new canvas
+# for the row, so no computation writes a cell of a print. One walk for each head
+# counts the rows, and the count of a row reads it. When the columns are a list,
+# a new head column prints the cells of each row again (`GridColumnList.jl`).
 
 # What the printer of a grid of a list keeps for its readers: the rows built so
 # far, by their index from the head, the canvas lists that it draws from, and
@@ -40,7 +40,7 @@ mutable struct GridListState
     head::Cell               # the canvas node of the head row, or nothing
     column_head::Union{Nothing,Cell}   # the canvas node of the head column when the columns are a list
     column_aligns::Dict{Int,Any}       # the node of the alignment of each column built, when they are a list
-    prints::Union{Nothing,KeptListPrints}  # the kept prints of the rows, when the columns are a vector
+    prints::KeptListPrints             # the kept prints of the rows
 end
 
 # The print of one row of a vector of columns, which the grid keeps by the row
@@ -263,10 +263,10 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
         printed = _link_grid_list_row(recursion, doc, ctx, state, col_x, col_w, k, document_node.value)
         (_make_grid_list_row_canvas(printed, total_w), printed.entries, printed.height)
     else
-        _make_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
+        _link_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
     end
     state.built[k] = (canvas, entries, row_h)
-    state.prints === nothing || note_kept_list_link!(state.prints, k)
+    note_kept_list_link!(state.prints, k)
     vgap = getfield(doc, :vertical_gap)
     if before !== nothing
         before_canvas = before.value
