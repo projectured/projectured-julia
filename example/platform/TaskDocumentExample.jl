@@ -28,3 +28,6 @@ make_task_stream_document_example() =
 # The lines of the output stream of that execution.
 make_task_stream_lines_document_example() =
     TaskStreamLines(Ref{Any}(make_task_execution_document_example()), :output)
+
+# What stays of a group of one task after a person closed its row.
+make_closed_task_group_document_example() = ClosedTaskGroup("builds", "builds", "1 task, 1 done")

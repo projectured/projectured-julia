@@ -76,6 +76,7 @@ include("../../../example/platform/PrimitiveDocumentExample.jl")
 include("../../../example/platform/AppearanceDocumentExample.jl")
 include("../../../example/platform/LazyDocumentExample.jl")
 include("../../../example/platform/PaneDocumentExample.jl")
+include("../../../example/platform/FilePageDocumentExample.jl")
 include("../../../example/platform/RosterDocumentExample.jl")
 include("../../../example/platform/TaskDocumentExample.jl")
 include("../../../example/platform/TerminalDocumentExample.jl")
@@ -134,6 +135,7 @@ export make_filtering_projection_example, make_flow_layout_document_example
 export make_graphics_canvas_document_example, make_grid_layout_document_example
 export make_graphics_rect_document_example, make_scroll_layout_document_example,
        make_text_gutter_atom_document_example, make_roster_document_example,
+       make_file_page_document_example, make_closed_task_group_document_example,
        make_terminal_document_example, make_task_document_example,
        make_task_group_document_example, make_task_group_list_document_example,
        make_task_execution_document_example, make_task_stream_document_example,

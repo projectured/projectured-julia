@@ -339,6 +339,8 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:workplan, "step", make_work_plan_step_document_example),
     AtomicDocument(:systemprocess, "tree", make_system_process_tree_document_example),
     AtomicDocument(:systemprocess, "process", make_system_process_document_example),
+    # The page of a file that is not on disk.
+    AtomicDocument(:fileformat, "page", make_file_page_document_example),
     # A roster of a collection, and a terminal that has not started its program.
     AtomicDocument(:roster, "roster",     make_roster_document_example),
     AtomicDocument(:terminal, "terminal", make_terminal_document_example),
@@ -346,6 +348,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:task, "task",         make_task_document_example),
     AtomicDocument(:task, "group",        make_task_group_document_example),
     AtomicDocument(:task, "group_list",   make_task_group_list_document_example),
+    AtomicDocument(:task, "closed_group", make_closed_task_group_document_example),
     AtomicDocument(:task, "execution",    make_task_execution_document_example),
     AtomicDocument(:task, "stream",       make_task_stream_document_example),
     AtomicDocument(:task, "stream_lines", make_task_stream_lines_document_example),
