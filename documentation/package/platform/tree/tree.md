@@ -17,15 +17,16 @@ show_document_tree!(plan; title = "Steps")        # the same, in a tab of the wi
 
 The open nodes are `expanded`, an `IdDict` whose keys are the documents of the open nodes. A node is open by the identity of its document and not by its index, so a node that comes or goes before another node does not change which nodes are open. The root is open at the start. `expanded` is view state: a write replaces the whole `IdDict` as view state, so the undo history records no open or closed node, and a file keeps the root and the title and no open node. The `IdDict` is a dictionary, because a walk of the documents enters a dictionary by its values. A `Base.IdSet` keeps its keys in a field that the walk enters, and `search_documents` would find each open document a second time.
 
-### Three generics make a document a node
+### Four generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to three generics, and each has a default, so any document is a leaf with a label.
+The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label.
 
 | Generic | Answers | Default |
 | --- | --- | --- |
 | `get_tree_children_steps(document)` | the reference steps from the node to each collection of its children, in order, as a tuple of tuples | `()`: the node is a leaf |
 | `format_tree_node_label(document)` | the text of the node, in one line: the node draws a line break as a space | the title of the document, else the name of its type that a person sees |
 | `get_tree_node_icon(document)` | a Lucide glyph, as a `Symbol` | `nothing`: no icon |
+| `has_tree_children(document)` | `true`, `false`, or `nothing` while that is not known | `true` when a collection of the children has an element: the default reads the children |
 
 The children of a node are the elements of its collections, one collection after the other. So a node can have two kinds of children. The work of an agent has two: its subagents, then its background tasks. A process has one, the field `children`. A collection whose path reaches nothing gives no children.
 
@@ -40,7 +41,9 @@ TreeModule.format_tree_node_label(folder::Folder) = folder.name
 TreeModule.get_tree_node_icon(::Folder) = :folder
 ```
 
-The three functions run inside a computation, so they read cells, and a node follows what it reads.
+The functions run inside a computation, so they read cells, and a node follows what it reads.
+
+A row draws a chevron only when `has_tree_children` answers `true`. A document whose children come from outside, such as a folder, answers from what it stores, so a closed row reads no children. `DocumentTreeToWidgetTree` gives each `WidgetTreeNode` the function `has_children = () -> has_tree_children(document) === true`. When a node gives `has_children`, the widget tree reads the chevron from it and reads no children while the row is closed. A node with no `has_children` reads its children for the chevron.
 
 ### The print
 
@@ -59,6 +62,8 @@ For example, take a root with two documents in `parts` and one in `notes`. The t
 ### The chevron writes the open nodes
 
 A press on a chevron answers `ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget, "expanded", paths))`. The reader of `DocumentTreeToWidgetTree` turns the answer into the same write of `expanded` of the `DocumentTree`, with the documents at those paths. The tree document holds no document that left the tree.
+
+A `DocumentTree` holds the documents of its open nodes while a tab holds the tree. The acquire of the tree acquires each open document, and the release releases the same documents. The answer of the chevron contains a `ChangeHeldDocumentsOperation` in the same view-state write. It releases the documents of the nodes that close and acquires the documents of the nodes that open. So a document that opens, such as a folder, starts its read, and an undo records neither the open node nor the change of the hold. A tree that no tab holds holds nothing.
 
 ### A node opens a page
 
@@ -85,7 +90,7 @@ These slices add kinds of node:
 
 ## Design decisions
 
-- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
+- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the four generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 - **A node is open by the identity of its document.** An open node that a path of indices names would name another node after an insert.
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.
@@ -103,7 +108,7 @@ The slice is the folder [source/platform/tree/](../../../../source/platform/tree
 
 ```
 tree/TreeModule.jl                (TreeModule): the module, its exports and its include order
-    ├─ TreeInterface.jl           : the three generics, with no body
+    ├─ TreeInterface.jl           : the four generics, with no body
     ├─ TreeDefaults.jl            : their fallback behaviours
     ├─ TreeDocument.jl            : DocumentTree
     ├─ DocumentTreeToWidgetTree.jl: the print, the reader, the maps, the open nodes, the open of a page

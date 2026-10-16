@@ -30,10 +30,10 @@ The address is state of the document, not of the projection. A program and the a
 
 Every move to another page is one `CompoundOperation`:
 
-1. a `ReplaceViewStateOperation` around the writes of `address`, `back`, `forward`, and `content` when it changes;
+1. a `ReplaceViewStateOperation` around the writes of `address`, `back`, `forward`, and `content` when it changes, and a `ChangeHeldDocumentsOperation` when the new page is another document than the old page;
 2. a `ReplaceSelectionOperation` with a path from the navigator, into the new page.
 
-So an undo records no visit, and an edit on a page is an edit that undo takes back while the navigator stays on the page. The lists are written as new vectors.
+The change of the hold releases the old page and acquires the new page, while a tab holds the navigator. A navigator that no tab holds holds nothing. So an undo records no visit, and an edit on a page is an edit that undo takes back while the navigator stays on the page. The lists are written as new vectors.
 
 | Builder | What it does |
 | --- | --- |

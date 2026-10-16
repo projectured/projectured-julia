@@ -46,9 +46,23 @@ The `@gestures` tables of the domains call three functions of this package. Each
 
 `accepts_pasted_document`, `accepts_pasted_replacement`, `accepts_pasted_text` and `accepts_opened_file` default to `true`. A domain adds a method to refuse a paste or a file. `make_pasted_document_operation(document, path, value)` defaults to `nothing`; a document that holds parts adds a method to take a pasted document that is no plain text, at a text cursor inside it, with an operation of its own (the clipboard asks it, see [clipboard.md](../clipboard/clipboard.md)). `compute_context_menu` defaults to `nothing`; a document that has a menu computes it from its own fields, and its type binds a right click to it with `make_context_menu_binding` of the widget slice ([context-menu.md](../widget/context-menu.md)). A tooltip is not here: a document declares a binding of the tooltip package in its own gesture table ([tooltip.md](../tooltip/tooltip.md)).
 
-### The release of a document
+### The acquire and the release of a document
 
-A document can hold something outside the document tree: the assistant holds the process of an external agent and an MCP server. When such a document leaves the window, `release_document!(editor, document)` frees it. The default frees nothing, and a document type that holds such a thing adds a method. `ReleaseDocumentOperation(document)` calls it, and the close of a tab adds it after the delete of the tab. It changes no document, so its inverse is `DoNothingOperation()`: an undo of the close brings the document back, and the document starts again what it needs when it needs it.
+A document can need something when it enters the window: a sheet computes its values, and a file watches its disk file. It can also hold something outside the document tree: the assistant holds the process of an external agent and an MCP server. `acquire_document!(editor, document)` starts what the document needs, and `release_document!(editor, document)` frees what it holds. Both default to nothing, and a document type that needs or holds such a thing adds a method.
+
+`AcquireDocumentOperation(document)` and `ReleaseDocumentOperation(document)` do not call the two functions directly. They add and remove a holder of the document. The open of a tab adds an acquire after the insert of the tab, and the close adds a release after the delete. The inverse of each is the other, so an undo of a close starts again what the tab needs.
+
+**The count of holders.** The editor counts the holders of each document, as a session document. `add_document_holder!(editor, document)` counts one more holder and calls `acquire_document!` at the first holder. `remove_document_holder!(editor, document)` counts one less and calls `release_document!` at the last holder. So a document that two holders show starts what it needs once and frees it once. A mock editor that is not an `Editor` counts nothing and calls the hook at each call.
+
+**A holder that shows other documents.** A tab, a tree and a navigator hold the documents that they show. Each calls `hold_documents!(editor, holder, documents)` from its own `acquire_document!`, and `release_held_documents!(editor, holder, documents)` from its own `release_document!`. The editor records what each holder holds. So the release frees the documents that the holder held when it was acquired, also after the holder showed other documents.
+
+`ChangeHeldDocumentsOperation(holder, released, acquired)` changes what a holder holds, as a node of a tree opens or a navigator visits another page. It acts only while the holder is held. A holder that no tab shows passes nothing on. Its inverse swaps `released` and `acquired`. The acquire, the release and the change are self-contained operations, so each goes up the readers of the views around a tree as it is.
+
+### The read of outside state
+
+A print reads only what a document holds. A document that needs outside state, such as the listing of a folder, reads it in an operation. `start_document_read!(editor, read, apply; wait)` runs `read()` on a task off the loop and applies the answer with the operation that `apply(answer)` returns. The answer is the value of `read`, or the exception that it threw, so `apply` also writes a failure.
+
+The call waits for the read at most `DOCUMENT_READ_WAIT` seconds (0.05). A read that ends inside the wait is applied at once, in the evaluation that started it, so a small folder is complete in the first frame. A longer read posts its operation with `post_operation!` when it ends, and the next frame applies it. The document shows what it holds meanwhile. A mock editor that is not an `Editor` runs the read at once on the calling task. The call runs in the evaluation of an operation, such as an acquire, and never in a print.
 
 ## How it fits
 
