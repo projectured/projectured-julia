@@ -742,6 +742,36 @@ function _format_tab_tooltip(doc::TaskGroupDocument, group)
     join(lines, "\n")
 end
 
+# ── The node of a tree ───────────────────────────────────────────────────────
+
+# A group in a tree has its tasks under its node. Its text is its identifier, its
+# title, how many of its tasks finished, and each code that came back unexpected;
+# its icon is the icon of its tab. Both read the counts, which change only when a
+# task starts or ends.
+get_tree_children_steps(::TaskGroupDocument) = ((FieldReferenceStep("tasks"),),)
+
+function format_tree_node_label(doc::TaskGroupDocument)
+    counts = get_task_group_document_counts(doc)
+    words = String[getfield(doc, :identifier)[] * " " * getfield(doc, :title)[],
+                   string(counts.finished, "/", counts.total)]
+    for (code, _, unexpected) in counts.counts
+        unexpected > 0 && push!(words, string(unexpected, " ", code))
+    end
+    join(words, " · ")
+end
+
+get_tree_node_icon(doc::TaskGroupDocument) =
+    _get_tab_icon((status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),
+                   cancelled = get_task_group(doc).stopping))
+
+# The list of the groups has a node for each group, and a closed group keeps its
+# place there with a text that says it closed.
+get_tree_children_steps(::TaskGroupList) = ((FieldReferenceStep("groups"),),)
+get_tree_node_icon(::TaskGroupList) = :list
+format_tree_node_label(group::ClosedTaskGroup) =
+    getfield(group, :identifier)[] * " " * getfield(group, :title)[] * " · closed"
+get_tree_node_icon(::ClosedTaskGroup) = :minus
+
 # ── The pane ─────────────────────────────────────────────────────────────────
 
 # The card of a group, and below it its table above the detail of the task that

@@ -196,6 +196,19 @@ function test_task_document()
             # Only the outer group has a row in the Tasks pane.
             groups = collect(get_session_task_group_list(; editor).groups)
             @test any(g -> g === document, groups) && !any(g -> g === inner, groups)
+            # In a tree, the group has its tasks under its node, and a task that is a
+            # group the tasks of its inner group; the text of the group says how far
+            # it is and what came back unexpected.
+            @test get_tree_children_steps(document) == ((FieldReferenceStep("tasks"),),)
+            phase = getfield(document, :tasks)[][1]
+            @test get_tree_children_steps(phase) == ((FieldReferenceStep("inner_group"), FieldReferenceStep("tasks")),)
+            @test get_tree_children_steps(first(getfield(inner, :tasks)[])) == ()
+            @test format_tree_node_label(inner) == identifier * ".1 phase 1 · 5/5 · 1 ERROR"
+            @test get_tree_node_icon(inner) === :x
+            list = get_session_task_group_list(; editor)
+            @test get_tree_children_steps(list) == ((FieldReferenceStep("groups"),),)
+            closed = ClosedTaskGroup(Cell("T9"), Cell("gone"), Cell("smoke test"))
+            @test format_tree_node_label(closed) == "T9 gone · closed" && get_tree_node_icon(closed) === :minus
             # A run again of a phase puts its tasks back to waiting, and they
             # report again.
             rerun_task_group_document!(document, [1])

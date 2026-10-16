@@ -176,9 +176,16 @@ compute_item_facet(document::TaskDocument, ::Val{:expected}) =
 compute_item_facet(document::TaskDocument, ::Val{:reason}) =
     (result = get_task_document_result(document); result === nothing ? nothing : result.reason)
 
-# The node of a task in a tree is a leaf: its name, its status and the time when
-# it started while it runs, or the code of its result and how long it ran, with an
-# icon of its status. It reads no clock, so it changes only when the task does.
+# The node of a task in a tree: its name, its status and the time when it started
+# while it runs, or the code of its result and how long it ran, with an icon of its
+# status. It reads no clock, so it changes only when the task does. A task that is
+# a group has the tasks of its inner group under its node; any other task is a
+# leaf.
+function get_tree_children_steps(document::TaskDocument)
+    getfield(document, :inner_group)[] === nothing && return ()
+    ((FieldReferenceStep("inner_group"), FieldReferenceStep("tasks")),)
+end
+
 function format_tree_node_label(document::TaskDocument)
     words = String[format_task_parameters(getfield(document, :task)[])]
     result = get_task_document_result(document)
