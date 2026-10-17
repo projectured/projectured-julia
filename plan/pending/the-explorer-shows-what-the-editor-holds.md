@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 and 2 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 and 2 done, step 3 part 3a done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -972,6 +972,37 @@ before each edit of a kernel file. Mark each step done here.
    `DocumentCondition`, `WidgetIconMark` and `get_condition_look`; an image of
    rows with four corner marks at the scale 1 and 2 (rule 7). Test:
    `test_document_tree()`, `test_widget_icon()`, the task and pane suites.
+   **Part 3a done 2026-10-17: the model and its drawing.** What it found and
+   decided:
+   - The domain slice holds `DocumentCondition(name; count, role)`,
+     `DocumentCount(text; role)`, `DocumentDecoration(; icon, conditions, counts,
+     detail, tooltip)`, `get_document_decoration` (its default answers the
+     decoration of the document of `get_edited_field`), `ConditionLook(place,
+     glyph, role, words)`, `get_condition_look(::Val{name})`,
+     `DOCUMENT_CONDITIONS`, `find_decoration_tint`, `collect_decoration_marks`
+     and `format_decoration_words`. Plain structs: a decoration is a computed
+     value.
+   - "Not started" takes the glyph `:hourglass`; the font has no plain clock.
+     The glyphs `:lock`, `:funnel` (Lucide `filter`) and `:hourglass` are new.
+   - The widget slice holds `WidgetIconMark` and `WidgetIcon` as widget
+     documents, so a saved tab title can write them, and `WidgetDecoration.jl`:
+     `make_decoration_icon` (a plain `Symbol` when there is no tint and no mark),
+     `make_decoration_badges` (facts as small `WidgetIcon`s, then the pills) and
+     `_push_decorated_icon!`, which the tree rows and the tab strip share. A mark
+     is 45 % of the icon, a third outside its box, on a disc of the color behind
+     the icon; a count is a pill of the surface of its role.
+   - `WidgetTreeNode` has `badges` and `detail`; a row draws the facts, the
+     detail and the pills after its label, and its measured width holds them.
+     The tree printer has `badge`, `detail_text` and `mark_background`.
+   - The default `make_pane_tab_title` reads the decoration of the content: icon,
+     tint, pills and the conditions in words as the tooltip. A document with no
+     decoration keeps a plain tab.
+   - A kind with no icon in its decoration keeps `get_tree_node_icon`, which
+     omnet still uses; step 10 moves omnet to decorations and takes the generic
+     away.
+   - Not in 3a: the tooltip of a row. A dwell on a row reaches no node now, and a
+     binding of a node gets the widget node and not its document; 3b decides how
+     a row shows its conditions in words.
 4. [ ] **The kinds of projectured become nodes.** The four generics for
    `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile`,
    `Roster`, `AssistantList` and `Assistant`; the page of a folder as a table of

@@ -85,6 +85,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
+export make_decoration_icon, make_decoration_badges
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,
@@ -104,7 +105,7 @@ export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        wrap_context_menu_window
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
-export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
+export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
        WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
@@ -118,6 +119,7 @@ include("WidgetValueSlot.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
 include("WidgetToGraphics.jl")
+include("WidgetDecoration.jl")
 include("FaultToWidget.jl")
 include("WidgetTableParts.jl")
 include("WidgetTableHeaderLevels.jl")

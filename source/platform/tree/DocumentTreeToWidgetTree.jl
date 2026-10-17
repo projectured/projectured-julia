@@ -77,9 +77,14 @@ end
 function _make_tree_node(entry::_TreeEntry)
     (_, nodes) = _compute_tree_children_lists!(entry)
     label = _format_node_line(entry.document)
-    WidgetTreeNode(get_tree_node_icon(entry.document), label, nodes;
+    decoration = get_document_decoration(entry.document)
+    # A kind with no icon in its decoration keeps the icon of its tree generic.
+    icon = make_decoration_icon(decoration;
+                                icon = something(decoration.icon, Some(get_tree_node_icon(entry.document))))
+    WidgetTreeNode(icon, label, nodes;
                    gestures = _make_open_page_bindings(entry.path),
-                   has_children = () -> has_tree_children(entry.document) === true)
+                   has_children = () -> has_tree_children(entry.document) === true,
+                   badges = make_decoration_badges(decoration), detail = decoration.detail)
 end
 
 # The lazy list of the children of `document`: its one collection of children,

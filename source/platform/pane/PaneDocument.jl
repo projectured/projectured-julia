@@ -61,15 +61,23 @@ _make_title_part_cell(part) = Cell(part)
     make_pane_tab_title(document, name) -> PaneTabTitle
 
 The title of a new tab that shows `document` under the name `name`. The default
-is the name alone.
+is the name with the decoration of the document (`get_document_decoration`): its
+icon with its tint and its corner marks, its counts as badges, and its
+conditions in words as the tooltip. Each part follows the state of the document,
+so the tab of a file shows its unsaved edits as a row of the explorer does.
 
-A slice adds a method for a document whose tab must say more than a name, such
-as the state of the work that the document does. Then each tab that
-[`open_pane!`](@ref) opens on such a document has its icon and its badges, also
-when the caller gives the title as a plain string. A caller that gives a
-`PaneTabTitle` keeps its own parts.
+A slice adds a method for a document whose tab must say more than its
+decoration. Then each tab that [`open_pane!`](@ref) opens on such a document has
+its parts, also when the caller gives the title as a plain string. A caller that
+gives a `PaneTabTitle` keeps its own parts.
 """
-make_pane_tab_title(document, name::AbstractString) = PaneTabTitle(name)
+function make_pane_tab_title(document, name::AbstractString)
+    decoration() = get_document_decoration(document)
+    PaneTabTitle(name; icon = () -> make_decoration_icon(decoration()),
+                 icon_role = () -> find_decoration_tint(decoration()),
+                 badges = () -> WidgetBadge[part for part in make_decoration_badges(decoration()) if part isa WidgetBadge],
+                 tooltip = () -> (words = format_decoration_words(decoration()); isempty(words) ? nothing : words))
+end
 
 # ── PaneTab ────────────────────────────────────────────────────────────────
 

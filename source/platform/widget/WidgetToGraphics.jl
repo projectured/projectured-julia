@@ -4674,8 +4674,11 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                                w.draggable === true ? :open_hand : :pointing_hand))
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
-            iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2,
-                                  iw, _get_tab_icon_color(p, pairs[i].selector, fg))
+            # A decorated icon draws its marks on a disc of the color of its tab.
+            iw > 0 && _push_decorated_icon!(header, p.badge, icon, tx + sel_pad,
+                                            coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2, iw,
+                                            _get_tab_icon_color(p, pairs[i].selector, fg),
+                                            state === :selected ? p.tab_selected_color : p.tab_strip_color)
             name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad + (sel_h - 2 * sel_pad - g.line) ÷ 2
             found = name_caret[]
             if found !== nothing && found[1] == i
@@ -8843,6 +8846,10 @@ const LUCIDE_ICON_GLYPHS = (
     :user           => 0xe19f,  # user
     :bot            => 0xe1bb,  # bot
     :dot            => 0xe44f,  # dot
+    # The marks of a decoration at the corners of an icon
+    :lock           => 0xe10b,  # lock: read only
+    :funnel         => 0xe0dc,  # filter: a filter or a sort hides or orders the items
+    :hourglass      => 0xe296,  # hourglass: not started
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS
@@ -11556,6 +11563,9 @@ end
     icon_size::Float64           # times the box of a named icon, one line of the label
     current_color::StyleColor     # the mark at the left edge of the row of the current page
     current_width::Int            # the width of that mark
+    badge::Any                    # the badge printer: the pills of a row and the colors of the roles
+    detail_text::StyleText        # the dim text after the label
+    mark_background::StyleColor   # the disc behind a corner mark of an icon
 end
 
 WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -11576,15 +11586,21 @@ WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            label_gap = _themed(Int, theme, t -> t.label_gap),
                            icon_size = _themed(Float64, theme, t -> t.icon_size),
                            current_color = _themed(StyleColor, theme, t -> t.primary),
-                           current_width = _themed(Int, theme, t -> t.stroke)) =
+                           current_width = _themed(Int, theme, t -> t.stroke),
+                           badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                           detail_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                           mark_background = _themed(StyleColor, theme, t -> t.background)) =
     WidgetTreeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                content_color, label_text, icon_text, chevron_color, row_selected_color,
                                layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size,
-                               row_radius, label_gap, icon_size, current_color, current_width)
+                               row_radius, label_gap, icon_size, current_color, current_width, badge, detail_text,
+                               mark_background)
 
 # A node is a WidgetTreeNode (icon + label + children) or a leaf label (String).
 # A leaf reports an empty icon.
 _tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
+_tree_badges(node) = node isa WidgetTreeNode ? node.badges : Any[]
+_tree_detail(node) = node isa WidgetTreeNode ? node.detail : ""
 _tree_label(node) = node isa WidgetTreeNode ? string(node.label) : string(node)
 # The children of a `WidgetTreeNode` are not read here: the caller reads them,
 # and the tree reads them only for a drawn row and for an open node.
@@ -11977,7 +11993,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # larger of the icon and a line; a tree of plain labels keeps the column of its
     # theme and rows of one line. The roots decide, because a row below them is read
     # only when it is drawn, and every row takes the same column and height.
-    shows_icons = Cell(@computation any(node -> _tree_icon(node) isa Symbol, w.roots))
+    shows_icons = Cell(@computation any(node -> _tree_icon(node) isa Union{Symbol,WidgetIcon}, w.roots))
     column = Cell(@computation shows_icons[] ? max(icon_column, icon_size + p.label_gap) : icon_column)
     line_box = Cell(@computation shows_icons[] ? max(line_height, icon_size) : line_height)
 
@@ -12051,7 +12067,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         function measure_row(row, node)
             label = _tree_label(node)
             label_width = first(_text_size(p.measure, label_style.font, label))
-            row.depth * indent + chevron_column + column[] + label_width
+            row.depth * indent + chevron_column + column[] + label_width + measure_tail(node)
         end
         g = geometry[]
         if g isa WTreeListGeometry
@@ -12076,6 +12092,35 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         end
         widest
     end)
+
+    # What a row draws after its label: the glyphs of the facts of its document, its
+    # detail, and its pills, each after a gap. `push_tail!` draws them from `x`, and
+    # `measure_tail` answers their width.
+    function push_tail!(elements, node, x::Int, row_height::Int, text_y::Int, icon_y::Int)
+        for part in _tree_badges(node)
+            part isa WidgetIcon || continue
+            x += p.label_gap
+            _push_decorated_icon!(elements, p.badge, part, x, icon_y, icon_size, icon_style.color,
+                                  p.mark_background)
+            x += icon_size
+        end
+        detail = _tree_detail(node)
+        if !isempty(detail)
+            x += p.label_gap
+            _push_text!(elements, p.measure, p.detail_text.font, detail, x, text_y, p.detail_text.color)
+            x += first(_text_size(p.measure, p.detail_text.font, detail))
+        end
+        for part in _tree_badges(node)
+            part isa WidgetBadge || continue
+            badge_width, badge_height = _measure_badge(p.badge, part)
+            x += p.label_gap
+            push!(elements, _make_canvas(x, (row_height - badge_height) ÷ 2,
+                                         _build_badge_elements(p.badge, part, badge_width, badge_height)))
+            x += badge_width
+        end
+        x
+    end
+    measure_tail(node) = push_tail!(Any[], node, 0, 0, 0, 0)
 
     # The band of a row: as wide as the tree, and as high as the row while `read`
     # answers the path of the row. A band reads the selection or the pointer in a
@@ -12152,17 +12197,22 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             end
             icon = _tree_icon(node)
             text_y = pad + (line_box[] - line_height) ÷ 2
-            if icon isa Symbol
-                # A registered icon name: a glyph, tinted to the icon color.
-                _push_icon!(result, icon, x + chevron_column, pad + (line_box[] - icon_size) ÷ 2, icon_size,
-                            icon_style.color)
+            icon_y = pad + (line_box[] - icon_size) ÷ 2
+            if icon isa Union{Symbol,WidgetIcon}
+                # A registered icon name: a glyph, tinted to the icon color, or to the
+                # role of a decorated icon, with its corner marks.
+                _push_decorated_icon!(result, p.badge, icon, x + chevron_column, icon_y, icon_size,
+                                      icon_style.color, p.mark_background)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
                 _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, text_y,
                             icon_style.color)
             end
-            _push_text!(result, p.measure, label_style.font, _tree_label(node),
-                        x + chevron_column + column[], text_y, label_style.color)
+            label = _tree_label(node)
+            label_x = x + chevron_column + column[]
+            _push_text!(result, p.measure, label_style.font, label, label_x, text_y, label_style.color)
+            push_tail!(result, node, label_x + first(_text_size(p.measure, label_style.font, label)),
+                       row.height, text_y, icon_y)
             result
         end))
         GraphicsCanvas(Cell(Int32(0)), top,

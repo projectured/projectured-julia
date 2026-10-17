@@ -1630,6 +1630,65 @@ WidgetBadge(content; position::Point2D=Point2D(0, 0), variant::Symbol=:default, 
     WidgetBadge(Cell(position), _make_shown_cell(content), Cell(variant), Cell(role), Cell(visible),
                Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
+# ── WidgetIcon ──────────────────────────────────────────────────────────────
+
+"""
+    WidgetIconMark(content; role = nothing)
+
+A mark at a corner of a [`WidgetIcon`](@ref): `content` is a Lucide glyph as a
+`Symbol`, or a count as an `Int`, and `role` its color, one of `:success`,
+`:warning`, `:error`, `:info` and `:accent`, or `nothing` for the color of the
+icon.
+
+Use it to show a fact at a corner of an icon, such as unsaved edits or the count
+of what waits for the person.
+
+# Example
+
+    WidgetIconMark(2; role = :warning)
+
+See also `WidgetIcon`.
+"""
+@document struct WidgetIconMark <: WidgetDocument
+    content::Any
+    role::Any
+end
+
+WidgetIconMark(content; role = nothing) = WidgetIconMark(content, role)
+
+"""
+    WidgetIcon(name; role = nothing, top_left = nothing, top_right = nothing,
+               bottom_left = nothing, bottom_right = nothing)
+
+An icon with its decoration: the Lucide glyph `name`, tinted in `role`, one of
+`:success`, `:warning`, `:error`, `:info` and `:accent`, or `nothing` for the
+color of its place, and a [`WidgetIconMark`](@ref) or `nothing` at each corner.
+A row of a tree, a tab and a toolbar button draw it the same way: each mark is a
+glyph or a count, smaller than the icon, half outside its box, on a disc of the
+color behind it. A plain `Symbol` names an icon with no decoration.
+
+Use it to show the state of a thing on its icon, as the decoration of a document
+says it.
+
+# Example
+
+    WidgetIcon(:file; bottom_right = WidgetIconMark(:dot))
+
+See also `WidgetIconMark` and `make_decoration_icon`.
+"""
+@document struct WidgetIcon <: WidgetDocument
+    name::Any
+    role::Any
+    top_left::Any
+    top_right::Any
+    bottom_left::Any
+    bottom_right::Any
+end
+
+WidgetIcon(name::Symbol; role = nothing, top_left = nothing, top_right = nothing, bottom_left = nothing,
+           bottom_right = nothing) =
+    WidgetIcon(name, role, top_left, top_right, bottom_left, bottom_right)
+
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
 """
@@ -2996,12 +3055,16 @@ _describe_table_header(header) =
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 """
-    WidgetTreeNode(icon, label, children = []; gestures = GestureBinding[], has_children = nothing)
+    WidgetTreeNode(icon, label, children = []; gestures = GestureBinding[], has_children = nothing,
+                   badges = [], detail = "")
 
 A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
 distinct from its text **label** (the decoration model used by typical widget
 libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
-is `Any`: a glyph `String` today, an image document later. `children` is a
+is a Lucide glyph as a `Symbol`, a [`WidgetIcon`](@ref) with its tint and its
+corner marks, a glyph `String`, or `nothing`. `badges` are `WidgetBadge` pills
+that the row draws after the label, and `detail` is dim text between the label
+and the pills. `children` is a
 `Vector` of child nodes (each a `WidgetTreeNode` or a leaf `String`), a
 `CellVector` of them, or a `ListNode`: a lazy list, whose children count from its
 head. An empty `Vector` or `CellVector` marks a leaf, and a leaf has no chevron.
@@ -3020,12 +3083,14 @@ reads no children while it is closed, so the children of a closed row are not
 read, for example a folder whose entries are not read yet.
 """
 struct WidgetTreeNode
-    icon::Any
+    icon::Any                    # a Symbol, a WidgetIcon, a glyph string, or nothing
     label::Any
     children::Any                # a Vector, a CellVector read only when needed, or a
                                  # ListNode counted from its head
     gestures::Any
     has_children::Any            # nothing, or a function () -> Bool for the chevron
+    badges::Vector{Any}          # the WidgetBadge pills after the label
+    detail::String               # dim text after the label
 end
 # A node is a plain value (not a `Document`), so it has no `selection`; its
 # per-instance `gestures` are fired by `read_bound_gesture` against the enclosing
@@ -3033,8 +3098,10 @@ end
 # unaffected; pass `gestures=[…]` to give a node its own behavior (e.g. a
 # right-click / Enter binding that opens what the node stands for).
 WidgetTreeNode(icon, label, children, gestures) = WidgetTreeNode(icon, label, children, gestures, nothing)
-WidgetTreeNode(icon, label, children; gestures=GestureBinding[], has_children=nothing) =
-    WidgetTreeNode(icon, label, children, gestures, has_children)
+WidgetTreeNode(icon, label, children, gestures, has_children) =
+    WidgetTreeNode(icon, label, children, gestures, has_children, Any[], "")
+WidgetTreeNode(icon, label, children; gestures=GestureBinding[], has_children=nothing, badges=Any[], detail="") =
+    WidgetTreeNode(icon, label, children, gestures, has_children, Any[badges...], String(detail))
 WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
     WidgetTreeNode(icon, label, Any[], gestures, nothing)
 
