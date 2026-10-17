@@ -165,7 +165,7 @@ function _make_roster_list_table(rows, made, headers, view)
                 Cell(@computation WidgetTableColumns(length(headers))), Cell(1),
                 Cell(_ROSTER_COLUMN_POLICY), Cell(Content), Cell(:clip), Cell(true),
                 Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
-                Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(:auto), Cell(:auto),
+                Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(nothing), Cell(:auto), Cell(:auto),
                 Cell(nothing), Cell(nothing))
 end
 

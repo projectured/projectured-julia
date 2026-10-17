@@ -1,6 +1,6 @@
 # A view document keeps the state of one view
 
-Status: IN PROGRESS. Step 1 is done.
+Status: IN PROGRESS. Steps 1 and 2 are done.
 
 ## The ask
 
@@ -121,11 +121,22 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
    is written as the exception that the code has: `collapsed` on the content types.
    `test/suite/documentation.jl`: every document keeps the rules; no line of the
    new text is in the report for a person.
-2. [ ] **The lazy table says which rows its view shows.** `WidgetTable.shown`, view
+2. [x] **The lazy table says which rows its view shows.** `WidgetTable.shown`, view
    state: the rows in view, counted from the head, as a range. The table writes it
    beside each scroll and each move of its head, when it changes, as it writes
    `top_row` now. The ten positional calls of `WidgetTable` follow the new field.
    Tests: `test_widget_table_list()`, `test_task_pages()`, `test_dataframes()`.
+
+   Done 2026-10-17. `shown` sits right after `top_row`, beside the other view state
+   of the table, so each positional call has one more `Cell(nothing)` before its
+   20th argument; Julia's own parser placed it (`JuliaSyntax`), not a text
+   substitution. The rows in view go from the row at the top to the last row that
+   starts in the view of the cells; after a move of the head they count from the
+   new head. A change of the height of the view writes no `shown`: only a scroll
+   writes it, as for the tree. omnet-julia and inet-julia make no positional call
+   of `WidgetTable`. Tests: a table whose rows are a list 253, task pages 47, cell
+   table 11 + 4, roster table 24, tool themes 113, data frames 612, pivot 299,
+   markdown 268; all pass.
 3. [ ] **The navigator shows the view of its page** (decision 4). `make_document_view`
    in the domain slice; `Navigator.view` and `NavigatorVisit.view`; a visit makes
    the view of its page, and Back and Forward give back the view of their visit; the

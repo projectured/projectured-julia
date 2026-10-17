@@ -150,7 +150,7 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::Wi
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(bar), Cell(:auto),
+                        getfield(view, :top_row), Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, false)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
@@ -234,7 +234,7 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, 
                         Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(bar), Cell(:auto),
+                        getfield(view, :top_row), Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, true)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))

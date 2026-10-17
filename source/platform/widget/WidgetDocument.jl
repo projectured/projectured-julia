@@ -2663,6 +2663,11 @@ the table. An Alt+press selects the part itself.
 - `scroll_position`, `top_row` — view state: the one offset of the scrolled
   parts, and the row at the top of a list of rows, counted from its head. The
   row or the column under the pointer lights from the table's mouse target.
+- `shown` — view state: the rows of a list of rows that the view of the cells
+  shows, counted from the head, as a range such as `21:40`, or `nothing` before
+  the first scroll. The table writes it beside each scroll that changes it, so
+  the owner of the rows knows which rows a person sees, as a tree writes the rows
+  that its view shows.
 - `column_drag` — view state: the drag of the right edge of a header that is
   on, as `(column, x, width)`, the column and the point and the width at the
   press, or `nothing`. A left press within 3 pixels of that edge starts it, and
@@ -2711,6 +2716,7 @@ See also `make_result_table` and `WidgetList` for one column.
     style::Any
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
+    shown::Any                   # view state: the rows of a list of rows in view, counted from its head, or nothing
     column_drag::Any             # view state: the drag of the edge of a column that is on, or nothing
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner, beside the cells
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner, under the cells
@@ -2843,7 +2849,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 _make_table_rows(rows, body, column_major), _make_table_columns(columns, headers, body, column_major),
                 Cell(Int(border_width)), Cell(column_policy), Cell(row_policy), Cell(cell_policy),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(scroll_position), Cell(1), Cell(nothing),
+                Cell(scroll_position), Cell(1), Cell(nothing), Cell(nothing),
                 Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                 Cell(open_cells === nothing ? nothing : collect(Any, open_cells)), Cell(tooltip))
 end
@@ -2934,7 +2940,7 @@ function WidgetTable(headers::CellVector, cells::CellVector)
                 Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),  # margin, border, padding, style
                 Cell(Point2D(0, 0)),                 # scroll position
                 Cell(1),                             # top row
-                Cell(nothing),                       # no drag of the edge of a column
+                Cell(nothing), Cell(nothing),                       # no rows in view yet, no drag of the edge of a column
                 Cell(:auto), Cell(:auto),            # the bars of the cells
                 Cell(nothing),                       # no owner opens a cell
                 Cell(nothing))                       # no tooltip

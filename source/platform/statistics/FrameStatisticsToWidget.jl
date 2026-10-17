@@ -248,7 +248,7 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                 Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
-                Cell(nothing), Cell(bar), Cell(:auto), Cell(nothing), Cell(nothing))
+                Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto), Cell(nothing), Cell(nothing))
 end
 
 # The data of column `c` of the frames, aligned right, whose width reads entry

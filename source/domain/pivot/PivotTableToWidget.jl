@@ -190,7 +190,7 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
                 # table, is offered the width of its column and fills it.
                 Cell(@computation get_pivot_cell_view(pivot) isa Union{PivotNumberView,PivotGroupView} ? :clip : :wrap),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
-                Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(:auto), Cell(:auto),
+                Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(nothing), Cell(:auto), Cell(:auto),
                 Cell(nothing), Cell(nothing),
                 Cell(@computation _get_pivot_table_selection(pivot)))
 end

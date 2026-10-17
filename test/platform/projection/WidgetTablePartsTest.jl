@@ -432,10 +432,10 @@ end
     @test wheel(io, 1) === nothing
 end
 
-@testset "the table writes the row at the top as it scrolls" begin
+@testset "the table writes the row at the top and the rows in view as it scrolls" begin
     table, io = print_table(make_indexed_list(1000, texts_of))
     step = Int(head_of(io).value.h) + gap_of(io)
-    @test table.top_row == 1
+    @test table.top_row == 1 && table.shown === nothing
     # A notch is three lines of 16 pixels, the ascent and the descent of the
     # measure. The turn ends one line past five rows.
     getfield(table, :scroll_position)[] = Point2D(0, 5 * step + 16 - 3 * 16)
@@ -443,6 +443,11 @@ end
     @test table.top_row == 6
     # The top row is the row under the top edge of the cells.
     @test label_y(io, "row 6") <= body_top(io) < label_y(io, "row 7")
+    # The rows in view go from the row at the top to the last row that starts in
+    # the view, counted from the head.
+    view_h = Int(cells_viewport(io).h)
+    @test first(table.shown) == 6 && fld(view_h, step) <= length(table.shown) <= fld(view_h, step) + 2
+    @test label_y(io, "row $(last(table.shown) + 1)") >= body_bottom(io)
 end
 
 @testset "far from the head, the table moves the head to the row at the top" begin
@@ -472,6 +477,8 @@ end
     apply!(table, op)
     @test table.cells.value[1].content == "row 301"
     @test table.top_row == 1
+    # The rows in view count from the new head.
+    @test first(table.shown) == 1 && length(table.shown) > 1
     @test 0 <= Int(table.scroll_position.y[]) < step
     @test label_y(io, "row 305") == before - turn
     @test built[] < 1000

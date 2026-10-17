@@ -1293,6 +1293,33 @@ function _find_table_row_at(st::WidgetTablePartsState, y::Int)
     k
 end
 
+# The rows whose boxes meet the view from `top` down to `bottom`, in the
+# coordinates of the rules of the cells, counted from the head, as `_find_table_row_at`
+# counts: from the row at `top` to the last row that starts at or above
+# `bottom`. `nothing` when `top` is past an end.
+function _compute_table_shown_rows(st::WidgetTablePartsState, top::Int, bottom::Int)
+    first_row = _find_table_row_at(st, top)
+    first_row === nothing && return nothing
+    node = get_grid_list_head(st.cells_pane.content_iomap)
+    for _ in 1:abs(first_row - 1)
+        node = first_row > 1 ? node.next : node.prev
+    end
+    last_row = first_row
+    while node.next !== nothing && Int(node.next.value.y) <= bottom
+        node = node.next
+        last_row += 1
+    end
+    first_row:last_row
+end
+
+# The height of the view of the cells: the pane of the cells less its insets.
+function _get_table_view_height(st::WidgetTablePartsState)
+    # A fault barrier can wrap the pane, as in the print of a window.
+    pane = get_content_iomap(st.cells_pane)
+    pane isa WidgetScrollPaneToGraphicsCanvasIoMap || return Int(st.cells_pane.output.h)
+    last(_get_pane_scroll_view(get_iomap_projection(pane), pane))
+end
+
 # The IO map of the cell in row `k` and column `c`, and the place of its canvas
 # in the coordinates of the rules; `nothing` for a row past an end or an empty
 # cell. The header of row `k` is the cell in row `k` and column 1 of the pane of
@@ -1563,13 +1590,14 @@ function _find_written_offset(op, pane)
     inner.value::Point2D
 end
 
-# A scroll of the cells, and the write of the row at the top of the offset it
-# writes when that row changes. When the row is more than
-# `_TABLE_RELOCATION_DISTANCE` rows from the head, the answer moves the head of
-# the body (`_write_body_head`), and of `row_headers` when they are a list, to
-# it instead, and moves the offset by the place of that row, so the same row
-# stays at the same place on the screen; a selection of a row moves with it. A projection that owns
-# the rows turns the write of `cells` into an edit of its own.
+# A scroll of the cells, and the writes of the row at the top of the offset it
+# writes and of the rows in view (`shown`), each when it changes. When the row
+# at the top is more than `_TABLE_RELOCATION_DISTANCE` rows from the head, the
+# answer moves the head of the body (`_write_body_head`), and of `row_headers`
+# when they are a list, to it instead, and moves the offset by the place of that
+# row, so the same row stays at the same place on the screen; a selection of a
+# row moves with it, and the rows in view count from the new head. A projection
+# that owns the rows turns the write of `cells` into an edit of its own.
 function _add_top_row(iomap::WidgetTableListIoMap, op)
     w = iomap.input
     pane = iomap.state.cells_pane.input
@@ -1577,24 +1605,29 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     offset === nothing && return op
     st = iomap.state
     x, y = Int(offset.x[]), Int(offset.y[])
-    k = _find_table_row_at(st, y + st.pad_y + st.bw)
-    k === nothing && return op
+    shown = _compute_table_shown_rows(st, y + st.pad_y + st.bw, y + _get_table_view_height(st) - 1)
+    shown === nothing && return op
+    k = first(shown)
     # The writes of the answer but the scroll, such as the run of the wheel, stay
     # beside a move of the head.
     others = op isa CompoundOperation ?
         Any[o for o in op.operations if _find_written_offset(o, pane) === nothing] : Any[]
     if abs(k - 1) <= _TABLE_RELOCATION_DISTANCE
+        writes = Any[]
+        k == w.top_row || push!(writes, _write_view_state(w, "top_row", k))
+        shown == w.shown || push!(writes, _write_view_state(w, "shown", shown))
         moved = st.column_list ? _move_head_column(iomap, x, y) : nothing
-        moved === nothing || return CompoundOperation(Any[others..., moved.operations...])
-        k == w.top_row && return op
-        return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
+        moved === nothing || return CompoundOperation(Any[others..., moved.operations..., writes...])
+        isempty(writes) && return op
+        return CompoundOperation(Any[op, writes...])
     end
     writes = _write_body_head(w, k)
     found = find_grid_list_row(st.cells_pane.content_iomap, k)
     (writes === nothing || found === nothing) && return op
     moved = Any[others..., writes...,
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
-                _write_view_state(w, "top_row", 1)]
+                _write_view_state(w, "top_row", 1),
+                _write_view_state(w, "shown", 1:(last(shown) - k + 1))]
     # The row headers move in step with the rows.
     header = _find_list_node(w.row_headers, k)
     header === nothing || push!(moved, _write_view_state(w, "row_headers", header))
