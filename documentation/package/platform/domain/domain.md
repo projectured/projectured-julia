@@ -56,7 +56,7 @@ A document can need something when it enters the window: a sheet computes its va
 
 **A holder that shows other documents.** A tab, a tree and a navigator hold the documents that they show. Each calls `hold_documents!(editor, holder, documents)` from its own `acquire_document!`, and `release_held_documents!(editor, holder, documents)` from its own `release_document!`. The editor records what each holder holds. So the release frees the documents that the holder held when it was acquired, also after the holder showed other documents.
 
-`ChangeHeldDocumentsOperation(holder, released, acquired)` changes what a holder holds, as a node of a tree opens or a navigator visits another page. It acts only while the holder is held. A holder that no tab shows passes nothing on. Its inverse swaps `released` and `acquired`. The acquire, the release and the change are self-contained operations, so each goes up the readers of the views around a tree as it is.
+`ChangeHeldDocumentsOperation(holder, released, acquired)` changes what a holder holds, as a node of a tree opens, a scroll brings rows of a tree into view, or a navigator visits another page. It acts only while the holder is held. A holder that no tab shows passes nothing on. A document that it already holds is not held again, and one that it does not hold is not released. Its inverse swaps `released` and `acquired`. The acquire, the release and the change are self-contained operations, so each goes up the readers of the views around a tree as it is.
 
 ### The read of outside state
 

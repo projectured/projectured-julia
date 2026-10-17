@@ -126,8 +126,10 @@ Each step is one commit with its tests, in a worktree.
     turns, every innermost operation of the answer is view state, and the release
     of the tab lets go of all), `test_widget_tree` 96, `test_filesystem_to_widget`,
     the navigator suites.
-- [ ] **3. The guides:** the holders in `domain.md`, `tree.md`, and the tree
-  in `widget.md`.
+- [x] **3. The guides:** the holders in `domain.md`, `tree.md`, and the tree
+  in `widget.md`. `domain.md` says that a scroll changes holds and that a change
+  skips a document held or not held; `tree.md` has the shown rows, the first
+  rows at the acquire and the gaps; `widget.md` has the field `shown`.
 
 ## Risks
 
