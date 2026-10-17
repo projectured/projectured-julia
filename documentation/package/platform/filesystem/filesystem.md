@@ -13,9 +13,11 @@ The file-system slice of `ProjecturedPlatform` shows folders and files of the di
 | `FileSystemFile` | a `pathname`, and no content |
 | `FileSystemDirectory` | a `pathname` and what the last read of the folder found: `elements`, `state`, `failure`, `has_entries` and `read_count` |
 | `Workspace` | `folders`, the roots of the Explorer view |
-| `WorkspaceFolder` | a `name`, a `pathname` and its `directory`, the `FileSystemDirectory` of the folder |
+| `WorkspaceFolder` | a `name`, a `pathname` and its `directory`, the `FileSystemDirectory` of the folder; a node of a tree and a kind of the explorer |
 | `WorkspaceExplorer` | a `workspace` and `open`, the folders that this explorer shows open: what the Files tab shows |
 | `FileSystemChooser` | a `directory`, `open` and a `name`: the document of an open or save dialog |
+
+A `FileSystemFile` has a field `document`, the document that the editor holds open for the file. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict.
 
 `make_filesystem_pathname(path)` makes a `FileSystemFile`, or a `FileSystemDirectory` that is unread. A print reads only what a folder holds, and never the disk.
 
@@ -38,6 +40,10 @@ The release stops the watches and keeps the entries. The folder shows its last l
 ### The workspace and the explorer
 
 A `WorkspaceFolder` holds its `directory`, made unread with the folder, so a document holds what a read found. `Workspace` holds the folders that a person opened.
+
+`WorkspaceFolder` is a node of a tree: its children are the entries of its folder document. It is a kind of the explorer: its insertion alias is "folder", and `make_insertion_document` gives `WorkspaceFolder("", "")`, a folder with no place. The row of that folder says "New folder", has no chevron and holds nothing. Its page has a field for the place, which edits `pathname`. Open, or Return in the field, writes the place into the folder and into its folder document (`_make_folder_place_operation` in `Workspace.jl`) and holds that document, so the read starts.
+
+The page of a folder is `FileSystemDirectoryToWidget`. It shows the path, the state of the read of the folder, and a table of its entries. Each name is a link that opens the page of the entry.
 
 `WorkspaceExplorer(workspace)` is what a tab shows. `open` holds the open folders, by their documents. The folder of each workspace folder is open at the start. All explorers of one workspace share one listing of each folder, and each explorer keeps its own open folders, so two explorers can show different open folders over one read. The explorer holds its open folders: its acquire acquires each, so a folder that is open in two explorers has two holders and is read once. `open` is view state, so undo records no open or closed folder. A duplicate of an explorer shares the workspace and copies `open`.
 
@@ -83,14 +89,14 @@ default values for `nothing`. The registration gives the scaled theme of the `Ap
 
 ## How it fits
 
-The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Explorer button of the toolbar.
+The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Files button of the toolbar.
 
 Its `__init__` registers:
 
 - `register_natural_syntax!(:filesystem, …)` with the syntax view;
 - `register_natural_graphics!(:workspace, …)` with the Explorer chain for a `WorkspaceExplorer`, which comes before the chain for any other `WorkspaceDocument`.
 
-A `.pred` file builds `Workspace`, `WorkspaceFolder` and `WorkspaceExplorer` by their names, so a saved window keeps its Explorer. A file keeps the name and the place of each folder, and no entry that a read found. No parser exists. A `WorkspaceExplorer` answers to the insertion names `explorer` and `file explorer`, and it starts with the current folder. The Files pane of the application and the Explorer tool of the window make a `WorkspaceExplorer`.
+A `.pred` file builds `Workspace`, `WorkspaceFolder` and `WorkspaceExplorer` by their names, so a saved window keeps its Explorer. A file keeps the name and the place of each folder, and no entry that a read found. No parser exists. A `WorkspaceExplorer` answers to the insertion names `files` and `file explorer`, and it starts with the current folder. The Files tool of the window makes a `WorkspaceExplorer`.
 
 ## Design decisions
 

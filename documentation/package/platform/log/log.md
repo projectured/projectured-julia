@@ -25,7 +25,7 @@ fills them with `get_message_log_style`, from a `MessageLogTheme` scaled or not,
 
 ## How it fits
 
-The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)`. `pred_arguments` saves only the capacity, so a loaded log starts empty.
+The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)`. `pred_arguments` writes no field, and a loaded log is the message log of the session of the editor that loads it (`make_pred_document`), so a window file keeps that a tab shows the log, not its entries.
 
 The `message_log` wrapper of `build_editor`, in this slice, installs the capture in a start step and gives the editor a `MessageLogFeed`, and removes the capture again in a stop step when the loop of the editor ends. The toolbar of the shell slice has a button that opens the log, only when the wrapper is on.
 

@@ -53,7 +53,7 @@ The statistics slice depends on the kernel for the feed contract and the perform
 
 The statistics slice registers one natural row: the graphics row `:statistics` draws a `FrameStatistics` through `FrameStatisticsToWidget` and `VerticalLayoutToGraphicsCanvas`, and the widgets come back through the renderer, which draws them with the rows of the widgets. The chart domain registers the graphics row `:frame_time_series`, which draws a `FrameTimeSeries` through `FrameTimeSeriesToChart`, `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`. A `.pred` file builds both documents by their names, so a saved window can hold their tabs.
 
-`pred_arguments` saves nothing: the numbers of one session are not the numbers of the next.
+`pred_arguments` of a `FrameStatistics` and of a `FrameTimeSeries` writes no field: the numbers of one session are not the numbers of the next. A loaded document is the one of the session of the editor that loads it (`make_pred_document`), so a window file keeps that a tab shows the statistics.
 
 ## Design decisions
 

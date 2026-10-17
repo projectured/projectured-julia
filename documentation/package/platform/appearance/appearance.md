@@ -125,6 +125,8 @@ its values at once, and the table of a theme that a builder makes later waits in
 it builds, so a saved appearance survives a restart. `SaveAppearanceOperation`
 and `LoadAppearanceOperation` are the buttons of the tab.
 
+`pred_arguments` of `Appearance` writes no field. A loaded `Appearance` is the appearance of the editor that loads it (`find_editor_appearance`), else a new `Appearance`, so a window file keeps that a tab shows the appearance. The TOML file above keeps the values.
+
 ## How it fits
 
 The slice depends on the kernel and on the layout, natural, primitive, projection, screen, style, syntax, text and widget slices; it names the editor themes of the tab, so it loads after the syntax slice. Only the shell slice depends on it. The backends read the zoom from the `Display`: the SDL backend finds a new zoom when it draws, and keeps the device size of each window. The domains and the widgets get their themes from the `Appearance` that their builders pass; see [style.md](../style/style.md#themes-and-the-appearance) and [widget.md](../widget/widget.md).

@@ -93,7 +93,7 @@ tabs of the pane tree with `collect_pane_tab_contents(tree, Assistant)`. The
 wrapper `assistant_list = true` of `build_editor` links the list of the session
 of its editor to the pane tree of the window in a start step, so the
 [application](../application/application.md) and any other window that turns
-the wrapper on lists the assistants of its tabs. A file that loads before the
+the wrapper on lists the assistants of its tabs. `AssistantList` is a kind of the explorer (`is_explorer_entry_type`). `pred_arguments` writes no field, so a window file and the file of the explorer keep that a tab or an entry shows the list of the session. A file that loads before the
 editor exists gives a new list; the wrapper links it too, and the first such
 list is the list of the session. The read depends
 only on the structure of the panes, so a tab that opens, closes or comes back

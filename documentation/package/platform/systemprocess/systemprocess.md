@@ -96,6 +96,10 @@ A tree whose folder is not there says why in the text of its root node: "No /pro
 Roster(SystemProcesses(tree); columns = ["process_id", "command", "load", "within.process_id"])
 ```
 
+### What a file keeps
+
+`pred_arguments` of a `SystemProcessTree` writes its title, its folder (`root`) and its process ids. A tree of the process of the editor writes that it shows that process (`editor_process`), and a loaded tree shows the process of the editor that loads it.
+
 ### The tree of a running task
 
 The task slice makes a `SystemProcessTree` of the process of the current execution of a task, as the computed field `process_tree` of `TaskDocument`. The detail of the task shows it in a card while the task runs. A build or a simulation run shows its compilers or its workers, with no code in its domain.

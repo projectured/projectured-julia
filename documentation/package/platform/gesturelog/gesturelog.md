@@ -51,7 +51,7 @@ The gesturelog slice depends on the kernel and on the collection, domain, graphi
 
 The `gesture_log` wrapper of `build_editor`, in this slice, puts a recorder outermost in the container layer of a window, over the log of the session of its editor, `get_session_gesture_log(; editor)`: the log that its option `log` gives, or else a new one. Each editor has its own. The application gives the first gesture log that a tab of its window shows, such as a tab that a file or a take opened before the editor existed; [shell.md](../shell/shell.md#the-wrappers-of-a-window) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
 
-Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the log of the session of the editor, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size, which its recorder fills.
+Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the log of the session of the editor, because a new log would never fill: only a recorder writes into a log. `pred_arguments` writes no field, and a loaded log is the gesture log of the session of the editor that loads it (`make_pred_document`), which its recorder fills. A window file keeps that a tab shows the log.
 
 ## Design decisions
 

@@ -39,6 +39,8 @@ The `window` wrapper takes the `PointerSettings` of the same editor from `Editor
 - The start step keeps the types of the groups that the editor does not use in `Settings.unused_types`: an applied group (`is_settings_group_applied`) that neither the editor nor its backend applies, such as the render group of a backend that draws no windows. The card of such a group says so, and its controls are off.
 - A control edit, a reset and "Reset all" are normal edits of the groups. The wrapper applies them, and a history that holds the tab records them, so Ctrl+Z takes a change back and applies the old value.
 
+`pred_arguments` of `Settings` writes no field. A loaded `Settings` is the settings of the editor that loads it (`find_editor_settings`), else a new `Settings`, so a window file keeps that a tab shows the settings, and no value.
+
 ## Tests that check the root
 
 The wrapper changes the root of every editor that `build_editor` makes. A test that checks the root document after `build_editor`, or the depth of a selection path, turns it off with `settings = false`, as it turns off `appearance` and `tabs`.

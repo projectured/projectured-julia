@@ -151,7 +151,7 @@ The kernel layer `fault` is the lowest layer of the kernel and imports nothing. 
 
 The `fault_log` wrapper attaches the session's fault log when a window starts, and the shell slice's toolbar has a Fault log button that opens it only when the wrapper is on; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 
-The fault slice registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` holds only `capacity`, so a loaded log starts empty.
+The fault slice registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` writes no field, and a loaded log is the fault log of the session of the editor that loads it (`make_pred_document`). A window file keeps that a tab shows the log, and no fault.
 
 ## Design decisions
 

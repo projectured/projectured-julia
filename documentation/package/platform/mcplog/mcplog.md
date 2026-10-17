@@ -22,7 +22,7 @@ A call that the adapter records is one of two: `tools/call`, with the name of th
 
 ## How it fits
 
-The slice depends on the kernel for the feed contract, and on the layout, widget and shell slices for the view and the button. Its `__init__` registers the view with `register_natural_graphics!(:mcplog, …)`; the widgets it builds come back through the renderer. `pred_arguments` saves only the capacity.
+The slice depends on the kernel for the feed contract, and on the layout, widget and shell slices for the view and the button. Its `__init__` registers the view with `register_natural_graphics!(:mcplog, …)`; the widgets it builds come back through the renderer. `pred_arguments` writes no field, and a loaded log is the MCP log of the session of the editor that loads it (`make_pred_document`). A window file keeps that a tab shows the log, and no call.
 
 The `mcp_log` wrapper of `build_editor` gives the editor a `McpLogFeed`. `make_mcp_log_tool()` is the button of the toolbar that opens the log; a host passes it to the `tools` of the `shell` wrapper when its editor serves MCP, because the shell names no tool of an adapter.
 

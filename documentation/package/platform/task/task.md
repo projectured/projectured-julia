@@ -312,6 +312,8 @@ it reads no lazy part of a content. A group adds itself at the end of the
 list of the editor of the evaluation when it starts. A group that starts outside
 every editor, such as from a script, joins no list.
 
+`TaskGroupList` has the insertion alias "tasks", and its insertion gives the list of the session (`make_insertion_document`). It is a kind of the explorer (`is_explorer_entry_type`). `pred_arguments` writes no field, and a loaded list is the list of the session of the editor that loads it, so a window file and the file of the explorer keep that a tab or an entry shows the list, and no group.
+
 A group keeps its place, so a path `groups[k]` names the same group for the whole
 session. A close of its row puts a `ClosedTaskGroup` in the place: the
 identifier, the title and the line that sums the group up. The tasks and their

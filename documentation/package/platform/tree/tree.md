@@ -21,7 +21,7 @@ The open nodes are `expanded`, the open places: an `IdDict` whose keys are the d
 
 ### Four generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label.
+The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. A fifth generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
 
 | Generic | Answers | Default |
 | --- | --- | --- |
@@ -45,6 +45,8 @@ TreeModule.get_tree_node_icon(::Folder) = :folder
 
 The functions run inside a computation, so they read cells, and a node follows what it reads.
 
+The row of a node draws the decoration of its document (`get_document_decoration` of the domain slice). The icon, with its tint and corner marks, comes from `make_decoration_icon`. The counts follow the label as pills (`make_decoration_badges`), and the detail follows as dim text. The words of the conditions are the tooltip of the row, which shows when the pointer rests on it (`_read_wtree_row_dwell`).
+
 A row draws a chevron only when `has_tree_children` answers `true`. A document whose children come from outside, such as a folder, answers from what it stores, so a closed row reads no children. `DocumentTreeToWidgetTree` gives each `WidgetTreeNode` the function `has_children = () -> has_tree_children(document) === true`. When a node gives `has_children`, the widget tree reads the chevron from it and reads no children while the row is closed. A node with no `has_children` reads its children for the chevron.
 
 ### The print
@@ -56,6 +58,8 @@ A label reads only the cells of its own document. So a change of the text of one
 A document whose one collection of children is a lazy list, a `ListNode`, has its entries and its widget nodes as two lists that mirror that list node for node (`make_mapped_list`). A node of them is made when a walk of the rows first reaches it, so a document with a million children makes only the entries of the rows in view, and the widget tree makes its rows as a lazy list too ([widget.md](../widget/widget.md)). The mirror is made again when the document gives a new list. `has_tree_children` is `true` by default for a lazy list of children, which has a node at its head.
 
 A tree draws through `make_graphics_projection(DocumentTree)`, which chains the print to a widget renderer of its own, so a tree draws in the natural renderer and in the card of a pane.
+
+`collect_tree_children(document; limit)` and `collect_read_tree_children(document)` are exported helpers. The first gives the first `limit` children of a document with the path of each, and walks a lazy list on from its head. The second gives only the nodes of a lazy list that a walk reached, so it reads no disk and no process. The page of a section and the filter of an explorer use them.
 
 ### The maps follow the steps
 
@@ -96,7 +100,9 @@ These slices add kinds of node:
 | [systemprocess.md](../systemprocess/systemprocess.md) | `SystemProcessTree`, `SystemProcess` | the roots; the children of a process |
 | [workplan.md](../workplan/workplan.md) | `WorkPlan`, `WorkPlanStep` | the steps; the steps under a step |
 | [task.md](../task/task.md) | `TaskGroupList`, `TaskGroupDocument`, `TaskDocument`, `ClosedTaskGroup` | the groups; the tasks of a group; the tasks of the inner group of a task that is a group, else none |
-| [assistant.md](../assistant/assistant.md) | `AgentWork`, `AssistantWork` | the subagents, then the background tasks |
+| [assistant.md](../assistant/assistant.md) | `AssistantList`, `Assistant`, `AgentWork`, `AssistantWork` | the assistants; the subagents, then the background tasks |
+| [filesystem.md](../filesystem/filesystem.md) | `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile` | the folders; the entries of the folder document; the entries of a folder; none |
+| [explorer.md](../explorer/explorer.md) | `ExplorerSection`, `Dashboard`, `DashboardCard` | the entries; the cards; none |
 
 ## Design decisions
 
@@ -109,7 +115,7 @@ These slices add kinds of node:
 
 - **No columns.** A node is one line of text with an icon. A table of the same items is a `Roster`.
 - **A node under a closed node leaves `expanded` at the next write.** The open paths of the widget list the open nodes that a walk reaches through open nodes only. A node that opens again shows its children closed.
-- **A label is text.** A node has no button, no badge and no editable part. A press on a node selects or opens its document.
+- **A label is text.** A row has no button and no editable part. It has badges, which are the counts of the decoration. A press on a node selects or opens its document.
 - **A file keeps no open node.** A tree read from a file has its root open.
 - **A lazy list of children is the only collection of its node.** It has no count, so a lazy list beside another collection gives no children.
 - **An open child of a lazy list opens only after a walk reached it.** The open nodes are found among the entries that a walk made, so a child that no row showed stays closed.
@@ -120,7 +126,7 @@ The slice is the folder [source/platform/tree/](../../../../source/platform/tree
 
 ```
 tree/TreeModule.jl                (TreeModule): the module, its exports and its include order
-    ├─ TreeInterface.jl           : the four generics, with no body
+    ├─ TreeInterface.jl           : the generics, with no body
     ├─ TreeDefaults.jl            : their fallback behaviours
     ├─ TreeDocument.jl            : DocumentTree
     ├─ DocumentTreeToWidgetTree.jl: the print, the reader, the maps, the open nodes, the open of a page
