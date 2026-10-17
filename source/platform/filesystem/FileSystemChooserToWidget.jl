@@ -40,7 +40,8 @@ function print_document(p::FileSystemChooserToWidget, recursion,
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       expanded,
                       Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                      Cell(nothing), tree_paths.selection, tree_paths.mouse_target)
+                      Cell(nothing), Cell(nothing),
+                      tree_paths.selection, tree_paths.mouse_target)
     field = WidgetText(""; width = _CHOOSER_FIELD_WIDTH)
     set_cell_computation!(getfield(field, :content), () -> String(chooser.name))
     set_output_path_computations!(field, chooser, path -> _map_chooser_field_path(path))

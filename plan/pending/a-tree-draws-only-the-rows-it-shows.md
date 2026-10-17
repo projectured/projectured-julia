@@ -44,6 +44,13 @@ reaches (`plan/done/a-table-scrolls-its-own-parts.md`). A tree must do the same.
    a search, and gives the pane the height of the rows and its bar. A tree whose
    open nodes each count their children keeps it.
 
+6. **The anchor is the row itself, not its path** (found at step 2). A path into a
+   lazy list of children counts from the head of that list, so a lookup by path
+   walks the list from its head: the head at run 5,000,000 would make 5,000,000
+   children. The anchor holds the place of the row among its siblings (its
+   collection, its index, its node of a lazy list, and the row of its parent), as
+   a lazy table holds the node of its head in `cells`.
+
 ## The model
 
 The children of a node can be a lazy list. The rows of an open tree are one lazy
@@ -61,8 +68,8 @@ tree = WidgetTree(Any[WidgetTreeNode(:folder, "project", Any[sweep])];
 - The `next` of a row is its first child when it is open, else its next
   sibling, else the next sibling of the nearest node above it. The `prev` of a
   row is the reverse. A sibling in a lazy list is the next node of that list.
-- The head of the rows is the anchor of the tree: the path of a row, by default
-  the first row. The offset of the pane counts from the head, so a row before the
+- The head of the rows is the anchor of the tree: a row, by default the first
+  row (decision 6). The offset of the pane counts from the head, so a row before the
   head has a negative place, as in a lazy table.
 - A path into a lazy list of children counts from the head of that list
   (`roots[1].children[1].children[k]`), as every path into a `ListNode` does.
@@ -142,10 +149,33 @@ Each step is one commit with its tests, in a worktree.
     `test_scroll_pane_bar`, `test_scroll_layout` 29, `test_dataframes` 612. The
     platform suite: 163,261 pass, 7 broken, and 1 fail that fails the same on the
     code of 2026-10-16 (the process tree of a running task never syncs a row).
-- [ ] **2. A far scroll moves the anchor.** The scroll operation of the pane of
+- [x] **2. A far scroll moves the anchor.** The scroll operation of the pane of
   the tree writes the anchor and the rebased offset when the top row is far from
   the head. Tests: a scroll of 1,000,000 rows keeps the made rows bounded, and
   the selection and the open paths stay.
+
+  What step 2 made:
+  - `WidgetTree` has the field `anchor` (view state, default `nothing`). A
+    positional call that passes the selection and the pointer passes the anchor
+    before them; the four in the platform do.
+  - The head is the row of the anchor while it is still in the open tree: its
+    collection is the children of the node of the row above it, that node is open,
+    and its index is inside. Else the head is the nearest row above it that is, so
+    an anchor under a node that closed gives the row of that node.
+  - A row has a link back: the last row under the sibling before it, else the
+    row of its parent. The last row under an open lazy list of children is found
+    by a walk to the end of that list.
+  - The reader of the rows pane of a tree turns a scroll whose top row is more
+    than 200 rows from the head (`_TREE_RELOCATION_DISTANCE`) into a write of the
+    anchor and of the offset less the place of that row. The selection is a path
+    of the node, so it does not move.
+  - The click and the width walk both ways from the head.
+  - Tests: `test_widget_tree` 75 (a new testset: the wheel turns down until the
+    head moves near run 200, down again by about 200 runs, then up past the head;
+    the rows that a walk made stay few, and the selection stays), `test_document_tree`
+    82, `test_filesystem_to_widget`, `test_file_dialog` 22, `test_tree_render` 9,
+    `test_widget_rows_scroll`. Rows passed by a scroll are made once each: a lazy
+    list of children has no jump.
 - [ ] **3. A document tree with a lazy collection.** `DocumentTreeToWidgetTree`
   maps a `ListNode` collection lazily; the open nodes and their holders work
   through it. Tests: `TreeTest`, and a document with 1,000,000 lazy children

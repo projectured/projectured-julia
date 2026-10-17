@@ -3061,6 +3061,11 @@ A tree that gets a slot on the vertical axis fills it and scrolls its rows
 there, inside its border, as a table does; with no slot it is as tall as its
 open rows. `scroll_position` is the offset of the rows, and `vertical_scroll_bar`
 and `horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
+
+`anchor` is view state of a tree that makes its rows as a lazy list: the row at
+the head of the list, which the tree writes when a scroll takes the row at the
+top far from the head, or `nothing` for the first row. The offset counts from
+the head.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
@@ -3076,6 +3081,7 @@ and `horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner
     tooltip::Any
+    anchor::Any = nothing        # view state: the row at the head of a lazy list of rows
 end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
@@ -3085,7 +3091,8 @@ WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
     WidgetTree(Cell(position), CellVector(Cell[Cell(_convert_to_tree_node(n)) for n in roots]),
                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(Set{Vector{Int}}(expanded)), Cell(gestures),
-               Cell(scroll_position), Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar), Cell(tooltip))
+               Cell(scroll_position), Cell(vertical_scroll_bar),
+               Cell(horizontal_scroll_bar), Cell(tooltip), Cell(nothing))
 
 # A `(label, children)` tuple becomes a node with no icon, and so do the tuples
 # among its children. Any other node is kept as it is.

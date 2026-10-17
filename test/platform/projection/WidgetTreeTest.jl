@@ -297,6 +297,57 @@ end
     @test _readop(short_io, MouseClick(:left, 100, 4 * 20 + 5, _mods; time = 0.0)) === nothing
 end
 
+# A tree in a slot, which prints its rows in a pane of its own.
+_print_tree_pane(w; width = 300, height = 200) =
+    print_document(_treeproj, _w2g, w,
+                   ProjecturedKernel.ProjectionModule.with_exact_size(
+                       PrinterContext(); width = Cell(Int32(width)), height = Cell(Int32(height))))
+
+@testset "a far scroll moves the head of a lazy list of rows to the row at the top" begin
+    made = Ref(0)
+    runs = make_index_list(10_000_000, 1, k -> (made[] += 1; WidgetTreeNode("", "Run $(k - 1)", Any[])))
+    sweep = WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
+    w = WidgetTree(Any[WidgetTreeNode("", "project", Any[sweep])]; expanded = Set([[1], [1, 1]]))
+    io = _print_tree_pane(w)
+    @test io isa WidgetModule.WidgetRowsPaneIoMap
+    rows = io.pane.content_iomap
+    head_path() = rows.geometry.head.value.row.path
+    replace_selection!(w, _node([1, 1, 2]))
+    # The wheel turns down, a notch at a time, until the head moves.
+    turn!(notches, time) = (op = read_intent(_treeproj, io, MouseScroll(0, notches, 20, 60; time));
+                            op === nothing || evaluate_operation(nothing, op))
+    time = 0.0
+    while w.anchor === nothing && time < 2000
+        turn!(-3, time += 1.0)
+    end
+    @test w.anchor isa WidgetModule.WTreeListRow
+    # The head is the row at the top, and the offset counts from it. Two rows lie
+    # above the runs, so the head is run 199 or later.
+    first_move = head_path()
+    @test first_move[1:2] == [1, 1] && first_move[3] >= 199
+    @test 0 <= Int(w.scroll_position.y[]) < 20
+    # The rows of the new head that a walk made are few, and the selection stays.
+    @test length(rows.geometry.built) <= 3
+    @test WidgetModule._wtree_ref_path(w.selection) == [1, 1, 2]
+    # A click at the top names the row of the head.
+    time += 1.0
+    click = read_intent(_treeproj, io, MouseClick(:left, 100, 5, _mods; time))
+    @test click isa ReplaceSelectionOperation && WidgetModule._wtree_ref_path(click.path) == first_move
+    # Down again: the head moves on, each time by about the distance.
+    while head_path() == first_move && time < 4000
+        turn!(-3, time += 1.0)
+    end
+    second_move = head_path()
+    @test second_move[3] > first_move[3] + 200
+    # Up past the head: the rows before it come from the links back, and the head
+    # moves up.
+    while head_path() == second_move && time < 6000
+        turn!(3, time += 1.0)
+    end
+    @test head_path()[3] < second_move[3]
+    @test made[] < second_move[3] + 300
+end
+
 @testset "a tree whose open nodes count their children lays out its rows and has their height" begin
     files = Any[WidgetTreeNode("", "file$(k).txt", Any[]) for k in 1:5000]
     w = WidgetTree(Any[WidgetTreeNode("", "folder", files)]; expanded = Set([[1]]))
