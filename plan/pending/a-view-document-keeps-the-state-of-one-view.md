@@ -84,6 +84,19 @@ says this in `concepts.md`, so the two words do not meet.
    2026-10-17: "I agree with your recommendations"). The navigator keeps the view
    of its page, as it keeps the address and the selection of each visit; what the
    view shows and holds stays in the view.
+5. **The selection of a view follows the selection of its content (D1)** (the
+   owner, 2026-10-18: "I agree it's D1"). A selection path keeps going through the
+   content, `content.<address>.<rest>`, and every user of the navigator keeps its
+   paths. When the navigator makes a view, the selection cell and the cell of the
+   part under the pointer of the view are computations: the edited field of the
+   view, then the cell of its content. The map of the navigator to its drawing puts
+   that field into the path, and its map back takes it out. A part that only the
+   view draws has no content path, and is named by an introduced reference. Over
+   D2, in which the paths of the navigator go through the view: D2 changes eight
+   places of the navigator and the paths that the explorer reads, while the
+   content still keeps the selection. D2 is the direction of the later plan
+   `a-view-keeps-its-selection-and-its-folds.md`, in which a view keeps its own
+   selection; then the computed cell becomes a stored one.
 
 ## Q1. Where the view of a page lives (decided: (a))
 
@@ -137,7 +150,7 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
    of `WidgetTable`. Tests: a table whose rows are a list 253, task pages 47, cell
    table 11 + 4, roster table 24, tool themes 113, data frames 612, pivot 299,
    markdown 268; all pass.
-3. [ ] **The navigator shows the view of its page** (decision 4). `make_document_view`
+3. [ ] **The navigator shows the view of its page** (decisions 4 and 5). `make_document_view`
    in the domain slice; `Navigator.view` and `NavigatorVisit.view`; a visit makes
    the view of its page, and Back and Forward give back the view of their visit; the
    navigator holds the view in place of the page; the print draws the view, and a
