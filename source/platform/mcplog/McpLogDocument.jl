@@ -83,3 +83,11 @@ function get_document_decoration(log::McpLog)
     DocumentDecoration(; icon = :plug, conditions = [DocumentCondition(:failed)],
                        counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)])
 end
+
+# The command of the log, with no key: a person runs it from the command palette
+# or the menu of its row, and the count of the faults goes back to zero.
+@gestures McpLog begin
+    nothing => "Clear the MCP log" =>
+        CompoundOperation(Any[ReplaceReferencedValueOperation(doc, "entries", CellVector()),
+                              ReplaceReferencedValueOperation(doc, "faults", 0)])
+end

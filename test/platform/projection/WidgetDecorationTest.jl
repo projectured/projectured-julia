@@ -131,6 +131,23 @@ function test_document_decoration()
         @test [condition.name for condition in get_document_decoration(page).conditions] == [:changed_on_disk]
     end
 
+    @testset "a log that counts its faults has a command that clears them" begin
+        log = FaultLog()
+        push!(log.entries, FaultLogEntry(1, UInt64(1), :print, :Test, "broken", 1))
+        @test only(get_document_decoration(log).conditions).count == 1
+        collected = read_gesture(log, CollectIntents())
+        clear = only(intent for intent in collected.intents if intent.description == "Clear the fault log")
+        evaluate_operation(nothing, clear.operation)
+        @test isempty(log.entries) && isempty(get_document_decoration(log).conditions)
+        calls = McpLog()
+        calls.faults = 2
+        @test [count.text for count in get_document_decoration(calls).counts] == ["2 faults"]
+        collected = read_gesture(calls, CollectIntents())
+        clear = only(intent for intent in collected.intents if intent.description == "Clear the MCP log")
+        evaluate_operation(nothing, clear.operation)
+        @test calls.faults == 0 && isempty(get_document_decoration(calls).counts)
+    end
+
     @testset "the default title of a tab reads the decoration of its content" begin
         node = _DecoratedNode("busy", :running)
         title = make_pane_tab_title(node, "busy")

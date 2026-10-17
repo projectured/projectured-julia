@@ -184,3 +184,9 @@ function get_document_decoration(log::FaultLog)
     DocumentDecoration(; icon = :warning,
                        conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)])
 end
+
+# The command of the log, with no key: a person runs it from the command palette
+# or the menu of its row, and the count of the faults goes back to zero.
+@gestures FaultLog begin
+    nothing => "Clear the fault log" => ReplaceReferencedValueOperation(doc, "entries", CellVector())
+end

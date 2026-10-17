@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 and 2 done, step 3 parts 3a, 3b and 3c done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1, 2 and 3 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -960,7 +960,7 @@ before each edit of a kernel file. Mark each step done here.
      the output of the tree in rows, less one. The view does not scroll to the
      new selection, as before (a limit of the file tree too).
    - `tree.md` describes places, the mark and the keys.
-3. [ ] **The decoration of a document** (projectured, §5.14). `DocumentDecoration`
+3. [x] **The decoration of a document** (projectured, §5.14). `DocumentDecoration`
    and `get_document_decoration` in the domain slice, the table of the
    conditions, `WidgetIcon` and its printer, `WidgetTreeNode.badges` and
    `detail`, the default of `make_pane_tab_title` that reads the decoration;
@@ -1047,6 +1047,28 @@ before each edit of a kernel file. Mark each step done here.
    - The system process, settings management, appearance, roster and
      arrangement slices have the edge `domain`.
    - `get_tree_node_icon` now has methods only in omnet; step 10 moves them.
+   **Part 3d done 2026-10-17: the tooltip of a row, the Clear commands, and the
+   check of the marks.** What it found and decided:
+   - A row has the tooltip of its node: `WidgetTreeNode.tooltip`, which the tree
+     of documents fills with the conditions in words. A rest of the pointer on
+     the row answers `OpenTooltipOperation`, titled by the label and rooted under
+     the node, as the mark of a cell of a table answers.
+   - The fault log has the command "Clear the fault log", and the MCP log "Clear
+     the MCP log" (empty entries, no faults), as rows with no key of their own
+     gesture tables: the command palette runs them, and the menu of a row will.
+   - The check of rule 7, on images at the density 1 and 2 with no supersample:
+     the first sizes hid the glyph and made a dot of one pixel. A mark is now 50 %
+     of the icon and centered on the corner of its box; a count is a pill whose
+     text is 60 % of the icon, at least 8 pixels; the unsaved mark is a filled
+     disc, because the glyph of a dot is one or two pixels at that size. Four
+     marks on one icon of 16 pixels still hide much of the glyph at the density
+     1, as overlays do in IDEs; most rows have one or two.
+   - Not done, a question for the owner: the count of the Fault log button. The
+     shell builds the toolbar before the editor exists, and the fault log
+     wrapper attaches the log of the editor later, so the button needs a link
+     between two wrappers, which is a new mechanism.
+   - Not done, a question for the owner: `:failed` of a file whose change does
+     not parse (see part 3c).
 4. [ ] **The kinds of projectured become nodes.** The four generics for
    `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile`,
    `Roster`, `AssistantList` and `Assistant`; the page of a folder as a table of

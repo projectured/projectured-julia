@@ -84,7 +84,8 @@ function _make_tree_node(entry::_TreeEntry)
     WidgetTreeNode(icon, label, nodes;
                    gestures = _make_open_page_bindings(entry.path),
                    has_children = () -> has_tree_children(entry.document) === true,
-                   badges = make_decoration_badges(decoration), detail = decoration.detail)
+                   badges = make_decoration_badges(decoration), detail = decoration.detail,
+                   tooltip = (words = format_decoration_words(decoration); isempty(words) ? nothing : words))
 end
 
 # The lazy list of the children of `document`: its one collection of children,

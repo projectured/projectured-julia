@@ -3056,7 +3056,7 @@ _describe_table_header(header) =
 
 """
     WidgetTreeNode(icon, label, children = []; gestures = GestureBinding[], has_children = nothing,
-                   badges = [], detail = "")
+                   badges = [], detail = "", tooltip = nothing)
 
 A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
 distinct from its text **label** (the decoration model used by typical widget
@@ -3064,7 +3064,8 @@ libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
 is a Lucide glyph as a `Symbol`, a [`WidgetIcon`](@ref) with its tint and its
 corner marks, a glyph `String`, or `nothing`. `badges` are `WidgetBadge` pills
 that the row draws after the label, and `detail` is dim text between the label
-and the pills. `children` is a
+and the pills. `tooltip` is the text that a rest of the pointer on the row
+shows, or `nothing`. `children` is a
 `Vector` of child nodes (each a `WidgetTreeNode` or a leaf `String`), a
 `CellVector` of them, or a `ListNode`: a lazy list, whose children count from its
 head. An empty `Vector` or `CellVector` marks a leaf, and a leaf has no chevron.
@@ -3091,6 +3092,7 @@ struct WidgetTreeNode
     has_children::Any            # nothing, or a function () -> Bool for the chevron
     badges::Vector{Any}          # the WidgetBadge pills after the label
     detail::String               # dim text after the label
+    tooltip::Any                 # the text of a rest of the pointer on the row, or nothing
 end
 # A node is a plain value (not a `Document`), so it has no `selection`; its
 # per-instance `gestures` are fired by `read_bound_gesture` against the enclosing
@@ -3099,9 +3101,10 @@ end
 # right-click / Enter binding that opens what the node stands for).
 WidgetTreeNode(icon, label, children, gestures) = WidgetTreeNode(icon, label, children, gestures, nothing)
 WidgetTreeNode(icon, label, children, gestures, has_children) =
-    WidgetTreeNode(icon, label, children, gestures, has_children, Any[], "")
-WidgetTreeNode(icon, label, children; gestures=GestureBinding[], has_children=nothing, badges=Any[], detail="") =
-    WidgetTreeNode(icon, label, children, gestures, has_children, Any[badges...], String(detail))
+    WidgetTreeNode(icon, label, children, gestures, has_children, Any[], "", nothing)
+WidgetTreeNode(icon, label, children; gestures=GestureBinding[], has_children=nothing, badges=Any[], detail="",
+               tooltip=nothing) =
+    WidgetTreeNode(icon, label, children, gestures, has_children, Any[badges...], String(detail), tooltip)
 WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
     WidgetTreeNode(icon, label, Any[], gestures, nothing)
 

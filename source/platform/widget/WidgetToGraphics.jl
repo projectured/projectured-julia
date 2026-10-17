@@ -11610,6 +11610,7 @@ WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
 _tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
 _tree_badges(node) = node isa WidgetTreeNode ? node.badges : Any[]
 _tree_detail(node) = node isa WidgetTreeNode ? node.detail : ""
+_tree_tooltip(node) = node isa WidgetTreeNode ? node.tooltip : nothing
 _tree_label(node) = node isa WidgetTreeNode ? string(node.label) : string(node)
 # The children of a `WidgetTreeNode` are not read here: the caller reads them,
 # and the tree reads them only for a drawn row and for an open node.
@@ -12376,6 +12377,7 @@ function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsC
     op === nothing || return op
     nop = _wtree_node_gesture(p, iomap, evt)
     nop === nothing || return nop
+    evt isa MouseDwell && return _read_wtree_row_dwell(p, iomap, evt)
     if evt isa MouseClick && evt.button === :left
         return _wtree_mouse_press(p, iomap, evt)
     elseif evt isa KeyDown
@@ -12486,6 +12488,22 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     node = _find_wtree_node(geom, w, path)
     node === nothing && return nothing
     return read_bound_gesture(node, g, w.selection)
+end
+
+# The tooltip of the row under a rest of the pointer, titled by its label and
+# rooted under its node, as the mark of a cell of a table answers; `nothing` for a
+# row whose node has no tooltip.
+function _read_wtree_row_dwell(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap,
+                               g::MouseDwell)
+    _, content_y = _get_rows_content_offset(p, iomap)
+    row = _wtree_row_at(iomap.geometry, g.y - content_y)
+    row === nothing && return nothing
+    node = _find_wtree_node(iomap.geometry, iomap.input, row.path)
+    tooltip = _tree_tooltip(node)
+    (tooltip === nothing || isempty(tooltip)) && return nothing
+    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), PrimitiveString(String(tooltip)))],
+                                EmptyReference(), (g.x, g.y))
+    reroot_operation(ReplaceViewStateOperation(open), Tuple(get_reference_steps(_wtree_path_ref(row.path))))
 end
 
 # A left click on the chevron of a row with children opens or closes it; anywhere

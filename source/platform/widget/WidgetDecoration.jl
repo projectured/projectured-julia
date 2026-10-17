@@ -86,30 +86,41 @@ function _push_decorated_icon!(elements::Vector, badge, icon, x::Int, y::Int, si
     true
 end
 
-# The share of the size of an icon that a corner mark takes.
-const _ICON_MARK_SHARE = 0.45
+# The share of the size of an icon that a corner mark takes, and the share that
+# the text of a count takes.
+const _ICON_MARK_SHARE = 0.5
+const _ICON_COUNT_SHARE = 0.6
 
-# One corner mark of an icon at `x`, `y` of `size`: a glyph on a disc of
-# `background`, or a count on a pill of the surface of its role, half outside the
-# box of the icon at `corner`.
+# One corner mark of an icon at `x`, `y` of `size`, centered on the corner of its
+# box, so the middle of the glyph stays clear: a glyph on a disc of `background`,
+# a count on a pill of the surface of its role, or, for `:dot`, a filled disc in
+# the color of the mark, which reads at any size where the glyph of a dot does not.
 function _push_icon_mark!(elements::Vector, badge, mark::WidgetIconMark, corner::Symbol, x::Int, y::Int,
                           size::Int, color::StyleColor, background::StyleColor)
-    side = max(4, round(Int, size * _ICON_MARK_SHARE))
-    left = corner in (:top_left, :bottom_left) ? x - side ÷ 3 : x + size - (2 * side) ÷ 3
-    top = corner in (:top_left, :top_right) ? y - side ÷ 3 : y + size - (2 * side) ÷ 3
+    side = max(5, round(Int, size * _ICON_MARK_SHARE))
+    center_x = corner in (:top_left, :bottom_left) ? x : x + size
+    center_y = corner in (:top_left, :top_right) ? y : y + size
     role = mark.role
     mark_color = role === nothing ? color : _get_role_text_color(badge, role, color)
     content = mark.content
     if content isa Integer
         text = content > 99 ? "99+" : string(content)
-        font = with_font_size(badge.label_text.font, side)
+        font = with_font_size(badge.label_text.font, max(8, round(Int, size * _ICON_COUNT_SHARE)))
         text_width, text_height = _text_size(badge.measure, font, text)
-        width = max(side + 2, text_width + 4)
+        height = text_height + 2
+        width = max(height, text_width + 4)
         surface = role in _BADGE_ROLES ? getproperty(badge, Symbol(role, "_surface_color")) : background
-        push!(elements, GraphicsRect(left - 1, top - 1, width, side + 2; color = surface, radius = (side + 2) ÷ 2))
-        _push_text!(elements, badge.measure, font, text, left - 1 + (width - text_width) ÷ 2,
-                    top - 1 + (side + 2 - text_height) ÷ 2, mark_color)
+        left, top = center_x - width ÷ 2, center_y - height ÷ 2
+        push!(elements, GraphicsRect(left, top, width, height; color = surface, radius = height ÷ 2))
+        _push_text!(elements, badge.measure, font, text, left + (width - text_width) ÷ 2, top + 1, mark_color)
+    elseif content === :dot
+        disc = max(4, round(Int, side * 0.7))
+        push!(elements, GraphicsRect(center_x - (disc + 2) ÷ 2, center_y - (disc + 2) ÷ 2, disc + 2, disc + 2;
+                                     color = background, radius = (disc + 2) ÷ 2))
+        push!(elements, GraphicsRect(center_x - disc ÷ 2, center_y - disc ÷ 2, disc, disc;
+                                     color = mark_color, radius = disc ÷ 2))
     else
+        left, top = center_x - side ÷ 2, center_y - side ÷ 2
         push!(elements, GraphicsRect(left - 1, top - 1, side + 2, side + 2; color = background,
                                      radius = (side + 2) ÷ 2))
         _push_icon!(elements, content, left, top, side, mark_color)
