@@ -619,6 +619,48 @@ function test_explorer()
         @test "Clear the fault log" in labels(menu)
     end
 
+    @testset "a dashboard shows its cards in columns, a key in a card reaches its content, and Insert adds a card" begin
+        @test "Dashboard" in first.(ExplorerModule._collect_entry_kinds())
+        @test make_insertion_document(Dashboard).title == "New dashboard"
+        dashboard = Dashboard("Queue study", Any[DashboardCard("First", PrimitiveString("one")),
+                                                DashboardCard("Second", PrimitiveString("two")),
+                                                DashboardCard("Third", PrimitiveString("three"))])
+        @test [format_tree_node_label(card) for card in dashboard.cards] == ["First", "Second", "Third"]
+        content = ExplorerSection("Explorer", Any[dashboard])
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
+        @test get_navigator_page(explorer.navigator) === dashboard
+        @test all(text -> _nav_has_text(backend, text), ("First", "Second", "Third", "one", "two", "three"))
+        # A page in a navigator gets no exact width at its print, so the cards stand
+        # in one column, one below the other.
+        ys = [only(entry[3] for entry in _nav_texts(backend) if entry[1] == title) for title in ("First", "Second", "Third")]
+        @test ys[1] < ys[2] < ys[3]
+        # A press in the content of a card puts the caret in that document.
+        _nav_press!(editor, backend, _explorer_click(backend, "two"; side = :page))
+        selection = getfield(explorer, :selection)[]
+        @test selection isa ConcreteReference
+        @test _nav_steps(selection)[1:5] == [FieldReferenceStep("navigator"), FieldReferenceStep("content"),
+                                             FieldReferenceStep("entries"), ElementReferenceStep(1), FieldReferenceStep("cards")]
+        @test _nav_steps(selection)[6:7] == [ElementReferenceStep(2), FieldReferenceStep("content")]
+        # With an exact width at the print, as many columns as cards of the least
+        # width fit, and no more than the cards.
+        grid_of(width) = begin
+            context = PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())
+            page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context).output
+            page.children[2].child.content.children[1]
+        end
+        @test grid_of(430).columns == 3 && grid_of(205).columns == 1 && grid_of(220).columns == 2
+        # Insert on the page adds a card at the end, whose content takes a name.
+        _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+        @test length(dashboard.cards) == 4 && dashboard.cards[4].content isa DocumentInsertion
+        @test _nav_has_text(backend, "New card")
+        # F2 on its node puts the caret in its title.
+        _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
+        _nav_press!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
+        @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+    end
+
     @testset "Ctrl+press on a node opens its page in a new tab" begin
         content = _explorer_make()
         explorer = Explorer(content)

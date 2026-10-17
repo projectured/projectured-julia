@@ -1269,8 +1269,29 @@ before each edit of a kernel file. Mark each step done here.
      follows the disk, so the menu has no Refresh (no new mechanism).
    - Add… opens the menu of Insert as its operation, because a context menu
      window opens no submenu of its own.
-8. [ ] **The dashboard** (Q4). The document, its page, `+` "Dashboard", and the
+8. [x] **The dashboard** (Q4). The document, its page, `+` "Dashboard", and the
    insert of a card by the assistant.
+   **Done 2026-10-17**, in the explorer slice (`Dashboard.jl`,
+   `DashboardToWidget.jl`). `Dashboard(title, cards)` of `DashboardCard(title,
+   content)`; the cards are the children of its node; the icon is
+   `layout_dashboard` (new glyph, and `panel_top` for a card), with the count of
+   the cards. "Dashboard" is in the list of `+`. The page has a field of the
+   title (F2 and Rename reach it, as for a section) and the cards in a grid in a
+   scroll pane; the content of each card draws by the view of its own type, and
+   the page maps `cards[k].content.<rest>` both ways, so a press, a caret and a
+   key in a card reach its document. Insert on the page adds a card at the end
+   whose content is a `DocumentInsertion`; an assistant adds one with an insert
+   into `cards`, and an undo takes it back. Facts:
+   - `FlowLayout` keeps the width of each child, so it can not make the cards
+     fill a line. The page uses a `GridLayout` of equal weights, with as many
+     columns as cards of `card_width` (a least width) fit in the exact width of
+     the print. A page in a navigator gets no exact width at its print, so the
+     cards stand in one column there. **Open for the owner (asked
+     2026-10-17), as Q4 says:** no layout makes its count of columns follow the
+     width that it gets after its print; that is a new layout feature, which this
+     plan does not add.
+   - A card is not removed by a key on the page yet; the menu of its row in the
+     explorer has no Remove either, because a card is no entry of a section.
 9. [ ] **The window of projectured.** The Explorer is the first tab of the main
    group, the narrow Files group goes, and the toolbar has Explorer and Files.
    Test: `test_application()`.

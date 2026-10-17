@@ -52,12 +52,16 @@ export ExplorerFilter
 export ExplorerSection, Explorer, get_session_explorer_content
 export ExplorerToWidget
 export ExplorerSectionToWidget
+export DashboardCard, Dashboard
+export DashboardToWidget
 export get_explorer_content_file, save_explorer_content!, load_explorer_content
 
 include("ExplorerFilter.jl")
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")
+include("Dashboard.jl")
+include("DashboardToWidget.jl")
 include("ExplorerRowMenu.jl")
 include("ExplorerEntryEdits.jl")
 include("ExplorerContentFile.jl")

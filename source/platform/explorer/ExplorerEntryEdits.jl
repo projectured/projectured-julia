@@ -155,19 +155,22 @@ function _make_move_entry_operation(explorer::Explorer, selection, offset::Int)
                                   selection = _make_entry_node_path(place.steps, target))])
 end
 
-# F2 on the node of a section: the caret goes to the end of the title on the page
-# of the section, where each key edits the title.
+# Whether the page of `document` has a field of its title.
+_has_title_field(document) = document isa ExplorerSection || document isa Dashboard
+
+# F2 on the node of a section or of a dashboard: the caret goes to the end of the
+# title on its page, where each key edits the title.
 function _make_rename_operation(explorer::Explorer, selection)
     place = _find_selected_place(explorer, selection)
     (place === nothing || !place.is_entry) && return nothing
-    (section, steps) = place.index === nothing ? (place.section, place.steps) :
+    (titled, steps) = place.index === nothing ? (place.section, place.steps) :
         (place.section.entries[place.index], vcat(place.steps, _ENTRIES_STEP, ElementReferenceStep(place.index)))
-    section isa ExplorerSection || return nothing
+    _has_title_field(titled) || return nothing
     navigator = getfield(explorer, :navigator)[]
     operations = Any[]
     visit = make_navigator_open_operation(navigator, extend_reference(EmptyReference(), steps...))
     visit === nothing || push!(operations, _get_visit_writes(visit))
-    count = length(section.title)
+    count = length(titled.title)
     caret = extend_reference(EmptyReference(), FieldReferenceStep("navigator"), FieldReferenceStep("content"), steps...,
                              FieldReferenceStep("title"), RangeReferenceStep(count, count))
     push!(operations, ReplaceSelectionOperation(annotate_reference_types(explorer, caret)))
@@ -192,7 +195,7 @@ end
         _make_add_menu_operation(doc, _find_selected_place(doc, get_selection(doc)), nothing)
     KeyDown(:f; ctrl) => "Put the keyboard in the filter" => _make_filter_caret_operation(doc)
     KeyDown(:delete) => "Remove from explorer" => _make_remove_entry_operation(doc, get_selection(doc))
-    KeyDown(:f2) => "Rename the section" => _make_rename_operation(doc, get_selection(doc))
+    KeyDown(:f2) => "Rename" => _make_rename_operation(doc, get_selection(doc))
     override(KeyDown(:up; ctrl, shift)) => "Move the entry earlier" =>
         _make_move_entry_operation(doc, get_selection(doc), -1)
     override(KeyDown(:down; ctrl, shift)) => "Move the entry later" =>

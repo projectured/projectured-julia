@@ -8860,6 +8860,8 @@ const LUCIDE_ICON_GLYPHS = (
     :table          => 0xe17d,  # table: a roster
     :cpu            => 0xe0a9,  # cpu: the processes of the system
     :circle_help    => 0xe082,  # circle-help: a page of help
+    :layout_dashboard => 0xe1c1,  # layout-dashboard: a page of cards
+    :panel_top      => 0xe435,  # panel-top: one card of a page
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS

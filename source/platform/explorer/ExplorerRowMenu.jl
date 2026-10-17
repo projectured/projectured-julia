@@ -29,9 +29,10 @@ function _make_row_menu_operation(explorer::Explorer, gesture)
     elseif place !== nothing && !place.is_entry
         push!(items, WidgetMenuItem("Add to explorer"; operation = AddExplorerEntryOperation(document)))
     end
+    _has_title_field(document) && place !== nothing && place.is_entry &&
+        push!(items, WidgetMenuItem("Rename"; operation = _make_rename_operation(explorer, node)))
     if document isa ExplorerSection && place !== nothing && place.is_entry
-        push!(items, WidgetMenuItem("Rename"; operation = _make_rename_operation(explorer, node)),
-              WidgetMenuItem("New section"; operation = _make_new_section_operation(explorer, node)),
+        push!(items, WidgetMenuItem("New section"; operation = _make_new_section_operation(explorer, node)),
               WidgetMenuItem("Add…"; operation = _make_add_menu_operation(explorer, place, nothing)))
     end
     list = _find_long_children_steps(document)
