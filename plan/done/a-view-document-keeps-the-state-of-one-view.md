@@ -1,6 +1,6 @@
 # A view document keeps the state of one view
 
-Status: IN PROGRESS. Steps 1 to 3 are done.
+Status: DONE. Steps 1 to 4 are done.
 
 ## The ask
 
@@ -187,8 +187,14 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
      document 104, assistant work 100, agent plan 82; all pass. The naming and
      documentation guards pass; the exports and arguments guards report only the
      three violations that main has.
-4. [ ] **The guides.** `navigator.md`, `widget.md` (the table), `domain.md`
+4. [x] **The guides.** `navigator.md`, `widget.md` (the table), `domain.md`
    (`make_document_view`); the plan moves to `plan/done/`.
+
+   Done 2026-10-18. `navigator.md` has a section "The view of a page"; `widget.md`
+   names `shown` of a lazy table; `domain.md` names the view of a page, and its
+   example of a document that reads for the parts that a holder holds is the rows
+   of a long table. The documentation guard passes, and no line of the new text is
+   in the report for a person.
 
 The explorer branch of another session uses the navigator. Step 3 tells that
 session what changes before it lands.

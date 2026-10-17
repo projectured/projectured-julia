@@ -8,7 +8,7 @@ The navigator slice of `ProjecturedPlatform` shows one part of a document at a t
 
 ### The document
 
-`Navigator(content[, address])` is a document with five fields:
+`Navigator(content[, address])` is a document with six fields:
 
 | Field | What it holds |
 | --- | --- |
@@ -17,8 +17,9 @@ The navigator slice of `ProjecturedPlatform` shows one part of a document at a t
 | `back` | the visits before the current one, the newest last |
 | `forward` | the visits after the current one, the nearest last |
 | `address_draft` | the address as the bar shows it and a person edits it, a `NavigatorAddress`: view state, which a save does not keep |
+| `page_view` | the view document of the page, in a `NavigatorViewSlot`, or `nothing` for a page that shows as itself: view state, which a save does not keep |
 
-A `NavigatorVisit(content, address, selection)` is one page that a person saw: the content, the address of the page, and the selection in the page when the person left it, as a path from the content. A visit is a value and not a document. So a visit can hold another content, and the back list goes from one document to another, as a tab of a browser goes from one site to another.
+A `NavigatorVisit(content, address, selection, page_view)` is one page that a person saw: the content, the address of the page, the selection in the page when the person left it, as a path from the content, and the view of the page that the visit showed. A visit is a value and not a document. So a visit can hold another content, and the back list goes from one document to another, as a tab of a browser goes from one site to another.
 
 The address is state of the document, not of the projection. A program and the assistant read it as any field, and no other projection reads it. `get_edited_field(::Navigator)` is `:content`, so `get_edited_document` reaches the content through a navigator.
 
@@ -30,10 +31,10 @@ The address is state of the document, not of the projection. A program and the a
 
 Every move to another page is one `CompoundOperation`:
 
-1. a `ReplaceViewStateOperation` around the writes of `address`, `back`, `forward`, and `content` when it changes, and a `ChangeHeldDocumentsOperation` when the new page is another document than the old page;
+1. a `ReplaceViewStateOperation` around the writes of `address`, `back`, `forward`, `content` and `page_view` when they change, and a `ChangeHeldDocumentsOperation` when the new view of the page is another document than the old one;
 2. a `ReplaceSelectionOperation` with a path from the navigator, into the new page.
 
-The change of the hold releases the old page and acquires the new page, while a tab holds the navigator. A navigator that no tab holds holds nothing. So an undo records no visit, and an edit on a page is an edit that undo takes back while the navigator stays on the page. The lists are written as new vectors.
+The change of the hold releases the old view of the page and acquires the new one, while a tab holds the navigator; a page that shows as itself is its own view. A navigator that no tab holds holds nothing. So an undo records no visit, and an edit on a page is an edit that undo takes back while the navigator stays on the page. The lists are written as new vectors.
 
 | Builder | What it does |
 | --- | --- |
@@ -49,6 +50,15 @@ The change of the hold releases the old page and acquires the new page, while a 
 
 A visit puts back the selection that it holds when that selection still reaches a node inside its page, and selects the page itself otherwise. Parent and a press on a name of the address select the page that the person leaves, as a file manager selects the folder that a person comes from.
 
+### The view of a page
+
+A page can keep state that its document must not keep, such as the place of a long table and the rows in view: two navigators of one document keep two places. A domain gives such a kind of document a method of `make_document_view(document)` in the domain slice, which makes a view document that names the document with `get_edited_field`. The default answers the document itself, so every other page shows as itself.
+
+- **A visit makes the view of its page.** Back and Forward show the view that their visit kept, so the page comes back at the same place, as a browser keeps the place of each page in its history. A new visit of the same page makes a new view.
+- **The navigator holds the view, and the view holds its page.** `get_navigator_page_view(navigator)` is what the navigator draws and holds: its view of the page, or the page while the navigator keeps no view of that page. The acquire of a navigator makes a view when it keeps none of its page, or when another holder holds its view. A duplicate of a navigator keeps no view, also in its visits, so each tab keeps its own place.
+- **A path goes through the content.** The selection path stays `content.<address>.<rest>`, and `follow_content_selection!` makes the selection of the view and its part under the pointer follow those of its page: the field of the view, then the path that the page holds. The view sits in a `NavigatorViewSlot`, which a walk does not enter, so no path goes through it.
+- **An edit that puts another document at the address** shows that page as itself until the next acquire of the navigator, and the old view stays held until the navigator is released.
+
 ### The view
 
 `NavigatorToWidget` draws a navigator as a `GridLayout` of one column:
@@ -58,9 +68,11 @@ children[1]                       the bar: Back, Forward, Parent and the items o
 children[2].children[1].<rest>    the page; <rest> is a path in the page
 ```
 
+When the page has a view, `children[2].children[1]` is the view, and a path in the page is `children[2].children[1].<field>.<rest>`, through the field of the view that holds the page.
+
 The printer prints no child but the address copy in the path view. The page document itself stands in a `VerticalLayout` of one child, whose list of children is computed from the address, and the layout stage after the view prints it through the recursion. A vertical layout prints its children again when its list changes; a grid prints its children once, when it prints. So the page is drawn with the row of the renderer for its own type, and a domain gives its page a view of its own only where the page must look different from the part in the view of its parent. The renderer row is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
 
-The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A layout passes a key to the child that its own selection names, so the printer wires the bar and the holder of the page to carry the part of the selection of the grid below them; the page is a document of the content and holds its own. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
+The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A layout passes a key to the child that its own selection names, so the printer wires the bar and the holder of the page to carry the part of the selection of the grid below them; the page is a document of the content and holds its own. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing, as does a path in a view that does not go through the field that holds the page. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
 
 **The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. Then a control shows the address in one of three views, and the address follows it. The bar ends with Open in a tab, a `WidgetToolbarItem` with the icon `:external_link`, after the address, so the path view keeps its place in the bar. A press answers an open of the page in a new tab, rooted at the content, which goes up to the editor; so every navigator, also one inside a page or beside a tree, opens its page in a tab of its own. The new tab starts at the page with no visits, and the navigator keeps its page.
 
