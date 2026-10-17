@@ -146,6 +146,16 @@ function test_navigator_to_widget()
         @test _nav_is(backward(@reference(iomap.output, children[2].children[1])),
                       @reference(navigator, content.books[1].chapters[1]))
         @test backward(@reference(iomap.output, children[2].children[1].anchor)) === nothing
+        # A part that the view introduced, such as a link, keeps its path after the
+        # page, with no field.
+        introduced = make_introduced_reference(IdentityProjection(), view, EmptyReference())
+        drawn = concat_references(@reference(iomap.output, children[2].children[1]), introduced)
+        found = backward(drawn)
+        page_steps = get_reference_steps(strip_reference_types(@reference(navigator, content.books[1].chapters[1])))
+        steps = get_reference_steps(strip_reference_types(found))
+        @test steps[1:length(page_steps)] == page_steps && steps[length(page_steps) + 1] isa ProjectionReferenceStep
+        again = get_reference_steps(strip_reference_types(forward(found)))
+        @test again[5] isa ProjectionReferenceStep
         # A page with no view of its own draws as itself again.
         navigator.address = @reference(shelf, books[1])
         @test iomap.output.children[2].children[1] === shelf.books[1]

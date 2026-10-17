@@ -178,6 +178,13 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
      (`copy_document` of `Navigator`), so each tab keeps its own place.
    - The backward map takes the field step out of a path in the view, and a path in
      the view that does not go through the field names nothing.
+   - Found at the omnet configuration view, 2026-10-18: a part that the view
+     introduced, such as a link or a button of the page, has a path of the view, not
+     of its document. With the rule above, the pointer could not light it and a
+     press could not reach it. So an introduced path keeps its place after the page
+     with no field, in both maps and in the computed cells of the view: a view draws
+     its whole page with one projection. Branch `view-introduced-parts`; navigator
+     visits 99, navigator view 68, document tree 102.
    - The review found the limit that stays: an edit that puts another document at
      the address of the page shows that page bare, which nothing holds, until the
      next acquire of the navigator; the old page and its view stay held until the

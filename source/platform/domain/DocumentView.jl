@@ -13,7 +13,9 @@ domain adds a method for a kind of document whose page keeps state that the
 document must not keep. A view holds what it shows from its `acquire_document!`,
 and something holds the view only while it shows. A method changes no state and
 starts nothing: a reader calls it, also for an answer that it only describes, such
-as the commands of a key, and the view of such an answer is dropped.
+as the commands of a key, and the view of such an answer is dropped. A view draws
+its whole page with one projection, so a part that it introduces, such as a link or
+a button, is a part of the view: its path names no part of the document.
 
 Use it where a page of a document opens, as a navigator does at each visit, and
 pass the answer to [`follow_content_selection!`](@ref) when it is a view.
@@ -36,8 +38,10 @@ Make the selection of `view` and its part under the pointer follow those of the
 document that it shows, the field that `get_edited_field(view)` names: each is that
 field, then the path that the document holds. A selection path then keeps going
 through the document, and the view draws the selection of the document as its
-own. A part that only the view draws has no path in the document, so a press there
-leaves the selection where it is. It mutates the two cells of `view`, which is new
+own. A path that the view introduced, such as the part under the pointer on a
+link of the page, is a path of the view itself, and takes no field. A field that
+only the view keeps has no path in the document, so a press there leaves the
+selection where it is. It mutates the two cells of `view`, which is new
 and is not on a selection path yet.
 
 Use it on a view that [`make_document_view`](@ref) makes, before the view shows.
@@ -63,10 +67,11 @@ function follow_content_selection!(view)
 end
 
 # The path of the document, as a path of its view: the field of the view that holds
-# the document, then the path. A selection that the document keeps while it is not
-# live keeps its path the same way. A document that holds no path gives the view
-# none.
-_prefix_content_path(view, step, path::Reference) = ConcreteReference(get_reference_node_type(view), step, path)
+# the document, then the path. A path that the view introduced is already a path
+# of the view. A selection that the document keeps while it is not live keeps its
+# path the same way. A document that holds no path gives the view none.
+_prefix_content_path(view, step, path::Reference) =
+    is_introduced_reference(path) ? path : ConcreteReference(get_reference_node_type(view), step, path)
 _prefix_content_path(view, step, kept::SelectionDocument) =
     SelectionDocument(; primary = _prefix_content_path(view, step, kept.primary), live = kept.live)
 _prefix_content_path(view, step, path) = path

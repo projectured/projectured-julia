@@ -107,6 +107,10 @@ function test_navigator_visits()
         kept = getfield(view, :selection)[]
         @test kept isa SelectionDocument && !kept.live && view.selection === nothing
         @test _nav_is(kept.primary, Reference(FieldReferenceStep("page"), FieldReferenceStep("title")))
+        # A path that the view introduced is a path of the view, with no field.
+        introduced = make_introduced_reference(IdentityProjection(), view, EmptyReference())
+        getfield(runs, :mouse_target)[] = introduced
+        @test view.mouse_target === introduced
         # No walk of the navigator goes through the view.
         @test is_walk_opaque(navigator.page_view)
         # Back shows the shelf as itself and releases the view; Forward shows the

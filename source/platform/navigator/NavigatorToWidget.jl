@@ -481,8 +481,9 @@ _translate_answer(::NavigatorToWidgetIoMap, operation, gesture) = operation
 # not on the page has no image. A path into the bar names nothing, so a press on a
 # button leaves the selection where it is; any other path names the whole
 # navigator. When the navigator draws a view of its page, the rest goes through the
-# field of the view that holds the page: `children[2].children[1].<field>.<rest>`,
-# and a path in the view that does not go through that field names nothing.
+# field of the view that holds the page: `children[2].children[1].<field>.<rest>`.
+# A part that the view introduced, such as a link, keeps its path after the page,
+# with no field, and a field that only the view keeps names nothing.
 
 function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
     output = iomap.output
@@ -503,7 +504,8 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
         (rest = annotate_reference_types(get_navigator_page(iomap.input), strip_reference_types(rest)))
     view = get_navigator_page_view(iomap.input)
     field = _find_view_field_step(view, iomap.input)
-    field === nothing || (rest = ConcreteReference(get_reference_node_type(view), field, rest))
+    field === nothing || is_introduced_reference(rest) ||
+        (rest = ConcreteReference(get_reference_node_type(view), field, rest))
     _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
 end
 
@@ -549,10 +551,11 @@ function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoM
         rest = get_reference_tail(rest)
     end
     # A path that goes through the field of a view that holds the page is a path in
-    # the page. A part that only the view draws has no path in the content, so it
-    # names nothing, as a path into the bar does.
+    # the page, and a part that the view introduced keeps its path after the page. A
+    # field that only the view keeps has no path in the content, so it names
+    # nothing, as a path into the bar does.
     field = _find_view_field_step(get_navigator_page_view(iomap.input), iomap.input)
-    if field !== nothing && rest isa ConcreteReference
+    if field !== nothing && rest isa ConcreteReference && !is_introduced_reference(rest)
         get_reference_head(rest) == field || return nothing
         rest = get_reference_tail(rest)
     end
