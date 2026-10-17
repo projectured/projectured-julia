@@ -156,6 +156,25 @@ function _make_move_entry_operation(explorer::Explorer, selection, offset::Int)
                                   selection = _make_entry_node_path(place.steps, target))])
 end
 
+# F2 on the node of a section: the caret goes to the end of the title on the page
+# of the section, where each key edits the title.
+function _make_rename_operation(explorer::Explorer, selection)
+    place = _find_selected_place(explorer, selection)
+    (place === nothing || !place.is_entry) && return nothing
+    (section, steps) = place.index === nothing ? (place.section, place.steps) :
+        (place.section.entries[place.index], vcat(place.steps, _ENTRIES_STEP, ElementReferenceStep(place.index)))
+    section isa ExplorerSection || return nothing
+    navigator = getfield(explorer, :navigator)[]
+    operations = Any[]
+    visit = make_navigator_open_operation(navigator, extend_reference(EmptyReference(), steps...))
+    visit === nothing || push!(operations, _drop_visit_selection(visit))
+    count = length(section.title)
+    caret = extend_reference(EmptyReference(), FieldReferenceStep("navigator"), FieldReferenceStep("content"), steps...,
+                             FieldReferenceStep("title"), RangeReferenceStep(count, count))
+    push!(operations, ReplaceSelectionOperation(annotate_reference_types(explorer, caret)))
+    CompoundOperation(operations)
+end
+
 # The keys work while the selection is on a node of the tree, so a key on the page
 # goes to the page. The tree moves its selection with Up and Down whatever the
 # modifiers, so the keys that move an entry claim their chords.
@@ -163,6 +182,7 @@ end
     when(_find_selected_place(doc, sel) !== nothing)
     KeyDown(:insert) => "Add an entry" => _make_add_menu_operation(doc, get_selection(doc))
     KeyDown(:delete) => "Remove from explorer" => _make_remove_entry_operation(doc, get_selection(doc))
+    KeyDown(:f2) => "Rename the section" => _make_rename_operation(doc, get_selection(doc))
     override(KeyDown(:up; ctrl, shift)) => "Move the entry earlier" =>
         _make_move_entry_operation(doc, get_selection(doc), -1)
     override(KeyDown(:down; ctrl, shift)) => "Move the entry later" =>

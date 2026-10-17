@@ -395,6 +395,40 @@ function test_explorer()
         @test content.entries[2] isa ExplorerSection && content.entries[2].title == "New section"
     end
 
+    @testset "F2 on a section puts the caret in its title on its page, and each key edits it" begin
+        content = _explorer_make()
+        inner = content.entries[2]
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        # F2 on a node that is no section leaves the key.
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha"))
+        @test read_gesture(explorer, KeyDown(:f2, ModifierKeys(); time = 0.0)) === nothing
+        _nav_press!(editor, backend, _explorer_click(backend, "Inner"))
+        _nav_press!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
+        @test get_navigator_page(explorer.navigator) === inner
+        @test _nav_is(getfield(explorer, :selection)[],
+                      _explorer_path(FieldReferenceStep("navigator"), FieldReferenceStep("content"),
+                                     FieldReferenceStep("entries"), ElementReferenceStep(2), FieldReferenceStep("title"),
+                                     RangeReferenceStep(5, 5)))
+        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in " parts")...)
+        @test inner.title == "Inner parts"
+        @test _nav_has_text(backend, "Inner parts")
+    end
+
+    @testset "a command adds the document of the focused tab to the explorer" begin
+        document = PrimitiveString("start")
+        editor, backend = _nav_editor(document; tabs = true)
+        tree = get_window_tree(editor.document)
+        @test PaneModule._find_tab_document(only(only(get_pane_groups(tree)).tabs)) === document
+        binding = only(filter(binding -> binding.description == "Add the tab to the explorer",
+                              collect_document_gesture_bindings(PaneTree)))
+        # With no focused tab the command adds nothing; a press in the tab focuses it.
+        @test binding.operation(tree, nothing) === nothing
+        _nav_press!(editor, backend, MouseClick(:left, 10, 32, 1, ModifierKeys(); time = 0.0))
+        evaluate_operation(editor, binding.operation(tree, nothing))
+        @test last(get_session_explorer_content(; editor).entries) === document
+    end
+
     @testset "Ctrl+press on a node opens its page in a new tab" begin
         content = _explorer_make()
         explorer = Explorer(content)

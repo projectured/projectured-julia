@@ -1177,6 +1177,21 @@ before each edit of a kernel file. Mark each step done here.
        entry and the selection stay.
      - "New section" is a command with no key.
      - The `+` button comes with the bar of the filter in step 6.
+   - [x] **5c. Rename and "Add to explorer"** (2026-10-17).
+     - The page of a section has a field of its title, which edits `title` as
+       the field of the place of a folder edits its place. F2 on the node of a
+       section visits its page and puts the caret at the end of the title. F2 on
+       any other node is left to the pane, which renames the tab.
+     - The menu of a part on a page has "Add to explorer" after the two opens,
+       for a part that is a document and no widget. It adds the document at the
+       end of the root section of the editor.
+     - The tab: the header of a tab maps the pointer into the content of the tab
+       (`tabs[i].content.selector`), and not to the tab or its title, so a menu of
+       the header would read a path that names no part. Decision (mine): no menu
+       of the header; the command "Add the tab to the explorer" of the pane tree,
+       with no key, adds the document of the focused tab, through its history and
+       not into a file. A fix of the map of the header is outside this plan; it
+       is an open item for the owner.
 6. [ ] **The filter.** The quick filter, the kinds, and the search below a node as
    a task.
 7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document

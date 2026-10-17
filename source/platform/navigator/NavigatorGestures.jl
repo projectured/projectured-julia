@@ -5,8 +5,8 @@
 # arrow walk the structure of a document, so the navigator takes Ctrl.
 
 # The menu of a part on a page, on a right click: open the part as a page, or in
-# a new tab. The part is the one under the pointer, or the selected one for a
-# command with no pointer. The menu belongs to that part, so the context menu
+# a new tab, and add a document to the explorer of the editor. The part is the one
+# under the pointer, or the selected one for a command with no pointer. The menu belongs to that part, so the context menu
 # window lifts an item from the part through the reader of the navigator. Each
 # item names the content of the navigator as its root, so it opens the same page
 # also from the menu of a part inside the page, which F2 shows.
@@ -52,10 +52,13 @@ function _make_part_menu_operation(navigator::Navigator, gesture)
     address === nothing && return nothing
     content = navigator.content
     page = _find_part_page(navigator, address)
-    menu = WidgetMenu(Any[
-        WidgetMenuItem("Open as a page"; operation = OpenPageOperation(content, page)),
-        WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(content, page, :new_tab))])
     part = evaluate_reference(content, address)
+    items = Any[WidgetMenuItem("Open as a page"; operation = OpenPageOperation(content, page)),
+                WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(content, page, :new_tab))]
+    # A widget is a part of a view, and no document to explore.
+    part isa Document && !(part isa WidgetDocument) &&
+        push!(items, WidgetMenuItem("Add to explorer"; operation = AddExplorerEntryOperation(part)))
+    menu = WidgetMenu(items)
     # The part of the menu is the part under the pointer, with the types of its
     # nodes, as a place that a reader can follow down.
     source = annotate_reference_types(navigator, ConcreteReference(_CONTENT_STEP, address))

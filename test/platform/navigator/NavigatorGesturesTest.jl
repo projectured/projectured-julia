@@ -45,10 +45,22 @@ function test_navigator_gestures()
         @test _nav_is(opened.source, @reference(navigator, content.children[2]))
         (title, menu) = only(opened.layers)
         @test title == "Shelf"
-        @test _nav_item_labels(menu) == ["Open as a page", "Open in a new tab"]
+        @test _nav_item_labels(menu) == ["Open as a page", "Open in a new tab", "Add to explorer"]
         _nav_choose!(editor, opened, _nav_find_item(menu, "Open as a page"))
         @test get_navigator_page(navigator) === shelf
         @test length(navigator.back) == 1
+    end
+
+    @testset "the menu of a part adds it to the explorer of the editor" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(_nav_make_linked_page(shelf))
+        editor, backend = _nav_editor(navigator)
+        opened = _nav_right_click(editor, backend, "Shelf")
+        (_, menu) = only(opened.layers)
+        _nav_choose!(editor, opened, _nav_find_item(menu, "Add to explorer"))
+        @test last(get_session_explorer_content(; editor).entries) === shelf
+        # The page stays where it was.
+        @test navigator.address isa EmptyReference
     end
 
     @testset "the menu of a part opens it in a new tab" begin
