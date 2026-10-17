@@ -1,6 +1,6 @@
 # A view document keeps the state of one view
 
-Status: DESIGN, to decide. Q1 is open. No step has started.
+Status: DESIGN, decided. No step has started.
 
 ## The ask
 
@@ -80,8 +80,12 @@ says this in `concepts.md`, so the two words do not meet.
 2. **Apply it first to the omnet configuration and its runs** (the owner: "I also
    agree with where to apply first").
 3. **The suffix is `View`** (the owner: "I was thinking of View suffix").
+4. **The view of a page lives in the visit of the navigator** (Q1 (a), the owner,
+   2026-10-17: "I agree with your recommendations"). The navigator keeps the view
+   of its page, as it keeps the address and the selection of each visit; what the
+   view shows and holds stays in the view.
 
-## Q1. Where the view of a page lives
+## Q1. Where the view of a page lives (decided: (a))
 
 A configuration opens as a page from many places: the explorer, the link of a task
 to its run, a tab, the Runner. The view of the page must exist only while the page
@@ -114,7 +118,7 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
    beside each scroll and each move of its head, when it changes, as it writes
    `top_row` now. The ten positional calls of `WidgetTable` follow the new field.
    Tests: `test_widget_table_list()`, `test_task_pages()`, `test_dataframes()`.
-3. [ ] **The navigator shows the view of its page** (Q1 (a)). `make_document_view`
+3. [ ] **The navigator shows the view of its page** (decision 4). `make_document_view`
    in the domain slice; `Navigator.view` and `NavigatorVisit.view`; a visit makes
    the view of its page, and Back and Forward give back the view of their visit; the
    navigator holds the view in place of the page; the print draws the view, and a
