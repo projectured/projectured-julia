@@ -22,6 +22,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
 using ..GestureModule
@@ -38,10 +39,14 @@ using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
+using ..ToolModule
+using ..TreeModule
 
 # Imported to extend: this module adds a method to each of them.
-import ..DocumentModule: get_document_title, get_edited_field
-import ..DomainModule: get_document_decoration
+import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate
+import ..DomainModule: get_document_decoration, accepts_pasted_document
+import ..SerializationModule: pred_arguments, make_pred_document
+import ..TreeModule: get_tree_children_steps
 using ..TextModule
 using ..WidgetModule
 
@@ -63,6 +68,7 @@ export FileToContent
 export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
        SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
        receive_file_change!
+export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!
 export make_file_api
 
 
@@ -70,6 +76,7 @@ include("NaturalFormat.jl")
 include("DocumentFile.jl")
 include("FilePage.jl")
 include("FilePageToWidget.jl")
+include("OpenFileList.jl")
 include("FileToContent.jl")
 
 end # module

@@ -17,6 +17,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..EditorModule
 using ..EventModule
 using ..FileChangeModule
 using ..FileFormatModule
@@ -65,6 +66,7 @@ export FileSystemFile, FileSystemDirectory
 export FileSystemChooser, make_filesystem_chooser, get_chosen_path
 export FileSystemChooserToWidget, WriteChosenNameOperation
 export FileSystemDirectoryToWidget
+export FileSystemFileToWidget
 export WorkspaceDocument, Workspace, WorkspaceFolder, WorkspaceExplorer
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
@@ -78,5 +80,6 @@ include("FileSystemToWidget.jl")
 include("FileSystemChooserToWidget.jl")
 include("FileSystemTree.jl")
 include("FileSystemDirectoryToWidget.jl")
+include("FileSystemFileToWidget.jl")
 
 end # module

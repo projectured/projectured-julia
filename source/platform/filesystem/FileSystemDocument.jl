@@ -12,8 +12,51 @@ end
 
 # ── File ──────────────────────────────────────────────────────────────────────
 
+"""
+    FileSystemFile(pathname)
+
+A file on the disk, as the read of its folder found it. `document` is the page of
+the file that its page shows, or `nothing` while no holder acquired it: the
+acquire takes the page that the editor holds open for the same path, or reads the
+file, so a file is one document in an editor, also when a tab shows it.
+"""
 @document struct FileSystemFile <: FileSystemDocument
     pathname::String
+    document::Any = nothing
+end
+
+# A file keeps the path of the file, and not the document that its page showed.
+pred_arguments(file::FileSystemFile) = (file.pathname,), Pair{Symbol,Any}[]
+make_pred_document(::Type{<:FileSystemFile}, positional, keywords) = FileSystemFile(only(positional))
+
+# The acquire of a file gives it its document: the page that the editor holds open
+# for its path, or a page read from the disk, as the open of a file reads it. It
+# runs in the evaluation of the operation that acquires, where a read of the disk
+# is in its place. The file then holds the page, so the page watches the file.
+function acquire_document!(editor, file::FileSystemFile)
+    if file.document === nothing
+        open = find_open_file_document(file.pathname; editor)
+        file.document = open !== nothing ? open : _read_file_page(editor, file.pathname)
+    end
+    hold_documents!(editor, file, Any[file.document])
+end
+
+# The release lets the page go, and the file forgets a page with no unsaved edit,
+# so the next acquire takes the page that is open then.
+function release_document!(editor, file::FileSystemFile)
+    document = file.document
+    document === nothing && return nothing
+    release_held_documents!(editor, file, Any[document])
+    any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions) ||
+        (file.document = nothing)
+    nothing
+end
+
+# The page of the file at `path`, with the history of the settings of `editor`.
+function _read_file_page(editor, path::AbstractString)
+    settings = find_editor_settings(; editor)
+    history = settings === nothing ? identity : make_history_wrap(settings)
+    make_file_tab_content(path, document -> history(document))
 end
 
 
@@ -119,6 +162,14 @@ make_filesystem_chooser(directory::AbstractString) =
 # file, or around the content. This runs while the editor evaluates the open, so
 # the new tab is posted, and the loop evaluates it at the top of the next frame.
 function evaluate_operation(editor, op::OpenFileOperation)
+    # A file that is open is one document: its tab takes the focus, or a tab opens
+    # on that document.
+    open = find_open_file_document(op.path; editor)
+    if open !== nothing
+        _focus_open_file!(editor, open) ||
+            post_pane_operation!(editor, make_open_pane_operation(open; group = get_pane_file_group(; editor), editor))
+        return nothing
+    end
     settings = find_editor_settings(; editor)
     history = settings === nothing ? identity : make_history_wrap(settings)
     tab = op.file_wrap === identity ?
@@ -128,6 +179,21 @@ function evaluate_operation(editor, op::OpenFileOperation)
     nothing
 end
 
+
+# Focus the tab whose content is `document`, and answer whether one is.
+function _focus_open_file!(editor, document)
+    reference = find_pane_tree_reference(; editor)
+    reference === nothing && return false
+    tree = evaluate_reference(editor.document, reference)
+    for group in get_pane_groups(tree), (index, tab) in enumerate(group.tabs)
+        tab.content === document || continue
+        focus = read_rooted_operation(editor, reference, make_pane_focus_operation(tree, group, index);
+                                      description = "Focus the tab of the file")
+        focus === nothing || post_pane_operation!(editor, focus)
+        return true
+    end
+    false
+end
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
@@ -384,4 +450,7 @@ function get_document_decoration(folder::FileSystemDirectory)
     DocumentDecoration(; icon = :folder)
 end
 
-get_document_decoration(file::FileSystemFile) = DocumentDecoration(; icon = get_file_icon(file.pathname))
+# A file says what its page says once it has one, and its kind before.
+get_document_decoration(file::FileSystemFile) =
+    file.document === nothing ? DocumentDecoration(; icon = get_file_icon(file.pathname)) :
+                                get_document_decoration(file.document)

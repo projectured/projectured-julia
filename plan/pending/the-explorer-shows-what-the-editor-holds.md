@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1, 2 and 3 done, step 4 part 4a done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 to 4 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -1069,7 +1069,7 @@ before each edit of a kernel file. Mark each step done here.
      between two wrappers, which is a new mechanism.
    - Not done, a question for the owner: `:failed` of a file whose change does
      not parse (see part 3c).
-4. [ ] **The kinds of projectured become nodes.** The four generics for
+4. [x] **The kinds of projectured become nodes.** The four generics for
    `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile`,
    `Roster`, `AssistantList` and `Assistant`; the page of a folder as a table of
    its entries; the open files of the editor, one document for each path, which
@@ -1096,6 +1096,29 @@ before each edit of a kernel file. Mark each step done here.
      9 calls it. Its sections: Evaluators, Dashboards, Editor, Settings, Help.
    - Not in 4a: "Open files" and the page of a file, which need the document of
      each file path (part 4b).
+   **Part 4b done 2026-10-17: one document for each file path.** What it found and
+   decided:
+   - The store of file changes is no table of the open files: an editor without
+     the file change wrapper has none. So the open files are a session document
+     of the file format slice, `OpenFileList` (`get_session_open_file_list`,
+     `find_open_file_document`). The acquire of a file page or a file document,
+     in the file change slice where the hold of a file lands, adds it, unless the
+     page that shows it is listed; the release of its last holder takes it away.
+     So the list is what the editor shows now. The file format slice has the
+     edge `tree`; the glyph `:file_stack` is new.
+   - An open of a file that the list holds reaches that document: the tab whose
+     content it is takes the focus, or a tab opens on it. A second open opens no
+     second tab.
+   - `FileSystemFile` has the field `document`. Its acquire takes the open
+     document of its path, or reads the file as an open does, in the evaluation
+     of the operation that acquires, and holds it, so the page watches the file.
+     Its release lets the page go and forgets a page with no unsaved edit. A save
+     writes the path only.
+   - The page of a file node (`FileSystemFileToWidget`) draws that document by its
+     own row, so an edit on the page is an edit of the file.
+   - The first content lists "Open files" after the entries of the host.
+   - A limit: a page with unsaved edits that no tab and no page shows stays in its
+     file node, out of the list, until the node shows it again.
 5. [ ] **Add and remove.** `+` and Insert with the list of Q2, Delete, F2, new
    section, the keys to move an entry, "Add to explorer" in the menu of a part
    and of a tab, and the save of Q5.

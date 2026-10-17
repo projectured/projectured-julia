@@ -7,7 +7,7 @@
 
 The first content of the explorer of a window of `editor`: `entries`, which the
 host gives, such as the folder of the window or the projects of a simulator; the
-task list and the assistant list of the editor; a section of evaluators with one
+open files, the task list and the assistant list of the editor; a section of evaluators with one
 evaluator; an empty section of dashboards; a section of what the editor does now,
 with its logs, its statistics, the selection and the processes of the system; a
 section of the settings; and a section of the help. `mcp_log` adds the log of the
@@ -35,6 +35,7 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
                    if document !== nothing]
     ExplorerSection("Explorer", Any[
         entries...,
+        get_session_open_file_list(; editor),
         get_session_task_group_list(; editor),
         get_session_assistant_list(; editor),
         ExplorerSection("Evaluators", Any[EvaluatorToplevel()]),

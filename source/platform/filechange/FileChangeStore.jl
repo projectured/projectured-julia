@@ -275,23 +275,32 @@ end
 # a tab shows it, and the release of the tab stops the watch. An editor with no
 # file change feed watches nothing. A tab acquires its outer layer first, so the
 # page of a file watches the file as its receiver, and the file itself, which comes
-# next, watches already.
-acquire_document!(editor, file::FileDocument) =
-    (watch_document_file!(file; store = find_file_change_store(editor)); nothing)
+# next, watches already. The open files of the editor list the page, or the file
+# that no page holds, while it is held.
+function acquire_document!(editor, file::FileDocument)
+    watch_document_file!(file; store = find_file_change_store(editor))
+    add_open_file!(editor, file)
+    nothing
+end
 
-release_document!(editor, file::FileDocument) =
-    (unwatch_document_file!(file; store = find_file_change_store(editor)); nothing)
+function release_document!(editor, file::FileDocument)
+    unwatch_document_file!(file; store = find_file_change_store(editor))
+    remove_open_file!(editor, file)
+    nothing
+end
 
 function acquire_document!(editor, page::FilePage)
     file = find_page_file(page)
     file === nothing ||
         watch_document_file!(file; store = find_file_change_store(editor), receiver = page)
+    add_open_file!(editor, page)
     nothing
 end
 
 function release_document!(editor, page::FilePage)
     file = find_page_file(page)
     file === nothing || unwatch_document_file!(file; store = find_file_change_store(editor))
+    remove_open_file!(editor, page)
     nothing
 end
 

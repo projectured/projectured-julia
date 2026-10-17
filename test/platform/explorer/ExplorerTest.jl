@@ -213,16 +213,61 @@ function test_explorer()
         @test occursin("2 entries", page.children[1].content)
     end
 
+    @testset "a file is one document: its page, its tab and the open files show the same one" begin
+        root = mktempdir()
+        path = joinpath(root, "notes.txt")
+        write(path, "hello")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        editor, backend = _nav_editor(explorer; tabs = true)
+        for label in ("Files", "work")
+            _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+            for _ in 1:50
+                drain_operations!(editor)
+                run_frame!(editor)
+                _nav_has_text(backend, label == "Files" ? "work" : "notes.txt") && break
+                sleep(0.02)
+            end
+        end
+        # A press on the file shows its page: the text of the file.
+        _nav_press!(editor, backend, _explorer_click(backend, "notes.txt"))
+        drain_operations!(editor)
+        run_frame!(editor)
+        file = workspace.folders[1].directory.elements[1]
+        @test file isa FileSystemFile && file.document isa FilePage
+        @test _nav_has_text(backend, "hello")
+        open = get_session_open_file_list(; editor)
+        @test any(listed -> listed === file.document, open.files)
+        @test find_open_file_document(path; editor) === file.document
+        # An open of the same file reaches that document and reads no second one.
+        tabs() = sum(length(group.tabs) for group in get_pane_groups(get_window_tree(editor.document)))
+        before = tabs()
+        evaluate_operation(editor, OpenFileOperation(path))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test tabs() == before + 1
+        shown = [tab.content for group in get_pane_groups(get_window_tree(editor.document)) for tab in group.tabs]
+        @test any(content -> content === file.document, shown)
+        @test count(listed -> listed isa FilePage, open.files) == 1
+        # A second open focuses that tab, and opens no other.
+        evaluate_operation(editor, OpenFileOperation(path))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test tabs() == before + 1
+    end
+
     @testset "the first content of a window holds the work of the session and the tools of the editor" begin
         editor, _ = _nav_editor(PrimitiveString("start"))
         content = make_editor_explorer_content(; editor, entries = Any[Workspace([WorkspaceFolder("work", pwd())])])
         titles = [format_tree_node_label(entry) for entry in content.entries]
-        @test titles == ["Files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings", "Help"]
-        @test content.entries[2] === get_session_task_group_list(; editor)
-        @test content.entries[3] === get_session_assistant_list(; editor)
-        editor_section = content.entries[6]
+        @test titles == ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings",
+                         "Help"]
+        @test content.entries[2] === get_session_open_file_list(; editor)
+        @test content.entries[3] === get_session_task_group_list(; editor)
+        @test content.entries[4] === get_session_assistant_list(; editor)
+        editor_section = content.entries[7]
         @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
-        @test length(content.entries[8].entries) == 3
+        @test length(content.entries[9].entries) == 3
     end
 
     @testset "Ctrl+press on a node opens its page in a new tab" begin

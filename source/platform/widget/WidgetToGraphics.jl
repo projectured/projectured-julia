@@ -8850,6 +8850,7 @@ const LUCIDE_ICON_GLYPHS = (
     :lock           => 0xe10b,  # lock: read only
     :funnel         => 0xe0dc,  # filter: a filter or a sort hides or orders the items
     :hourglass      => 0xe296,  # hourglass: not started
+    :file_stack     => 0xe4a1,  # file-stack: the open files of an editor
     # The kinds that an explorer shows
     :layers         => 0xe52a,  # layers-2: a section of entries
     :folder_tree    => 0xe33c,  # folder-tree: an explorer
