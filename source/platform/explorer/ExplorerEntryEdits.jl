@@ -198,4 +198,5 @@ end
     override(KeyDown(:down; ctrl, shift)) => "Move the entry later" =>
         _make_move_entry_operation(doc, get_selection(doc), 1)
     nothing => "New section" => _make_new_section_operation(doc, get_selection(doc))
+    splice(_EXPLORER_POINTER_BINDINGS)
 end

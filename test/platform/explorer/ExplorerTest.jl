@@ -64,6 +64,15 @@ function _explorer_has_tree_text(backend, text)
     any(entry -> entry[1] == text && entry[2] < limit, texts)
 end
 
+# The answer of a right click on the row `label` in the tree, after a move there.
+function _explorer_right_click(editor, backend, label)
+    click = _explorer_click(backend, label)
+    _nav_press!(editor, backend, MouseMove(click.x, click.y; time = 0.0))
+    answer = read_intent(editor.projection, nothing, Intent(MouseClick(:right, click.x, click.y, 1, ModifierKeys(); time = 0.0)),
+                         editor.iomap).operation
+    answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
+end
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -566,6 +575,48 @@ function test_explorer()
         evaluate_operation(editor, section.operation)
         run_frame!(editor)
         @test isempty(explorer.filter.kinds) && explorer.matches === nothing
+    end
+
+    @testset "the menu of a row opens, adds, removes and renames, and runs the commands of its document" begin
+        content = _explorer_make()
+        alpha, inner = content.entries[1], content.entries[2]
+        long = _explorer_node("long", (_explorer_node("item $k") for k in 1:60)...)
+        push!(content.entries, long)
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        row_menu(label) = begin
+            opened = _explorer_right_click(editor, backend, label)
+            layer = only(filter(layer -> layer[1] == label, opened.layers))
+            (opened, layer[2])
+        end
+        labels(menu) = [string(item.action.label) for item in menu.elements if item isa WidgetMenuItem]
+        # An entry that is no section: open it and remove it.
+        (_, menu) = row_menu("alpha")
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer"]
+        # A section: rename it, and add to it.
+        (_, menu) = row_menu("Inner")
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Rename", "New section", "Add…"]
+        # A long list of children opens as a page.
+        (opened, menu) = row_menu("long")
+        @test "Open as a list" in labels(menu)
+        _nav_choose!(editor, opened, _nav_find_item(menu, "Open as a list"))
+        @test get_navigator_page(explorer.navigator) === long.children
+        # A node below an entry adds to the root of the explorer of the editor.
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "alpha"))
+        (opened, menu) = row_menu("alpha one")
+        @test labels(menu) == ["Open in a new tab", "Add to explorer"]
+        _nav_choose!(editor, opened, _nav_find_item(menu, "Add to explorer"))
+        @test last(get_session_explorer_content(; editor).entries) === alpha.children[1]
+        (opened, menu) = row_menu("alpha")
+        _nav_choose!(editor, opened, _nav_find_item(menu, "Remove from explorer"))
+        @test content.entries[1] === inner
+        # The commands of the document of a row follow the items of the explorer.
+        log = get_session_fault_log(; editor)
+        logs = Explorer(ExplorerSection("Explorer", Any[log]))
+        editor, backend = _nav_editor(logs)
+        (_, menu) = row_menu(format_tree_node_label(log))
+        @test any(element -> element isa WidgetSeparator, menu.elements)
+        @test "Clear the fault log" in labels(menu)
     end
 
     @testset "Ctrl+press on a node opens its page in a new tab" begin

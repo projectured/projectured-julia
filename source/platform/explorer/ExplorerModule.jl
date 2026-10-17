@@ -58,6 +58,7 @@ include("ExplorerFilter.jl")
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")
+include("ExplorerRowMenu.jl")
 include("ExplorerEntryEdits.jl")
 include("ExplorerContentFile.jl")
 

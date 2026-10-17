@@ -1253,8 +1253,22 @@ before each edit of a kernel file. Mark each step done here.
      editor task; (b) the search walks only what is in memory, and an unread
      folder is a row that says "not read"; (c) leave the search out of this plan.
      Recommendation (mine): (b) first, then (a) in a plan of its own.
-7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document
+7. [x] **The menu of a row.** The items of §5.8, and the commands of the document
    from its own gesture table.
+   **Done 2026-10-17.** A right click on a row of the tree or of the matches opens
+   one layer named by the row: Open in a new tab; Remove from explorer for an
+   entry, or Add to explorer for a node below an entry; Rename, New section and
+   Add… for a section; Open as a list for a node with a lazy list or more than 50
+   children, which the navigator beside the tree visits; then, after a
+   separator, each command of the gesture table of the document that applies now
+   (a rule with a name and no pointer pattern), rerooted from the place of the
+   document in the tree. The binding of the right click is spliced into
+   `@gestures Explorer`, so it works wherever the selection is. Facts and
+   decisions:
+   - No refresh exists for a document of outside state, and a watched folder
+     follows the disk, so the menu has no Refresh (no new mechanism).
+   - Add… opens the menu of Insert as its operation, because a context menu
+     window opens no submenu of its own.
 8. [ ] **The dashboard** (Q4). The document, its page, `+` "Dashboard", and the
    insert of a card by the assistant.
 9. [ ] **The window of projectured.** The Explorer is the first tab of the main
