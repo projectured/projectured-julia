@@ -65,7 +65,7 @@ For example, take a root with two documents in `parts` and one in `notes`. The t
 
 ### The chevron writes the open nodes
 
-A press on a chevron answers `ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget, "expanded", paths))`. The reader of `DocumentTreeToWidgetTree` turns the answer into the same write of `expanded` of the `DocumentTree`, with the documents at those paths. The tree document holds no document that left the tree.
+A press on a chevron answers `ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget, "expanded", paths))`. The reader of `DocumentTreeToWidgetTree` turns the answer into the same write of `expanded` of the `DocumentTree`, with the open places of those paths. The tree document holds no document that left the tree.
 
 A `DocumentTree` holds the documents of its open nodes and of the rows that its view shows while a tab holds the tree. The acquire of the tree acquires each open document, and the release releases the same documents. The answer of the chevron contains a `ChangeHeldDocumentsOperation` in the same view-state write. It releases the documents of the nodes that close and acquires the documents of the nodes that open. So a document that opens, such as a folder, starts its read, and an undo records neither the open node nor the change of the hold. A tree that no tab holds holds nothing.
 

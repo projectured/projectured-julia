@@ -3,8 +3,10 @@
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
 > `projectured-julia-explorer`): steps 1 to 4 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
-> Q12 the same day. No step has started. The steps in §7 start only
-> when the owner asks for them. The owner refines the structure of the tree later.
+> Q12 the same day. The owner asked for the implementation on 2026-10-17. On the
+> same day the branch moved onto main `93181c381` (the plan
+> `plan/done/a-viewport-holds-the-rows-it-shows.md`). The owner refines the
+> structure of the tree later.
 
 ## 1. The ask
 
@@ -953,13 +955,21 @@ before each edit of a kernel file. Mark each step done here.
      `current_color` (the theme's `primary`) at its left edge. A path into the
      document of a node marks that node. The explorer passes the address of its
      navigator.
-   - `WidgetTree` has the field `current` after `anchor`: a positional call that
-     passes the selection and the mouse target passes `current` before them.
+   - `WidgetTree` has the field `current` after `anchor` and `shown`: a
+     positional call that passes the selection and the mouse target passes
+     `anchor`, `shown` and `current` before them.
    - The keys take no modifier; Up and Down keep their old rule. End does
      nothing in a lazy list of rows. Page Up and Page Down move by the height of
-     the output of the tree in rows, less one. The view does not scroll to the
+     the view in rows, less one: the view that a pane offers
+     (`WidgetTreeToGraphicsCanvasIoMap.view_height`), else the canvas of the
+     tree. The view does not scroll to the
      new selection, as before (a limit of the file tree too).
    - `tree.md` describes places, the mark and the keys.
+   - With the viewport plan on main, the tree holds the documents of its open
+     places and of its shown rows (`tree.shown`). One write of view state
+     replaces the places, the shown rows, or both, and one
+     `ChangeHeldDocumentsOperation` holds the difference.
+     `_collect_first_lazy_children` walks the places.
 3. [x] **The decoration of a document** (projectured, §5.14). `DocumentDecoration`
    and `get_document_decoration` in the domain slice, the table of the
    conditions, `WidgetIcon` and its printer, `WidgetTreeNode.badges` and
