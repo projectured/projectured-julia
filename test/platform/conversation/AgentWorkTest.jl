@@ -42,7 +42,7 @@ function test_agent_work()
             # It started to run, so it keeps the time; it ended, so its node says how
             # long it worked.
             @test child.start_time isa Float64
-            @test format_tree_node_label(child) == "Explore · idle · 2 s · 1k tokens"
+            @test format_tree_node_label(child) == "Explore" && get_document_decoration(child).detail == "idle · 2 s · 1k tokens"
             @test (child.last_tool, child.summary, child.can_cancel) ==
                   ("Grep", "Found a.jl", true)
             turns = collect(child.conversation.turns)

@@ -316,7 +316,7 @@ function test_task_views()
             title = make_task_group_tab_title(document)
             @test title.icon === :circle && only(title.badges).content == "5"
             wait_task_group_document(start_task_group_document!(document))
-            @test title.icon === :x && title.icon_role === :error
+            @test title.icon isa WidgetIcon && title.icon.name === :x && title.icon_role === :error
             @test [badge.content for badge in title.badges] == ["1 ERROR"]
             list = TaskGroupList()
             add_task_group!(list, document)

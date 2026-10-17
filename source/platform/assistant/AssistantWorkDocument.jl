@@ -67,8 +67,10 @@ pred_arguments(work::AssistantWork) = (work.assistant,), Pair{Symbol,Any}[]
 get_tree_children_steps(::AssistantWork) =
     ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
 format_tree_node_label(::AssistantWork) = "This session"
-get_tree_node_icon(work::AssistantWork) =
-    is_assistant_turn_running(work.assistant) ? :loader : :bot
+get_document_decoration(work::AssistantWork) =
+    is_assistant_turn_running(work.assistant) ?
+        DocumentDecoration(; icon = :loader, conditions = [DocumentCondition(:running)], work_item = true) :
+        DocumentDecoration(; icon = :bot)
 
 # ── The verb ─────────────────────────────────────────────────────────────────
 

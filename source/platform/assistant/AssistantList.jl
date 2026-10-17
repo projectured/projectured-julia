@@ -56,6 +56,18 @@ accepts_pasted_document(::AssistantList) = false
 has_document_duplicate(::AssistantList) = false
 is_walk_opaque(::AssistantList) = true
 
+# The list says how many of its assistants work, and how many wait for the person.
+function get_document_decoration(list::AssistantList)
+    assistants = collect(list.assistants)
+    working = count(a -> a.status === :streaming, assistants)
+    waiting = count(a -> !isempty(collect_open_assistant_requests(a)), assistants)
+    conditions = DocumentCondition[]
+    working > 0 && push!(conditions, DocumentCondition(:running))
+    waiting > 0 && push!(conditions, DocumentCondition(:waiting; count = waiting))
+    counts = working == 0 ? DocumentCount[] : [DocumentCount(string(working, " working"); role = :accent)]
+    DocumentDecoration(; icon = :chats, conditions, counts)
+end
+
 """
     get_session_assistant_list(; editor = find_evaluation_editor()) -> AssistantList
 

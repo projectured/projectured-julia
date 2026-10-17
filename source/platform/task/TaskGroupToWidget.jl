@@ -645,8 +645,9 @@ The tooltip holds the summary card in short. The icon and the badges read the
 and the tooltip reads the summary; so the tab follows the group, and nothing of
 the title is written while the group runs.
 
-It is the `make_pane_tab_title` of a group, so `open_pane!` gives each tab of a
-group this title, also when its caller gives the name as a plain string.
+It is the title that the decoration of a group gives
+(`get_document_decoration`), as `open_pane!` gives each tab of a group, also when
+its caller gives the name as a plain string, and as a row of a tree shows it.
 
 Use it to give the tab of a group a title that shows how far the group is.
 
@@ -660,19 +661,28 @@ See also `describe_task_group` and `open_pane!`.
 """
 function make_task_group_tab_title end
 
-function make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[])
-    group = get_task_group(doc)
-    state() = (status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),
-               cancelled = group.stopping)
-    PaneTabTitle(String(name);
-                 icon = () -> _get_tab_icon(state()),
-                 icon_role = () -> _get_tab_role(group, state()),
-                 badges = () -> _make_tab_badges(group, state()),
-                 tooltip = () -> _format_tab_tooltip(doc, group))
-end
+make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[]) =
+    make_pane_tab_title(doc, String(name))
 
-make_pane_tab_title(doc::TaskGroupDocument, name::AbstractString) =
-    make_task_group_tab_title(doc; name)
+# A group is a work item: its icon is its state, its tint the role of its state,
+# its counts how far it is and each code that came back unexpected, and its
+# tooltip the summary card in short. It reads the counts and the status, which
+# change when a task starts or ends.
+function get_document_decoration(doc::TaskGroupDocument)
+    group = get_task_group(doc)
+    state = (status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),
+             cancelled = group.stopping)
+    kind = _get_tab_state(state)
+    role = _get_tab_role(group, state)
+    condition = kind === :running ? DocumentCondition(:running) :
+                kind === :pending ? DocumentCondition(:pending) :
+                kind === :cancelled ? DocumentCondition(:stopped) :
+                kind === :expected ? DocumentCondition(:done) :
+                DocumentCondition(role === :error ? :failed : :unexpected; role)
+    counts = DocumentCount[DocumentCount(badge.content; role = badge.role) for badge in _make_tab_badges(group, state)]
+    DocumentDecoration(; icon = _get_tab_icon(state), conditions = [condition], counts,
+                       tooltip = _format_tab_tooltip(doc, group), work_item = true)
+end
 
 # What the tab of a group is in: not started, running, cancelled, all as
 # expected, or with an unexpected code.
@@ -744,33 +754,18 @@ end
 
 # ── The node of a tree ───────────────────────────────────────────────────────
 
-# A group in a tree has its tasks under its node. Its text is its identifier, its
-# title, how many of its tasks finished, and each code that came back unexpected;
-# its icon is the icon of its tab. Both read the counts, which change only when a
-# task starts or ends.
+# A group in a tree has its tasks under its node. Its text is its identifier and
+# its title; how far it is shows as the counts of its decoration.
 get_tree_children_steps(::TaskGroupDocument) = ((FieldReferenceStep("tasks"),),)
 
-function format_tree_node_label(doc::TaskGroupDocument)
-    counts = get_task_group_document_counts(doc)
-    words = String[getfield(doc, :identifier)[] * " " * getfield(doc, :title)[],
-                   string(counts.finished, "/", counts.total)]
-    for (code, _, unexpected) in counts.counts
-        unexpected > 0 && push!(words, string(unexpected, " ", code))
-    end
-    join(words, " · ")
-end
-
-get_tree_node_icon(doc::TaskGroupDocument) =
-    _get_tab_icon((status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),
-                   cancelled = get_task_group(doc).stopping))
+format_tree_node_label(doc::TaskGroupDocument) = getfield(doc, :identifier)[] * " " * getfield(doc, :title)[]
 
 # The list of the groups has a node for each group, and a closed group keeps its
-# place there with a text that says it closed.
+# place there and says that it closed.
 get_tree_children_steps(::TaskGroupList) = ((FieldReferenceStep("groups"),),)
-get_tree_node_icon(::TaskGroupList) = :list
-format_tree_node_label(group::ClosedTaskGroup) =
-    getfield(group, :identifier)[] * " " * getfield(group, :title)[] * " · closed"
-get_tree_node_icon(::ClosedTaskGroup) = :minus
+format_tree_node_label(group::ClosedTaskGroup) = getfield(group, :identifier)[] * " " * getfield(group, :title)[]
+get_document_decoration(::ClosedTaskGroup) =
+    DocumentDecoration(; icon = :minus, conditions = [DocumentCondition(:stopped)], detail = "closed", work_item = true)
 
 # ── The pane ─────────────────────────────────────────────────────────────────
 
@@ -953,16 +948,19 @@ const _LIST_COLUMNS = ("group", "title", "kind", "state", "counts", "progress", 
     make_task_group_list_tab_title(list) -> PaneTabTitle
 
 The title of the Tasks tab: its name, and a badge with the count of the groups
-that run while any does. It is the `make_pane_tab_title` of a list, so a
-navigator whose page is the list gives its tab the same icon and badge.
+that run while any does. It is the title that the decoration of the list gives
+(`get_document_decoration`), so a navigator whose page is the list gives its tab
+the same icon and badge, and a row of a tree shows the same.
 """
-make_task_group_list_tab_title(list::TaskGroupList; name = "Tasks") =
-    PaneTabTitle(String(name); icon = :list,
-                 badges = () -> (n = count(g -> getfield(g, :status)[] in (:running, :stopping),
-                                           collect_task_group_documents(list));
-                                 n == 0 ? Any[] : Any[WidgetBadge(string(n, " running"); role = :accent)]))
+make_task_group_list_tab_title(list::TaskGroupList; name = "Tasks") = make_pane_tab_title(list, String(name))
 
-make_pane_tab_title(list::TaskGroupList, name::AbstractString) = make_task_group_list_tab_title(list; name)
+# The list says how many of its groups run, and runs while one does.
+function get_document_decoration(list::TaskGroupList)
+    running = count(group -> getfield(group, :status)[] in (:running, :stopping), collect_task_group_documents(list))
+    running == 0 && return DocumentDecoration(; icon = :list)
+    DocumentDecoration(; icon = :list, conditions = [DocumentCondition(:running)],
+                       counts = [DocumentCount(string(running, " running"); role = :accent)])
+end
 
 function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
     group = get_task_group(doc)

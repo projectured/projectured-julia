@@ -22,11 +22,15 @@ function test_assistant_work()
             for text in ("The job", "Fix the tests", "First prompt: Fix the tests",
                          "Plan of the plan mode", "First read, then write.", "Now",
                          "Step: Writing the code", "Context: not known yet", "tasks",
-                         "1 of 3 completed", "Writing the code · in progress", "Work",
-                         "This session", "Explore · running", "watch the build · running",
+                         "1 of 3 completed", "Work", "This session",
                          "The agent gives no process.",
                          "warning · Retrying — The model is busy")
                 @test _work_page_has_text(backend, text)
+            end
+            # A row of a tree draws its name, then the detail of its decoration.
+            for (label, detail) in (("Writing the code", "in progress"), ("Explore", "running"),
+                                    ("watch the build", "running"))
+                @test _work_page_has_row(backend, label, detail)
             end
             # The tree of the work keeps its open nodes when the page draws again.
             @test haskey(work.work_tree.expanded, work)
@@ -38,7 +42,7 @@ function test_assistant_work()
             navigator = Navigator(work)
             editor, backend = _work_page_editor(navigator)
             child = only(collect(a.agent_work.subagents))
-            _work_page_double_click!(editor, backend, "Explore · running")
+            _work_page_double_click!(editor, backend, "Explore"; exact = true)
             @test get_navigator_page(navigator) === child
             @test _work_page_is(navigator.address, FieldReferenceStep("subagents"),
                                 ElementReferenceStep(1))
@@ -63,7 +67,7 @@ function test_assistant_work()
             @test get_navigator_page(navigator) === work
             @test _work_page_has_text(backend, "The job")
             # Parent from the page of a subagent comes back to the work page.
-            _work_page_double_click!(editor, backend, "Explore · running")
+            _work_page_double_click!(editor, backend, "Explore"; exact = true)
             @test get_navigator_page(navigator) === child
             parent = _work_page_click(backend, _WORK_PAGE_PARENT)
             _work_page_press!(editor, backend, parent)
@@ -76,7 +80,7 @@ function test_assistant_work()
             work = AssistantWork(a)
             navigator = Navigator(work)
             editor, backend = _work_page_editor(navigator)
-            _work_page_double_click!(editor, backend, "watch the build · running")
+            _work_page_double_click!(editor, backend, "watch the build"; exact = true)
             document = only(collect(a.agent_work.background_tasks))
             @test get_navigator_page(navigator) === document
             @test _work_page_is(navigator.address, FieldReferenceStep("background_tasks"),
@@ -98,16 +102,17 @@ function test_assistant_work()
             # A task that runs says in its node when it started, and reads no clock.
             execution = get_current_task_execution(document)
             started = Libc.strftime("%H:%M:%S", execution.start_time)
-            @test format_tree_node_label(document) ==
-                  "watch the build · running since " * started
-            @test get_tree_node_icon(document) === :loader
+            @test format_tree_node_label(document) == "watch the build"
+            @test get_document_decoration(document).detail == "running since " * started
+            @test get_document_decoration(document).icon === :loader
             # A task that ended says how long it ran.
             ended = AgentBackgroundTaskUpdate("bg1"; status = :completed,
                                               end_time = execution.start_time + 2)
             apply_agent_event!((document = a,), a, ended)
             drain_task_feed!()
-            @test format_tree_node_label(document) ==
-                  "watch the build · DONE · " * format_elapsed_time(2.0; precision = 1)
+            @test format_tree_node_label(document) == "watch the build"
+            @test get_document_decoration(document).detail == format_elapsed_time(2.0; precision = 1)
+            @test [count.text for count in get_document_decoration(document).counts] == ["DONE"]
             # A task that ended can not be stopped.
             EditorModule.run_frame!(editor)
             @test !_work_page_has_text(backend, "Stop")
@@ -124,9 +129,9 @@ function test_assistant_work()
             editor, backend = _work_page_editor(Navigator(AssistantWork(a)))
             texts = [entry[1] for entry in _work_page_texts(backend)]
             @test !any(text -> occursin('\n', text), texts)
-            @test _work_page_has_text(backend, "Explore the tests · running since ")
-            @test _work_page_has_text(backend, "Read the code · completed")
-            _work_page_double_click!(editor, backend, "Explore the tests · running")
+            @test _work_page_has_row(backend, "Explore the tests", "running since ")
+            @test _work_page_has_row(backend, "Read the code", "completed")
+            _work_page_double_click!(editor, backend, "Explore the tests"; exact = true)
             texts = [entry[1] for entry in _work_page_texts(backend)]
             @test !any(text -> occursin('\n', text), texts)
             @test all(in(texts), ("Explore the tests", "Summary:", "Read two files:",
@@ -221,21 +226,21 @@ function test_assistant_work()
             @test get_tree_children_steps(work) == children
             @test get_tree_children_steps(child) == get_tree_children_steps(work)
             @test format_tree_node_label(work) == "This session"
-            @test get_tree_node_icon(work) === :bot
-            @test get_tree_node_icon(child) === :loader
+            @test get_document_decoration(work).icon === :bot
+            @test get_document_decoration(child).icon === :loader
             child.last_tool = "Grep"
             child.token_count = 1200
             # A subagent that runs says when it started, and reads no clock.
             started = Libc.strftime("%H:%M:%S", child.start_time)
-            @test format_tree_node_label(child) ==
-                  "Explore · running since " * started * " · Grep · 1k tokens"
+            @test format_tree_node_label(child) == "Explore"
+            @test get_document_decoration(child).detail == "running since " * started * " · Grep · 1k tokens"
             child.state = :requires_action
-            @test format_tree_node_label(child) == "Explore · waits for you · 1k tokens"
-            @test get_tree_node_icon(child) === :warning
+            @test get_document_decoration(child).detail == "waits for you · 1k tokens"
+            @test get_document_decoration(child).icon === :warning
             # One that ended says how long it worked.
             child.state = :idle
             child.duration = 75.0
-            @test format_tree_node_label(child) == "Explore · idle · 1:15 · 1k tokens"
+            @test get_document_decoration(child).detail == "idle · 1:15 · 1k tokens"
             @test pred_arguments(work) == ((a,), Pair{Symbol,Any}[])
             @test is_walk_opaque(work) && !has_document_duplicate(work)
             @test search_references(work, node -> node === child) |> isempty
@@ -329,8 +334,15 @@ function _work_page_press!(editor, backend, events...)
     EditorModule.run_frame!(editor)
 end
 
-function _work_page_double_click!(editor, backend, text)
-    click = _work_page_click(backend, text)
+# Whether the last frame draws `label`, and right after it a text that starts with
+# `detail`, as a row of a tree draws its name and the detail of its decoration.
+function _work_page_has_row(backend, label, detail)
+    texts = [entry[1] for entry in _work_page_texts(backend)]
+    any(k -> texts[k] == label && startswith(texts[k + 1], detail), 1:(length(texts) - 1))
+end
+
+function _work_page_double_click!(editor, backend, text; exact::Bool = false)
+    click = _work_page_click(backend, text; exact)
     double = MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0)
     _work_page_press!(editor, backend, click, double)
 end

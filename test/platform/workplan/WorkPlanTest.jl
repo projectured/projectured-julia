@@ -24,6 +24,10 @@ _workplan_step_path(indices...) =
     _workplan_path(FieldReferenceStep("steps"), ElementReferenceStep(indices[1]),
                    (step for k in indices[2:end] for step in (FieldReferenceStep("children"), ElementReferenceStep(k)))...)
 
+# The icon and the detail that the decoration of a plan or a step gives.
+_workplan_icon(document) = get_document_decoration(document).icon
+_workplan_detail(document) = get_document_decoration(document).detail
+
 function test_work_plan()
 @testset "the plan of an agent" begin
     @testset "the progress counts the steps at every depth" begin
@@ -45,13 +49,13 @@ function test_work_plan()
         (writing, fixing) = (plan.steps[2], plan.steps[3])
         @test is_work_plan_step_blocked(plan, fixing)
         @test !is_work_plan_step_blocked(plan, writing)
-        @test format_tree_node_label(fixing) == "Fix the bug · blocked by step 2"
-        @test get_tree_node_icon(fixing) === :stop
+        @test format_tree_node_label(fixing) == "Fix the bug" && _workplan_detail(fixing) == "blocked by step 2"
+        @test _workplan_icon(fixing) === :stop
         @test compute_item_facet(fixing, Val(:blocked)) === true
         writing.status = :completed
         @test !is_work_plan_step_blocked(plan, fixing)
-        @test format_tree_node_label(fixing) == "Fix the bug · pending"
-        @test get_tree_node_icon(fixing) === :circle
+        @test format_tree_node_label(fixing) == "Fix the bug" && _workplan_detail(fixing) == "pending"
+        @test _workplan_icon(fixing) === :circle
         @test compute_item_facet(fixing, Val(:blocked)) === false
         # A blocker under a step blocks too; an id that names no step blocks nothing,
         # and a step that does not wait is not blocked.
@@ -65,22 +69,23 @@ function test_work_plan()
         # A step that no plan holds is never blocked, and shows no blocker.
         alone = WorkPlanStep("e", "Alone"; blocked_by = ["a"])
         @test alone.plan === nothing && compute_item_facet(alone, Val(:blocked)) === false
-        @test format_tree_node_label(alone) == "Alone · pending"
+        @test format_tree_node_label(alone) == "Alone" && _workplan_detail(alone) == "pending"
     end
 
     @testset "the words of the progress" begin
         plan = _workplan_make()
         @test describe_work_plan_progress(plan) ==
               "2 of 7 completed, 1 in progress, 1 pending, 1 blocked, 1 skipped, 1 deferred"
-        @test format_tree_node_label(plan) == "Fix the parser · " * describe_work_plan_progress(plan)
+        @test format_tree_node_label(plan) == "Fix the parser" && _workplan_detail(plan) == describe_work_plan_progress(plan)
+        @test [count.text for count in get_document_decoration(plan).counts] == ["2/7"]
         @test describe_work_plan_progress(WorkPlan("empty")) == "no steps"
         @test describe_work_plan_progress(WorkPlan("one"; steps = [WorkPlanStep("1", "Only")])) ==
               "0 of 1 completed, 1 pending"
         # The label of a step that runs is what it shows while it runs.
-        @test format_tree_node_label(plan.steps[2]) == "Writing the tests · in progress"
-        @test get_tree_node_icon(plan.steps[2]) === :loader && get_tree_node_icon(plan.steps[1]) === :circle_check
-        @test get_tree_node_icon(plan.steps[4]) === :skip_forward && get_tree_node_icon(plan.steps[5]) === :circle_pause
-        @test get_tree_node_icon(plan) === :list && get_document_title(plan) == "Fix the parser"
+        @test format_tree_node_label(plan.steps[2]) == "Writing the tests" && _workplan_detail(plan.steps[2]) == "in progress"
+        @test _workplan_icon(plan.steps[2]) === :loader && _workplan_icon(plan.steps[1]) === :circle_check
+        @test _workplan_icon(plan.steps[4]) === :skip_forward && _workplan_icon(plan.steps[5]) === :circle_pause
+        @test _workplan_icon(plan) === :list && get_document_title(plan) == "Fix the parser"
         @test get_document_title(WorkPlan("tasks")) == "Plan" && get_document_title(plan.steps[3]) == "Fix the bug"
     end
 
@@ -156,14 +161,14 @@ function test_work_plan()
         navigator = Navigator(plan)
         editor, backend = _nav_editor(navigator)
         @test _nav_has_text(backend, "2 of 7 completed, 1 in progress")
-        @test _nav_has_text(backend, "Writing the tests · in progress")
-        @test _nav_has_text(backend, "Fix the bug · blocked by step 2")
+        @test _nav_has_texts(backend, "Writing the tests", "in progress")
+        @test _nav_has_texts(backend, "Fix the bug", "blocked by step 2")
         plan.steps[2].status = :completed
         run_frame!(editor)
-        @test _nav_has_text(backend, "Write the tests · completed")
-        @test _nav_has_text(backend, "Fix the bug · pending")
+        @test _nav_has_texts(backend, "Write the tests", "completed")
+        @test _nav_has_texts(backend, "Fix the bug", "pending")
         @test !_nav_has_text(backend, "blocked by step 2")
-        click = _nav_click(backend, "Fix the bug · pending")
+        click = _nav_click(backend, "Fix the bug")
         @test click !== nothing
         _nav_press!(editor, backend, click, _doctree_double(click))
         @test get_navigator_page(navigator) === plan.steps[3]

@@ -35,6 +35,7 @@ using ..ClockModule
 using ..CollectionModule
 using ..ConversationModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..EventModule
@@ -73,7 +74,7 @@ using ..WorkPlanModule
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
 import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
-                       get_insertion_aliases, make_insertion_document
+                       get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
@@ -82,7 +83,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
                      format_task_column, format_task_details, get_task_actions
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
@@ -100,7 +101,8 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
 export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
 export AddDraftPictureOperation, register_picture_tools!
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
-       compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
+       compute_assistant_turn_side, describe_assistant_activity, collect_open_assistant_requests,
+       find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
 export AssistantList, get_session_assistant_list, set_assistant_list_source!,
        set_assistant_list_opener!, select_assistant!, link_assistant_list!, unlink_assistant_list!

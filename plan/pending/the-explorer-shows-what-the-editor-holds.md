@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 and 2 done, step 3 part 3a done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 and 2 done, step 3 parts 3a and 3b done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -1003,6 +1003,28 @@ before each edit of a kernel file. Mark each step done here.
    - Not in 3a: the tooltip of a row. A dwell on a row reaches no node now, and a
      binding of a node gets the widget node and not its document; 3b decides how
      a row shows its conditions in words.
+   **Part 3b done 2026-10-17: the work items and the assistants.** What it found
+   and decided:
+   - `DocumentDecoration` has `work_item`: a task, a group, a closed group, a
+     work plan step and an agent session say it. Their icon is their state, so
+     their top left and bottom left corners, which say a state, stay empty, and
+     only they take the green of `:done`.
+   - The task group's tab title and its tree node read one decoration; its old
+     `make_pane_tab_title` method is gone, and `make_task_group_tab_title` and
+     `make_task_group_list_tab_title` give the default title. A stop is the
+     condition `:stopped`: the tab icon has no warning tint now, the pill
+     "cancelled" keeps its warning role.
+   - A task's label is its name; its detail keeps the status word and the time
+     ("running since 12:03", "1.2 s"), its result code is a pill, and a result
+     that is not the expected one shows `x`.
+   - The labels of a group, an agent session, a work plan and a step are their
+     names; the rest is detail and pills. The work page of an agent joins the
+     label and the detail in the text of a link, so the page reads as before.
+   - `collect_open_assistant_requests(assistant)` is public: the permission,
+     question and live sign-in requests of the last turn. An assistant waits
+     while one is open; the list counts the assistants that work and wait.
+   - The task, assistant and work plan slices use the domain module; the work
+     plan slice has the edge `domain`.
 4. [ ] **The kinds of projectured become nodes.** The four generics for
    `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile`,
    `Roster`, `AssistantList` and `Assistant`; the page of a folder as a table of

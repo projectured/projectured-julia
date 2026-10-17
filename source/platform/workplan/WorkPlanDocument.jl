@@ -165,23 +165,30 @@ end
 get_tree_children_steps(::WorkPlan) = ((FieldReferenceStep("steps"),),)
 get_tree_children_steps(::WorkPlanStep) = ((FieldReferenceStep("children"),),)
 
-format_tree_node_label(plan::WorkPlan) =
-    string(get_document_title(plan), " · ", describe_work_plan_progress(plan))
+format_tree_node_label(plan::WorkPlan) = get_document_title(plan)
 
-# The text that a step shows while it runs, or its title, and its state.
-function format_tree_node_label(step::WorkPlanStep)
-    shown = step.status === :in_progress && !isempty(step.active_title) ? step.active_title : step.title
-    string(shown, " · ", _describe_step_state(step))
+# A plan counts its completed steps against all of them.
+function get_document_decoration(plan::WorkPlan)
+    progress = compute_work_plan_progress(plan)
+    DocumentDecoration(; icon = :list, counts = [DocumentCount(string(progress.completed, "/", progress.total))],
+                       detail = describe_work_plan_progress(plan))
 end
 
-get_tree_node_icon(::WorkPlan) = :list
+# The text that a step shows while it runs, or its title.
+format_tree_node_label(step::WorkPlanStep) =
+    step.status === :in_progress && !isempty(step.active_title) ? step.active_title : step.title
 
-# A picture for each status, and one for a blocked step.
-function get_tree_node_icon(step::WorkPlanStep)
-    _is_step_blocked(step) && return :stop
+# A step is a work item: a picture for each status, and one for a blocked step;
+# its detail says its state in words.
+function get_document_decoration(step::WorkPlanStep)
     status = step.status
-    status === :in_progress ? :loader : status === :completed ? :circle_check :
-    status === :skipped ? :skip_forward : status === :deferred ? :circle_pause : :circle
+    blocked = _is_step_blocked(step)
+    icon = blocked ? :stop : status === :in_progress ? :loader : status === :completed ? :circle_check :
+           status === :skipped ? :skip_forward : status === :deferred ? :circle_pause : :circle
+    condition = blocked ? DocumentCondition(:stopped) : status === :in_progress ? DocumentCondition(:running) :
+                status === :completed ? DocumentCondition(:done) :
+                status in (:skipped, :deferred) ? DocumentCondition(:stopped) : DocumentCondition(:pending)
+    DocumentDecoration(; icon, conditions = [condition], detail = _describe_step_state(step), work_item = true)
 end
 
 # ── The facet ────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ module WorkPlanModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..IoMapModule
@@ -38,7 +39,8 @@ import ..DocumentModule: copy_document, get_document_title, is_walk_opaque
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..SerializationModule: pred_arguments
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
+import ..DomainModule: get_document_decoration
 import ..WidgetModule: make_graphics_projection
 
 export WORK_PLAN_STEP_STATUSES, set_work_plan_steps!

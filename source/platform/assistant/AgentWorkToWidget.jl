@@ -139,6 +139,14 @@ function _build_agent_link_lines(p, work::AgentWork, subagents, background_tasks
     lines
 end
 
+# The text of the link of a part of the work: its label, and the detail of its
+# decoration after it, as a row of a tree shows them.
+function _join_label_and_detail(child)
+    label = format_tree_node_label(child)
+    detail = get_document_decoration(child).detail
+    isempty(detail) ? label : label * " · " * detail
+end
+
 function _make_agent_work_link(work::AgentWork, field::AbstractString, index::Int, child)
     reference = extend_reference(EmptyReference(), FieldReferenceStep(field),
                                  ElementReferenceStep(index))
@@ -147,7 +155,7 @@ function _make_agent_work_link(work::AgentWork, field::AbstractString, index::In
                              description = "Open the page of a part of the work",
                              domain = "assistant")
     link = WidgetButton(""; tooltip = "Open its page", gestures = GestureBinding[binding])
-    set_cell_computation!(link, () -> _format_one_line(format_tree_node_label(child)))
+    set_cell_computation!(link, () -> _format_one_line(_join_label_and_detail(child)))
 end
 
 # A press of Cancel: the assistant whose session runs the subagent asks its agent

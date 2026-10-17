@@ -96,15 +96,24 @@ accepts_pasted_document(::AgentWork) = false
 get_tree_children_steps(::AgentWork) =
     ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
 
-# The node of a subagent: its title, its state with the time when it started
-# while it runs, the tool that it calls then, how long it worked once it ended,
-# and the tokens that it used. It reads no clock.
-function format_tree_node_label(work::AgentWork)
-    words = String[get_document_title(work), _describe_agent_work_time(work)]
+# The node of a subagent: its title. Its decoration says its state as its icon,
+# and as its detail its state with the time when it started while it runs, the
+# tool that it calls then, how long it worked once it ended, and the tokens that
+# it used. It reads no clock.
+format_tree_node_label(work::AgentWork) = get_document_title(work)
+
+function get_document_decoration(work::AgentWork)
+    words = String[_describe_agent_work_time(work)]
     work.state === :running && !isempty(work.last_tool) && push!(words, work.last_tool)
     tokens = work.token_count
     tokens === nothing || push!(words, _format_token_count(tokens) * " tokens")
-    join(words, " · ")
+    condition = work.state === :running ? DocumentCondition(:running) :
+                work.state === :requires_action ? DocumentCondition(:waiting; count = 1) :
+                work.state === :idle ? DocumentCondition(:done) : nothing
+    icon = work.state === :running ? :loader : work.state === :idle ? :circle_check :
+           work.state === :requires_action ? :warning : :bot
+    DocumentDecoration(; icon, conditions = condition === nothing ? DocumentCondition[] : [condition],
+                       detail = join(words, " · "), work_item = true)
 end
 
 # The state of the work, with the time when it started while it runs, or with how
@@ -120,10 +129,6 @@ end
 
 # A text in one line: each line break, with the blanks around it, is a space.
 _format_one_line(text::AbstractString) = replace(text, r"\s*\R\s*" => " ")
-
-get_tree_node_icon(work::AgentWork) =
-    work.state === :running ? :loader : work.state === :idle ? :circle_check :
-    work.state === :requires_action ? :warning : :bot
 
 # The state of the work of an agent in words for a person: "running", "idle",
 # "waits for you" or "unknown".

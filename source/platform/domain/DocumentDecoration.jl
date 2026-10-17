@@ -52,11 +52,13 @@ end
 DocumentCount(text::AbstractString; role::Union{Symbol,Nothing} = nothing) = DocumentCount(String(text), role)
 
 """
-    DocumentDecoration(; icon, conditions, counts, detail, tooltip)
+    DocumentDecoration(; icon, conditions, counts, detail, tooltip, work_item = false)
 
 What a document says about itself wherever it is named: a row of a tree, a tab,
 an item of an address bar. `icon` names the kind, a Lucide glyph as a `Symbol`;
-a work item, such as a task, names its state here. `conditions` are its states,
+a work item, such as a task, names its state here and says `work_item = true`, so
+its top left and bottom left corners, which say a state, stay empty, and `:done`
+tints its icon. `conditions` are its states,
 from the list of the conditions ([`get_condition_look`](@ref)). `counts` are pills
 after the name. `detail` is a line of dim text after the name, and `tooltip` more
 text, after the conditions in words.
@@ -78,13 +80,15 @@ struct DocumentDecoration
     counts::Vector{DocumentCount}
     detail::String
     tooltip::Any
+    work_item::Bool
 end
 
 DocumentDecoration(; icon::Union{Symbol,Nothing} = nothing,
                    conditions::AbstractVector = DocumentCondition[],
                    counts::AbstractVector = DocumentCount[],
-                   detail::AbstractString = "", tooltip = nothing) =
-    DocumentDecoration(icon, DocumentCondition[conditions...], DocumentCount[counts...], String(detail), tooltip)
+                   detail::AbstractString = "", tooltip = nothing, work_item::Bool = false) =
+    DocumentDecoration(icon, DocumentCondition[conditions...], DocumentCount[counts...], String(detail), tooltip,
+                       work_item)
 
 """
     get_document_decoration(document) -> DocumentDecoration
@@ -194,8 +198,8 @@ _get_condition_role(condition::DocumentCondition) =
 
 The role of the tint of the icon of `decoration`: the role of the first of its
 conditions, in the order of [`DOCUMENT_CONDITIONS`](@ref), that has a role and
-tints. `:done` tints only the icon of a work item, which names its state, so a
-decoration with no state icon passes it by. `nothing` for no tint.
+tints. `:done` tints only the icon of a work item, which names its state, so any
+other decoration passes it by. `nothing` for no tint.
 
 See also `collect_decoration_marks`.
 """
@@ -206,6 +210,7 @@ const _TINTING_CONDITIONS = (:failed, :waiting, :unexpected, :running, :conflict
 function find_decoration_tint(decoration::DocumentDecoration)
     for condition in _sort_decoration_conditions(decoration)
         condition.name in _TINTING_CONDITIONS || continue
+        condition.name === :done && !decoration.work_item && continue
         role = _get_condition_role(condition)
         role === nothing || return role
     end
@@ -219,7 +224,8 @@ The marks of the icon of `decoration`: for each corner, `top_left`, `top_right`,
 `bottom_left` and `bottom_right`, the first of its conditions that goes there, as
 `(glyph, count, role)`, or `nothing`; and `after_name`, the facts of a kind that
 show after the name, each as `(glyph, role)`. A corner shows the count of a
-condition that has one, else its glyph.
+condition that has one, else its glyph. The top left and the bottom left corners
+of a work item stay empty, because its icon names its state.
 
 See also `find_decoration_tint` and `format_decoration_words`.
 """
@@ -236,6 +242,7 @@ function collect_decoration_marks(decoration::DocumentDecoration)
             look.glyph === nothing || push!(after_name, (glyph = look.glyph, role = role))
         elseif haskey(corners, look.place) && corners[look.place] === nothing
             (look.glyph === nothing && condition.count === nothing) && continue
+            look.place in (:top_left, :bottom_left) && decoration.work_item && continue
             corners[look.place] = (glyph = look.glyph, count = condition.count, role = role)
         end
     end

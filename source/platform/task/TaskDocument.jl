@@ -176,37 +176,51 @@ compute_item_facet(document::TaskDocument, ::Val{:expected}) =
 compute_item_facet(document::TaskDocument, ::Val{:reason}) =
     (result = get_task_document_result(document); result === nothing ? nothing : result.reason)
 
-# The node of a task in a tree: its name, its status and the time when it started
-# while it runs, or the code of its result and how long it ran, with an icon of its
-# status. It reads no clock, so it changes only when the task does. A task that is
-# a group has the tasks of its inner group under its node; any other task is a
-# leaf.
+# The node of a task in a tree: its name; its decoration says its status as its
+# icon, the code of its result as a count, and the time when it started or how
+# long it ran as its detail. It reads no clock, so it changes only when the task
+# does. A task that is a group has the tasks of its inner group under its node;
+# any other task is a leaf.
 function get_tree_children_steps(document::TaskDocument)
     getfield(document, :inner_group)[] === nothing && return ()
     ((FieldReferenceStep("inner_group"), FieldReferenceStep("tasks")),)
 end
 
 function format_tree_node_label(document::TaskDocument)
-    words = String[format_task_parameters(getfield(document, :task)[])]
-    result = get_task_document_result(document)
-    status = get_task_document_status(document)
-    state = result === nothing ? String(status) : result.result
-    (started, ended) = _get_task_document_times(document)
-    if started === nothing
-        push!(words, state)
-    elseif ended === nothing
-        push!(words, state * " since " * Libc.strftime("%H:%M:%S", started))
-    else
-        push!(words, state, format_elapsed_time(ended - started; precision = 1))
-    end
-    join(words, " · ")
+    name = format_task_parameters(getfield(document, :task)[])
+    isempty(name) ? String(get_task_document_status(document)) : name
 end
 
-function get_tree_node_icon(document::TaskDocument)
+# A task is a work item: its icon is its status, and an ended task whose result is
+# not the expected one shows a cross, whatever its status.
+function get_document_decoration(document::TaskDocument)
     status = get_task_document_status(document)
-    status in (:running, :cancelling) ? :loader : status === :done ? :circle_check :
-    status === :error ? :warning : status === :cancelled ? :stop :
-    status === :skipped ? :skip_forward : :circle
+    result = get_task_document_result(document)
+    conditions = DocumentCondition[]
+    counts = DocumentCount[]
+    status in (:running, :cancelling) && push!(conditions, DocumentCondition(:running))
+    status === :pending && push!(conditions, DocumentCondition(:pending))
+    status in (:cancelled, :skipped) && push!(conditions, DocumentCondition(:stopped))
+    expected = result === nothing || is_expected(result)
+    if result !== nothing
+        role = get_result_role(get_result_codes(result), result.result)
+        push!(counts, DocumentCount(result.result; role))
+        push!(conditions, expected ? DocumentCondition(:done) :
+                          DocumentCondition(role === :error ? :failed : :unexpected; role))
+    elseif status === :error
+        push!(conditions, DocumentCondition(:failed))
+    end
+    icon = !expected ? :x :
+           status in (:running, :cancelling) ? :loader : status === :done ? :circle_check :
+           status === :error ? :warning : status === :cancelled ? :stop :
+           status === :skipped ? :skip_forward : :circle
+    (started, ended) = _get_task_document_times(document)
+    detail = started === nothing ? String(status) :
+             ended === nothing ? String(status) * " since " * Libc.strftime("%H:%M:%S", started) :
+             result === nothing ? String(status) * " · " * format_elapsed_time(ended - started; precision = 1) :
+             format_elapsed_time(ended - started; precision = 1)
+    tooltip = result === nothing || result.reason === nothing ? nothing : string(result.reason)
+    DocumentDecoration(; icon, conditions, counts, detail, tooltip, work_item = true)
 end
 
 # The start and the end of the current execution, each `nothing` before it.

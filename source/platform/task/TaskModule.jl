@@ -16,6 +16,7 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..FeedModule
@@ -42,11 +43,10 @@ using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets,
                        compute_item_facet
-import ..DomainModule: accepts_pasted_document
+import ..DomainModule: accepts_pasted_document, get_document_decoration
 import ..FeedModule: drain_changes!, compute_wake_deadline
-import ..PaneModule: make_pane_tab_title
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,

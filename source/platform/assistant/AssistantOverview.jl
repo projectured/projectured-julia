@@ -93,6 +93,49 @@ function _find_open_permission_request(a::Assistant)
 end
 
 """
+    collect_open_assistant_requests(assistant) -> Vector{Any}
+
+The requests in the last turn of `assistant` that wait for an answer of the
+person: a permission that the agent asks, a question with a form, and a sign-in
+that the agent needs while its request is live.
+
+Use it to know whether an assistant waits for the person, and for what.
+
+# Example
+
+    length(collect_open_assistant_requests(get_session_assistant_list().assistants[1]))
+
+See also `describe_assistant_activity`.
+"""
+function collect_open_assistant_requests end
+
+function collect_open_assistant_requests(a::Assistant)
+    turns = collect(a.conversation.turns)
+    isempty(turns) && return Any[]
+    Any[part.content for part in collect(last(turns).parts) if _is_open_assistant_request(part.content)]
+end
+
+_is_open_assistant_request(request::ConversationPermissionRequest) = is_permission_request_open(request)
+_is_open_assistant_request(request::ConversationQuestionRequest) = is_question_request_open(request)
+_is_open_assistant_request(request::ConversationSignInRequest) = request.start !== nothing
+_is_open_assistant_request(_) = false
+
+# An assistant runs while its turn streams, failed after a turn that failed, and
+# waits for the person while a request of its last turn is open. The work state
+# that the person sets is its count, and its activity its detail.
+function get_document_decoration(a::Assistant)
+    conditions = DocumentCondition[]
+    a.status === :streaming && push!(conditions, DocumentCondition(:running))
+    a.status === :error && push!(conditions, DocumentCondition(:failed))
+    waiting = length(collect_open_assistant_requests(a))
+    waiting > 0 && push!(conditions, DocumentCondition(:waiting; count = waiting))
+    state = a.work_state
+    counts = state === :pending ? DocumentCount[] :
+             [DocumentCount(_format_work_state(state); role = _get_work_state_role(state))]
+    DocumentDecoration(; icon = :bot, conditions, counts, detail = describe_assistant_activity(a))
+end
+
+"""
     find_assistant_start_time(assistant) -> Float64 or nothing
 
 When the conversation of `assistant` started: the start of its first turn whose
