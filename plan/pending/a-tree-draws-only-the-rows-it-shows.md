@@ -28,6 +28,13 @@ reaches (`plan/done/a-table-scrolls-its-own-parts.md`). A tree must do the same.
    chain whose links build a row when a walk first reaches it, the head is the
    anchor, the ends of the list stop the pane, and a far scroll moves the head.
    No new mechanism.
+3. **A tree with no offered width is as wide as the rows that the viewport
+   reaches** (the owner, 2026-10-17: "agreed", to point P1), so it can grow while
+   a person scrolls.
+4. **What a viewport shows is a demand** (the owner, 2026-10-17: "it's V"), over
+   a read at the visit of a page only: a viewport holds the documents of the rows
+   that it shows. That is a plan of its own,
+   `a-viewport-holds-the-rows-it-shows.md`, after this one.
 
 ## The model
 
@@ -110,12 +117,6 @@ Each step is one commit with its tests, in a worktree.
   whose open makes only the entries that the rows reach.
 - [ ] **4. The guides:** `tree.md`, the guide of the widgets of a tree, and the
   guide of the lazy list.
-
-## Points for the owner
-
-- **P1. The width of a tree with no offered width** is the width of the rows that
-  the viewport reaches, so it can grow while a person scrolls. The other choice
-  is a width that a caller gives.
 
 ## Risks
 
