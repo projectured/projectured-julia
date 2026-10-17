@@ -284,9 +284,11 @@ state, and the code keeps them apart.
 - **A view document of one kind of content takes the suffix `View`**
   ([naming-rules.md](naming-rules.md)).
 
-A fold is the exception: the content types of the text and data domains keep it in
-their `collapsed` field, so two views of one document fold together, and a save
-writes the fold.
+A fold has no view document yet. The JSON, Markdown, YAML, XML and reStructuredText
+types declare a `collapsed` field that no projection reads: the fold that a person
+makes is a cell of the syntax node that each print makes, so two views fold apart,
+and a new print of a part loses its fold. The workflow and conversation types keep
+their fold in the content, which every view shares and a save writes.
 
 ## Enforcement
 
