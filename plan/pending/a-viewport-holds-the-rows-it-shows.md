@@ -103,12 +103,29 @@ Each step is one commit with its tests, in a worktree.
   - Tests: `test_widget_tree` 96 (a new testset), `test_filesystem_to_widget`,
     `test_file_dialog` 22, `test_document_tree` 94, `test_widget_rows_scroll`,
     `test_tree_render`.
-- [ ] **2. The document tree holds the documents of the shown rows.**
+- [x] **2. The document tree holds the documents of the shown rows.**
   `DocumentTree.shown`, the turn of the write of the widget into holds, one set
   of holds with the open documents, and the first rows at the acquire. Tests:
   `TreeTest`, with a document whose lazy collection of 1,000,000 children holds
   only the children that the view shows, a scroll that moves the holds, a close of
   a node that stays held while it is shown, and an undo that records nothing.
+
+  What step 2 made:
+  - `DocumentTree.shown` (view state, an `IdDict` of documents). The reader of the
+    document tree takes the writes of `expanded` and of `shown` of its widget in
+    one answer, turns each into the documents at those paths, and changes the
+    holds once, against the open and the shown documents together. A child of a
+    lazy list that comes into view is made by the turn.
+  - The first rows at the acquire are the first fifty children of each open lazy
+    list of children only (`_FIRST_SHOWN_CHILD_COUNT`), found at step 2: a tree
+    whose rows all have a count would else hold each row of a small tree, and a
+    close would release no node. The acquire writes them into `shown`, so the
+    first write of the view replaces them.
+  - Tests: `test_document_tree` 100 (a new testset in a real editor: fifty runs
+    at the acquire, about ten after a wheel turn, the holds move down after more
+    turns, every innermost operation of the answer is view state, and the release
+    of the tab lets go of all), `test_widget_tree` 96, `test_filesystem_to_widget`,
+    the navigator suites.
 - [ ] **3. The guides:** the holders in `domain.md`, `tree.md`, and the tree
   in `widget.md`.
 

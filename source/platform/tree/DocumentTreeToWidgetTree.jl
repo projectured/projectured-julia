@@ -117,11 +117,15 @@ end
 
 # The entry of the child `k` of `entry`, or `nothing`. A child of a lazy list counts
 # from its head, and is found only when a walk of the list of the document reached
-# it.
-function _find_child_entry_at(entry::_TreeEntry, k::Int)
+# it; with `make`, the walk to it makes it.
+function _find_child_entry_at(entry::_TreeEntry, k::Int; make::Bool = false)
     (entries, _) = _compute_tree_children_lists!(entry)
     entries isa ListNode || return 1 <= k <= length(entries) ? entries[k] : nothing
     k >= 1 || return nothing
+    if make
+        link = find_list_node(entries, k)
+        return link === nothing ? nothing : link.value
+    end
     found = Ref{Any}(nothing)
     count = Ref(0)
     source = _find_lazy_tree_children(entry.document)
@@ -168,11 +172,11 @@ function _get_tree_child(document, k::Int)
 end
 
 # The entry at the index path `path` from the root entry, or `nothing`.
-function _find_tree_entry(root::_TreeEntry, path)
+function _find_tree_entry(root::_TreeEntry, path; make::Bool = false)
     (isempty(path) || path[1] != 1) && return nothing
     entry = root
     for k in path[2:end]
-        entry = _find_child_entry_at(entry, k)
+        entry = _find_child_entry_at(entry, k; make)
         entry === nothing && return nothing
     end
     entry
@@ -227,39 +231,67 @@ function _collect_open_paths!(paths, entry::_TreeEntry, open, above)
     nothing
 end
 
-# The write of the open nodes of the widget that a chevron makes, as a write of the
-# open nodes of the tree document: the documents of the nodes at the paths that
-# the write gives, so the tree holds no document that left it. The tree then holds
-# the documents of the nodes that open and no longer those of the nodes that
-# close, in the same write of view state, so an undo records neither. `nothing`
-# for any other answer.
+# The writes of the open nodes and of the shown rows of the widget, which a chevron
+# and a scroll make, as writes of the tree document: the documents of the nodes
+# at the paths that each write gives, so the tree holds no document that left it.
+# The tree then holds the documents of its open nodes and of its shown rows
+# together, and no longer those that left both, in the same write of view state,
+# so an undo records none of it. The other writes of the answer, such as a scroll,
+# stay beside them. `nothing` for an answer that writes neither.
 function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
-    # A toggle in a tree whose rows are a lazy list also moves the head of the
-    # rows: those writes stay beside the write of the open nodes.
-    if operation isa CompoundOperation
-        read = Any[_read_open_node_write(iomap, part) for part in operation.operations]
-        all(isnothing, read) && return nothing
-        return CompoundOperation(Any[something(answer, part)
-                                     for (part, answer) in zip(operation.operations, read)])
+    parts = operation isa CompoundOperation ? operation.operations : Any[operation]
+    (open_paths, shown_paths, others) = (nothing, nothing, Any[])
+    for part in parts
+        (name, value) = _find_widget_view_write(iomap, part)
+        name == "expanded" ? (open_paths = value) :
+        name == "shown" ? (shown_paths = value) : push!(others, part)
     end
-    operation isa ReplaceViewStateOperation || return nothing
-    write = get_wrapped_operation(operation)
-    (write isa ReplaceReferencedValueOperation && write.document === iomap.output) || return nothing
-    steps = get_reference_steps(strip_reference_types(write.reference))
-    (length(steps) == 1 && steps[1] == FieldReferenceStep("expanded")) || return nothing
-    root = iomap.root_entry
-    open = IdDict{Any,Nothing}()
-    for path in write.value
-        entry = _find_tree_entry(root, path)
-        entry === nothing || (open[entry.document] = nothing)
-    end
+    (open_paths === nothing && shown_paths === nothing) && return nothing
     tree = iomap.input
-    before = tree.expanded
-    opened = Any[document for document in keys(open) if !haskey(before, document)]
-    closed = Any[document for document in keys(before) if !haskey(open, document)]
-    open_write = ReplaceReferencedValueOperation(tree, "expanded", open)
-    isempty(opened) && isempty(closed) && return ReplaceViewStateOperation(open_write)
-    ReplaceViewStateOperation(CompoundOperation(Any[open_write, ChangeHeldDocumentsOperation(tree, closed, opened)]))
+    root = iomap.root_entry
+    open = open_paths === nothing ? tree.expanded :
+           _collect_entry_documents(root, open_paths)
+    shown = shown_paths === nothing ? tree.shown :
+            _collect_entry_documents(root, shown_paths; make = true)
+    writes = Any[]
+    open_paths === nothing ||
+        push!(writes, ReplaceReferencedValueOperation(tree, "expanded", open))
+    shown_paths === nothing ||
+        push!(writes, ReplaceReferencedValueOperation(tree, "shown", shown))
+    before = merge(IdDict{Any,Nothing}(), tree.expanded, tree.shown)
+    after = merge(IdDict{Any,Nothing}(), open, shown)
+    acquired = Any[document for document in keys(after) if !haskey(before, document)]
+    released = Any[document for document in keys(before) if !haskey(after, document)]
+    (isempty(acquired) && isempty(released)) ||
+        push!(writes, ChangeHeldDocumentsOperation(tree, released, acquired))
+    held = ReplaceViewStateOperation(length(writes) == 1 ? only(writes) :
+                                     CompoundOperation(writes))
+    isempty(others) ? held : CompoundOperation(Any[held, others...])
+end
+
+# The name and the value of a write of view state of one field of the widget,
+# `("expanded", paths)` or `("shown", paths)`, else `(nothing, nothing)`.
+function _find_widget_view_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
+    operation isa ReplaceViewStateOperation || return (nothing, nothing)
+    write = get_wrapped_operation(operation)
+    (write isa ReplaceReferencedValueOperation && write.document === iomap.output) ||
+        return (nothing, nothing)
+    steps = get_reference_steps(strip_reference_types(write.reference))
+    (length(steps) == 1 && steps[1] isa FieldReferenceStep) || return (nothing, nothing)
+    name = steps[1].name
+    name in ("expanded", "shown") ? (name, write.value) : (nothing, nothing)
+end
+
+# The documents of the nodes at the index paths `paths`, by identity. With `make`,
+# a child of a lazy list that no walk reached yet is made, as for a row that comes
+# into view.
+function _collect_entry_documents(root::_TreeEntry, paths; make::Bool = false)
+    documents = IdDict{Any,Nothing}()
+    for path in paths
+        entry = _find_tree_entry(root, path; make)
+        entry === nothing || (documents[entry.document] = nothing)
+    end
+    documents
 end
 
 # ── Printer ──────────────────────────────────────────────────────────────────

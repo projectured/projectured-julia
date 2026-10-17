@@ -293,6 +293,50 @@ function test_document_tree()
         @test _DOCTREE_HOLD_EVENTS == [(:release, "root")]
     end
 
+    @testset "a tree holds the documents of the rows that its view shows" begin
+        empty!(_DOCTREE_HOLD_EVENTS)
+        runs = make_index_list(1_000_000, 1, k -> _doctree_held("run $k"))
+        tree = DocumentTree(_DocTreeLazy("runs", runs))
+        widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)))
+        chain = ChainingProjection(projection, widgets)
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(200)))
+        iomap = print_document(chain, nothing, tree, context)
+        editor = _doctree_hold_editor(PrimitiveString("x"))
+        # The runs that the tree holds, from the acquires and the releases that they note.
+        held = Set{String}()
+        function follow!()
+            for (kind, name) in _DOCTREE_HOLD_EVENTS
+                kind === :acquire ? push!(held, name) : delete!(held, name)
+            end
+            empty!(_DOCTREE_HOLD_EVENTS)
+            held
+        end
+        # No view told the tree its rows yet: a tab that shows it makes it hold the
+        # first fifty runs of its open lazy list.
+        tab = PaneTab("tree", tree)
+        evaluate_operation(editor, AcquireDocumentOperation(tab))
+        @test length(follow!()) == 50 && "run 1" in held && "run 50" in held
+        # A wheel turn down: the tree holds the runs that its view shows, and lets
+        # go of the others, as view state.
+        turn = read_intent(chain, iomap, MouseScroll(0, -3, 20, 60; time = 0.0))
+        is_view_state(operation) = operation isa ReplaceViewStateOperation ||
+            (operation isa CompoundOperation && all(is_view_state, operation.operations))
+        @test turn isa CompoundOperation && is_view_state(turn)
+        evaluate_operation(editor, turn)
+        @test held == Set(document.name for document in keys(tree.shown) if document isa _DocTreeHeld) ==
+              follow!()
+        @test 9 <= length(held) <= 11 && !("run 50" in held)
+        # More turns move the holds down the list, and the count stays the rows of the view.
+        for time in 1.0:1.0:40.0
+            evaluate_operation(editor, read_intent(chain, iomap, MouseScroll(0, -3, 20, 60; time)))
+        end
+        follow!()
+        @test 9 <= length(held) <= 11 && !("run 1" in held)
+        # The release of the tab lets go of every run.
+        evaluate_operation(editor, ReleaseDocumentOperation(tab))
+        @test isempty(follow!())
+    end
+
     @testset "a navigator holds its page, and a visit moves the hold" begin
         empty!(_DOCTREE_HOLD_EVENTS)
         root = _doctree_held("root", _doctree_held("a"))
