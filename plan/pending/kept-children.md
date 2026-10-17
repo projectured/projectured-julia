@@ -261,5 +261,24 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     for each dispatch by path (step 3, 96 per step). The computations again
     fall, as step 3 meant: the reconciled IO maps and the fault barriers of
     the dispatch no longer compute again.
+  - The time, 2026-10-17 11:58 to 12:05, with the owner's word, load 1.49 to
+    1.62, cores 28, 30 and 31, the plain environment with no counters on each
+    side. The script is `/var/tmp/kept-children/time-step10.jl`: the scenarios
+    of the counts, ten steps to warm up and sixty timed inside a function, two
+    rounds in the order base, branch, base, branch. The medians, in ms, round 1
+    / round 2:
+
+    | scenario | base | branch | p90, base → branch |
+    |---|---|---|---|
+    | S4b-w, a window | 9.56 / 9.84 | 9.62 / 9.33 | 11.2 → 10.7 |
+    | S4b, no window | 10.49 / 10.37 | 10.58 / 10.34 | 12.1 → 11.6 |
+    | S4d-w, a window | 4.53 / 4.58 | 4.99 / 4.68 | 5.1 → 5.3 |
+    | S4d, no window | 4.39 / 4.42 | 4.25 / 4.38 | 4.7 → 4.8 |
+    | DF-w, a window | 17.44 / 17.93 | 5.17 / 5.63 | 29.4 → 5.6 |
+
+    A filter of a data frame is 3.3 times faster, and its p90 5 times. S4b-w
+    computes 16 % less, but its time stays: the computations that step 3 saved
+    were cheap. S4d-w is 0.1 to 0.46 ms slower, 2 to 10 %, and the two rounds
+    disagree by more than the difference of the first.
 - [ ] **11. The texts**: the guides of the collection, the layout, the
   projection system, the data frames and the roster.
