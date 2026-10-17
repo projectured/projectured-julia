@@ -1238,7 +1238,11 @@ before each edit of a kernel file. Mark each step done here.
      node of the page in the tree. `+` opens the menu of Insert, at the end of the
      root when no node is selected. The keys of the entries work on the tree only.
      A file of an explorer keeps the section only (§5.12), and a duplicate copies
-     the filter.
+     the filter. A limit, seen in a picture of the window (2026-10-18): the field
+     of the filter keeps its least width, because a text field takes the width of
+     its text and no text field fills its slot; a `LayoutConstraint` with
+     `width = Fill` gives the slot the width and not the field. That is a feature
+     of the widget, outside this plan.
    - [x] **6b. The kinds** (2026-10-17). `▾` opens a menu: "Every kind" and each
      kind of the rows that the tree read, named as the list of `+` names a kind,
      with the icon `check` on what the filter keeps (a menu item has no check
