@@ -16,3 +16,5 @@ get_insertion_aliases(::Type{ReferenceInspector}) = ["reference"]
 # a moment, not data. A save writes nothing, and a load gets an inspector with
 # no reference until something sets it.
 pred_arguments(::ReferenceInspector) = (), Pair{Symbol,Any}[]
+
+get_document_decoration(::ReferenceInspector) = DocumentDecoration(; icon = :crosshair)

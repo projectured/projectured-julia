@@ -130,7 +130,7 @@ function test_system_process()
         @test get_tree_children_steps(tree) == ((FieldReferenceStep("roots"),),)
         @test get_tree_children_steps(shell) == ((FieldReferenceStep("children"),),)
         @test format_tree_node_label(shell) == "100  bash -c x  –  " * format_memory_size(100 * page)
-        @test get_tree_node_icon(shell) === :terminal
+        @test get_document_decoration(shell).icon === :terminal
         @test compute_item_facet(shell, Val(:elapsed)) ≈ 2000.0 - shell.start_time
         @test compute_item_facet(shell, Val(:load)) === nothing
         # The walk of the documents finds the processes, and does not enter the sampler.

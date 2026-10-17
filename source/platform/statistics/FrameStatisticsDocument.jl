@@ -212,3 +212,6 @@ function collect_roster_items(::_SessionFrames, link, series)
     RosterItem[RosterItem(NamedTuple{names}((Int(frames[k]), (column[k] for column in columns)...)))
                for k in eachindex(frames)]
 end
+
+get_document_decoration(::FrameStatistics) = DocumentDecoration(; icon = :chart)
+get_document_decoration(::FrameTimeSeries) = DocumentDecoration(; icon = :chart_line)

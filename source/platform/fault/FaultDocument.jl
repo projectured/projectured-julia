@@ -176,3 +176,11 @@ function wrap_editor!(::Val{:fault_log}, layer::Symbol, argument, parts::EditorP
 end
 
 get_wrapper_layers(::Val{:fault_log}) = (:screen => 30,)
+
+# The fault log fails while it holds a fault, and counts its lines, until the
+# person clears it.
+function get_document_decoration(log::FaultLog)
+    faults = length(log.entries)
+    DocumentDecoration(; icon = :warning,
+                       conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)])
+end

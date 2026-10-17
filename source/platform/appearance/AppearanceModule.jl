@@ -30,6 +30,7 @@ using ..BackendModule
 using ..CellModule
 using ..DeviceModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
@@ -60,6 +61,7 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
+import ..DomainModule: get_document_decoration
 export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
        ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation

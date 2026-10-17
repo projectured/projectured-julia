@@ -75,3 +75,11 @@ get_session_mcp_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(McpLog, editor, McpLog) : McpLog()
 
 make_insertion_document(::Type{McpLog}) = get_session_mcp_log()
+
+# The log of the calls of a client fails while one of its calls was a fault.
+function get_document_decoration(log::McpLog)
+    faults = log.faults
+    faults == 0 && return DocumentDecoration(; icon = :plug)
+    DocumentDecoration(; icon = :plug, conditions = [DocumentCondition(:failed)],
+                       counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)])
+end

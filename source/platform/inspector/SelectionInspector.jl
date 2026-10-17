@@ -81,3 +81,5 @@ reference to.
 """
 get_inspected_document(source::Document, root) = source
 get_inspected_document(source, root) = root
+
+get_document_decoration(::SelectionInspector) = DocumentDecoration(; icon = :crosshair)

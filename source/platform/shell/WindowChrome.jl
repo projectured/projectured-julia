@@ -240,7 +240,7 @@ const RECORDED_TOOLS = (:message_log, :gesture_log, :fault_log, :frame_statistic
 # wrapper that fills it is in `recorded`.
 _make_recorded_tool_commands(recorded) = (
     (:message_log in recorded ?
-        (make_window_tool_command("Message log", MessageLog; icon = :list,
+        (make_window_tool_command("Message log", MessageLog; icon = :scroll_text,
                                   tooltip = "Message log: what the program said in this session"),) : ())...,
     (:gesture_log in recorded ?
         (make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,

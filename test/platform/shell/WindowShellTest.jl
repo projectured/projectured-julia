@@ -260,7 +260,7 @@ end
     @test labels(bar) == insert!(copy(tools), 2, "Assistant")
     @test all(item -> item isa WidgetToolbarItem, bar.elements)
     @test [item.action.icon for item in bar.elements] ==
-          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :chart_line, :crosshair,
+          [:folder, :chat, :terminal, :scroll_text, :keyboard, :warning, :chart, :chart_line, :crosshair,
            :palette, :settings]
     # The tooltip names the tool first, because the picture does not.
     @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)

@@ -96,3 +96,14 @@ get_session_message_log(; editor = find_evaluation_editor()) =
 # fresh empty one. A fresh one would never fill: the feed of the editor fills
 # the log of its session.
 make_insertion_document(::Type{MessageLog}) = get_session_message_log()
+
+# A log counts the warnings and the errors that it holds.
+function get_document_decoration(log::MessageLog)
+    levels = [lowercase(entry.level) for entry in log.entries]
+    errors = count(level -> startswith(level, "error"), levels)
+    warnings = count(level -> startswith(level, "warn"), levels)
+    counts = DocumentCount[]
+    errors > 0 && push!(counts, DocumentCount(string(errors, errors == 1 ? " error" : " errors"); role = :error))
+    warnings > 0 && push!(counts, DocumentCount(string(warnings, warnings == 1 ? " warning" : " warnings"); role = :warning))
+    DocumentDecoration(; icon = :scroll_text, counts)
+end

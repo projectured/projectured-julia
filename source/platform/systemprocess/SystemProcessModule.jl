@@ -26,6 +26,7 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..FeedModule
 using ..FocusModule
 using ..GraphicsModule
@@ -46,9 +47,10 @@ import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 import ..WidgetModule: make_graphics_projection
 
+import ..DomainModule: get_document_decoration
 export SystemProcessRecord, read_system_processes, read_system_process_usage,
        get_clock_ticks_per_second
 export format_memory_size

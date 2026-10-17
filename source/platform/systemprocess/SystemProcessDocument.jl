@@ -114,7 +114,7 @@ format_tree_node_label(process::SystemProcess) =
     string(process.process_id, "  ", _shorten_command(process.command), "  ",
            _format_processor_load(process.processor_load), "  ", format_memory_size(process.memory))
 
-get_tree_node_icon(::SystemProcess) = :terminal
+get_document_decoration(::SystemProcess) = DocumentDecoration(; icon = :terminal)
 
 # A command as a label shows it: at most `limit` characters, the rest an ellipsis.
 _shorten_command(command::AbstractString; limit::Integer = 60) =
@@ -146,3 +146,5 @@ function _compute_elapsed_time(process::SystemProcess)
     sampled_at = process.sampled_at
     sampled_at === nothing ? nothing : max(0.0, sampled_at - process.start_time)
 end
+
+get_document_decoration(::SystemProcessTree) = DocumentDecoration(; icon = :cpu)

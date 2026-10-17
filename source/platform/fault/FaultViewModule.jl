@@ -41,6 +41,7 @@ module FaultViewModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..FaultModule
 using ..GestureBindingModule
 using ..GraphicsModule
@@ -68,7 +69,7 @@ using ..SettingsModule
 # then never finds it. PAR-QUALIFIED-EXTENSION is the rule, and the layering
 # guard is what catches a file that forgets.
 import ..DocumentModule: get_document_title
-import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..DomainModule: get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SettingsModule: apply_settings!, read_settings!, is_settings_group_applied

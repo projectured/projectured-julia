@@ -288,6 +288,47 @@ compute_item_facet(file::FileDocument, ::Val{:name}) = basename(String(get_filen
 compute_item_facet(file::FileDocument, ::Val{:folder}) = dirname(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:has_edits}) = has_unsaved_edits(get_file_content(file))
 
+"""
+    get_file_icon(path) -> Symbol
+
+The icon of the kind of the file at `path`, by its extension: Julia code, JSON,
+text and Markdown, a `.pred` document, a NED network, an INI configuration, a
+`.math` formula, and `:file` for any other file.
+
+Use it to show what kind of file a name names, as a file tree and a tab do.
+
+# Example
+
+    get_file_icon("notes.md")
+
+See also `get_document_decoration`.
+"""
+function get_file_icon end
+
+function get_file_icon(path::AbstractString)
+    extension = lowercase(splitext(path)[2])
+    extension == ".jl"            ? :lambda       :
+    extension == ".json"          ? :braces       :
+    extension in (".md", ".txt")  ? :pilcrow      :
+    extension == ".pred"          ? :diamond      :   # a document written as its constructor
+    extension == ".ned"           ? :hexagon      :   # a network: nodes and the links between them
+    extension == ".ini"           ? :file_sliders :   # a configuration: lines of keys and values
+    extension == ".math"          ? :sigma        :
+    :file
+end
+
+# A file says the kind of its name, the edits that no save wrote, and that it
+# takes no edit, with its folder as its detail.
+function get_document_decoration(file::FileDocument)
+    name = String(get_filename(file))
+    conditions = DocumentCondition[]
+    has_unsaved_edits(get_file_content(file)) === true && push!(conditions, DocumentCondition(:unsaved))
+    is_editable_file_type(typeof(file)) || push!(conditions, DocumentCondition(:read_only))
+    folder = dirname(name)
+    DocumentDecoration(; icon = get_file_icon(name), conditions,
+                       detail = folder in ("", ".") ? "" : replace(folder, homedir() => "~"))
+end
+
 # The file with the document that it holds and not a wrapper around it: a content
 # that carries a history writes what the history is about. The save walks the
 # content for nodes of the file's own domain, and a wrapper is not one. A file

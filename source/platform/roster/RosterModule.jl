@@ -14,6 +14,7 @@ using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..FocusModule
@@ -40,6 +41,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
                            get_child_iomaps
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 
+import ..DomainModule: get_document_decoration
 export collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets, compute_item_facet,
        make_item_facet_operation
 export RosterItem, RosterRow, make_roster_row, compute_roster_value, collect_item_facets, format_roster_value,

@@ -35,7 +35,7 @@ using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
-import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..DomainModule: get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments

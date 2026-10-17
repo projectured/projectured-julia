@@ -14,6 +14,7 @@ using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
@@ -34,6 +35,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
                            get_child_iomaps
 import ..OperationModule: operation_reference, retarget_operation
 
+import ..DomainModule: get_document_decoration
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
        is_quick_text_condition, ArrangementSort, ArrangementSortKey, ArrangementFind,
        ArrangementGroup, ArrangementAggregate, ArrangementFirst, ArrangementGroupRow

@@ -295,3 +295,7 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     memo.rows = rows
     slots
 end
+
+# A roster counts the rows that it shows.
+get_document_decoration(roster::Roster) =
+    DocumentDecoration(; icon = :table, counts = [DocumentCount(string(length(roster.rows)))])

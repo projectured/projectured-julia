@@ -54,3 +54,5 @@ get_insertion_aliases(::Type{AboutPage}) = ["about"]
 # again.
 pred_arguments(::DocumentTypeList) = (), Pair{Symbol,Any}[]
 pred_arguments(::ProjectionList) = (), Pair{Symbol,Any}[]
+
+get_document_decoration(::Union{DocumentTypeList, ProjectionList, AboutPage}) = DocumentDecoration(; icon = :circle_help)

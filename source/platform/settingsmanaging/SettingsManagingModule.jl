@@ -24,6 +24,7 @@ module SettingsManagingModule
 using ..AgentModule
 using ..CellModule
 using ..DocumentModule
+using ..DomainModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
@@ -51,6 +52,7 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
+import ..DomainModule: get_document_decoration
 export SettingsDocument, make_settings_document, find_editor_settings, describe_settings,
        change_setting!,
        make_toggle_setting_operation

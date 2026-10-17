@@ -47,17 +47,7 @@ FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = OpenFileOp
 # an icon name of the widget layer, so the tree draws it as the glyph of the icon
 # font that the rest of the window uses.
 _fs_icon(::FileSystemDirectory) = :folder
-function _fs_icon(f::FileSystemFile)
-    ext = lowercase(splitext(f.pathname)[2])
-    ext == ".jl"            ? :lambda       :
-    ext == ".json"          ? :braces       :
-    ext in (".md", ".txt")  ? :pilcrow      :
-    ext == ".pred"          ? :diamond      :   # a document written as its constructor
-    ext == ".ned"           ? :hexagon      :   # a network: nodes and the links between them
-    ext == ".ini"           ? :file_sliders :   # a configuration: lines of keys and values
-    ext == ".math"          ? :sigma        :
-    :file
-end
+_fs_icon(f::FileSystemFile) = get_file_icon(f.pathname)
 
 # The node of an entry: a file, or a folder with its rows. A folder answers from
 # what it holds whether it has rows, so a closed row reads nothing of it; a folder

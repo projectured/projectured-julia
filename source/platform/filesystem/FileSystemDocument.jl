@@ -372,3 +372,16 @@ function receive_folder_change!(editor, folder::FileSystemDirectory, path)
                          answer -> ReplaceViewStateOperation(ApplyFolderEmptinessOperation(child, answer)))
     true
 end
+
+# A folder reads while its read runs on its task, and failed when the read did,
+# with the failure in words.
+function get_document_decoration(folder::FileSystemDirectory)
+    state = folder.state
+    state === :reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)])
+    state === :failed &&
+        return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:failed)],
+                                  tooltip = sprint(showerror, folder.failure))
+    DocumentDecoration(; icon = :folder)
+end
+
+get_document_decoration(file::FileSystemFile) = DocumentDecoration(; icon = get_file_icon(file.pathname))

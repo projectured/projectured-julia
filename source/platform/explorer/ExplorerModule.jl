@@ -37,10 +37,10 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
-                       get_insertion_aliases, make_insertion_document
+                       get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..NavigatorModule: find_navigator_address
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 import ..WidgetModule: make_graphics_projection
 
 export ExplorerSection, Explorer, get_session_explorer_content

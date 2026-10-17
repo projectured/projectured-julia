@@ -186,3 +186,12 @@ is the name of a column.
     values::Any
     members::Any
 end
+
+# An arrangement says what the document that it wraps says, and that a filter or
+# a sort hides or orders its items.
+function get_document_decoration(arrangement::ArrangementDocument)
+    base = get_document_decoration(arrangement.document)
+    any(entry -> !isempty(entry.projections), arrangement.entries) || return base
+    DocumentDecoration(; icon = base.icon, conditions = [base.conditions..., DocumentCondition(:filtered)],
+                       counts = base.counts, detail = base.detail, tooltip = base.tooltip, work_item = base.work_item)
+end

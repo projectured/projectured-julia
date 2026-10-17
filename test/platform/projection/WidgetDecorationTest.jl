@@ -102,6 +102,35 @@ function test_document_decoration()
         @test _nav_has_text(backend, string(find_icon_character(:loader)))
     end
 
+    @testset "the kinds of the platform say their state" begin
+        # A folder reads, then fails, with the failure in words.
+        folder = make_filesystem_pathname(mktempdir())
+        @test get_document_decoration(folder).icon === :folder
+        folder.state = :reading
+        @test find_decoration_tint(get_document_decoration(folder)) === :accent
+        folder.failure = ErrorException("no access")
+        folder.state = :failed
+        decoration = get_document_decoration(folder)
+        @test find_decoration_tint(decoration) === :error && occursin("no access", format_decoration_words(decoration))
+        @test get_file_icon("notes.md") === :pilcrow && get_file_icon("model.jl") === :lambda && get_file_icon("x.bin") === :file
+        # The logs count what they hold.
+        log = MessageLog()
+        push!(log.entries, MessageLogEntry("Error", "broken"), MessageLogEntry("Warn", "odd"), MessageLogEntry("Info", "fine"))
+        @test [count.text for count in get_document_decoration(log).counts] == ["1 error", "1 warning"]
+        @test isempty(get_document_decoration(FaultLog()).conditions)
+        # A navigator says what its page says.
+        node = _DecoratedNode("busy", :running)
+        @test get_document_decoration(Navigator(node)).detail == "since 12:03"
+        # A file page whose band shows says that the file changed on disk.
+        path = joinpath(mktempdir(), "notes.txt")
+        write(path, "hello")
+        page = make_file_page(WidgetScrollPane(make_file_tab(path)))
+        @test get_document_decoration(page).icon === :pilcrow
+        @test isempty(get_document_decoration(page).conditions)
+        page.band = FileBand(; message = "notes.txt changed on disk.")
+        @test [condition.name for condition in get_document_decoration(page).conditions] == [:changed_on_disk]
+    end
+
     @testset "the default title of a tab reads the decoration of its content" begin
         node = _DecoratedNode("busy", :running)
         title = make_pane_tab_title(node, "busy")

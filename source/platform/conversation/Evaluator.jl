@@ -955,3 +955,13 @@ end
     nothing => "Evaluate in the background" =>
         ToggleEvaluatorOptionOperation(doc, :evaluate_in_background)
 end
+
+# An evaluator runs while one of its forms runs in the background, and failed
+# when its last form gave an error.
+function get_document_decoration(evaluator::EvaluatorToplevel)
+    forms = [element for element in evaluator.elements if element isa EvaluatorForm]
+    conditions = DocumentCondition[]
+    any(form -> form.is_running, forms) && push!(conditions, DocumentCondition(:running))
+    !isempty(forms) && last(forms).is_error && push!(conditions, DocumentCondition(:failed))
+    DocumentDecoration(; icon = :terminal, conditions)
+end

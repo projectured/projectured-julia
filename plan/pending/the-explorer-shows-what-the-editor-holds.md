@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 and 2 done, step 3 parts 3a and 3b done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 and 2 done, step 3 parts 3a, 3b and 3c done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -1025,6 +1025,28 @@ before each edit of a kernel file. Mark each step done here.
      while one is open; the list counts the assistants that work and wait.
    - The task, assistant and work plan slices use the domain module; the work
      plan slice has the edge `domain`.
+   **Part 3c done 2026-10-17: the files, the logs, the tools and the pages.**
+   What it found and decided:
+   - `get_file_icon(path)` of the file format slice maps an extension to its
+     glyph; the file tree and a file document use it. A file document says
+     `:unsaved` (its history answers it) and `:read_only`, with its folder as its
+     detail; a file page adds `:changed_on_disk`, or `:conflict` with unsaved
+     edits, while its band shows.
+   - Not done: `:failed` of a file whose change does not parse. The drain of the
+     file changes throws the failure as a fault; a field of the page needs the
+     drain to hand the failure to the page, a new seam between the watcher and
+     the page, which is a question for the owner.
+   - A folder reads (`:running`) and fails with the failure in its words; a log
+     of messages counts its errors and warnings; the fault log fails with the
+     count of its lines; the MCP log fails and counts its faults; a roster counts
+     its rows; an arrangement adds `:filtered`; a navigator says what its page
+     says; an evaluator runs and fails; the other tools have their glyph.
+   - New glyphs: `:layers` (a section), `:folder_tree` (an explorer), `:files`,
+     `:scroll_text`, `:plug`, `:table`, `:cpu`, `:circle_help`. The Message log
+     button shows `:scroll_text`, as its decoration does.
+   - The system process, settings management, appearance, roster and
+     arrangement slices have the edge `domain`.
+   - `get_tree_node_icon` now has methods only in omnet; step 10 moves them.
 4. [ ] **The kinds of projectured become nodes.** The four generics for
    `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile`,
    `Roster`, `AssistantList` and `Assistant`; the page of a folder as a table of

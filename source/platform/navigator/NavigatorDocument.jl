@@ -213,3 +213,6 @@ function make_pane_tab_title(navigator::Navigator, name::AbstractString)
                  badges = () -> page_title[].badges,
                  tooltip = () -> join(first.(_get_address_parts(navigator)), " › "))
 end
+
+# A navigator says what its page says, as its tab does.
+get_document_decoration(navigator::Navigator) = get_document_decoration(get_navigator_page(navigator))

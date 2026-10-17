@@ -8850,6 +8850,15 @@ const LUCIDE_ICON_GLYPHS = (
     :lock           => 0xe10b,  # lock: read only
     :funnel         => 0xe0dc,  # filter: a filter or a sort hides or orders the items
     :hourglass      => 0xe296,  # hourglass: not started
+    # The kinds that an explorer shows
+    :layers         => 0xe52a,  # layers-2: a section of entries
+    :folder_tree    => 0xe33c,  # folder-tree: an explorer
+    :files          => 0xe0cf,  # files: the folders of a workspace
+    :scroll_text    => 0xe45f,  # scroll-text: a log of messages
+    :plug           => 0xe37f,  # plug: the calls of a client
+    :table          => 0xe17d,  # table: a roster
+    :cpu            => 0xe0a9,  # cpu: the processes of the system
+    :circle_help    => 0xe082,  # circle-help: a page of help
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS

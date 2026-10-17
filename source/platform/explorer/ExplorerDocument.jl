@@ -28,7 +28,7 @@ get_document_title(section::ExplorerSection) = section.title
 
 get_tree_children_steps(::ExplorerSection) = ((FieldReferenceStep("entries"),),)
 format_tree_node_label(section::ExplorerSection) = section.title
-get_tree_node_icon(::ExplorerSection) = :list
+get_document_decoration(::ExplorerSection) = DocumentDecoration(; icon = :layers)
 
 # A document that the section holds, at the path of its entry, or at the path that
 # the entry answers for it below the entry. Each entry is asked in turn, so a
@@ -83,6 +83,7 @@ function Explorer(content::ExplorerSection)
 end
 
 get_document_title(::Explorer) = "Explorer"
+get_document_decoration(::Explorer) = DocumentDecoration(; icon = :folder_tree)
 
 # An explorer holds its tree and its navigator, so the open nodes of the tree and
 # the page of the navigator start what they need, such as the read of a folder,

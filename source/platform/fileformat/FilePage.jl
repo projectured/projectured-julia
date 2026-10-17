@@ -36,6 +36,19 @@ end
 get_edited_field(::FilePage) = :content
 get_document_title(page::FilePage) = get_document_title(page.content)
 
+# A page says what its file says, and while its band shows, that the file changed
+# on disk: a conflict when the file has edits that no save wrote.
+function get_document_decoration(page::FilePage)
+    file = find_page_file(page)
+    base = get_document_decoration(file === nothing ? page.content : file)
+    page.band === nothing && return base
+    unsaved = any(condition -> condition.name === :unsaved, base.conditions)
+    conditions = DocumentCondition[condition for condition in base.conditions if condition.name !== :unsaved]
+    push!(conditions, DocumentCondition(unsaved ? :conflict : :changed_on_disk))
+    DocumentDecoration(; icon = base.icon, conditions, counts = base.counts, detail = base.detail,
+                       tooltip = base.tooltip, work_item = base.work_item)
+end
+
 """
     find_page_file(page) -> FileDocument or nothing
 

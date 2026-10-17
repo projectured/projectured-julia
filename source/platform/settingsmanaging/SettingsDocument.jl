@@ -156,3 +156,5 @@ end
     nothing => "Toggle repaint outline" =>
         make_toggle_setting_operation(doc.settings, RenderSettings, :debug_dirty)
 end
+
+get_document_decoration(::SettingsDocument) = DocumentDecoration(; icon = :settings)

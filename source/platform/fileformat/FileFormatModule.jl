@@ -41,6 +41,7 @@ using ..SyntaxModule
 
 # Imported to extend: this module adds a method to each of them.
 import ..DocumentModule: get_document_title, get_edited_field
+import ..DomainModule: get_document_decoration
 using ..TextModule
 using ..WidgetModule
 
@@ -57,6 +58,7 @@ export write_document_file, read_document_file, make_document_for, make_document
 export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
        compute_file_text, compute_file_text_hash, read_file_content_again
+export get_file_icon
 export FileToContent
 export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
        SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,

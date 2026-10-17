@@ -199,3 +199,5 @@ get_session_gesture_log(; editor = find_evaluation_editor()) =
 # a fresh empty one. A fresh one would never fill: what records is a decorator at
 # the root of the projection, and it records into the log it holds.
 make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()
+
+get_document_decoration(::GestureLog) = DocumentDecoration(; icon = :keyboard)
