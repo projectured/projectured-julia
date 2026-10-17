@@ -237,51 +237,55 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     this plan only (`kept-children-measure`), so the commits of other sessions
     between the parts do not count. The probe is
     `/var/tmp/kept-children/count-step10.jl`, one process for each scenario,
-    40 steps after two, with a walk of the paint that goes 60 nodes each way
-    along a list (a walk of the whole list built all 10,000 rows of the frame
-    on each step). S4d is X4 again: 20 Julia files of 10 calls, the roster of
-    the calls of `f` grouped by file, and a step that changes one callee
-    between `f` and `g`. DF-w is a frame of 10,000 rows in a window, and a step
-    that moves the filter of `id` between `> 1` and `> 2`. Per step:
+    40 steps after two, with a walk of the paint that reads the `x`, `y`, `w`
+    and `h` of each node and goes 60 nodes each way along a list. The first
+    run read no positions, which left the position cells of the grids lazy:
+    its counts and times were lower on both sides, and it hid the time that
+    S4b-w gains. A walk of a whole list built all 10,000 rows of the frame on
+    each step. S4d is X4 again: 20 Julia files of 10 calls, the roster of the
+    calls of `f` grouped by file, and a step that changes one callee between
+    `f` and `g`. DF-w is a frame of 10,000 rows in a window, and a step that
+    moves the filter of `id` between `> 1` and `> 2`. Per step:
 
     | scenario | computes, base | computes, branch | detach walk, base | detach walk, branch |
     |---|---|---|---|---|
-    | S4b-w, a window | 1166.5 | 979.5 | 1.53 M | 1.56 M |
-    | S4b, no window | 1533.5 | 1533.5 | 140 K | 128 K |
-    | S4d-w, a window | 503 | 622 | 177 K | 250 K |
-    | S4d, no window | 528 | 528 | 134 K | 129 K |
-    | DF-w, a window | 4420 | 1198 | 13.6 K | 17.8 K |
+    | S4b-w, a window | 2291 | 1647.5 | 1.55 M | 1.57 M |
+    | S4b, no window | 2112.5 | 2112.5 | 130 K | 137 K |
+    | S4d-w, a window | 731 | 835 | 205 K | 197 K |
+    | S4d, no window | 733 | 733 | 184 K | 175 K |
+    | DF-w, a window | 10094 | 3302 | 15.6 K | 20.7 K |
 
   - S4d-w computes more. A probe that tells the first computation of a new
-    cell from a computation again found the cause: the base has 447 first
-    computations and 56 again for each step, the branch 585 and 37. The
-    roster of S4d-w is an eager table, which prints again on each step on both
-    sides. In the branch the reconciler of the panes gives each pane a cell of
-    its index (step 4), so every path inside a pane is a computation, and a
-    fresh print there makes a cell for each path (42 per step) and two cells
-    for each dispatch by path (step 3, 96 per step). The computations again
-    fall, as step 3 meant: the reconciled IO maps and the fault barriers of
-    the dispatch no longer compute again.
-  - The time, 2026-10-17 11:58 to 12:05, with the owner's word, load 1.49 to
-    1.62, cores 28, 30 and 31, the plain environment with no counters on each
-    side. The script is `/var/tmp/kept-children/time-step10.jl`: the scenarios
-    of the counts, ten steps to warm up and sixty timed inside a function, two
-    rounds in the order base, branch, base, branch. The medians, in ms, round 1
-    / round 2:
+    cell from a computation again found the cause, in the first run: the base
+    has 447 first computations and 56 again for each step, the branch 585 and
+    37. The roster of S4d-w is an eager table, which prints again on each step
+    on both sides. In the branch the reconciler of the panes gives each pane a
+    cell of its index (step 4), so every path inside a pane is a computation,
+    and a fresh print there makes a cell for each path (42 per step) and two
+    cells for each dispatch by path (step 3, 96 per step). The computations
+    again fall, as step 3 meant: the reconciled IO maps and the fault barriers
+    of the dispatch no longer compute again.
+  - The time, 2026-10-17 12:31 to 12:39, with the owner's word, load 1.40 at
+    the start and 2.03 at the end, cores 28, 30 and 31, the plain environment
+    with no counters on each side. The script is
+    `/var/tmp/kept-children/time-step10.jl`: the scenarios of the counts, ten
+    steps to warm up and sixty timed inside a function, two rounds in the order
+    base, branch, base, branch. The medians, in ms, round 1 / round 2, and the
+    90th percentiles:
 
     | scenario | base | branch | p90, base → branch |
     |---|---|---|---|
-    | S4b-w, a window | 9.56 / 9.84 | 9.62 / 9.33 | 11.2 → 10.7 |
-    | S4b, no window | 10.49 / 10.37 | 10.58 / 10.34 | 12.1 → 11.6 |
-    | S4d-w, a window | 4.53 / 4.58 | 4.99 / 4.68 | 5.1 → 5.3 |
-    | S4d, no window | 4.39 / 4.42 | 4.25 / 4.38 | 4.7 → 4.8 |
-    | DF-w, a window | 17.44 / 17.93 | 5.17 / 5.63 | 29.4 → 5.6 |
+    | S4b-w, a window | 11.87 / 11.03 | 10.25 / 10.16 | 15.2 / 12.5 → 11.4 / 11.4 |
+    | S4b, no window | 12.54 / 11.91 | 12.09 / 12.64 | 13.9 / 13.1 → 13.3 / 13.9 |
+    | S4d-w, a window | 5.25 / 4.98 | 5.35 / 5.07 | 5.7 / 5.3 → 6.6 / 6.0 |
+    | S4d, no window | 5.12 / 5.07 | 5.03 / 5.01 | 5.7 / 5.5 → 5.4 / 5.4 |
+    | DF-w, a window | 22.37 / 21.67 | 7.09 / 7.73 | 37.8 / 36.6 → 7.8 / 10.2 |
 
-    A filter of a data frame is 3.3 times faster, and its p90 5 times. S4b-w
-    computes 16 % less, but its time stays: the computations that step 3 saved
-    were cheap. S4d-w is 0.1 to 0.46 ms slower, 2 to 10 %, and the two rounds
-    disagree by more than the difference of the first.
-  - The decisions of the owner, 2026-10-17, on these numbers:
+    A filter of a data frame is 3 times faster, and its p90 4 to 5 times. S4b-w
+    is 8 to 14 % faster. S4d-w is 0.1 ms slower at the median in both rounds,
+    2 %, and 0.7 to 0.9 ms slower at the p90.
+  - The decisions of the owner, 2026-10-17, on the first run, whose S4d-w was
+    0.1 to 0.46 ms slower at the median:
     - **S4d-w stays as it is** (option A). The other ways were one cell for
       the dispatch instead of two, which removes about a third of the cells
       that a fresh print adds, and the stop of the engine for the same object.
@@ -289,7 +293,7 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     - **The engine does not change now.** The stop for the same object would
       only remove the dispatch cells of a fresh print. The detach with no scan
       would remove a walk of about 1.5 M entries for each step of S4b-w, whose
-      share of the 9.5 ms is not measured.
+      share of its time is not measured.
 - [x] **11. The texts**: the guides of the collection, the layout, the
   projection system, the data frames and the roster.
   - Done 2026-10-17. `collection.md`: the lazy link, the mapped list, the kept
