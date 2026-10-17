@@ -51,13 +51,15 @@ A row draws a chevron only when `has_tree_children` answers `true`. A document w
 
 A label reads only the cells of its own document. So a change of the text of one document computes its own node again, and the nodes under it keep their list. A document that is again on the path to its own node stays closed there, so a cycle of documents does not open without end.
 
+A document whose one collection of children is a lazy list, a `ListNode`, has its entries and its widget nodes as two lists that mirror that list node for node (`make_mapped_list`). A node of them is made when a walk of the rows first reaches it, so a document with a million children makes only the entries of the rows in view, and the widget tree makes its rows as a lazy list too ([widget.md](../widget/widget.md)). The mirror is made again when the document gives a new list. `has_tree_children` is `true` by default for a lazy list of children, which has a node at its head.
+
 A tree draws through `make_graphics_projection(DocumentTree)`, which chains the print to a widget renderer of its own, so a tree draws in the natural renderer and in the card of a pane.
 
 ### The maps follow the steps
 
 The path of a node in the widget is `roots[1].children[k]…`, where `k` counts the children of a parent over all its collections. The path of its document is the path of its parent, the steps of the collection, and the index in that collection. The reader maps both ways with no code for each kind of node.
 
-For example, take a root with two documents in `parts` and one in `notes`. The third child of the root has the widget path `roots[1].children[3]` and the document path `root.notes[1]`. A path outside the root has no image. The path of the tree itself is the widget, and a part that the view drew, such as a scroll bar, is named by an introduced path.
+For example, take a root with two documents in `parts` and one in `notes`. The third child of the root has the widget path `roots[1].children[3]` and the document path `root.notes[1]`. A child of a lazy list counts from the head of the list in both paths, and the maps read no link of the list that a walk did not read: a child that no walk reached maps no farther than its parent. A path outside the root has no image. The path of the tree itself is the widget, and a part that the view drew, such as a scroll bar, is named by an introduced path.
 
 ### The chevron writes the open nodes
 
@@ -101,6 +103,8 @@ These slices add kinds of node:
 - **A node under a closed node leaves `expanded` at the next write.** The open paths of the widget list the open nodes that a walk reaches through open nodes only. A node that opens again shows its children closed.
 - **A label is text.** A node has no button, no badge and no editable part. A press on a node selects or opens its document.
 - **A file keeps no open node.** A tree read from a file has its root open.
+- **A lazy list of children is the only collection of its node.** It has no count, so a lazy list beside another collection gives no children.
+- **An open child of a lazy list opens only after a walk reached it.** The open nodes are found among the entries that a walk made, so a child that no row showed stays closed.
 
 ## Layer structure
 
@@ -122,6 +126,7 @@ tree/TreeModule.jl                (TreeModule): the module, its exports and its 
 - the nodes of plain documents with one or two collections of children;
 - the maps of a path both ways;
 - an open node stays open when a node comes before it;
+- a node whose children are a lazy list of a million makes the entries that the rows reach, maps its paths both ways from the head, and holds a child that a chevron opens;
 - a change of one document computes its own node again and no other;
 - the verb shows a tree in a tab;
 - in a real `Editor`, a double click on a node and on a row of a roster opens a page in a navigator, and Back returns.

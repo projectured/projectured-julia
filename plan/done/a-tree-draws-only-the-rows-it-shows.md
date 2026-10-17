@@ -195,8 +195,10 @@ Each step is one commit with its tests, in a worktree.
   - Tests: `test_document_tree` 91 (a new testset), the navigator suites,
     `test_widget_tree` 75, `test_file_dialog` 22, `test_filesystem_to_widget`,
     `test_tree_render`, `test_widget_rows_scroll`.
-- [ ] **4. The guides:** `tree.md`, the guide of the widgets of a tree, and the
-  guide of the lazy list.
+- [x] **4. The guides:** `tree.md`, the guide of the widgets of a tree, and the
+  guide of the lazy list. `widget.md` has the lazy rows, the anchor and the far
+  scroll; `tree.md` has the mirrored lists, the maps from the head, two limits and
+  the test; `collection.md` names the tree among the users of the lazy link.
 
 ## Risks
 
