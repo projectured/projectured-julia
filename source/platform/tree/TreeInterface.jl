@@ -49,3 +49,15 @@ The icon of the node of `document` in a tree, a name of an icon of the widget
 layer, such as `:folder`, or `nothing` for no icon. The default is `nothing`.
 """
 function get_tree_node_icon end
+
+"""
+    is_explorer_entry_type(type) -> Bool
+
+Whether a person adds a document of `type` as an entry of an explorer: the kinds
+that the list of `+` and of Insert in an explorer shows, such as a folder, the
+task list of the editor or a section. The document of a kind comes from its
+insertion (`make_insertion_document`), and its name in the list from its first
+insertion alias. A slice that owns a kind adds a method that answers `true`, so a
+package that loads adds its kinds to the list at once. The default is `false`.
+"""
+function is_explorer_entry_type end

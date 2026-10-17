@@ -42,6 +42,18 @@ get_session_task_group_list(; editor = find_evaluation_editor()) =
                               TaskGroupList) :
         TaskGroupList()
 
+# The list of the session is what a person adds by name, to a tab or to an
+# explorer, and the kind is in the list of `+` of an explorer.
+get_insertion_aliases(::Type{TaskGroupList}) = ["tasks"]
+make_insertion_document(::Type{TaskGroupList}) = get_session_task_group_list()
+is_explorer_entry_type(::Type{TaskGroupList}) = true
+
+# A file keeps that it shows the list, not the groups, which belong to a session.
+# A file that loads before its window exists gives a new list, which the window
+# makes the list of its session.
+pred_arguments(::TaskGroupList) = (), Pair{Symbol,Any}[]
+make_pred_document(::Type{<:TaskGroupList}, positional, keywords) = get_session_task_group_list()
+
 # The list that a tab of the window of `editor` shows, or that the content of a tab
 # holds a few documents down, such as the workspace of a navigator; `nothing` when
 # no tab has one. A document that holds no pane tree, such as one page in an editor

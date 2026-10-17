@@ -1132,6 +1132,20 @@ before each edit of a kernel file. Mark each step done here.
 5. [ ] **Add and remove.** `+` and Insert with the list of Q2, Delete, F2, new
    section, the keys to move an entry, "Add to explorer" in the menu of a part
    and of a tab, and the save of Q5.
+   - [x] **5a. The kinds** (2026-10-17). `is_explorer_entry_type(::Type)` is in
+     the tree slice (`TreeInterface.jl`), because the slices of the kinds
+     (filesystem, task, assistant) are below the explorer and above the tree; the
+     default is `false`. The kinds: `WorkspaceFolder` (alias "folder"),
+     `TaskGroupList` ("tasks", the session list, which a file now writes as a
+     marker, as `AssistantList` does; the task slice has the edge
+     `serialization`), `AssistantList` and `ExplorerSection` ("section", "New
+     section"). The list of `+` is the insertion candidates for which the trait
+     answers `true`, each named by its first alias (`_collect_entry_kinds`).
+     A folder that a person adds has no place: its row says "New folder", it has
+     no chevron and holds nothing. Its page asks for the place in a field that
+     edits `pathname`; Return or Open writes the place into the folder and its
+     folder document and holds that document, so the read starts. The Open
+     dialog has no completion of a path, so the field has none.
 6. [ ] **The filter.** The quick filter, the kinds, and the search below a node as
    a task.
 7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document

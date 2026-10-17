@@ -83,7 +83,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
                      format_task_column, format_task_details, get_task_actions
-import ..TreeModule: get_tree_children_steps, format_tree_node_label
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,

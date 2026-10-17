@@ -40,7 +40,7 @@ import ..DomainModule: acquire_document!, release_document!, accepts_opened_file
                        get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..NavigatorModule: find_navigator_address
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..TreeModule: get_tree_children_steps, format_tree_node_label
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 import ..WidgetModule: make_graphics_projection
 
 export ExplorerSection, Explorer, get_session_explorer_content

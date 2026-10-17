@@ -30,6 +30,24 @@ get_tree_children_steps(::ExplorerSection) = ((FieldReferenceStep("entries"),),)
 format_tree_node_label(section::ExplorerSection) = section.title
 get_document_decoration(::ExplorerSection) = DocumentDecoration(; icon = :layers)
 
+# A person adds a new empty section by name, as an entry of a section or in a tab.
+get_insertion_aliases(::Type{ExplorerSection}) = ["section"]
+make_insertion_document(::Type{ExplorerSection}) = ExplorerSection("New section")
+is_explorer_entry_type(::Type{ExplorerSection}) = true
+
+# The kinds that the list of `+` shows, in the order of the insertion candidates,
+# each with its name: its first insertion alias, else the words of its type name.
+function _collect_entry_kinds()
+    kinds = Pair{String,Type}[]
+    for type in get_insertion_candidates(Document)
+        is_explorer_entry_type(type) || continue
+        aliases = get_insertion_aliases(type)
+        name = isempty(aliases) ? get_insertion_names(type)[2] : first(aliases)
+        push!(kinds, uppercasefirst(name) => type)
+    end
+    kinds
+end
+
 # A document that the section holds, at the path of its entry, or at the path that
 # the entry answers for it below the entry. Each entry is asked in turn, so a
 # section inside a section answers too.

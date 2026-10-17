@@ -24,19 +24,86 @@ print_document(p::FileSystemDirectoryToWidget, recursion, folder::WorkspaceFolde
     _print_folder_page(p, folder, folder.directory, (FieldReferenceStep("directory"),), context)
 
 # The page of `directory` as `owner` shows it: a link names an entry by `steps`
-# from `owner`, then its place among the entries.
+# from `owner`, then its place among the entries. A folder of a workspace with no
+# place asks for its place first.
 function _print_folder_page(p::FileSystemDirectoryToWidget, owner, directory::FileSystemDirectory, steps::Tuple,
                             context)
     bounded = context !== nothing && get_exact_height(context) !== nothing
     heading = WidgetLabel(() -> _format_folder_heading(directory))
-    table = _build_folder_table(owner, directory, steps, bounded)
-    root = VerticalLayout(Any[heading, LayoutConstraint(table; width = Fill, height = bounded ? Fill : Content)];
-                          horizontal_align = :left, gap = p.gap)
+    table = LayoutConstraint(_build_folder_table(owner, directory, steps, bounded);
+                             width = Fill, height = bounded ? Fill : Content)
+    root = VerticalLayout(Any[heading, table]; horizontal_align = :left, gap = p.gap)
+    if owner isa WorkspaceFolder
+        asked = _build_place_widgets(owner)
+        set_cell_computation!(getfield(root.children, :elements), () ->
+            Cell[Cell(widget) for widget in (_has_folder_place(owner) ? Any[heading, table] : asked)])
+    end
     iomap = ChildrenIoMap(p, owner, root, Cell(Any[]))
-    # The part under the pointer, so a link lights and takes a press.
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(owner, path -> map_reference_forward(p, iomap, path)))
+    # The part under the pointer, so a link lights and takes a press. A folder of a
+    # workspace gives the page its selection too, so a key goes to the field of the
+    # place that holds the caret.
+    owner isa WorkspaceFolder ?
+        set_output_path_computations!(root, owner, path -> map_reference_forward(p, iomap, path); dormant = false) :
+        follow_output_mouse_target!(root, () ->
+            map_mouse_target_forward(owner, path -> map_reference_forward(p, iomap, path)))
     iomap
+end
+
+# The widgets that ask for the place of `folder`: a line that says so, the field of
+# the place, the third child of the page, and Open. Return in the field opens too.
+function _build_place_widgets(folder::WorkspaceFolder)
+    field = WidgetText(""; width = _PLACE_FIELD_WIDTH, placeholder = "/home/person/data")
+    set_cell_computation!(getfield(field, :content), () -> String(folder.pathname))
+    set_output_path_computations!(field, folder, path -> _map_place_field_path(path))
+    button = WidgetButton("Open"; gestures = GestureBinding[
+        GestureBinding(MouseClickPattern(:left), (_, _) -> _make_folder_place_operation(folder);
+                       description = "Open the folder at this place", domain = "filesystem")])
+    Any[WidgetLabel("The place of the folder on the disk:"), field, button]
+end
+
+const _PLACE_FIELD_WIDTH = 320
+const _PLACE_FIELD_INDEX = 2
+
+# The place in the field of the place that a path of the folder names:
+# `pathname<rest>` is `content<rest>`.
+function _map_place_field_path(reference)
+    reference isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    steps[1] == FieldReferenceStep("pathname") || return nothing
+    extend_reference(EmptyReference(), FieldReferenceStep("content"), steps[2:end]...)
+end
+
+# While a folder of a workspace has no place, its `pathname` is the text of the
+# field of the place, so the caret and a key in the field are the caret and an
+# edit of the place. Any other path maps as through any projection.
+function map_reference_forward(p::FileSystemDirectoryToWidget, iomap, reference)
+    folder = iomap === nothing ? nothing : iomap.input
+    if folder isa WorkspaceFolder && !_has_folder_place(folder)
+        field = _map_place_field_path(reference)
+        field === nothing ||
+            return annotate_reference_types(iomap.output, extend_reference(EmptyReference(),
+                FieldReferenceStep("children"), RangeReferenceStep(_PLACE_FIELD_INDEX - 1, _PLACE_FIELD_INDEX),
+                get_reference_steps(field)...))
+    end
+    invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+function map_reference_backward(p::FileSystemDirectoryToWidget, iomap, reference)
+    folder = iomap === nothing ? nothing : iomap.input
+    if folder isa WorkspaceFolder && !_has_folder_place(folder) && reference isa ConcreteReference
+        steps = get_reference_steps(strip_reference_types(reference))
+        length(steps) >= 3 && steps[1] == FieldReferenceStep("children") &&
+            steps[2] == RangeReferenceStep(_PLACE_FIELD_INDEX - 1, _PLACE_FIELD_INDEX) &&
+            steps[3] == FieldReferenceStep("content") &&
+            return extend_reference(EmptyReference(), FieldReferenceStep("pathname"), steps[4:end]...)
+    end
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+# Return in the field of the place opens the folder there.
+@gestures WorkspaceFolder begin
+    when(!_has_folder_place(doc) && !isempty(strip(doc.pathname)))
+    KeyPress('\n') => "Open the folder at this place" => _make_folder_place_operation(doc)
 end
 
 # The path of the folder, and the state of its read or the count of its entries.

@@ -46,6 +46,30 @@ make_pred_document(::Type{WorkspaceFolder}, positional, keywords) =
         WorkspaceFolder(Dict(keywords)[:name], Dict(keywords)[:pathname]) :
         WorkspaceFolder(positional...)
 
+# A person adds a folder by name, as an entry of an explorer or in a tab: a folder
+# with no place yet, whose page asks for its place.
+get_insertion_aliases(::Type{WorkspaceFolder}) = ["folder"]
+make_insertion_document(::Type{WorkspaceFolder}) = WorkspaceFolder("", "")
+is_explorer_entry_type(::Type{WorkspaceFolder}) = true
+
+# Whether the folder names a place on the disk: a folder that a person added names
+# none until its page gets one.
+_has_folder_place(folder::WorkspaceFolder) = !isempty(folder.directory.pathname)
+
+# The edit that opens `folder` at the place that its field holds: the folder takes
+# the place and the name of the place, its folder document reads there, and the
+# folder holds that document, so the read starts while the folder is held.
+function _make_folder_place_operation(folder::WorkspaceFolder)
+    pathname = normpath(expanduser(strip(folder.pathname)))
+    name = basename(rstrip(pathname, '/'))
+    directory = folder.directory
+    CompoundOperation(Any[
+        ReplaceReferencedValueOperation(folder, "name", isempty(name) ? pathname : name),
+        ReplaceReferencedValueOperation(folder, "pathname", pathname),
+        ReplaceReferencedValueOperation(directory, "pathname", pathname),
+        ChangeHeldDocumentsOperation(folder, Any[], Any[directory])])
+end
+
 
 # ── Workspace ────────────────────────────────────────────────────────────────
 

@@ -87,6 +87,7 @@ get_session_assistant_list(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(AssistantList, editor, AssistantList) : AssistantList()
 
 make_insertion_document(::Type{AssistantList}) = get_session_assistant_list()
+is_explorer_entry_type(::Type{AssistantList}) = true
 
 # A file keeps that a tab shows the list, not the rows, which belong to a session.
 # A file that loads before its window exists gives a new list, which the window

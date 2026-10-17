@@ -270,6 +270,54 @@ function test_explorer()
         @test length(content.entries[9].entries) == 3
     end
 
+    @testset "the list of `+` holds the kinds that a person adds, each made by its insertion" begin
+        kinds = ExplorerModule._collect_entry_kinds()
+        names = first.(kinds)
+        @test all(name -> name in names, ("Folder", "Tasks", "Assistants", "Section"))
+        @test !any(kind -> last(kind) === Explorer, kinds)
+        @test is_explorer_entry_type(WorkspaceFolder) && !is_explorer_entry_type(Explorer) &&
+              !is_explorer_entry_type(Int)
+        @test resolve_insertion(Document, "tasks") === TaskGroupList &&
+              resolve_insertion(Document, "folder") === WorkspaceFolder &&
+              resolve_insertion(Document, "section") === ExplorerSection
+        editor, _ = _nav_editor(PrimitiveString("start"))
+        tasks = run_with_evaluation_editor(() -> make_insertion_document(TaskGroupList), editor)
+        @test tasks === get_session_task_group_list(; editor)
+        @test make_insertion_document(ExplorerSection).title == "New section"
+        # A file keeps that an entry is the task list of the session, and no group.
+        @test pred_arguments(tasks) == ((), Pair{Symbol,Any}[])
+        @test run_with_evaluation_editor(() -> make_pred_document(TaskGroupList, (), Pair{Symbol,Any}[]), editor) === tasks
+    end
+
+    @testset "a folder with no place asks for its place on its page, and reads there" begin
+        root = mktempdir()
+        write(joinpath(root, "notes.md"), "# notes")
+        folder = make_insertion_document(WorkspaceFolder)
+        @test format_tree_node_label(folder) == "New folder" && has_tree_children(folder) === false
+        explorer = Explorer(ExplorerSection("Explorer", Any[folder]))
+        editor, backend = _nav_editor(explorer; tabs = true)
+        _nav_press!(editor, backend, _explorer_click(backend, "New folder"))
+        @test get_navigator_page(explorer.navigator) === folder
+        @test _nav_has_text(backend, "The place of the folder on the disk:")
+        # A press in the field puts the caret in the place, and each key types there.
+        field = _explorer_click(backend, "/home/person/data"; side = :page)
+        @test field !== nothing
+        _nav_press!(editor, backend, field)
+        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in root)...)
+        @test folder.pathname == root && !_nav_has_text(backend, "notes.md")
+        # Return opens the folder there: it takes the name of the place and reads it.
+        _nav_press!(editor, backend, KeyPress('\n'; time = 0.0))
+        for _ in 1:50
+            drain_operations!(editor)
+            run_frame!(editor)
+            _nav_has_text(backend, "notes.md") && break
+            sleep(0.02)
+        end
+        @test folder.name == basename(root) && folder.directory.pathname == root
+        @test _nav_has_text(backend, "md file") && !_nav_has_text(backend, "The place of the folder")
+        @test format_tree_node_label(folder) == basename(root)
+    end
+
     @testset "Ctrl+press on a node opens its page in a new tab" begin
         content = _explorer_make()
         explorer = Explorer(content)

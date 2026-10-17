@@ -43,10 +43,12 @@ using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets,
                        compute_item_facet
-import ..DomainModule: accepts_pasted_document, get_document_decoration
+import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,
+                       make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..TreeModule: get_tree_children_steps, format_tree_node_label
+import ..SerializationModule: pred_arguments, make_pred_document
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,

@@ -54,7 +54,7 @@ import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..WidgetModule: make_graphics_projection
 import ..SerializationModule: make_pred_document, pred_arguments
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, has_tree_children
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, has_tree_children, is_explorer_entry_type
 
 export FileSystemDocument, make_filesystem_pathname, read_filesystem_folder!, has_folder_entries,
        ApplyFolderListingOperation, ApplyFolderEmptinessOperation
