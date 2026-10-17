@@ -88,14 +88,15 @@ time (2026-10-16); this plan holds each decision.
    mechanisms with no user.
 
 The two ideas for the cell engine, a stop for the same object and a detach with
-no scan, wait for the measure of step 10, by decision 3.
+no scan, waited for the measure of step 10, by decision 3; on its numbers the
+owner keeps the engine as it is (step 10).
 
 ## Steps
 
 Each step is one commit, with its tests, in the worktree `kept-children`. The owner wants small
 parts, each landed after its tests (2026-10-16): part 1 is steps 1 to 3, part 2
 step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
-10 and 11. Parts 1 to 4 are on `main`.
+10 and 11. Every part is on `main`.
 
 - [x] **1. Helper 1, the lazy mirror of a list** (decision 7), and the ten files
   on it. No behavior changes: the tests of the layouts of a list, the tables, the
@@ -228,7 +229,7 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     2 and 3 of a grid of a list in place, with the same head: the new row takes
     the place of row 3, the rows after it move down by one row, and the cells of
     rows 1 to 6 have the paths of counts 1 to 6. The file passes 101 checks.
-- [ ] **10. The counts and the time**: S4b-w, S4b, S4d, and a filter of a data
+- [x] **10. The counts and the time**: S4b-w, S4b, S4d, and a filter of a data
   frame, base against branch, on an idle machine with the owner's word. The
   numbers go back to the owner with the two ideas for the engine.
   - The counts, 2026-10-16. The base is `6b3ec5073`, the last commit of this
@@ -280,6 +281,15 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     computes 16 % less, but its time stays: the computations that step 3 saved
     were cheap. S4d-w is 0.1 to 0.46 ms slower, 2 to 10 %, and the two rounds
     disagree by more than the difference of the first.
+  - The decisions of the owner, 2026-10-17, on these numbers:
+    - **S4d-w stays as it is** (option A). The other ways were one cell for
+      the dispatch instead of two, which removes about a third of the cells
+      that a fresh print adds, and the stop of the engine for the same object.
+      The gain of either is under the noise of the measure.
+    - **The engine does not change now.** The stop for the same object would
+      only remove the dispatch cells of a fresh print. The detach with no scan
+      would remove a walk of about 1.5 M entries for each step of S4b-w, whose
+      share of the 9.5 ms is not measured.
 - [x] **11. The texts**: the guides of the collection, the layout, the
   projection system, the data frames and the roster.
   - Done 2026-10-17. `collection.md`: the lazy link, the mapped list, the kept
