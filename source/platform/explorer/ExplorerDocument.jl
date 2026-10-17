@@ -35,8 +35,8 @@ get_insertion_aliases(::Type{ExplorerSection}) = ["section"]
 make_insertion_document(::Type{ExplorerSection}) = ExplorerSection("New section")
 is_explorer_entry_type(::Type{ExplorerSection}) = true
 
-# The kinds that the list of `+` shows, in the order of the insertion candidates,
-# each with its name: its first insertion alias, else the words of its type name.
+# The kinds that the list of `+` shows, in the order of their names: the first
+# insertion alias of a kind, else the words of its type name.
 function _collect_entry_kinds()
     kinds = Pair{String,Type}[]
     for type in get_insertion_candidates(Document)
@@ -45,7 +45,7 @@ function _collect_entry_kinds()
         name = isempty(aliases) ? get_insertion_names(type)[2] : first(aliases)
         push!(kinds, uppercasefirst(name) => type)
     end
-    kinds
+    sort!(kinds; by = first)
 end
 
 # A document that the section holds, at the path of its entry, or at the path that

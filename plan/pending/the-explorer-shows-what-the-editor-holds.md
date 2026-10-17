@@ -1146,6 +1146,37 @@ before each edit of a kernel file. Mark each step done here.
      edits `pathname`; Return or Open writes the place into the folder and its
      folder document and holds that document, so the read starts. The Open
      dialog has no completion of a path, so the field has none.
+   - [x] **5b. Add, remove and move** (2026-10-17). `AddExplorerEntryOperation(document;
+     section, index, navigator, selection)` is in the widget slice, beside
+     `OpenFileOperation`, so the menus of the navigator and the pane can name
+     it; the explorer slice evaluates it. Its evaluation inserts the entry, then
+     visits its page and selects its node, because a visit made before the insert
+     finds no page (`make_navigator_open_operation` reads the page when it is
+     made). Its inverse removes the entry; the page and the selection are view
+     state. The keys of `@gestures Explorer` work while the selection is on a
+     node of the tree:
+     - Insert opens a menu of the kinds, sorted by name, and "Other document".
+       Decision (mine): a menu, and not a typed name with completion as in the
+       walk of §5.4. The completion of an insertion filters by the declared type
+       of its place, and the trait of Q2 is no type, so a typed name could not
+       show the list of Q2. The menu shows it. "Other document" adds a
+       `DocumentInsertion`, whose page takes any name (Q2). A limit: after that
+       name commits, the type in the address of the page no longer matches, so
+       the navigator shows the section.
+     - An entry comes after the selected entry, at the end of a selected section,
+       or after the entry above a selected node that is no entry.
+     - Delete removes the selected entry and selects its section with its page.
+       A node below an entry, and the root section, take no Delete. A limit: the
+       tree holds a removed document that was open or shown until its next
+       toggle or scroll (bounded).
+     - Ctrl+Shift+Up and Ctrl+Shift+Down move the entry, as they move a series
+       in a chart. The tree moves its selection with Up and Down whatever the
+       modifiers, so these two rules are `override`, and `ExplorerToWidget` gives
+       a key that the tree answered to the table of the explorer as a claimed
+       key, as the navigator does with its page. At an end of its section the
+       entry and the selection stay.
+     - "New section" is a command with no key.
+     - The `+` button comes with the bar of the filter in step 6.
 6. [ ] **The filter.** The quick filter, the kinds, and the search below a node as
    a task.
 7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document

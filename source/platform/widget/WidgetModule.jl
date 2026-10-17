@@ -100,6 +100,7 @@ export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, mak
        make_context_menu_binding
 export OpenPageOperation
 export OpenFileOperation
+export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window
@@ -133,6 +134,7 @@ include("CellTableToWidgetTable.jl")
 include("ContextMenuOperation.jl")
 include("OpenPageOperation.jl")
 include("OpenFileOperation.jl")
+include("AddExplorerEntryOperation.jl")
 include("ContextMenuWindow.jl")
 include("DocumentComposition.jl")
 

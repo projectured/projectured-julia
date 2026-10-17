@@ -100,6 +100,12 @@ end
 function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap)
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     operation = answer.operation
+    # A key that the tree answered reaches the table of the explorer as a claimed
+    # key, so only an `override` rule takes it, as the keys that move an entry do.
+    if operation !== nothing && change.route === nothing && change.gesture isa Union{KeyPress, KeyDown}
+        own = read_gesture(iomap.input, change.gesture; claimed = operation)
+        own === nothing || return Intent(answer.gesture, own, answer.description, answer.domain)
+    end
     converted = operation === nothing ? nothing : _convert_explorer_answer(iomap.input, operation, change.gesture)
     converted === nothing ? answer : Intent(answer.gesture, converted, answer.description, answer.domain)
 end

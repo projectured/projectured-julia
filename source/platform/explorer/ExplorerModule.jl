@@ -17,6 +17,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EditorModule
+using ..EventModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
@@ -29,6 +30,7 @@ using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SelectionModule
 using ..StyleModule
 using ..ToolModule
 using ..TreeModule
@@ -39,6 +41,7 @@ import ..DocumentModule: get_document_title, has_document_duplicate, copy_docume
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
                        get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..NavigatorModule: find_navigator_address
+import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 import ..WidgetModule: make_graphics_projection
@@ -50,5 +53,6 @@ export ExplorerSectionToWidget
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")
+include("ExplorerEntryEdits.jl")
 
 end # module

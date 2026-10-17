@@ -318,6 +318,83 @@ function test_explorer()
         @test format_tree_node_label(folder) == basename(root)
     end
 
+    @testset "Insert offers the kinds, and an item adds its entry after the selected one with its page" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha"))
+        opened = get_wrapped_operation(read_gesture(explorer, KeyDown(:insert, ModifierKeys(); time = 0.0)))
+        menu = opened.layers[1][2]
+        labels = [string(item.action.label) for item in menu.elements]
+        @test labels[end] == "Other document" && issorted(labels[1:(end - 1)])
+        @test all(label -> label in labels, ("Folder", "Section", "Tasks", "Assistants"))
+        # The item "Folder" adds a folder after alpha: its node is selected and its
+        # page shows.
+        add = menu.elements[findfirst(==("Folder"), labels)].operation
+        @test add isa AddExplorerEntryOperation && add.index == 2
+        inverse = make_inverse_operation(editor.document, add)
+        evaluate_operation(editor, add)
+        run_frame!(editor)
+        folder = content.entries[2]
+        @test folder isa WorkspaceFolder && format_tree_node_label(content.entries[3]) == "Inner"
+        @test get_navigator_page(explorer.navigator) === folder
+        @test _nav_is(getfield(explorer, :selection)[],
+                      _explorer_path(FieldReferenceStep("tree"), FieldReferenceStep("root"), FieldReferenceStep("entries"),
+                                     ElementReferenceStep(2)))
+        @test _nav_has_text(backend, "New folder")
+        # Its way back takes the entry out again.
+        evaluate_operation(editor, inverse)
+        @test length(content.entries) == 2 && content.entries[2].title == "Inner"
+        # On a section, Insert adds at the end of that section.
+        _nav_press!(editor, backend, _explorer_click(backend, "Inner"))
+        opened = get_wrapped_operation(read_gesture(explorer, KeyDown(:insert, ModifierKeys(); time = 0.0)))
+        add = last(opened.layers[1][2].elements).operation
+        @test add.section === content.entries[2] && add.index == 2
+        evaluate_operation(editor, add)
+        @test content.entries[2].entries[2] isa DocumentInsertion
+        # An add with no section adds at the end of the root section of the editor.
+        evaluate_operation(editor, AddExplorerEntryOperation(ExplorerSection("Later")))
+        @test last(get_session_explorer_content(; editor).entries).title == "Later"
+    end
+
+    @testset "Delete removes the selected entry, and Ctrl+Shift+arrows move it" begin
+        content = _explorer_make()
+        alpha, inner = content.entries[1], content.entries[2]
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        key(name; shift = false, ctrl = false) = KeyDown(name, ModifierKeys(ctrl = ctrl, shift = shift); time = 0.0)
+        # A node below an entry is no entry: Delete leaves it.
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "alpha"))
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha one"))
+        _nav_press!(editor, backend, key(:delete))
+        @test length(content.entries) == 2 && length(alpha.children) == 2
+        # Ctrl+Shift+Down moves alpha after Inner; it stays selected with its page.
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha"))
+        _nav_press!(editor, backend, key(:down; ctrl = true, shift = true))
+        @test content.entries[1] === inner && content.entries[2] === alpha
+        @test get_navigator_page(explorer.navigator) === alpha
+        @test _nav_is(getfield(explorer, :selection)[],
+                      _explorer_path(FieldReferenceStep("tree"), FieldReferenceStep("root"), FieldReferenceStep("entries"),
+                                     ElementReferenceStep(2)))
+        # At the end of its section it moves no further.
+        _nav_press!(editor, backend, key(:down; ctrl = true, shift = true))
+        @test content.entries[2] === alpha
+        _nav_press!(editor, backend, key(:up; ctrl = true, shift = true))
+        @test content.entries[1] === alpha
+        # Delete takes alpha out of the section, and the section shows with its page.
+        _nav_press!(editor, backend, key(:delete))
+        @test length(content.entries) == 1 && content.entries[1] === inner
+        @test get_navigator_page(explorer.navigator) === content
+        # The root section is no entry of a section.
+        _nav_press!(editor, backend, key(:delete))
+        @test length(content.entries) == 1
+        # "New section" adds a section at the end of a selected section.
+        run_gesture_command = binding -> binding.description == "New section"
+        binding = only(filter(run_gesture_command, collect_document_gesture_bindings(Explorer)))
+        evaluate_operation(editor, binding.operation(explorer, nothing))
+        @test content.entries[2] isa ExplorerSection && content.entries[2].title == "New section"
+    end
+
     @testset "Ctrl+press on a node opens its page in a new tab" begin
         content = _explorer_make()
         explorer = Explorer(content)
