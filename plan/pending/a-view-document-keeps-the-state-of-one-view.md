@@ -1,0 +1,133 @@
+# A view document keeps the state of one view
+
+Status: DESIGN, to decide. Q1 is open. No step has started.
+
+## The ask
+
+The owner, 2026-10-17: "I have the feeling that we often put some object
+representing some concept which is not UI concept and then we put the UI state
+data on some parent object which really happens to be about the view. But maybe a
+lot of code and state would be simpler if we would have separate view objects,
+no? [...] This really is a generic separation of concerns, and this is a
+projectional editor, so there's nothing wrong with introducing new types and
+dispatch on them."
+
+After the evaluation, the owner: "Write down the rule, that's good. I also agree
+with where to apply first. I'm not sure about the Page suffix, I was thinking of
+View suffix."
+
+The first use is the page of an omnet configuration with its runs, the plan
+`omnet-julia/plan/pending/a-configuration-view-shows-the-runs.md`. This plan holds
+the parts of projectured-julia that it needs.
+
+## What the code does now
+
+Five slices already keep the state of a view apart from what the view shows, and
+these are the slices where two views of one thing work:
+
+| Content, which all views share | View, one for each view | Where it says so |
+| --- | --- | --- |
+| a folder: its listing, its read state, its watch (`FileSystemDirectory`) | the open folders (`WorkspaceExplorer.open`) | `filesystem.md`: "An explorer owns what a person controls, and shares what it reads." |
+| a chart: its series and axes | the zoom, the cursor, a drag (`ChartPlot`) | `chart.md`: "A saved chart has no view state, and two views of one chart zoom apart." |
+| a graph (`GraphGraph`) | its geometry (`GraphLayout`) | `ChartDocument.jl` |
+| a data frame | the anchor, the top row, the filter, the sort (`DataFrameView`) | two tabs on one frame show two queries |
+| any document | the open and shown nodes (`DocumentTree`); the address, Back and Forward (`Navigator`) | one for each tree and each navigator |
+
+Other places mix the two:
+
+- **The omnet configuration.** `LegacyConfigurationEntry` holds the configuration
+  beside the read flag of the details of its runs. The flag is one flag on an
+  entry that two editors can share, but the holds are counted for each editor, so
+  the rows of the second editor can miss their read.
+- **Folds on content.** About 40 content types have a `collapsed` field (JSON,
+  Markdown, YAML, XML, workflow, conversation and others). Two tabs on one JSON
+  document fold together, and a save writes the fold.
+- **A page shows its content and keeps nothing.** A navigator shows the document at
+  its address, so the state of the page, such as the place of a long table, has no
+  document of its own, and a view of a page can hold nothing that only the page
+  shows.
+
+## The rule
+
+Step 1 writes it, in these words or close to them:
+
+- **A content document says what a thing is**, and what was read about it from
+  outside, with the state of the read. There is one for each thing in an editor,
+  and all views of the thing share it.
+- **A view document says how one view shows content**: the open nodes, the head of
+  a lazy list, the rows in view, a filter, a sort, a fold, the current part. There
+  is one for each view, and for each place when a view has places. It names the
+  content that it shows with `get_edited_field`, so a path into the content goes
+  through the view.
+- **A view document holds the content that it shows**, so a read of outside state
+  follows the views by the count of holders, and the content shares what it read.
+  A view document is held only while it shows.
+- **A view document of one kind of content takes the suffix `View`**, as
+  `DataFrameView` and `ResultTableView` do. A view that is a tool of its own keeps
+  its name: `DocumentTree`, `Navigator`, `WorkspaceExplorer`, `ChartPlot`.
+- **The reader still decides what is view state** (`undo.md`): a view document can
+  itself be edited as content, as the sections of an explorer are.
+- **A save of content writes no view state.** A view can save its own state apart.
+
+"View" in `concepts.md` is what a view definition makes from the data. A view
+document is an input of a view definition, beside the content that it shows. Step 1
+says this in `concepts.md`, so the two words do not meet.
+
+## Decisions
+
+1. **Write the rule down** (the owner, 2026-10-17: "Write down the rule, that's
+   good").
+2. **Apply it first to the omnet configuration and its runs** (the owner: "I also
+   agree with where to apply first").
+3. **The suffix is `View`** (the owner: "I was thinking of View suffix").
+
+## Q1. Where the view of a page lives
+
+A configuration opens as a page from many places: the explorer, the link of a task
+to its run, a tab, the Runner. The view of the page must exist only while the page
+shows, because it holds the rows that its table shows.
+
+- **(a) In the visit of the navigator (my recommendation).** A new generic,
+  `make_document_view(document)`, makes the view of a document when a page opens;
+  its default answers the document itself, so every other page stays as it is. The
+  navigator keeps the view of its page, holds it, and draws it. Each visit keeps its
+  view, so Back returns to the same rows, as a browser keeps the place of each page
+  in its history. A visit already keeps the selection that the person had when they
+  left the page, so the view sits beside it.
+- **(b) In the node of the explorer tree, one for each place.** The tree keeps no
+  document for a place now (its `_TreeEntry` lives in its projection), the
+  explorer branch of another session changes the tree, and a page that opens from a
+  task link has no node.
+- **(c) One for each configuration in the editor.** The navigator must still hold
+  and draw the view, so this is (a) with a registry more, and two navigators share
+  one place in the table.
+
+## Steps
+
+Each step is one commit with its tests, in a worktree. Mark each step done here.
+
+1. [ ] **The rule.** A section "Content documents and view documents" in
+   `documentation/rule/architecture-rules.md`, the term in `concepts.md`, and the
+   sentence of the suffix in `naming-rules.md`. Test: `test_documentation()`.
+2. [ ] **The lazy table says which rows its view shows.** `WidgetTable.shown`, view
+   state: the rows in view, counted from the head, as a range. The table writes it
+   beside each scroll and each move of its head, when it changes, as it writes
+   `top_row` now. The ten positional calls of `WidgetTable` follow the new field.
+   Tests: `test_widget_table_list()`, `test_task_pages()`, `test_dataframes()`.
+3. [ ] **The navigator shows the view of its page** (Q1 (a)). `make_document_view`
+   in the domain slice; `Navigator.view` and `NavigatorVisit.view`; a visit makes
+   the view of its page, and Back and Forward give back the view of their visit; the
+   navigator holds the view in place of the page; the print draws the view, and a
+   path in the page goes through `get_edited_field` of the view. Tests:
+   `test_navigator_visits()`, `test_navigator_to_widget()`, `test_navigator()`,
+   `test_document_tree()`.
+4. [ ] **The guides.** `navigator.md`, `widget.md` (the table), `domain.md`
+   (`make_document_view`); the plan moves to `plan/done/`.
+
+The explorer branch of another session uses the navigator. Step 3 tells that
+session what changes before it lands.
+
+## Not in this plan
+
+The folds of the content types, a tree of node views, the omnet project page, and a
+rename of the view documents that exist.
