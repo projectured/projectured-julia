@@ -42,8 +42,10 @@ end
 get_document_title(::McpLog) = "MCP log"
 get_insertion_aliases(::Type{McpLog}) = ["mcp log"]
 
-# A file keeps the size of the log and not the calls of a session.
-pred_arguments(log::McpLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+# A file keeps that it shows the log of the session, and not the calls of a
+# session. A load gives the log of the session of its editor, and a load with no
+# editor a new log.
+pred_arguments(::McpLog) = (), Pair{Symbol,Any}[]
 
 """
     record_mcp_call!(log, entry) -> McpLog
@@ -75,6 +77,7 @@ get_session_mcp_log(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(McpLog, editor, McpLog) : McpLog()
 
 make_insertion_document(::Type{McpLog}) = get_session_mcp_log()
+make_pred_document(::Type{<:McpLog}, positional, keywords) = get_session_mcp_log()
 
 # The log of the calls of a client fails while one of its calls was a fault.
 function get_document_decoration(log::McpLog)

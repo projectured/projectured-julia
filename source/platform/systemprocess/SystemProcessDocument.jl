@@ -75,6 +75,21 @@ SystemProcessTree(root_process_ids; title::AbstractString = _format_tree_title(r
 
 _format_tree_title(root_process_ids) = "Processes of " * join(root_process_ids, ", ")
 
+# A file keeps the roots, the title and the folder that the tree reads, and not
+# what a read found. A tree of the process of the editor keeps that it shows that
+# process, whose id is another one at the next start.
+function pred_arguments(tree::SystemProcessTree)
+    keywords = Pair{Symbol,Any}[:title => tree.title, :root => tree.sampler.root]
+    tree.root_process_ids == [getpid()] && return ((), push!(keywords, :editor_process => true))
+    ((tree.root_process_ids,), keywords)
+end
+
+function make_pred_document(::Type{<:SystemProcessTree}, positional, keywords)
+    options = Dict{Symbol,Any}(keywords)
+    ids = get(options, :editor_process, false) === true ? [getpid()] : first(positional)
+    SystemProcessTree(ids; title = options[:title], root = get(options, :root, "/proc"))
+end
+
 # What the drain of a tree needs and no view shows: the folder that it reads, the
 # lock of the result, the read that runs on a task of its own, the result of the
 # last read with the time at which it read, the time of the last start, and the

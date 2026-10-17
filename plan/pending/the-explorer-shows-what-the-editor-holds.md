@@ -1192,6 +1192,29 @@ before each edit of a kernel file. Mark each step done here.
        with no key, adds the document of the focused tab, through its history and
        not into a file. A fix of the map of the header is outside this plan; it
        is an open item for the owner.
+   - [x] **5d. The save of Q5** (2026-10-17). `get_explorer_content_file(folder)`
+     gives `projectured/explorer/<name>-<hash>.pred` in the state folder, with a
+     32-bit FNV-1a hash of the absolute path, because `hash` changes between
+     versions of Julia. `save_explorer_content!(content, path; editor)` writes
+     the section, and a content that does not write leaves the file and warns.
+     `load_explorer_content(path; editor)` gives the section, or `nothing` for no
+     file or a file that does not read, with a warning.
+     - A fact that moved the design: the close of a window releases nothing
+       (`_close_screen_window!` only takes the window out), so the write at the
+       close that Q5 names is a write after `run_editor!` returns in
+       `run_application`. That call, and the load at the start, are step 9.
+       A save of the window (`save_user_interface`) holds the content already,
+       inside the explorer of a tab.
+     - Each session document of the first content now writes a mark that a load
+       gives back as the session document of the editor that loads it, as
+       `AssistantList` does: the four logs (message, gesture, fault, MCP), the
+       frame statistics and the frame times, the settings and the appearance
+       (their values are in their TOML files). Before, a log wrote its capacity
+       and a load made a new empty log that nothing fills. The process tree of
+       the process of the editor writes that it shows that process, whose id
+       changes; any other process tree writes its ids. The slices
+       `systemprocess`, `settingsmanaging`, `appearance` and `explorer` have the
+       edge `serialization`.
 6. [ ] **The filter.** The quick filter, the kinds, and the search below a node as
    a task.
 7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document

@@ -355,9 +355,12 @@ function test_fault_catching()
         @test get_session_fault_log() !== log
         @test "faults" in domain.get_insertion_names(FaultLog)
         @test get_document_title(log) == "Faults"
-        # A saved window keeps the capacity of the log and none of its faults.
-        @test ProjecturedPlatform.SerializationModule.pred_arguments(log) ==
-              ((), Pair{Symbol,Any}[:capacity => log.capacity])
+        # A saved window keeps that it shows the log of the session, and none of its
+        # faults: a load gives the log of the session of its editor.
+        serialization = ProjecturedPlatform.SerializationModule
+        @test serialization.pred_arguments(log) == ((), Pair{Symbol,Any}[])
+        @test run_with_evaluation_editor(() -> serialization.make_pred_document(FaultLog, (), Pair{Symbol,Any}[]),
+                                         editor) === log
 
         store = FaultStore()
         attach_fault_target!(store, log)

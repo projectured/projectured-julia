@@ -42,7 +42,7 @@ import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..DomainModule: get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..ProjectionModule: print_document
-import ..SerializationModule: pred_arguments
+import ..SerializationModule: pred_arguments, make_pred_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export McpCallEntry, McpLog, record_mcp_call!, get_session_mcp_log

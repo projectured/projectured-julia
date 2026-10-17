@@ -29,11 +29,11 @@ end
 get_document_title(::GestureLog) = "Gestures"
 get_insertion_aliases(::Type{GestureLog}) = ["gestures"]
 
-# Last session's log is not this one's: `entries` and `count` are what a
-# session recorded, not a setting of the log, and `entries` holds
-# `GestureLogEntry` values the notation cannot write in any case. Only
-# `capacity` describes the log itself, so a load starts empty at the same size.
-pred_arguments(log::GestureLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+# A file keeps that it shows the log of the session, and not what the log held:
+# the gestures of one session say nothing about the next, and only the log of the
+# session fills. A load gives the log of the session of its editor, and a load with
+# no editor a new log.
+pred_arguments(::GestureLog) = (), Pair{Symbol,Any}[]
 
 # ── Record ─────────────────────────────────────────────────────────────────
 
@@ -199,5 +199,6 @@ get_session_gesture_log(; editor = find_evaluation_editor()) =
 # a fresh empty one. A fresh one would never fill: what records is a decorator at
 # the root of the projection, and it records into the log it holds.
 make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()
+make_pred_document(::Type{<:GestureLog}, positional, keywords) = get_session_gesture_log()
 
 get_document_decoration(::GestureLog) = DocumentDecoration(; icon = :keyboard)

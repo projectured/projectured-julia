@@ -45,7 +45,7 @@ import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document, read_intent, map_reference_forward
-import ..SerializationModule: pred_arguments
+import ..SerializationModule: pred_arguments, make_pred_document
 import ..RosterModule: collect_roster_parts, collect_roster_items
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 

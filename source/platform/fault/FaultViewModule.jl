@@ -73,7 +73,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document, get_docum
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SettingsModule: apply_settings!, read_settings!, is_settings_group_applied
-import ..SerializationModule: pred_arguments
+import ..SerializationModule: pred_arguments, make_pred_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, make_safe_mode_projection
 import ..StyleModule: get_theme_presets
 import ..ProjectionModule: print_document, read_intent,

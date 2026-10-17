@@ -6,7 +6,7 @@ const _ENTRIES_STEP = FieldReferenceStep("entries")
 const _ENTRIES = extend_reference(EmptyReference(), _ENTRIES_STEP)
 
 # The section that takes the entry of `operation`, and the place of the entry in it.
-function _find_added_place(editor, operation::AddExplorerEntryOperation)
+function _get_added_place(editor, operation::AddExplorerEntryOperation)
     section = something(operation.section, get_session_explorer_content(; editor))
     count = length(section.entries)
     index = operation.index === nothing ? count + 1 : clamp(operation.index, 1, count + 1)
@@ -17,14 +17,14 @@ end
 # selection of the node follow after it, because neither the page nor the node
 # exists before the add.
 function evaluate_operation(editor, operation::AddExplorerEntryOperation)
-    (section, index) = _find_added_place(editor, operation)
+    (section, index) = _get_added_place(editor, operation)
     evaluate_operation(editor, make_insert_elements_operation(_ENTRIES, index, Any[operation.document];
                                                               root = section))
     navigator = operation.navigator
     if navigator !== nothing
         visit = make_navigator_open_operation(navigator, section,
                                               extend_reference(_ENTRIES, ElementReferenceStep(index)))
-        visit === nothing || evaluate_operation(editor, _drop_visit_selection(visit))
+        visit === nothing || evaluate_operation(editor, _get_visit_writes(visit))
     end
     selection = operation.selection
     selection === nothing ||
@@ -36,13 +36,13 @@ end
 # An undo takes the entry out of its section again. The page and the selection
 # are view state, and an undo leaves them.
 function make_inverse_operation(document, operation::AddExplorerEntryOperation)
-    (section, index) = _find_added_place(find_evaluation_editor(), operation)
+    (section, index) = _get_added_place(find_evaluation_editor(), operation)
     make_delete_elements_operation(_ENTRIES, index; root = section)
 end
 
 # The writes of a visit of a navigator with no selection: the page beside the
 # tree changes, and the selection stays where the caller puts it.
-_drop_visit_selection(visit::CompoundOperation) =
+_get_visit_writes(visit::CompoundOperation) =
     CompoundOperation(Any[part for part in visit.operations if !(part isa ReplaceSelectionOperation)])
 
 # ── The place of the selected node ───────────────────────────────────────────
@@ -77,7 +77,7 @@ end
 # The section and the index at which an entry is added at `place`: at the end of
 # a selected section, and after any other selected entry, or after the entry above
 # the selected node.
-function _find_add_place(place)
+function _get_new_entry_place(place)
     place.index === nothing && return (place.section, place.steps, length(place.section.entries) + 1)
     entry = place.section.entries[place.index]
     place.is_entry && entry isa ExplorerSection &&
@@ -100,7 +100,7 @@ _make_entry_node_path(steps, index) =
 function _make_add_menu_operation(explorer::Explorer, selection)
     place = _find_selected_place(explorer, selection)
     place === nothing && return nothing
-    (section, steps, index) = _find_add_place(place)
+    (section, steps, index) = _get_new_entry_place(place)
     navigator = getfield(explorer, :navigator)[]
     add(document) = AddExplorerEntryOperation(document; section, index, navigator,
                                               selection = _make_entry_node_path(steps, index))
@@ -114,7 +114,7 @@ end
 function _make_new_section_operation(explorer::Explorer, selection)
     place = _find_selected_place(explorer, selection)
     place === nothing && return nothing
-    (section, steps, index) = _find_add_place(place)
+    (section, steps, index) = _get_new_entry_place(place)
     AddExplorerEntryOperation(make_insertion_document(ExplorerSection); section, index,
                               navigator = getfield(explorer, :navigator)[],
                               selection = _make_entry_node_path(steps, index))
@@ -136,7 +136,7 @@ function _make_show_section_operations(explorer::Explorer, steps)
     tree_path = extend_reference(EmptyReference(), FieldReferenceStep("tree"), FieldReferenceStep("root"), steps...)
     operations = Any[ReplaceSelectionOperation(annotate_reference_types(explorer, tree_path))]
     visit = make_navigator_open_operation(getfield(explorer, :navigator)[], extend_reference(EmptyReference(), steps...))
-    visit === nothing || push!(operations, _drop_visit_selection(visit))
+    visit === nothing || push!(operations, _get_visit_writes(visit))
     operations
 end
 
@@ -167,7 +167,7 @@ function _make_rename_operation(explorer::Explorer, selection)
     navigator = getfield(explorer, :navigator)[]
     operations = Any[]
     visit = make_navigator_open_operation(navigator, extend_reference(EmptyReference(), steps...))
-    visit === nothing || push!(operations, _drop_visit_selection(visit))
+    visit === nothing || push!(operations, _get_visit_writes(visit))
     count = length(section.title)
     caret = extend_reference(EmptyReference(), FieldReferenceStep("navigator"), FieldReferenceStep("content"), steps...,
                              FieldReferenceStep("title"), RangeReferenceStep(count, count))

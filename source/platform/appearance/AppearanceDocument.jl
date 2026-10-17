@@ -67,4 +67,15 @@ The `Appearance` of `editor`: the one that its `appearance` wrapper holds, or
 find_editor_appearance(; editor = get_evaluation_editor()) =
     run_on_editor_task!(() -> editor.document isa AppearanceDocument ? editor.document.appearance : nothing, editor; description = "find_editor_appearance")
 
+# A file keeps that it shows the appearance of the editor, whose values the
+# appearance file holds. A load gives the appearance of its editor, and a load with
+# no editor, or in an editor with no appearance, the default appearance.
+pred_arguments(::Appearance) = (), Pair{Symbol,Any}[]
+
+function make_pred_document(::Type{<:Appearance}, positional, keywords)
+    editor = find_evaluation_editor()
+    found = editor isa Editor ? find_editor_appearance(; editor) : nothing
+    found === nothing ? Appearance() : found
+end
+
 get_document_decoration(::Union{AppearanceDocument, Appearance}) = DocumentDecoration(; icon = :palette)

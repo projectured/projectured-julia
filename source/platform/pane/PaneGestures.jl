@@ -152,7 +152,7 @@ end
 # The document that a tab shows, through the layers that only record its edits,
 # such as its history. The document of a file is the document, and not the data
 # in it.
-function _find_tab_document(tab::PaneTab)
+function _get_tab_document(tab::PaneTab)
     document = tab.content
     for _ in 1:_TAB_DOCUMENT_LAYERS
         is_file_document(document) && return document
@@ -166,12 +166,12 @@ end
 const _TAB_DOCUMENT_LAYERS = 8
 
 # The document of the focused tab, as a new entry of the explorer of the editor.
-function _add_tab_to_explorer(tree::PaneTree)
+function _make_add_tab_operation(tree::PaneTree)
     focus = get_pane_focus(tree)
     focus === nothing && return nothing
     (group, index) = focus
     index == 0 && return nothing
-    AddExplorerEntryOperation(_find_tab_document(group.tabs[index]))
+    AddExplorerEntryOperation(_get_tab_document(group.tabs[index]))
 end
 
 @gestures PaneTree begin
@@ -194,7 +194,7 @@ end
             _walk_tab(doc, k)
     KeyDown(:f2;) => "Put the caret in the tab name" => _rename(doc)
     KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
-    nothing => "Add the tab to the explorer" => _add_tab_to_explorer(doc)
+    nothing => "Add the tab to the explorer" => _make_add_tab_operation(doc)
     # The four rules of a rename. Each answers `nothing` unless the caret is in a
     # name, so a key that means something else keeps meaning it — the rule body
     # is the guard, because a `when(…)` guard sees only the event's own fields. A

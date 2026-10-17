@@ -52,7 +52,8 @@ end
 get_document_title(::FrameStatistics) = "Statistics"
 get_insertion_aliases(::Type{FrameStatistics}) = ["statistics"]
 
-# Last session's numbers are not this one's: a load starts an empty table.
+# Last session's numbers are not this one's: a file keeps that it shows the
+# statistics of the session, and a load gives those of the session of its editor.
 pred_arguments(::FrameStatistics) = (), Pair{Symbol, Any}[]
 
 """
@@ -123,6 +124,7 @@ get_session_frame_statistics(; editor = find_evaluation_editor()) =
 # a fresh one would never fill, because the feed flushes into the table of the
 # session of its editor.
 make_insertion_document(::Type{FrameStatistics}) = get_session_frame_statistics()
+make_pred_document(::Type{<:FrameStatistics}, positional, keywords) = get_session_frame_statistics()
 
 # ── The frame time series ────────────────────────────────────────────────────
 
@@ -146,7 +148,8 @@ end
 get_document_title(::FrameTimeSeries) = "Frame times"
 get_insertion_aliases(::Type{FrameTimeSeries}) = ["frame times"]
 
-# Last session's frames are not this one's: a load starts an empty plot.
+# Last session's frames are not this one's: a file keeps that it shows the frame
+# times of the session, and a load gives those of the session of its editor.
 pred_arguments(::FrameTimeSeries) = (), Pair{Symbol, Any}[]
 
 """
@@ -195,6 +198,7 @@ get_session_frame_time_series(; editor = find_evaluation_editor()) =
 # A person who types `frame times` into an empty tab gets the session's series,
 # for the same reason as the table.
 make_insertion_document(::Type{FrameTimeSeries}) = get_session_frame_time_series()
+make_pred_document(::Type{<:FrameTimeSeries}, positional, keywords) = get_session_frame_time_series()
 
 # The recent frames of the session, as a roster reads them: one row for each frame
 # of the series, a named tuple of the number of the frame and of the time of each

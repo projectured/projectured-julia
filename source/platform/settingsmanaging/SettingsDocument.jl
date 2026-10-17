@@ -52,6 +52,17 @@ function find_editor_settings(; editor = get_evaluation_editor())
     end
 end
 
+# A file keeps that it shows the settings of the editor, whose values the settings
+# file holds. A load gives the settings of its editor, and a load with no editor, or
+# in an editor with no settings, the default settings.
+pred_arguments(::Settings) = (), Pair{Symbol,Any}[]
+
+function make_pred_document(::Type{<:Settings}, positional, keywords)
+    editor = find_evaluation_editor()
+    found = editor isa Editor ? find_editor_settings(; editor) : nothing
+    found === nothing ? Settings() : found
+end
+
 """
     describe_settings(; editor = get_evaluation_editor()) -> Text
 

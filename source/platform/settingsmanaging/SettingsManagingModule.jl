@@ -53,6 +53,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
 import ..DomainModule: get_document_decoration
+import ..SerializationModule: pred_arguments, make_pred_document
 export SettingsDocument, make_settings_document, find_editor_settings, describe_settings,
        change_setting!,
        make_toggle_setting_operation

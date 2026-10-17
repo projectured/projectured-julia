@@ -30,6 +30,7 @@ using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..SelectionModule
 using ..StyleModule
 using ..ToolModule
@@ -49,10 +50,12 @@ import ..WidgetModule: make_graphics_projection
 export ExplorerSection, Explorer, get_session_explorer_content
 export ExplorerToWidget
 export ExplorerSectionToWidget
+export get_explorer_content_file, save_explorer_content!, load_explorer_content
 
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")
 include("ExplorerEntryEdits.jl")
+include("ExplorerContentFile.jl")
 
 end # module

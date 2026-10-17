@@ -121,9 +121,11 @@ end
 get_document_title(::FaultLog) = "Faults"
 get_insertion_aliases(::Type{FaultLog}) = ["faults"]
 
-# A saved window keeps where the log was and how much it holds, never what it
-# held: the faults of one session say nothing about the next.
-pred_arguments(log::FaultLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+# A file keeps that it shows the log of the session, and not what the log held:
+# the faults of one session say nothing about the next, and only the log of the
+# session fills. A load gives the log of the session of its editor, and a load with
+# no editor a new log.
+pred_arguments(::FaultLog) = (), Pair{Symbol,Any}[]
 
 # ── The session's log ────────────────────────────────────────────────────────
 
@@ -159,6 +161,7 @@ get_session_fault_log(; editor = find_evaluation_editor()) =
 # fresh empty one. A fresh one would never fill: what fills a log is the drain
 # of the store it is attached to.
 make_insertion_document(::Type{FaultLog}) = get_session_fault_log()
+make_pred_document(::Type{<:FaultLog}, positional, keywords) = get_session_fault_log()
 
 # ── The fault log of a window, as a wrapper of `build_editor` ────────────────
 

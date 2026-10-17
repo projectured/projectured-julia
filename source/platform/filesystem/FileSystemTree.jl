@@ -16,11 +16,11 @@ has_tree_children(folder::WorkspaceFolder) =
 
 # A folder of a workspace holds the folder that it names, so the open of its node
 # reads that folder. A folder with no place holds nothing, so nothing reads.
-acquire_document!(editor, folder::WorkspaceFolder) = hold_documents!(editor, folder, _collect_folder_held(folder))
+acquire_document!(editor, folder::WorkspaceFolder) = hold_documents!(editor, folder, _get_folder_held_documents(folder))
 release_document!(editor, folder::WorkspaceFolder) =
-    release_held_documents!(editor, folder, _collect_folder_held(folder))
+    release_held_documents!(editor, folder, _get_folder_held_documents(folder))
 
-_collect_folder_held(folder::WorkspaceFolder) = _has_folder_place(folder) ? Any[folder.directory] : Any[]
+_get_folder_held_documents(folder::WorkspaceFolder) = _has_folder_place(folder) ? Any[folder.directory] : Any[]
 
 get_tree_children_steps(::FileSystemDirectory) = ((FieldReferenceStep("elements"),),)
 format_tree_node_label(folder::FileSystemDirectory) = basename(rstrip(folder.pathname, '/'))

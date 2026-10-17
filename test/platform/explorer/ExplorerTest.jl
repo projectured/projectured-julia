@@ -419,7 +419,7 @@ function test_explorer()
         document = PrimitiveString("start")
         editor, backend = _nav_editor(document; tabs = true)
         tree = get_window_tree(editor.document)
-        @test PaneModule._find_tab_document(only(only(get_pane_groups(tree)).tabs)) === document
+        @test PaneModule._get_tab_document(only(only(get_pane_groups(tree)).tabs)) === document
         binding = only(filter(binding -> binding.description == "Add the tab to the explorer",
                               collect_document_gesture_bindings(PaneTree)))
         # With no focused tab the command adds nothing; a press in the tab focuses it.
@@ -427,6 +427,45 @@ function test_explorer()
         _nav_press!(editor, backend, MouseClick(:left, 10, 32, 1, ModifierKeys(); time = 0.0))
         evaluate_operation(editor, binding.operation(tree, nothing))
         @test last(get_session_explorer_content(; editor).entries) === document
+    end
+
+    @testset "the content of a folder is kept in the state folder, and reads back as the session of the next editor" begin
+        state = mktempdir()
+        withenv("XDG_STATE_HOME" => state) do
+            work, other = mkpath(joinpath(mktempdir(), "work")), mkpath(joinpath(mktempdir(), "work"))
+            path = get_explorer_content_file(work)
+            @test startswith(path, joinpath(state, "projectured", "explorer", "work-")) && endswith(path, ".pred")
+            @test get_explorer_content_file(work * "/") == path && get_explorer_content_file(other) != path
+            @test load_explorer_content(path) === nothing
+            first_editor, _ = _nav_editor(PrimitiveString("first"))
+            content = make_editor_explorer_content(; editor = first_editor,
+                                                   entries = Any[Workspace([WorkspaceFolder("work", work)])])
+            push!(content.entries[6].entries, ExplorerSection("Queue study"))
+            save_explorer_content!(content, path; editor = first_editor)
+            @test isfile(path)
+            # The next editor reads the same entries: its own lists of the session,
+            # the folder at its place, and the sections with their titles.
+            next_editor, _ = _nav_editor(PrimitiveString("next"))
+            loaded = load_explorer_content(path; editor = next_editor)
+            @test loaded isa ExplorerSection
+            @test [format_tree_node_label(entry) for entry in loaded.entries] ==
+                  [format_tree_node_label(entry) for entry in content.entries]
+            folder = only(loaded.entries[1].folders)
+            @test folder.name == "work" && folder.pathname == work
+            @test loaded.entries[2] === get_session_open_file_list(; editor = next_editor)
+            @test loaded.entries[3] === get_session_task_group_list(; editor = next_editor)
+            @test loaded.entries[4] === get_session_assistant_list(; editor = next_editor)
+            @test only(loaded.entries[6].entries).title == "Queue study"
+            tools = loaded.entries[7].entries
+            @test tools[1] === get_session_message_log(; editor = next_editor)
+            @test tools[3] === get_session_fault_log(; editor = next_editor)
+            @test any(tool -> tool === get_session_frame_statistics(; editor = next_editor), tools)
+            processes = only(filter(tool -> tool isa SystemProcessTree, tools))
+            @test processes.root_process_ids == [getpid()] && processes.title == "System processes"
+            # A file that does not read gives nothing, and a warning says so.
+            write(path, "ExplorerSection(")
+            @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path)) === nothing
+        end
     end
 
     @testset "Ctrl+press on a node opens its page in a new tab" begin

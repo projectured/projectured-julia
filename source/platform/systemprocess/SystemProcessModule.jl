@@ -51,6 +51,7 @@ import ..TreeModule: get_tree_children_steps, format_tree_node_label
 import ..WidgetModule: make_graphics_projection
 
 import ..DomainModule: get_document_decoration
+import ..SerializationModule: pred_arguments, make_pred_document
 export SystemProcessRecord, read_system_processes, read_system_process_usage,
        get_clock_ticks_per_second
 export format_memory_size

@@ -25,11 +25,11 @@ end
 get_document_title(::MessageLog) = "Log"
 get_insertion_aliases(::Type{MessageLog}) = ["log"]
 
-# Last session's log is not this one's: `entries` and `count` are what a
-# session captured, not a setting of the log, and `entries` holds
-# `MessageLogEntry` values the notation cannot write in any case. Only
-# `capacity` describes the log itself, so a load starts empty at the same size.
-pred_arguments(log::MessageLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+# A file keeps that it shows the log of the session, and not what the log held:
+# the entries of one session say nothing about the next, and only the log of the
+# session fills. A load gives the log of the session of its editor, and a load with
+# no editor a new log.
+pred_arguments(::MessageLog) = (), Pair{Symbol,Any}[]
 
 # ── Record ─────────────────────────────────────────────────────────────────
 
@@ -96,6 +96,7 @@ get_session_message_log(; editor = find_evaluation_editor()) =
 # fresh empty one. A fresh one would never fill: the feed of the editor fills
 # the log of its session.
 make_insertion_document(::Type{MessageLog}) = get_session_message_log()
+make_pred_document(::Type{<:MessageLog}, positional, keywords) = get_session_message_log()
 
 # A log counts the warnings and the errors that it holds.
 function get_document_decoration(log::MessageLog)
