@@ -46,8 +46,8 @@ export compute_loaded_subtypes, var"@domain", var"@insertion",
 export DocumentNothing, DocumentInsertion
 export compute_context_menu
 export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
-       add_document_holder!, remove_document_holder!, hold_documents!, release_held_documents!,
-       ChangeHeldDocumentsOperation, start_document_read!, DOCUMENT_READ_WAIT
+       add_document_holder!, remove_document_holder!, is_document_held, hold_documents!,
+       release_held_documents!, ChangeHeldDocumentsOperation, start_document_read!, DOCUMENT_READ_WAIT
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 

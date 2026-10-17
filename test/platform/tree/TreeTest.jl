@@ -278,8 +278,11 @@ function test_document_tree()
         empty!(_DOCTREE_HOLD_EVENTS)
         chevron!([1], [1, 1], [1, 1, 1])
         @test _DOCTREE_HOLD_EVENTS == [(:acquire, "a1")]
+        a = getfield(root, :children)[][1]
+        @test is_document_held(editor, a) && is_document_held(editor, root)
         chevron!([1])
         @test sort(_DOCTREE_HOLD_EVENTS) == [(:acquire, "a1"), (:release, "a"), (:release, "a1")]
+        @test !is_document_held(editor, a) && is_document_held(editor, root)
         # A document that two holders show is released at its last holder.
         empty!(_DOCTREE_HOLD_EVENTS)
         other = PaneTab("root", root)

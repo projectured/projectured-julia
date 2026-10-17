@@ -137,6 +137,19 @@ function remove_document_holder!(editor, document)
 end
 
 """
+    is_document_held(editor, document) -> Bool
+
+Whether a holder holds `document` in the window of `editor`: a tab, an open node
+of a tree, a row that a view shows. It reads the count of the holders and changes
+nothing. An editor that is not an `Editor`, such as the stand-in of a test,
+counts nothing and acquires a document at each call, so it answers `true`.
+"""
+function is_document_held(editor, document)
+    holders = _find_document_holders(editor)
+    holders === nothing || get(holders.counts, document, 0) > 0
+end
+
+"""
     hold_documents!(editor, holder, documents) -> nothing
 
 Make `holder` a holder of each of `documents`, the documents that it shows: the
