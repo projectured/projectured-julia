@@ -42,9 +42,9 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..WidgetModule: make_graphics_projection
 
-export get_tree_children_steps, format_tree_node_label, get_tree_node_icon, has_tree_children
+export get_tree_children_steps, format_tree_node_label, has_tree_children, get_tree_node_icon
 export DocumentTree
-export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap
+export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap, collect_tree_children
 export show_document_tree!
 
 include("TreeInterface.jl")

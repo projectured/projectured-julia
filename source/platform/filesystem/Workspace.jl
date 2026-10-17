@@ -110,10 +110,10 @@ WorkspaceExplorer(workspace::Workspace) =
 
 get_document_title(::WorkspaceExplorer) = "Explorer"
 
-# The names a person types into an empty tab to open an explorer. An explorer of
-# no folder shows nothing, so a person who opens one by its name gets the working
-# directory.
-get_insertion_aliases(::Type{WorkspaceExplorer}) = ["explorer", "file explorer"]
+# The names a person types into an empty tab to open the tree of the files. A tree
+# of no folder shows nothing, so a person who opens one by its name gets the
+# working directory.
+get_insertion_aliases(::Type{WorkspaceExplorer}) = ["files", "file explorer"]
 make_insertion_document(::Type{WorkspaceExplorer}) =
     WorkspaceExplorer(Workspace([WorkspaceFolder(basename(pwd()), pwd())]))
 

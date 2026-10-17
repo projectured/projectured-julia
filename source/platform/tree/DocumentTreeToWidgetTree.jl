@@ -195,6 +195,40 @@ function _get_tree_child(document, k::Int)
     collection[i]
 end
 
+"""
+    collect_tree_children(document; limit) -> Vector{Pair{Reference,Any}}
+
+The first `limit` children of `document` as a node of a tree, each with its path
+from `document`: the elements of its collections, one collection after the other
+([`get_tree_children_steps`](@ref)). A lazy list gives its first nodes from its
+head, so a list with no end gives `limit` children and is read no further.
+
+Use it to show the first children of a document beside it, as the page of a
+section of an explorer does.
+
+# Example
+
+    collect_tree_children(get_session_task_group_list(); limit = 5)
+
+See also `get_tree_children_steps` and `DocumentTree`.
+"""
+function collect_tree_children end
+
+function collect_tree_children(document; limit::Integer)
+    found = Pair{Reference,Any}[]
+    for (steps, collection) in _collect_tree_collections(document)
+        rest = limit - length(found)
+        rest <= 0 && break
+        collection === nothing && continue
+        values = collection isa ListNode ? take_first(collection, rest) :
+                 Any[collection[k] for k in 1:min(length(collection), rest)]
+        for (k, value) in enumerate(values)
+            push!(found, extend_reference(EmptyReference(), steps..., ElementReferenceStep(k)) => value)
+        end
+    end
+    found
+end
+
 # The entry at the index path `path` from the root entry, or `nothing`.
 function _find_tree_entry(root::_TreeEntry, path; make::Bool = false)
     (isempty(path) || path[1] != 1) && return nothing

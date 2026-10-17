@@ -1,6 +1,7 @@
 # The explorer shows what the editor holds
 
-> **Status (2026-10-17): DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
+> `projectured-julia-explorer`): step 1 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -904,12 +905,34 @@ documents, so a save keeps none, and after a restart the rows show no outcome.
 Each step is one or more commits in a worktree, with a check of `SEALING.md`
 before each edit of a kernel file. Mark each step done here.
 
-1. [ ] **The explorer document and its view** (projectured). `Explorer`,
+1. [x] **The explorer document and its view** (projectured). `Explorer`,
    `ExplorerSection`, the view of the tree beside the navigator lifted from the
    omnet view, the overview page of a section, `find_navigator_address` of a
    section, the insertion name "explorer". The alias moves from
    `WorkspaceExplorer`, which keeps "files" and "file explorer". Test:
    `test_explorer()`, new.
+   **Done 2026-10-17** on branch `explorer`. What the step found and decided:
+   - The slice `explorer` loads after `navigator`; its edges are collection,
+     domain, focus, layout, navigator, pane, projection, style, tree, widget.
+   - The tree slice exports `collect_tree_children(document; limit)`: the first
+     children of a node with their paths, a lazy list read from its head only.
+     The page of a section uses it, and the filter and the menu can.
+   - A double press: its first press already shows the page, so the visit of
+     the second press is `nothing`. The explorer then writes the selection that a
+     visit writes, `navigator.content.<address>`, so the keyboard goes into the
+     page. The omnet view has the same gap; step 10 takes the fix with the view.
+   - The page of a section: a `WidgetCard` for each entry, its name and its first
+     five children as links (`WidgetButton` with `OpenPageOperation`, Ctrl for a
+     new tab), in a scroll pane; a computation of the list of cards follows the
+     entries. An empty section says "This section has no entry."
+   - A duplicate of an explorer shares the section and has a new tree and
+     navigator. `accepts_opened_file(::Explorer) = false`, as the Files tree.
+   - `get_session_explorer_content` finds the section of an explorer in a tab
+     of the window, else makes an empty one, as the task list does.
+   - The umbrella `ToolViewTest.jl` asserted that "explorer" names `Workspace`;
+     it now asserts "file explorer" names `WorkspaceExplorer`.
+   - The exports of `TreeModule` follow the order of their definitions now, a
+     guard violation that main has too.
 2. [ ] **The tree** (projectured). Open places (Q1), the mark of the current
    page, and the keys Right, Left, Home, End, Page Up, Page Down. The lazy rows
    are on main and do not change. Test: `test_document_tree()`.

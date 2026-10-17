@@ -1,0 +1,54 @@
+"""
+    ExplorerModule
+
+The explorer: one place to find and look at what the editor holds. An
+`ExplorerSection` is a list of entries that a person controls, and an entry is any
+document: a folder, the task list of the editor, a project, another section. An
+`Explorer` shows one root section as a tree, and beside the tree a navigator that
+shows the page of the node that a person presses. A press on a node shows its page
+beside the tree, Ctrl+press opens the page in a new tab, and a double press or
+Return puts the keyboard in the page. Each editor has one root section, which
+every explorer of its window shows.
+"""
+module ExplorerModule
+
+using ..CellModule
+using ..CollectionModule
+using ..DocumentModule
+using ..DomainModule
+using ..EditorModule
+using ..FocusModule
+using ..GestureBindingModule
+using ..GestureModule
+using ..IntentModule
+using ..IoMapModule
+using ..LayoutModule
+using ..NavigatorModule
+using ..OperationModule
+using ..PaneModule
+using ..ProjectionAlgebraModule
+using ..ProjectionModule
+using ..ReferenceModule
+using ..StyleModule
+using ..ToolModule
+using ..TreeModule
+using ..WidgetModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
+import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
+                       get_insertion_aliases, make_insertion_document
+import ..NavigatorModule: find_navigator_address
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon
+import ..WidgetModule: make_graphics_projection
+
+export ExplorerSection, Explorer, get_session_explorer_content
+export ExplorerToWidget
+export ExplorerSectionToWidget
+
+include("ExplorerDocument.jl")
+include("ExplorerToWidget.jl")
+include("ExplorerSectionToWidget.jl")
+
+end # module
