@@ -56,4 +56,31 @@ function test_tree_render()
         @test length(built_nodes()) < 30
     end
 end
+
+# A node whose children are a lazy list of ten million, open in a pane of about
+# twelve rows: the renderer draws the rows in the pane, and only those rows make
+# their children.
+@testset "a tree makes the lazy children of the rows it draws" begin
+    SDL = ProjecturedSDL.SdlModule
+    widget_module = ProjecturedPlatform.WidgetModule
+    made = Ref(0)
+    runs = ProjecturedPlatform.CollectionModule.make_index_list(10_000_000, 1,
+        k -> (made[] += 1; widget_module.WidgetTreeNode("", "Run $(k - 1)", Any[])))
+    sweep = widget_module.WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
+    tree = widget_module.WidgetTree(Any[sweep]; expanded = Set([[1]]))
+    widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)))
+    projection_module = ProjecturedKernel.ProjectionModule
+    offer = projection_module.with_exact_size(projection_module.PrinterContext();
+                                              width = ProjecturedKernel.CellModule.Cell(Int32(300)),
+                                              height = ProjecturedKernel.CellModule.Cell(Int32(240)))
+    canvas = print_document(widgets, nothing, tree, offer).output
+    off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
+    try
+        SDL._render_canvas_offscreen!(off, canvas, 800, 600, (0xff, 0xff, 0xff, 0xff))
+    finally
+        SDL.close_offscreen_renderer(off)
+    end
+    # A row is 20 pixels high, so the pane shows the node and about eleven runs.
+    @test 10 <= made[] <= 14
+end
 end

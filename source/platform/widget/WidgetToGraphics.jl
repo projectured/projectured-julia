@@ -11613,6 +11613,207 @@ struct WTreeGeometry
     total_h::Int
 end
 
+# The rows of a tree that scrolls itself, from its first row: a lazy list whose
+# link makes the row after a row when a walk first reaches it, so the tree makes
+# the rows that the renderer and the readers reach and no others. `built` gives
+# the node of the list of each row that a walk made, by its path. Every row is as
+# high as the others.
+struct WTreeListGeometry
+    head::Union{ListNode,Nothing}
+    built::Dict{Vector{Int},ListNode}
+    row_height::Int
+end
+
+# One row of the lazy list of rows: the row, its count from the head, and the
+# place of its node among its siblings, so the walk steps to a sibling by one
+# link: the collection that holds the node, its index there, its node of the list
+# when the collection is a lazy list, and the row of its parent. A row holds no
+# node: the walk reads the node of an open row only, and the node of any other row
+# is read when the row is drawn.
+struct WTreeListRow
+    row::WTreeRow
+    count::Int
+    siblings::Any
+    index::Int
+    link::Any
+    above::Union{WTreeListRow,Nothing}
+end
+
+# The node of the row `row` of a lazy list of rows.
+_get_wtree_row_node(row::WTreeListRow) =
+    row.link === nothing ? row.siblings[row.index] : row.link.value
+
+# The child `i` of the collection `kids`, or `nothing` past its ends. A lazy list
+# counts its children from its head.
+function _find_tree_child(kids, i::Int)
+    kids === nothing && return nothing
+    if kids isa ListNode
+        link = find_list_node(kids, i)
+        return link === nothing ? nothing : link.value
+    end
+    1 <= i <= length(kids) ? kids[i] : nothing
+end
+
+# The place of the first child of `kids` as `(index, link)`, where `link` is its
+# node of the list in a lazy list, or `nothing` for no child. It reads no child.
+function _find_first_tree_child(kids)
+    kids === nothing && return nothing
+    kids isa ListNode && return (1, kids)
+    isempty(kids) ? nothing : (1, nothing)
+end
+
+# The place of the sibling after the child at `index` of `kids`, whose node of the
+# list is `link` in a lazy list, or `nothing` after the last. It reads no child.
+function _find_next_tree_child(kids, index::Int, link)
+    if link !== nothing
+        following = link.next
+        return following === nothing ? nothing : (index + 1, following)
+    end
+    index < length(kids) ? (index + 1, nothing) : nothing
+end
+
+# The lazy list of the rows of `w` from its first row, or `nothing` for a tree
+# with no root. `place(path, depth, count)` places a row, and `built` takes the
+# node of each row that a walk makes.
+function _make_wtree_row_list(w::WidgetTree, expanded, place, built)
+    first = _find_first_tree_child(w.roots)
+    first === nothing && return nothing
+    (index, link) = first
+    row = WTreeListRow(place([index], 0, 1), 1, w.roots, index, link, nothing)
+    _make_wtree_list_node(expanded, place, built, row)
+end
+
+# The node of the list of `row`, whose link makes the row after it when a walk
+# first reads the link.
+function _make_wtree_list_node(expanded, place, built, row::WTreeListRow)
+    list = ListNode(row)
+    built[row.row.path] = list
+    set_lazy_link!(list, :next, () -> begin
+        following = _find_next_wtree_row(expanded, place, row)
+        following === nothing && return nothing
+        _make_wtree_list_node(expanded, place, built, following)
+    end)
+    list
+end
+
+# The row after `row`: the first child of its node when it is open, else its next
+# sibling, else the next sibling of the nearest node above it, or `nothing` after
+# the last row.
+function _find_next_wtree_row(expanded, place, row::WTreeListRow)
+    count = row.count + 1
+    path = row.row.path
+    if path in expanded
+        kids = _tree_children(_get_wtree_row_node(row))
+        first = _find_first_tree_child(kids)
+        if first !== nothing
+            (index, link) = first
+            child = place(vcat(path, index), row.row.depth + 1, count)
+            return WTreeListRow(child, count, kids, index, link, row)
+        end
+    end
+    at = row
+    while at !== nothing
+        following = _find_next_tree_child(at.siblings, at.index, at.link)
+        if following !== nothing
+            (index, link) = following
+            sibling = place(vcat(at.row.path[1:end-1], index), at.row.depth, count)
+            return WTreeListRow(sibling, count, at.siblings, index, link, at.above)
+        end
+        at = at.above
+    end
+    nothing
+end
+
+# The node of the list of the row of `path`, when a walk made it, or `nothing`.
+_find_wtree_list_node(geometry::WTreeListGeometry, path) =
+    path === nothing ? nothing : get(geometry.built, path, nothing)
+
+# The count of the row of `path` from the head of the rows, or `nothing` when
+# the tree has no row for it.
+_find_wtree_row_index(geometry::WTreeGeometry, path) = get(geometry.index, path, nothing)
+
+function _find_wtree_row_index(geometry::WTreeListGeometry, path)
+    node = _find_wtree_list_node(geometry, path)
+    node === nothing ? nothing : node.value.count
+end
+
+# The node of the tree `w` at `path`. A lazy list of rows gives the node of a row
+# that a walk made, so a reader finds the node of a row far down a lazy list of
+# children without a walk from the head of that list.
+_find_wtree_node(::WTreeGeometry, w::WidgetTree, path) = _wtree_node_at(w, path)
+
+function _find_wtree_node(geometry::WTreeListGeometry, w::WidgetTree, path)
+    link = _find_wtree_list_node(geometry, path)
+    link === nothing ? _wtree_node_at(w, path) : _get_wtree_row_node(link.value)
+end
+
+# The height of all the rows: a lazy list of rows has none.
+_get_wtree_rows_height(geometry::WTreeGeometry) = geometry.total_h
+_get_wtree_rows_height(::WTreeListGeometry) = 0
+
+# Whether an open node of `w` whose nodes above are open holds a lazy list of
+# children, which has no count. It takes the open paths from the shortest, so it
+# meets a node that holds a lazy list before an open path inside that list, and it
+# reads no path inside a lazy list. It reads the count of the children of each
+# other open node, so a change of them makes the rows again.
+function _has_wtree_open_lazy_children(w::WidgetTree, expanded)
+    holders = Vector{Int}[]
+    for path in sort!(collect(expanded); by = length)
+        is_inside(holder) =
+            length(holder) < length(path) && path[1:length(holder)] == holder
+        any(is_inside, holders) && continue
+        all(k -> path[1:k] in expanded, 1:length(path) - 1) || continue
+        kids = _tree_children(_wtree_node_at(w, path))
+        kids isa ListNode ? push!(holders, path) : (kids === nothing || length(kids))
+    end
+    !isempty(holders)
+end
+
+# The count of the children in `kids`; a lazy list is walked to its end.
+function _count_wtree_children(kids)
+    kids === nothing && return 0
+    kids isa ListNode || return length(kids)
+    (count, link) = (1, kids.next)
+    while link !== nothing
+        (count, link) = (count + 1, link.next)
+    end
+    count
+end
+
+# Whether the row of `path` is in the open tree of `w`: its node exists and each
+# node above it is open.
+_is_wtree_row_shown(w::WidgetTree, path::Vector{Int}) =
+    all(k -> path[1:k] in w.expanded, 1:length(path) - 1) &&
+    _wtree_node_at(w, path) !== nothing
+
+# The path of the row after the row of `path` in the open tree of `w`, from its
+# nodes: the first child of an open node, else the next sibling, else the next
+# sibling of the nearest node above, or `nothing` after the last row.
+function _find_wtree_path_after(w::WidgetTree, path::Vector{Int})
+    kids = path in w.expanded ? _tree_children(_wtree_node_at(w, path)) : nothing
+    _find_first_tree_child(kids) === nothing || return vcat(path, 1)
+    at = path
+    while !isempty(at)
+        following = vcat(at[1:end-1], at[end] + 1)
+        _wtree_node_at(w, following) === nothing || return following
+        at = at[1:end-1]
+    end
+    nothing
+end
+
+# The path of the row before the row of `path`: the last row under the sibling
+# before it, else its parent, or `nothing` before the first row.
+function _find_wtree_path_before(w::WidgetTree, path::Vector{Int})
+    path[end] == 1 && return length(path) == 1 ? nothing : path[1:end-1]
+    before = vcat(path[1:end-1], path[end] - 1)
+    while before in w.expanded
+        count = _count_wtree_children(_tree_children(_wtree_node_at(w, before)))
+        count == 0 && break
+        before = vcat(before, count)
+    end
+    before
+end
+
 @iomap struct WidgetTreeToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -11675,6 +11876,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     _, line_height = _text_size(p.measure, label_style.font, "M")
     icon_size = scale_length(line_height, p.icon_size)
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
 
     # A named icon is a square of one line times `icon_size`. A tree whose roots
     # show one reserves a column that holds it and a gap, and rows as tall as the
@@ -11690,10 +11892,25 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # the renderer draws the row. Reading `w.expanded` here ties the rows to the
     # open nodes, so a chevron toggle walks again. Rows stay content-local; the
     # content offset is added where they are drawn and where a reader turns a
-    # position into a row.
+    # position into a row. A tree whose open nodes each count their children lays
+    # out each row, so the renderer starts at the rows in view and the pane has the
+    # extent of the rows. A tree that prints as the rows of its own pane, with an
+    # open node that holds a lazy list of children, makes its rows as a lazy list
+    # from its first row instead, so it makes the rows that a walk reaches and no
+    # others.
     geometry = Cell(@computation begin
         expanded = w.expanded
         row_height = line_box[] + 2 * pad
+        if bare && _has_wtree_open_lazy_children(w, expanded)
+            function place(path, depth, count)
+                x = depth * indent
+                WTreeRow(path, depth, x, x + chevron_column, (count - 1) * row_height,
+                         row_height)
+            end
+            built = Dict{Vector{Int},ListNode}()
+            head = _make_wtree_row_list(w, expanded, place, built)
+            return WTreeListGeometry(head, built, row_height)
+        end
         rows = WTreeRow[]
         index = Dict{Vector{Int},Int}()
         function visit(path, depth, node)
@@ -11703,9 +11920,18 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             node === nothing && return
             kids = _tree_children(node)
             kids === nothing && return
-            for i in 1:length(kids)
-                child = vcat(path, i)
-                visit(child, depth + 1, child in expanded ? kids[i] : nothing)
+            if kids isa ListNode
+                (i, link) = (1, kids)
+                while link !== nothing
+                    child = vcat(path, i)
+                    visit(child, depth + 1, child in expanded ? link.value : nothing)
+                    (i, link) = (i + 1, link.next)
+                end
+            else
+                for i in 1:length(kids)
+                    child = vcat(path, i)
+                    visit(child, depth + 1, child in expanded ? kids[i] : nothing)
+                end
             end
         end
         roots = w.roots
@@ -11715,16 +11941,37 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         WTreeGeometry(rows, index, row_height, length(rows) * row_height)
     end)
 
+    # The height of all the rows; a lazy list of rows has none, so its pane walks to
+    # the ends of the list.
+    rows_height = Cell(@computation _get_wtree_rows_height(geometry[]))
+
     # The tree takes the width that its parent offers, and what holds the tree
     # clips a longer label. With no offer the tree is as wide as its widest row,
-    # which reads the node of every row of the open tree.
+    # which reads the node of every row of the open tree; a lazy list of rows is as
+    # wide as the rows that a walk from its head to the bottom of its view reaches,
+    # so it can grow as a person scrolls.
     width = Cell(@computation begin
         avail_w === nothing || return max(1, Int(avail_w[]) - inset_width)
         widest = 1
-        for row in geometry[].rows
-            label_width, _ = _text_size(p.measure, label_style.font,
-                                        _tree_label(_wtree_node_at(w, row.path)))
-            widest = max(widest, row.depth * indent + chevron_column + column[] + label_width)
+        function measure_row(row, node)
+            label = _tree_label(node)
+            label_width = first(_text_size(p.measure, label_style.font, label))
+            row.depth * indent + chevron_column + column[] + label_width
+        end
+        g = geometry[]
+        if g isa WTreeListGeometry
+            bottom = max(0, Int(w.scroll_position.y[])) +
+                     max(avail_h === nothing ? 0 : Int(avail_h[]), g.row_height)
+            link = g.head
+            while link !== nothing && link.value.row.y0 < bottom
+                node = _get_wtree_row_node(link.value)
+                widest = max(widest, measure_row(link.value.row, node))
+                link = link.next
+            end
+            return widest
+        end
+        for row in g.rows
+            widest = max(widest, measure_row(row, _wtree_node_at(w, row.path)))
         end
         widest
     end)
@@ -11743,6 +11990,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # The top of the row of `path` in the open tree, or 0 once the path is not in it.
     function get_row_top(path)
         g = geometry[]
+        g isa WTreeGeometry || return Int32(0)
         i = get(g.index, path, nothing)
         i === nothing ? Int32(0) : Int32(g.rows[i].y0)
     end
@@ -11754,24 +12002,38 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # rows of the open tree are the keys of the list, and a path that leaves the
     # open tree leaves the cache.
     kept_rows = Dict{Vector{Int},GraphicsCanvas}()
-    make_row(row::WTreeRow) = get!(() -> make_row_canvas(row), kept_rows, row.path)
+    function make_row(row::WTreeRow)
+        make = () -> make_row_canvas(row, () -> _wtree_node_at(w, row.path),
+                                     Cell(@computation get_row_top(row.path)))
+        get!(make, kept_rows, row.path)
+    end
     function get_open_rows()
         g = geometry[]
+        g isa WTreeGeometry || return WTreeRow[]
         filter!(entry -> haskey(g.index, entry.first), kept_rows)
         g.rows
     end
 
-    # One row: a canvas at the place of the row, whose content the renderer reads
-    # only when it draws the row. The content reads the node, and whether the node
-    # has children: its own answer when it gives one, else a read of its children.
-    # The chevron
-    # reads whether the row is open in a cell of its own, so a toggle changes the
-    # glyph of a chevron and not the content of a row.
-    function make_row_canvas(row::WTreeRow)
+    # One row: a canvas at `top`, whose content the renderer reads only when it
+    # draws the row. The content reads the node that `get_node` answers, and
+    # whether the node has children: its own answer when it gives one, else a read
+    # of its children. The chevron reads whether the row is open in a cell of its
+    # own, so a toggle changes the glyph of a chevron and not the content of a row.
+    # A row of a lazy list has a transparent band of its own behind everything, so
+    # a press on the empty part of the row lands on the row.
+    function make_row_canvas(row::WTreeRow, get_node, top::Cell; hit::Bool = false)
         content = CellVector(Computation(function ()
-            node = _wtree_node_at(w, row.path)
-            result = Any[make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
-                         make_band(row, row_selected_color, () -> w.selection)]
+            node = get_node()
+            result = Any[]
+            if hit
+                band = GraphicsRect(0, 0, 0, row.height; color = color_transparent,
+                                    radius = 0)
+                set_cell_computation!(getfield(band, :w), () -> Int32(width[]))
+                push!(result, band)
+            end
+            push!(result,
+                  make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
+                  make_band(row, row_selected_color, () -> w.selection))
             x = row.depth * indent
             if _wtree_has_children(node)
                 _push_open_chevron!(result, x + chevron_column ÷ 2, row.height ÷ 2, chevron_size,
@@ -11792,10 +12054,26 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                         x + chevron_column + column[], text_y, label_style.color)
             result
         end))
-        GraphicsCanvas(Cell(Int32(0)), Cell(@computation get_row_top(row.path)),
+        GraphicsCanvas(Cell(Int32(0)), top,
                        Cell(@computation Int32(width[])),
                        Cell(Int32(row.height)), content, layout_none, true, Cell(nothing))
     end
+
+    # The canvases of the rows: one for each row of the open tree, made at its first
+    # read; or, for a lazy list of rows, one for each row that a walk first
+    # reaches, at the place of the row below the head.
+    laid_out_rows = CellVector(@computation(get_open_rows()); element = make_row)
+    row_canvases = Cell(@computation begin
+        g = geometry[]
+        g isa WTreeListGeometry || return laid_out_rows
+        g.head === nothing && return CellVector()
+        function make_canvas(link, _, _, _)
+            row = link.value
+            top = Cell(Int32(row.row.y0))
+            make_row_canvas(row.row, () -> _get_wtree_row_node(row), top; hit = true)
+        end
+        make_mapped_list(make_canvas, g.head)
+    end)
 
     # The rows lie along the vertical axis without overlap, so the renderer draws
     # the rows between the edges of its clip, and a query of the size takes the
@@ -11803,8 +12081,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # read, so a toggle makes the rows that the renderer reaches and no others.
     rows_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
                                  Cell(@computation Int32(width[])),
-                                 Cell(@computation Int32(geometry[].total_h)),
-                                 CellVector(@computation(get_open_rows()); element = make_row),
+                                 Cell(@computation Int32(rows_height[])),
+                                 bare ? row_canvases : laid_out_rows,
                                  layout_vertical, false, Cell(nothing))
 
     # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole
@@ -11815,21 +12093,22 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # top-level tree.
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_computation!(getfield(hit_target, :w), () -> Int32(width[] + inset_width))
-    set_cell_computation!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
+    set_cell_computation!(getfield(hit_target, :h),
+                          () -> Int32(rows_height[] + inset_height))
 
     elements = CellVector(@computation begin
         # The hit target behind everything, then the box: margin, border, padding
         # and content, from the outside in (transparent and zero-width by default),
         # then the rows.
         result = Any[hit_target]
-        bare || _push_box_parts!(result, box, colors, width[], geometry[].total_h)
+        bare || _push_box_parts!(result, box, colors, width[], rows_height[])
         push!(result, rows_canvas)
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
                             Cell(@computation Int32(width[] + inset_width)),
-                            Cell(@computation Int32(geometry[].total_h + inset_height)),
+                            Cell(@computation Int32(rows_height[] + inset_height)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare)
 end
@@ -11843,7 +12122,7 @@ function map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeTo
     reference isa ConcreteReference || return _map_self_forward(reference)
     path = _wtree_ref_path(reference)
     path === nothing && return nothing
-    row = get(unwrap_cell(iomap.geometry).index, path, nothing)
+    row = _find_wtree_row_index(unwrap_cell(iomap.geometry), path)
     row === nothing && return nothing
     last = length(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements)))
     ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(last - 1, last),
@@ -11904,8 +12183,8 @@ function _wtree_node_at(w::WidgetTree, path::Vector{Int})
     coll = w.roots
     node = nothing
     for (level, i) in enumerate(path)
-        (coll !== nothing && 1 <= i <= length(coll)) || return nothing
-        node = coll[i]
+        node = _find_tree_child(coll, i)
+        node === nothing && return nothing
         level < length(path) && (coll = _tree_children(node))
     end
     return node
@@ -11916,6 +12195,7 @@ end
 function _wtree_has_children(node)
     node isa WidgetTreeNode && node.has_children !== nothing && return node.has_children() === true
     kids = _tree_children(node)
+    kids isa ListNode && return true
     kids !== nothing && !isempty(kids)
 end
 
@@ -11924,6 +12204,19 @@ end
 function _wtree_row_at(geom::WTreeGeometry, y::Int)
     isempty(geom.rows) && return nothing
     geom.rows[clamp(fld(y, geom.row_height) + 1, 1, length(geom.rows))]
+end
+
+# In a lazy list of rows, the row that many links from the head, or `nothing` for
+# a point above the first row or below the last one, where a lazy list of rows,
+# which declares no height, has no row.
+function _wtree_row_at(geometry::WTreeListGeometry, y::Int)
+    link = geometry.head
+    (link === nothing || y < 0) && return nothing
+    for _ in 1:fld(y, geometry.row_height)
+        link = link.next
+        link === nothing && return nothing
+    end
+    link.value.row
 end
 
 # Per-node gesture consult: find the node targeted by `g` — the row under the
@@ -11946,7 +12239,7 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
         path = _wtree_ref_path(w.selection)
     end
     path === nothing && return nothing
-    node = _wtree_node_at(w, path)
+    node = _find_wtree_node(geom, w, path)
     node === nothing && return nothing
     return read_bound_gesture(node, g, w.selection)
 end
@@ -11960,7 +12253,8 @@ function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGr
     row = _find_wtree_row_at(p, iomap, g.y)
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
-    if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(_wtree_node_at(w, row.path))
+    node = _find_wtree_node(iomap.geometry, w, row.path)
+    if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(node)
         return _wtree_toggle_expanded(iomap, row.path)
     end
     ReplaceSelectionOperation(_wtree_path_ref(row.path))
@@ -11978,13 +12272,38 @@ end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
     g.key in (:up, :down) || return nothing
-    geom = iomap.geometry
-    isempty(geom.rows) && return nothing
-    cur = _wtree_ref_path(iomap.input.selection)
-    idx = cur === nothing ? 0 : get(geom.index, cur, 0)
-    ni = g.key === :down ? (idx == 0 ? 1 : min(length(geom.rows), idx + 1)) :
-                           (idx <= 1 ? 1 : idx - 1)
-    ReplaceSelectionOperation(_wtree_path_ref(geom.rows[ni].path))
+    w = iomap.input
+    selected = _wtree_ref_path(w.selection)
+    path = _find_wtree_neighbor_path(iomap.geometry, w, selected, g.key === :down)
+    path === nothing ? nothing : ReplaceSelectionOperation(_wtree_path_ref(path))
+end
+
+# The path of the row after the row of `path` (`down`), or before it: the first
+# row when the tree has no row of `path`, and the row itself at an end of the
+# rows. `nothing` for a tree with no row.
+function _find_wtree_neighbor_path(geometry::WTreeGeometry, w, path, down::Bool)
+    isempty(geometry.rows) && return nothing
+    index = path === nothing ? 0 : get(geometry.index, path, 0)
+    count = length(geometry.rows)
+    next = down ? (index == 0 ? 1 : min(count, index + 1)) : max(1, index - 1)
+    geometry.rows[next].path
+end
+
+# In a lazy list of rows the neighbour of a row that a walk made is one link away,
+# and the neighbour of any other row comes from the nodes and the open paths of
+# the tree.
+function _find_wtree_neighbor_path(geometry::WTreeListGeometry, w::WidgetTree, path,
+                                   down::Bool)
+    geometry.head === nothing && return nothing
+    link = _find_wtree_list_node(geometry, path)
+    if link !== nothing
+        neighbor = down ? link.next : link.prev
+        return (neighbor === nothing ? link : neighbor).value.row.path
+    end
+    first_path = geometry.head.value.row.path
+    (path === nothing || !_is_wtree_row_shown(w, path)) && return first_path
+    neighbor = down ? _find_wtree_path_after(w, path) : _find_wtree_path_before(w, path)
+    neighbor === nothing ? path : neighbor
 end
 
 # ── Factory ────────────────────────────────────────────────────────────────

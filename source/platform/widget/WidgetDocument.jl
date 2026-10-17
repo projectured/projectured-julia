@@ -2996,8 +2996,12 @@ A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
 distinct from its text **label** (the decoration model used by typical widget
 libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
 is `Any`: a glyph `String` today, an image document later. `children` is a
-`Vector` of child nodes (each a `WidgetTreeNode` or a leaf `String`), or a
-`CellVector` of them; an empty one marks a leaf, and a leaf has no chevron.
+`Vector` of child nodes (each a `WidgetTreeNode` or a leaf `String`), a
+`CellVector` of them, or a `ListNode`: a lazy list, whose children count from its
+head. An empty `Vector` or `CellVector` marks a leaf, and a leaf has no chevron.
+A tree that scrolls itself and has an open node with a lazy list of children
+makes only the rows that a walk reaches, so the list can have millions of
+children.
 
 The tree reads `children` only for a row that it draws, to know if the row has
 a chevron, and for an open node, to draw the rows under it. So a `CellVector`
@@ -3012,7 +3016,8 @@ read, for example a folder whose entries are not read yet.
 struct WidgetTreeNode
     icon::Any
     label::Any
-    children::Any                # a Vector, or a CellVector read only when needed
+    children::Any                # a Vector, a CellVector read only when needed, or a
+                                 # ListNode counted from its head
     gestures::Any
     has_children::Any            # nothing, or a function () -> Bool for the chevron
 end

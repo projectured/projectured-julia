@@ -226,5 +226,87 @@ end
     end
 end
 
+# A tree that prints as the rows of its own pane makes its rows as a lazy list: a
+# walk from the head, as the renderer and the readers walk, makes each row that it
+# reaches and no other.
+_print_tree_rows(w; width = 300, height = 200) =
+    print_document(_treeproj, _w2g, w,
+                   ProjecturedKernel.ProjectionModule.with_property(
+                       ProjecturedKernel.ProjectionModule.with_exact_size(
+                           PrinterContext(); width = Cell(Int32(width)), height = Cell(Int32(height))),
+                       :rows_of, w))
+
+# The count of the rows that a walk down `height` pixels from the head reaches.
+function _walk_tree_rows(io, height)
+    link, walked = _rows_canvas(io).elements, 0
+    while link !== nothing && Int(link.value.y) < height
+        (link, walked) = (link.next, walked + 1)
+    end
+    walked
+end
+
+@testset "a tree that scrolls itself makes only the rows that a walk reaches" begin
+    made = Ref(0)
+    runs = make_index_list(10_000_000, 1, k -> (made[] += 1; WidgetTreeNode("", "Run $(k - 1)", Any[])))
+    sweep = WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
+    w = WidgetTree(Any[WidgetTreeNode("", "project", Any[sweep])]; expanded = Set([[1], [1, 1]]))
+    io = _print_tree_rows(w)
+    @test io.geometry isa WidgetModule.WTreeListGeometry
+    # An open node holds a lazy list of children, so the rows declare no height,
+    # and the pane walks to the ends of the list.
+    @test _rows_canvas(io).elements isa ListNode && Int(_rows_canvas(io).h) == 0
+    @test WidgetModule._has_no_extent_along(io.output, :y)
+    # A walk down one viewport of 200 pixels reaches its ten rows of 20 pixels.
+    @test _walk_tree_rows(io, 200) == 10 && made[] <= 20
+    # A click on the fourth row selects the second run.
+    op = _readop(io, MouseClick(:left, 100, 3 * 20 + 5, _mods; time = 0.0))
+    @test op isa ReplaceSelectionOperation && WidgetModule._wtree_ref_path(op.path) == [1, 1, 2]
+    # The keys step one row from the selected row.
+    replace_selection!(w, _node([1, 1, 2]))
+    @test WidgetModule._wtree_ref_path(_readop(io, KeyDown(:down, _mods; time = 0.0)).path) == [1, 1, 3]
+    @test WidgetModule._wtree_ref_path(_readop(io, KeyDown(:up, _mods; time = 0.0)).path) == [1, 1, 1]
+    # The chevron of the open node, and a click on it, need no count of its children.
+    @test _has_children(w, [1, 1])
+    chevron = WidgetModule._wtree_row_at(io.geometry, 20)
+    toggle = _readop(io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 20 + 5, _mods;
+                                    time = 0.0))
+    @test toggle isa ReplaceReferencedValueOperation && !([1, 1] in toggle.value)
+    @test made[] <= 20
+end
+
+@testset "a lazy list of rows finds a neighbour from the nodes, and has no row below its last" begin
+    made = Ref(0)
+    runs = make_index_list(10_000_000, 1, k -> (made[] += 1; WidgetTreeNode("", "Run $(k - 1)", Any[])))
+    sweep = WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
+    # An open path deep inside the lazy list makes no walk to it.
+    w = WidgetTree(Any[WidgetTreeNode("", "project", Any[sweep])];
+                   expanded = Set([[1], [1, 1], [1, 1, 400_000]]))
+    io = _print_tree_rows(w)
+    @test io.geometry isa WidgetModule.WTreeListGeometry && made[] <= 2
+    # The keys step from a row that no walk made, to the rows beside it.
+    replace_selection!(w, _node([1, 1, 300]))
+    @test WidgetModule._wtree_ref_path(_readop(io, KeyDown(:down, _mods; time = 0.0)).path) == [1, 1, 301]
+    @test WidgetModule._wtree_ref_path(_readop(io, KeyDown(:up, _mods; time = 0.0)).path) == [1, 1, 299]
+    @test made[] <= 400
+    # A point below the last row of a short lazy list names no row.
+    short = WidgetTree(Any[WidgetTreeNode("", "folder", make_index_list(3, 1, k -> "file $k");
+                                          has_children = () -> true)];
+                       expanded = Set([[1]]))
+    short_io = _print_tree_rows(short)
+    @test _readop(short_io, MouseClick(:left, 100, 3 * 20 + 5, _mods; time = 0.0)) isa ReplaceSelectionOperation
+    @test _readop(short_io, MouseClick(:left, 100, 4 * 20 + 5, _mods; time = 0.0)) === nothing
+end
+
+@testset "a tree whose open nodes count their children lays out its rows and has their height" begin
+    files = Any[WidgetTreeNode("", "file$(k).txt", Any[]) for k in 1:5000]
+    w = WidgetTree(Any[WidgetTreeNode("", "folder", files)]; expanded = Set([[1]]))
+    io = _print_tree_rows(w)
+    # The folder and its 5,000 files: the renderer starts at the rows in view, and
+    # the pane clamps to the rows and its bar shows them.
+    @test io.geometry isa WidgetModule.WTreeGeometry && length(io.geometry.rows) == 5001
+    @test Int(_rows_canvas(io).h) == 5001 * 20 && Int(io.output.h) == 5001 * 20
+    @test !WidgetModule._has_no_extent_along(io.output, :y)
+end
+
 end # @testset
 end # function

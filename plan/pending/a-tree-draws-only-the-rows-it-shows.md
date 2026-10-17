@@ -35,6 +35,14 @@ reaches (`plan/done/a-table-scrolls-its-own-parts.md`). A tree must do the same.
    a read at the visit of a page only: a viewport holds the documents of the rows
    that it shows. That is a plan of its own,
    `a-viewport-holds-the-rows-it-shows.md`, after this one.
+5. **Only a tree with an open lazy list of children makes its rows as a lazy
+   list** (found at step 1). The renderer walks a list forward from its head and
+   draws each node up to the far edge, also the nodes above the view, so a list
+   whose head stays at the first row draws every row between the first row and
+   the view; a lazy table moves its head near the view for that reason, and step 2
+   does the same for a tree. A laid-out list of rows starts at the rows in view by
+   a search, and gives the pane the height of the rows and its bar. A tree whose
+   open nodes each count their children keeps it.
 
 ## The model
 
@@ -92,21 +100,48 @@ What changes:
   holders and the paths count from the head of each lazy collection. A node
   gives the chevron from `has_tree_children`, never from a count.
 
-A tree with no lazy list of children draws as it does now. A tree with a
-`Vector` of 5,000 children also makes only the rows that the viewport reaches,
-because the rows are lazy for every tree.
+A tree whose open nodes each count their children draws as it does now: it lays
+out each row, the renderer starts at the rows in view, and the pane has the
+height of the rows and its bar. Only a tree with an open node that holds a lazy
+list of children makes its rows as a lazy list (decision 5).
 
 ## Steps
 
 Each step is one commit with its tests, in a worktree.
 
-- [ ] **1. The rows of a tree are a lazy list.** `WidgetTreeNode.children` takes
+- [x] **1. The rows of a tree are a lazy list.** `WidgetTreeNode.children` takes
   a `ListNode`; the rows are a `ListNode` with the links of the model; the
   geometry, the click, the keys up and down, the chevron and the width work from
   the head. Tests: the tree suite (`WidgetTreeTest`, the tree render tests), and a
   new test: a node with 10,000,000 children opens, draws, takes a click and the
   keys, and the count of the children that it made stays below the rows of two
   viewports.
+
+  What step 1 made:
+  - `WTreeListGeometry` holds the head of the rows and the node of the list of
+    each row that a walk made. A row of the list (`WTreeListRow`) holds its place
+    among its siblings and no node: the walk reads the node of an open row only,
+    and a row reads its node when it is drawn.
+  - The tree makes the lazy list only when it prints as the rows of its own pane
+    and an open node holds a `ListNode` of children (decision 5). Every other tree
+    keeps its laid-out rows, unchanged.
+  - The click walks from the head, and a point below the last row names no row.
+    The keys up and down find the neighbour from the nodes and the open paths, so
+    a row that no walk made has its neighbours too. The forward map of a path
+    finds the row that a walk made. A row of the lazy list has a transparent band
+    of its own, so a press on its empty part lands on it.
+  - The test of an open lazy list takes the open paths from the shortest and reads
+    no path inside a lazy list, and it reads the count of the children of every
+    other open node, so a change of them makes the rows again.
+  - With no offered width, a lazy list of rows is as wide as the rows between the
+    offset of its pane and the bottom of the view (decision 3).
+  - Tests: `test_widget_tree` 65 (three new testsets), `test_widget_rows_scroll`,
+    `test_filesystem_to_widget`, `test_document_tree` 82, `test_tree_render` 9
+    (one new testset: the renderer draws an open node of 10,000,000 lazy children
+    and makes about a dozen of them), `test_layout_list` 101,
+    `test_scroll_pane_bar`, `test_scroll_layout` 29, `test_dataframes` 612. The
+    platform suite: 163,261 pass, 7 broken, and 1 fail that fails the same on the
+    code of 2026-10-16 (the process tree of a running task never syncs a row).
 - [ ] **2. A far scroll moves the anchor.** The scroll operation of the pane of
   the tree writes the anchor and the rebased offset when the top row is far from
   the head. Tests: a scroll of 1,000,000 rows keeps the made rows bounded, and
@@ -125,3 +160,9 @@ Each step is one commit with its tests, in a worktree.
   a height, as a lazy table must.
 - The plan `an-insert-moves-the-paths-after-it.md` moves the open paths of a
   tree on an insert. It works with paths that count from the head.
+- A tree in a page with an open lazy list of children lays out each row, and each
+  row finds its node by a walk from the head of the list, so a finite lazy list of
+  n children costs about n²/2 reads of links there (found at the review of step 1).
+- A toggle in a lazy list of rows makes the rows from the head again, so every row
+  that the view shows is drawn again; the laid-out rows keep the canvas of a row
+  that stays (found at the review of step 1).
