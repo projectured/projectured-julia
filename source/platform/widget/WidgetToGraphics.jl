@@ -11765,14 +11765,12 @@ function _find_previous_wtree_row(expanded, place, row::WTreeListRow)
 end
 
 # The place of the sibling before the child at `index` of `kids`, whose node of
-# the list is `link` in a lazy list, or `nothing` before the first. It reads no
-# child.
+# the list is `link` in a lazy list, or `nothing` before the first. The first child
+# of a lazy list is its head, as `_find_first_tree_child` says, so a node before
+# the head is no child. It reads no child.
 function _find_previous_tree_child(kids, index::Int, link)
-    if link !== nothing
-        preceding = link.prev
-        return preceding === nothing ? nothing : (index - 1, preceding)
-    end
-    index > 1 ? (index - 1, nothing) : nothing
+    index > 1 || return nothing
+    link === nothing ? (index - 1, nothing) : (index - 1, link.prev)
 end
 
 # The place of the last child of `kids` as `(index, link)`, or `nothing` for no
@@ -11880,8 +11878,8 @@ _is_wtree_row_shown(w::WidgetTree, path::Vector{Int}) =
 # The path of the row after the row of `path` in the open tree of `w`, from its
 # nodes: the first child of an open node, else the next sibling, else the next
 # sibling of the nearest node above, or `nothing` after the last row.
-function _find_wtree_path_after(w::WidgetTree, path::Vector{Int})
-    kids = path in w.expanded ? _tree_children(_wtree_node_at(w, path)) : nothing
+function _find_wtree_path_after(w::WidgetTree, path::Vector{Int}; expanded = w.expanded)
+    kids = path in expanded ? _tree_children(_wtree_node_at(w, path)) : nothing
     _find_first_tree_child(kids) === nothing || return vcat(path, 1)
     at = path
     while !isempty(at)
@@ -12401,7 +12399,70 @@ function _wtree_toggle_expanded(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Ve
     w = iomap.input
     next = copy(w.expanded)
     path in next ? delete!(next, path) : push!(next, path)
-    _write_view_state(w, "expanded", next)
+    write = _write_view_state(w, "expanded", next)
+    moves = _make_wtree_toggle_moves(iomap, path, next)
+    moves === nothing ? write : CompoundOperation(Any[write, moves...])
+end
+
+# What a toggle of the row of `path` writes beside the open nodes `next` in a tree
+# whose rows are, or become, a lazy list: the row stays where the person pressed
+# it. When the rows stay or become a lazy list, the row is the head, and the
+# offset is less its place; when they become laid out, the anchor goes, and the
+# offset is less its place now and plus its place in the laid-out rows. `nothing`
+# for a tree whose rows stay laid out.
+function _make_wtree_toggle_moves(iomap::WidgetTreeToGraphicsCanvasIoMap,
+                                  path::Vector{Int}, next)
+    iomap.bare || return nothing
+    w = iomap.input
+    geometry = iomap.geometry
+    lazy = geometry isa WTreeListGeometry
+    becomes_lazy = _has_wtree_open_lazy_children(w, next)
+    (lazy || becomes_lazy) || return nothing
+    if lazy
+        link = _find_wtree_list_node(geometry, path)
+        link === nothing && return nothing
+        (row, top) = (link.value, link.value.row.y0)
+    else
+        index = get(geometry.index, path, nothing)
+        index === nothing && return nothing
+        (row, top) = (_make_wtree_path_row(w, path), geometry.rows[index].y0)
+    end
+    offset = w.scroll_position
+    (x, y) = (Int(offset.x[]), Int(offset.y[]))
+    if becomes_lazy
+        return Any[_write_view_state(w, "anchor", row),
+                   _write_view_state(w, "scroll_position", Point2D(x, y - top))]
+    end
+    place = _count_wtree_rows_before(w, next, path) * geometry.row_height
+    Any[_write_view_state(w, "anchor", nothing),
+        _write_view_state(w, "scroll_position", Point2D(x, y - top + place))]
+end
+
+# The row of `path` in the open tree of `w` as a row of a lazy list, with its
+# place among its siblings at each level, made from the nodes. A row of laid-out
+# rows has no lazy list on its path, so each level is an index.
+function _make_wtree_path_row(w::WidgetTree, path::Vector{Int})
+    (above, siblings) = (nothing, w.roots)
+    for level in eachindex(path)
+        index = path[level]
+        link = siblings isa ListNode ? find_list_node(siblings, index) : nothing
+        place = WTreeRow(path[1:level], level - 1, 0, 0, 0, 0)
+        above = WTreeListRow(place, 0, siblings, index, link, above)
+        siblings = _tree_children(_get_wtree_row_node(above))
+    end
+    above
+end
+
+# The count of the rows before the row of `path` in the open tree of `w` with the
+# open nodes `expanded`, which hold no lazy list of children.
+function _count_wtree_rows_before(w::WidgetTree, expanded, path::Vector{Int})
+    first = _find_first_tree_child(w.roots)
+    first === nothing && return 0
+    (count, at) = (0, [first[1]])
+    while at !== nothing && at != path
+        (count, at) = (count + 1, _find_wtree_path_after(w, at; expanded))
+    end
+    count
 end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)

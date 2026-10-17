@@ -51,6 +51,14 @@ reaches (`plan/done/a-table-scrolls-its-own-parts.md`). A tree must do the same.
    collection, its index, its node of a lazy list, and the row of its parent), as
    a lazy table holds the node of its head in `cells`.
 
+7. **A toggle keeps the toggled row where it was pressed** (found at the review of
+   steps 2 and 3). In a tree whose rows are, or become, a lazy list, the toggled
+   row becomes the head and the offset is less its place, so the rows that open
+   or close come below it. When the rows become laid out, the anchor goes and the
+   offset follows the place of the row in the laid-out rows. A head that stayed
+   would move the toggled row out of the view, and a walk back from it could
+   meet an open lazy list without an end.
+
 ## The model
 
 The children of a node can be a lazy list. The rows of an open tree are one lazy
@@ -187,10 +195,15 @@ Each step is one commit with its tests, in a worktree.
     (`make_mapped_list`, computed), made again when the document gives a new
     list. A lazy list beside another collection gives no children, because it
     has no count.
-  - The open nodes are found among the entries that a walk made: a child that no
-    walk reached has no row, so it can not be open. The entry at a path, the
-    forward map and the backward map count a child of a lazy list from its head,
-    and they read no link that a walk did not read.
+  - The open nodes are found by a walk over the part of the list of the document
+    that the walks of the rows reached, with the mirror at the same count, so a
+    second print of the tree finds an open child that the first print reached. A
+    child that no walk reached has no row, so it can not be open. The entry at a
+    path, the forward map and the backward map count a child of a lazy list from
+    its head, and they read no link of the list of the document that a walk did
+    not read; a path past the end reaches no document.
+  - The reader of the open nodes takes the write of the open nodes also inside a
+    compound, with the moves of the head beside it (decision 7).
   - `has_tree_children` by default is true for a lazy list of children.
   - Tests: `test_document_tree` 91 (a new testset), the navigator suites,
     `test_widget_tree` 75, `test_file_dialog` 22, `test_filesystem_to_widget`,
@@ -213,3 +226,11 @@ Each step is one commit with its tests, in a worktree.
 - A toggle in a lazy list of rows makes the rows from the head again, so every row
   that the view shows is drawn again; the laid-out rows keep the canvas of a row
   that stays (found at the review of step 1).
+- A lazy list of children that changes before the head of the rows keeps the
+  index of the anchor, so the paths below the head shift by the change until the
+  next toggle or far scroll (found at the review of steps 2 and 3). A list of runs
+  does not change.
+- A scroll through a lazy list of children keeps the entries and the nodes of
+  every child that it passed, as the list itself keeps its nodes, and a toggle
+  walks the part of the list that the walks reached (found at the review of
+  steps 2 and 3).

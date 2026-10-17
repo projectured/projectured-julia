@@ -39,7 +39,7 @@ end
 # children. Both lists compute one element at a time, at its first read. A change
 # of the collections of a node makes new entries for its children, so an entry
 # stays at one path. For a document whose children are a lazy list, `mirror` holds
-# that list and the two lists that mirror it (`_get_tree_children_lists`).
+# that list and the two lists that mirror it (`_compute_tree_children_lists!`).
 struct _TreeEntry
     document::Any
     path::Vector{Int}
@@ -60,7 +60,7 @@ function _make_tree_entry(document, path::Vector{Int})
 end
 
 function _make_tree_node(entry::_TreeEntry)
-    (_, nodes) = _get_tree_children_lists(entry)
+    (_, nodes) = _compute_tree_children_lists!(entry)
     label = _format_node_line(entry.document)
     WidgetTreeNode(get_tree_node_icon(entry.document), label, nodes;
                    gestures = _make_open_page_bindings(entry.path),
@@ -83,7 +83,7 @@ end
 # for node, made when a walk first reaches a node, and made again when the
 # document gives a new list. The count of a child in a lazy list is its count
 # from the head of the list.
-function _get_tree_children_lists(entry::_TreeEntry)
+function _compute_tree_children_lists!(entry::_TreeEntry)
     list = _find_lazy_tree_children(entry.document)
     list === nothing && return (entry.entries, entry.nodes)
     mirror = entry.mirror[]
@@ -96,44 +96,41 @@ function _get_tree_children_lists(entry::_TreeEntry)
     (entries, nodes)
 end
 
-# The value of the node `k` of the list `head`, counted from the head, when the
-# walks of the list already reached that node, else `nothing`: it reads no link
-# that a walk did not read, so it makes no node.
-function _find_made_list_value(head::ListNode, k::Int)
-    link = head
-    direction = k >= 1 ? :next : :prev
-    for _ in 1:abs(k - 1)
-        cell = getfield(link, direction)
+# Each node of the list `source` of a document from its head on, as far as the
+# walks of that list reached, with the node of `mirror` at the same count, until
+# `f(document, mirror_link)` answers `false`. It reads no link of `source` that no
+# walk read, so it makes no node of the document; the mirror makes the nodes of
+# what `source` has, and a value of the mirror is made only when `f` reads it. The
+# walks of a list of a document stay when the document prints again, so a second
+# print finds what the first one reached.
+function _foreach_made_mirror_link(f, source::ListNode, mirror::ListNode)
+    (from, to) = (source, mirror)
+    while true
+        f(from.value, to) || return nothing
+        cell = getfield(from, :next)
         is_cell_valid(cell) || return nothing
-        link = cell[]
-        link === nothing && return nothing
+        from = cell[]
+        from === nothing && return nothing
+        to = to.next
     end
-    link.value
 end
 
-# Each value of the nodes of the list `head` that its walks reached: from the head
-# each way, as far as the links that a walk read.
-function _foreach_made_list_value(f, head::ListNode)
-    f(head.value)
-    for direction in (:next, :prev)
-        link = head
-        while true
-            cell = getfield(link, direction)
-            is_cell_valid(cell) || break
-            link = cell[]
-            link === nothing && break
-            f(link.value)
-        end
-    end
-    nothing
-end
-
-# The entry of the child `k` of `entry`, or `nothing`: in a lazy list, only a child
-# that a walk made.
+# The entry of the child `k` of `entry`, or `nothing`. A child of a lazy list counts
+# from its head, and is found only when a walk of the list of the document reached
+# it.
 function _find_child_entry_at(entry::_TreeEntry, k::Int)
-    (entries, _) = _get_tree_children_lists(entry)
-    entries isa ListNode && return _find_made_list_value(entries, k)
-    1 <= k <= length(entries) ? entries[k] : nothing
+    (entries, _) = _compute_tree_children_lists!(entry)
+    entries isa ListNode || return 1 <= k <= length(entries) ? entries[k] : nothing
+    k >= 1 || return nothing
+    found = Ref{Any}(nothing)
+    count = Ref(0)
+    source = _find_lazy_tree_children(entry.document)
+    _foreach_made_mirror_link(source, entries) do _, link
+        count[] += 1
+        count[] == k && (found[] = link.value)
+        count[] < k
+    end
+    found[]
 end
 
 # The text of a node is one line: each line break of the label, with the blanks
@@ -212,11 +209,15 @@ function _collect_open_paths!(paths, entry::_TreeEntry, open, above)
     (haskey(open, entry.document) && !any(document -> document === entry.document, above)) || return
     push!(paths, entry.path)
     push!(above, entry.document)
-    (entries, _) = _get_tree_children_lists(entry)
+    (entries, _) = _compute_tree_children_lists!(entry)
     if entries isa ListNode
-        # Only a child that a walk made can be open: an open child shows its row.
-        collect_open!(child) = _collect_open_paths!(paths, child, open, above)
-        _foreach_made_list_value(collect_open!, entries)
+        # Only a child that a walk of the list of the document reached can be open:
+        # an open child showed its row.
+        source = _find_lazy_tree_children(entry.document)
+        _foreach_made_mirror_link(source, entries) do document, link
+            haskey(open, document) && _collect_open_paths!(paths, link.value, open, above)
+            true
+        end
     else
         for k in 1:length(entries)
             _collect_open_paths!(paths, entries[k], open, above)
@@ -233,6 +234,14 @@ end
 # close, in the same write of view state, so an undo records neither. `nothing`
 # for any other answer.
 function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
+    # A toggle in a tree whose rows are a lazy list also moves the head of the
+    # rows: those writes stay beside the write of the open nodes.
+    if operation isa CompoundOperation
+        read = Any[_read_open_node_write(iomap, part) for part in operation.operations]
+        all(isnothing, read) && return nothing
+        return CompoundOperation(Any[something(answer, part)
+                                     for (part, answer) in zip(operation.operations, read)])
+    end
     operation isa ReplaceViewStateOperation || return nothing
     write = get_wrapped_operation(operation)
     (write isa ReplaceReferencedValueOperation && write.document === iomap.output) || return nothing
@@ -386,7 +395,7 @@ function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTree
     indices[1] == 1 || return nothing
     entry = iomap.root_entry
     steps = Any[FieldReferenceStep("root")]
-    for (n, k) in enumerate(indices[2:end])
+    for k in indices[2:end]
         if _find_lazy_tree_children(entry.document) !== nothing
             # A child of a lazy list is its node `k` from the head of the list.
             (collection_steps, _) = only(_collect_tree_collections(entry.document))
@@ -398,9 +407,9 @@ function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTree
         end
         append!(steps, collection_steps)
         push!(steps, ElementReferenceStep(i))
-        n == length(indices) - 1 && break
-        entry = _find_child_entry_at(entry, k)
-        entry === nothing && return nothing
+        child = _find_child_entry_at(entry, k)
+        child === nothing && return nothing
+        entry = child
     end
     extend_reference(EmptyReference(), steps...)
 end

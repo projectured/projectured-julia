@@ -270,7 +270,14 @@ end
     chevron = WidgetModule._wtree_row_at(io.geometry, 20)
     toggle = _readop(io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 20 + 5, _mods;
                                     time = 0.0))
-    @test toggle isa ReplaceReferencedValueOperation && !([1, 1] in toggle.value)
+    # The close writes the open nodes, and the row stays where it was pressed.
+    @test toggle isa CompoundOperation
+    write = get_wrapped_operation(first(toggle.operations))
+    @test write isa ReplaceReferencedValueOperation && !([1, 1] in write.value)
+    # The close leaves no open lazy list, so the rows become laid out: the anchor
+    # goes, and the offset keeps the row at its place.
+    evaluate_operation(nothing, toggle)
+    @test w.anchor === nothing && Int(w.scroll_position.y[]) == 0
     @test made[] <= 20
 end
 
@@ -346,6 +353,61 @@ _print_tree_pane(w; width = 300, height = 200) =
     end
     @test head_path()[3] < second_move[3]
     @test made[] < second_move[3] + 300
+end
+
+@testset "a toggle in a lazy list of rows keeps the toggled row where it was pressed" begin
+    logs = WidgetTreeNode("", "Logs", Any["log $k" for k in 1:50])
+    items = make_index_list(10_000_000, 1, k -> WidgetTreeNode("", "item $k", Any["a$k", "b$k"]))
+    sweep = WidgetTreeNode("", "Sweep", items; has_children = () -> true)
+    w = WidgetTree(Any[logs, sweep]; expanded = Set([[2]]))
+    io = _print_tree_pane(w)
+    rows = io.pane.content_iomap
+    # The head is item 100, two rows below the roots, and Logs is 101 rows above it
+    # at the top of the view.
+    link = rows.geometry.head
+    for _ in 1:101
+        link = link.next
+    end
+    @test link.value.row.path == [2, 100]
+    getfield(w, :anchor)[] = link.value
+    getfield(w, :scroll_position)[] = Point2D(0, -101 * 20)
+    @test rows.geometry.head.value.row.path == [2, 100]
+    chevron = WidgetModule._wtree_row_at(rows.geometry, -101 * 20)
+    @test chevron.path == [1]
+    open = read_intent(_treeproj, io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 5, _mods;
+                                                 time = 0.0))
+    evaluate_operation(nothing, open)
+    # Logs is the head now, at the top of the view, and its logs follow it.
+    @test [1] in w.expanded && rows.geometry.head.value.row.path == [1]
+    @test Int(w.scroll_position.y[]) == 0
+    @test rows.geometry.head.next.value.row.path == [1, 1]
+    # A close of an item above the head keeps the item at its place too.
+    replace_selection!(w, _node([2, 5]))
+    getfield(w, :expanded)[] = Set([[1], [2], [2, 5]])
+    item = WidgetModule._find_wtree_list_row_at(rows.geometry, (50 + 1 + 4 + 1) * 20)
+    @test item.row.path == [2, 5]
+    getfield(w, :scroll_position)[] = Point2D(0, item.row.y0)
+    close = read_intent(_treeproj, io, MouseClick(:left, (item.row.chevron_x0 + item.row.chevron_x1) ÷ 2, 5,
+                                                  _mods; time = 1.0))
+    evaluate_operation(nothing, close)
+    @test !([2, 5] in w.expanded) && rows.geometry.head.value.row.path == [2, 5]
+    @test Int(w.scroll_position.y[]) == 0
+end
+
+@testset "the row before the head of a lazy list of children is its parent" begin
+    # A lazy list whose head has nodes before it: its children start at its head.
+    w = WidgetTree(Any[WidgetTreeNode("", "folder", make_index_list(1000, 300, k -> "item $k");
+                                      has_children = () -> true)];
+                   expanded = Set([[1]]))
+    io = _print_tree_rows(w)
+    first_child = io.geometry.head.next.value
+    @test first_child.row.path == [1, 1]
+    # With the first child at the head, the row before it is made by the rule of the
+    # rows: its parent, and no node before the head of the list.
+    getfield(w, :anchor)[] = first_child
+    @test io.geometry.head.value.row.path == [1, 1]
+    @test io.geometry.head.prev.value.row.path == [1]
+    @test io.geometry.head.prev.prev === nothing
 end
 
 @testset "a tree whose open nodes count their children lays out its rows and has their height" begin

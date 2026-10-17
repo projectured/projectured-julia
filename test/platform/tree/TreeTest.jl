@@ -238,6 +238,12 @@ function test_document_tree()
         evaluate_operation(nothing, write)
         @test widget.expanded == Set([[1], [1, 1], [1, 1, 3]])
         @test made[] <= 21
+        # A second print finds the open child, which the walks of the list reached.
+        again = print_document(projection, nothing, tree, nothing).output
+        @test again.expanded == Set([[1], [1, 1], [1, 1, 3]])
+        # A path past the end of the list reaches no document.
+        @test map_reference_backward(projection, iomap, _doctree_node_path(1, 1, 2_000_000)) === nothing
+        @test made[] <= 21
     end
 
     @testset "a node draws a chevron only when its document is known to have children" begin
