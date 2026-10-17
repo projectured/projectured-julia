@@ -297,7 +297,11 @@ function test_document_tree()
         empty!(_DOCTREE_HOLD_EVENTS)
         runs = make_index_list(1_000_000, 1, k -> _doctree_held("run $k"))
         tree = DocumentTree(_DocTreeLazy("runs", runs))
-        widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)))
+        # The chain of a window: each widget behind a fault barrier, as
+        # `make_graphics_projection(DocumentTree)` builds it.
+        widgets = RecursiveProjection(FaultCatchingProjection(
+            inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)),
+            substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
         chain = ChainingProjection(projection, widgets)
         context = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(200)))
         iomap = print_document(chain, nothing, tree, context)

@@ -439,6 +439,26 @@ end
     files_top = Int(files.scroll_position.y[])
     first_row = fld(files_top, 20) + 1
     @test [1, first_row - 1] in files.shown && length(files.shown) in 10:11
+    # Through the fault barriers of a window, a wheel turn writes the rows of the
+    # view, and a far scroll moves the head of a lazy list of rows.
+    barrier = RecursiveProjection(FaultCatchingProjection(
+        inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det),
+        substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
+    items = make_index_list(10_000_000, 1, k -> "Run $k")
+    deep = WidgetTree(Any[WidgetTreeNode("", "Sweep", items; has_children = () -> true)];
+                      expanded = Set([[1]]))
+    context = ProjecturedKernel.ProjectionModule.with_exact_size(PrinterContext();
+                                                                 width = Cell(Int32(300)),
+                                                                 height = Cell(Int32(200)))
+    deep_io = print_document(barrier, nothing, deep, context)
+    time = 10.0
+    while deep.anchor === nothing && time < 1000
+        time += 1.0
+        op = read_intent(barrier, deep_io, MouseScroll(0, -3, 20, 60; time))
+        op === nothing || evaluate_operation(nothing, op)
+    end
+    @test deep.anchor isa WidgetModule.WTreeListRow
+    @test length(deep.shown) in 10:11 && !([1] in deep.shown)
 end
 
 @testset "a tree whose open nodes count their children lays out its rows and has their height" begin

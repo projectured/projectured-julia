@@ -111,8 +111,8 @@ function read_intent(p::FileSystemChooserToWidget, recursion, change::Intent, io
         return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
     chooser = iomap.input
-    answer = _read_open_folder_write(chooser, Any[chooser.directory], nothing, payload)
-    answer === nothing && (answer = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, payload))
+    read = _read_open_folder_write(chooser, Any[chooser.directory], nothing, payload)
+    answer = _map_open_folder_answer(p, iomap, payload, read)
     Intent(change.gesture, answer, change.description, change.domain)
 end
 

@@ -76,16 +76,20 @@ function _collect_first_lazy_children(tree::DocumentTree)
         push!(above, document)
         list = _find_lazy_tree_children(document)
         if list !== nothing
-            link = list
-            for _ in 1:_FIRST_SHOWN_CHILD_COUNT
+            (link, count) = (list, 1)
+            while true
                 shown[link.value] = nothing
                 visit(link.value, above)
+                count == _FIRST_SHOWN_CHILD_COUNT && break
                 link = link.next
                 link === nothing && break
+                count += 1
             end
         else
+            # A lazy list beside another collection gives no children, so it is
+            # not walked.
             for (_, collection) in _collect_tree_collections(document)
-                collection === nothing && continue
+                (collection === nothing || collection isa ListNode) && continue
                 foreach(child -> visit(child, above), collection)
             end
         end

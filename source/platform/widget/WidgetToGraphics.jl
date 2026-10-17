@@ -12257,8 +12257,10 @@ const _TREE_RELOCATION_DISTANCE = 200
 # short. Any other answer, as it is.
 function _add_wtree_scroll_writes(iomap::WidgetRowsPaneIoMap, op)
     op isa Operation || return op
-    pane = iomap.pane
-    rows = pane.content_iomap
+    # A fault barrier can wrap the pane and its content, as in the print of a window.
+    pane = get_content_iomap(iomap.pane)
+    pane isa WidgetScrollPaneToGraphicsCanvasIoMap || return op
+    rows = get_content_iomap(pane.content_iomap)
     rows isa WidgetTreeToGraphicsCanvasIoMap || return op
     offset = _find_written_offset(op, pane.input)
     offset === nothing && return op
@@ -12454,7 +12456,7 @@ function _collect_wtree_toggle_view_paths(iomap::WidgetTreeToGraphicsCanvasIoMap
     (iomap.bare && iomap.view_height !== nothing) || return nothing
     w = iomap.input
     geometry = iomap.geometry
-    view_height = Int(iomap.view_height[])
+    view_height = Int(iomap.view_height)
     y = Int(w.scroll_position.y[])
     if geometry isa WTreeListGeometry
         link = _find_wtree_list_node(geometry, path)
@@ -12464,6 +12466,14 @@ function _collect_wtree_toggle_view_paths(iomap::WidgetTreeToGraphicsCanvasIoMap
         index = get(geometry.index, path, nothing)
         index === nothing && return nothing
         (row, top) = (_make_wtree_path_row(w, path), geometry.rows[index].y0)
+    end
+    # Rows that are laid out after the toggle start at the offset that the pane
+    # clamps to their new height.
+    if !_has_wtree_open_lazy_children(w, next)
+        place = geometry isa WTreeListGeometry ?
+                _count_wtree_rows_before(w, next, path) * geometry.row_height - top : 0
+        return _collect_wtree_laid_out_view_paths(w, next, y + place, view_height,
+                                                  geometry.row_height)
     end
     paths = top > y ? _collect_wtree_view_paths(geometry, y, top - y) : Set{Vector{Int}}()
     place(at, depth, count) = WTreeRow(at, depth, 0, 0, 0, 0)
@@ -12523,6 +12533,24 @@ function _make_wtree_path_row(w::WidgetTree, path::Vector{Int})
         siblings = _tree_children(_get_wtree_row_node(above))
     end
     above
+end
+
+# The paths of the rows that a view of `height` pixels shows at the offset `y` of
+# the laid-out rows of `w` with the open nodes `expanded`, which hold no lazy list
+# of children, with the offset clamped to the rows as the pane clamps it.
+function _collect_wtree_laid_out_view_paths(w::WidgetTree, expanded, y::Int, height::Int,
+                                            row_height::Int)
+    first = _find_first_tree_child(w.roots)
+    first === nothing && return Set{Vector{Int}}()
+    (rows, at) = (Vector{Int}[], [first[1]])
+    while at !== nothing
+        push!(rows, at)
+        at = _find_wtree_path_after(w, at; expanded)
+    end
+    top = clamp(y, 0, max(0, length(rows) * row_height - height))
+    from = fld(top, row_height) + 1
+    to = min(length(rows), fld(top + max(height, 1) - 1, row_height) + 1)
+    Set{Vector{Int}}(rows[from:to])
 end
 
 # The count of the rows before the row of `path` in the open tree of `w` with the

@@ -131,6 +131,27 @@ Each step is one commit with its tests, in a worktree.
   skips a document held or not held; `tree.md` has the shown rows, the first
   rows at the acquire and the gaps; `widget.md` has the field `shown`.
 
+## The review of the steps
+
+The review of the three steps found these, and the fixes are in one commit:
+
+- A fault barrier wraps the pane and its content in the print of a window, so the
+  reader of the rows pane unwraps them (`get_content_iomap`); without that, a
+  scroll in a window wrote no rows, and the far move of the head of the lazy tree
+  never fired. The tests now print through a barrier, as a window does.
+- The reader of the document tree, of the Files explorer and of the file chooser
+  turns the writes of the open rows and of the shown rows into holds, and maps the
+  other parts of the answer through the default reader, as an answer without
+  those writes is mapped; a drag of the thumb of a tree keeps its path.
+- The write of the shown rows of the widget stays in the answer, so the widget
+  knows the rows that it wrote and writes them only when they change. A lookup of
+  a row of a lazy list walks from the row that the last lookup found.
+- The first rows at the acquire skip a lazy list beside another collection, and
+  read no link past the last row that they hold.
+- A toggle whose rows are laid out after it takes the rows of the view at the
+  offset that the pane clamps to their new height.
+- The reflection tree reads a chevron answer that is a compound.
+
 ## Risks
 
 - A window that grows, a list that changes by itself, and a scroll that a

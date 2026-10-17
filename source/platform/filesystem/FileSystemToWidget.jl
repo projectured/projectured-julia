@@ -182,25 +182,16 @@ end
 
 # The answer to a write of the open nodes of the widget: the write of the open
 # folders of `holder` and the change of what it holds, together as view state, so
-# undo records neither. `widget` is the tree whose write it takes, or `nothing`
-# for the one tree of a view that draws only one. `nothing` for any other answer.
+# undo records neither, beside the other parts of the operation, such as the rows
+# of the view of a tree that scrolls itself, which the reader maps as any answer.
+# `widget` is the tree whose write it takes, or `nothing` for the one tree of a
+# view that draws only one. `nothing` for an operation with no write of the open
+# nodes.
 function _read_open_folder_write(holder, folders::Vector, widget, operation)
-    # A toggle in a tree that scrolls itself also writes the rows of its view, and
-    # in a lazy list of rows the head: those writes stay beside the open folders.
-    if operation isa CompoundOperation
-        parts = operation.operations
-        read_part(part) = _read_open_folder_write(holder, folders, widget, part)
-        read = Any[read_part(part) for part in parts]
-        all(isnothing, read) && return nothing
-        return CompoundOperation(Any[something(answer, part)
-                                     for (part, answer) in zip(parts, read)])
-    end
-    operation isa ReplaceViewStateOperation || return nothing
-    write = get_wrapped_operation(operation)
-    write isa ReplaceReferencedValueOperation || return nothing
-    (widget === nothing ? write.document isa WidgetTree : write.document === widget) || return nothing
-    steps = get_reference_steps(strip_reference_types(write.reference))
-    (length(steps) == 1 && steps[1] == FieldReferenceStep("expanded")) || return nothing
+    parts = operation isa CompoundOperation ? operation.operations : Any[operation]
+    index = findfirst(part -> _is_open_rows_write(part, widget), parts)
+    index === nothing && return nothing
+    write = get_wrapped_operation(parts[index])
     open = IdDict{Any,Nothing}()
     for path in write.value
         entry = _find_folder_entry(folders, path)
@@ -210,16 +201,43 @@ function _read_open_folder_write(holder, folders::Vector, widget, operation)
     opened = Any[folder for folder in keys(open) if !haskey(before, folder)]
     closed = Any[folder for folder in keys(before) if !haskey(open, folder)]
     open_write = ReplaceReferencedValueOperation(holder, "open", open)
-    isempty(opened) && isempty(closed) && return ReplaceViewStateOperation(open_write)
-    ReplaceViewStateOperation(CompoundOperation(Any[open_write, ChangeHeldDocumentsOperation(holder, closed, opened)]))
+    hold = ChangeHeldDocumentsOperation(holder, closed, opened)
+    held = isempty(opened) && isempty(closed) ? ReplaceViewStateOperation(open_write) :
+           ReplaceViewStateOperation(CompoundOperation(Any[open_write, hold]))
+    (held, Any[part for (k, part) in enumerate(parts) if k != index])
+end
+
+# Whether `operation` is a write of the open nodes of `widget`, as view state.
+function _is_open_rows_write(operation, widget)
+    operation isa ReplaceViewStateOperation || return false
+    write = get_wrapped_operation(operation)
+    write isa ReplaceReferencedValueOperation || return false
+    document = write.document
+    (widget === nothing ? document isa WidgetTree : document === widget) || return false
+    steps = get_reference_steps(strip_reference_types(write.reference))
+    length(steps) == 1 && steps[1] == FieldReferenceStep("expanded")
+end
+
+# The answer of a view of folders to `payload`: what `read` made of a write of the
+# open nodes, with the other parts mapped as through any projection, or else the
+# payload mapped so.
+function _map_open_folder_answer(p, iomap, payload, read)
+    map_answer(answer) = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, answer)
+    read === nothing && return map_answer(payload)
+    (held, others) = read
+    mapped = isempty(others) ? nothing :
+             map_answer(length(others) == 1 ? only(others) : CompoundOperation(others))
+    mapped === nothing ? held : CompoundOperation(Any[held, mapped])
 end
 
 function read_intent(p::FileSystemToWidgetTree, recursion, change::Intent, iomap::SimpleIoMap)
     (change.route === nothing && iomap.input isa WorkspaceExplorer) ||
         return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
-    answer = _read_open_folder_write(iomap.input, _get_explorer_folders(iomap.input), iomap.output, payload)
-    answer === nothing && (answer = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, payload))
+    explorer = iomap.input
+    folders = _get_explorer_folders(explorer)
+    read = _read_open_folder_write(explorer, folders, iomap.output, payload)
+    answer = _map_open_folder_answer(p, iomap, payload, read)
     Intent(change.gesture, answer, change.description, change.domain)
 end
 

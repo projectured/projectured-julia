@@ -20,8 +20,12 @@ document draws its own node again, and no other.
 
 The open nodes of the widget follow `expanded` of the tree document, and a press
 on a chevron writes `expanded` with the documents of the nodes that are open
-then. Return on a node, or a double click on it, answers `OpenPageOperation` at
-the path of its document.
+then. A scroll and a toggle of the widget write `shown` of the tree document with
+the documents of the rows that its view shows, and the tree holds the open and
+the shown documents.
+
+Return on a node, or a double click on it, answers `OpenPageOperation` at the
+path of its document.
 """
 struct DocumentTreeToWidgetTree <: Projection end
 
@@ -39,7 +43,18 @@ end
 # children. Both lists compute one element at a time, at its first read. A change
 # of the collections of a node makes new entries for its children, so an entry
 # stays at one path. For a document whose children are a lazy list, `mirror` holds
-# that list and the two lists that mirror it (`_compute_tree_children_lists!`).
+# a `_TreeMirror` of that list (`_compute_tree_children_lists!`).
+# The lazy list of the children of a document and the two lists that mirror it,
+# with the count and the node of the entries of the last child that a lookup made,
+# so the next lookup near it walks from there.
+mutable struct _TreeMirror
+    list::ListNode
+    entries::ListNode
+    nodes::ListNode
+    cursor::Int
+    cursor_link::ListNode
+end
+
 struct _TreeEntry
     document::Any
     path::Vector{Int}
@@ -87,12 +102,12 @@ function _compute_tree_children_lists!(entry::_TreeEntry)
     list = _find_lazy_tree_children(entry.document)
     list === nothing && return (entry.entries, entry.nodes)
     mirror = entry.mirror[]
-    mirror !== nothing && first(mirror) === list && return (mirror[2], mirror[3])
+    mirror !== nothing && mirror.list === list && return (mirror.entries, mirror.nodes)
     make_entry(link, k, _, _) = _make_tree_entry(link.value, vcat(entry.path, k))
     entries = make_mapped_list(make_entry, list; computed = true)
     make_node(link, _, _, _) = _make_tree_node(link.value)
     nodes = make_mapped_list(make_node, entries; computed = true)
-    entry.mirror[] = (list, entries, nodes)
+    entry.mirror[] = _TreeMirror(list, entries, nodes, 1, entries)
     (entries, nodes)
 end
 
@@ -123,8 +138,17 @@ function _find_child_entry_at(entry::_TreeEntry, k::Int; make::Bool = false)
     entries isa ListNode || return 1 <= k <= length(entries) ? entries[k] : nothing
     k >= 1 || return nothing
     if make
-        link = find_list_node(entries, k)
-        return link === nothing ? nothing : link.value
+        # The rows of a view are near each other, so the walk starts at the child
+        # that the last lookup made.
+        mirror = entry.mirror[]
+        (at, link) = (mirror.cursor, mirror.cursor_link)
+        while at != k
+            link = at < k ? link.next : link.prev
+            link === nothing && return nothing
+            at += at < k ? 1 : -1
+        end
+        (mirror.cursor, mirror.cursor_link) = (k, link)
+        return link.value
     end
     found = Ref{Any}(nothing)
     count = Ref(0)
@@ -236,15 +260,18 @@ end
 # at the paths that each write gives, so the tree holds no document that left it.
 # The tree then holds the documents of its open nodes and of its shown rows
 # together, and no longer those that left both, in the same write of view state,
-# so an undo records none of it. The other writes of the answer, such as a scroll,
-# stay beside them. `nothing` for an answer that writes neither.
+# so an undo records none of it. The answer is that write and the other parts of
+# the operation, such as a scroll, which the reader maps as it maps any answer;
+# the write of the shown rows of the widget stays among them, so the widget keeps
+# the rows that it wrote. `nothing` for an operation that writes neither.
 function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
     parts = operation isa CompoundOperation ? operation.operations : Any[operation]
     (open_paths, shown_paths, others) = (nothing, nothing, Any[])
     for part in parts
         (name, value) = _find_widget_view_write(iomap, part)
-        name == "expanded" ? (open_paths = value) :
-        name == "shown" ? (shown_paths = value) : push!(others, part)
+        name == "expanded" && (open_paths = value; continue)
+        name == "shown" && (shown_paths = value)
+        push!(others, part)
     end
     (open_paths === nothing && shown_paths === nothing) && return nothing
     tree = iomap.input
@@ -266,7 +293,7 @@ function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
         push!(writes, ChangeHeldDocumentsOperation(tree, released, acquired))
     held = ReplaceViewStateOperation(length(writes) == 1 ? only(writes) :
                                      CompoundOperation(writes))
-    isempty(others) ? held : CompoundOperation(Any[held, others...])
+    (held, others)
 end
 
 # The name and the value of a write of view state of one field of the widget,
@@ -326,8 +353,16 @@ function read_intent(p::DocumentTreeToWidgetTree, recursion, change::Intent,
     change.route === nothing ||
         return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
-    answer = _read_open_node_write(iomap, payload)
-    answer === nothing && (answer = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, payload))
+    map_answer(answer) = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, answer)
+    read = _read_open_node_write(iomap, payload)
+    answer = if read === nothing
+        map_answer(payload)
+    else
+        (held, others) = read
+        rest = length(others) == 1 ? only(others) : CompoundOperation(others)
+        mapped = isempty(others) ? nothing : map_answer(rest)
+        mapped === nothing ? held : CompoundOperation(Any[held, mapped])
+    end
     Intent(change.gesture, answer, change.description, change.domain)
 end
 

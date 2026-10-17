@@ -182,10 +182,23 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
 end
 
 # A move answers the leave of a part and the part under the pointer together; each
-# goes back as this view reads it alone.
+# goes back as this view reads it alone. A chevron of a tree that scrolls itself
+# answers the open rows with the rows of its view; each part goes back alone too.
 function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap, op::CompoundOperation)
+    if any(member -> _is_disclosure_write(iomap, member), op.operations)
+        parts = Any[read_intent(p, iomap, member) for member in op.operations]
+        return CompoundOperation(Any[part for part in parts if part !== nothing])
+    end
     has_mouse_target(op) || return op
     join_move_answers((read_intent(p, iomap, member) for member in op.operations)...)
+end
+
+# Whether `op` writes the open rows of the widget of this view, as view state.
+function _is_disclosure_write(iomap::ReflectionToWidgetIoMap, op)
+    op isa ReplaceViewStateOperation || return false
+    inner = get_wrapped_operation(op)
+    inner isa ReplaceReferencedValueOperation && inner.document === iomap.output &&
+        _field_name(inner) == "expanded"
 end
 
 read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
