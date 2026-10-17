@@ -410,6 +410,37 @@ end
     @test io.geometry.head.prev.prev === nothing
 end
 
+@testset "a tree that scrolls itself writes the rows that its view shows" begin
+    runs = make_index_list(10_000_000, 1, k -> WidgetTreeNode("", "Run $(k - 1)", Any[]))
+    sweep = WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
+    w = WidgetTree(Any[WidgetTreeNode("", "project", Any[sweep])]; expanded = Set([[1]]))
+    io = _print_tree_pane(w)
+    rows = io.pane.content_iomap
+    # A press on the chevron of Sweep opens it: the view of 200 pixels then shows
+    # the project, Sweep, and the runs below Sweep down to the bottom of the view.
+    chevron = WidgetModule._wtree_row_at(rows.geometry, 20)
+    @test chevron.path == [1, 1]
+    open = read_intent(_treeproj, io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 25,
+                                                 _mods; time = 0.0))
+    evaluate_operation(nothing, open)
+    @test w.shown == Set([[1], [1, 1], ([1, 1, k] for k in 1:8)...])
+    # A wheel turn down writes the rows of the view at the new offset.
+    turn = read_intent(_treeproj, io, MouseScroll(0, -3, 20, 60; time = 1.0))
+    evaluate_operation(nothing, turn)
+    top = Int(w.scroll_position.y[])
+    @test top > 0
+    @test w.shown == WidgetModule._collect_wtree_view_paths(rows.geometry, top, 200)
+    @test 10 <= length(w.shown) <= 11 && !([1] in w.shown)
+    # A plain tree, whose rows are laid out, writes the rows of its view too.
+    files = WidgetTree(Any[WidgetTreeNode("", "folder", Any[WidgetTreeNode("", "f$k", Any[]) for k in 1:500])];
+                       expanded = Set([[1]]))
+    files_io = _print_tree_pane(files)
+    evaluate_operation(nothing, read_intent(_treeproj, files_io, MouseScroll(0, -3, 20, 60; time = 2.0)))
+    files_top = Int(files.scroll_position.y[])
+    first_row = fld(files_top, 20) + 1
+    @test [1, first_row - 1] in files.shown && length(files.shown) in 10:11
+end
+
 @testset "a tree whose open nodes count their children lays out its rows and has their height" begin
     files = Any[WidgetTreeNode("", "file$(k).txt", Any[]) for k in 1:5000]
     w = WidgetTree(Any[WidgetTreeNode("", "folder", files)]; expanded = Set([[1]]))

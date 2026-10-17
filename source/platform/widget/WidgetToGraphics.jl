@@ -11910,6 +11910,7 @@ end
     geometry::Cell
     width::Cell
     bare::Bool       # the rows of a tree that scrolls itself, with no box
+    view_height::Any # the height of the view of the rows that a pane offers, or nothing
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -12206,7 +12207,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                             Cell(@computation Int32(width[] + inset_width)),
                             Cell(@computation Int32(rows_height[] + inset_height)),
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -12241,35 +12242,42 @@ _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCan
     _wtree_row_at(iomap.geometry, y - _get_rows_content_offset(p, iomap)[2])
 
 read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) =
-    _move_wtree_head(iomap, _read_rows_pane(p, iomap, evt))
+    _add_wtree_scroll_writes(iomap, _read_rows_pane(p, iomap, evt))
 
 # How far from the head the row at the top may be before a tree moves the head of
 # its lazy list of rows to it, as a table moves the head of its rows.
 const _TREE_RELOCATION_DISTANCE = 200
 
-# A scroll of a lazy list of rows, and, when the row at the top of the offset that
-# it writes is more than `_TREE_RELOCATION_DISTANCE` rows from the head, the move
-# of the head to that row: the anchor of the tree written to the row, and the
-# offset less the place of the row, so the row stays at the same place on the
-# screen. The walks of the renderer and of the readers start at the head, so they
-# stay short. Any other answer, as it is.
-function _move_wtree_head(iomap::WidgetRowsPaneIoMap, op)
+# A scroll of the rows of a tree, with the write of the rows that its view shows
+# after the scroll (`shown`). When the rows are a lazy list and the row at the top
+# of the offset is more than `_TREE_RELOCATION_DISTANCE` rows from the head, the
+# answer moves the head to that row instead: the anchor of the tree written to
+# the row, and the offset less the place of the row, so the row stays at the same
+# place on the screen and the walks of the renderer and of the readers stay
+# short. Any other answer, as it is.
+function _add_wtree_scroll_writes(iomap::WidgetRowsPaneIoMap, op)
     op isa Operation || return op
     pane = iomap.pane
     rows = pane.content_iomap
     rows isa WidgetTreeToGraphicsCanvasIoMap || return op
-    rows.geometry isa WTreeListGeometry || return op
     offset = _find_written_offset(op, pane.input)
     offset === nothing && return op
     (x, y) = (Int(offset.x[]), Int(offset.y[]))
-    top = _find_wtree_list_row_at(rows.geometry, y)
-    (top === nothing || abs(top.count - 1) <= _TREE_RELOCATION_DISTANCE) && return op
-    is_other(o) = _find_written_offset(o, pane.input) === nothing
-    others = op isa CompoundOperation ? filter(is_other, op.operations) : Any[]
     w = iomap.input
-    rebased = Point2D(x, y - top.row.y0)
-    CompoundOperation(Any[others..., _write_view_state(w, "anchor", top),
-                          _write_view_state(w, "scroll_position", rebased)])
+    geometry = rows.geometry
+    view_height = last(_get_pane_scroll_view(get_iomap_projection(pane), pane))
+    shown = _collect_wtree_view_paths(geometry, y, view_height)
+    writes = shown == w.shown ? Any[] : Any[_write_view_state(w, "shown", shown)]
+    top = geometry isa WTreeListGeometry ? _find_wtree_list_row_at(geometry, y) : nothing
+    if top !== nothing && abs(top.count - 1) > _TREE_RELOCATION_DISTANCE
+        is_other(o) = _find_written_offset(o, pane.input) === nothing
+        others = op isa CompoundOperation ? filter(is_other, op.operations) : Any[]
+        rebased = Point2D(x, y - top.row.y0)
+        moves = Any[_write_view_state(w, "anchor", top),
+                    _write_view_state(w, "scroll_position", rebased)]
+        return CompoundOperation(Any[others..., moves..., writes...])
+    end
+    isempty(writes) ? op : CompoundOperation(Any[op, writes...])
 end
 map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_backward(iomap, reference)
@@ -12351,6 +12359,35 @@ function _find_wtree_list_row_at(geometry::WTreeListGeometry, y::Int)
     link.value
 end
 
+# The paths of the rows that a view of `height` pixels shows at the offset `y`.
+function _collect_wtree_view_paths(geometry::WTreeGeometry, y::Int, height::Int)
+    count = length(geometry.rows)
+    count == 0 && return Set{Vector{Int}}()
+    first = clamp(fld(y, geometry.row_height) + 1, 1, count)
+    last = clamp(fld(y + max(height, 1) - 1, geometry.row_height) + 1, 1, count)
+    Set{Vector{Int}}(geometry.rows[k].path for k in first:last)
+end
+
+# In a lazy list of rows, the walk goes from the head to the row at `y`, and stops
+# at an end of the rows, then down through the rows that the view crosses.
+function _collect_wtree_view_paths(geometry::WTreeListGeometry, y::Int, height::Int)
+    paths = Set{Vector{Int}}()
+    link = geometry.head
+    link === nothing && return paths
+    steps = fld(y, geometry.row_height)
+    for _ in 1:abs(steps)
+        neighbor = steps > 0 ? link.next : link.prev
+        neighbor === nothing && break
+        link = neighbor
+    end
+    while link !== nothing && link.value.row.y0 < y + height
+        row = link.value.row
+        row.y0 + row.height > y && push!(paths, row.path)
+        link = link.next
+    end
+    paths
+end
+
 # Per-node gesture consult: find the node targeted by `g` — the row under the
 # pointer for a `MouseClick` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
@@ -12400,8 +12437,43 @@ function _wtree_toggle_expanded(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Ve
     next = copy(w.expanded)
     path in next ? delete!(next, path) : push!(next, path)
     write = _write_view_state(w, "expanded", next)
-    moves = _make_wtree_toggle_moves(iomap, path, next)
-    moves === nothing ? write : CompoundOperation(Any[write, moves...])
+    moves = something(_make_wtree_toggle_moves(iomap, path, next), Any[])
+    shown = _collect_wtree_toggle_view_paths(iomap, path, next)
+    is_new = shown !== nothing && shown != w.shown
+    is_new && push!(moves, _write_view_state(w, "shown", shown))
+    isempty(moves) ? write : CompoundOperation(Any[write, moves...])
+end
+
+# The paths of the rows that the view of a tree that scrolls itself shows after a
+# toggle of the row of `path` with the open nodes `next`: the rows above it in the
+# view stay, the row stays where it was pressed, and the rows after it follow the
+# open nodes `next` down to the bottom of the view. `nothing` for a tree with no
+# view, or when the row has no place.
+function _collect_wtree_toggle_view_paths(iomap::WidgetTreeToGraphicsCanvasIoMap,
+                                          path::Vector{Int}, next)
+    (iomap.bare && iomap.view_height !== nothing) || return nothing
+    w = iomap.input
+    geometry = iomap.geometry
+    view_height = Int(iomap.view_height[])
+    y = Int(w.scroll_position.y[])
+    if geometry isa WTreeListGeometry
+        link = _find_wtree_list_node(geometry, path)
+        link === nothing && return nothing
+        (row, top) = (link.value, link.value.row.y0)
+    else
+        index = get(geometry.index, path, nothing)
+        index === nothing && return nothing
+        (row, top) = (_make_wtree_path_row(w, path), geometry.rows[index].y0)
+    end
+    paths = top > y ? _collect_wtree_view_paths(geometry, y, top - y) : Set{Vector{Int}}()
+    place(at, depth, count) = WTreeRow(at, depth, 0, 0, 0, 0)
+    bottom = top + geometry.row_height
+    while row !== nothing && bottom - geometry.row_height < y + view_height
+        push!(paths, row.row.path)
+        row = _find_next_wtree_row(next, place, row)
+        bottom += geometry.row_height
+    end
+    paths
 end
 
 # What a toggle of the row of `path` writes beside the open nodes `next` in a tree

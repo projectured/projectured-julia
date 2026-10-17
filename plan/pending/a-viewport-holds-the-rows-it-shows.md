@@ -82,11 +82,27 @@ The states over time:
 The steps need the lazy tree on main (`plan/done/a-tree-draws-only-the-rows-it-shows.md`).
 Each step is one commit with its tests, in a worktree.
 
-- [ ] **1. The tree widget writes the rows it shows.** `WidgetTree.shown`; the
+- [x] **1. The tree widget writes the rows it shows.** `WidgetTree.shown`; the
   reader of a tree that scrolls itself writes it beside a scroll, a far move of
   the head and a toggle. Tests: the tree widget suite, with a tree of a lazy list
   of 10,000,000 children: a toggle and a scroll each write the rows of the view
   after them, and a plain tree writes them as well.
+
+  What step 1 made:
+  - `WidgetTree.shown` is a trailing field after `anchor`, so the four positional
+    calls of the platform pass it before the selection.
+  - The reader of the rows pane of a tree writes `shown` beside each scroll that
+    writes an offset, from the offset and the height of the view of the pane, and
+    only when the rows change. The IO map of the tree keeps the height of its view
+    (`view_height`), so a toggle writes the rows after it: the rows above the
+    toggled row in the view, the row, and the rows that follow it in the new open
+    rows down to the bottom of the view.
+  - A toggle of a tree that scrolls itself now answers a compound, so the reader of
+    the Files explorer (`_read_open_folder_write`) takes the write of the open rows
+    inside a compound too, as the document tree does.
+  - Tests: `test_widget_tree` 96 (a new testset), `test_filesystem_to_widget`,
+    `test_file_dialog` 22, `test_document_tree` 94, `test_widget_rows_scroll`,
+    `test_tree_render`.
 - [ ] **2. The document tree holds the documents of the shown rows.**
   `DocumentTree.shown`, the turn of the write of the widget into holds, one set
   of holds with the open documents, and the first rows at the acquire. Tests:

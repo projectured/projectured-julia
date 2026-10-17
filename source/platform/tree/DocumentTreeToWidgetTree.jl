@@ -273,14 +273,15 @@ function print_document(p::DocumentTreeToWidgetTree, recursion, tree::DocumentTr
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
     # expanded, gestures, scroll_position, vertical_scroll_bar,
-    # horizontal_scroll_bar, tooltip, anchor, selection, mouse target. The open nodes
-    # follow the tree document. The tree scrolls itself in the slot that its
-    # parent offers.
+    # horizontal_scroll_bar, tooltip, anchor, shown, selection, mouse target.
+    # The open nodes follow the tree document. The tree scrolls itself in the slot
+    # that its parent offers.
     widget = WidgetTree(Cell(Point2D(0, 0)), roots, Cell(true),
                         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(@computation _compute_open_paths(root_entry[], tree.expanded)),
                         Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                        Cell(nothing), Cell(nothing), paths.selection, paths.mouse_target)
+                        Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                        paths.selection, paths.mouse_target)
     DocumentTreeToWidgetTreeIoMap(p, tree, widget, root_entry)
 end
 

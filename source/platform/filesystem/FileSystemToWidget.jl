@@ -113,14 +113,15 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
     # expanded, gestures, scroll_position, vertical_scroll_bar,
-    # horizontal_scroll_bar, tooltip, anchor, selection, mouse target. The root row is
-    # open, and each folder under it is closed until a person opens it. The tree
-    # scrolls itself in the slot that its parent offers.
+    # horizontal_scroll_bar, tooltip, anchor, shown, selection, mouse target.
+    # The root row is open, and each folder under it is closed until a person
+    # opens it. The tree scrolls itself in the slot that its parent offers.
     tree = WidgetTree(Cell(p.position), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(Set([[1]])),
                       Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                      Cell(nothing), Cell(nothing), paths.selection, paths.mouse_target)
+                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                      paths.selection, paths.mouse_target)
     SimpleIoMap(p, doc, tree)
 end
 
@@ -140,7 +141,8 @@ function print_document(p::FileSystemToWidgetTree, recursion, explorer::Workspac
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       expanded,
                       Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                      Cell(nothing), Cell(nothing), paths.selection, paths.mouse_target)
+                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                      paths.selection, paths.mouse_target)
     SimpleIoMap(p, explorer, tree)
 end
 
@@ -183,6 +185,16 @@ end
 # undo records neither. `widget` is the tree whose write it takes, or `nothing`
 # for the one tree of a view that draws only one. `nothing` for any other answer.
 function _read_open_folder_write(holder, folders::Vector, widget, operation)
+    # A toggle in a tree that scrolls itself also writes the rows of its view, and
+    # in a lazy list of rows the head: those writes stay beside the open folders.
+    if operation isa CompoundOperation
+        parts = operation.operations
+        read_part(part) = _read_open_folder_write(holder, folders, widget, part)
+        read = Any[read_part(part) for part in parts]
+        all(isnothing, read) && return nothing
+        return CompoundOperation(Any[something(answer, part)
+                                     for (part, answer) in zip(parts, read)])
+    end
     operation isa ReplaceViewStateOperation || return nothing
     write = get_wrapped_operation(operation)
     write isa ReplaceReferencedValueOperation || return nothing

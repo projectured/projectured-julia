@@ -3066,6 +3066,11 @@ and `horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
 the head of the list, which the tree writes when a scroll takes the row at the
 top far from the head, or `nothing` for the first row. The offset counts from
 the head.
+
+`shown` is view state of a tree that scrolls itself: the paths of the rows that
+its view shows, which the tree writes beside each scroll and each toggle. A
+projection that shows documents as the rows of a tree reads that write, as it
+reads a write of `expanded`.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
@@ -3082,6 +3087,7 @@ the head.
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner
     tooltip::Any
     anchor::Any = nothing        # view state: the row at the head of a lazy list of rows
+    shown::Set{Vector{Int}} = Set{Vector{Int}}()  # view state: the rows in view
 end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
@@ -3092,7 +3098,8 @@ WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(Set{Vector{Int}}(expanded)), Cell(gestures),
                Cell(scroll_position), Cell(vertical_scroll_bar),
-               Cell(horizontal_scroll_bar), Cell(tooltip), Cell(nothing))
+               Cell(horizontal_scroll_bar), Cell(tooltip), Cell(nothing),
+               Cell(Set{Vector{Int}}()))
 
 # A `(label, children)` tuple becomes a node with no icon, and so do the tuples
 # among its children. Any other node is kept as it is.

@@ -65,7 +65,7 @@ function print_document(p::ReflectionToWidget, recursion, node, ctx)
     # Positional, so every declared field is named here in order: position,
     # roots, visible, margin, border, padding, style, expanded, gestures,
     # scroll_position, vertical_scroll_bar, horizontal_scroll_bar, tooltip; the
-    # anchor takes its default.
+    # anchor and the shown rows take their defaults.
     output = WidgetTree(Cell(Point2D(0, 0)), CellVector(@computation Any[tree[].root]),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(@computation tree[].expanded),
