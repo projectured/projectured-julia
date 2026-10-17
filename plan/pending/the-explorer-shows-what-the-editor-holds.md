@@ -1,12 +1,14 @@
 # The explorer shows what the editor holds
 
-> **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 to 5 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
-> 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
-> Q12 the same day. The owner asked for the implementation on 2026-10-17. On the
-> same day the branch moved onto main `93181c381` (the plan
-> `plan/done/a-viewport-holds-the-rows-it-shows.md`). The owner refines the
-> structure of the tree later.
+> **Status (2026-10-18): IN PROGRESS** on branch `explorer` (worktree
+> `projectured-julia-explorer`), on main `69d120194`, not landed: steps 1 to 9
+> done but 6c, and step 11 done for projectured. Open for the owner: the landing;
+> 6c, the search below a node; the columns of a dashboard that follow the width
+> (8). Step 10 (omnet) and the omnet guides of step 11 wait for the landing,
+> because omnet loads projectured from main, and the omnet UI session changes the
+> omnet explorer in its plan C. **DESIGN DECIDED.** The owner decided Q0 to Q12 in
+> §6 on 2026-10-17 and asked for the implementation the same day. The owner
+> refines the structure of the tree later.
 
 ## 1. The ask
 
@@ -1327,7 +1329,11 @@ before each edit of a kernel file. Mark each step done here.
    plan C step 3 is a node below the project; the decorations and the new
    state of the omnet kinds of §5.14.4 (Q12). Test: `OmnetCampaignUiTest`,
    `OmnetIdeTest`.
-11. [ ] **The documents.** A new `documentation/package/platform/explorer/explorer.md`;
+11. [ ] **The documents.** Done for projectured (2026-10-18): `explorer.md` is new,
+    and `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`,
+    `pane.md`, `task.md`, `assistant.md` and the guides of the session documents
+    follow the branch. The omnet guides wait for step 10.
+    The list of the step: A new `documentation/package/platform/explorer/explorer.md`;
     `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`;
     in omnet, `user-interface-anatomy.md` and `interface-composition.md`.
 
