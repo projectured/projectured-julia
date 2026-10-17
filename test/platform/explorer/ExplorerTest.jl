@@ -41,6 +41,20 @@ end
 # The glyph of a closed chevron of a node.
 const _EXPLORER_CLOSED_CHEVRON = string(Char(0xe06f))
 
+# A press on the closed chevron of the row whose label is `label`: the chevron on
+# the line of that label, left of it.
+function _explorer_open_chevron(backend, label)
+    texts = _nav_texts(backend)
+    found = filter(entry -> entry[1] == label, texts)
+    isempty(found) && return nothing
+    (_, label_x, label_y) = found[argmin([entry[2] for entry in found])]
+    chevrons = filter(entry -> entry[1] == _EXPLORER_CLOSED_CHEVRON && abs(entry[3] - label_y) <= 4 && entry[2] < label_x,
+                      texts)
+    isempty(chevrons) && return nothing
+    (_, x, y) = chevrons[argmax([entry[2] for entry in chevrons])]
+    MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0)
+end
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -161,6 +175,54 @@ function test_explorer()
         empty = Explorer(ExplorerSection("Explorer"))
         _, empty_backend = _nav_editor(empty)
         @test _nav_has_text(empty_backend, "This section has no entry.")
+    end
+
+    @testset "the folders of a workspace are nodes, and the open of a folder reads it" begin
+        root = mktempdir()
+        write(joinpath(root, "notes.md"), "# Notes")
+        mkdir(joinpath(root, "inner"))
+        write(joinpath(root, "inner", "deep.jl"), "x = 1")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        content = ExplorerSection("Explorer", Any[workspace])
+        explorer = Explorer(content)
+        @test format_tree_node_label(workspace) == "Files" && get_document_decoration(workspace).icon === :files
+        # A tab holds the explorer, so an open node holds its document.
+        editor, backend = _nav_editor(explorer; tabs = true)
+        # Open Files, then the folder: the open reads the folder on its task.
+        for label in ("Files", "work")
+            chevron = _explorer_open_chevron(backend, label)
+            @test chevron !== nothing
+            _nav_press!(editor, backend, chevron)
+            for _ in 1:50
+                drain_operations!(editor)
+                run_frame!(editor)
+                _nav_has_text(backend, label == "Files" ? "work" : "notes.md") && break
+                sleep(0.02)
+            end
+        end
+        @test _nav_has_text(backend, "notes.md") && _nav_has_text(backend, "inner")
+        # A press on the folder shows its page: its path, its entries and their kind.
+        click = _explorer_click(backend, "work")
+        _nav_press!(editor, backend, click)
+        folder = workspace.folders[1].directory
+        @test get_navigator_page(explorer.navigator) === workspace.folders[1]
+        @test format_tree_node_label(folder) == basename(root)
+        @test _nav_has_text(backend, "folder") && _nav_has_text(backend, "md file")
+        page = print_document(FileSystemDirectoryToWidget(), nothing, folder, nothing).output
+        @test page isa VerticalLayout
+        @test occursin("2 entries", page.children[1].content)
+    end
+
+    @testset "the first content of a window holds the work of the session and the tools of the editor" begin
+        editor, _ = _nav_editor(PrimitiveString("start"))
+        content = make_editor_explorer_content(; editor, entries = Any[Workspace([WorkspaceFolder("work", pwd())])])
+        titles = [format_tree_node_label(entry) for entry in content.entries]
+        @test titles == ["Files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings", "Help"]
+        @test content.entries[2] === get_session_task_group_list(; editor)
+        @test content.entries[3] === get_session_assistant_list(; editor)
+        editor_section = content.entries[6]
+        @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
+        @test length(content.entries[8].entries) == 3
     end
 
     @testset "Ctrl+press on a node opens its page in a new tab" begin

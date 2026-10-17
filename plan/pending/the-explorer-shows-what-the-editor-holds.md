@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1, 2 and 3 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1, 2 and 3 done, step 4 part 4a done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -1076,6 +1076,26 @@ before each edit of a kernel file. Mark each step done here.
    the open of a file and the page of a file both reach (Q3); the page of a file;
    the first content of the application. Test: `test_explorer()`,
    `test_filesystem()`.
+   **Part 4a done 2026-10-17: the nodes, the page of a folder, and the first
+   content.** What it found and decided:
+   - `Workspace` ("Files"), `WorkspaceFolder`, `FileSystemDirectory` and
+     `FileSystemFile` are nodes (`FileSystemTree.jl`; the file system slice has
+     the edge `tree`). A `WorkspaceFolder` holds its folder, so the open of its
+     node reads the folder on its task. A root folder of a workspace shows a
+     chevron until its own read finds it empty: no read of a parent says it.
+   - A tree that a view makes is held by nothing and starts no read, so the page
+     of a folder is no tree: it is a line with the path and the state of the
+     read, and a table of the entries with their kind, lazy with an offered
+     height (`FileSystemDirectoryToWidget`, for a folder and a workspace folder).
+     Each name is a link to the page of its entry.
+   - `AssistantList` has the assistants as children, and an assistant its
+     subagents and background tasks.
+   - `make_editor_explorer_content(; editor, entries, mcp_log)` of the
+     application slice makes the first content of §5.10 from the documents of the
+     session, once the editor exists; the host gives its own entries first. Step
+     9 calls it. Its sections: Evaluators, Dashboards, Editor, Settings, Help.
+   - Not in 4a: "Open files" and the page of a file, which need the document of
+     each file path (part 4b).
 5. [ ] **Add and remove.** `+` and Insert with the list of Q2, Delete, F2, new
    section, the keys to move an entry, "Add to explorer" in the menu of a part
    and of a tab, and the save of Q5.

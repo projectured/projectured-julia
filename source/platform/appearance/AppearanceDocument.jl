@@ -67,4 +67,4 @@ The `Appearance` of `editor`: the one that its `appearance` wrapper holds, or
 find_editor_appearance(; editor = get_evaluation_editor()) =
     run_on_editor_task!(() -> editor.document isa AppearanceDocument ? editor.document.appearance : nothing, editor; description = "find_editor_appearance")
 
-get_document_decoration(::AppearanceDocument) = DocumentDecoration(; icon = :palette)
+get_document_decoration(::Union{AppearanceDocument, Appearance}) = DocumentDecoration(; icon = :palette)

@@ -19,18 +19,24 @@ module ApplicationModule
 
 using ..GraphicsModule
 using ..KernelModule
+using ..AppearanceModule
 using ..ArrangementModule
 using ..AssistantModule
 using ..ClipboardModule
 using ..CollectionModule
 using ..ConversationModule
 using ..DomainModule
+using ..ExplorerModule
 using ..FileFormatModule
 using ..FaultViewModule
 using ..FileSystemModule
 using ..FocusModule
+using ..FrameStatisticsModule
 using ..GestureHelpModule
 using ..GestureLogModule
+using ..HelpModule
+using ..InspectorModule
+using ..McpLogModule
 using ..MessageLogModule
 using ..NaturalModule
 using ..NavigatorModule
@@ -45,6 +51,7 @@ using ..SettingsModule
 using ..ShellModule
 using ..StyleModule
 using ..SystemProcessModule
+using ..TaskModule
 using ..TextModule
 using ..TooltipModule
 using ..TreeModule
@@ -64,9 +71,11 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        run_application_command,
        evaluate_reachable_cells!, warm_application, register_editor_tools!, start_application!
 export StartSettings
+export make_editor_explorer_content
 
 include("DefaultBackend.jl")
 include("Application.jl")
 include("StartSettings.jl")
+include("ApplicationExplorer.jl")
 
 end # module ApplicationModule

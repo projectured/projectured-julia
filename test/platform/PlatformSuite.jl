@@ -81,7 +81,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "filechange" => ["domain", "fileformat", "serialization"],
     "filesystem" => ["collection", "domain", "filechange", "fileformat", "focus", "graphics", "layout", "natural",
                      "pane", "primitive", "projection", "serialization", "settingsmanaging",
-                     "style", "syntax", "text", "undo", "widget"],
+                     "style", "syntax", "text", "tree", "undo", "widget"],
     "gesturehelp" => ["collection", "graphics", "projection", "screen", "style", "syntax",
                       "text"],
     "gesturelog" => ["collection", "domain", "graphics", "natural", "projection",
@@ -115,12 +115,12 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "dragtracking" => [],
     "display" => ["collection", "graphics", "layout", "natural", "screen", "style", "widget"],
     "essentials" => ["display", "natural", "style"],
-    "application" => ["arrangement", "assistant", "clipboard", "collection", "conversation", "domain",
-                      "fault", "fileformat", "filesystem", "focus", "gesturehelp", "gesturelog",
-                      "graphics", "log",
+    "application" => ["appearance", "arrangement", "assistant", "clipboard", "collection", "conversation",
+                      "domain", "explorer", "fault", "fileformat", "filesystem", "focus", "gesturehelp",
+                      "gesturelog", "graphics", "help", "inspector", "log", "mcplog",
                       "natural", "navigator", "pane", "primitive", "projection", "roster",
-                      "screen", "serialization", "settings", "settingsmanaging", "shell", "style",
-                      "systemprocess", "task", "text", "tooltip", "tree", "undo", "widget"],
+                      "screen", "serialization", "settings", "settingsmanaging", "shell", "statistics",
+                      "style", "systemprocess", "task", "text", "tooltip", "tree", "undo", "widget"],
 )
 
 """
