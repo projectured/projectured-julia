@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): steps 1 to 4 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 to 5 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. The owner asked for the implementation on 2026-10-17. On the
 > same day the branch moved onto main `93181c381` (the plan
@@ -1129,7 +1129,7 @@ before each edit of a kernel file. Mark each step done here.
    - The first content lists "Open files" after the entries of the host.
    - A limit: a page with unsaved edits that no tab and no page shows stays in its
      file node, out of the list, until the node shows it again.
-5. [ ] **Add and remove.** `+` and Insert with the list of Q2, Delete, F2, new
+5. [x] **Add and remove.** `+` and Insert with the list of Q2, Delete, F2, new
    section, the keys to move an entry, "Add to explorer" in the menu of a part
    and of a tab, and the save of Q5.
    - [x] **5a. The kinds** (2026-10-17). `is_explorer_entry_type(::Type)` is in
