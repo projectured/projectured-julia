@@ -113,14 +113,14 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
     # expanded, gestures, scroll_position, vertical_scroll_bar,
-    # horizontal_scroll_bar, tooltip, anchor, shown, selection, mouse target.
-    # The root row is open, and each folder under it is closed until a person
-    # opens it. The tree scrolls itself in the slot that its parent offers.
+    # horizontal_scroll_bar, tooltip, anchor, shown, current, selection, mouse
+    # target. The root row is open, and each folder under it is closed until a
+    # person opens it. The tree scrolls itself in the slot that its parent offers.
     tree = WidgetTree(Cell(p.position), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(Set([[1]])),
                       Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()), Cell(nothing),
                       paths.selection, paths.mouse_target)
     SimpleIoMap(p, doc, tree)
 end
@@ -141,7 +141,7 @@ function print_document(p::FileSystemToWidgetTree, recursion, explorer::Workspac
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       expanded,
                       Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
-                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                      Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()), Cell(nothing),
                       paths.selection, paths.mouse_target)
     SimpleIoMap(p, explorer, tree)
 end

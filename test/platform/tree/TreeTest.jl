@@ -97,8 +97,10 @@ _doctree_chevron(widget, paths...) =
 _doctree_double(click) = MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0)
 
 # Whether the open nodes of `tree` are the documents `documents`, by identity.
-_doctree_is_open(tree, documents...) =
-    length(tree.expanded) == length(documents) && all(document -> haskey(tree.expanded, document), documents)
+function _doctree_is_open(tree, documents...)
+    open = collect_open_tree_documents(tree)
+    length(open) == length(documents) && all(document -> any(other -> other === document, open), documents)
+end
 
 function test_document_tree()
 @testset "a tree of documents" begin
@@ -368,10 +370,102 @@ function test_document_tree()
         @test sort(_DOCTREE_HOLD_EVENTS) == [(:acquire, "a"), (:release, "a"), (:release, "root")]
     end
 
+    @testset "one document at two places opens at each place on its own" begin
+        # The same document under two parents: two places, by the documents on
+        # their paths.
+        shared = _doctree_node("shared", _doctree_node("inside"))
+        first_parent = _doctree_node("first", shared)
+        second_parent = _doctree_node("second", shared)
+        root = _DocTreePair("root", CellVector(Any[first_parent]), CellVector(Any[second_parent]))
+        tree = DocumentTree(root)
+        tree.expanded = IdDict{Any,Any}(root => IdDict{Any,Any}(first_parent => IdDict{Any,Any}(),
+                                                                second_parent => IdDict{Any,Any}()))
+        iomap = print_document(projection, nothing, tree, nothing)
+        widget = iomap.output
+        @test widget.expanded == Set([[1], [1, 1], [1, 2]])
+        # The place under the first parent opens, and the one under the second stays
+        # closed.
+        open_first = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1]))
+        @test last(get_wrapped_operation(open_first).operations).acquired == Any[shared]
+        evaluate_operation(nothing, open_first)
+        @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 1, 1]])
+        @test haskey(tree.expanded[root][first_parent], shared) && !haskey(tree.expanded[root][second_parent], shared)
+        # The second place opens too, and the document is held once.
+        open_both = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1], [1, 2, 1]))
+        @test get_wrapped_operation(open_both) isa ReplaceReferencedValueOperation
+        evaluate_operation(nothing, open_both)
+        @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 1, 1], [1, 2, 1]])
+        # The first place closes; the document stays held, open at the second.
+        close_first = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 2, 1]))
+        @test get_wrapped_operation(close_first) isa ReplaceReferencedValueOperation
+        evaluate_operation(nothing, close_first)
+        @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 2, 1]])
+        # A node that comes before an open place leaves it open.
+        insert!(root.notes, 1, _doctree_node("note"))
+        @test widget.expanded == Set([[1], [1, 1], [1, 3], [1, 3, 1]])
+    end
+
+    @testset "the row of the current page has a mark" begin
+        root = _doctree_make()
+        current = Cell(nothing)
+        tree = DocumentTree(root; current)
+        widget = print_document(projection, nothing, tree, nothing).output
+        @test widget.current === nothing
+        current[] = _doctree_path(FieldReferenceStep("parts"), ElementReferenceStep(1))
+        @test widget.current == [1, 1]
+        # The empty path is the root, and a path into the document of a node marks
+        # that node.
+        current[] = EmptyReference()
+        @test widget.current == [1]
+        current[] = _doctree_path(FieldReferenceStep("notes"), ElementReferenceStep(1), FieldReferenceStep("name"))
+        @test widget.current == [1, 3]
+        # A function gives the path too.
+        @test print_document(projection, nothing, DocumentTree(root; current = () -> EmptyReference()),
+                             nothing).output.current == [1]
+    end
+
+    @testset "the keys of a tree move the selection and open and close a node" begin
+        root = _doctree_make()
+        tree = DocumentTree(root)
+        tree.expanded = IdDict{Any,Any}(root => IdDict{Any,Any}(root.parts[1] => IdDict{Any,Any}()))
+        editor, backend = _nav_editor(tree)
+        widget_selection() = (selection = getfield(tree, :selection)[];
+                              selection === nothing ? nothing : get_reference_steps(strip_reference_types(selection)))
+        press(key) = _nav_press!(editor, backend, KeyDown(key, ModifierKeys(); time = 0.0))
+        click = _nav_click(backend, "alpha")
+        @test click !== nothing
+        _nav_press!(editor, backend, click)
+        alpha_steps = get_reference_steps(_doctree_path(root_step, FieldReferenceStep("parts"), ElementReferenceStep(1)))
+        @test widget_selection() == alpha_steps
+        # Left closes the open node, and Right opens it again.
+        press(:left)
+        @test !_nav_has_text(backend, "alpha one")
+        press(:right)
+        @test _nav_has_text(backend, "alpha one")
+        # Right on an open node goes to its first child, and Left from a leaf goes up.
+        press(:right)
+        @test widget_selection() == vcat(alpha_steps, get_reference_steps(_doctree_path(FieldReferenceStep("children"),
+                                                                                        ElementReferenceStep(1))))
+        press(:left)
+        @test widget_selection() == alpha_steps
+        # End goes to the last row, Home to the root.
+        press(:end)
+        @test widget_selection() == get_reference_steps(_doctree_path(root_step, FieldReferenceStep("notes"),
+                                                                      ElementReferenceStep(1)))
+        press(:home)
+        @test widget_selection() == get_reference_steps(_doctree_path(root_step))
+        # Page Down moves by the rows that the view holds, at most to the last row.
+        press(:page_down)
+        @test widget_selection() == get_reference_steps(_doctree_path(root_step, FieldReferenceStep("notes"),
+                                                                      ElementReferenceStep(1)))
+        press(:page_up)
+        @test widget_selection() == get_reference_steps(_doctree_path(root_step))
+    end
+
     @testset "a change of one document computes its own node again, and no other" begin
         root = _doctree_make()
         tree = DocumentTree(root)
-        tree.expanded = IdDict{Any,Nothing}(root => nothing, root.parts[1] => nothing)
+        tree.expanded = IdDict{Any,Any}(root => IdDict{Any,Any}(root.parts[1] => IdDict{Any,Any}()))
         widget = print_document(projection, nothing, tree, nothing).output
         read_labels() = (node = widget.roots[1];
                          vcat([child.label for child in node.children],

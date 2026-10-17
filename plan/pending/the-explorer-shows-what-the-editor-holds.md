@@ -1,7 +1,7 @@
 # The explorer shows what the editor holds
 
 > **Status (2026-10-17): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`): step 1 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
+> `projectured-julia-explorer`): steps 1 and 2 done. **DESIGN DECIDED.** The owner decided Q0 to Q8 in §6 on
 > 2026-10-17, then asked for the decoration of a row (§5.14) and decided Q9 to
 > Q12 the same day. No step has started. The steps in §7 start only
 > when the owner asks for them. The owner refines the structure of the tree later.
@@ -305,8 +305,9 @@ in the explorer, with its parent and its breadcrumb.
   kind with a long collection gives it as a lazy list. "Open as a list" in the
   menu of a row (§5.8) opens the collection as a page: a table with lazy rows,
   with the filter and the sort of the arrangement. That a viewport holds the
-  documents of the rows that it shows is the plan
-  `plan/pending/a-viewport-holds-the-rows-it-shows.md`, and this plan adds
+  documents of the rows that it shows is on main since 2026-10-17
+  (`plan/done/a-viewport-holds-the-rows-it-shows.md`): the tree holds the
+  documents of its open places and of its shown rows, and this plan adds
   nothing to it.
 
 ### 5.7 The filter
@@ -933,9 +934,32 @@ before each edit of a kernel file. Mark each step done here.
      it now asserts "file explorer" names `WorkspaceExplorer`.
    - The exports of `TreeModule` follow the order of their definitions now, a
      guard violation that main has too.
-2. [ ] **The tree** (projectured). Open places (Q1), the mark of the current
+2. [x] **The tree** (projectured). Open places (Q1), the mark of the current
    page, and the keys Right, Left, Home, End, Page Up, Page Down. The lazy rows
    are on main and do not change. Test: `test_document_tree()`.
+   **Done 2026-10-17.** What the step found and decided:
+   - `DocumentTree.expanded` is the open places: an `IdDict` from the document
+     of each open node below a place to the `IdDict` of the places below it; the
+     root is the one key at the top. `collect_open_tree_documents(tree)` gives
+     the held documents, each once. A chevron write builds the places from the
+     index paths and holds or releases a document only when it opens at its
+     first place or closes at its last.
+   - One limit of places by documents: two siblings that are the same document
+     under one parent are one place, so they open together. The plan's case, one
+     document under two parents, opens at each place on its own.
+   - `DocumentTree.current` (a value, a cell or a function) is the path of the
+     node of the current page; `WidgetTree.current` is its index path, and each
+     row draws a bar of `current_width` (the theme's `stroke`) in
+     `current_color` (the theme's `primary`) at its left edge. A path into the
+     document of a node marks that node. The explorer passes the address of its
+     navigator.
+   - `WidgetTree` has the field `current` after `anchor`: a positional call that
+     passes the selection and the mouse target passes `current` before them.
+   - The keys take no modifier; Up and Down keep their old rule. End does
+     nothing in a lazy list of rows. Page Up and Page Down move by the height of
+     the output of the tree in rows, less one. The view does not scroll to the
+     new selection, as before (a limit of the file tree too).
+   - `tree.md` describes places, the mark and the keys.
 3. [ ] **The decoration of a document** (projectured, §5.14). `DocumentDecoration`
    and `get_document_decoration` in the domain slice, the table of the
    conditions, `WidgetIcon` and its printer, `WidgetTreeNode.badges` and

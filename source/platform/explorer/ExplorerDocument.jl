@@ -74,8 +74,13 @@ See also `ExplorerSection` and `get_session_explorer_content`.
     navigator::Any                    # Navigator
 end
 
-Explorer(content::ExplorerSection) =
-    Explorer(Cell(DocumentTree(content; title = "Explorer")), Cell(Navigator(content)))
+# The tree marks the row of the page that the navigator shows, also after a link
+# inside the page moves the navigator.
+function Explorer(content::ExplorerSection)
+    navigator = Navigator(content)
+    tree = DocumentTree(content; title = "Explorer", current = () -> get_navigator_page_address(navigator))
+    Explorer(Cell(tree), Cell(navigator))
+end
 
 get_document_title(::Explorer) = "Explorer"
 

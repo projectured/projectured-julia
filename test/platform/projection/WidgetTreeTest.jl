@@ -125,15 +125,21 @@ end
     @test op isa ReplaceSelectionOperation
 end
 
-@testset "each row draws its light band and its selection band" begin
+@testset "each row draws its light band, its selection band and the mark of the current page" begin
     w, io = _fresh()
     bands = _bands(io, 1)
-    @test length(bands) == 2                            # light + selection bands
-    @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
+    @test length(bands) == 3                            # light + selection bands + current mark
+    @test all(Int(r.h[]) == 0 for r in bands)           # none active yet
     # Row 1 the part under the pointer → one of its bands gains the row's height.
     getfield(w, :mouse_target)[] = _node([1])
     @test any(Int(r.h[]) == 20 for r in _bands(io, 1))
     @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
+    # The row that the tree names as current gets the mark: a narrow bar as high as
+    # the row, and no other row does.
+    w.current = io.geometry.rows[2].path
+    marks = [r for r in _bands(io, 2) if Int(r.w[]) < 10 && Int(r.h[]) == 20]
+    @test length(marks) == 1
+    @test all(Int(r.h[]) == 0 for r in _bands(io, 3))
 end
 
 @testset "a toggle keeps the canvas of each row that stays, and changes only its chevron" begin

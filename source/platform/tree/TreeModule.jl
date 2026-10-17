@@ -43,7 +43,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..WidgetModule: make_graphics_projection
 
 export get_tree_children_steps, format_tree_node_label, has_tree_children, get_tree_node_icon
-export DocumentTree
+export DocumentTree, collect_open_tree_documents
 export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap, collect_tree_children
 export show_document_tree!
 

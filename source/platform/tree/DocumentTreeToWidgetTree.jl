@@ -258,17 +258,19 @@ end
 
 # ── The open nodes ───────────────────────────────────────────────────────────
 
-# The index paths of the open nodes: from the root, through the open nodes only,
-# each node whose document is in `open`. A document that is on the path to its
-# own node again stays closed there, so a cycle of documents ends.
-function _compute_open_paths(root::_TreeEntry, open)
+# The index paths of the open nodes: from the root, through the open places only,
+# each node whose document is a key of the open places below its parent. A
+# document that is on the path to its own node again stays closed there, so a
+# cycle of documents ends.
+function _compute_open_paths(root::_TreeEntry, places)
     paths = Set{Vector{Int}}()
-    _collect_open_paths!(paths, root, open, Any[])
+    _collect_open_paths!(paths, root, places, Any[])
     paths
 end
 
-function _collect_open_paths!(paths, entry::_TreeEntry, open, above)
-    (haskey(open, entry.document) && !any(document -> document === entry.document, above)) || return
+function _collect_open_paths!(paths, entry::_TreeEntry, places, above)
+    below = get(places, entry.document, nothing)
+    (below !== nothing && !any(document -> document === entry.document, above)) || return
     push!(paths, entry.path)
     push!(above, entry.document)
     (entries, _) = _compute_tree_children_lists!(entry)
@@ -277,27 +279,57 @@ function _collect_open_paths!(paths, entry::_TreeEntry, open, above)
         # an open child showed its row.
         source = _find_lazy_tree_children(entry.document)
         _foreach_made_mirror_link(source, entries) do document, link
-            haskey(open, document) && _collect_open_paths!(paths, link.value, open, above)
+            haskey(below, document) && _collect_open_paths!(paths, link.value, below, above)
             true
         end
     else
         for k in 1:length(entries)
-            _collect_open_paths!(paths, entries[k], open, above)
+            _collect_open_paths!(paths, entries[k], below, above)
         end
     end
     pop!(above)
     nothing
 end
 
+# The open places of the index paths `paths`: for each path whose every prefix is
+# in `paths`, the documents of the entries along it, one level of the `IdDict`
+# for each. A path below a closed node opens no place.
+function _make_open_places(root::_TreeEntry, paths)
+    places = IdDict{Any,Any}()
+    for path in sort!(collect(paths); by = length)
+        all(level -> path[1:level] in paths, 1:(length(path) - 1)) || continue
+        level_places = places
+        entry = nothing
+        for depth in eachindex(path)
+            entry = _find_tree_entry(root, path[1:depth])
+            entry === nothing && break
+            level_places = get!(() -> IdDict{Any,Any}(), level_places, entry.document)
+        end
+    end
+    places
+end
+
+# The index path of the node whose document is at `reference` from the root, or of
+# the nearest node above it when `reference` goes on into the document of a node,
+# or `nothing`. A row that does not show draws no mark.
+function _find_current_node_path(root::_TreeEntry, reference)
+    reference isa Reference || return nothing
+    path = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("root")),
+                             strip_reference_types(reference))
+    widget_reference = _map_node_path_forward(root, path)
+    widget_reference isa ConcreteReference ? _find_node_indices(widget_reference) : nothing
+end
+
 # The writes of the open nodes and of the shown rows of the widget, which a chevron
-# and a scroll make, as writes of the tree document: the documents of the nodes
-# at the paths that each write gives, so the tree holds no document that left it.
-# The tree then holds the documents of its open nodes and of its shown rows
-# together, and no longer those that left both, in the same write of view state,
-# so an undo records none of it. The answer is that write and the other parts of
-# the operation, such as a scroll, which the reader maps as it maps any answer;
-# the write of the shown rows of the widget stays among them, so the widget keeps
-# the rows that it wrote. `nothing` for an operation that writes neither.
+# and a scroll make, as writes of the tree document: the open places of the paths
+# that the write of the open nodes gives, and the documents of the nodes at the
+# paths that the write of the shown rows gives, so the tree holds no document that
+# left it. The tree then holds the documents of its open nodes and of its shown
+# rows together, and no longer those that left both, in the same write of view
+# state, so an undo records none of it. The answer is that write and the other
+# parts of the operation, such as a scroll, which the reader maps as it maps any
+# answer; the write of the shown rows of the widget stays among them, so the widget
+# keeps the rows that it wrote. `nothing` for an operation that writes neither.
 function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
     parts = operation isa CompoundOperation ? operation.operations : Any[operation]
     (open_paths, shown_paths, others) = (nothing, nothing, Any[])
@@ -310,17 +342,16 @@ function _read_open_node_write(iomap::DocumentTreeToWidgetTreeIoMap, operation)
     (open_paths === nothing && shown_paths === nothing) && return nothing
     tree = iomap.input
     root = iomap.root_entry
-    open = open_paths === nothing ? tree.expanded :
-           _collect_entry_documents(root, open_paths)
+    places = open_paths === nothing ? tree.expanded : _make_open_places(root, open_paths)
     shown = shown_paths === nothing ? tree.shown :
             _collect_entry_documents(root, shown_paths; make = true)
     writes = Any[]
     open_paths === nothing ||
-        push!(writes, ReplaceReferencedValueOperation(tree, "expanded", open))
+        push!(writes, ReplaceReferencedValueOperation(tree, "expanded", places))
     shown_paths === nothing ||
         push!(writes, ReplaceReferencedValueOperation(tree, "shown", shown))
-    before = merge(IdDict{Any,Nothing}(), tree.expanded, tree.shown)
-    after = merge(IdDict{Any,Nothing}(), open, shown)
+    before = merge!(_collect_open_documents!(IdDict{Any,Nothing}(), tree.expanded), tree.shown)
+    after = merge!(_collect_open_documents!(IdDict{Any,Nothing}(), places), shown)
     acquired = Any[document for document in keys(after) if !haskey(before, document)]
     released = Any[document for document in keys(before) if !haskey(after, document)]
     (isempty(acquired) && isempty(released)) ||
@@ -366,14 +397,15 @@ function print_document(p::DocumentTreeToWidgetTree, recursion, tree::DocumentTr
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
     # expanded, gestures, scroll_position, vertical_scroll_bar,
-    # horizontal_scroll_bar, tooltip, anchor, shown, selection, mouse target.
-    # The open nodes follow the tree document. The tree scrolls itself in the slot
-    # that its parent offers.
+    # horizontal_scroll_bar, tooltip, anchor, shown, current, selection, mouse
+    # target. The open nodes follow the tree document. The tree scrolls itself in
+    # the slot that its parent offers.
     widget = WidgetTree(Cell(Point2D(0, 0)), roots, Cell(true),
                         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(@computation _compute_open_paths(root_entry[], tree.expanded)),
                         Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
                         Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()),
+                        Cell(@computation _find_current_node_path(root_entry[], tree.current)),
                         paths.selection, paths.mouse_target)
     DocumentTreeToWidgetTreeIoMap(p, tree, widget, root_entry)
 end

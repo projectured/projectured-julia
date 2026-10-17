@@ -3077,6 +3077,10 @@ the head.
 its view shows, which the tree writes beside each scroll and each toggle. A
 projection that shows documents as the rows of a tree reads that write, as it
 reads a write of `expanded`.
+
+`current` is the node path of the row that has the mark of the current page, or
+`nothing`: an owner computes it, such as a tree of documents beside a navigator,
+whose page is the document of that row.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
@@ -3094,6 +3098,7 @@ reads a write of `expanded`.
     tooltip::Any
     anchor::Any = nothing        # view state: the row at the head of a lazy list of rows
     shown::Set{Vector{Int}} = Set{Vector{Int}}()  # view state: the rows in view
+    current::Any = nothing       # view state: the node path of the row of the current page
 end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,

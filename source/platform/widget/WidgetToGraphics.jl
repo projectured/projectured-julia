@@ -11554,6 +11554,8 @@ end
     row_radius::Int               # corner radius of the hover and the selection band
     label_gap::Int                # between an icon column widened for a glyph and its label
     icon_size::Float64           # times the box of a named icon, one line of the label
+    current_color::StyleColor     # the mark at the left edge of the row of the current page
+    current_width::Int            # the width of that mark
 end
 
 WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -11572,11 +11574,13 @@ WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            chevron_size = _themed(Int, theme, t -> t.chevron),
                            row_radius = _themed(Int, theme, t -> t.radius_small),
                            label_gap = _themed(Int, theme, t -> t.label_gap),
-                           icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                           icon_size = _themed(Float64, theme, t -> t.icon_size),
+                           current_color = _themed(StyleColor, theme, t -> t.primary),
+                           current_width = _themed(Int, theme, t -> t.stroke)) =
     WidgetTreeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                content_color, label_text, icon_text, chevron_color, row_selected_color,
                                layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size,
-                               row_radius, label_gap, icon_size)
+                               row_radius, label_gap, icon_size, current_color, current_width)
 
 # A node is a WidgetTreeNode (icon + label + children) or a leaf label (String).
 # A leaf reports an empty icon.
@@ -12092,6 +12096,15 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         i === nothing ? Int32(0) : Int32(g.rows[i].y0)
     end
 
+    # The mark of the row of the current page: a bar at the left edge of the row, as
+    # high as the row while the tree names the row as its current one. It reads
+    # `current` in a cell of its own, so a move of the page redraws two marks.
+    function make_current_mark(row::WTreeRow)
+        mark = GraphicsRect(0, 0, Int32(p.current_width), 0; color = p.current_color, radius = 0)
+        set_cell_computation!(getfield(mark, :h), () -> Int32(w.current == row.path ? row.height : 0))
+        mark
+    end
+
     # The canvas of each row that was drawn, kept by the path of the row. A toggle
     # computes the rows again, and a row that stays keeps its canvas: the top of
     # the canvas reads where its path is now. So a partial repaint paints a row
@@ -12130,7 +12143,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             end
             push!(result,
                   make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
-                  make_band(row, row_selected_color, () -> w.selection))
+                  make_band(row, row_selected_color, () -> w.selection),
+                  make_current_mark(row))
             x = row.depth * indent
             if _wtree_has_children(node)
                 _push_open_chevron!(result, x + chevron_column ÷ 2, row.height ÷ 2, chevron_size,
@@ -12565,12 +12579,60 @@ function _count_wtree_rows_before(w::WidgetTree, expanded, path::Vector{Int})
     count
 end
 
+# Up and Down move the selection by one row. With no modifier, Right opens a closed
+# node and goes into an open one, Left closes an open node and goes up from any
+# other, Home and End go to the first and the last row, and Page Up and Page Down
+# move by the rows that the view holds.
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
-    g.key in (:up, :down) || return nothing
     w = iomap.input
     selected = _wtree_ref_path(w.selection)
-    path = _find_wtree_neighbor_path(iomap.geometry, w, selected, g.key === :down)
+    if g.key in (:up, :down)
+        path = _find_wtree_neighbor_path(iomap.geometry, w, selected, g.key === :down)
+    elseif _has_any_modifier_key(g.modifiers)
+        return nothing
+    elseif g.key in (:right, :left)
+        selected === nothing && return nothing
+        node = _find_wtree_node(iomap.geometry, w, selected)
+        node === nothing && return nothing
+        is_open = selected in w.expanded && _wtree_has_children(node)
+        if g.key === :right
+            _wtree_has_children(node) || return nothing
+            is_open || return _wtree_toggle_expanded(iomap, selected)
+            path = _find_wtree_path_after(w, selected)
+        else
+            is_open && return _wtree_toggle_expanded(iomap, selected)
+            path = length(selected) > 1 ? selected[1:(end - 1)] : nothing
+        end
+    elseif g.key === :home
+        path = _find_first_tree_child(w.roots) === nothing ? nothing : [1]
+    elseif g.key === :end
+        geometry = iomap.geometry
+        # A lazy list of rows can have no end, so End goes to the last row only of
+        # rows that are laid out.
+        path = geometry isa WTreeGeometry && !isempty(geometry.rows) ? geometry.rows[end].path : nothing
+    elseif g.key in (:page_up, :page_down)
+        selected === nothing && return nothing
+        path = selected
+        for _ in 1:_count_wtree_page_rows(iomap)
+            step = g.key === :page_down ? _find_wtree_path_after(w, path) : _find_wtree_path_before(w, path)
+            step === nothing && break
+            path = step
+        end
+    else
+        return nothing
+    end
     path === nothing ? nothing : ReplaceSelectionOperation(_wtree_path_ref(path))
+end
+
+_has_any_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifiers.alt || modifiers.meta
+
+# How many rows Page Up and Page Down move: the rows that the view of the tree
+# holds, less one, so one row of the page before stays in view. The view is the
+# one that a pane offers, else the canvas of the tree.
+function _count_wtree_page_rows(iomap::WidgetTreeToGraphicsCanvasIoMap)
+    row_height = iomap.geometry.row_height
+    row_height > 0 || return 1
+    max(1, Int(something(iomap.view_height, iomap.output.h)) ÷ row_height - 1)
 end
 
 # The path of the row after the row of `path` (`down`), or before it: the first

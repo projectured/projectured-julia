@@ -15,7 +15,9 @@ tree = DocumentTree(plan; title = "Steps")
 show_document_tree!(plan; title = "Steps")        # the same, in a tab of the window
 ```
 
-The open nodes are `expanded`, an `IdDict` whose keys are the documents of the open nodes. A node is open by the identity of its document and not by its index, so a node that comes or goes before another node does not change which nodes are open. The root is open at the start. `expanded` is view state: a write replaces the whole `IdDict` as view state, so the undo history records no open or closed node, and a file keeps the root and the title and no open node. The `IdDict` is a dictionary, because a walk of the documents enters a dictionary by its values. A `Base.IdSet` keeps its keys in a field that the walk enters, and `search_documents` would find each open document a second time.
+The open nodes are `expanded`, the open places: an `IdDict` whose keys are the documents of the open nodes below one place, each with the `IdDict` of the open places below it, and whose one key at the top is the root. A place is open by the identity of the documents on its path and not by its indices, so a node that comes or goes before another node does not change which nodes are open, and one document under two parents opens at each place on its own. Two siblings that are the same document under one parent are the same place, so they open together. The root is open at the start. `expanded` is view state: a write replaces the whole `IdDict` as view state, so the undo history records no open or closed node, and a file keeps the root and the title and no open node. `collect_open_tree_documents(tree)` gives the documents of the open nodes, each once. The `IdDict` is a dictionary, because a walk of the documents enters a dictionary by its values. A `Base.IdSet` keeps its keys in a field that the walk enters, and `search_documents` would find each open document a second time.
+
+`current` is the path from the root of the node whose row has the mark of the current page, or `nothing`. It is a value, a cell, or a function of no argument, whose answer the tree follows. The row of that node draws a narrow bar at its left edge; a path that goes on into the document of a node marks that node. An explorer gives the address of the page of its navigator, so the mark follows the page also after a link inside the page.
 
 ### Four generics make a document a node
 
@@ -69,6 +71,10 @@ A `DocumentTree` holds the documents of its open nodes and of the rows that its 
 
 The widget writes the rows of its view as it writes its open nodes: beside each scroll and each toggle, `shown` of the widget gets the paths of the rows that the view shows after the answer. The reader turns that write into `shown` of the tree, the documents of those rows, and changes the holds once against the open and the shown documents together, so a node that closes while it is shown stays held. A document that comes into view starts what it needs, such as the read of the details of a run, and one that leaves the view is released. A tree whose view told it no row yet holds the first fifty children of each open lazy list of children at its acquire. A window that grows, or a list that changes by itself, writes no `shown`, so the rows that come into view that way are held at the next scroll or toggle ([plan/done/a-viewport-holds-the-rows-it-shows.md](../../../../plan/done/a-viewport-holds-the-rows-it-shows.md)).
 
+### The keys
+
+Up and Down move the selection by one row. With no modifier, Right opens a closed node and goes to the first child of an open one, Left closes an open node and goes to the parent of any other, Home and End go to the first and the last row, and Page Up and Page Down move by the rows that the view holds, less one. End does nothing in a tree whose rows are a lazy list, which can have no end.
+
 ### A node opens a page
 
 Return while a node is selected, and a double click on a node, answer `OpenPageOperation(nothing, <path of the node>)`. A first press still selects the node, because only a press with the count two matches the binding. A node answers in the frame of the widget: the reader of the widget tree does not put the path of the node before the answer. So the binding of a node names its own path, `roots[1].children[k]…`, and `DocumentTreeToWidgetTree` maps it to the path of the document.
@@ -95,7 +101,7 @@ These slices add kinds of node:
 ## Design decisions
 
 - **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the four generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
-- **A node is open by the identity of its document.** An open node that a path of indices names would name another node after an insert.
+- **A place is open by the documents on its path.** An open node that a path of indices names would name another node after an insert, and an open node that only its document names would open at every place of the document. The owner chose places on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/pending/the-explorer-shows-what-the-editor-holds.md), Q1).
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.
 

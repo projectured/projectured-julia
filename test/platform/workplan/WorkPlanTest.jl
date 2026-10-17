@@ -106,9 +106,9 @@ function test_work_plan()
                                                          _workplan_path(FieldReferenceStep("children"), ElementReferenceStep(1))))
         # The tree keeps its open nodes when the plan is drawn again, and the view
         # follows the plan.
-        tree.expanded = IdDict{Any,Nothing}(plan => nothing, plan.steps[2] => nothing)
+        tree.expanded = IdDict{Any,Any}(plan => IdDict{Any,Any}(plan.steps[2] => IdDict{Any,Any}()))
         again = print_document(projection, nothing, plan, nothing).output
-        @test again.children[3].child === tree && haskey(tree.expanded, plan.steps[2])
+        @test again.children[3].child === tree && haskey(tree.expanded[plan], plan.steps[2])
         plan.steps[3].status = :completed
         @test parts[1].content == "3 of 7 completed, 1 in progress, 1 pending, 1 skipped, 1 deferred"
         @test parts[2].child.value ≈ 3 / 7

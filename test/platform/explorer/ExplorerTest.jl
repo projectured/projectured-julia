@@ -103,6 +103,8 @@ function test_explorer()
         _nav_press!(editor, backend, click)
         @test get_navigator_page(navigator) === alpha
         @test _nav_is(navigator.address, _explorer_entry_path(1))
+        # The tree marks the row of the page.
+        @test _nav_is(explorer.tree.current, _explorer_entry_path(1))
         selection = getfield(explorer, :selection)[]
         @test selection isa ConcreteReference && get_reference_head(selection) == FieldReferenceStep("tree")
     end
@@ -144,6 +146,8 @@ function test_explorer()
         _nav_press!(editor, backend, link)
         @test get_navigator_page(navigator) === beta
         @test _nav_is(navigator.address, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
+        # The mark of the tree follows a link inside the page.
+        @test _nav_is(explorer.tree.current, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
     end
 
     @testset "the page and the tree follow the entries" begin
