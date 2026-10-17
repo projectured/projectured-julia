@@ -1,6 +1,6 @@
 # A view document keeps the state of one view
 
-Status: DESIGN, decided. No step has started.
+Status: IN PROGRESS. Step 1 is done.
 
 ## The ask
 
@@ -110,9 +110,17 @@ shows, because it holds the rows that its table shows.
 
 Each step is one commit with its tests, in a worktree. Mark each step done here.
 
-1. [ ] **The rule.** A section "Content documents and view documents" in
+1. [x] **The rule.** A section "Content documents and view documents" in
    `documentation/rule/architecture-rules.md`, the term in `concepts.md`, and the
    sentence of the suffix in `naming-rules.md`. Test: `test_documentation()`.
+
+   Done 2026-10-17. The guides of projectured name no type of omnet-julia, so the
+   rule names only projectured examples: `FileSystemDirectory` and
+   `WorkspaceExplorer`, `ChartPlot`, `DataFrameView`, `DocumentTree`, `Navigator`,
+   `FilePage`; the suffix sentence names `DataFrameView` and `FindBarView`. The fold
+   is written as the exception that the code has: `collapsed` on the content types.
+   `test/suite/documentation.jl`: every document keeps the rules; no line of the
+   new text is in the report for a person.
 2. [ ] **The lazy table says which rows its view shows.** `WidgetTable.shown`, view
    state: the rows in view, counted from the head, as a range. The table writes it
    beside each scroll and each move of its head, when it changes, as it writes

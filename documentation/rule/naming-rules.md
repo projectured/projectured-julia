@@ -235,6 +235,11 @@ alongside it.
   fields are plain. That is the whole of what distinguishes `MCFoo` from `MFoo`: the
   first is an immutable struct holding one `MutableCell` box per field, the
   second a single mutable object with its fields inline.
+- **A view document of one kind of content takes the `View` suffix**:
+  `DataFrameView`, `FindBarView`. It keeps how one view shows its content, apart
+  from the content ([architecture-rules.md](architecture-rules.md)). A view that is a
+  tool of its own keeps its own name: `DocumentTree`, `Navigator`,
+  `WorkspaceExplorer`.
 - **Operations are verb-first phrases with the `Operation` suffix**:
   `ReplaceSelectionOperation`, `OpenWindowOperation`,
   `ReplaceNumberRangeOperation`. Even the null operation is verb-first:

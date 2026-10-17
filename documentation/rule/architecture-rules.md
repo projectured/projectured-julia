@@ -248,6 +248,46 @@ can express them.
   loudly instead. `FakeLlm` / `ScriptedLlm` live in `ProjecturedKernelExample`,
   not in kernel `main`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
 
+## Content documents and view documents
+
+A document is either content or a view of content. The two kinds keep different
+state, and the code keeps them apart.
+
+- **A content document says what a thing is**, and what was read about it from
+  outside, with the state of that read. An editor has one content document for each
+  thing, and every view of the thing shares it. A folder (`FileSystemDirectory`)
+  keeps its listing, its read state and its watch. A chart keeps its series and its
+  axes.
+- **A view document says how one view shows content**: the open nodes, the head of
+  a lazy list, the rows in view, a filter, a sort, a fold, the current part. Each
+  view has its own, and a view with places has one for each place.
+  `WorkspaceExplorer` keeps the open folders, `ChartPlot` the zoom and the cursor,
+  `DataFrameView` the anchor, the filter and the sort, `DocumentTree` the open and
+  the shown nodes, and `Navigator` the address and the visits.
+- **Two views of one thing differ.** Two charts of one series zoom apart, and two
+  explorers of one folder open apart. State that every view of a thing shares is
+  content.
+- **A view document names the content that it shows** with `get_edited_field`, so a
+  path into the content goes through the view, as it goes through a `FilePage`.
+- **A view document holds the content that it shows**, with `hold_documents!` in
+  its `acquire_document!`, and something holds the view document only while it
+  shows. So a read of outside state follows the views by the count of the holders,
+  and the content reads once for all of them. An explorer owns what a person
+  controls, and shares what it reads
+  ([filesystem.md](../package/platform/filesystem/filesystem.md)).
+- **A save of content writes no view state.** A view document can save its own
+  state apart.
+- **The reader of a gesture still marks a write as view state**
+  ([undo.md](../package/platform/undo/undo.md)), not the type of the document: a
+  view document can itself be edited as content, as a person edits the folders of a
+  workspace.
+- **A view document of one kind of content takes the suffix `View`**
+  ([naming-rules.md](naming-rules.md)).
+
+A fold is the exception: the content types of the text and data domains keep it in
+their `collapsed` field, so two views of one document fold together, and a save
+writes the fold.
+
 ## Enforcement
 
 Every main package has a static guard that parses the real `import ..Module`
