@@ -12,8 +12,10 @@ function format_tree_node_label(document)
     document isa Document ? compute_item_facet(document, Val(:type)) : string(nameof(typeof(document)))
 end
 
-# A node has children when a collection of its children has an element.
-has_tree_children(document) = _count_tree_children(document) > 0
+# A node has children when a collection of its children has an element, or when
+# its children are a lazy list, which has a node at its head.
+has_tree_children(document) =
+    _count_tree_children(document) > 0 || _find_lazy_tree_children(document) !== nothing
 
 # A document shows no icon unless its slice gives one.
 get_tree_node_icon(document) = nothing

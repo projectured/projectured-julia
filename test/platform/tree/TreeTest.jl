@@ -17,6 +17,12 @@ end
     notes::CellVector
 end
 
+# A node whose children are a lazy list.
+@document struct _DocTreeLazy
+    name::String
+    children::Any
+end
+
 # A document that says nothing of itself.
 @document struct _DocTreeLeaf
     value::Int
@@ -54,6 +60,7 @@ const _DOCTREE_LABEL_COUNTS = IdDict{Any,Int}()
 TreeModule.get_tree_children_steps(::_DocTreeNode) = ((FieldReferenceStep("children"),),)
 TreeModule.get_tree_children_steps(::_DocTreeHeld) = ((FieldReferenceStep("children"),),)
 TreeModule.get_tree_children_steps(::_DocTreeKnown) = ((FieldReferenceStep("children"),),)
+TreeModule.get_tree_children_steps(::_DocTreeLazy) = ((FieldReferenceStep("children"),),)
 TreeModule.has_tree_children(node::_DocTreeKnown) = node.known
 TreeModule.get_tree_children_steps(::_DocTreePair) = ((FieldReferenceStep("parts"),), (FieldReferenceStep("notes"),))
 TreeModule.get_tree_node_icon(::_DocTreePair) = :folder
@@ -195,6 +202,42 @@ function test_document_tree()
         @test widget.expanded == Set([[1]])
         evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 3])))
         @test _doctree_is_open(tree, root, root.notes[1])
+    end
+
+    @testset "a node whose children are a lazy list makes the entries that the rows reach" begin
+        made = Ref(0)
+        runs = make_index_list(1_000_000, 1, k -> (made[] += 1; _doctree_node("run $k")))
+        lazy = _DocTreeLazy("runs", runs)
+        root = _doctree_node("root", lazy)
+        tree = DocumentTree(root)
+        iomap = print_document(projection, nothing, tree, nothing)
+        widget = iomap.output
+        @test has_tree_children(lazy)
+        # The open of the lazy node makes no child.
+        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1])))
+        @test _doctree_is_open(tree, root, lazy) && made[] <= 1
+        # The children of its node are a lazy list: a walk of twenty rows makes
+        # twenty children.
+        children = widget.roots[1].children[1].children
+        @test children isa ListNode
+        link = children
+        for _ in 1:19
+            link = link.next
+        end
+        @test link.value.label == "run 20" && made[] <= 21
+        # A path maps both ways, counted from the head of the list.
+        @test _nav_is(map_reference_backward(projection, iomap, _doctree_node_path(1, 1, 5)),
+                      _doctree_path(root_step, FieldReferenceStep("children"), ElementReferenceStep(1),
+                                    FieldReferenceStep("children"), ElementReferenceStep(5)))
+        run_five = _doctree_path(root_step, FieldReferenceStep("children"), ElementReferenceStep(1),
+                                 FieldReferenceStep("children"), ElementReferenceStep(5))
+        @test _nav_is(map_reference_forward(projection, iomap, run_five), _doctree_node_path(1, 1, 5))
+        # A chevron on a child that a walk made opens it and holds its document.
+        write = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 1, 3]))
+        @test last(get_wrapped_operation(write).operations).acquired == Any[runs[3]]
+        evaluate_operation(nothing, write)
+        @test widget.expanded == Set([[1], [1, 1], [1, 1, 3]])
+        @test made[] <= 21
     end
 
     @testset "a node draws a chevron only when its document is known to have children" begin

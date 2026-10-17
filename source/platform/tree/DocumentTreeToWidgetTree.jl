@@ -38,12 +38,14 @@ end
 # the node in the tree, the entries of its children, and the widget nodes of its
 # children. Both lists compute one element at a time, at its first read. A change
 # of the collections of a node makes new entries for its children, so an entry
-# stays at one path.
+# stays at one path. For a document whose children are a lazy list, `mirror` holds
+# that list and the two lists that mirror it (`_get_tree_children_lists`).
 struct _TreeEntry
     document::Any
     path::Vector{Int}
     entries::CellVector
     nodes::CellVector
+    mirror::Base.RefValue{Any}
 end
 
 # The entry of `document` at the index path `path`. The widget node of a child
@@ -54,13 +56,85 @@ function _make_tree_entry(document, path::Vector{Int})
     entries = CellVector(@computation(1:_count_tree_children(document));
                          element = k -> _make_tree_entry(_get_tree_child(document, k), vcat(path, k)))
     nodes = CellVector(@computation(1:length(entries)); element = k -> _make_tree_node(entries[k]))
-    _TreeEntry(document, path, entries, nodes)
+    _TreeEntry(document, path, entries, nodes, Ref{Any}(nothing))
 end
 
-_make_tree_node(entry::_TreeEntry) =
-    WidgetTreeNode(get_tree_node_icon(entry.document), _format_node_line(entry.document),
-                   entry.nodes; gestures = _make_open_page_bindings(entry.path),
+function _make_tree_node(entry::_TreeEntry)
+    (_, nodes) = _get_tree_children_lists(entry)
+    label = _format_node_line(entry.document)
+    WidgetTreeNode(get_tree_node_icon(entry.document), label, nodes;
+                   gestures = _make_open_page_bindings(entry.path),
                    has_children = () -> has_tree_children(entry.document) === true)
+end
+
+# The lazy list of the children of `document`: its one collection of children,
+# when that collection is a `ListNode`, or `nothing`. A lazy list has no count,
+# so it is the only collection of its node; a lazy list beside another
+# collection gives no children.
+function _find_lazy_tree_children(document)
+    collections = _collect_tree_collections(document)
+    length(collections) == 1 || return nothing
+    collection = last(only(collections))
+    collection isa ListNode ? collection : nothing
+end
+
+# The entries and the nodes of the children of `entry`: its laid-out lists, or, for
+# a document whose children are a lazy list, two lists that mirror that list node
+# for node, made when a walk first reaches a node, and made again when the
+# document gives a new list. The count of a child in a lazy list is its count
+# from the head of the list.
+function _get_tree_children_lists(entry::_TreeEntry)
+    list = _find_lazy_tree_children(entry.document)
+    list === nothing && return (entry.entries, entry.nodes)
+    mirror = entry.mirror[]
+    mirror !== nothing && first(mirror) === list && return (mirror[2], mirror[3])
+    make_entry(link, k, _, _) = _make_tree_entry(link.value, vcat(entry.path, k))
+    entries = make_mapped_list(make_entry, list; computed = true)
+    make_node(link, _, _, _) = _make_tree_node(link.value)
+    nodes = make_mapped_list(make_node, entries; computed = true)
+    entry.mirror[] = (list, entries, nodes)
+    (entries, nodes)
+end
+
+# The value of the node `k` of the list `head`, counted from the head, when the
+# walks of the list already reached that node, else `nothing`: it reads no link
+# that a walk did not read, so it makes no node.
+function _find_made_list_value(head::ListNode, k::Int)
+    link = head
+    direction = k >= 1 ? :next : :prev
+    for _ in 1:abs(k - 1)
+        cell = getfield(link, direction)
+        is_cell_valid(cell) || return nothing
+        link = cell[]
+        link === nothing && return nothing
+    end
+    link.value
+end
+
+# Each value of the nodes of the list `head` that its walks reached: from the head
+# each way, as far as the links that a walk read.
+function _foreach_made_list_value(f, head::ListNode)
+    f(head.value)
+    for direction in (:next, :prev)
+        link = head
+        while true
+            cell = getfield(link, direction)
+            is_cell_valid(cell) || break
+            link = cell[]
+            link === nothing && break
+            f(link.value)
+        end
+    end
+    nothing
+end
+
+# The entry of the child `k` of `entry`, or `nothing`: in a lazy list, only a child
+# that a walk made.
+function _find_child_entry_at(entry::_TreeEntry, k::Int)
+    (entries, _) = _get_tree_children_lists(entry)
+    entries isa ListNode && return _find_made_list_value(entries, k)
+    1 <= k <= length(entries) ? entries[k] : nothing
+end
 
 # The text of a node is one line: each line break of the label, with the blanks
 # around it, is a space.
@@ -73,7 +147,9 @@ _collect_tree_collections(document) =
     Any[steps => try_evaluate_reference(document, extend_reference(EmptyReference(), steps...), nothing)
         for steps in get_tree_children_steps(document)]
 
-_get_collection_length(collection) = collection === nothing ? 0 : length(collection)
+# A lazy list has no count, so it gives no laid-out child.
+_get_collection_length(collection) =
+    collection === nothing || collection isa ListNode ? 0 : length(collection)
 
 _count_tree_children(document) =
     sum((_get_collection_length(last(entry)) for entry in _collect_tree_collections(document)); init = 0)
@@ -99,8 +175,8 @@ function _find_tree_entry(root::_TreeEntry, path)
     (isempty(path) || path[1] != 1) && return nothing
     entry = root
     for k in path[2:end]
-        (1 <= k <= length(entry.entries)) || return nothing
-        entry = entry.entries[k]
+        entry = _find_child_entry_at(entry, k)
+        entry === nothing && return nothing
     end
     entry
 end
@@ -136,8 +212,15 @@ function _collect_open_paths!(paths, entry::_TreeEntry, open, above)
     (haskey(open, entry.document) && !any(document -> document === entry.document, above)) || return
     push!(paths, entry.path)
     push!(above, entry.document)
-    for k in 1:length(entry.entries)
-        _collect_open_paths!(paths, entry.entries[k], open, above)
+    (entries, _) = _get_tree_children_lists(entry)
+    if entries isa ListNode
+        # Only a child that a walk made can be open: an open child shows its row.
+        collect_open!(child) = _collect_open_paths!(paths, child, open, above)
+        _foreach_made_list_value(collect_open!, entries)
+    else
+        for k in 1:length(entries)
+            _collect_open_paths!(paths, entries[k], open, above)
+        end
     end
     pop!(above)
     nothing
@@ -240,6 +323,18 @@ end
 # collection of its document and an index in it. The answer is the entry and the
 # place after those steps, or `nothing`.
 function _find_child_entry(entry::_TreeEntry, steps, at::Int)
+    if _find_lazy_tree_children(entry.document) !== nothing
+        (collection_steps, _) = only(_collect_tree_collections(entry.document))
+        index_at = at + length(collection_steps)
+        index_at <= length(steps) || return nothing
+        is_step(j) = steps[at + j - 1] == collection_steps[j]
+        all(is_step, eachindex(collection_steps)) || return nothing
+        index = steps[index_at]
+        index isa RangeReferenceStep || return nothing
+        is_element_reference_step(index) || return nothing
+        child = _find_child_entry_at(entry, index.start + 1)
+        return child === nothing ? nothing : (child, index_at + 1)
+    end
     offset = 0
     for (collection_steps, collection) in _collect_tree_collections(entry.document)
         count = _get_collection_length(collection)
@@ -291,13 +386,21 @@ function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTree
     indices[1] == 1 || return nothing
     entry = iomap.root_entry
     steps = Any[FieldReferenceStep("root")]
-    for k in indices[2:end]
-        place = _find_tree_child_place(entry.document, k)
-        place === nothing && return nothing
-        (collection_steps, _, i) = place
+    for (n, k) in enumerate(indices[2:end])
+        if _find_lazy_tree_children(entry.document) !== nothing
+            # A child of a lazy list is its node `k` from the head of the list.
+            (collection_steps, _) = only(_collect_tree_collections(entry.document))
+            i = k
+        else
+            place = _find_tree_child_place(entry.document, k)
+            place === nothing && return nothing
+            (collection_steps, _, i) = place
+        end
         append!(steps, collection_steps)
         push!(steps, ElementReferenceStep(i))
-        entry = entry.entries[k]
+        n == length(indices) - 1 && break
+        entry = _find_child_entry_at(entry, k)
+        entry === nothing && return nothing
     end
     extend_reference(EmptyReference(), steps...)
 end

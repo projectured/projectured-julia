@@ -176,10 +176,25 @@ Each step is one commit with its tests, in a worktree.
     82, `test_filesystem_to_widget`, `test_file_dialog` 22, `test_tree_render` 9,
     `test_widget_rows_scroll`. Rows passed by a scroll are made once each: a lazy
     list of children has no jump.
-- [ ] **3. A document tree with a lazy collection.** `DocumentTreeToWidgetTree`
+- [x] **3. A document tree with a lazy collection.** `DocumentTreeToWidgetTree`
   maps a `ListNode` collection lazily; the open nodes and their holders work
   through it. Tests: `TreeTest`, and a document with 1,000,000 lazy children
   whose open makes only the entries that the rows reach.
+
+  What step 3 made:
+  - A document whose one collection of children is a `ListNode` has its entries
+    and its nodes as two lists that mirror that list node for node
+    (`make_mapped_list`, computed), made again when the document gives a new
+    list. A lazy list beside another collection gives no children, because it
+    has no count.
+  - The open nodes are found among the entries that a walk made: a child that no
+    walk reached has no row, so it can not be open. The entry at a path, the
+    forward map and the backward map count a child of a lazy list from its head,
+    and they read no link that a walk did not read.
+  - `has_tree_children` by default is true for a lazy list of children.
+  - Tests: `test_document_tree` 91 (a new testset), the navigator suites,
+    `test_widget_tree` 75, `test_file_dialog` 22, `test_filesystem_to_widget`,
+    `test_tree_render`, `test_widget_rows_scroll`.
 - [ ] **4. The guides:** `tree.md`, the guide of the widgets of a tree, and the
   guide of the lazy list.
 
