@@ -43,15 +43,18 @@ import ..DomainModule: acquire_document!, release_document!, accepts_opened_file
                        get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..NavigatorModule: find_navigator_address
 import ..OperationModule: evaluate_operation, make_inverse_operation
+import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, get_tree_node_icon, is_explorer_entry_type
 import ..WidgetModule: make_graphics_projection
 
+export ExplorerFilter
 export ExplorerSection, Explorer, get_session_explorer_content
 export ExplorerToWidget
 export ExplorerSectionToWidget
 export get_explorer_content_file, save_explorer_content!, load_explorer_content
 
+include("ExplorerFilter.jl")
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")

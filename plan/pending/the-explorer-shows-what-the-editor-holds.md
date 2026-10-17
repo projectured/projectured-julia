@@ -1217,6 +1217,42 @@ before each edit of a kernel file. Mark each step done here.
        edge `serialization`.
 6. [ ] **The filter.** The quick filter, the kinds, and the search below a node as
    a task.
+   - [x] **6a. The quick filter and `+`** (2026-10-17). `ExplorerFilter(; text,
+     kinds)` is the field `filter` of `Explorer`, view state: the reader of the
+     view marks each edit of it as view state, so an undo records none. While the
+     filter keeps rows out, the field `matches` holds a second `DocumentTree`,
+     of `_ExplorerMatch` rows, which shows in the place of the tree. Decision
+     (mine): a second tree, and not a filter inside `DocumentTreeToWidgetTree`,
+     because a filter there changes the index path of every row, which the maps,
+     the open places and the shown rows of the tree all read. The matches walk
+     the open places of the tree only, with `collect_read_tree_children` (new in
+     the tree slice: every element, and of a lazy list only the nodes that a walk
+     reached), so the filter reads no disk. Every row of the matches is open, the
+     row of the page has the mark, and a press on a row visits the page of its
+     document at its place in the section. The tree of the matches is made again
+     at each change of the filter, of the open places or of a label that it read.
+     The view is the bar (the field, `+`, `▾`) above a `VerticalLayout` whose one
+     child is the tree or the matches, and each layout carries the part of the
+     path of the grid below it, as the bar of the navigator does. Ctrl+F on a row
+     puts the caret in the field; Escape there empties the filter and selects the
+     node of the page in the tree. `+` opens the menu of Insert, at the end of the
+     root when no node is selected. The keys of the entries work on the tree only.
+     A file of an explorer keeps the section only (§5.12), and a duplicate copies
+     the filter.
+   - [x] **6b. The kinds** (2026-10-17). `▾` opens a menu: "Every kind" and each
+     kind of the rows that the tree read, named as the list of `+` names a kind,
+     with the icon `check` on what the filter keeps (a menu item has no check
+     mark of its own). A choice adds the kind or takes it out, as view state.
+   - [ ] **6c. The search below.** Open for the owner (asked 2026-10-17): a walk of
+     documents must run on the editor task, because the cells belong to it, and
+     the plan says that the search "reads what is not read on its own task". No
+     kind says how to read its children now for a search, so that needs a new
+     generic, which this plan does not name. The question: (a) a generic
+     `read_tree_children_now(document)`, which a folder answers with a read of
+     the disk on the task of the search, and the walk runs in steps on the
+     editor task; (b) the search walks only what is in memory, and an unread
+     folder is a row that says "not read"; (c) leave the search out of this plan.
+     Recommendation (mine): (b) first, then (a) in a plan of its own.
 7. [ ] **The menu of a row.** The items of §5.8, and the commands of the document
    from its own gesture table.
 8. [ ] **The dashboard** (Q4). The document, its page, `+` "Dashboard", and the

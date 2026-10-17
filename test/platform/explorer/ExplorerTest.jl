@@ -55,6 +55,15 @@ function _explorer_open_chevron(backend, label)
     MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0)
 end
 
+# Whether the frame draws `text` on the left, in the tree: before the button Back
+# of the bar of the navigator.
+function _explorer_has_tree_text(backend, text)
+    texts = _nav_texts(backend)
+    back = findfirst(entry -> entry[1] == _NAV_BACK, texts)
+    limit = back === nothing ? typemax(Int) : texts[back][2]
+    any(entry -> entry[1] == text && entry[2] < limit, texts)
+end
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -466,6 +475,97 @@ function test_explorer()
             write(path, "ExplorerSection(")
             @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path)) === nothing
         end
+    end
+
+    @testset "the filter shows the rows that the tree read and that match, with the rows above them open" begin
+        content = _explorer_make()
+        alpha = content.entries[1]
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        # Only the rows of open nodes are read: alpha opens, and Inner stays closed.
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "alpha"))
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha"))
+        _nav_press!(editor, backend, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0))
+        @test _nav_is(getfield(explorer, :selection)[],
+                      _explorer_path(FieldReferenceStep("filter"), FieldReferenceStep("text"), RangeReferenceStep(0, 0)))
+        # Each key edits the filter as view state, so an undo records none of it.
+        answer = read_intent(editor.projection, nothing, Intent(KeyPress('t'; time = 0.0)), editor.iomap).operation
+        @test answer isa ReplaceViewStateOperation
+        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in "two")...)
+        @test explorer.filter.text == "two"
+        matches = explorer.matches
+        @test matches isa DocumentTree && only(matches.root.children).document === alpha
+        @test _explorer_has_tree_text(backend, "alpha two") && !_explorer_has_tree_text(backend, "alpha one") &&
+              !_explorer_has_tree_text(backend, "Inner")
+        # A press on a match shows the page of its document, at its place in the
+        # section.
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha two"))
+        @test get_navigator_page(explorer.navigator) === alpha.children[2]
+        @test _nav_is(explorer.navigator.address,
+                      concat_references(_explorer_entry_path(1),
+                                        _explorer_path(FieldReferenceStep("children"), ElementReferenceStep(2))))
+        # Escape in the filter empties it: the tree shows, with the node of the page
+        # selected.
+        _nav_press!(editor, backend, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0))
+        @test explorer.filter.text == "two"
+        _nav_press!(editor, backend, KeyDown(:escape, ModifierKeys(); time = 0.0))
+        @test explorer.filter.text == "" && explorer.matches === nothing
+        @test _explorer_has_tree_text(backend, "Inner") && _explorer_has_tree_text(backend, "alpha one")
+        @test _nav_is(getfield(explorer, :selection)[],
+                      _explorer_path(FieldReferenceStep("tree"), FieldReferenceStep("root"), FieldReferenceStep("entries"),
+                                     ElementReferenceStep(1), FieldReferenceStep("children"), ElementReferenceStep(2)))
+        # A duplicate starts with the same filter; a file keeps only the section.
+        explorer.filter.text = "beta"
+        copied = copy_document(DuplicatePolicy(), explorer)
+        @test copied.filter.text == "beta" && copied.filter !== explorer.filter
+        @test pred_arguments(explorer) == ((content,), Pair{Symbol,Any}[])
+    end
+
+    @testset "+ opens the menu of the kinds, after the selected entry or at the end of the root" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        plus = string(Char(Dict(WidgetModule.LUCIDE_ICON_GLYPHS)[:plus]))
+        press() = begin
+            click = _explorer_click(backend, plus)
+            @test click !== nothing
+            answer = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+            get_wrapped_operation(answer)
+        end
+        opened = press()
+        @test opened isa OpenContextMenuOperation
+        add = last(opened.layers[1][2].elements).operation
+        @test add.section === content && add.index == 3
+        _nav_press!(editor, backend, _explorer_click(backend, "alpha"))
+        add = last(press().layers[1][2].elements).operation
+        @test add.section === content && add.index == 2
+    end
+
+    @testset "▾ lists the kinds of the read rows, and a chosen kind keeps only its rows and those above" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        funnel = string(Char(Dict(WidgetModule.LUCIDE_ICON_GLYPHS)[:funnel]))
+        menu() = begin
+            click = _explorer_click(backend, funnel)
+            answer = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+            only(get_wrapped_operation(answer).layers)[2]
+        end
+        items = menu().elements
+        labels = [string(item.action.label) for item in items]
+        @test labels[1] == "Every kind" && "Section" in labels && length(labels) == 3
+        @test items[1].action.icon === :check
+        evaluate_operation(editor, items[findfirst(==("Section"), labels)].operation)
+        run_frame!(editor)
+        @test only(explorer.filter.kinds) === ExplorerSection
+        @test _explorer_has_tree_text(backend, "Inner") && !_explorer_has_tree_text(backend, "alpha")
+        # The chosen kind has the check, and a second choice takes it out.
+        items = menu().elements
+        section = items[findfirst(item -> string(item.action.label) == "Section", items)]
+        @test section.action.icon === :check
+        evaluate_operation(editor, section.operation)
+        run_frame!(editor)
+        @test isempty(explorer.filter.kinds) && explorer.matches === nothing
     end
 
     @testset "Ctrl+press on a node opens its page in a new tab" begin

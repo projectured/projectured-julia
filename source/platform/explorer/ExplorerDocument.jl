@@ -35,17 +35,17 @@ get_insertion_aliases(::Type{ExplorerSection}) = ["section"]
 make_insertion_document(::Type{ExplorerSection}) = ExplorerSection("New section")
 is_explorer_entry_type(::Type{ExplorerSection}) = true
 
-# The kinds that the list of `+` shows, in the order of their names: the first
-# insertion alias of a kind, else the words of its type name.
-function _collect_entry_kinds()
-    kinds = Pair{String,Type}[]
-    for type in get_insertion_candidates(Document)
-        is_explorer_entry_type(type) || continue
-        aliases = get_insertion_aliases(type)
-        name = isempty(aliases) ? get_insertion_names(type)[2] : first(aliases)
-        push!(kinds, uppercasefirst(name) => type)
-    end
-    sort!(kinds; by = first)
+# The kinds that the list of `+` shows, in the order of their names.
+_collect_entry_kinds() =
+    sort!(Pair{String,Type}[_format_kind_name(type) => type
+                            for type in get_insertion_candidates(Document) if is_explorer_entry_type(type)];
+          by = first)
+
+# The name of a kind that a person reads: the first insertion alias of the kind,
+# else the words of its type name.
+function _format_kind_name(type)
+    aliases = get_insertion_aliases(type)
+    uppercasefirst(isempty(aliases) ? get_insertion_names(type)[2] : first(aliases))
 end
 
 # A document that the section holds, at the path of its entry, or at the path that
@@ -73,9 +73,13 @@ that a person presses. The page of a section shows its entries.
 # Fields
 - `tree` — the `DocumentTree` of the section: its own open nodes.
 - `navigator` — the `Navigator` over the section: its own page and visits.
+- `filter` — the [`ExplorerFilter`](@ref) of the explorer.
+- `matches` — the `DocumentTree` of the rows that the filter keeps, which shows in
+  the place of the tree while the filter keeps rows out, or `nothing`.
 
-Two explorers of one section show the same entries, each with its own open nodes
-and its own page.
+Two explorers of one section show the same entries, each with its own open nodes,
+its own page and its own filter. A file keeps the section, and not the open nodes,
+the page or the filter.
 
 Use it to show what an editor holds in one tab: its files, its tasks, its
 assistants, and any document that a person adds.
@@ -90,15 +94,25 @@ See also `ExplorerSection` and `get_session_explorer_content`.
 @document struct Explorer <: Document
     tree::Any                         # DocumentTree
     navigator::Any                    # Navigator
+    filter::Any                       # ExplorerFilter
+    matches::Any                      # DocumentTree of the matches, or nothing
 end
 
 # The tree marks the row of the page that the navigator shows, also after a link
-# inside the page moves the navigator.
-function Explorer(content::ExplorerSection)
+# inside the page moves the navigator. The tree of the matches follows the filter,
+# the open nodes of the tree and the labels of the rows that it read.
+function Explorer(content::ExplorerSection; filter::ExplorerFilter = ExplorerFilter())
     navigator = Navigator(content)
     tree = DocumentTree(content; title = "Explorer", current = () -> get_navigator_page_address(navigator))
-    Explorer(Cell(tree), Cell(navigator))
+    explorer = Explorer(Cell(tree), Cell(navigator), Cell(filter), Cell(nothing))
+    set_cell_computation!(getfield(explorer, :matches), () -> _make_match_tree(explorer))
+    explorer
 end
+
+# A file keeps the section, and a load shows it with the root open, on the page of
+# the section, with an empty filter.
+pred_arguments(explorer::Explorer) = ((getfield(explorer, :tree)[].root,), Pair{Symbol,Any}[])
+make_pred_document(::Type{<:Explorer}, positional, keywords) = Explorer(first(positional))
 
 get_document_title(::Explorer) = "Explorer"
 get_document_decoration(::Explorer) = DocumentDecoration(; icon = :folder_tree)
@@ -116,10 +130,14 @@ release_document!(editor, explorer::Explorer) =
 accepts_opened_file(::Explorer) = false
 
 # A duplicate shows the same section, with a tree and a navigator of its own: it
-# opens with the root of the tree open, on the page of the section.
+# opens with the root of the tree open, on the page of the section, with a copy of
+# the filter, which a person then changes on its own.
 has_document_duplicate(::Explorer) = true
-copy_document(::DuplicatePolicy, explorer::Explorer) =
-    Explorer(getfield(explorer, :tree)[].root)
+function copy_document(::DuplicatePolicy, explorer::Explorer)
+    filter = getfield(explorer, :filter)[]
+    copied = ExplorerFilter(; text = filter.text, kinds = Any[kind for kind in filter.kinds])
+    Explorer(getfield(explorer, :tree)[].root; filter = copied)
+end
 
 # The name a person types into an empty tab to open an explorer: an explorer of
 # the root section of the editor.

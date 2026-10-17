@@ -45,7 +45,7 @@ import ..WidgetModule: make_graphics_projection
 export get_tree_children_steps, format_tree_node_label, has_tree_children, get_tree_node_icon,
        is_explorer_entry_type
 export DocumentTree, collect_open_tree_documents
-export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap, collect_tree_children
+export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap, collect_tree_children, collect_read_tree_children
 export show_document_tree!
 
 include("TreeInterface.jl")

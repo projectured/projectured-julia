@@ -235,6 +235,51 @@ function collect_tree_children(document; limit::Integer)
     found
 end
 
+"""
+    collect_read_tree_children(document) -> Vector{Pair{Reference,Any}}
+
+The children of `document` as a node of a tree that a reader has in hand, each
+with its path from `document`: every element of its collections, and of a lazy
+list of children only the nodes that a walk of the list reached. It makes no node
+of a lazy list, so it walks no further than any view of the list did, and a list
+with no end ends there.
+
+Use it to look through what a tree has read, as the filter of an explorer does,
+with no read of a disk or a process.
+
+# Example
+
+    collect_read_tree_children(get_session_task_group_list())
+
+See also `collect_tree_children`, which walks a lazy list on.
+"""
+function collect_read_tree_children end
+
+function collect_read_tree_children(document)
+    found = Pair{Reference,Any}[]
+    list = _find_lazy_tree_children(document)
+    if list !== nothing
+        (steps, _) = only(_collect_tree_collections(document))
+        (link, k) = (list, 1)
+        while true
+            push!(found, extend_reference(EmptyReference(), steps..., ElementReferenceStep(k)) => link.value)
+            cell = getfield(link, :next)
+            is_cell_valid(cell) || break
+            link = cell[]
+            link === nothing && break
+            k += 1
+        end
+        return found
+    end
+    for (steps, collection) in _collect_tree_collections(document)
+        (collection === nothing || collection isa ListNode) && continue
+        for k in 1:length(collection)
+            push!(found, extend_reference(EmptyReference(), steps..., ElementReferenceStep(k)) => collection[k])
+        end
+    end
+    found
+end
+
 # The entry at the index path `path` from the root entry, or `nothing`.
 function _find_tree_entry(root::_TreeEntry, path; make::Bool = false)
     (isempty(path) || path[1] != 1) && return nothing

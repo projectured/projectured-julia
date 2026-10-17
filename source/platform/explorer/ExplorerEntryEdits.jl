@@ -94,11 +94,10 @@ _make_entry_node_path(steps, index) =
 
 # ── The keys ─────────────────────────────────────────────────────────────────
 
-# Insert: the menu of the kinds that a person adds, from the list of `+`, and
-# another document by its name. The new entry comes after the selected entry, and
-# its node is selected and its page shows.
-function _make_add_menu_operation(explorer::Explorer, selection)
-    place = _find_selected_place(explorer, selection)
+# Insert and `+`: the menu of the kinds that a person adds, and another document
+# by its name, at the point of `gesture` when it has one. The new entry comes after
+# the entry at `place`, and its node is selected and its page shows.
+function _make_add_menu_operation(explorer::Explorer, place, gesture)
     place === nothing && return nothing
     (section, steps, index) = _get_new_entry_place(place)
     navigator = getfield(explorer, :navigator)[]
@@ -107,7 +106,7 @@ function _make_add_menu_operation(explorer::Explorer, selection)
     items = Any[WidgetMenuItem(name; operation = add(make_insertion_document(type)))
                 for (name, type) in _collect_entry_kinds()]
     push!(items, WidgetMenuItem("Other document"; operation = add(DocumentInsertion(""))))
-    make_context_menu_operation(explorer, WidgetMenu(items), nothing)
+    make_context_menu_operation(explorer, WidgetMenu(items), gesture)
 end
 
 # A new section after the selected entry, as the item "Section" of Insert adds.
@@ -175,12 +174,23 @@ function _make_rename_operation(explorer::Explorer, selection)
     CompoundOperation(operations)
 end
 
-# The keys work while the selection is on a node of the tree, so a key on the page
-# goes to the page. The tree moves its selection with Up and Down whatever the
-# modifiers, so the keys that move an entry claim their chords.
+# Ctrl+F on a node: the caret goes to the end of the text of the filter.
+function _make_filter_caret_operation(explorer::Explorer)
+    count = length(getfield(explorer, :filter)[].text)
+    caret = extend_reference(EmptyReference(), FieldReferenceStep("filter"), FieldReferenceStep("text"),
+                             RangeReferenceStep(count, count))
+    ReplaceSelectionOperation(annotate_reference_types(explorer, caret))
+end
+
+# The keys work while the selection is on a row of the tree or of the tree of the
+# matches, so a key on the page goes to the page; a key that edits an entry finds
+# its entry in the tree only. The tree moves its selection with Up and Down
+# whatever the modifiers, so the keys that move an entry claim their chords.
 @gestures Explorer begin
-    when(_find_selected_place(doc, sel) !== nothing)
-    KeyDown(:insert) => "Add an entry" => _make_add_menu_operation(doc, get_selection(doc))
+    when(_find_shown_node_steps(doc, sel) !== nothing)
+    KeyDown(:insert) => "Add an entry" =>
+        _make_add_menu_operation(doc, _find_selected_place(doc, get_selection(doc)), nothing)
+    KeyDown(:f; ctrl) => "Put the keyboard in the filter" => _make_filter_caret_operation(doc)
     KeyDown(:delete) => "Remove from explorer" => _make_remove_entry_operation(doc, get_selection(doc))
     KeyDown(:f2) => "Rename the section" => _make_rename_operation(doc, get_selection(doc))
     override(KeyDown(:up; ctrl, shift)) => "Move the entry earlier" =>
