@@ -11,87 +11,95 @@ variables) come from a process (the plan of the simulator,
 
 ## Decisions
 
-1. **What a viewport shows is a demand** (the owner, 2026-10-17: "it's V"): a
-   viewport holds the documents of the rows that it shows, so a scroll releases
-   the rows that leave and acquires the rows that come.
-2. **Each part answers for itself**, by the rule of the owner that nothing is
-   decided globally that a part can decide locally: a projection says which of
-   its documents it shows in a viewport, and asks its child IO maps for theirs.
-   The editor keeps only what is global: the end of a frame, and the compare.
+1. **What a viewport shows is a demand** (the owner, 2026-10-17: "it's V"): the
+   documents of the rows that a view shows are held, so a scroll releases the
+   rows that leave and holds the rows that come.
+2. **The tree holds the rows that come into view, in the answer that brings them**
+   (the owner, 2026-10-17: "Agreed", to option A), over a new step at the end of
+   each frame that asks every view what it drew (the owner: "A completely new
+   mechanism after each frame?"), and over a read only when a person asks. No new
+   mechanism: the tree already adds a hold to the answer of a press on a
+   chevron, and a background read answers with an operation since plan A.
 3. **The change is view state**, so the undo records none of it, as the open of a
    node of a tree records none.
+4. **The widget writes rows, the document tree holds documents.** The tree widget
+   knows its rows and not the documents behind them. As it writes its open rows
+   (`expanded`), it writes the rows that its view shows after the answer
+   (`shown`); the document tree turns that write into holds of the documents of
+   those rows, as it turns `expanded` into holds of its open documents. It keeps
+   one set of holds: the open documents and the shown ones. So a node that is
+   open and shown is not released when it closes.
 
 ## The model
 
-After the paint of a frame, the editor asks its root IO map for the documents
-that it shows. A projection answers with a list of `holder => documents`. The
-default answer is the answers of its child IO maps. The editor compares the
-documents of each holder with what the holder holds, and evaluates one
-operation of view state for each holder that changed.
+The explorer, with the configuration `Sweep` of 100,000 runs:
 
-- **The scroll pane** gives its content the viewport: the rectangle that it
-  shows, in the coordinates of the content.
-- **A view of a lazy list**, such as the rows of a tree, answers the places of
-  the rows that cross the viewport. It walks from the head, as the renderer and
-  the clamp of the pane walk, so it reads only rows that the paint built.
-- **The projection that knows the documents of the rows**, such as
-  `DocumentTreeToWidgetTree`, maps those places to its documents, and names a
-  holder for them.
-- **The holder of the shown rows** is an object of its own for each view, which
-  the editor keeps in a session document. It is not the document of the view,
-  because a tree already holds its open nodes, and a node can be open and shown
-  at the same time.
-
-For example, the explorer with the configuration `Sweep` of 100,000 runs open:
-
-```julia
-# After the frame that drew the run rows 0 to 37:
-answer = [shown_rows(tree) => [run_0, run_1, …, run_37]]
-ReplaceViewStateOperation(ChangeHeldDocumentsOperation(shown_rows(tree), Any[], Any[run_0, …, run_37]))
+```
+▾ Sweep · 100000 runs
+    Run 0: $n=0
+    Run 1: $n=1
+    …
+    Run 37          ← the bottom of the window
 ```
 
-The acquire of a run entry asks its configuration for its details. The
-configuration reads all the runs that were asked in one process. The states over
-time:
+The document of one run, before and after its details come:
 
-| Moment | Rows held | Reads |
+```julia
+LegacyRunEntry(number = 3, details = nothing)                     # shows "Run 3"
+LegacyRunEntry(number = 3, details = Run(n = 3, repetition = 0))  # shows "Run 3: $n=3"
+```
+
+The states over time:
+
+| Moment | The answer of the tree | Reads |
 | --- | --- | --- |
-| A person opens `Sweep`; the frame draws runs 0 to 37 | runs 0 to 37 | one process, `-r 0..37` |
-| The answer comes | the same | none; the rows show "Run 3: $n=3" |
-| A person scrolls down by a page; the frame draws runs 38 to 75 | runs 38 to 75; 0 to 37 are released | one process, `-r 38..75` |
-| A person makes the window taller; the frame draws runs 38 to 90 | runs 38 to 90 | one process, `-r 76..90` |
-| The tab closes | none | none |
+| A person opens `Sweep` | open `Sweep`, and show the rows down to run 37 | the held runs 0 to 37 ask `Sweep`, which runs one `opp_run -r 0..37` |
+| The read ends | — | its answer fills in the details of runs 0 to 37 |
+| A person scrolls down one page | scroll, and show the rows of runs 38 to 75 | runs 0 to 37 are released; one `opp_run -r 38..75` |
+| A tab opens with `Sweep` open | — | the acquire of the tree holds the documents of its first rows |
+| The window gets taller | — | nothing until the next scroll or toggle |
 
-The batch of the reads belongs to the domain of the rows: the acquire of a run
-entry posts the read of its configuration, so the acquires of one frame give one
-process.
+- **`WidgetTree.shown`** is view state: the paths of the rows that the view of
+  the tree shows. The reader of a tree that scrolls itself writes it beside each
+  scroll, the far move of the head included, and beside each toggle: the rows
+  above the toggled row stay, the toggled row stays where it was pressed, and the
+  rows after it follow the new open rows down to the bottom of the view. All rows
+  have one height, so the rows of the view come from the offset and the height of
+  the view.
+- **`DocumentTree.shown`** is view state: the documents of the rows that the
+  widget shows. The reader of the document tree turns a write of `shown` of its
+  widget into a write of `shown` of the tree and a change of what the tree holds:
+  the open documents and the shown ones together.
+- **The acquire of a tree** holds its open documents and its shown ones. A tree
+  that showed no row yet holds the documents of its first rows in the order of
+  the tree, as many as a view of the screen can show.
+- The batch of the reads belongs to the domain of the rows: a run that is held
+  asks its configuration for its details, and the configuration reads the runs
+  that its rows asked for in one process.
 
 ## Steps
 
-The steps need step 1 of `a-tree-draws-only-the-rows-it-shows.md`. Each step is
-one commit with its tests, in a worktree.
+The steps need the lazy tree on main (`plan/done/a-tree-draws-only-the-rows-it-shows.md`).
+Each step is one commit with its tests, in a worktree.
 
-- [ ] **1. The shown documents of a view, and the step at the end of a frame.**
-  The protocol `collect_shown_documents(projection, iomap, viewport)` with its
-  default that asks the child IO maps; the scroll pane gives its content its
-  viewport; the editor, after the paint of a frame that drew something, collects
-  the answers and evaluates the changes of what each holder holds; a holder of
-  shown rows is held while its view answers it, and released when its view no
-  longer does. Tests: a test view of a lazy list of 1,000 documents in a pane:
-  after a frame the drawn documents are acquired, a scroll releases and acquires,
-  a close releases all, and the undo has no entry.
-- [ ] **2. A tree answers the documents of its shown rows.** The tree widget
-  answers the paths of its rows that cross the viewport, and
-  `DocumentTreeToWidgetTree` maps them to its documents. Tests: `TreeTest`, with a
-  document whose lazy collection of 1,000,000 children opens: only the children
-  that the viewport shows are acquired.
-- [ ] **3. The guides:** the holders in `domain.md`, the frame in the guide of the
-  editor loop, and `tree.md`.
+- [ ] **1. The tree widget writes the rows it shows.** `WidgetTree.shown`; the
+  reader of a tree that scrolls itself writes it beside a scroll, a far move of
+  the head and a toggle. Tests: the tree widget suite, with a tree of a lazy list
+  of 10,000,000 children: a toggle and a scroll each write the rows of the view
+  after them, and a plain tree writes them as well.
+- [ ] **2. The document tree holds the documents of the shown rows.**
+  `DocumentTree.shown`, the turn of the write of the widget into holds, one set
+  of holds with the open documents, and the first rows at the acquire. Tests:
+  `TreeTest`, with a document whose lazy collection of 1,000,000 children holds
+  only the children that the view shows, a scroll that moves the holds, a close of
+  a node that stays held while it is shown, and an undo that records nothing.
+- [ ] **3. The guides:** the holders in `domain.md`, `tree.md`, and the tree
+  in `widget.md`.
 
 ## Risks
 
-- The editor asks its IO maps at each frame that painted something. The cost
-  grows with the size of the window, so step 1 measures it on the window of the
-  simulator.
-- A document is acquired one frame after the frame that draws it, so its details
-  come one or more frames later. A row shows what it holds meanwhile.
+- A window that grows, a list that changes by itself, and a scroll that a
+  program makes (the scroll to a selection) write no `shown`: the rows that come
+  into view that way read their details at the next scroll or toggle.
+- The first rows at the acquire are counted in the order of the tree with no
+  view, so they can be more than the view shows.
