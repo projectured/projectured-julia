@@ -75,18 +75,45 @@ end
 
 # The window scene and its reader state, as `run_application` builds them.
 # The window of the application. A window of a test runs no window start, which
-# would acquire the Files pane, so the folder of the pane is read at once, as a
-# script reads a folder that it shows.
-function _app_make_window(paths; keywords...)
+# would acquire the folders of the window, so each folder is read at once, as a
+# script reads a folder that it shows. With `files`, the Files tool is a group of
+# its own at the left of the window, as a person who moves it there has it.
+function _app_make_window(paths; files::Bool = false, keywords...)
     document, projection = make_application_window(paths; keywords...)
-    for explorer in search_documents(document, node -> node isa WorkspaceExplorer)
-        foreach(folder -> read_filesystem_folder!(folder.directory), explorer.workspace.folders)
+    files && _app_add_files_group!(document, get(keywords, :root, pwd()))
+    for workspace in search_documents(document, node -> node isa Workspace)
+        foreach(folder -> read_filesystem_folder!(folder.directory), workspace.folders)
     end
     (document, projection)
 end
 
-function _app_make_scene(paths, dir; assistant = nothing)
-    document, projection = _app_make_window(paths; root = dir, assistant = assistant)
+# The Files group at the left of the pane tree of `document`, over `root`. Each
+# layer from the root of `document` down holds one path, so the selection moves
+# at the root: to the same tab in the group that moved one place on, or, from the
+# root row of the Explorer of a window with no file, to the root row of the Files
+# pane, as a window with a Files group opens.
+function _app_add_files_group!(document, root)
+    tree = _app_window(document)
+    folder = abspath(root)
+    places = PaneGroup(PaneTab[PaneTab("Files", WorkspaceExplorer(Workspace([WorkspaceFolder(basename(folder), folder)])))])
+    steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
+    at = findfirst(k -> steps[k] == FieldReferenceStep("root") && steps[k + 1] == FieldReferenceStep("elements"),
+                   1:(length(steps) - 2))
+    group = steps[at + 2]
+    steps[at + 2] = RangeReferenceStep(group.start + 1, group.stop + 1)
+    steps[(end - 2):end] == [FieldReferenceStep("content"), FieldReferenceStep("tree"), FieldReferenceStep("root")] &&
+        (steps = vcat(steps[1:(at + 1)], RangeReferenceStep(0, 1), FieldReferenceStep("tabs"), RangeReferenceStep(0, 1),
+                      FieldReferenceStep("content"), FieldReferenceStep("workspace"), FieldReferenceStep("folders"),
+                      ElementReferenceStep(1)))
+    split = tree.root
+    tree.root = PaneSplit(:vertical, Any[places, split.elements...];
+                          weights = vcat(0.2, 0.8 .* [Float64(w) for w in split.weights]))
+    set_selection!(document, extend_reference(EmptyReference(), steps...))
+    document
+end
+
+function _app_make_scene(paths, dir; assistant = nothing, files::Bool = false)
+    document, projection = _app_make_window(paths; root = dir, assistant = assistant, files)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -456,14 +483,15 @@ function test_application()
                 editor = Editor(scene, composed; backend = ConsoleBackend(),
                                 devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
-                files = find_pane_reference("Files"; editor)
+                files = find_pane_reference("Explorer"; editor)
                 @test evaluate_reference(scene, files) isa PaneTab
-                @test get_pane_tab_title_string(evaluate_reference(scene, files)) == "Files"
+                @test get_pane_tab_title_string(evaluate_reference(scene, files)) == "Explorer"
                 @test find_pane_reference("no such pane"; editor) === nothing
                 @test_throws ArgumentError focus_pane!(nothing; editor)
-                # The verb's operation is the one a press on the title of the tab makes.
-                (_, x, y) = only(item for item in _app_drawn_at(get_iomap_output(iomap).windows[1].content)
-                                 if item[1] == "Files")
+                # The verb's operation is the one a press on the title of the tab makes:
+                # the topmost text "Explorer", in the tab strip.
+                (_, x, y) = first(sort([item for item in _app_drawn_at(get_iomap_output(iomap).windows[1].content)
+                                        if item[1] == "Explorer"]; by = item -> item[3]))
                 pressed = _app_fire(composed, iomap, MouseClick(:left, x + 4, y + 4, 1, ModifierKeys(); time = 0.0))
                 @test repr(_app_plain(make_focus_pane_operation(files; editor))) == repr(_app_plain(pressed))
                 focus_pane!(files; editor)
@@ -477,7 +505,7 @@ function test_application()
                 # So Ctrl+C copies the pane that has the focus.
                 copy = _app_fire(composed, editor.iomap, KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))
                 copy isa Operation && evaluate_operation(editor, copy)
-                @test document.slice isa WorkspaceExplorer
+                @test document.slice isa Explorer
             end
 
             @testset "an editor made before its loop takes a verb through the readers" begin
@@ -490,7 +518,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
-                focus_pane!(find_pane_reference("Files"; editor); editor)
+                focus_pane!(find_pane_reference("Explorer"; editor); editor)
                 # The screen is inside the state of the tooltip window, inside the
                 # state of the context menu window, inside the state of the drag
                 # tracker, inside the state of the gesture tracker, inside the
@@ -699,7 +727,7 @@ function test_application()
                 title(pane) = get_pane_tab_title_string(evaluate_reference(scene, get_reference(pane)))
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
 
-                focus_pane!(find_pane_reference("Files"; editor); editor)
+                focus_pane!(find_pane_reference("Explorer"; editor); editor)
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
 
                 steps = length(history)
@@ -757,7 +785,7 @@ function test_application()
                 @test count(line -> occursin("(focused)", line), lines) == 1
                 # The title of a tab is quoted after `title`, apart from what the tab shows.
                 @test any(line -> occursin("::PaneTab", line) &&
-                                  occursin("# title \"Files\", shows ", line), lines)
+                                  occursin("# title \"Explorer\", shows ", line), lines)
                 # The path of a tab is the steps of the lines on its branch, joined.
                 indent(line) = length(line) - length(lstrip(line))
                 step(line) = first(split(strip(line)))
@@ -785,11 +813,11 @@ function test_application()
                 # Beside a group: the pane gets a group of its own.
                 groups = length(get_pane_groups(tree))
                 move_pane!(find_pane_reference(title_b; editor),
-                           find_pane_reference("Files"; editor); side = :below, editor)
+                           find_pane_reference("Explorer"; editor); side = :below, editor)
                 @test length(get_pane_groups(tree)) == groups + 1
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
                 @test_throws ArgumentError move_pane!(find_pane_reference(title_b; editor),
-                                                      find_pane_reference("Files"; editor); side = :middle, editor)
+                                                      find_pane_reference("Explorer"; editor); side = :middle, editor)
             end
 
             @testset "every format draws" begin
@@ -830,10 +858,11 @@ function test_application()
                 (file_x, file_y), (view_x, view_y) = only(at("File")), only(at("View"))
                 @test view_y == file_y
                 @test file_x < view_x < 1600 - 40
-                # The files take four fifths of the width: their tab starts past
-                # the first fifth, where a pane tree that hugged its content
-                # ended.
-                @test maximum(x for (x, _) in at("a.json")) > 0.15 * 1600
+                # The Explorer and the files share one group, the Explorer first in
+                # its tab strip, which is the topmost line that names the Explorer.
+                strip_y = minimum(y for (_, y) in at("Explorer"))
+                in_strip(name) = [x for (x, y) in at(name) if y == strip_y]
+                @test !isempty(in_strip("a.json")) && minimum(in_strip("a.json")) > minimum(in_strip("Explorer"))
                 # The status line: something drawn in the last band of the window.
                 @test any(((_, _, y),) -> 1000 - 40 <= y < 1000, drawn)
             end
@@ -1019,7 +1048,7 @@ function test_application()
                 # A window opened with no assistant has no Assistant button. The
                 # Assistants button lists the assistant tabs, so every window has it.
                 @test [string(item.action.label) for item in toolbar.elements] ==
-                      ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
+                      ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
                        "Statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
                 for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
@@ -1032,15 +1061,14 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
-                focus_pane!(find_pane_reference("Files"; editor); editor)
-                explorer = first(get_pane_focus(tree))
+                focus_pane!(find_pane_reference("Explorer"; editor); editor)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
                 _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(tree)
+                # A tab of its own, and not a page in the navigator of the explorer.
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
-                @test group !== explorer
                 # The group of the files, where a file from the explorer opens too. A
                 # file tab shows the page of its file, which holds the file in a
                 # scroll pane.
@@ -1459,7 +1487,7 @@ function test_application()
                 @test only(carets)[2] > y_of("y = 2x + 1") > y_of("GraphicsCircle")
             end
 
-            @testset "a closed assistant and a closed Files pane come back as they were" begin
+            @testset "a closed assistant and a closed Files tool come back as they were" begin
                 started = make_application_assistant(:ollama; model = "small", context = 4096)
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir;
                                                                    assistant = started)
@@ -1475,7 +1503,7 @@ function test_application()
                 close!(type) = close_pane!(only(search_references(scene,
                     node -> node isa PaneTab && get_wrapped_document(node.content) isa type;
                     descend = is_pane_search_step)); editor)
-                @test [string(item.action.label) for item in toolbar.elements][2] == "Assistant"
+                @test [string(item.action.label) for item in toolbar.elements][3] == "Assistant"
 
                 # While the assistant is open, the button reaches it and makes none.
                 _app_apply!(editor, InvokeActionOperation(button("Assistant").action))
@@ -1499,9 +1527,13 @@ function test_application()
                 @test greeting(again) == greeting(started)
                 @test occursin("Ollama", greeting(again))
 
-                # The Files pane comes back over the folder the window lists.
+                # The Files tool opens over the folder the window lists, and comes back
+                # so after a close.
+                @test isempty(holding(WorkspaceExplorer))
+                _app_apply!(editor, InvokeActionOperation(button("Files").action))
+                @test length(holding(WorkspaceExplorer)) == 1
                 close!(WorkspaceExplorer)
-                _app_apply!(editor, InvokeActionOperation(button("Explorer").action))
+                _app_apply!(editor, InvokeActionOperation(button("Files").action))
                 (group, index) = only(holding(WorkspaceExplorer))
                 @test get_wrapped_document(group.tabs[index].content).workspace.folders[1].pathname == abspath(dir)
             end
@@ -1580,7 +1612,7 @@ function test_application()
 
             @testset "the pointer drags, lights, and leaves no history" begin
                 document, projection = _app_make_window(paths[1:1]; root = dir,
-                    assistant = nothing)
+                    assistant = nothing, files = true)
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections())
@@ -1631,7 +1663,8 @@ function test_application()
                 hover!(100, y, 1.0)
                 # The file is the target, and the chain carries the hover on to
                 # the row of the tree that the Files pane's view makes for it.
-                files_tree = only(_app_find_view_trees(pointer.iomap))
+                files_tree = only(filter(tree -> get_mouse_target(tree) !== nothing,
+                                         _app_find_view_trees(pointer.iomap)))
                 @test get_mouse_target(files_tree) !== nothing
                 hover!(100, y + 40, 1.1)
                 @test steps() == before
@@ -1684,7 +1717,7 @@ function test_application()
             end
 
             @testset "the Files pane opens a file beside the files" begin
-                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; files = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 y, operation = _app_find_file_row(composed, iomap)
                 @test _app_plain(operation) isa OpenFileOperation
@@ -1694,7 +1727,7 @@ function test_application()
                 @test _app_count_tabs(_app_window(document)) == before + 1
                 groups = get_pane_groups(_app_window(document))
                 @test length(groups[1].tabs) == 1       # the Files pane stays alone
-                @test length(groups[2].tabs) == 2       # the file joins the files
+                @test length(groups[2].tabs) == 3       # the file joins the Explorer and the files
 
                 # A single click selects the row, and Enter opens it.
                 selection = _app_fire(composed, iomap, MouseClick(:left, 100, y, 1, ModifierKeys(); time = 0.0))
@@ -1711,7 +1744,7 @@ function test_application()
                         mkpath(joinpath(tall, folder))
                         write(joinpath(tall, folder, "file$k.jl"), "x = $k\n")
                     end
-                    document, scene, composed, iomap = _app_make_scene(String[], tall)
+                    document, scene, composed, iomap = _app_make_scene(String[], tall; files = true)
                     editor = _app_make_editor(scene, composed, iomap)
                     drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                     lowest() = maximum(y for (text, x, y) in drawn() if text == "file9.jl" && x < 400)
@@ -1762,7 +1795,7 @@ function test_application()
             # The ring shows a selection that ends at the Files pane. A row the
             # person selects is inside it, so the ring is off.
             @testset "a click selects a row inside the Files pane, and Alt+click the Files pane" begin
-                document, scene, composed, iomap = _app_make_scene(String[], dir)
+                document, scene, composed, iomap = _app_make_scene(String[], dir; files = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -1944,7 +1977,7 @@ function test_application()
         # A file opened from the explorer takes a click, a key and an Alt+click in
         # its document, as the document alone takes them.
         @testset "a click in a file opened from the explorer reaches its document" begin
-            document, scene, composed, iomap = _app_make_scene(paths[2:2], dir)
+            document, scene, composed, iomap = _app_make_scene(paths[2:2], dir; files = true)
             editor = _app_make_editor(scene, composed, iomap)
             press!(event) = begin
                 operation = _app_fire(composed, editor.iomap, event)

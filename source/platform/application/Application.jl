@@ -1,9 +1,10 @@
 # Fragment of `ApplicationModule` — the ProjecturEd application: a window that
-# shows files, with a Files pane and the assistant beside them.
+# shows what the editor holds, with the Explorer first, a tab for each file, and
+# the assistant beside them.
 #
-# The Files pane, the file tabs and the assistant are the groups of a split, and
-# the pane gestures rearrange them. Every file tab holds a `FileDocument`, so
-# `Ctrl+S` saves and `Ctrl+O` reloads it, and the Files pane opens a file with
+# The main group and the assistant are the groups of a split, and the pane
+# gestures rearrange them. Every file tab holds a `FileDocument`, so `Ctrl+S` saves
+# and `Ctrl+O` reloads it, and the Files tool opens a file with
 # `OpenFileOperation`.
 
 """
@@ -25,12 +26,15 @@ answer.
 """
 function get_application_greeting_text(backend::Symbol)
     body = """
-        This window shows files. The Files pane lists the working directory, and \
-        each tab holds one open file.
+        This window shows what the editor holds. The Explorer lists the working \
+        directory, the open files, the tasks, the assistants and the tools of the \
+        editor, and a press on a row shows its page beside the tree. Each other \
+        tab holds one open file.
 
-        Press Enter on a file in the Files pane, or double-click it, to open it in \
-        a new tab. Ctrl+S saves the tab that has the focus, and Ctrl+O reads it \
-        again from disk. F1 lists the keys that work where the focus is, and \
+        Ctrl+click a row of the Explorer to open its page in a new tab. The Files \
+        button of the toolbar lists the working directory, where Enter on a file \
+        opens it in a new tab. Ctrl+S saves the tab that has the focus, and \
+        Ctrl+O reads it again from disk. F1 lists the keys that work where the focus is, and \
         Ctrl+Shift+P runs a command by its name.
 
         Alt+click anything in a tab to select it, and Alt with an arrow to move \
@@ -90,8 +94,10 @@ end
     make_application_document(paths; root = pwd(), assistant = nothing,
                               settings = make_settings())
 
-The document of the application window: one file tab for each path, a Files
-pane over `root`, and the assistant when it is not `nothing`. A path that does not
+The document of the application window: an Explorer whose first entry is the
+folder `root`, one file tab for each path after it in the same group, and the
+assistant when it is not `nothing`. The rest of the content of the Explorer comes
+when the editor starts ([`start_application!`](@ref)). A path that does not
 exist opens as the empty seed of its extension. Each history of the window keeps
 as many steps as the `HistorySettings` of `settings` say.
 """
@@ -100,46 +106,46 @@ function make_application_document(paths::AbstractVector;
                                    settings::Settings = make_settings())
     history = make_history_wrap(settings)
     tabs = [make_file_tab_content(path, history) for path in paths]
-    workspace = _make_application_workspace(root)
     # Each file tab holds a history of its own, so `Ctrl+Z` takes back an edit in
     # the file the person is looking at. The wrapper `undo` puts one around the
     # whole tree, so a splitter that moves, a tab that opens and a chat draft can
     # be taken back too.
-    _make_application_pane_tree(tabs, workspace, assistant)
+    _make_application_pane_tree(tabs, root, assistant)
 end
 
-# The explorer of the folder the window lists. The toolbar's explorer opens the
-# same one, so a Files pane a person closed comes back as it was.
-function _make_application_workspace(root::AbstractString)
+# The workspace of the folder the window lists.
+function _make_application_folders(root::AbstractString)
     folder = abspath(root)
-    WorkspaceExplorer(Workspace([WorkspaceFolder(basename(folder), folder)]))
+    Workspace([WorkspaceFolder(basename(folder), folder)])
 end
 
-# The Files pane, the files and the assistant side by side. The focus starts
-# inside the first file, or on the root row of the Files pane when no file is
-# open, so the first key reaches that document and not the tab strip. The root
-# row is the first folder of the workspace of the explorer as a whole; the
-# explorer itself is not selected, so its page shows no ring.
-function _make_application_pane_tree(tabs, workspace, assistant)
-    files = PaneGroup(PaneTab[PaneTab(get_document_title(tab), tab) for tab in tabs])
-    places = PaneGroup(PaneTab[PaneTab("Files", workspace)])
-    groups = Any[places, files]
-    weights = [0.2, 0.8]
+# The file explorer of the folder the window lists, which the Files button of the
+# toolbar opens.
+_make_application_workspace(root::AbstractString) = WorkspaceExplorer(_make_application_folders(root))
+
+# The main group, with the Explorer first and a tab for each file after it, and
+# the assistant beside it. The focus starts inside the first file, or on the root
+# row of the tree of the Explorer when no file is open, so the first key reaches
+# that document and not the tab strip.
+function _make_application_pane_tree(tabs, root::AbstractString, assistant)
+    explorer = Explorer(ExplorerSection("Explorer", Any[_make_application_folders(root)]))
+    main = PaneGroup(PaneTab[PaneTab("Explorer", explorer),
+                             (PaneTab(get_document_title(tab), tab) for tab in tabs)...])
+    groups = Any[main]
+    weights = [1.0]
     if assistant !== nothing
         # The tab has no name of its own, so it shows the name of the assistant,
         # and the title that an external agent gives its session.
         push!(groups, PaneGroup(PaneTab[PaneTab("", assistant)]))
-        weights = [0.18, 0.5, 0.32]
+        weights = [0.68, 0.32]
     end
     tree = PaneTree(PaneSplit(:vertical, groups; weights = weights))
     if isempty(tabs)
-        tab = get_pane_tab_reference(tree, places, 1)
-        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
-                                              FieldReferenceStep("workspace"),
-                                              FieldReferenceStep("folders"),
-                                              ElementReferenceStep(1)))
+        tab = get_pane_tab_reference(tree, main, 1)
+        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"), FieldReferenceStep("tree"),
+                                              FieldReferenceStep("root")))
     else
-        tab = get_pane_tab_reference(tree, files, 1)
+        tab = get_pane_tab_reference(tree, main, 2)
         set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
                                               FieldReferenceStep("content")))
     end
@@ -247,7 +253,7 @@ show. **One place says which wrappers this binary has.** [`run_application`](@re
 them holds a list of its own.
 
 The toolbar has the assistant when `assistant` is not `nothing`, a fresh one
-with its backend, its model and its greeting, and its explorer lists `root`.
+with its backend, its model and its greeting, and its Files tool lists `root`.
 `status_bar = false` leaves out the status bar, which a video that shows what
 the window paints again uses, because the status bar changes with every move of
 the caret. The clipboard offers all of its gestures: a person who edits a file
@@ -260,7 +266,7 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
                           appearance::Appearance = Appearance(), document = nothing) =
     (; undo = true,
        shell = (; assistant = _make_assistant_factory(assistant),
-                  explorer = _ -> _make_application_workspace(root),
+                  files = _ -> _make_application_workspace(root),
                   status_bar, measure, appearance),
        clipboard = true,
        gesture_help = (; measure),
@@ -664,7 +670,13 @@ function run_application(paths::AbstractString...;
                           make_application_wrappers(; root, assistant = chat, measure, appearance,
                                                       document)...)
     start_application!(editor; mcp, assistant, model)
-    run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    # The Explorer shows what the last window of this folder showed, and keeps it
+    # for the next start when the window closes.
+    file = get_explorer_content_file(root)
+    _restore_explorer_content!(editor, file)
+    result = run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    save_explorer_content!(get_session_explorer_content(; editor), file; editor)
+    result
 end
 
 # ── The command line ─────────────────────────────────────────────────────────
@@ -1011,6 +1023,9 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
     end
     # The documents of the tabs enter the window: the acquire applies at the first
     # drain of the loop, so the start of the window runs no work of them.
+    # The Explorer of the window shows the work of the session and the tools of the
+    # editor after what the window brought, which exist once the editor does.
+    editor isa Editor && _fill_explorer_content!(editor)
     editor isa Editor && post_operation!(editor, AcquireDocumentOperation(get_window_tree(editor.document)))
     # How to start Julia, when a tool call of this window has no thread of its own.
     if editor isa Editor

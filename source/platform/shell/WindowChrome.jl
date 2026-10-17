@@ -161,11 +161,11 @@ make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> About
                orientation = :horizontal)
 
 """
-    make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
-                        assistant_list = false, extra = []) -> WidgetToolbar
+    make_window_toolbar(; assistant = nothing, explorer = nothing, files = nothing,
+                        recorded = RECORDED_TOOLS, assistant_list = false, extra = []) -> WidgetToolbar
 
-The tools of the window, one button each: the explorer, the assistant, the
-evaluator, the message log, the gesture log, the fault log, the frame
+The tools of the window, one button each: the explorer, the files, the
+assistant, the evaluator, the message log, the gesture log, the fault log, the frame
 statistics, the frame times, the selection, the appearance and the settings.
 Each button shows a picture and says its name as a tooltip, and a press reaches
 the tool or opens it — see
@@ -175,15 +175,18 @@ The tools are what a person looks for and cannot type the name of. A new tab is
 not here: the tab strip of every group has a button for it, beside the group
 that gets the tab.
 
-Two tools need what only the window knows, and the window gives them as
+Three tools need what only the window knows, and the window gives them as
 functions of the editor:
 
 - `assistant` makes the assistant of this window, with its backend, its model and
   its greeting. When it is `nothing` the window has no assistant, and the
   toolbar has no button for one: a blank assistant with no backend answers
   nothing.
-- `explorer` makes the file explorer of this window, over its folder. When it is
-  `nothing` the button opens what `Ctrl+T` and `explorer` open: the working
+- `explorer` makes the explorer of this window. When it is `nothing` the button
+  opens what `Ctrl+T` and `explorer` open: an explorer of the content of the
+  editor.
+- `files` makes the file explorer of this window, over its folder. When it is
+  `nothing` the button opens what `Ctrl+T` and `files` open: the working
   directory.
 
 Five tools show what the window records, and each fills only when a wrapper of
@@ -199,12 +202,15 @@ tabs of the window, and without it the pane lists nothing.
 A host appends its own buttons with `extra`, which is where a command that only
 one binary has belongs.
 """
-make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
+make_window_toolbar(; assistant = nothing, explorer = nothing, files = nothing, recorded = RECORDED_TOOLS,
                     assistant_list::Bool = false, extra = []) =
     WidgetToolbar(Any[
-        make_window_tool_command("Explorer", WorkspaceExplorer; icon = :folder,
-                                 tooltip = "Explorer: the files of this window's folder",
-                                 make = something(explorer, _make_default_tool(WorkspaceExplorer))),
+        make_window_tool_command("Explorer", Explorer; icon = :folder_tree,
+                                 tooltip = "Explorer: the files, the tasks, the assistants and the tools of this editor",
+                                 make = something(explorer, _make_default_tool(Explorer))),
+        make_window_tool_command("Files", WorkspaceExplorer; icon = :folder,
+                                 tooltip = "Files: the files of this window's folder",
+                                 make = something(files, _make_default_tool(WorkspaceExplorer))),
         (assistant === nothing ? () :
             (make_window_tool_command("Assistant", Assistant; icon = :chat,
                                       tooltip = "Assistant: ask a model about what this window shows",

@@ -26,6 +26,7 @@ using ..AppearanceModule
 using ..CellModule
 using ..ClipboardModule
 using ..DomainModule
+using ..ExplorerModule
 using ..FileFormatModule
 using ..FileSystemModule
 using ..PaneModule

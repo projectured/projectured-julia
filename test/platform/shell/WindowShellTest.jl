@@ -252,15 +252,15 @@ end
 
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
-    tools = ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
+    tools = ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
              "Statistics", "Frame times", "Selection", "Appearance", "Settings"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
-    @test labels(bar) == insert!(copy(tools), 2, "Assistant")
+    @test labels(bar) == insert!(copy(tools), 3, "Assistant")
     @test all(item -> item isa WidgetToolbarItem, bar.elements)
     @test [item.action.icon for item in bar.elements] ==
-          [:folder, :chat, :terminal, :scroll_text, :keyboard, :warning, :chart, :chart_line, :crosshair,
+          [:folder_tree, :folder, :chat, :terminal, :scroll_text, :keyboard, :warning, :chart, :chart_line, :crosshair,
            :palette, :settings]
     # The tooltip names the tool first, because the picture does not.
     @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
@@ -290,7 +290,7 @@ end
     first_tab()
     editor = _ShellFakeEditor(tree)
     bar = make_window_toolbar(; assistant = _ -> Assistant())
-    types = [WorkspaceExplorer, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
+    types = [Explorer, WorkspaceExplorer, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
              FrameStatistics, FrameTimeSeries, SelectionInspector]
     holding(type) = count(tab -> get_wrapped_document(tab.content) isa type, group.tabs)
     for (item, type) in zip(bar.elements, types)
@@ -303,20 +303,21 @@ end
     @test length(group.tabs) == 1 + length(types)
 end
 
-@testset "the explorer opens the folder the window names, else the working directory" begin
+@testset "the Files tool opens the folder the window names, else the working directory" begin
     folders(tree) = [get_wrapped_document(tab.content).workspace.folders[1].pathname
                      for group in get_pane_groups(tree) for tab in group.tabs
                      if get_wrapped_document(tab.content) isa WorkspaceExplorer]
-    press_explorer(bar) = begin
+    press_files(bar) = begin
         tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
         apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))
-        evaluate_operation(_ShellFakeEditor(tree), InvokeActionOperation(first(bar.elements).action))
+        files = only(filter(item -> string(item.action.label) == "Files", bar.elements))
+        evaluate_operation(_ShellFakeEditor(tree), InvokeActionOperation(files.action))
         folders(tree)
     end
-    @test press_explorer(make_window_toolbar()) == [pwd()]
+    @test press_files(make_window_toolbar()) == [pwd()]
     folder = mktempdir()
-    named = make_window_toolbar(; explorer = _ -> WorkspaceExplorer(Workspace([WorkspaceFolder("here", folder)])))
-    @test press_explorer(named) == [folder]
+    named = make_window_toolbar(; files = _ -> WorkspaceExplorer(Workspace([WorkspaceFolder("here", folder)])))
+    @test press_files(named) == [folder]
 end
 
 @testset "the pointer lights what it is over, in the bands and in the content" begin
@@ -409,7 +410,7 @@ end
 @testset "a window that records nothing offers no tool and no item that stay empty" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     @test labels(make_window_toolbar(; recorded = ())) ==
-          ["Explorer", "Evaluator", "Selection", "Appearance", "Settings"]
+          ["Explorer", "Files", "Evaluator", "Selection", "Appearance", "Settings"]
     @test "Gesture log" ∉ _labels(_submenu(make_window_menu_bar(; recorded = ()), "View"))
     @test "Gesture log" in _labels(_submenu(make_window_menu_bar(), "View"))
 end
@@ -443,7 +444,7 @@ end
     @test shell.menu_bar isa WidgetMenu
     @test shell.status_bar isa WidgetStatusBar
     # It records nothing, so the toolbar has the tools that need nothing more.
-    @test labels(shell.toolbar) == ["Explorer", "Evaluator", "Selection", "Appearance", "Settings"]
+    @test labels(shell.toolbar) == ["Explorer", "Files", "Evaluator", "Selection", "Appearance", "Settings"]
     # A command of a band finds the tree in the content of the shell.
     @test find_pane_tree_reference(; editor) !== nothing
     # The window draws the bands and the tab.

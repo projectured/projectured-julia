@@ -1292,9 +1292,29 @@ before each edit of a kernel file. Mark each step done here.
      plan does not add.
    - A card is not removed by a key on the page yet; the menu of its row in the
      explorer has no Remove either, because a card is no entry of a section.
-9. [ ] **The window of projectured.** The Explorer is the first tab of the main
+9. [x] **The window of projectured.** The Explorer is the first tab of the main
    group, the narrow Files group goes, and the toolbar has Explorer and Files.
    Test: `test_application()`.
+   **Done 2026-10-18.** `make_application_document` makes an Explorer whose
+   section holds the folder of the window (a `Workspace`), and the main group
+   holds it first and a tab for each file after it; the assistant is the other
+   group (weights 0.68 and 0.32). The window opens on the first file, else on the
+   root row of the tree of the Explorer. `start_application!` makes the first
+   content once the editor exists (`make_editor_explorer_content` with the entries
+   that the window brought). `run_application` then reads the content that the
+   state folder keeps for the folder, and writes it after `run_editor!` returns;
+   only `run_application` reads and writes the state folder, so a test that calls
+   `start_application!` reads no file of the user. The toolbar: "Explorer"
+   (`folder_tree`) reaches an `Explorer` tab, and "Files" (`folder`) reaches the
+   file tree; the shell option `explorer` now makes the Explorer, and the new
+   option `files` makes the file tree (the shell slice has the edge `explorer`).
+   omnet passes `explorer = _make_project_explorer` for its file tree, so step 10
+   must pass it as `files`. The tests of the Files pane (a lit row, the divider,
+   a tab drag, a double press that opens a file, a scroll) keep their intent with
+   a helper that puts the Files tool in a group at the left, as a person who moves
+   it there has it. Results: `test_application` 381 pass, 2 broken, as on main
+   (380 pass, 2 broken); the file watch window 16 pass; the tool views have only
+   the failure that main has ("the file explorer opens by name, seeded").
 10. [ ] **The omnet IDE** (omnet-julia). The IDE and the campaign window make
    `Explorer` with the content of §5.10 (Q6); the project page holds its runner,
    the first child of the project node (Q7); `LegacySimulationExplorer` and

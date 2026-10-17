@@ -47,3 +47,25 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
         ExplorerSection("Settings", settings),
         ExplorerSection("Help", Any[DocumentTypeList(), ProjectionList(), AboutPage()])])
 end
+
+# The first content of the explorer of the window of `editor`: the entries that
+# the window brought, such as its folder, then the work of the session and the
+# tools of the editor.
+function _fill_explorer_content!(editor)
+    content = get_session_explorer_content(; editor)
+    filled = make_editor_explorer_content(; editor, entries = Any[entry for entry in content.entries])
+    content.entries = filled.entries
+    nothing
+end
+
+# The content that the file `path` keeps, in the place of the first content, when
+# the file reads; the first content stays when there is no file or it does not
+# read.
+function _restore_explorer_content!(editor, path::AbstractString)
+    loaded = load_explorer_content(path; editor)
+    loaded === nothing && return nothing
+    content = get_session_explorer_content(; editor)
+    content.title = loaded.title
+    content.entries = loaded.entries
+    nothing
+end

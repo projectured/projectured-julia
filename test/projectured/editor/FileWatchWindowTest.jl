@@ -60,7 +60,10 @@ function test_file_watch_window()
         @test is_document_file_watched(file; store = get_session_file_change_store(; editor))
         @test only(get_session_file_change_store(; editor).files).receiver === page
         shows(text) = any(entry -> occursin(text, entry[1]), _fw_drawn(editor))
-        place(text) = only((x, y) for (t, x, y) in _fw_drawn(editor) if occursin(text, t) && x > 300)
+        # A text of the page of the file: below the tab strip, whose first tab is
+        # the Explorer.
+        strip_y = only(y for (t, x, y) in _fw_drawn(editor) if t == "Explorer")
+        place(text) = only((x, y) for (t, x, y) in _fw_drawn(editor) if occursin(text, t) && y > strip_y)
         @test shows("Alice")
 
         # Another program writes the file: a file with no edits takes it.

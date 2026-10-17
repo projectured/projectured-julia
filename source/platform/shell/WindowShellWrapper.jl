@@ -2,7 +2,7 @@
 # `build_editor`.
 
 """
-    shell = true | (; assistant, explorer, about, status_bar, measure, appearance)
+    shell = true | (; assistant, explorer, files, about, status_bar, measure, appearance)
 
 The wrapper of `build_editor` that puts the root document in the chrome of a
 window: a `WidgetShell` whose bands are the menu bar of
@@ -25,8 +25,10 @@ offers the gesture help and the command palette only when `gesture_help` and
 
 - `assistant` makes the assistant of the window from the editor; with
   `nothing`, the default, the toolbar has no assistant, which needs a model.
-- `explorer` makes the file explorer of the window from the editor; with
-  `nothing` it lists the working directory.
+- `explorer` makes the explorer of the window from the editor; with `nothing` it
+  shows the content of the explorer of the editor.
+- `files` makes the file explorer of the window from the editor; with `nothing`
+  it lists the working directory.
 - `about` makes the About page of the Help menu; the default is the page of
   ProjecturEd.
 - `status_bar = false` leaves out the status bar.
@@ -54,7 +56,8 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
             make_window_menu_bar(; recorded, gesture_help, command_palette) :
             make_window_menu_bar(; recorded, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
-                                        explorer = get(options, :explorer, nothing), recorded,
+                                        explorer = get(options, :explorer, nothing),
+                                        files = get(options, :files, nothing), recorded,
                                         assistant_list = haskey(parts.arguments, :assistant_list),
                                         extra = collect(Any, get(options, :tools, ()))),
         status_bar = get(options, :status_bar, true) ?

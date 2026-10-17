@@ -190,7 +190,7 @@ end
     try
         shell = editor.document
         @test shell isa WidgetShell
-        @test labels(shell.toolbar) == ["Explorer", "Assistant", "Evaluator", "Message log", "Gesture log",
+        @test labels(shell.toolbar) == ["Explorer", "Files", "Assistant", "Evaluator", "Message log", "Gesture log",
                                         "Fault log", "Statistics", "Frame times", "Selection", "Appearance",
                                         "Settings"]
         @test shell.status_bar === nothing
@@ -199,7 +199,7 @@ end
     end
     editor, _ = _ww_editor(PrimitiveString("x"); shell = true, gesture_log = true)
     @test labels(editor.document.toolbar) ==
-          ["Explorer", "Evaluator", "Gesture log", "Selection", "Appearance", "Settings"]
+          ["Explorer", "Files", "Evaluator", "Gesture log", "Selection", "Appearance", "Settings"]
 end
 
 @testset "assistant_list: the Assistants button opens the list of the assistants of the tabs, and a stop unlinks it" begin
@@ -211,7 +211,7 @@ end
     list = get_session_assistant_list(; editor)
     try
         @test labels(editor.document.toolbar) ==
-              ["Explorer", "Evaluator", "Selection", "Appearance", "Settings", "Assistants"]
+              ["Explorer", "Files", "Evaluator", "Selection", "Appearance", "Settings", "Assistants"]
         @test length(list.assistants) == 2
         @test list.assistants[1] === one && list.assistants[2] === two
         # A tool opens in the focused group. The button posts its pane edit, and
