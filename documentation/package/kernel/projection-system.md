@@ -118,7 +118,10 @@ The two extra arguments are essential:
   what enables [ReferenceDispatchingProjection](../platform/projection/higher-order-projections.md) to
   switch behaviour based on document-root-relative location. It chooses again
   when its path moves, and it keeps the inner IO map when the choice is the same
-  projection. The top-level call
+  projection. At a path that can move, the inner IO map reads only a cell of the
+  `objectid` of the choice, which is plain data, so a new path with the same
+  choice stops at the dispatch, and the readers of its output do not compute
+  again. The top-level call
   passes a fresh `PrinterContext()` (whose reference is
   `EmptyReference()`).
 
@@ -472,7 +475,10 @@ cells; an operation writes a cell and the change propagates through the existing
 IoMap with no re-print. This is
 [PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity),
 and `make_reconciled_child_iomaps_cell` (iomap layer) is the shared way to keep
-child-IoMap identity across a structural edit. Note the split: `@iomap`/`@projection`
+child-IoMap identity across a structural edit. It keeps the IoMap of a child by
+the child itself, and gives the child a cell of its index, which follows the
+child when an insert or a delete before it moves it; a child at two places of
+the vector is not kept, and each of its prints has a fixed index. Note the split: `@iomap`/`@projection`
 give the transparent cell *fields*, but wiring those fields as **derivations** (a
 `Cell(@computation …)`, not an eagerly computed value) is what makes them reactive —
 `FocusingProjection` is the reference
@@ -614,15 +620,17 @@ struct MyNodeProjection <: Projection end
 
 function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project the children, and keep their IO maps in one cell.
-    # `make_reconciled_child_iomaps_cell` reuses the IoMap of each child that stays, so an
-    # edit prints again only a child that is new or moved. `print_child`
-    # re-enters the whole pipeline for each child, and `make_child_context`
-    # extends the reference path to child i, typed against `node`.
+    # `make_reconciled_child_iomaps_cell` keeps the IoMap of each child by the
+    # child itself, so an edit prints again only a child that is new. It gives
+    # each child the cell of its index. `print_child` re-enters the whole
+    # pipeline for each child, and `make_element_context` extends the reference
+    # path to the child at the index, typed against `node`, as a computation
+    # that follows the child when an insert or a delete before it moves it.
     child_iomaps = make_reconciled_child_iomaps_cell(
         () -> node.children,
-        (i, child) -> print_child(recursion, child,
-            make_child_context(ctx, node, FieldReferenceStep("children"),
-                               ElementReferenceStep(i))))
+        (index, child) -> print_child(recursion, child,
+            make_element_context(ctx, node, index,
+                i -> (FieldReferenceStep("children"), ElementReferenceStep(i)))))
 
     # Build the output children from the IO maps
     out_children = CellVector(@computation [m.output for m in child_iomaps[]])

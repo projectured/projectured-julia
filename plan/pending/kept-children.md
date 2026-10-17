@@ -280,5 +280,18 @@ step 4, part 3 steps 5 and 6, part 4 step 7, part 5 steps 8 and 9, then steps
     computes 16 % less, but its time stays: the computations that step 3 saved
     were cheap. S4d-w is 0.1 to 0.46 ms slower, 2 to 10 %, and the two rounds
     disagree by more than the difference of the first.
-- [ ] **11. The texts**: the guides of the collection, the layout, the
+- [x] **11. The texts**: the guides of the collection, the layout, the
   projection system, the data frames and the roster.
+  - Done 2026-10-17. `collection.md`: the lazy link, the mapped list, the kept
+    prints of a list and their rules, and why a projection that gets the head
+    as its input keeps no prints. `layout.md`: the linear list, the grid of a
+    list and the grid of columns keep their prints, and the data frame view
+    keeps its rows; no guide of the data frame adapter exists, so its rows are
+    told there. `projection-system.md`: the reconciler by the element with a
+    cell of its index, its example with `make_element_context`, and the stop
+    of the dispatch at the same choice, which `higher-order-projections.md`
+    tells too. `roster.md`: the cost of a moved row and the times of step 10.
+    The rule `PAR-STABLE-IOMAP-IDENTITY` in `architecture-invariants.md` said
+    that a delete or a front insert makes the IO maps of the later children
+    again; it now says that they move with a cell of their index.
+  - The documentation guard finds no violation.

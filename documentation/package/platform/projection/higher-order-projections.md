@@ -115,6 +115,14 @@ end)
 
 This is the mechanism by which a single projection can selectively apply a
 transformation to one part of a document and leave everything else alone.
+
+The path of a place can move after the print, such as the path of a row of a
+list counted from its head, which is a computation. The dispatch then chooses
+again in a computation of its own, and the inner IO map reads only a cell of the
+`objectid` of the choice. That cell holds plain data, so a new path with the
+same choice stops there: the inner IO map, its output and their readers stay. A
+new choice prints the input again. At a fixed path the IO map reads the choice
+itself, with no cell between.
 The compound projection `ApplyAtProjection` (see below) is built on top.
 
 ## RecursiveProjection
