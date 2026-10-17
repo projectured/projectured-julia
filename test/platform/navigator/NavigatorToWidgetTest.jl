@@ -127,6 +127,32 @@ function test_navigator_to_widget()
                       @reference(navigator, content.books[2].title))
     end
 
+    @testset "a view of the page draws in its place, and the maps go through the field that holds the page" begin
+        runs = NavigatorTestRuns("R", nothing)
+        shelf = NavigatorTestShelf("Shelf", _nav_vector([NavigatorTestBook("A", _nav_vector([runs]), nothing)]), nothing)
+        navigator = Navigator(shelf, @reference(shelf, books[1].chapters[1]))
+        view = follow_content_selection!(NavigatorTestRunsView(runs))
+        navigator.page_view = NavigatorViewSlot(view)
+        p = make_navigator_projection()
+        iomap = print_document(p, nothing, navigator, nothing)
+        forward(path) = map_reference_forward(p, iomap, path)
+        backward(path) = map_reference_backward(p, iomap, path)
+        @test iomap.output.children[2].children[1] === view
+        page_title = @reference(navigator, content.books[1].chapters[1].title)
+        @test _nav_is(forward(page_title), @reference(iomap.output, children[2].children[1].page.title))
+        @test is_fully_typed_reference(forward(page_title))
+        @test _nav_is(backward(forward(page_title)), page_title)
+        # The view itself is the page; a field that only the view keeps names nothing.
+        @test _nav_is(backward(@reference(iomap.output, children[2].children[1])),
+                      @reference(navigator, content.books[1].chapters[1]))
+        @test backward(@reference(iomap.output, children[2].children[1].anchor)) === nothing
+        # A page with no view of its own draws as itself again.
+        navigator.address = @reference(shelf, books[1])
+        @test iomap.output.children[2].children[1] === shelf.books[1]
+        @test _nav_is(forward(@reference(navigator, content.books[1].title)),
+                      @reference(iomap.output, children[2].children[1].title))
+    end
+
     @testset "an editor: keys, buttons and the address" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf)

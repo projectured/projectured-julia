@@ -23,6 +23,25 @@ end
     books::CellVector
 end
 
+# A part whose page keeps state of its own, and the view document of that page: it
+# names the part by its field `page`, keeps the place of the page, and holds the
+# part while it shows.
+@document struct NavigatorTestRuns
+    title::String
+end
+
+@document struct NavigatorTestRunsView
+    page::Any
+    anchor::Int = 1
+end
+
+ProjecturedKernel.DocumentModule.get_edited_field(::NavigatorTestRunsView) = :page
+ProjecturedPlatform.DomainModule.make_document_view(runs::NavigatorTestRuns) = NavigatorTestRunsView(runs)
+ProjecturedPlatform.DomainModule.acquire_document!(editor, view::NavigatorTestRunsView) =
+    ProjecturedPlatform.DomainModule.hold_documents!(editor, view, Any[getfield(view, :page)[]])
+ProjecturedPlatform.DomainModule.release_document!(editor, view::NavigatorTestRunsView) =
+    ProjecturedPlatform.DomainModule.release_held_documents!(editor, view, Any[getfield(view, :page)[]])
+
 # A container of chapters, which a navigator passes over.
 @document struct NavigatorTestFolder
     items::CellVector
@@ -59,6 +78,64 @@ _nav_is(reference, expected) = reference !== nothing && _nav_steps(reference) ==
 
 function test_navigator_visits()
 @testset "Navigator visits" begin
+
+    @testset "a page with a view of its own shows the view, the view holds the page, and Back returns to it" begin
+        runs = NavigatorTestRuns("R", nothing)
+        shelf = NavigatorTestShelf("Shelf", _nav_vector([
+            NavigatorTestBook("A", _nav_vector([NavigatorTestChapter("A1", nothing), runs]), nothing)]), nothing)
+        navigator = Navigator(shelf)
+        editor = Editor(navigator, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+        evaluate_operation(editor, AcquireDocumentOperation(navigator))
+        # The shelf shows as itself, and the navigator holds it.
+        @test navigator.page_view === nothing && get_navigator_page_view(navigator) === shelf
+        @test is_document_held(editor, shelf)
+        address = Reference(FieldReferenceStep("books"), RangeReferenceStep(0, 1),
+                            FieldReferenceStep("chapters"), RangeReferenceStep(1, 2))
+        evaluate_operation(editor, make_navigator_open_operation(navigator, address))
+        view = get_navigator_page_view(navigator)
+        @test view isa NavigatorTestRunsView && getfield(view, :page)[] === runs
+        @test get_navigator_page(navigator) === runs && navigator.page_view.view === view
+        @test is_document_held(editor, view) && is_document_held(editor, runs) && !is_document_held(editor, shelf)
+        # The selection keeps going through the content, and the view follows it.
+        @test _nav_is(navigator.selection, Reference(FieldReferenceStep("content"), get_reference_steps(address)...))
+        @test _nav_is(view.selection, Reference(FieldReferenceStep("page")))
+        evaluate_operation(editor, ReplaceSelectionOperation(annotate_reference_types(navigator,
+            Reference(FieldReferenceStep("content"), get_reference_steps(address)..., FieldReferenceStep("title")))))
+        @test _nav_is(view.selection, Reference(FieldReferenceStep("page"), FieldReferenceStep("title")))
+        # A selection that the page keeps while it is not live keeps the field too.
+        getfield(runs, :selection)[] = SelectionDocument(; primary = runs.selection, live = false)
+        kept = getfield(view, :selection)[]
+        @test kept isa SelectionDocument && !kept.live && view.selection === nothing
+        @test _nav_is(kept.primary, Reference(FieldReferenceStep("page"), FieldReferenceStep("title")))
+        # No walk of the navigator goes through the view.
+        @test is_walk_opaque(navigator.page_view)
+        # Back shows the shelf as itself and releases the view; Forward shows the
+        # same view again, with its place.
+        getfield(view, :anchor)[] = 7
+        evaluate_operation(editor, make_navigator_back_operation(navigator))
+        @test navigator.page_view === nothing && is_document_held(editor, shelf)
+        @test !is_document_held(editor, view) && !is_document_held(editor, runs)
+        evaluate_operation(editor, make_navigator_forward_operation(navigator))
+        @test get_navigator_page_view(navigator) === view && view.anchor == 7 && is_document_held(editor, runs)
+        # A new visit of the page makes a new view.
+        evaluate_operation(editor, make_navigator_open_operation(navigator, EmptyReference()))
+        evaluate_operation(editor, make_navigator_open_operation(navigator, address))
+        @test get_navigator_page_view(navigator) isa NavigatorTestRunsView && get_navigator_page_view(navigator) !== view
+        # A navigator whose view another navigator holds makes a view of its own at
+        # its acquire.
+        other = Navigator(shelf, annotate_reference_types(shelf, address))
+        getfield(other, :page_view)[] = navigator.page_view
+        evaluate_operation(editor, AcquireDocumentOperation(other))
+        @test get_navigator_page_view(other) isa NavigatorTestRunsView
+        @test get_navigator_page_view(other) !== get_navigator_page_view(navigator)
+        @test is_document_held(editor, get_navigator_page_view(other))
+        # A duplicate keeps no view, also in its visits, so Back makes its own.
+        duplicate = make_document_duplicate(navigator)
+        @test duplicate.page_view === nothing && all(visit -> visit.page_view === nothing, duplicate.back)
+        @test !isempty(navigator.back) && any(visit -> visit.page_view !== nothing, navigator.back)
+        # A file keeps no view: the navigator that it gives makes one when it is held.
+        @test !any(entry -> first(entry) === :page_view, last(ProjecturedPlatform.SerializationModule.pred_arguments(navigator)))
+    end
 
     @testset "a new navigator shows the whole content" begin
         shelf = _nav_make_shelf()

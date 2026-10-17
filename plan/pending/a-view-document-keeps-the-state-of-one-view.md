@@ -1,6 +1,6 @@
 # A view document keeps the state of one view
 
-Status: IN PROGRESS. Steps 1 and 2 are done.
+Status: IN PROGRESS. Steps 1 to 3 are done.
 
 ## The ask
 
@@ -91,7 +91,8 @@ says this in `concepts.md`, so the two words do not meet.
    part under the pointer of the view are computations: the edited field of the
    view, then the cell of its content. The map of the navigator to its drawing puts
    that field into the path, and its map back takes it out. A part that only the
-   view draws has no content path, and is named by an introduced reference. Over
+   view draws has no content path, so it names nothing, and a press there leaves
+   the selection where it is. Over
    D2, in which the paths of the navigator go through the view: D2 changes eight
    places of the navigator and the paths that the explorer reads, while the
    content still keeps the selection. D2 is the direction of the later plan
@@ -150,13 +151,42 @@ Each step is one commit with its tests, in a worktree. Mark each step done here.
    of `WidgetTable`. Tests: a table whose rows are a list 253, task pages 47, cell
    table 11 + 4, roster table 24, tool themes 113, data frames 612, pivot 299,
    markdown 268; all pass.
-3. [ ] **The navigator shows the view of its page** (decisions 4 and 5). `make_document_view`
+3. [x] **The navigator shows the view of its page** (decisions 4 and 5). `make_document_view`
    in the domain slice; `Navigator.view` and `NavigatorVisit.view`; a visit makes
    the view of its page, and Back and Forward give back the view of their visit; the
    navigator holds the view in place of the page; the print draws the view, and a
    path in the page goes through `get_edited_field` of the view. Tests:
    `test_navigator_visits()`, `test_navigator_to_widget()`, `test_navigator()`,
    `test_document_tree()`.
+
+   Done 2026-10-18. What it made:
+   - `make_document_view` and `follow_content_selection!` in a fragment of the
+     domain slice, `DocumentView.jl`. The second sets the selection cell and the
+     pointer cell of a new view as computations: the step of its edited field, then
+     the cell of its content, also for a selection that the content keeps while it
+     is not live (`SelectionDocument`).
+   - The field is `page_view`, because `NavigatorAddress.view` already names the
+     kind of the address bar; the getter is `get_navigator_page_view`.
+   - The view sits in a `NavigatorViewSlot`, a box that a walk does not enter
+     (`is_walk_opaque`): a search walk of the navigator then makes no path through
+     the view, and a selection path through it would clear its computed selection.
+   - A visit makes the view of its page, in the reader that makes the visit. A
+     method of `make_document_view` changes no state, because a reader also makes
+     answers that it only describes, and their views are dropped.
+   - The acquire makes a view when the navigator has none of its page, or when
+     another holder holds its view. A duplicate keeps no view, also in its visits
+     (`copy_document` of `Navigator`), so each tab keeps its own place.
+   - The backward map takes the field step out of a path in the view, and a path in
+     the view that does not go through the field names nothing.
+   - The review found the limit that stays: an edit that puts another document at
+     the address of the page shows that page bare, which nothing holds, until the
+     next acquire of the navigator; the old page and its view stay held until the
+     navigator is released. The code before held the old page in the same way.
+   - Tests: navigator visits 98, navigator view 66, choices 42, page open 92,
+     gestures 24, document 32, address 40, document tree 102, task pages 47, task
+     document 104, assistant work 100, agent plan 82; all pass. The naming and
+     documentation guards pass; the exports and arguments guards report only the
+     three violations that main has.
 4. [ ] **The guides.** `navigator.md`, `widget.md` (the table), `domain.md`
    (`make_document_view`); the plan moves to `plan/done/`.
 

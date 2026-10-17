@@ -2,18 +2,38 @@
 # shows a part of, the address of that part, and the visits before and after it.
 
 """
-    NavigatorVisit(content, address, selection)
+    NavigatorViewSlot(view)
+
+The view document of the page of a navigator ([`make_document_view`](@ref)), in a
+box that a walk does not enter. A walk of a navigator reaches the page through the
+content, so no path goes through the view, and the selection of the view keeps
+following the selection of its page.
+"""
+struct NavigatorViewSlot
+    view::Any
+end
+
+is_walk_opaque(::NavigatorViewSlot) = true
+
+"""
+    NavigatorVisit(content, address, selection[, page_view])
 
 One page that a person saw in a navigator: the `content`, the `address` of the
-page in it, and the `selection` when the person left the page, as a path from
-the content, or `nothing`. A visit is a value and not a document, as a
+page in it, the `selection` when the person left the page, as a path from the
+content, or `nothing`, and the `page_view` that the visit showed, a
+[`NavigatorViewSlot`](@ref), or `nothing` for a page that shows as itself, so Back
+returns to the same view. A visit is a value and not a document, as a
 `DocumentLocator` is: Back and Forward replace one, and nothing edits it.
 """
 struct NavigatorVisit
     content::Any
     address::Reference
     selection::Union{Reference, Nothing}
+    page_view::Union{NavigatorViewSlot, Nothing}
 end
+
+NavigatorVisit(content, address::Reference, selection::Union{Reference, Nothing}) =
+    NavigatorVisit(content, address, selection, nothing)
 
 """
     ReferenceInsertion(value = "")
@@ -96,6 +116,12 @@ shows one page of a site.
   `forward` the visits after it, the nearest last.
 - `address_draft` is the address as the bar shows it and a person edits it
   ([`NavigatorAddress`](@ref)).
+- `page_view` is the view document of the page ([`make_document_view`](@ref)),
+  which keeps the state of this view of the page, in a
+  [`NavigatorViewSlot`](@ref), or `nothing` for a page that shows as itself. The
+  navigator draws and holds the view, and the view holds the page. A path into the
+  page keeps going through the content, and the view follows the selection of its
+  page ([`follow_content_selection!`](@ref)).
 
 The address is state of the document, not of a projection, so it is saved with
 the document and a program or the assistant reads it as any field. A move to
@@ -114,19 +140,31 @@ another page writes it as view state, so undo records none of it. See
     back::Vector{NavigatorVisit} = NavigatorVisit[]
     forward::Vector{NavigatorVisit} = NavigatorVisit[]
     address_draft::NavigatorAddress = NavigatorAddress()
+    page_view::Union{NavigatorViewSlot, Nothing} = nothing
 end
 
 # A navigator shows a part of its content, so the document that a person edits in
 # it is the content.
 get_edited_field(::Navigator) = :content
 
-# A navigator holds its page, so a page starts what it needs, such as the read of a
-# folder, while the navigator is shown. A visit changes what it holds
-# (`ChangeHeldDocumentsOperation`).
-acquire_document!(editor, navigator::Navigator) = hold_documents!(editor, navigator, Any[get_navigator_page(navigator)])
+# A navigator holds the view of its page, and the view holds the page, so a page
+# starts what it needs, such as the read of a folder, while the navigator is shown.
+# A navigator makes the view of its page at its acquire when it has none of that
+# page, such as one that a file made, and when another holder holds its view, as
+# the duplicate of a tab does, so each navigator keeps its own place in the page. A
+# visit changes what it holds (`ChangeHeldDocumentsOperation`).
+function acquire_document!(editor, navigator::Navigator)
+    page = get_navigator_page(navigator)
+    slot = navigator.page_view
+    if !_is_page_view_slot(slot, page) || is_document_held(editor, slot.view)
+        made = _make_page_view_slot(page)
+        made === slot || set_cell_value!(getfield(navigator, :page_view), made)
+    end
+    hold_documents!(editor, navigator, Any[get_navigator_page_view(navigator)])
+end
 
 release_document!(editor, navigator::Navigator) =
-    release_held_documents!(editor, navigator, Any[get_navigator_page(navigator)])
+    release_held_documents!(editor, navigator, Any[get_navigator_page_view(navigator)])
 
 # A navigator is called by its page, as a tab of a browser is called by the page
 # that it shows.
@@ -140,11 +178,21 @@ end
 # descends into a navigator and shares a content that declares no duplicate.
 has_document_duplicate(::Navigator) = true
 
+# A duplicate keeps no view of a page, also in its visits: it makes its own, so it
+# keeps its own place in a page.
+copy_document(policy::DuplicatePolicy, navigator::Navigator) =
+    copy_document_fields(policy, navigator; page_view = nothing,
+                         back = NavigatorVisit[_drop_page_view(visit) for visit in navigator.back],
+                         forward = NavigatorVisit[_drop_page_view(visit) for visit in navigator.forward])
+
+_drop_page_view(visit::NavigatorVisit) = NavigatorVisit(visit.content, visit.address, visit.selection)
+
 # The copy of the address belongs to its tab, as the address does.
 has_document_duplicate(::NavigatorAddress) = true
 
 # A file keeps the content and the address, as the text of a path, and not the
-# visits: a window that opens again shows the same page, with empty lists.
+# visits or the view: a window that opens again shows the same page, with empty
+# lists, and a new view of it.
 pred_arguments(navigator::Navigator) =
     (), Pair{Symbol,Any}[:content => navigator.content, :address => print_path_text(navigator.address)]
 

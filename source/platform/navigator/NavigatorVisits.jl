@@ -32,6 +32,27 @@ get_navigator_page(navigator::Navigator) =
     evaluate_reference(navigator.content, get_navigator_page_address(navigator))
 
 """
+    get_navigator_page_view(navigator) -> Any
+
+What `navigator` draws as its page: the view of its page
+([`make_document_view`](@ref)) while the view that the navigator keeps is a view of
+that page, and the page itself otherwise.
+"""
+function get_navigator_page_view(navigator::Navigator)
+    page = get_navigator_page(navigator)
+    slot = navigator.page_view
+    _is_page_view_slot(slot, page) ? slot.view : page
+end
+
+# Whether `slot` holds a view document of `page`: the field that the view edits
+# holds `page`.
+function _is_page_view_slot(slot, page)
+    slot === nothing && return false
+    field = get_edited_field(slot.view)
+    field !== nothing && getfield(slot.view, field)[] === page
+end
+
+"""
     find_navigator_parent_address(navigator) -> Reference or nothing
 
 The address of the page that holds the page of `navigator`: the nearest document
@@ -198,14 +219,16 @@ end
 struct _NotReached end
 const _NOT_REACHED = _NotReached()
 
-# The page that the person leaves, with the selection in it.
+# The page that the person leaves, with the selection in it and its view.
 _make_current_visit(navigator::Navigator) =
     NavigatorVisit(navigator.content, get_navigator_page_address(navigator),
-                   _find_content_selection(navigator))
+                   _find_content_selection(navigator), navigator.page_view)
 
 # The writes that make `visit` the current one, with `back` and `forward` as the
-# lists, and the move of the hold of the navigator from the page that it shows to
-# the page of `visit`, as view state; then the move of the selection into its page.
+# lists, the view of its page, and the move of the hold of the navigator from the
+# view that it shows to that view, as view state; then the move of the selection
+# into its page. A visit that kept a view of its page shows that view again, and
+# any other visit makes the view of its page.
 function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back, forward)
     writes = Any[ReplaceReferencedValueOperation(navigator, "address", visit.address),
                  ReplaceReferencedValueOperation(navigator, "back", back),
@@ -220,13 +243,23 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
         push!(writes, ReplaceReferencedValueOperation(draft, "unreached_step", 0))
     end
     page = evaluate_reference(visit.content, get_valid_reference_prefix(visit.content, visit.address))
-    shown = get_navigator_page(navigator)
-    page === shown || push!(writes, ChangeHeldDocumentsOperation(navigator, Any[shown], Any[page]))
+    slot = _is_page_view_slot(visit.page_view, page) ? visit.page_view : _make_page_view_slot(page)
+    slot === navigator.page_view || push!(writes, ReplaceReferencedValueOperation(navigator, "page_view", slot))
+    view = slot === nothing ? page : slot.view
+    shown = get_navigator_page_view(navigator)
+    view === shown || push!(writes, ChangeHeldDocumentsOperation(navigator, Any[shown], Any[view]))
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,
                              annotate_reference_types(visit.content, selection))
     CompoundOperation(Any[ReplaceViewStateOperation(CompoundOperation(writes)),
                           ReplaceSelectionOperation(path)])
+end
+
+# The view of `page` that a new visit shows: a new view document, whose selection
+# follows the page, in its slot, or `nothing` for a page that shows as itself.
+function _make_page_view_slot(page)
+    view = make_document_view(page)
+    view === page ? nothing : NavigatorViewSlot(follow_content_selection!(view))
 end
 
 # The selection of a visit when it reaches a node inside the page of the visit,

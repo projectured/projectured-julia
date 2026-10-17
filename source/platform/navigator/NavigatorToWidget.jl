@@ -88,7 +88,7 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
                                                                                path)...,
                                                             open_tab])),
                            Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
-    page = VerticalLayout(CellVector(@computation Any[get_navigator_page(navigator)]),
+    page = VerticalLayout(CellVector(@computation Any[get_navigator_page_view(navigator)]),
                           Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     output = GridLayout(Any[bar, page], 1; vertical_gap = p.section_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
@@ -480,7 +480,9 @@ _translate_answer(::NavigatorToWidgetIoMap, operation, gesture) = operation
 # `content.<address>.<rest>` ↔ `children[2].children[1].<rest>`. A path in the content that is
 # not on the page has no image. A path into the bar names nothing, so a press on a
 # button leaves the selection where it is; any other path names the whole
-# navigator.
+# navigator. When the navigator draws a view of its page, the rest goes through the
+# field of the view that holds the page: `children[2].children[1].<field>.<rest>`,
+# and a path in the view that does not go through that field names nothing.
 
 function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
     output = iomap.output
@@ -499,8 +501,16 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
     end
     is_fully_typed_reference(rest) ||
         (rest = annotate_reference_types(get_navigator_page(iomap.input), strip_reference_types(rest)))
+    view = get_navigator_page_view(iomap.input)
+    field = _find_view_field_step(view, iomap.input)
+    field === nothing || (rest = ConcreteReference(get_reference_node_type(view), field, rest))
     _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
 end
+
+# The step of the field of `view` that holds the page of `navigator`, or `nothing`
+# when the navigator draws the page itself.
+_find_view_field_step(view, navigator::Navigator) =
+    view === get_navigator_page(navigator) ? nothing : FieldReferenceStep(String(get_edited_field(view)))
 
 # A path in the address copy goes through the projection of the address into the
 # path view, while an edit is on.
@@ -536,6 +546,14 @@ function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoM
     # carry none.
     rest = reference
     for _ in _PAGE_STEPS
+        rest = get_reference_tail(rest)
+    end
+    # A path that goes through the field of a view that holds the page is a path in
+    # the page. A part that only the view draws has no path in the content, so it
+    # names nothing, as a path into the bar does.
+    field = _find_view_field_step(get_navigator_page_view(iomap.input), iomap.input)
+    if field !== nothing && rest isa ConcreteReference
+        get_reference_head(rest) == field || return nothing
         rest = get_reference_tail(rest)
     end
     page = get_navigator_page_address(iomap.input)
