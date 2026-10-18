@@ -51,13 +51,13 @@ _fs_icon(f::FileSystemFile) = get_file_icon(f.pathname)
 
 # The node of an entry: a file, or a folder with its rows. A folder answers from
 # what it holds whether it has rows, so a closed row reads nothing of it; a folder
-# that reads shows its chevron too.
+# that reads shows its chevron too. The rows of an open folder ask for its entries.
 _fs_node(f::FileSystemFile, open_file; label = basename(f.pathname)) =
     WidgetTreeNode(_fs_icon(f), label; gestures = _make_open_file_bindings(f.pathname, open_file))
 function _fs_node(d::FileSystemDirectory, open_file; label = _dir_name(d.pathname))
-    rows = CellVector(@computation(1:_count_folder_rows(d)); element = i -> _make_folder_row(d, i, open_file))
-    WidgetTreeNode(_fs_icon(d), label, rows;
-                   has_children = () -> has_folder_entries(d) === true || d.state === :reading)
+    rows = CellVector(@computation((demand_tree_children(d); 1:_count_folder_rows(d)));
+                      element = i -> _make_folder_row(d, i, open_file))
+    WidgetTreeNode(_fs_icon(d), label, rows; has_children = () -> has_folder_entries(d) === true || d.reading)
 end
 
 # The rows under a folder: its entries, or one row that says that it reads, or

@@ -66,9 +66,10 @@ end
 # The entry of `document` at the index path `path`. The widget node of a child
 # reads the text and the icon of its document, and takes its children from the
 # entry of the child: so a change of the text of one document computes its own
-# node again, and the nodes under it stay.
+# node again, and the nodes under it stay. The computation of the entries runs when
+# the tree shows the children, so it asks for them there (`demand_tree_children`).
 function _make_tree_entry(document, path::Vector{Int})
-    entries = CellVector(@computation(1:_count_tree_children(document));
+    entries = CellVector(@computation((demand_tree_children(document); 1:_count_tree_children(document)));
                          element = k -> _make_tree_entry(_get_tree_child(document, k), vcat(path, k)))
     nodes = CellVector(@computation(1:length(entries)); element = k -> _make_tree_node(entries[k]))
     _TreeEntry(document, path, entries, nodes, Ref{Any}(nothing))

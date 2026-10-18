@@ -109,7 +109,7 @@ end
 # The path of the folder, and the state of its read or the count of its entries.
 function _format_folder_heading(folder::FileSystemDirectory)
     state = folder.state
-    state === :reading && return folder.pathname * " · reading"
+    folder.reading && return folder.pathname * " · reading"
     state === :unread && return folder.pathname * " · not read yet"
     state === :failed && return folder.pathname * " · can not read: " * first(split(sprint(showerror, folder.failure), '\n'))
     count = length(folder.elements)
@@ -118,17 +118,20 @@ end
 
 const _FOLDER_COLUMNS = ("name" => 3, "kind" => 1)
 
-# The table of the entries. With an offered height its rows are a list built one
-# node at a time as the viewport reaches it; with none, every row.
+# The table of the entries, which asks for them. With an offered height its rows
+# are a list built one node at a time as the viewport reaches it; with none, every
+# row.
 function _build_folder_table(owner, directory::FileSystemDirectory, steps::Tuple, bounded::Bool)
     headers = Any[name for (name, _) in _FOLDER_COLUMNS]
     columns = Any[WidgetTableColumn(; policy = Relative(Float64(share))) for (_, share) in _FOLDER_COLUMNS]
     if !bounded
+        demand_tree_children(directory)
         rows = Any[_build_folder_row(owner, directory, steps, k) for k in eachindex(directory.elements)]
         return WidgetTable(headers, rows; columns)
     end
     table = WidgetTable(; column_headers = headers, cells = ListNode(make_widget_table_row(Any["", ""])), columns)
     set_cell_computation!(getfield(table, :cells), () -> begin
+        demand_tree_children(directory)
         count = length(directory.elements)
         count == 0 && return CellVector()
         make_index_list(count, 1, k -> make_widget_table_row(_build_folder_row(owner, directory, steps, k)))

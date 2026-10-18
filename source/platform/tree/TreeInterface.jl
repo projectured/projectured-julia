@@ -43,6 +43,27 @@ of the children has an element.
 function has_tree_children end
 
 """
+    demand_tree_children(document) -> nothing
+
+Ask for the children of the node of `document`, in a part that shows them: the
+open node of a tree, the page of a folder, a search below a node. A kind whose
+children a task reads, such as a folder whose listing is a background cell, reads
+that cell here, so the read records a demand, and the children come in a later
+frame. A part that only looks at what was read, such as the quick filter of an
+explorer, and the chevron of a closed row, do not call it, so they read no disk.
+The default asks for nothing.
+
+Use it where a computation shows the children of a node.
+
+# Example
+
+    demand_tree_children(folder)
+
+See also `get_tree_children_steps` and `has_tree_children`.
+"""
+function demand_tree_children end
+
+"""
     is_explorer_entry_type(type) -> Bool
 
 Whether a person adds a document of `type` as an entry of an explorer: the kinds

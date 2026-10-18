@@ -106,8 +106,9 @@ function test_document_decoration()
         # A folder reads, then fails, with the failure in words.
         folder = make_filesystem_pathname(mktempdir())
         @test get_document_decoration(folder).icon === :folder
-        folder.state = :reading
+        folder.reading = true
         @test find_decoration_tint(get_document_decoration(folder)) === :accent
+        folder.reading = false
         folder.failure = ErrorException("no access")
         folder.state = :failed
         decoration = get_document_decoration(folder)

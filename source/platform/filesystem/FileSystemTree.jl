@@ -7,6 +7,7 @@ get_tree_children_steps(::Workspace) = ((FieldReferenceStep("folders"),),)
 format_tree_node_label(::Workspace) = "Files"
 
 get_tree_children_steps(::WorkspaceFolder) = ((FieldReferenceStep("directory"), FieldReferenceStep("elements")),)
+demand_tree_children(folder::WorkspaceFolder) = demand_tree_children(folder.directory)
 format_tree_node_label(folder::WorkspaceFolder) = isempty(folder.name) ? "New folder" : folder.name
 # A folder of a workspace is a root: no read of a parent says whether it is
 # empty, so it shows a chevron until its own read finds it empty. A folder with no

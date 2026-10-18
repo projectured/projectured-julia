@@ -70,17 +70,25 @@ the order of their names, each a `FileSystemFile` or a `FileSystemDirectory`;
 the entries are stored, so a print reads only what the folder holds, and never
 the disk.
 
-`state` is `:unread`, `:reading`, `:read`, or `:failed` with the exception in
-`failure`. `has_entries` says whether the folder holds an entry, as the read of
-its parent found it: `true`, `false`, or `nothing` while that is not known. A
-folder that is read answers from its entries ([`has_folder_entries`](@ref)).
+`state` is `:unread`, `:read`, or `:failed` with the exception in `failure`.
+`has_entries` says whether the folder holds an entry, as the read of its parent
+found it: `true`, `false`, or `nothing` while that is not known. A folder that is
+read answers from its entries ([`has_folder_entries`](@ref)).
+
+A folder made from the disk (`make_filesystem_pathname`) reads itself when a part
+that shows its entries asks for them (`demand_tree_children`): the open node of a
+tree, its page, a search. Its `listing` is a background cell of the path and of
+`read_count`, which a task reads after the frame, together with the other folders
+of the same tree that the frame asked for (`listing_source`); `reading` says that
+the read runs. The answer is stored in the entries: a new read keeps the document
+of each entry that stays, so an open folder stays open, and a new entry is one
+insert. So a closed folder reads nothing.
 
 A holder of the folder acquires it, such as an explorer whose folder is open: the
-acquire reads the folder off the loop and watches it, and the watch reads it
-again when an entry comes, goes or changes. A new read keeps the document of each
-entry that stays, so an open folder stays open, and a new entry is one insert.
-The release stops the watch and keeps the entries. For a caller that runs
-outside an editor, [`read_filesystem_folder!`](@ref) reads at once.
+acquire watches the folder, and a change of an entry raises `read_count`, so the
+part that shows the entries asks again. The release stops the watch and keeps the
+entries. For a caller that runs outside an editor,
+[`read_filesystem_folder!`](@ref) reads at once.
 """
 @document struct FileSystemDirectory <: FileSystemDocument
     pathname::String
@@ -89,6 +97,9 @@ outside an editor, [`read_filesystem_folder!`](@ref) reads at once.
     failure::Any = nothing
     has_entries::Any = nothing
     read_count::Int = 0
+    reading::Bool = false
+    listing::Any = nothing            # a background cell of the listing, or nothing
+    listing_source::Any = nothing     # the BackgroundSource of the folders of its tree
 end
 
 """
@@ -206,7 +217,50 @@ with its first acquire, or with [`read_filesystem_folder!`](@ref). It costs one
 """
 function make_filesystem_pathname(pathname::AbstractString)
     p = String(pathname)
-    isdir(p) ? FileSystemDirectory(p, CellVector(), :unread) : FileSystemFile(p)
+    isdir(p) ? _make_unread_folder(p) : FileSystemFile(p)
+end
+
+# The folder at `pathname`, not read yet, which reads itself when a part that shows
+# its entries asks for them. `has_entries` is what the read of its parent found.
+# `source` reads its listing: the one of the folder that holds it, or a new one for
+# the root of a tree, so one task reads every folder of a tree that one frame asks
+# for. It reads nothing of the disk.
+function _make_unread_folder(pathname::AbstractString; has_entries = nothing, source = nothing)
+    source === nothing && (source = _make_listing_source())
+    path = Cell(String(pathname))
+    read_count = Cell(0)
+    reading = Cell(false)
+    holder = Ref{Any}(nothing)
+    listing = make_background_cell(source, () -> (path[], read_count[]); working = reading,
+                                   apply = (inputs, answer) -> ApplyFolderListingOperation(holder[], last(inputs), answer))
+    folder = FileSystemDirectory(path, CellVector(), Cell(:unread), Cell(nothing), Cell(has_entries), read_count,
+                                 reading, listing, Cell(source))
+    holder[] = folder
+    folder
+end
+
+# The work that reads the listings of folders off the loop: one listing for each
+# path, or the exception of a folder that can not be read, so one folder that
+# fails fails no other.
+_make_listing_source() =
+    BackgroundSource(inputs -> Any[_read_folder_answer(path) for (path, _) in inputs];
+                     description = "the listings of folders")
+
+function _read_folder_answer(path::String)
+    try
+        _read_folder_listing(path)
+    catch exception
+        exception isa Base.IOError || rethrow()
+        exception
+    end
+end
+
+# A part that shows the entries of a folder asks for them: a read of its listing
+# records a demand while the listing has no answer for its path and its count of
+# changes. A folder made with its entries has no listing, and asks for nothing.
+function demand_tree_children(folder::FileSystemDirectory)
+    getfield(folder, :listing)[]
+    nothing
 end
 
 """
@@ -270,19 +324,19 @@ _is_same_entry_kind(entry::FileSystemDocument, listed) = !listed.is_folder
 function _make_listed_entry(folder::FileSystemDirectory, listed)
     path = joinpath(folder.pathname, listed.name)
     listed.is_folder || return FileSystemFile(path)
-    FileSystemDirectory(path, CellVector(), :unread, nothing, listed.has_entries, 0)
+    _make_unread_folder(path; has_entries = listed.has_entries, source = folder.listing_source)
 end
 
 """
     ApplyFolderListingOperation(folder, read_count, listing)
 
-Write what a read of `folder` found: `listing`, the entries in the order of their
-names, or the exception of the read. A kept entry keeps its document, each run of
-new and gone entries is one splice of `elements`, and a sub-folder that stays
-takes its new emptiness. The answer of a read that a newer read follows is
-dropped: `read_count` names the read. A watched folder watches each new
-sub-folder for its emptiness. It is a write of view state, so undo records no
-read.
+Write what a read of `folder` found, as the answer of its listing stores it:
+`listing`, the entries in the order of their names, or the exception of the read.
+A kept entry keeps its document, each run of new and gone entries is one splice
+of `elements`, and a sub-folder that stays takes its new emptiness. The answer of
+a read that a newer read follows is dropped: `read_count` names the read. A
+watched folder watches each new sub-folder for its emptiness. It is a write of
+view state, so undo records no read.
 """
 struct ApplyFolderListingOperation <: Operation
     folder::FileSystemDirectory
@@ -377,14 +431,13 @@ end
 # ── The acquire of a folder ──────────────────────────────────────────────────
 
 # A folder that enters the window watches itself and each of its sub-folders, the
-# sub-folders for their emptiness, and reads itself. The release stops the
-# watches and keeps the entries.
+# sub-folders for their emptiness. It reads itself when a part asks for its
+# entries. The release stops the watches and keeps the entries.
 function acquire_document!(editor, folder::FileSystemDirectory)
     store = find_file_change_store(editor)
     if store !== nothing && watch_folder!(folder.pathname; store, receiver = folder)
         foreach(entry -> _watch_folder_entry!(store, folder, entry), folder.elements)
     end
-    _start_folder_read!(editor, folder)
     nothing
 end
 
@@ -411,23 +464,12 @@ _watch_folder_entry!(store, folder, entry) =
 _unwatch_folder_entry!(store, folder, entry) =
     store !== nothing && entry isa FileSystemDirectory && unwatch_folder!(entry.pathname; store, receiver = folder)
 
-# Read `folder` off the loop. A folder that holds a listing shows it during the
-# read; one that holds none shows that it reads.
-function _start_folder_read!(editor, folder::FileSystemDirectory)
-    folder.read_count += 1
-    read_count = folder.read_count
-    folder.state === :read || (folder.state = :reading)
-    path = folder.pathname
-    start_document_read!(editor, () -> _read_folder_listing(path),
-                         answer -> ReplaceViewStateOperation(ApplyFolderListingOperation(folder, read_count, answer)))
-    nothing
-end
-
-# A change of the folder reads it again; a change of one of its sub-folders checks
-# whether that sub-folder holds an entry.
+# A change of the folder makes its listing out of date, so the part that shows its
+# entries asks for them again; a change of one of its sub-folders checks whether
+# that sub-folder holds an entry.
 function receive_folder_change!(editor, folder::FileSystemDirectory, path)
     if path == _get_folder_key(folder.pathname)
-        _start_folder_read!(editor, folder)
+        folder.read_count += 1
         return true
     end
     index = findfirst(entry -> entry isa FileSystemDirectory && _get_folder_key(entry.pathname) == path,
@@ -440,10 +482,10 @@ function receive_folder_change!(editor, folder::FileSystemDirectory, path)
 end
 
 # A folder reads while its read runs on its task, and failed when the read did,
-# with the failure in words.
+# with the failure in words. It reads no listing, so a row of it asks for nothing.
 function get_document_decoration(folder::FileSystemDirectory)
     state = folder.state
-    state === :reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)])
+    folder.reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)])
     state === :failed &&
         return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:failed)],
                                   tooltip = sprint(showerror, folder.failure))

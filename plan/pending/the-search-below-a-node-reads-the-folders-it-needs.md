@@ -2,8 +2,9 @@
 
 Status: IN PROGRESS, 2026-10-18. The owner decided Q1 to Q3 and asked for the
 implementation ("Yes to the others"). It builds on steps 1 and 2 of
-[a-value-that-a-task-reads-is-a-cell.md](a-value-that-a-task-reads-is-a-cell.md)
-(projectured main `33a957cca` and `7c2f4d2c9`). No step has started.
+[a-value-that-a-task-reads-is-a-cell.md](../done/a-value-that-a-task-reads-is-a-cell.md)
+(projectured main `33a957cca` and `7c2f4d2c9`). Step 1 is done on branch
+`explorer`; steps 2 and 3 are open.
 
 ## The ask
 
@@ -100,11 +101,11 @@ search shows its progress and can stop.
 
 ## Steps
 
-1. [ ] **The listing of a folder is a background cell** (the filesystem slice).
-   `ApplyFolderListingOperation` and the read on the acquire go; the watch stays
-   with the holders. Tests: `test_filesystem()`, `test_explorer()`, the
-   tests of the Files tab in `test_application()`, and a test that a closed
-   folder in view reads nothing.
+1. [x] **The listing of a folder is a background cell** (the filesystem slice).
+   The read on the acquire goes; the watch stays with the holders. Tests:
+   `test_filesystem()`, `test_explorer()`, the tests of the Files tab in
+   `test_application()`, and a test that a closed folder in view reads nothing.
+   Done; what was built is in § Step 1 as built.
 2. [ ] **The search** (the explorer slice, and the task slice for its row):
    `ExplorerSearch`, the match cell of each folder, its page, Return in the
    filter, the limits, its row in the task list with its status, the stop, and
@@ -114,6 +115,49 @@ search shows its progress and can stop.
    with a search in the list.
 3. [ ] **The guides:** `filesystem.md`, `explorer.md`; the plan moves to
    `plan/done/`.
+
+## Step 1 as built
+
+- **The entries stay stored, and an answer splices them** (design (c), the owner
+  agreed on 2026-10-18). The answer of a read is `ApplyFolderListingOperation`, as
+  before, which keeps the document of each entry that stays, by name. The model
+  of § 1 computed the entries from the listing, but a computed vector gives no
+  splice, and decision 1 of
+  [an-insert-moves-the-paths-after-it.md](an-insert-moves-the-paths-after-it.md)
+  moves the paths in the evaluation of a splice. So the listing cell only carries
+  the demand, and no part that shows reads its value.
+- **Two keywords of `make_background_cell`** (kernel, `ad4c05d05`, with the consent
+  of the session of the background cell). `working` is a `Cell{Bool}` that the
+  editor sets at the start of a work and clears when it writes the answer.
+  `apply(inputs, value)` answers an operation that the editor evaluates after it
+  writes the answer; a failure passes its exception. A folder gives its `reading`
+  cell and `ApplyFolderListingOperation`.
+- **A tree generic, `demand_tree_children(document)`** (the tree slice; the default
+  does nothing). A part that shows the children of a node calls it: the entries of
+  an open node, the rows of the Files tab, the table of the page of a folder, and
+  the search. The quick filter and the chevrons do not call it, because the tree
+  reads `get_tree_children_steps` of every row in view. A folder reads its listing
+  cell.
+- **The stamp** is `read_count`, the second input of the listing. A change that the
+  watch reports on the folder itself adds one, so the next demand reads again.
+- **The root of a workspace** has an unknown emptiness, and its chevron shows while
+  it is unknown (`has_tree_children(::WorkspaceFolder)`), so the person can open it.
+- **The decoration** says that a folder reads while `reading` is true. It is stored
+  state and records no demand.
+- **The headless backend paints in the frame** (option (A), the owner agreed on
+  2026-10-18). In the tests of the explorer, 327 of 328 reads of a listing ran with
+  no editor in scope: `HeadlessBackend` stored the output and read none of it, so
+  only a later read of the test, outside the frame, asked for a listing. Now
+  `write_to_devices!` reads each part of the output, as a real backend does: in
+  paint order, each part once, with no part that throws a fault, and at most 200
+  new links of a lazy list in one paint.
+- **A defect that the paint found, fixed: the offset of a line of a text.** The
+  offset of each line was a cell that read the offset of the line above. So the
+  first read of the size of a text of about 4,000 lines went down a chain of 4,000
+  cells and overflowed the stack, also with no paint. A tabbed pane that has no
+  slot measures its page so (`test_open_page_operation`, `window = false`). The
+  offset now adds the sums of aligned blocks of lines (`get_distance_sum`), so a
+  read goes log2 of the line count deep and still reads only the lines above.
 
 ## Questions for the owner
 

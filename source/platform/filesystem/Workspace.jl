@@ -36,7 +36,7 @@ end
 # The folder of a workspace is a folder also when nothing is at its place yet, so
 # its read says that it can not read it.
 WorkspaceFolder(name::AbstractString, pathname::AbstractString) =
-    WorkspaceFolder(name, pathname, FileSystemDirectory(String(pathname), CellVector(), :unread))
+    WorkspaceFolder(name, pathname, _make_unread_folder(String(pathname)))
 
 # A file keeps the name and the place of a folder, and not what a read found.
 pred_arguments(folder::WorkspaceFolder) = (), Pair{Symbol,Any}[:name => folder.name, :pathname => folder.pathname]

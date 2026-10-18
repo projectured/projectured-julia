@@ -79,8 +79,9 @@ end
 
 # An explorer draws a root for each folder of its workspace, with its own open
 # folders. A chevron opens a folder: the answer writes the open folders of the
-# explorer and holds the folder, so it reads; a folder that is open stays open
-# when a new entry comes before it.
+# explorer and holds the folder, and the rows of the open folder ask for its
+# entries, so it reads; a folder that is open stays open when a new entry comes
+# before it.
 @testset "an explorer draws its open folders, and a chevron opens and holds a folder" begin
     mktempdir() do dir
         mkpath(joinpath(dir, "full"))
@@ -95,15 +96,24 @@ end
         tree = iomap.output
         node(path) = ProjecturedPlatform.WidgetModule._wtree_node_at(tree, path)
         has_children(path) = ProjecturedPlatform.WidgetModule._wtree_has_children(node(path))
-        # Before the acquire nothing is read: the root is open and shows that it reads.
+        # Before a frame asks nothing is read: the root is open and shows that it reads.
         @test node([1]).label == "here" && tree.expanded == Set([[1]])
         @test node([1, 1]).label == "reading"
         evaluate_operation(editor, AcquireDocumentOperation(explorer))
-        @test _wait_for_folder(() -> project.state === :read, editor)
+        # The rows that the tree draws ask for the entries of the open folders.
+        ask() = Any[node([1, k]).label for k in 1:length(node([1]).children)]
+        @test _wait_for_folder(() -> project.state === :read, editor; ask)
         @test [node([1, k]).label for k in 1:3] == ["full", "none", "top.jl"]
         @test has_children([1, 1]) && !has_children([1, 2]) && !has_children([1, 3])
         full = project.elements[1]
-        @test full.state === :unread
+        # A closed folder in view reads nothing: its row and its chevron ask for no
+        # entry of it, in the frames that draw them.
+        for _ in 1:5
+            run_with_evaluation_editor(() -> Cell(@computation (ask(); has_children([1, 1])))[], editor)
+            ProjecturedKernel.EditorModule.start_background_cell_work!(editor)
+            drain_operations!(editor)
+        end
+        @test full.state === :unread && !full.reading && full.read_count == 0
         # The chevron of `full`: the widget writes its open nodes, and the explorer
         # turns that into its open folders and a hold of `full`, as view state.
         widget_write = ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "expanded",
@@ -115,11 +125,12 @@ end
         @test hold isa ChangeHeldDocumentsOperation && hold.acquired == Any[full] && isempty(hold.released)
         evaluate_operation(editor, answer)
         @test haskey(explorer.open, full)
-        @test _wait_for_folder(() -> full.state === :read, editor)
+        ask_full() = Any[node([1, 1, k]).label for k in 1:length(node([1, 1]).children)]
+        @test _wait_for_folder(() -> full.state === :read, editor; ask = ask_full)
         @test node([1, 1, 1]).label == "a.jl" && tree.expanded == Set([[1], [1, 1]])
         # A new folder before `full` keeps `full` open, at its new place.
         mkpath(joinpath(dir, "aaa"))
-        @test _wait_for_folder(() -> length(project.elements) == 4, editor)
+        @test _wait_for_folder(() -> length(project.elements) == 4, editor; ask)
         @test tree.expanded == Set([[1], [1, 2]]) && node([1, 2]).label == "full"
         # The row of a folder is the path of its document in the explorer, both ways.
         row = @reference(tree, roots[1].children[2])

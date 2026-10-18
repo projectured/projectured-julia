@@ -1,9 +1,10 @@
-# A folder holds what its last read found, and reads only when a holder acquires
-# it: the read lists each name with its kind and whether each sub-folder holds an
-# entry, a new read keeps the document of each entry that stays, the watch of the
-# folder reads it again, and the release stops the watch and keeps the entries. A
-# workspace shares one listing between its explorers, and each explorer holds its
-# own open folders. A caller with no editor reads at once.
+# A folder holds what its last read found, and reads only when a part asks for its
+# entries (`demand_tree_children`): the read lists each name with its kind and
+# whether each sub-folder holds an entry, a new read keeps the document of each
+# entry that stays, a change that the watch of a holder sees makes the part ask
+# again, and the release stops the watch and keeps the entries. An acquire alone
+# reads nothing. A workspace shares one listing between its explorers, and each
+# explorer holds its own open folders. A caller with no editor reads at once.
 
 # An editor that drains the changes of its files and folders, and draws nothing.
 _make_folder_editor() =
@@ -13,14 +14,20 @@ _make_folder_editor() =
 _get_entry_names(folder) = [basename(entry.pathname) for entry in folder.elements]
 
 # Wait until `test()` holds, for at most ten seconds, draining the changes of the
-# folders of `editor` meanwhile.
-function _wait_for_folder(test, editor)
+# folders of `editor` meanwhile. `ask`, when given, is what a part that shows the
+# entries reads in each frame: it runs in a computation of `editor`, so its reads
+# ask for what they need, and the work of the frame starts.
+function _wait_for_folder(test, editor; ask = nothing)
     deadline = time() + 10
     store = find_file_change_store(editor)
     while time() < deadline
         drain_file_changes!(; editor, store)
         drain_operations!(editor)
         test() && return true
+        if ask !== nothing
+            run_with_evaluation_editor(() -> Cell(@computation ask())[], editor)
+            ProjecturedKernel.EditorModule.start_background_cell_work!(editor)
+        end
         sleep(0.05)
     end
     false
@@ -34,18 +41,29 @@ function test_filesystem_document()
         write(joinpath(dir, "sub", "deep", "b.jl"), "")
         mkpath(joinpath(dir, "empty"))
 
-        @testset "a folder is made unread, and nothing reads it before an acquire" begin
+        @testset "a folder is made unread, and nothing reads it before a part asks for its entries" begin
             root = make_filesystem_pathname(dir)
             @test root isa FileSystemDirectory && root.state === :unread
             @test isempty(root.elements) && has_folder_entries(root) === nothing
             @test make_filesystem_pathname(joinpath(dir, "a.jl")) isa FileSystemFile
+            # An acquire watches the folder and reads nothing, also after frames.
+            editor = _make_folder_editor()
+            evaluate_operation(editor, AcquireDocumentOperation(root))
+            for _ in 1:10
+                drain_operations!(editor)
+                ProjecturedKernel.EditorModule.start_background_cell_work!(editor)
+                sleep(0.05)
+            end
+            @test root.state === :unread && !root.reading && isempty(root.elements)
+            evaluate_operation(editor, ReleaseDocumentOperation(root))
         end
 
-        @testset "an acquire reads the names, their kinds and the emptiness of each sub-folder" begin
+        @testset "a part that asks reads the names, their kinds and the emptiness of each sub-folder" begin
             editor = _make_folder_editor()
             root = make_filesystem_pathname(dir)
             evaluate_operation(editor, AcquireDocumentOperation(root))
-            @test _wait_for_folder(() -> root.state === :read, editor)
+            ask() = demand_tree_children(root)
+            @test _wait_for_folder(() -> root.state === :read, editor; ask)
             @test _get_entry_names(root) == ["a.jl", "empty", "sub"]
             (file, empty, sub) = collect(root.elements)
             @test file isa FileSystemFile && empty isa FileSystemDirectory && sub isa FileSystemDirectory
@@ -57,7 +75,7 @@ function test_filesystem_document()
 
             # A new file is one entry more, and each entry that stays keeps its document.
             write(joinpath(dir, "c.jl"), "")
-            @test _wait_for_folder(() -> length(root.elements) == 4, editor)
+            @test _wait_for_folder(() -> length(root.elements) == 4, editor; ask)
             @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
             @test root.elements[1] === file && root.elements[3] === empty && root.elements[4] === sub
 
@@ -90,10 +108,11 @@ function test_filesystem_document()
             right = WorkspaceExplorer(workspace)
             @test haskey(left.open, project) && haskey(right.open, project)
             evaluate_operation(editor, AcquireDocumentOperation(left))
-            @test _wait_for_folder(() -> project.state === :read, editor)
-            # The second explorer reads nothing again: the folder has two holders.
+            @test _wait_for_folder(() -> project.state === :read, editor; ask = () -> demand_tree_children(project))
+            # The second explorer reads nothing again: an acquire reads nothing, and
+            # the listing that the first read found belongs to the folder as it is.
             evaluate_operation(editor, AcquireDocumentOperation(right))
-            @test project.read_count == 1
+            @test !project.reading && project.read_count == 0
             store = find_file_change_store(editor)
             evaluate_operation(editor, ReleaseDocumentOperation(left))
             @test is_folder_watched(dir; store, receiver = project)
@@ -127,8 +146,8 @@ function test_filesystem_document()
             editor = _make_folder_editor()
             folder = make_filesystem_pathname(large)
             evaluate_operation(editor, AcquireDocumentOperation(folder))
-            @test _wait_for_folder(() -> folder.state === :read, editor)
-            @test length(folder.elements) == 5000 && folder.read_count == 1
+            @test _wait_for_folder(() -> folder.state === :read, editor; ask = () -> demand_tree_children(folder))
+            @test length(folder.elements) == 5000 && folder.read_count == 0
             @test basename(folder.elements[1].pathname) == "file0001.txt"
             evaluate_operation(editor, ReleaseDocumentOperation(folder))
         end
