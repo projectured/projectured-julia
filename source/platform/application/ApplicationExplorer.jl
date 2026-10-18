@@ -14,7 +14,8 @@ section of the settings; and a section of the help. `mcp_log` adds the log of th
 calls of a client to the section of the editor, for a window that serves MCP.
 
 Each document of a session is the one of `editor`, so a Tasks tab and the
-explorer show the same list. The host calls it once the editor exists, and makes
+explorer show the same list. A list of the session that `entries` holds already,
+such as the task list that a host puts after its projects, is not added again. The host calls it once the editor exists, and makes
 it the root section of the editor ([`get_session_explorer_content`](@ref)).
 
 Use it to give a new window its explorer.
@@ -33,11 +34,11 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
     mcp_log && push!(logs, get_session_mcp_log(; editor))
     settings = Any[document for document in (find_editor_settings(; editor), find_editor_appearance(; editor))
                    if document !== nothing]
+    lists = Any[get_session_open_file_list(; editor), get_session_task_group_list(; editor),
+                get_session_assistant_list(; editor)]
     ExplorerSection("Explorer", Any[
         entries...,
-        get_session_open_file_list(; editor),
-        get_session_task_group_list(; editor),
-        get_session_assistant_list(; editor),
+        (list for list in lists if !any(entry -> entry === list, entries))...,
         ExplorerSection("Evaluators", Any[EvaluatorToplevel()]),
         ExplorerSection("Dashboards"),
         ExplorerSection("Editor", Any[logs...,

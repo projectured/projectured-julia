@@ -688,6 +688,25 @@ function test_explorer()
         @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
     end
 
+    @testset "the task list says where its groups and tasks are, so the explorer finds them" begin
+        editor, _ = _nav_editor(PrimitiveString("start"))
+        tasks = get_session_task_group_list(; editor)
+        group = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "probe"))
+        add_task_group!(tasks, group)
+        # A host that puts the task list first has it once in the first content.
+        content = make_editor_explorer_content(; editor, entries = Any[ExplorerSection("Projects"), tasks])
+        @test count(entry -> entry === tasks, content.entries) == 1 && content.entries[2] === tasks
+        groups_step = (FieldReferenceStep("groups"), ElementReferenceStep(1))
+        @test _nav_is(find_navigator_address(tasks, group), _explorer_path(groups_step...))
+        task = first(collect(getfield(group, :tasks)[]))
+        @test _nav_is(find_navigator_address(tasks, task),
+                      _explorer_path(groups_step..., FieldReferenceStep("tasks"), ElementReferenceStep(1)))
+        @test _nav_is(find_navigator_address(content, task),
+                      concat_references(_explorer_entry_path(2),
+                                        _explorer_path(groups_step..., FieldReferenceStep("tasks"), ElementReferenceStep(1))))
+        @test find_navigator_address(TaskGroupList(), group) === nothing
+    end
+
     @testset "Ctrl+press on a node opens its page in a new tab" begin
         content = _explorer_make()
         explorer = Explorer(content)

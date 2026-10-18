@@ -48,6 +48,7 @@ import ..DomainModule: accepts_pasted_document, get_document_decoration, get_ins
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..NavigatorModule: find_navigator_address
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,

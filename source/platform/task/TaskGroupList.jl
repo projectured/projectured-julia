@@ -127,6 +127,86 @@ closed ones.
 collect_task_group_documents(list::TaskGroupList) =
     TaskGroupDocument[group for group in list.groups if group isa TaskGroupDocument]
 
+# ── The addresses ────────────────────────────────────────────────────────────
+#
+# A navigator over a content that holds the list asks the list where a group or a
+# task is (`find_navigator_address`), so a link that names one opens its page at
+# its full address. Each answer comes from the structure: a task knows its group
+# and its place, and an inner group is in the task that holds it.
+
+_get_element_steps(field::AbstractString, index::Int) = (FieldReferenceStep(field), RangeReferenceStep(index - 1, index))
+
+# The steps from `outer`, a group, to `group` among the groups inside it: an inner
+# group of one of its tasks, or its preparation, at any depth; `nothing` when it
+# holds none.
+function _find_inner_group_steps(outer::TaskGroupDocument, group)
+    preparation = getfield(outer, :preparation)[]
+    preparation === group && return (FieldReferenceStep("preparation"),)
+    if preparation isa TaskGroupDocument
+        below = _find_inner_group_steps(preparation, group)
+        below === nothing || return (FieldReferenceStep("preparation"), below...)
+    end
+    for (index, task) in enumerate(collect(getfield(outer, :tasks)[]))
+        inner = getfield(task, :inner_group)[]
+        inner === nothing && continue
+        steps = (_get_element_steps("tasks", index)..., FieldReferenceStep("inner_group"))
+        inner === group && return steps
+        below = _find_inner_group_steps(inner, group)
+        below === nothing || return (steps..., below...)
+    end
+    nothing
+end
+
+# The steps from `list` to `group`: an open group of the list, or a group inside
+# one.
+function _find_group_steps(list::TaskGroupList, group)
+    for (index, outer) in enumerate(collect(list.groups))
+        outer isa TaskGroupDocument || continue
+        steps = _get_element_steps("groups", index)
+        outer === group && return steps
+        below = _find_inner_group_steps(outer, group)
+        below === nothing || return (steps..., below...)
+    end
+    nothing
+end
+
+# Every group of `list`: the open groups, and the groups inside them.
+function _collect_inner_task_groups(list::TaskGroupList)
+    found = TaskGroupDocument[]
+    function add!(group)
+        push!(found, group)
+        preparation = getfield(group, :preparation)[]
+        preparation isa TaskGroupDocument && add!(preparation)
+        for task in collect(getfield(group, :tasks)[])
+            inner = getfield(task, :inner_group)[]
+            inner === nothing || add!(inner)
+        end
+    end
+    foreach(add!, collect_task_group_documents(list))
+    found
+end
+
+function find_navigator_address(list::TaskGroupList, group::TaskGroupDocument)
+    steps = _find_group_steps(list, group)
+    steps === nothing ? nothing : extend_reference(EmptyReference(), steps...)
+end
+
+# A task is at its place in its group, or it is the preparation of a group.
+function find_navigator_address(list::TaskGroupList, task::TaskDocument)
+    place = find_task_document_group(task)
+    if place !== nothing
+        (group, index) = place
+        steps = _find_group_steps(list, group)
+        return steps === nothing ? nothing : extend_reference(EmptyReference(), steps..., _get_element_steps("tasks", index)...)
+    end
+    for group in _collect_inner_task_groups(list)
+        getfield(group, :preparation)[] === task || continue
+        steps = _find_group_steps(list, group)
+        return steps === nothing ? nothing : extend_reference(EmptyReference(), steps..., FieldReferenceStep("preparation"))
+    end
+    nothing
+end
+
 """
     add_task_group!(list, group) -> list
 
