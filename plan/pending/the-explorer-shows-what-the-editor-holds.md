@@ -1,14 +1,13 @@
 # The explorer shows what the editor holds
 
-> **Status (2026-10-18): IN PROGRESS** on branch `explorer` (worktree
-> `projectured-julia-explorer`), on main `69d120194`, not landed: steps 1 to 9
-> done but 6c, and step 11 done for projectured. Open for the owner: the landing;
-> 6c, the search below a node; the columns of a dashboard that follow the width
-> (8). Step 10 (omnet) and the omnet guides of step 11 wait for the landing,
-> because omnet loads projectured from main, and the omnet UI session changes the
-> omnet explorer in its plan C. **DESIGN DECIDED.** The owner decided Q0 to Q12 in
-> §6 on 2026-10-17 and asked for the implementation the same day. The owner
-> refines the structure of the tree later.
+> **Status (2026-10-18): IN PROGRESS.** Steps 1 to 9 but 6c and the projectured
+> documents of step 11 landed on main at the owner's word ("yes", 2026-10-18).
+> 6c is deferred (the owner: "defer"). Open for the owner: the columns of a
+> dashboard that follow the width (8), for which the owner asked for an example.
+> Next: step 10 (omnet) and the omnet guides of step 11, with the omnet UI
+> session, whose plan C changes the omnet explorer. **DESIGN DECIDED.** The owner
+> decided Q0 to Q12 in §6 on 2026-10-17 and asked for the implementation the same
+> day. The owner refines the structure of the tree later.
 
 ## 1. The ask
 
@@ -1249,7 +1248,8 @@ before each edit of a kernel file. Mark each step done here.
      kind of the rows that the tree read, named as the list of `+` names a kind,
      with the icon `check` on what the filter keeps (a menu item has no check
      mark of its own). A choice adds the kind or takes it out, as view state.
-   - [ ] **6c. The search below.** Open for the owner (asked 2026-10-17): a walk of
+   - [ ] **6c. The search below.** Deferred by the owner on 2026-10-18 ("defer"),
+     so it is in §8 and not in this plan. The question was: a walk of
      documents must run on the editor task, because the cells belong to it, and
      the plan says that the search "reads what is not read on its own task". No
      kind says how to read its children now for a search, so that needs a new
@@ -1338,6 +1338,9 @@ before each edit of a kernel file. Mark each step done here.
     in omnet, `user-interface-anatomy.md` and `interface-composition.md`.
 
 ## 8. Not in this plan
+
+The search below a node (step 6c, deferred by the owner on 2026-10-18): it needs
+a way to read the unread children of a document for a search, which no kind gives.
 
 Drag and drop of a row; a split beside the explorer from a row; the open nodes in
 a save; a page for the names of the evaluator, the API, the examples and the
