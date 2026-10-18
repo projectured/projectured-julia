@@ -321,7 +321,9 @@ function test_explorer()
         field = _explorer_click(backend, "/home/person/data"; side = :page)
         @test field !== nothing
         _nav_press!(editor, backend, field)
-        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in root)...)
+        # A key a frame, as a person types: a frame takes a bounded count of
+        # events, and a long place has more keys than that.
+        foreach(character -> _nav_press!(editor, backend, KeyPress(character; time = 0.0)), root)
         @test folder.pathname == root && !_nav_has_text(backend, "notes.md")
         # Return opens the folder there: it takes the name of the place and reads it.
         _nav_press!(editor, backend, KeyPress('\n'; time = 0.0))
