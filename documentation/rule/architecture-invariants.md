@@ -215,6 +215,8 @@ no cached value can see it. `PAR-NO-WRITE-IN-THUNK` carries the same carve-out a
 names the cases: the fault store and the counter store of a performance scope. A counter or a log that a cell or a computation
 reads does not qualify, and a write to it stays forbidden.
 
+The record of a demand of a background cell is a case of the carve-out: the editor holds the demands in a session document that no cell depends on and no computation reads. The read of the state that guards the record, which tells whether a demand for the same inputs waits or runs, is a case too. It decides whether the record is made, and it never decides the value that the computation gives.
+
 ### PAR-NO-WRITE-IN-THUNK
 
 **A computation must never write another cell or mutate shared document state.**
@@ -339,6 +341,8 @@ new value and a write of a value make a cell valid. Setting the state by hand,
 or invalidating only a subset of readers, breaks the early stop and leaves cells
 stale forever.
 
+**Provisional is a flag, not a state.** A provisional cell is valid. The flag sits beside the state, and no walk of a write reads or sets it. So the states and the early stop above do not change.
+
 ### PAR-WRITE-DRIVEN-PROPAGATION
 
 **Propagation starts at a write, and stops at plain data that stays the same.**
@@ -348,7 +352,7 @@ maybe invalid. There is no `old == new` check. Plain data is a value that is
 no reader can tell it from the value before. A write of plain data `===` to the
 value of a cell that holds no computation invalidates nothing, and a computation
 that gives plain data `===` to the value that it gave leaves the cells below it
-as they were. A write of the same mutable value, and a computation that gives a
+as they were, when its provisional flag is the same too. A write of the same mutable value, and a computation that gives a
 mutable value, still count as a change. An exception during a check is no stop:
 each cell on the path of the check computes once, also above a cell that catches
 the exception and gives the value that it had. So `c[] = c[]` of a mutable value is not

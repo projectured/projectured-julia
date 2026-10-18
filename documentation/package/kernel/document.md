@@ -232,6 +232,8 @@ functions in, rather than dispatching them off a subtype. That keeps the walk
 *below* the reference layer while still serving it: the walk takes no
 dependency on `Reference`, and the caller supplies it.
 
+The keyword `background` (default `false`) sets whether the walk starts background work. By default a read of a [background cell](editor.md#the-background-cell) in the walk records no demand, and the walk takes the cell as it is: its last answer or its default. With `background = true`, the walk waits for the final value of each provisional cell that it reads (`complete_walked_cell`, which the editor answers). `search_documents` and `search_references` pass the keyword on. `is_background_work_allowed()` says whether a read may start background work now.
+
 ## The protocol helpers
 
 [ForwardProtocol.jl](../../../source/kernel/document/ForwardProtocol.jl) gives a wrapper document

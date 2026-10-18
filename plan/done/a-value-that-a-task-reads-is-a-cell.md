@@ -1,7 +1,7 @@
 # A value that a task reads is a cell like any other
 
-Status: ACCEPTED, 2026-10-18 (the owner: "Yes, looks good"). No step has
-started.
+Status: DONE, 2026-10-18. The owner accepted it ("Yes, looks good"), and steps 1
+to 5 are done; step 4 is in omnet.
 
 ## The ask
 
@@ -356,7 +356,7 @@ Each step is one or more commits with its tests, in a worktree, with a check of
      task, with `wait_for_cell!`.
    - The label of a file in a tree reads no record, so a quick filter of the
      explorer asks for none.
-5. [ ] **The guides:** `cell.md`, `editor.md`, `architecture-invariants.md` (the
+5. [x] **The guides:** Done. `cell.md`, `editor.md`, `architecture-invariants.md` (the
    carve-out of `PAR-PURE-THUNK` and the stop rule) and `concepts.md`; the plan
    moves to `plan/done/`.
 

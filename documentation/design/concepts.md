@@ -29,6 +29,8 @@ A user of ProjecturEd and a developer of it use different words for the same thi
 | selection | selection, reference | A path from the root of the data to the part you work on. |
 | assistant | `Assistant` | A language model with a set of tools, inside the running program. |
 | tool set | `ToolSet` | The functions that the assistant and an external client can call. |
+| provisional value | `is_cell_provisional` | A value that is valid now, and that a newer value will replace. A computation that reads one is provisional too. |
+| background cell | `make_background_cell` | A cell whose value a task computes after the frame. It shows its last value, or a default, until the answer comes. |
 
 ## The five ideas
 

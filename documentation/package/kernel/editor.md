@@ -719,6 +719,37 @@ last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
 `frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
 writes the frames as CSV.
 
+## The background cell
+
+A **background cell** is a cell whose value a task computes off the loop. A read never waits. Its code is in [BackgroundCells.jl](../../../source/kernel/editor/BackgroundCells.jl).
+
+A background cell has three parts:
+
+- Its **inputs** are a computation of cells that the loop reads, such as the path, the size and the time of a file. The answer is a plain value.
+- Its **source** (`BackgroundSource`) holds the work. The work takes the inputs of all demanded cells and answers their values in the same order. It runs on a task and reads no document.
+- Its **default** is the value while the cell has no answer.
+
+`make_background_cell(source, inputs; default)` makes the cell. Make it where the document is built, never inside a computation.
+
+A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come.
+
+The demands of an editor are a session document, `BackgroundDemands`. A computation adds to it as to a collector outside the graph, and the record wakes the editor. After the print of a frame, `start_background_cell_work!` takes the demands and starts the work of each source on one task. The loop calls it after its first print too. The work posts one `WriteBackgroundAnswersOperation` to the inbox. The operation writes each answer into its cell in a write phase, so only the editor task writes cells. An answer to a demand older than the answer in the cell is dropped. A work that throws is the answer of each cell of its batch, and a read of such a cell throws that exception. `make_editor` prints with its editor in scope, so the first print records its demands.
+
+An example: a folder of a simulation has 2,000 result files, and each file entry has a record that a background cell holds. One source of the folder reads the heads of the demanded files.
+
+| When | What happens |
+| --- | --- |
+| The page opens | 30 visible rows read their record. 30 cells answer the default, are provisional, and record 30 demands. |
+| After the frame | One task reads 30 heads. |
+| The answer | One operation writes 30 answers. The 30 cells are final. |
+| A sort by configuration | The sort reads 2,000 records. 1,970 cells record a demand. The table keeps its last order. |
+| After the frame, and the answer | One task reads 1,970 heads. All cells are final, and the table shows the sorted rows. |
+| A file changes on disk | The listing gives a new size. That record answers its last record, provisional, until its new answer comes. |
+
+`wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
+
+A search of the documents starts no background work by default: it takes each background cell as it is. `search_documents(...; background = true)` waits for the final value of each provisional cell that it reads (see [the reflection walk](document.md#the-reflection-walk)).
+
 ## Adding new operations
 
 If you introduce a new editing operation, you need to:

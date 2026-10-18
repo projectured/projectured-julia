@@ -501,6 +501,17 @@ rows are representative (every domain adds its own `*To*` projection).
 See [higher-order projections](../platform/projection/higher-order-projections.md) and
 [generic projections](../platform/projection/generic-projections.md) for details.
 
+## A print while a value is still to come
+
+A [provisional value](cell.md#a-provisional-value) must not make a drawing jump. `make_final_holding_cell(compute; is_usable)` ([ProvisionalOutput.jl](../../../source/kernel/projection/ProvisionalOutput.jl)) makes a cell that answers `compute()` when that value is final. While it is provisional, the cell answers the last final value, if `is_usable` accepts it. A value that was never final shows as it is. The cell is provisional while `compute()` is.
+
+```julia
+rows = make_final_holding_cell(() -> sortperm([key(item) for item in items]);
+                               is_usable = rows -> length(rows) == length(items))
+```
+
+A part uses it where its output must not jump, such as the order of a sort whose keys a task still reads. The picking stage of every filter and sort of a collection uses it, so a table keeps its last order until its sort is final. A label needs nothing: it shows the last answer of its background cell, or the default when no answer came.
+
 ## The forward and reverse paths
 
 A typical pipeline looks like:

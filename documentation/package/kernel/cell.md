@@ -100,8 +100,8 @@ The engine marks at once, and it computes only on a read:
 - The next `c[]` of an invalid or a failed cell calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
   the new value. When the new value is plain data that is `===` to the old one,
-  the cells that wait for a check below `c` stay as they are, and the counters
-  add one to `:stops`. Any other value, and an exception, makes them invalid.
+  and the provisional flag is the same, the cells that wait for a check below
+  `c` stay as they are, and the counters add one to `:stops`. Any other value, and an exception, makes them invalid.
 - The next `c[]` of a maybe invalid cell checks first. It brings each cell that
   the last computation read up to date, in the order of the reads, and stops at
   the first one that gave a new value, which made it invalid: then it computes.
@@ -245,6 +245,39 @@ a[] = @computation b[] + 1
 a[]                     # throws a CellCycleException
 a[] = 5; b[]            # 6
 ```
+
+## A provisional value
+
+A **provisional value** is a value that is valid now, and that a newer value will replace. An example is the default of a value that a task still reads. A provisional cell is *valid*: the flag is a field beside the state, and it is not a state of invalidation.
+
+```julia
+is_cell_provisional(c)             # is the value of c provisional?
+mark_computation_provisional!()    # inside a computation: its value is provisional
+is_computation_running()           # does a computation run on this task now?
+```
+
+The rules:
+
+- **The flag goes up.** A computation that reads a provisional cell is provisional. So every computation that the value reaches is provisional, and a computation that reads final values only is final.
+- **A run clears the flag.** A computation starts final and becomes provisional when it reads a provisional cell or calls `mark_computation_provisional!()`. A write of a value is final. The call throws an `ArgumentError` outside a computation.
+- **The read rule.** A provisional cell computes again at each read by a computation. So a value that is still to come asks again wherever a computation uses it.
+- **The stop rule.** A computation that gives the same plain value as before stops the check below it only when its flag is the same too. A change of the flag is a change for the readers.
+- **The failure rule.** A failure that a provisional value caused is provisional. A computation that catches that failure is provisional too.
+- **Untracked reads.** `peek`, `run_without_cell_tracking`, an `UntrackedCell` and a read on another task record no reader. They make no computation provisional.
+
+`is_cell_provisional(c)` records a dependency on `c`, so the reader computes again when the flag changes. It does not make its reader provisional. Only the reactive kind can be provisional: every other kind answers `false`.
+
+```julia
+record = Cell(@computation (mark_computation_provisional!(); "unknown"))
+label = Cell(@computation "configuration: " * record[])
+label[]                        # "configuration: unknown"
+is_cell_provisional(label)     # true
+record[] = "Fifo"
+label[]                        # "configuration: Fifo"
+is_cell_provisional(label)     # false
+```
+
+The editor layer uses the flag for the [background cell](editor.md#the-background-cell). A drawing uses it to keep its last final output (see [make_final_holding_cell](projection-system.md#a-print-while-a-value-is-still-to-come)).
 
 ## Invariants the engine relies on
 
