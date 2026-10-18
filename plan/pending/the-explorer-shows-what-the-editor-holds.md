@@ -1295,11 +1295,12 @@ before each edit of a kernel file. Mark each step done here.
    - `FlowLayout` keeps the width of each child, so it can not make the cards
      fill a line. The page uses a `GridLayout` of equal weights, with as many
      columns as cards of `card_width` (a least width) fit in the exact width of
-     the print. A page in a navigator gets no exact width at its print, so the
-     cards stand in one column there. **Open for the owner (asked
-     2026-10-17), as Q4 says:** no layout makes its count of columns follow the
-     width that it gets after its print; that is a new layout feature, which this
-     plan does not add.
+     the print: in pictures of 2026-10-18, three columns at 1100 pixels, two at
+     640, and two in the page of the explorer. An editor with no size of its
+     window, as the tests make, gives no exact width, and then one column. **Open
+     for the owner (asked 2026-10-17, as Q4 says; the owner asked for an example
+     on 2026-10-18):** the count stays as the print made it when the width changes
+     after the print, such as at a drag of a splitter.
    - A card is not removed by a key on the page yet; the menu of its row in the
      explorer has no Remove either, because a card is no entry of a section.
 9. [x] **The window of projectured.** The Explorer is the first tab of the main

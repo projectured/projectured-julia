@@ -634,8 +634,8 @@ function test_explorer()
         _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
         @test get_navigator_page(explorer.navigator) === dashboard
         @test all(text -> _nav_has_text(backend, text), ("First", "Second", "Third", "one", "two", "three"))
-        # A page in a navigator gets no exact width at its print, so the cards stand
-        # in one column, one below the other.
+        # The editor of the test has no size of its window, so the page gets no exact
+        # width at its print, and the cards stand in one column.
         ys = [only(entry[3] for entry in _nav_texts(backend) if entry[1] == title) for title in ("First", "Second", "Third")]
         @test ys[1] < ys[2] < ys[3]
         # A press in the content of a card puts the caret in that document.

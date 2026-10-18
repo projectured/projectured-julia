@@ -114,7 +114,7 @@ The slice uses the collection, domain, focus, layout, navigator, pane, projectio
 ## Limits
 
 - **The field of the filter keeps its least width.** A text field takes the width of its text, and no text field fills its slot.
-- **A dashboard in a navigator has one column.** A page in a navigator gets no exact width at its print, and no layout follows the width that it gets later.
+- **A dashboard keeps the count of columns of its print.** A change of the width after the print, such as a drag of a splitter, keeps the count until the page prints again. With no exact width at the print, the cards stand in one column.
 - **The search below a node is not built.** It needs a way to read unread children for a search, which no kind gives.
 - **The tree holds a removed document until its next toggle or scroll.**
 - **A card has no key that removes it.**
