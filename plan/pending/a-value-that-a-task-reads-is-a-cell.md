@@ -1,7 +1,7 @@
 # A value that a task reads is a cell like any other
 
-Status: PROPOSED, 2026-10-18. No step has started. The owner asked to see the
-shape before the work.
+Status: ACCEPTED, 2026-10-18 (the owner: "Yes, looks good"). No step has
+started.
 
 ## The ask
 
@@ -83,7 +83,7 @@ The facts of the kernel:
 7. **A background cell whose inputs are provisional records no demand.** It
    answers its last answer, or its default, and it waits until its inputs are
    final, so a work never runs on values that are still to come.
-8. **Only a drawing decides what to show for a provisional part** (QA).
+8. **Only a drawing decides what to show for a provisional part** (decision 4, QA).
 
 So the rule of the owner holds by itself: a value that no computation reads is
 not read; a value that a visible part reads is read; a sort reads every value
@@ -112,7 +112,7 @@ a file again:
 | The page opens | 30 rows read the record of their entry | 30 answer the default, provisional; 30 demands | 30 rows, the record columns not filled yet |
 | After the frame | one task reads 30 heads | | |
 | The answer | one operation writes 30 answers | 30 final | the 30 rows with their values |
-| A sort by configuration | the sort reads 2,000 records | 1,970 answer the default, provisional; 1,970 demands | the last order, until the sort is final (QA) |
+| A sort by configuration | the sort reads 2,000 records | 1,970 answer the default, provisional; 1,970 demands | the last order, until the sort is final (decision 4, QA) |
 | After the frame | one task reads 1,970 heads | | |
 | The answer | one operation writes 1,970 answers | all final | the sorted rows |
 | A run writes `Sweep-n=0-#0.sca` again | the listing gives a new size | that cell is provisional, and answers its last record | the file stays under its run |
@@ -151,7 +151,7 @@ end
 ```
 
 `sorted` is provisional while `order` is, because it reads it, and the table
-that draws `sorted` keeps its last rows that were not provisional (QA). For the
+that draws `sorted` keeps its last rows that were not provisional (decision 4, QA). For the
 2,000 files of a result folder, sorted by configuration:
 
 | When | The records | `order` | `sorted` |
@@ -176,10 +176,10 @@ the pilot.
 | `kernel/cell/ReactiveCell.jl` | no | the provisional flag of a cell; a read spreads it to its reader; a computation clears it at its start and keeps it when it read a provisional cell; the stop of a computation that gives the same plain value compares the flag too; `is_cell_provisional` |
 | `kernel/cell/CellInterface.jl` | no | the contract of `is_cell_provisional` for every kind of cell; a value kind is never provisional |
 | `kernel/cell/CellComputation.jl` | yes | no change |
-| `kernel/cell/CellModule.jl` | yes | one export line for the new names of the cell layer, or no change (QC) |
+| `kernel/cell/CellModule.jl` | yes | one export line for the new names of the cell layer, or no change (decision 4, QC) |
 | a new file of the editor layer | no | `BackgroundSource`, `make_background_cell`, the demands of a frame, the start of the works, the operation that writes the answers, and `wait_for_cell` |
 | `kernel/editor/EditorLoop.jl` | no | after the print of a frame, the start of the works with demands |
-| the projection layer | no | the print of a part that is provisional (QA) |
+| the projection layer | no | the print of a part that is provisional (decision 4, QA) |
 
 A provisional cell is a valid cell, so the states of invalidation and
 `PAR-MONOTONE-INVALIDATION` do not change. The record of a demand is a write to a
@@ -195,20 +195,18 @@ writes the cells (`PAR-SINGLE-WRITER`).
    drawing decides what to show (the owner: "yes").
 3. This plan comes first, with the records of a result folder as the pilot, and
    plan C step 3d is built on it (the owner: "yes").
-
-## Questions
-
-- **QA. What a drawing shows while its part is provisional.** My proposal: the
-  last output of the part that was not provisional, and its provisional output
-  when it has none. So a label shows its default, such as an empty text, and a
-  table that sorts keeps its last order until the sort is final.
-- **QB. A read outside a computation**, by a script, a verb or a test. My
-  proposal: it answers as in a computation, the last answer or the default, and
-  it records the demand; `wait_for_cell(c)` waits for the final value, off the
-  editor task.
-- **QC. The sealed `CellModule.jl`.** My proposal: one export line for
-  `is_cell_provisional`, with the permission of the owner. The other way is to
-  reach the name as `CellModule.is_cell_provisional` from the layers above.
+4. The owner accepted the plan with the three proposals (2026-10-18, after the
+   example of a sort on a task):
+   - **QA.** A drawing of a provisional part shows the last output of the part
+     that was not provisional, and its provisional output when it has none. So a
+     label shows its default, such as an empty text, and a table that sorts keeps
+     its last order until the sort is final.
+   - **QB.** A read outside a computation, by a script, a verb or a test, answers
+     as in a computation, the last answer or the default, and records the demand;
+     `wait_for_cell(c)` waits for the final value, off the editor task.
+   - **QC.** The sealed `CellModule.jl` gets one export line for the new names of
+     the cell layer, such as `is_cell_provisional`, and no other change. This is
+     the permission of the owner for that line.
 
 ## Steps
 
@@ -223,8 +221,8 @@ Each step is one or more commits with its tests, in a worktree, with a check of
    headless editor: a read answers the default and is provisional; the work runs
    after the frame; the answer makes the cell final; a change of an input makes it
    provisional with its last answer; 1,970 demands of one frame are one work;
-   `wait_for_cell` (QB).
-3. [ ] **The drawing of a provisional part** (QA). Tests: the print tests of a
+   `wait_for_cell` (decision 4, QB).
+3. [ ] **The drawing of a provisional part** (decision 4, QA). Tests: the print tests of a
    label and of a table that sorts.
 4. [ ] **The pilot in omnet:** the record of a result file entry is a background
    cell, and the parts that the table of the example lists go. Tests:
