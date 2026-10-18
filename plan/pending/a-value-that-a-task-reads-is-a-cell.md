@@ -80,7 +80,10 @@ The facts of the kernel:
 6. **A cell keeps its answer with the key of its inputs.** A change of an input
    makes the cell provisional again, and it answers its last answer until the new
    one comes. A demand that a task reads already waits for that task.
-7. **Only a drawing decides what to show for a provisional part** (QA).
+7. **A background cell whose inputs are provisional records no demand.** It
+   answers its last answer, or its default, and it waits until its inputs are
+   final, so a work never runs on values that are still to come.
+8. **Only a drawing decides what to show for a provisional part** (QA).
 
 So the rule of the owner holds by itself: a value that no computation reads is
 not read; a value that a visible part reads is read; a sort reads every value
@@ -121,6 +124,50 @@ records of its folder through its files and so demands them.
 
 What stays: the holders, for a thing with a lifetime, such as the watch of a
 folder while a part shows it. A watch is no value.
+
+## An example: a sort on a task
+
+A sort that takes a cell vector, gives a cell vector, and orders the items on a
+task, for a collection whose sort takes long:
+
+```julia
+function make_sorted_cell_vector(items::CellVector, key)
+    # The work of one demand orders its keys. It reads no document.
+    source = BackgroundSource(demands -> [sortperm(keys) for (keys,) in demands])
+    # The inputs, read on the loop: the key of each item, as a value. A key that
+    # is provisional makes the inputs provisional, and the order then records no
+    # demand until every key is final.
+    order = make_background_cell(source, () -> (Any[key(item) for item in items],);
+                                 default = Int[])
+    sorted = CellVector()
+    set_cell_computation!(getfield(sorted, :elements), () -> begin
+        n = length(items)
+        rows = order[]               # the order of the keys now, the last order, or none
+        length(rows) == n || (rows = collect(1:n))   # an order of other items is no order of these
+        Cell[Cell(items[i]) for i in rows]
+    end)
+    sorted
+end
+```
+
+`sorted` is provisional while `order` is, because it reads it, and the table
+that draws `sorted` keeps its last rows that were not provisional (QA). For the
+2,000 files of a result folder, sorted by configuration:
+
+| When | The records | `order` | `sorted` |
+| --- | --- | --- | --- |
+| The sort starts | 1,970 answer the default, provisional, and record demands | its inputs are provisional: no demand, the default, provisional | the own order, provisional |
+| After the frame | one task reads 1,970 heads | | |
+| The answers | final | its inputs are final, and it has no answer for them: a demand, provisional | provisional |
+| After the frame | | one task orders the 2,000 keys | |
+| The order | | final | final: the sorted rows |
+| A run writes a file again | that record answers its last value, provisional | its inputs are provisional: its last order, provisional | the last order, provisional |
+| The new record | final | a new demand only if the keys changed | final |
+
+A sort that is fast needs no task. The arrangement keeps its cell `rows` as it is
+today (`compute_sort_rows` in `Picking.jl`): it reads the keys, so it is
+provisional while a key is, and it computes again when the keys come. That is
+the pilot.
 
 ## Where the code goes
 
