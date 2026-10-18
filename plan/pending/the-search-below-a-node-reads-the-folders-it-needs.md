@@ -118,9 +118,9 @@ search shows its progress and can stop.
 ## Questions for the owner
 
 - **Q1. Who moves the listing of a folder?** It is one of the five reads that the
-  background cell plan moves after its pilot, each in a plan of its own. My
-  recommendation: this plan moves it, because the search needs it first, and the
-  session of the background cell hears of it before step 1.
+  background cell plan moves after its pilot, each in a plan of its own. The
+  session of the background cell does not plan to move it (2026-10-18), so this
+  plan moves it, because the search needs it first.
 - **Q2. A computation or a task? Decided (the owner, 2026-10-18: "Agreed").** A
   computation that is a work item in the task list (§ the model, 2 and 3). The
   options: a computation shares its reads with the tree, follows the disk, and
