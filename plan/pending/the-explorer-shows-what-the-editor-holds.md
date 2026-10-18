@@ -623,7 +623,7 @@ projectured:
 | message log | a log glyph | none | the counts of warnings and errors in the log, with their roles | none: a count over at most 200 entries |
 | fault log | `warning` | failed while it holds a fault, with the count of its lines at the bottom left (Q11) | none | none |
 | MCP log | a log glyph | failed while `faults > 0` | "N faults" (`error`) | none |
-| roster, arranged view | a table glyph | filtered while an arrangement has a filter or a sort | the count of the shown items (`ArrangementChips.shown`) | none |
+| roster, arranged view | a table glyph | filtered while an arrangement has a filter or a sort | the count of the rows, and for an arrangement the count of the shown items, in the tint that the counted items share; no count for none | none |
 | work plan, step | its state (rule 4) | as now | "3/7" | none |
 | navigator | the decoration of its page, as its tab now | | | none |
 | gesture log, statistics, frame times, selection, system processes, settings, appearance, the help pages | their glyph | none | none | none |
@@ -641,7 +641,7 @@ omnet:
 | statistical baseline | a store glyph | read only | the count of its files | none |
 | result folder (plan C step 3) | a results glyph | running while it reads; failed | the count of its files | the read state of plan C |
 | result file | `chart_line` | read only | none | none |
-| Running now, Not expected | a table glyph | none | the count of its items: `accent` for Running now and `warning` for Not expected, when not 0 | none |
+| Running now, Not expected | a table glyph | none | the count of its items, in the tint that they share: blue while all run, red for a failed task, when not 0 | none |
 
 The new glyphs come from the Lucide font, one line each in `LUCIDE_ICON_GLYPHS`.
 
@@ -1415,10 +1415,18 @@ before each edit of a kernel file. Mark each step done here.
      and only the `tabs` wrapper and the start of the projectured application
      acquired a window tree. The start of the campaign window acquires its tree
      now.
-   - Not done: the counts of Running now and Not expected. A roster counts no
-     rows (step 3c), because the search of its source can walk into the views
-     that draw the row; a count needs a way to say that a source is safe to
-     count, and that is a new mechanism.
+   - Done 2026-10-18 at the owner's "Do both", after a recommendation that changes
+     projectured: the counts of rosters. The cycle of step 3c was the walk into the
+     scheduler of a group, which the fix above removed; with it, a count in the
+     real IDE window with running groups showed no cycle. A roster counts its rows
+     again, an `ArrangementDocument` around a document that shows a collection of
+     its own (`get_arranged_collection_steps`) counts the items that it shows, and
+     the pill takes the tint that all the counted items share
+     (`find_shared_decoration_tint`, new in the domain slice; a `RosterRow` says
+     what its item says). No count for none. Not chosen: a keyword of the colour
+     on `Roster`, which can disagree with the rows. So Not expected is red for a
+     failed task and amber for an unexpected code, where §5.14.4 first said
+     `warning` for both.
 11. [ ] **The documents.** Done for projectured (2026-10-18): `explorer.md` is new,
     and `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`,
     `pane.md`, `task.md`, `assistant.md` and the guides of the session documents

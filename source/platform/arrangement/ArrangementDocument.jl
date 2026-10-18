@@ -188,10 +188,28 @@ is the name of a column.
 end
 
 # An arrangement says what the document that it wraps says, and that a filter or
-# a sort hides or orders its items.
+# a sort hides or orders its items. A document that shows a collection of its own,
+# as a roster shows its rows, counts the items that the arrangement shows.
 function get_document_decoration(arrangement::ArrangementDocument)
     base = get_document_decoration(arrangement.document)
-    any(entry -> !isempty(entry.projections), arrangement.entries) || return base
-    DocumentDecoration(; icon = base.icon, conditions = [base.conditions..., DocumentCondition(:filtered)],
-                       counts = base.counts, detail = base.detail, tooltip = base.tooltip, work_item = base.work_item)
+    arranged = any(entry -> !isempty(entry.projections), arrangement.entries)
+    counts = _count_arranged_items(arrangement, base.counts)
+    (arranged || counts !== base.counts) || return base
+    DocumentDecoration(; icon = base.icon,
+                       conditions = arranged ? [base.conditions..., DocumentCondition(:filtered)] : base.conditions,
+                       counts, detail = base.detail, tooltip = base.tooltip, work_item = base.work_item)
+end
+
+# The count of the items that `arrangement` shows of the collection that its
+# document shows (`get_arranged_collection_steps`), in the colour that they share,
+# in place of `counts`, the counts of the document; `counts` when the document
+# shows no collection of its own. No item shows no count.
+function _count_arranged_items(arrangement::ArrangementDocument, counts)
+    steps = get_arranged_collection_steps(arrangement.document)
+    isempty(steps) && return counts
+    found = find_arranged_collection(arrangement, extend_reference(EmptyReference(), steps...))
+    found === nothing && return counts
+    shown = collect_shown_items(found.entry, found.items)
+    isempty(shown) && return DocumentCount[]
+    [DocumentCount(string(length(shown)); role = find_shared_decoration_tint(shown))]
 end

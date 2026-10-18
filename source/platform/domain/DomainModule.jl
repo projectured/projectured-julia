@@ -52,8 +52,8 @@ export make_document_view, follow_content_selection!
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 export DocumentCondition, DocumentCount, DocumentDecoration, get_document_decoration, ConditionLook,
-       get_condition_look, DOCUMENT_CONDITIONS, find_decoration_tint, collect_decoration_marks,
-       format_decoration_words
+       get_condition_look, DOCUMENT_CONDITIONS, find_decoration_tint, find_shared_decoration_tint,
+       collect_decoration_marks, format_decoration_words
 
 
 include("DocumentCore.jl")

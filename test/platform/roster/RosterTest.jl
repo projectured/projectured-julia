@@ -20,6 +20,9 @@ end
 end
 
 RosterModule.get_item_facets(::Type{_RosterRun}) = ["slow" => "whether the run took longer than 0.3"]
+# A run that failed says so, and a count of failed runs takes its colour.
+ProjecturedPlatform.DomainModule.get_document_decoration(run::_RosterRun) =
+    DocumentDecoration(; conditions = run.status == "failed" ? [DocumentCondition(:failed)] : DocumentCondition[])
 RosterModule.compute_item_facet(run::_RosterRun, ::Val{:slow}) = run.delay > 0.3
 
 # A record that declares a facet with the name of one of its fields.
@@ -147,6 +150,32 @@ function test_roster()
         drawn = texts(io.output)
         @test "1 of 3" in drawn
         @test filter(t -> t in ("1", "2", "3"), drawn) == ["1"]
+    end
+
+    @testset "a roster counts its rows, and an arrangement counts what it shows, in the colour they share" begin
+        runs = make_runs()
+        roster = Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs")
+        counts(document) = [(count.text, count.role) for count in get_document_decoration(document).counts]
+        # No link, no rows, and no count.
+        @test isempty(counts(roster)) && get_document_decoration(roster).icon === :table
+        link_roster!(roster, runs)
+        # Two runs are done and one failed: the count has no colour of its own.
+        @test counts(roster) == [("3", nothing)]
+        status = extend_reference(EmptyReference(), FieldReferenceStep("status"))
+        rows_at = extend_reference(EmptyReference(), FieldReferenceStep("rows"))
+        failed = ArrangementDocument(roster, ArrangementEntry[ArrangementEntry(rows_at,
+            Any[ArrangementFilter(Any[ArrangementCondition(status, :equal, "failed")])])])
+        decoration = get_document_decoration(failed)
+        @test counts(failed) == [("1", :error)]
+        @test any(condition -> condition.name === :filtered, decoration.conditions)
+        # The counts follow the items: a second failed run, then none.
+        runs[1].status = "failed"
+        @test counts(failed) == [("2", :error)]
+        runs[1].status = "done"
+        runs[2].status = "done"
+        @test isempty(counts(failed)) && counts(roster) == [("3", nothing)]
+        # An arrangement with no entry counts all the rows.
+        @test counts(ArrangementDocument(roster, ArrangementEntry[])) == [("3", nothing)]
     end
 
     # The table reads the cell of each value when it prints. A value of text has a

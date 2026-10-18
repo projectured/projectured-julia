@@ -30,6 +30,10 @@ When the table moves its head more than 200 rows from the head, it writes `cells
 
 A cell whose value is a document shows that document, the same object as in its item. So a key in that cell edits the item through the reader of the document, and the history of the window records the edit. A cell whose value is not a document shows a label of its text. A press on a label selects the item of the row, so the context menu is the menu of the item. A label takes no key: no widget writes a field of a target as text. In a navigator, the menu of a row has Open as a page and Open in a new tab, and Ctrl+Return opens the selected item, at the place where the content holds it when its domain answers it ([navigator.md](../navigator/navigator.md)); so a roster needs no link of its own.
 
+**A count where the roster is named.** A row of a tree, a tab or an item of an address bar that names a roster shows its icon and a pill with the count of its rows (`get_document_decoration`). An arrangement around a roster counts the rows that it shows, the number of "1 of 18" in its bar. The pill takes the colour that all the counted items share: a row says what its item says, and `find_shared_decoration_tint` answers the tint that every item has, or none. So a view of the tasks that failed is red, a view of the tasks that run is blue, and a roster of files is quiet. A roster with no rows, and an arrangement that shows none, show no count.
+
+The count runs the search of the source when the name is drawn first and when a part changes. The search walks the documents of the parts, and it stops at what is no document, such as the scheduler and the processes of a group of tasks (`is_walk_opaque`). A walk into the closure of a scheduler would reach the window that draws the name, and the cell of the name would read itself.
+
 **A file.** A file that keeps a tab with a roster saves its source, its columns and its title (`pred_arguments`), and no row and no link. The sources `CollectionItems`, `ItemsWithin`, `StoreRecords` and `TabDocuments` say that a file can build them (`is_pred_constructible`).
 
 ## Sources

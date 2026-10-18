@@ -296,7 +296,14 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     slots
 end
 
-# A roster shows its icon. Its rows come from a search of its source, which a row
-# of a tree or a tab does not start: the search can walk into the views that draw
-# that row.
-get_document_decoration(::Roster) = DocumentDecoration(; icon = :table)
+# A row says what its item says.
+get_document_decoration(row::RosterRow) = get_document_decoration(row.item)
+
+# A roster shows its icon and the count of its rows, in the colour that its rows
+# share; a roster with no rows shows no count.
+function get_document_decoration(roster::Roster)
+    rows = collect(roster.rows)
+    isempty(rows) && return DocumentDecoration(; icon = :table)
+    DocumentDecoration(; icon = :table,
+                       counts = [DocumentCount(string(length(rows)); role = find_shared_decoration_tint(rows))])
+end

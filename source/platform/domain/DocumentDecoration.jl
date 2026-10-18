@@ -218,6 +218,35 @@ function find_decoration_tint(decoration::DocumentDecoration)
 end
 
 """
+    find_shared_decoration_tint(documents) -> Symbol or nothing
+
+The tint that the decorations of all of `documents` share
+([`find_decoration_tint`](@ref)), or `nothing` when one has another tint, one
+has none, or there is no document. A count of documents, such as the pill of a
+roster, takes it, so the pill of a list of tasks that all run has the colour of a
+task that runs.
+
+Use it to colour a count of documents by what the documents are.
+
+# Example
+
+    find_shared_decoration_tint(collect(roster.rows))
+
+See also `find_decoration_tint`.
+"""
+function find_shared_decoration_tint end
+
+function find_shared_decoration_tint(documents)
+    tint = nothing
+    for (k, document) in enumerate(documents)
+        role = find_decoration_tint(get_document_decoration(document))
+        role === nothing && return nothing
+        k == 1 ? (tint = role) : (role === tint || return nothing)
+    end
+    tint
+end
+
+"""
     collect_decoration_marks(decoration) -> NamedTuple
 
 The marks of the icon of `decoration`: for each corner, `top_left`, `top_right`,
