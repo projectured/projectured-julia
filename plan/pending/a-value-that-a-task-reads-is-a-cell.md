@@ -213,10 +213,40 @@ writes the cells (`PAR-SINGLE-WRITER`).
 Each step is one or more commits with its tests, in a worktree, with a check of
 `SEALING.md` before each edit of a kernel file. Mark each step done here.
 
-1. [ ] **The provisional state in the cell layer.** Tests: `test_cell()`: a read
+1. [x] **The provisional state in the cell layer.** Done. Tests: `test_cell()`: a read
    spreads the flag, a computation clears it, the stop compares it. A measure of
    the hottest path: the count of reads and the time of a frame of a large example
    before and after, and the size of a cell.
+
+   What the work found and decided:
+
+   - The flag is a field `is_provisional::Bool` beside `state`. It fits in the
+     padding, so a cell stays 40 bytes.
+   - A computation marks itself with `mark_computation_provisional!()`, which
+     throws an `ArgumentError` outside a computation. A computation that fails is
+     final, and so is a write and a new computation before its first run.
+   - `is_cell_provisional(c)` records a dependency on `c` and brings it up to
+     date, and it does not make its reader provisional.
+   - A read that records no reader (`peek`, `run_without_cell_tracking`, the
+     untracked kind) takes no part.
+   - The fallback `is_cell_provisional(::AbstractCell) = false` stands in
+     `ReactiveCell.jl`, because the fallbacks of `CellDefaults.jl` are sealed.
+   - The one export line of `CellModule.jl` exports `is_cell_provisional` and
+     `mark_computation_provisional!`.
+   - After a review: a failure that a provisional value caused is provisional. A
+     failed run keeps the flag that its reads gave it, and a read that throws
+     still makes its reader provisional, in the slow path of the read, so a
+     computation that catches the failure is provisional too. A computation whose
+     first attempt fails in an older world keeps the flag of both attempts, as it
+     keeps the cells that both read; the next change clears it.
+   - The measure, 2026-10-18, main against the branch, alternate processes on the
+     same cores: a cell stays 40 bytes and allocates the same. A read of a valid
+     cell is +0.3% to +0.6%, inside the noise. A chain of 1,000 computed cells is
+     +1.3%, about 3 ns for each computation, slower in 20 of 20 pairs. A fan-out
+     to 1,000 readers is +1.7%, slower in 15 of 20 pairs. A fresh print of a JSON
+     array of 200 objects is +0.6% (348.7 ms against 346.7 ms), inside the spread
+     of 3% between processes of one tree, and a reprint after one write is noise.
+     The scripts are in `/var/tmp/explorer-pages/perf/`.
 2. [ ] **The background cell and its source in the editor layer.** Tests with a
    headless editor: a read answers the default and is provisional; the work runs
    after the frame; the answer makes the cell final; a change of an input makes it

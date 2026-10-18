@@ -16,6 +16,12 @@
 # its dependencies up to date, and it computes only when one of them computed a new
 # value. A cell is checking while its dependencies are brought up to date, and a
 # read of a checking cell is a cycle, as a read of a computing cell is.
+#
+# Beside its state, a cell is provisional or final. A provisional value is valid,
+# but a newer value comes later, such as the default of a value that a task still
+# reads. A computation that reads a provisional cell is provisional itself, and a
+# write of a value is final. The flag is no state of invalidation: a provisional
+# cell is valid, and the walk of a write treats it as any valid cell.
 @enum _CellState::UInt8 begin
     _VALID
     _INVALID
@@ -35,7 +41,7 @@ Use it to keep a value that others depend on: a cell records the cells that read
 it, and a write invalidates them, so each of them computes again the next time
 it is read. Nothing recomputes until it is read, nothing recomputes that did not
 depend on what changed, and a computation that gives the plain data that it gave
-before leaves the cells that read it as they were.
+before, as provisional as before, leaves the cells that read it as they were.
 
 # Example
 
@@ -70,6 +76,10 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     computation::Union{Nothing, Function}
     state::_CellState
+    # Whether the value is provisional: the last computation read a provisional
+    # cell, or marked itself provisional. The field fits beside `state`, so it does
+    # not make a cell larger.
+    is_provisional::Bool
     # The length of `dependents` after its last sweep of collected readers.
     swept_length::UInt32
     # The cells that the last computation read, in the order of the first read of
@@ -81,7 +91,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, _VALID, UInt32(0), nothing, nothing)
+        new{T}(value, nothing, _VALID, false, UInt32(0), nothing, nothing)
     # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
     # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
     # field can not hold a placeholder. An invalid cell makes `_recompute!` assign
@@ -91,6 +101,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         nothing isa T && (c.value = nothing)
         c.computation = marker.computation
         c.state = _INVALID
+        c.is_provisional = false
         c.swept_length = UInt32(0)
         c.dependencies = nothing
         c.dependents = nothing
@@ -268,15 +279,34 @@ end
 
 function Base.getindex(c::ReactiveCell)
     @count_performance :reads
-    stack = _get_computing_stack()
-    if !isempty(stack)
-        observer = stack[end]
-        if observer !== c
-            _record_dependency!(observer, c) && _register_dependent!(c, observer)
-        end
-    end
-    c.state === _VALID || _bring_up_to_date!(c)
+    observer = _record_read!(c)
+    c.state === _VALID || _bring_up_to_date_for!(c, observer)
+    # A reader of a provisional value is provisional too.
+    c.is_provisional && observer !== nothing && (observer.is_provisional = true)
     return c.value
+end
+
+# Bring `c` up to date for a read by `observer`. A failure of `c` that a provisional
+# value caused is provisional too, so a reader that catches it is provisional.
+@noinline function _bring_up_to_date_for!(c::ReactiveCell, observer)
+    try
+        _bring_up_to_date!(c)
+    catch
+        c.is_provisional && observer !== nothing && (observer.is_provisional = true)
+        rethrow()
+    end
+    nothing
+end
+
+# Record the innermost computation of this task as a reader of `c`, and answer it,
+# or `nothing` when no computation runs or the computation reads its own cell.
+@inline function _record_read!(c::ReactiveCell)
+    stack = _get_computing_stack()
+    isempty(stack) && return nothing
+    observer = stack[end]
+    observer === c && return nothing
+    _record_dependency!(observer, c) && _register_dependent!(c, observer)
+    observer
 end
 
 # Make a cell that is not valid valid: a maybe invalid cell checks its
@@ -353,14 +383,19 @@ function _recompute!(c::ReactiveCell)
     # its exception.
     had_value = c.state !== _FAILED && isdefined(c, :value)
     old = had_value ? c.value : nothing
+    was_provisional = c.is_provisional
     stack = _get_computing_stack()
     _detach_upstream!(c)
     @count_performance :computes
     push!(stack, c)
     c.state = _COMPUTING
+    # The run starts final; a read of a provisional cell makes it provisional.
+    c.is_provisional = false
     value = try
         _run_computation(c.computation)
     catch
+        # A failed run keeps the flag that its reads gave it: a failure that a
+        # provisional value caused is provisional.
         c.state = _FAILED
         _invalidate_maybe_invalid_readers!(c)
         rethrow()
@@ -370,18 +405,20 @@ function _recompute!(c::ReactiveCell)
     end
     # Only a run that still finds the cell computing stores its value. A write or a
     # new computation inside the run changed the state, and its answer stands. A
-    # value of plain data that is `===` to the old one is no change for a reader,
-    # by the rule of a write, so the readers that wait for a check stay as they are.
+    # value of plain data that is `===` to the old one, and as provisional as the
+    # old one, is no change for a reader, by the rule of a write, so the readers that
+    # wait for a check stay as they are.
     if c.state === _COMPUTING
         c.value = value
         c.state = _VALID
-        if had_value && _is_plain_value(value) && old === value
+        if had_value && _is_plain_value(value) && old === value && was_provisional == c.is_provisional
             @count_performance :stops
         else
             _invalidate_maybe_invalid_readers!(c)
         end
-    elseif !isdefined(c, :value)
-        c.value = value
+    else
+        c.is_provisional = false
+        isdefined(c, :value) || (c.value = value)
     end
 end
 
@@ -474,6 +511,7 @@ function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     c.computation = nothing
     c.value = converted
     c.state = _VALID
+    c.is_provisional = false
     _invalidate_dependents!(c)
     return value
 end
@@ -547,6 +585,7 @@ function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where 
     c.computation = _capture_fault_scope(computation)
     nothing isa T && (c.value = nothing)
     c.state = _INVALID
+    c.is_provisional = false
     _invalidate_dependents!(c)
     return c
 end
@@ -564,6 +603,61 @@ function Base.setindex!(c::ReactiveCell, marker::Computation)
 end
 
 is_cell_valid(c::ReactiveCell) = c.state === _VALID
+
+# ── provisional values ───────────────────────────────────────────────────────
+
+# A computation that reads `c` depends on it, also when it reads only whether `c`
+# is provisional, and it does not become provisional by that read: whether a value
+# is provisional is a final fact.
+function is_cell_provisional(c::ReactiveCell)
+    _record_read!(c)
+    c.state === _VALID || _bring_up_to_date!(c)
+    c.is_provisional
+end
+
+# A kind that records no reader holds no provisional value: a stored kind holds
+# what was written, and the untracked kind reads with no reader. The fallback
+# stands here, beside the engine that spreads the flag.
+is_cell_provisional(::AbstractCell) = false
+
+"""
+    mark_computation_provisional!() -> nothing
+
+Make the value of the computation that runs now provisional: a newer value comes
+later. The computation answers what it has, such as its last value or a default,
+and every computation that reads it is provisional too, until it computes again
+from final values only.
+
+Use it in a computation whose value comes from outside the loop and is not there
+yet, such as the record of a file that a task still reads. The computation must
+also read the cell that the final value arrives in, so the write of that cell
+makes it compute again.
+
+# Example
+
+    answer = Cell(nothing)          # a task writes the final value here
+    record = Cell(@computation begin
+        value = answer[]
+        value === nothing ? (mark_computation_provisional!(); "unknown") : value
+    end)
+
+Outside a computation it throws an `ArgumentError`, because it marks the
+computation that runs, and so does code that runs with no reader, such as
+`run_without_cell_tracking`, an `UntrackedCell` or a read on another task. A
+computation whose first attempt fails in an older world, and that runs again in
+the newest one, keeps the flag of both attempts, as it keeps the cells that both
+read; the next change of a cell that it read clears it. See also
+`is_cell_provisional`.
+"""
+function mark_computation_provisional!()
+    stack = _get_computing_stack()
+    isempty(stack) && throw(ArgumentError(
+        "mark_computation_provisional! marks the computation that records its reads, and none " *
+        "does here: no computation runs, or the code runs with no reader, as in " *
+        "run_without_cell_tracking, an UntrackedCell or a read on another task"))
+    stack[end].is_provisional = true
+    nothing
+end
 
 # ── untracked read ───────────────────────────────────────────────────────────
 

@@ -55,6 +55,43 @@ See also `set_cell_computation!`, `invalidate_cell!` and `ReactiveCell`.
 function is_cell_valid end
 
 """
+    is_cell_provisional(cell) -> Bool
+
+Whether the value of `cell` is provisional: valid now, but a newer value comes
+later, such as the default of a value that a task still reads. A computation that
+reads a provisional cell is provisional itself, so the flag goes up through every
+computation that the value reaches, and a computation that computes again from
+final values only is final. A write of a value is final.
+
+Use it where a drawing chooses what to show while a value comes, such as the last
+final rows of a table, or a mark that a sort is not done. Inside a computation the
+call records a dependency on `cell`, so the computation computes again when the
+flag changes, and the call does not make the computation provisional: whether a
+value is provisional is a final fact. The call brings `cell` up to date first, so
+it throws the exception of a computation that fails, as a read does. A failure
+that a provisional value caused is provisional too: a computation that catches it
+is provisional.
+
+# Example
+
+    record = Cell(@computation (mark_computation_provisional!(); "unknown"))
+    label = Cell(@computation "configuration: " * record[])
+    label[]                          # "configuration: unknown"
+    is_cell_provisional(label)       # true
+    record[] = "Fifo"
+    label[]                          # "configuration: Fifo"
+    is_cell_provisional(label)       # false
+
+A read that records no reader takes no part: `peek`, `run_without_cell_tracking`,
+an `UntrackedCell` and a read on another task do not make a computation
+provisional. Only the reactive kind can be provisional, so the other kinds always
+return `false`.
+
+See also `mark_computation_provisional!`, and `is_cell_valid`.
+"""
+function is_cell_provisional end
+
+"""
     invalidate_cell!(cell) -> nothing
 
 Make every cell that reads `cell` invalid, with no write, and the cells that

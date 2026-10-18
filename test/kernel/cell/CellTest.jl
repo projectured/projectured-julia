@@ -810,6 +810,115 @@ end
     @test Base.invoke_in_world(world, getindex, newer) == 42
 end
 
+@testset "a computation that reads a provisional cell is provisional, up the chain" begin
+    answer = Cell(nothing)
+    record = Cell(@computation begin
+        value = answer[]
+        value === nothing ? (mark_computation_provisional!(); "unknown") : value
+    end)
+    label = Cell(@computation "configuration: " * record[])
+    shown = Cell(@computation uppercase(label[]))
+    @test shown[] == "CONFIGURATION: UNKNOWN"
+    @test is_cell_provisional(record) && is_cell_provisional(label) && is_cell_provisional(shown)
+    # The final value makes each reader final when it computes again.
+    answer[] = "Fifo"
+    @test shown[] == "CONFIGURATION: FIFO"
+    @test !is_cell_provisional(record) && !is_cell_provisional(label) && !is_cell_provisional(shown)
+end
+
+@testset "a computation reads every value that it needs in one pass, also a provisional one" begin
+    answers = [Cell(nothing) for _ in 1:5]
+    parts = [Cell(@computation (value = answers[i][];
+                                value === nothing ? (mark_computation_provisional!(); 0) : value))
+             for i in 1:5]
+    total = Cell(@computation sum(part[] for part in parts))
+    @test total[] == 0 && is_cell_provisional(total)
+    # The computation read each part, not only the first that was provisional.
+    @test all(has_dependent_cells, parts)
+    foreach(i -> (answers[i][] = i), 1:4)
+    @test total[] == 10 && is_cell_provisional(total)
+    answers[5][] = 5
+    @test total[] == 15 && !is_cell_provisional(total)
+end
+
+@testset "a value that stays the same but becomes final reaches the readers" begin
+    answer = Cell(nothing)
+    tally = Cell(@computation (value = answer[];
+                               value === nothing ? (mark_computation_provisional!(); 0) : value))
+    # The drawing reads whether the tally is provisional, and is not provisional by
+    # that read.
+    drawn = Cell(@computation is_cell_provisional(tally) ? "…" : string(tally[]))
+    plain = Cell(@computation string(tally[]))
+    @test drawn[] == "…" && !is_cell_provisional(drawn)
+    @test plain[] == "0" && is_cell_provisional(plain)
+    # The final value is the default: the same plain value, and no longer provisional.
+    answer[] = 0
+    @test drawn[] == "0"
+    @test plain[] == "0" && !is_cell_provisional(plain)
+end
+
+@testset "a value that stays the same but becomes provisional reaches the readers" begin
+    answer = Cell(1)
+    value = Cell(@computation (given = answer[];
+                               given === nothing ? (mark_computation_provisional!(); 1) : given))
+    runs = Ref(0)
+    reader = Cell(@computation (runs[] += 1; value[] * 10))
+    @test reader[] == 10 && !is_cell_provisional(reader) && runs[] == 1
+    answer[] = nothing
+    @test reader[] == 10 && is_cell_provisional(reader) && runs[] == 2
+end
+
+@testset "a computation that gives the same value with the same flag stops" begin
+    other = Cell(0)
+    source = Cell(@computation (other[]; mark_computation_provisional!(); 1))
+    runs = Ref(0)
+    reader = Cell(@computation (runs[] += 1; source[] + 1))
+    @test reader[] == 2 && is_cell_provisional(reader) && runs[] == 1
+    # The source computes again, with the same value and still provisional, so its
+    # reader stays as it was.
+    other[] = 1
+    @test reader[] == 2 && runs[] == 1 && is_cell_provisional(reader)
+end
+
+@testset "a write is final, and a read that records no reader takes no part" begin
+    written = Cell(@computation (mark_computation_provisional!(); 1))
+    @test written[] == 1 && is_cell_provisional(written)
+    written[] = 2
+    @test !is_cell_provisional(written)
+    source = Cell(@computation (mark_computation_provisional!(); 1))
+    peeked = Cell(@computation peek(source) + 1)
+    untracked = Cell(@computation run_without_cell_tracking(() -> source[]) + 1)
+    @test peeked[] == 2 && untracked[] == 2
+    @test is_cell_provisional(source) && !is_cell_provisional(peeked) && !is_cell_provisional(untracked)
+    @test !is_cell_provisional(MutableCell(1)) && !is_cell_provisional(ImmutableCell(1))
+end
+
+@testset "a failure that a provisional value caused is provisional, also for the reader that catches it" begin
+    answer = Cell(nothing)
+    record = Cell(@computation (value = answer[];
+                                value === nothing ? (mark_computation_provisional!(); "") : value))
+    number = Cell(@computation parse(Int, record[]))
+    shown = Cell(@computation try string(number[]) catch; "bad" end)
+    @test shown[] == "bad" && is_cell_provisional(shown)
+    answer[] = "7"
+    @test shown[] == "7" && !is_cell_provisional(shown)
+    # A failure of final values is final.
+    answer[] = "x"
+    @test shown[] == "bad" && !is_cell_provisional(shown)
+end
+
+@testset "a write of its own cell inside a run makes the cell final" begin
+    own = Cell(nothing)
+    set_cell_computation!(own, () -> (own[] = 5; mark_computation_provisional!(); 1))
+    @test own[] == 5 && !is_cell_provisional(own)
+end
+
+@testset "mark_computation_provisional! needs a computation that records its reads" begin
+    @test_throws ArgumentError mark_computation_provisional!()
+    untracked = Cell(@computation run_without_cell_tracking(() -> mark_computation_provisional!()))
+    @test_throws ArgumentError untracked[]
+end
+
 end # @testset "Cell"
 end # test_cell
 
