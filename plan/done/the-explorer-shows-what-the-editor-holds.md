@@ -1,15 +1,13 @@
 # The explorer shows what the editor holds
 
-> **Status (2026-10-18): IN PROGRESS.** Steps 1 to 9 but 6c and the projectured
-> documents of step 11 landed on main at the owner's word ("yes", 2026-10-18).
-> 6c is deferred (the owner: "defer"). The columns of a dashboard follow the
-> width (8, option b, the owner's choice of 2026-10-18), on branch `explorer`.
-> Step 10 (the omnet IDE, with the counts of rosters) and the omnet guides of
-> step 11 landed on 2026-10-18 at the owner's word; the result folder below the
-> project came with step 3 of plan C of the omnet UI session. Only 6c is open,
-> deferred by the owner. **DESIGN DECIDED.** The owner
-> decided Q0 to Q12 in §6 on 2026-10-17 and asked for the implementation the same
-> day. The owner refines the structure of the tree later.
+> **Status (2026-10-18): DONE.** Every step landed on the mains at the owner's
+> word: steps 1 to 9 but 6c, the columns of a dashboard that follow the width
+> (8, option b), step 10 (the omnet IDE, the counts of rosters, and two fixes
+> that the images of the IDE window found), and the documents of step 11. The
+> result folder below the project came with step 3 of plan C of the omnet UI
+> session. 6c, the search below a node, is deferred by the owner and is in §8.
+> The owner decided Q0 to Q12 in §6 on 2026-10-17, and refines the structure of
+> the tree later.
 
 ## 1. The ask
 
@@ -1447,6 +1445,19 @@ before each edit of a kernel file. Mark each step done here.
 
 The search below a node (step 6c, deferred by the owner on 2026-10-18): it needs
 a way to read the unread children of a document for a search, which no kind gives.
+It is built on the background cell of `a-value-that-a-task-reads-is-a-cell.md`
+(the owner, 2026-10-18), not on a generic of its own (option (a) of 6c): once
+the listing of a folder is a background cell, the search reads it as a demand,
+is provisional until the answers come, and waits off the editor task with
+`wait_for_cell`.
+
+A decoration reads stored state only. The count of a roster reads the decoration
+of every item that it counts (`find_shared_decoration_tint`), so a decoration
+that read a background value would make a visible count demand that value for
+every item. Two points of this plan went to the session of the background cell
+on 2026-10-18: the walk of the documents reads a cell without a demand, and a
+`BackgroundSource` is opaque to the walk (`is_walk_opaque`), as the runtimes of
+a group of tasks are.
 
 Drag and drop of a row; a split beside the explorer from a row; the open nodes in
 a save; a page for the names of the evaluator, the API, the examples and the

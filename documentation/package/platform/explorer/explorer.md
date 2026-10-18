@@ -106,7 +106,7 @@ The slice uses the collection, domain, focus, layout, navigator, pane, projectio
 
 ## Design decisions
 
-- **An entry is a plain document.** A section links documents and wraps none, so a document shows the same in the explorer and in a tab. The owner chose it on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/pending/the-explorer-shows-what-the-editor-holds.md), Q0).
+- **An entry is a plain document.** A section links documents and wraps none, so a document shows the same in the explorer and in a tab. The owner chose it on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/done/the-explorer-shows-what-the-editor-holds.md), Q0).
 - **The matches are a second tree.** A filter inside the tree would change the index path of every row, which the maps, the open places and the shown rows of the tree read.
 - **Insert opens a menu.** The completion of an insertion filters by the type of its place, and the trait of the kinds is no type, so a typed name could not show the list.
 - **The add evaluates its visit after the insert.** A visit made before the insert finds no page.

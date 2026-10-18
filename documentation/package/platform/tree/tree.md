@@ -106,7 +106,7 @@ These slices add kinds of node:
 ## Design decisions
 
 - **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics and a decoration. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
-- **A place is open by the documents on its path.** An open node that a path of indices names would name another node after an insert, and an open node that only its document names would open at every place of the document. The owner chose places on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/pending/the-explorer-shows-what-the-editor-holds.md), Q1).
+- **A place is open by the documents on its path.** An open node that a path of indices names would name another node after an insert, and an open node that only its document names would open at every place of the document. The owner chose places on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/done/the-explorer-shows-what-the-editor-holds.md), Q1).
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.
 
