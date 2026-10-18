@@ -335,9 +335,27 @@ Each step is one or more commits with its tests, in a worktree, with a check of
      input. So a table keeps its order until its sort is final.
    - Not built: one rule for every part of every print. A part applies the
      helper where its output must not jump.
-4. [ ] **The pilot in omnet:** the record of a result file entry is a background
+4. [x] **The pilot in omnet:** Done. the record of a result file entry is a background
    cell, and the parts that the table of the example lists go. Tests:
    `test_result_folder()` and `test_result_file_document()`.
+
+   What the work found and decided (omnet branch `background-records`):
+
+   - The record of a file entry is a background cell over the path, the size and
+     the time of its file, with the empty record as its default. Each result
+     folder holds one `BackgroundSource`, so one task for each folder and frame
+     reads the records that the frame asked for.
+   - Gone: the stamp of a record, the reads for each editor, the ask, the read
+     and the apply operation of the records, the acquire of a file entry, and
+     `LegacyResultRecords`.
+   - A run holds its result folder, through `find_run_result_folder`, which was
+     `find_run_result_records`, so the folder reads its listing and watches it.
+     The files of the run read the index of the folder, which reads every record,
+     so a run in view asks for all the records of its folder.
+   - `read_result_folder` reads every record at once, in one batch on the calling
+     task, with `wait_for_cell!`.
+   - The label of a file in a tree reads no record, so a quick filter of the
+     explorer asks for none.
 5. [ ] **The guides:** `cell.md`, `editor.md`, `architecture-invariants.md` (the
    carve-out of `PAR-PURE-THUNK` and the stop rule) and `concepts.md`; the plan
    moves to `plan/done/`.
