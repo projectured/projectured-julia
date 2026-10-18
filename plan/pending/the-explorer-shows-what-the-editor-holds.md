@@ -1049,9 +1049,13 @@ before each edit of a kernel file. Mark each step done here.
      the page, which is a question for the owner.
    - A folder reads (`:running`) and fails with the failure in its words; a log
      of messages counts its errors and warnings; the fault log fails with the
-     count of its lines; the MCP log fails and counts its faults; a roster counts
-     its rows; an arrangement adds `:filtered`; a navigator says what its page
-     says; an evaluator runs and fails; the other tools have their glyph.
+     count of its lines; the MCP log fails and counts its faults; a roster has
+     its glyph and no count; an arrangement adds `:filtered`; a navigator says
+     what its page says; an evaluator runs and fails; the other tools have their
+     glyph. A roster first counted its rows, and that started the search of its
+     source when its row drew; in the omnet explorer the search walked into the
+     views that drew that row, and a cell read itself (found 2026-10-18, after the
+     landing). A decoration reads fields that are there, and starts no search.
    - New glyphs: `:layers` (a section), `:folder_tree` (an explorer), `:files`,
      `:scroll_text`, `:plug`, `:table`, `:cpu`, `:circle_help`. The Message log
      button shows `:scroll_text`, as its decoration does.

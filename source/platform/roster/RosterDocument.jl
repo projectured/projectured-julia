@@ -296,6 +296,7 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     slots
 end
 
-# A roster counts the rows that it shows.
-get_document_decoration(roster::Roster) =
-    DocumentDecoration(; icon = :table, counts = [DocumentCount(string(length(roster.rows)))])
+# A roster shows its icon. Its rows come from a search of its source, which a row
+# of a tree or a tab does not start: the search can walk into the views that draw
+# that row.
+get_document_decoration(::Roster) = DocumentDecoration(; icon = :table)
