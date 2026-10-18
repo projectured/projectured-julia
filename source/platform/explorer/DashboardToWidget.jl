@@ -10,7 +10,8 @@
 Draw a [`Dashboard`](@ref) as its page: a field with its title, and its cards in
 a grid that scrolls. The grid has as many columns as cards of at least
 `card_width` fit in the width of the page, and each card fills its cell; with no
-width, one column. The content of each card draws by the view of its own type,
+width, one column. The count follows the width while the page shows, so a drag of
+a splitter or a resize of the window lays the cards out again. The content of each card draws by the view of its own type,
 so a press, a caret and a key in it reach that document. A key in the field edits
 the title. A dashboard with no card says how to add one.
 """
@@ -24,8 +25,10 @@ const _DASHBOARD_HOLDER_STEPS = (FieldReferenceStep("children"), RangeReferenceS
 const _DASHBOARD_GRID_STEPS = (_DASHBOARD_HOLDER_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 
 function print_document(p::DashboardToWidget, recursion, dashboard::Dashboard, context)
-    width = context === nothing ? nothing : unwrap_cell(get_exact_width(context))
-    columns = width === nothing ? 1 : max(1, (Int(width) + p.gap) ÷ (p.card_width + p.gap))
+    width = context === nothing ? nothing : get_exact_width(context)
+    # The count reads the cell of the width of the slot, and a width that keeps the
+    # count leaves the grid as it is.
+    columns = Cell(@computation _count_card_columns(p, unwrap_cell(width)))
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(dashboard.title))
     set_output_path_computations!(title, dashboard, path -> _map_title_field_path(path))
@@ -41,11 +44,17 @@ function print_document(p::DashboardToWidget, recursion, dashboard::Dashboard, c
                             (holder, _DASHBOARD_HOLDER_STEPS))
         set_output_path_computations!(widget, root, path -> _find_path_below(path, steps))
     end
-    # The grid is made again when a card comes or goes, so the new one prints.
+    # The grid is made again when a card comes or goes, or the count of columns
+    # changes, so the new one prints.
     set_cell_computation!(getfield(holder.children, :elements),
-                          () -> Cell[Cell(_build_card_grid(p, dashboard, columns, root))])
+                          () -> Cell[Cell(_build_card_grid(p, dashboard, columns[], root))])
     iomap
 end
+
+# How many cards of at least `card_width` fit in `width`, with the gaps between
+# them; one with no width.
+_count_card_columns(p::DashboardToWidget, width) =
+    width === nothing ? 1 : max(1, (Int(width) + p.gap) ÷ (p.card_width + p.gap))
 
 # The grid of the cards of `dashboard` in `columns` columns of one weight, each card
 # with the selection of the page below it; a line that says how to add a card, for

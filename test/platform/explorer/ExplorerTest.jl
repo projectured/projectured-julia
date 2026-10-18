@@ -653,6 +653,31 @@ function test_explorer()
             page.children[2].child.content.children[1]
         end
         @test grid_of(430).columns == 3 && grid_of(205).columns == 1 && grid_of(220).columns == 2
+        # The count follows the cell of the width while the page shows.
+        width_cell = Cell(430)
+        follow_page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
+                              PrinterContext(EmptyReference(), width_cell, Cell(600), Dict{Symbol,Any}())).output
+        holder() = follow_page.children[2].child.content.children[1]
+        @test holder().columns == 3
+        width_cell[] = 205
+        @test holder().columns == 1
+        # In a live window, a resize lays the cards out again.
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        study = Dashboard("Study", Any[card("One"), card("Two"), card("Three"), card("Four"), card("Five")])
+        live_backend = HeadlessBackend()
+        live = build_editor(study, _nav_natural(); backend = live_backend, devices = Device[Keyboard(), Mouse(), Display()],
+                            window = (; title = "W", width = 1100, height = 500), tabs = true, appearance = false,
+                            settings = false)
+        run_frame!(live)
+        rows() = (texts = _nav_drawn(last(rendered_output(live_backend)).windows[1].content);
+                  length(unique(only(t[3] for t in texts if t[1] == name) for name in ("One", "Two", "Three", "Four", "Five"))))
+        @test rows() == 2
+        for (resized, expected) in ((640, 3), (400, 5), (1100, 2))
+            push_event!(live_backend, WindowInput(:W, WindowResize(resized, 500; time = 0.0)))
+            run_frame!(live)
+            run_frame!(live)
+            @test rows() == expected
+        end
         # Insert on the page adds a card at the end, whose content takes a name.
         _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
         @test length(dashboard.cards) == 4 && dashboard.cards[4].content isa DocumentInsertion

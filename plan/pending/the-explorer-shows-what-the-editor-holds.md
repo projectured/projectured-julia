@@ -2,8 +2,8 @@
 
 > **Status (2026-10-18): IN PROGRESS.** Steps 1 to 9 but 6c and the projectured
 > documents of step 11 landed on main at the owner's word ("yes", 2026-10-18).
-> 6c is deferred (the owner: "defer"). Open for the owner: the columns of a
-> dashboard that follow the width (8), for which the owner asked for an example.
+> 6c is deferred (the owner: "defer"). The columns of a dashboard follow the
+> width (8, option b, the owner's choice of 2026-10-18), on branch `explorer`.
 > Next: step 10 (omnet) and the omnet guides of step 11, with the omnet UI
 > session, whose plan C changes the omnet explorer. **DESIGN DECIDED.** The owner
 > decided Q0 to Q12 in §6 on 2026-10-17 and asked for the implementation the same
@@ -1297,10 +1297,12 @@ before each edit of a kernel file. Mark each step done here.
      columns as cards of `card_width` (a least width) fit in the exact width of
      the print: in pictures of 2026-10-18, three columns at 1100 pixels, two at
      640, and two in the page of the explorer. An editor with no size of its
-     window, as the tests make, gives no exact width, and then one column. **Open
-     for the owner (asked 2026-10-17, as Q4 says; the owner asked for an example
-     on 2026-10-18):** the count stays as the print made it when the width changes
-     after the print, such as at a drag of a splitter.
+     window, as the tests make, gives no exact width, and then one column. The
+     owner chose on 2026-10-18, after an example, that the count follows the width
+     while the page shows (option b): the count is a cell that reads the cell of
+     the exact width of the print, and the grid is made again only when the count
+     changes. In a live window of five cards, a resize from 1100 to 640 to 400
+     pixels gives 2, 3 and 5 rows. No layout feature is new.
    - A card is not removed by a key on the page yet; the menu of its row in the
      explorer has no Remove either, because a card is no entry of a section.
 9. [x] **The window of projectured.** The Explorer is the first tab of the main

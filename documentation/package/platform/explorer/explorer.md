@@ -94,7 +94,7 @@ The filter keeps a row when its label holds every word of the text, in any case,
 
 ### A dashboard
 
-`Dashboard(title, cards)` holds `DashboardCard(title, content)` cards, which are the children of its node. `DashboardToWidget` draws the title in a field and the cards in a grid in a scroll pane. The grid has as many columns as cards of `card_width` fit in the exact width of the print, and each card fills its cell. The content of a card draws by the view of its own type, and the page maps `cards[k].content.<rest>` both ways, so a press, a caret and a key in a card reach its document. Insert on the page adds a card whose content is a `DocumentInsertion`.
+`Dashboard(title, cards)` holds `DashboardCard(title, content)` cards, which are the children of its node. `DashboardToWidget` draws the title in a field and the cards in a grid in a scroll pane. The grid has as many columns as cards of `card_width` fit in the exact width of the slot, and each card fills its cell. The count is a cell that reads the cell of that width, so a drag of a splitter or a resize of the window lays the cards out again, and a width that keeps the count builds no grid. The content of a card draws by the view of its own type, and the page maps `cards[k].content.<rest>` both ways, so a press, a caret and a key in a card reach its document. Insert on the page adds a card whose content is a `DocumentInsertion`.
 
 ### The file of the content
 
@@ -114,7 +114,7 @@ The slice uses the collection, domain, focus, layout, navigator, pane, projectio
 ## Limits
 
 - **The field of the filter keeps its least width.** A text field takes the width of its text, and no text field fills its slot.
-- **A dashboard keeps the count of columns of its print.** A change of the width after the print, such as a drag of a splitter, keeps the count until the page prints again. With no exact width at the print, the cards stand in one column.
+- **A dashboard with no exact width has one column.** With no exact width at the print, as in an editor with no window size, the cards stand in one column.
 - **The search below a node is not built.** It needs a way to read unread children for a search, which no kind gives.
 - **The tree holds a removed document until its next toggle or scroll.**
 - **A card has no key that removes it.**
