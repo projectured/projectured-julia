@@ -96,7 +96,7 @@ says this in `concepts.md`, so the two words do not meet.
    D2, in which the paths of the navigator go through the view: D2 changes eight
    places of the navigator and the paths that the explorer reads, while the
    content still keeps the selection. D2 is the direction of the later plan
-   `a-view-refers-to-content-that-the-editor-holds-once.md`, in which a view keeps its own
+   `views-compose-as-content-composes.md`, in which a view keeps its own
    selection; then the computed cell becomes a stored one.
 
 ## Q1. Where the view of a page lives (decided: (a))
