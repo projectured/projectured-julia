@@ -10,6 +10,10 @@ answers, in that order: a filter answers the indices of the items that it keeps,
 and a sort a permutation. The output holds the same items, not printed, so the
 projection after it prints them. `[j]` of the output is `[rows[j]]` of the input,
 so a path, and an operation that names one, maps back to the item of the input.
+
+While a value that the rows read is provisional, such as a key that a task still
+reads, the stage keeps its last final rows (`make_final_holding_cell`) that still
+name items of the input, so a table keeps its order until the sort is final.
 """
 struct PickingProjection <: Projection
     compute_rows::Function
@@ -23,7 +27,7 @@ end
 end
 
 function print_document(p::PickingProjection, recursion, input::CellVector, ctx)
-    rows = Cell(@computation collect(Int, p.compute_rows(input)))
+    rows = _make_picked_rows(p, input)
     # The output has the element type of the input, so a printer that draws a
     # collection of one kind of element draws the picked items as it draws them all.
     output = CellVector{find_declared_element_type(input)}()
@@ -33,9 +37,15 @@ function print_document(p::PickingProjection, recursion, input::CellVector, ctx)
 end
 
 function print_document(p::PickingProjection, recursion, input::AbstractVector, ctx)
-    rows = Cell(@computation collect(Int, p.compute_rows(input)))
+    rows = _make_picked_rows(p, input)
     PickingIoMap(p, input, Cell(@computation input[rows[]]), rows)
 end
+
+# The rows of `input` that `p` picks, which keep their last final value while a
+# value that they read is provisional, as long as each of them names an item.
+_make_picked_rows(p::PickingProjection, input) =
+    make_final_holding_cell(() -> collect(Int, p.compute_rows(input));
+                            is_usable = rows -> all(row -> 1 <= row <= length(input), rows))
 
 # A document that holds no items of its own passes through, with no rows, so a
 # recursion inside it can arrange the items where it prints them.

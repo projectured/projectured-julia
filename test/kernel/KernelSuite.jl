@@ -72,6 +72,7 @@ function test_kernel()
         test_introduced_path()
         test_projection_reference_step()
         test_projection_defaults()
+        test_provisional_output()
         test_projection_macro()
         test_document_contract()
         test_document_macro()
@@ -133,7 +134,7 @@ export check_layering, check_slice_edges, get_package_source_root, test_layering
 # kernel unit suites
 export test_fault_defaults, test_fault_record, test_fault_store,
        test_fault_cascade, test_fault_barrier, test_fault_example,
-       test_cell, test_cell_struct, test_cell_struct_plan, test_untracked_cell, test_cell_fault_scope, test_cell_example, test_cell_struct_example, test_clock_example, test_performance_counter, test_performance_example, test_clock, test_printer_context_range,
+       test_cell, test_cell_struct, test_cell_struct_plan, test_untracked_cell, test_cell_fault_scope, test_cell_example, test_cell_struct_example, test_clock_example, test_performance_counter, test_performance_example, test_clock, test_printer_context_range, test_provisional_output,
        test_routed_change, test_introduced_path,
        test_projection_reference_step, test_projection_defaults, test_projection_macro,
        test_document_contract, test_document_macro,

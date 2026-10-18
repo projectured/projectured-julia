@@ -102,6 +102,7 @@ export PrinterContext, make_child_context, make_element_context, make_reference_
 export make_children_container, get_children_container_type,
        get_projection_gesture_bindings
 export read_projection_gesture
+export make_final_holding_cell
 export TemplateIoMap, var"@projection_template"
 export print_template_document, read_template_intent, make_template_builder,
        find_template_value_retype, find_template_output_child
@@ -114,5 +115,6 @@ include("OutputPaths.jl")
 include("ProjectionMacro.jl")
 include("ProjectionGestureBindings.jl")
 include("ProjectionTemplate.jl")
+include("ProvisionalOutput.jl")
 
 end # module

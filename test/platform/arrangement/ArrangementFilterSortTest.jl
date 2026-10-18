@@ -3,7 +3,7 @@
 # inside an item of a filtered collection, by its path in the source and by a
 # pattern.
 
-using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell, mark_computation_provisional!
 using ProjecturedPlatform.CollectionModule: CellVector
 
 # A run of a study, a record whose events are a collection of their own.
@@ -51,6 +51,27 @@ function test_arrangement_filter_sort()
         backward = map_reference_backward(rec, io, element(1))
         @test strip_reference_types(backward) ==
               ConcreteReference(FieldReferenceStep("document"), element(5))
+    end
+
+    @testset "a sort keeps its last order while a key is still to come" begin
+        # Each value is the answer of a task, or the default 0 while the task reads.
+        answers = [Cell(value) for value in (3, 1, 2)]
+        values = CellVector(Cell[Cell(@computation (given = answers[i][];
+                                                     given === nothing ? (mark_computation_provisional!(); 0) :
+                                                                         given))
+                                 for i in 1:3])
+        arranged = ArrangementDocument(values, ArrangementEntry[])
+        io = print_document(rec, nothing, arranged, PrinterContext())
+        shown() = collect(io.output)
+        push!(arranged.entries, ArrangementEntry(EmptyReference(),
+            Any[sort_of(ArrangementSortKey(EmptyReference(), :ascending))]))
+        @test shown() == [1, 2, 3]
+        # The first value is read again: its default 0 shows, in the last order.
+        answers[1][] = nothing
+        @test shown() == [1, 2, 0]
+        # Its new answer comes, and the sort orders it.
+        answers[1][] = 0
+        @test shown() == [0, 1, 2]
     end
 
     runs = [_ArrangementRun(1, "done", 0.31, vector(["a", "b"])),

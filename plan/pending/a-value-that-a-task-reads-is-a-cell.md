@@ -316,8 +316,25 @@ Each step is one or more commits with its tests, in a worktree, with a check of
      it hides; no label of a tree row reads a background cell today. A decoration
      must keep to stored state, because the count of a roster reads the decoration
      of each counted item.
-3. [ ] **The drawing of a provisional part** (decision 4, QA). Tests: the print tests of a
+3. [x] **The drawing of a provisional part** Done. (decision 4, QA). Tests: the print tests of a
    label and of a table that sorts.
+
+   What the work found and decided:
+
+   - A background cell answers its last answer while it is provisional, so a
+     part that reads it shows its last value already, and a label needs nothing:
+     it shows its default only while its value never came.
+   - The case that needs more is a computation over values that came at different
+     times, such as a sort: its order over defaults is wrong. So the projection
+     layer has `make_final_holding_cell(compute; is_usable)`
+     (`ProvisionalOutput.jl`): a cell that answers its last final value while it
+     is provisional, as long as `is_usable` accepts it.
+   - The picking stage of the arrangement (`Picking.jl`), which every filter and
+     sort of a collection goes through, keeps its last final rows while a value
+     that they read is provisional, as long as each row names an item of the
+     input. So a table keeps its order until its sort is final.
+   - Not built: one rule for every part of every print. A part applies the
+     helper where its output must not jump.
 4. [ ] **The pilot in omnet:** the record of a result file entry is a background
    cell, and the parts that the table of the example lists go. Tests:
    `test_result_folder()` and `test_result_file_document()`.
