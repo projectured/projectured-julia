@@ -363,6 +363,19 @@ st.elements[3].elements[1].content = "gamma!"          # the run of the 3rd line
 
 end # @testset "TextToGraphics per-line locality"
 
+@testset "TextToGraphics gives the size of a long text before it reads a line" begin
+    # The first read of the size reads the place of the last line, before any line
+    # above it is laid out, as a pane that measures its page does.
+    m = _test_measure(10, 20)
+    font = StyleFont("Ubuntu Mono", 20)
+    st = TextBlock((TextLine(TextString("line $i", font, color_white)) for i in 1:10_000)...)
+    canvas = print_document(TextToGraphics(measure = m), st).output
+    # The size holds the last line, and less than one more.
+    @test 10_000 * 20 <= get_graphics_size(canvas)[2] < 10_001 * 20
+    stack = canvas.elements[2]
+    @test [Int(stack.elements[L].y) for L in (1, 2, 3, 4097, 10_000)] == [0, 20, 40, 81_920, 199_980]
+end
+
 @testset "TextToGraphics lays out TextLine blocks" begin
 
 m = _test_measure(10, 18)

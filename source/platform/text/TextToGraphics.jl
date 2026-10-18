@@ -543,8 +543,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # while it stays in the block, at any place, so a line inserted above it lays out
     # nothing of it again and keeps its graphics; a group that is no line keeps its
     # cells by its place. A line's `layout` reads only that line's spans' content;
-    # its `y` reads the offset of its place, which chains off the real line distances
-    # of the places above, rounded once, so a long text does not drift (editing the
+    # its `y` reads the offset of its place, the sum of the real line distances of
+    # the places above, rounded once, so a long text does not drift (editing the
     # last line moves nothing; editing a middle line reflows the lines below —
     # matching ListNode spines).
     # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
@@ -552,10 +552,38 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # line's `layout` (printer locality — dimension C, now line-local).
     line_entries = IdDict{Any,NamedTuple}()
     place_entries = Dict{Int,NamedTuple}()
+    # The sum of the line distances of the `size` places from `first`, for a block
+    # whose size is a power of two and whose first place follows a multiple of its
+    # size. A block reads its two halves, so the offset of the last line of a long
+    # text reads cells to a depth of log2 of its line count, never a chain of every
+    # line above it, which would overflow the stack of the first read.
+    distance_sums = Dict{Tuple{Int,Int},Cell}()
+    function get_distance_sum(first::Int, size::Int)
+        size == 1 && return get_line_cells(first).distance
+        get!(distance_sums, (first, size)) do
+            half = size ÷ 2
+            Cell(@computation get_distance_sum(first, half)[] + get_distance_sum(first + half, half)[])
+        end
+    end
+    # The offset of place `L` adds the blocks of the binary form of `L - 1`, the
+    # largest first, so the offsets of all places share their blocks.
     offsets = Dict{Int,Cell}()
     function get_offset(L::Int)
         get!(offsets, L) do
-            L == 1 ? Cell(0.0) : Cell(@computation get_offset(L - 1)[] + get_line_cells(L - 1).distance[])
+            L == 1 && return Cell(0.0)
+            Cell(Computation(function ()
+                total = 0.0
+                first = 1
+                size = prevpow(2, L - 1)
+                while first < L
+                    if first + size <= L
+                        total += get_distance_sum(first, size)[]
+                        first += size
+                    end
+                    size ÷= 2
+                end
+                total
+            end))
         end
     end
     function make_line_entry(line_layout::Cell, line_y::Cell)
