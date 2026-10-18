@@ -27,6 +27,7 @@ its own definition:
 """
 module DocumentModule
 
+using Base.ScopedValues: ScopedValue, with
 using ..CellModule
 using ..CellStructModule
 using ..FaultModule
@@ -51,7 +52,7 @@ export DeclaredTypeMismatchException, PendingValue,
        convert_to_declared_type, convert_written_value, is_admitted_by_declared_type,
        convert_assigned_value
 export SelectionDocument, unwrap_selection
-export DocumentWalk, walk_document, make_string_predicate
+export DocumentWalk, walk_document, make_string_predicate, is_background_work_allowed, complete_walked_cell
 # how deep `show` descends before it elides
 export DOCUMENT_SHOW_MAX_DEPTH
 

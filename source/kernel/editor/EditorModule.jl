@@ -71,7 +71,8 @@ export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation,
        make_default_backend,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,
        get_excluded_wrappers, is_wrapper_default, make_wrapper_argument,
-       make_document_projection, build_editor, make_editor_parts
+       make_document_projection, build_editor, make_editor_parts,
+       BackgroundSource, make_background_cell, wait_for_cell!
 
 include("Editor.jl")
 include("Inbox.jl")
@@ -81,6 +82,7 @@ include("DocumentEdits.jl")
 include("SafeMode.jl")
 include("FaultBarriers.jl")
 include("HeldFrames.jl")
+include("BackgroundCells.jl")
 include("EditorLoop.jl")
 include("BackendChoice.jl")
 include("EditorBuild.jl")

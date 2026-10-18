@@ -280,10 +280,28 @@ end
 function Base.getindex(c::ReactiveCell)
     @count_performance :reads
     observer = _record_read!(c)
-    c.state === _VALID || _bring_up_to_date_for!(c, observer)
+    if c.state !== _VALID
+        _bring_up_to_date_for!(c, observer)
+    elseif c.is_provisional && observer !== nothing && c.computation !== nothing
+        # A provisional value computes again for each computation that reads it,
+        # so a value that is still to come asks again where it is used now, also
+        # when it computed before in a place that asked nobody.
+        _recompute_for!(c, observer)
+    end
     # A reader of a provisional value is provisional too.
     c.is_provisional && observer !== nothing && (observer.is_provisional = true)
     return c.value
+end
+
+# Compute `c` again for a read by `observer`, as `_bring_up_to_date_for!` does.
+@noinline function _recompute_for!(c::ReactiveCell, observer)
+    try
+        _recompute!(c)
+    catch
+        c.is_provisional && (observer.is_provisional = true)
+        rethrow()
+    end
+    nothing
 end
 
 # Bring `c` up to date for a read by `observer`. A failure of `c` that a provisional
@@ -619,6 +637,18 @@ end
 # what was written, and the untracked kind reads with no reader. The fallback
 # stands here, beside the engine that spreads the flag.
 is_cell_provisional(::AbstractCell) = false
+
+"""
+    is_computation_running() -> Bool
+
+Whether a computation runs on this task now and records the cells that it reads.
+Code that runs with no reader, such as `run_without_cell_tracking`, answers
+`false`.
+
+Use it in code that must not run inside a computation, such as a wait or a write
+of cells, to refuse at once.
+"""
+is_computation_running() = !isempty(_get_computing_stack())
 
 """
     mark_computation_provisional!() -> nothing

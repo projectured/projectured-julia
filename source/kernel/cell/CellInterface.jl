@@ -61,7 +61,9 @@ Whether the value of `cell` is provisional: valid now, but a newer value comes
 later, such as the default of a value that a task still reads. A computation that
 reads a provisional cell is provisional itself, so the flag goes up through every
 computation that the value reaches, and a computation that computes again from
-final values only is final. A write of a value is final.
+final values only is final. A write of a value is final. A provisional cell that a
+computation reads computes again at that read, so a value that is still to come
+asks again wherever a computation uses it.
 
 Use it where a drawing chooses what to show while a value comes, such as the last
 final rows of a table, or a mark that a sort is not done. Inside a computation the

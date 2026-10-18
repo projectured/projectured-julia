@@ -293,6 +293,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
   - ⬜ `editor/HeldFrames.jl`
+  - ⬜ `editor/BackgroundCells.jl`
   - ⬜ `editor/EditorLoop.jl`
   - ⬜ `editor/BackendChoice.jl`
   - ⬜ `editor/EditorBuild.jl`

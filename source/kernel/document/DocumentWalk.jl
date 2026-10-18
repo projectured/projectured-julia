@@ -107,6 +107,14 @@ matches can be only in some parts of the graph, so that the walk skips the
 parts that can hold none, such as a type or a function held in a field. An
 exception from `descend` goes to the caller.
 
+`background` says whether the walk starts background work. A cell whose value
+a task computes off the loop, a background cell, holds its last answer or its
+default until its work is done. By default the walk takes that value as it is
+and starts no work, so a walk over a large document reads no file and starts no
+task. With `background = true` the walk waits for the final value of each
+provisional cell that it reads (`complete_walked_cell`), so it can match inside
+the values that a task computes; call it so only outside a computation.
+
 `on_error(object, exception) -> Bool` runs when `predicate` throws an ordinary
 exception on `object`, and its answer is the match of that object. The walk
 visits objects of every type, so a predicate that reads a field of one type
@@ -119,15 +127,44 @@ reaches `on_error`: it ends the walk.
 """
 function walk_document(walk::DocumentWalk, obj, predicate;
                        include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false,
-                       descend = _enter_every_child, on_error = _count_as_no_match)
+                       descend = _enter_every_child, on_error = _count_as_no_match,
+                       background::Bool = false)
     results = Any[]
-    root = unwrap_cell(obj)
-    _walk_document!(walk, results, IdDict{Any,Bool}(), root,
-                    _GuardedPredicate(predicate, on_error),
-                    walk.initial(root), nothing, IdDict{Any,Bool}(),
-                    include_selection, maxdepth, raw, descend)
+    with(_IS_BACKGROUND_WORK_ALLOWED => background) do
+        root = _read_walked(obj, background)
+        _walk_document!(walk, results, IdDict{Any,Bool}(), root,
+                        _GuardedPredicate(predicate, on_error),
+                        walk.initial(root), nothing, IdDict{Any,Bool}(),
+                        include_selection, maxdepth, raw, descend, background)
+    end
     results
 end
+
+# Whether a read may start background work now: false inside a walk that starts
+# none.
+const _IS_BACKGROUND_WORK_ALLOWED = ScopedValue(true)
+
+"""
+    is_background_work_allowed() -> Bool
+
+Whether a read of a background cell may start its work now: `true`, except inside
+a walk of the documents that starts no background work, which is the default of
+`walk_document`, `search_documents` and `search_references`.
+"""
+is_background_work_allowed() = _IS_BACKGROUND_WORK_ALLOWED[]
+
+"""
+    complete_walked_cell(cell) -> value
+
+The value of `cell` for a walk that starts background work (`background = true`):
+the final value when the cell holds a value that a task still computes. The
+default reads the cell. The editor answers it for a reactive cell: it waits for
+the background work below the cell.
+"""
+complete_walked_cell(cell) = unwrap_cell(cell)
+
+# The value of a field or an element for the walk.
+_read_walked(x, background::Bool) = background && x isa AbstractCell ? complete_walked_cell(x) : unwrap_cell(x)
 
 _enter_every_child(_, _) = true
 
@@ -180,7 +217,7 @@ end
 # All but `obj`, `location`, `enclosing`, `seen` and `depth` pass through
 # unchanged, and the compile count below is measured on this form.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
-                         seen, include_selection, depth, raw, descend)
+                         seen, include_selection, depth, raw, descend, background)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,
     # used as an `IdDict{Any, Bool}` key, and handed down. Every use is an `Any`
     # slot already, so specialising on it buys no speed — and costs a great deal
@@ -212,42 +249,42 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
 
     if is_element_collection(obj)
         for i in 1:(length(obj)::Int)
-            child = unwrap_cell(obj[i])
+            child = _read_walked(obj[i], background)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend)
+                            here, seen, include_selection, depth - 1, raw, descend, background)
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
         # into the hash table's internals, whose `Memory` buffers have undefined
         # slots. The key is the field name, which is how a dict entry is addressed.
         for (k, v) in obj
-            child = unwrap_cell(v)
+            child = _read_walked(v, background)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, k, child),
-                            here, seen, include_selection, depth - 1, raw, descend)
+                            here, seen, include_selection, depth - 1, raw, descend, background)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
-            child = unwrap_cell(obj[i])
+            child = _read_walked(obj[i], background)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend)
+                            here, seen, include_selection, depth - 1, raw, descend, background)
         end
     else
         for fn in fieldnames(typeof(obj))
             fn == :mouse_target && continue
             fn == :selection && !include_selection && continue
             isdefined(obj, fn) || continue
-            child = unwrap_cell(getfield(obj, fn))
+            child = _read_walked(getfield(obj, fn), background)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, fn, child),
-                            here, seen, include_selection, depth - 1, raw, descend)
+                            here, seen, include_selection, depth - 1, raw, descend, background)
         end
     end
 end

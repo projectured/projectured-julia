@@ -207,6 +207,14 @@ writes the cells (`PAR-SINGLE-WRITER`).
    - **QC.** The sealed `CellModule.jl` gets one export line for the new names of
      the cell layer, such as `is_cell_provisional`, and no other change. This is
      the permission of the owner for that line.
+5. A search of the documents has a parameter for background work (the owner,
+   2026-10-18: "Both options make sense and the user may need one or the other
+   depending on the circumstances. A search in a potentially large data should be
+   bounded by default but the user should be able to override. So these are
+   parameters, depth of search, do background work, number of items to find,
+   etc."). By default a search starts no background work; `background = true`
+   waits for the values that it reads. The depth is `maxdepth`, which exists. A
+   bound on the count of matches is not in this plan.
 
 ## Steps
 
@@ -247,11 +255,67 @@ Each step is one or more commits with its tests, in a worktree, with a check of
      array of 200 objects is +0.6% (348.7 ms against 346.7 ms), inside the spread
      of 3% between processes of one tree, and a reprint after one write is noise.
      The scripts are in `/var/tmp/explorer-pages/perf/`.
-2. [ ] **The background cell and its source in the editor layer.** Tests with a
+2. [x] **The background cell and its source in the editor layer.** Done. Tests with a
    headless editor: a read answers the default and is provisional; the work runs
    after the frame; the answer makes the cell final; a change of an input makes it
    provisional with its last answer; 1,970 demands of one frame are one work;
    `wait_for_cell` (decision 4, QB).
+
+   What the work found and decided:
+
+   - The file is `kernel/editor/BackgroundCells.jl`. A background cell is a
+     `Cell` whose computation reads a computed cell of its inputs and a hidden
+     cell of its last answer, which only the write of an answer changes. So the
+     engine of step 1 needs no other change.
+   - The demands of an editor are a session document, `BackgroundDemands`, and
+     not a field of the editor. A computation finds it through the editor of the
+     evaluation, because a code unit computes on a task of its own. A demand wakes
+     the editor, so a frame follows and starts the work.
+   - The frame starts the work after its print (`start_background_cell_work!`),
+     and so does the loop after its first print. A held frame prints no document,
+     so a demand of a code unit starts at the next frame after the unit.
+   - The tool layer has `start_background_work` for the code of the assistant, so
+     the start of a frame is `start_background_cell_work!`.
+   - `wait_for_cell` on the task that owns the documents, or with no loop, first
+     makes each provisional cell below the cell invalid, because a provisional
+     cell that a read computed before is valid and records no new demand. Its
+     collector records each demand again, also one that a task of the editor
+     computes already, because that answer would come through the inbox, which
+     nothing drains while the call waits.
+   - A work that throws is the answer of each cell of its batch, and so is a work
+     that answers another count of values; a read of such a cell throws it.
+   - After a review: every demand gets an answer, also from a work that throws at
+     a stop or answers no vector, so no cell waits forever. An answer to a demand
+     older than the one of the answer that the cell holds is dropped. The work gets
+     a copy of the inputs, and runs through `start_background_work`. A source is
+     one object, and opaque to a walk of the documents. `wait_for_cell` on the
+     task that owns the documents throws at once when nothing below the cell asks.
+   - A review and the explorer session found that a demand that comes from one
+     computation run is lost when that run happens where no editor is in scope,
+     such as the first print of `make_editor` or a read at the REPL, because the
+     cache never repeats the run; and that a walk of the documents would ask for
+     every value that it passes. What changed, following the rule of the owner
+     ("if it's visible, then it's calculated"):
+     - A provisional cell computes again at each read by a computation (the cell
+       layer), so a background value asks wherever a computation uses it, also
+       when it computed before where it asked nobody. `is_computation_running()`
+       is the third name of the export line of `CellModule.jl`.
+     - The first print of `make_editor` runs with its editor as the editor of the
+       evaluation.
+     - A walk of the documents (`walk_document`, so `search_documents` and
+       `search_references`) has the keyword `background`, decision 5: by default
+       it starts no background work and takes each value as it is; with
+       `background = true` it waits for the final value of each provisional cell
+       that it reads (`complete_walked_cell`, which the editor answers).
+     - `wait_for_cell` is `wait_for_cell!`, because it writes cells, and a
+       computation can not call it. It reads the cell through a computation, so
+       the cells below ask again.
+   - A fact for later (the explorer session): the quick filter of the explorer is
+     a computation that reads the label of every row that the tree read, so it
+     asks for each background value that those labels read, also of the rows that
+     it hides; no label of a tree row reads a background cell today. A decoration
+     must keep to stored state, because the count of a roster reads the decoration
+     of each counted item.
 3. [ ] **The drawing of a provisional part** (decision 4, QA). Tests: the print tests of a
    label and of a table that sorts.
 4. [ ] **The pilot in omnet:** the record of a result file entry is a background

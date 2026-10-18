@@ -120,6 +120,9 @@ function _run_frame_stages!(editor::Editor)
             end
         end
     end
+    # The reads of the frame are done, so the background cells that they found
+    # provisional start their work now, off the loop.
+    start_background_cell_work!(editor)
     _consider_safe_mode!(editor)
 end
 
@@ -213,6 +216,7 @@ function _run_editor_loop!(editor::Editor; mcp::Union{Bool,NamedTuple}, fault_po
             _run_barrier(editor, :print; origin = typeof(editor.projection)) do
                 run_print_stage!(editor)
             end
+            start_background_cell_work!(editor)
         end
         # Advance this editor's private animation clock once per frame;
         # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
@@ -375,8 +379,12 @@ function make_editor(document::Document, projection; backend::Backend,
         Base.invokelatest(open_native_windows!, backend, get_wrapped_document(document))
         editor = Editor(document, projection; backend = backend, devices = devices,
                         feeds = feeds, fault_policy = fault_policy, clock = clock)
-        _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-            run_print_stage!(editor)
+        # The first print runs as a frame does, with its editor as the editor of the
+        # evaluation, so a value that it reads asks this editor.
+        run_with_evaluation_editor(editor) do
+            _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+                run_print_stage!(editor)
+            end
         end
         return editor
     catch

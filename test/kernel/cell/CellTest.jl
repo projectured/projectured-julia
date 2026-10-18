@@ -913,6 +913,27 @@ end
     @test own[] == 5 && !is_cell_provisional(own)
 end
 
+@testset "a provisional cell computes again at each read by a computation" begin
+    runs = Ref(0)
+    waiting = Cell(@computation (runs[] += 1; mark_computation_provisional!(); 1))
+    @test waiting[] == 1 && runs[] == 1
+    # A read outside a computation takes the value as it is.
+    @test waiting[] == 1 && runs[] == 1
+    first_reader = Cell(@computation waiting[] + 1)
+    second_reader = Cell(@computation waiting[] + 2)
+    @test first_reader[] == 2 && second_reader[] == 3
+    @test runs[] == 3
+    # A final cell computes once.
+    final_runs = Ref(0)
+    done = Cell(@computation (final_runs[] += 1; 1))
+    readers = [Cell(@computation done[] + k) for k in 1:3]
+    @test [reader[] for reader in readers] == [2, 3, 4] && final_runs[] == 1
+    # Whether a computation runs, which a wait checks before it waits.
+    @test !is_computation_running()
+    @test Cell(@computation is_computation_running())[]
+    @test !Cell(@computation run_without_cell_tracking(is_computation_running))[]
+end
+
 @testset "mark_computation_provisional! needs a computation that records its reads" begin
     @test_throws ArgumentError mark_computation_provisional!()
     untracked = Cell(@computation run_without_cell_tracking(() -> mark_computation_provisional!()))
