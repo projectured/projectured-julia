@@ -46,7 +46,9 @@ end
 # What a background cell keeps outside the graph: its source, the cell of its last
 # answer, which only the write of an answer changes, the inputs of the demand that
 # waits or runs, and the numbers of the last demand and of the demand that the
-# answer belongs to, so an answer that comes after a newer one is dropped.
+# answer belongs to, so an answer that comes after a newer one is dropped; and the
+# cell that says that its work runs, and the function that stores an answer in the
+# document that owns the cell, each `nothing` when the cell has none.
 mutable struct _BackgroundCellState
     source::BackgroundSource
     answer::Cell                      # (inputs = ..., value = ...), or nothing
@@ -54,6 +56,8 @@ mutable struct _BackgroundCellState
     demanded::Any                     # the inputs of the demand, while `has_demand`
     demand_count::Int                 # the number of the last demand
     answered_demand::Int              # the number of the demand of the answer
+    working::Any                      # Cell{Bool}, or nothing
+    apply::Any                        # (inputs, value) -> Operation or nothing, or nothing
 end
 
 """
@@ -73,7 +77,7 @@ end
 BackgroundDemands() = BackgroundDemands(ReentrantLock(), Tuple{_BackgroundCellState,Any,Int}[])
 
 """
-    make_background_cell(source, inputs; default = nothing) -> Cell
+    make_background_cell(source, inputs; default = nothing, working = nothing, apply = nothing) -> Cell
 
 A cell whose value `source` computes off the loop, from the values that
 `inputs()` reads on the loop. `inputs` is a function of no argument, a
@@ -92,6 +96,20 @@ the documents that starts no background work (`is_background_work_allowed`). A
 change of an input makes the cell provisional again, and it answers its last
 answer until the new one comes.
 
+`working`, when given, is a cell of a `Bool` that the editor makes `true` when it
+starts the work of the cell, after the print of a frame, and `false` when it writes
+the answer. A part that says that a value is still read, such as the mark of a
+row, reads it as a plain cell, so it asks for nothing.
+
+`apply`, when given, stores an answer in the document that owns the cell as well:
+`apply(inputs, value)` answers an operation, or `nothing`, which the editor
+evaluates right after it writes the answer for `inputs`. A work that threw passes
+its exception as `value`. With no editor, as in a script that calls
+[`wait_for_cell!`](@ref) with `editor = nothing`, the operation is evaluated with
+`nothing` as its editor. So a value whose answer is documents that a person sees,
+such as the entries of a folder, keeps them where they are, and changes them by
+the operation, as an edit does.
+
 # Example
 
     records = BackgroundSource(inputs -> [read_run_record(path) for (path, _, _) in inputs])
@@ -103,8 +121,9 @@ final value. Make the cell where a document is built, never inside a computation
 a cell that a computation makes is new at each run, so it would ask again at each
 answer. See also [`BackgroundSource`](@ref).
 """
-function make_background_cell(source::BackgroundSource, inputs::Function; default = nothing)
-    state = _BackgroundCellState(source, Cell(nothing), false, nothing, 0, 0)
+function make_background_cell(source::BackgroundSource, inputs::Function; default = nothing,
+                              working = nothing, apply = nothing)
+    state = _BackgroundCellState(source, Cell(nothing), false, nothing, 0, 0, working, apply)
     inputs_cell = Cell(Computation(inputs))
     Cell(@computation _compute_background_value(state, inputs_cell, default))
 end
@@ -194,6 +213,7 @@ function start_background_cell_work!(editor::Editor)
     demands = get_session_document!(BackgroundDemands, editor, BackgroundDemands)
     for (source, batch) in _take_background_demands!(demands)
         states = Any[state for (state, _, _) in batch]
+        foreach(_mark_background_work!, states)
         inputs = Any[input for (_, input, _) in batch]
         numbers = Int[number for (_, _, number) in batch]
         description = isempty(source.description) ? "the work of background cells" : source.description
@@ -202,6 +222,13 @@ function start_background_cell_work!(editor::Editor)
             _post_background_answers!(editor, WriteBackgroundAnswersOperation(states, inputs, numbers, answers))
         end
     end
+    nothing
+end
+
+# Say that the work of the cell of `state` runs, for a part that shows it.
+function _mark_background_work!(state::_BackgroundCellState)
+    working = state.working
+    working === nothing || working[] === true || (working[] = true)
     nothing
 end
 
@@ -224,7 +251,9 @@ An answer to a demand older than the demand of the answer that the cell holds is
 dropped, so a slow work does not overwrite the answer of a newer one. The write of
 an answer invalidates the readers of the cell, as any write does, so the next read
 computes them again, and a cell whose inputs did not change since its demand is
-final. It is a write of view state, so undo records none.
+final. It ends the mark of the work of a cell (`working`), and it stores each
+answer in the document of its cell (`apply`). It is a write of view state, so undo
+records none.
 """
 struct WriteBackgroundAnswersOperation <: Operation
     states::Vector{Any}
@@ -233,17 +262,29 @@ struct WriteBackgroundAnswersOperation <: Operation
     answers::Vector{Any}
 end
 
-function OperationModule.evaluate_operation(::Editor, operation::WriteBackgroundAnswersOperation)
-    _write_background_answers!(operation.states, operation.inputs, operation.numbers, operation.answers)
+function OperationModule.evaluate_operation(editor::Editor, operation::WriteBackgroundAnswersOperation)
+    _write_background_answers!(editor, operation.states, operation.inputs, operation.numbers, operation.answers)
     nothing
 end
 
-function _write_background_answers!(states, inputs, numbers, answers)
+# Write each answer that is not older than the one that its cell holds, end the
+# mark of a work for which no newer demand waits, and store the answer in the
+# document of the cell, with `editor`, which can be `nothing`.
+function _write_background_answers!(editor, states, inputs, numbers, answers)
     for (state, input, number, value) in zip(states, inputs, numbers, answers)
         number > state.answered_demand || continue
         state.answered_demand = number
         state.answer[] = (inputs = input, value = value)
-        number == state.demand_count && (state.has_demand = false; state.demanded = nothing)
+        if number == state.demand_count
+            state.has_demand = false
+            state.demanded = nothing
+            working = state.working
+            working === nothing || working[] === false || (working[] = false)
+        end
+        apply = state.apply
+        apply === nothing && continue
+        operation = apply(input, value isa _BackgroundFailure ? value.exception : value)
+        operation === nothing || evaluate_operation(editor, operation)
     end
     nothing
 end
@@ -272,7 +313,7 @@ function wait_for_cell!(cell::AbstractCell; editor = find_evaluation_editor(), t
         "wait_for_cell! waits and writes cells, so a computation can not call it"))
     deadline = time() + timeout
     if !(editor isa Editor) || editor.loop_task === nothing || _is_editor_owner(editor)
-        return _wait_for_cell_here(cell, deadline, timeout)
+        return _wait_for_cell_here(editor isa Editor ? editor : nothing, cell, deadline, timeout)
     end
     while true
         remaining = max(1.0, deadline - time())
@@ -297,7 +338,7 @@ end
 
 # Read `cell` with a collector of this task, compute what it demanded, and read
 # it again, until it is final.
-function _wait_for_cell_here(cell::AbstractCell, deadline::Real, timeout::Real)
+function _wait_for_cell_here(editor, cell::AbstractCell, deadline::Real, timeout::Real)
     while true
         # The collector of this call records each demand, also one that a task of
         # the editor computes already: its answer would come through the inbox,
@@ -315,7 +356,7 @@ function _wait_for_cell_here(cell::AbstractCell, deadline::Real, timeout::Real)
         time() < deadline || _throw_wait_timeout(timeout)
         for (source, batch) in batches
             inputs = Any[input for (_, input, _) in batch]
-            _write_background_answers!(Any[state for (state, _, _) in batch], inputs,
+            _write_background_answers!(editor, Any[state for (state, _, _) in batch], inputs,
                                        Int[number for (_, _, number) in batch],
                                        _run_background_work(source, inputs))
         end

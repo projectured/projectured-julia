@@ -6,7 +6,8 @@
 # that throws makes a read of its cells throw. A cell that computed where it asked
 # nobody asks when a computation of the editor reads it, and the first print of an
 # editor asks that editor. A search starts no background work by default, and
-# waits for it when it is asked to. `wait_for_cell!` computes the final value.
+# waits for it when it is asked to. `wait_for_cell!` computes the final value. A
+# cell can say that its work runs, and store its answer in its document.
 
 using Test
 using ProjecturedKernel.CellModule
@@ -18,6 +19,7 @@ import ProjecturedKernel.EditorModule: Editor, BackgroundSource, BackgroundDeman
                                        wait_for_cell!, start_background_cell_work!, drain_operations!,
                                        make_editor
 import ProjecturedKernel.ToolModule: run_with_evaluation_editor
+import ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 using ProjecturedKernelExample
 
 @document struct BackgroundCellProbe
@@ -115,6 +117,40 @@ function test_editor_background_cell()
         start_background_cell_work!(editor)
         @test _wait_until_final(editor, total)
         @test total[] == 10 * sum(1:1970) && length(calls) == 1 && only(calls) == collect(1:1970)
+    end
+
+    @testset "a cell says that its work runs, and stores its answer in its document" begin
+        calls = Vector{Any}[]
+        gate = Channel{Bool}(1)
+        working = Cell(false)
+        probe = BackgroundCellProbe()
+        applied = Any[]
+        store(inputs, answer) = (push!(applied, (inputs, answer)); ReplaceReferencedValueOperation(probe, "value", answer))
+        value = make_background_cell(_make_counting_source(calls; gate), () -> 3; default = 0, working, apply = store)
+        editor = _make_background_editor()
+        @test _read_in_editor(editor, value) == 0 && working[] == false
+        start_background_cell_work!(editor)
+        @test working[] == true
+        put!(gate, true)
+        @test _wait_until_final(editor, value)
+        @test working[] == false && applied == [(3, 30)] && probe.value == 30
+        # A work that throws passes its exception.
+        failures = Any[]
+        broken = make_background_cell(BackgroundSource(inputs -> error("no disk")), () -> 1;
+                                      apply = (inputs, answer) -> (push!(failures, answer); nothing))
+        @test _read_in_editor(editor, broken) === nothing
+        start_background_cell_work!(editor)
+        deadline = time() + 10
+        while isempty(failures) && time() < deadline
+            drain_operations!(editor)
+            sleep(0.01)
+        end
+        @test only(failures) isa ErrorException
+        # With no editor, wait_for_cell! evaluates the operation with none.
+        other = BackgroundCellProbe()
+        alone = make_background_cell(_make_counting_source(Vector{Any}[]), () -> 4; default = 0,
+                                     apply = (inputs, answer) -> ReplaceReferencedValueOperation(other, "value", answer))
+        @test wait_for_cell!(alone; editor = nothing) == 40 && other.value == 40
     end
 
     @testset "a demand that waits or runs is not asked again" begin
