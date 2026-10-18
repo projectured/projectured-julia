@@ -1,6 +1,6 @@
 # A view refers to content that the editor holds once
 
-Status: LATER. The JSON pipeline is the pilot. No step has started.
+Status: LATER, decided. The JSON pipeline is the pilot. No step has started.
 
 ## The ask
 
@@ -103,7 +103,22 @@ give the structure.
 - **The cost of state as references.** Every fold and every caret is a reference
   that each stage maps forward. The prototype measures it.
 
-## Questions for the owner
+## Decisions
+
+1. **A content document lives where the composition puts it** (Q1, the owner,
+   2026-10-18: "there's no hard requirement, it lives where composition makes
+   sense"). A file lives in the open files of the editor (`OpenFileList`, which
+   holds one document for each file), and a JSON part lives in the Markdown document
+   that holds it. The open files are a session document of the editor now; the
+   prototype finds how the composition of the window reaches them.
+2. **The `selection` and `mouse_target` fields go** (Q2 (a), the owner: "agreed"),
+   for a domain when its views hold their references, and then from the macro.
+3. **The prototype first, then the pilot from the bottom up** (Q3 (a), the owner:
+   "agreed, and I want to see the composition"). So the prototype shows its
+   composition: the editor document and the output of each stage, as structures that
+   a person reads, with one content of two domains in it.
+
+## The questions that were asked
 
 - **Q1. Where a content document lives in the editor document.** (a) In a list of
   the window that holds each content document once, and each tab holds a view of
@@ -126,11 +141,14 @@ Each step is one or more commits with its tests, in a worktree, with a check of
 reference must move at an insert.
 
 1. [ ] **The prototype.** In a test of the platform, with no change of `main`: an
-   editor document that holds one text document once and two views of it, a
-   projection of two stages (the text, then the graphics of each view), and the
-   caret as a reference of each view. It measures: two carets, one print of the
-   text for both views, and the cells that a move of the caret recomputes. The
-   facts go into this plan, and the owner decides the next steps from them.
+   editor document that holds one text document once and two views of it, and a
+   content of two domains with a view; a projection in stages (each content one
+   domain further, then the graphics of each view); the caret and a fold as
+   references of each view. It shows the composition (decision 3): the editor
+   document and the output of each stage, printed as structures. It measures: two
+   carets, one print of each content for all its views, and the cells that a move
+   of the caret recomputes. The facts go into this plan, and the owner decides the
+   next steps from them.
 2. [ ] **The text domain.** A text document in two tabs on the real editor: each
    tab a view that holds its caret, its scroll and its folds; the stages print the
    text once. Tests: the text suites, `test_selection_localities()`.
