@@ -290,6 +290,25 @@ function test_task_document()
             @test describe_task_group_preparation(single) == ("Before the tasks: prepare — DONE", "DONE", true)
         end
 
+        @testset "a walk of a running group stops at what the group needs to run" begin
+            # The scheduler of the group and the processes of its tasks are no
+            # document. A walk that went into them, as the search of a roster
+            # does, would reach whatever their closures hold, up to the window.
+            document = wrap_task_group_document(
+                TaskGroup(_make_task_group_probe_tasks(2.0); jobs = 2))
+            start_task_group_document!(document)
+            group = get_task_group(document)
+            deadline = time() + 10
+            while build_task_group_summary(group).running < 2 && time() < deadline
+                sleep(0.02)
+            end
+            drain_task_feed!()
+            @test group.runtime.scheduler isa Task
+            @test isempty(search_references(document, node -> node isa Task; maxdepth = 24))
+            stop_task_group_document!(document)
+            wait_task_group_document(document)
+        end
+
         @testset "a stop finishes the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(30); jobs = 5))

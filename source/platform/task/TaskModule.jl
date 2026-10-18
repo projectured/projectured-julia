@@ -40,7 +40,7 @@ using ..SystemProcessModule
 using ..ToolModule
 using ..TreeModule
 using ..WidgetModule
-import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
+import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!, is_walk_opaque
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets,
                        compute_item_facet
 import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,

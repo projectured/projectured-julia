@@ -1403,6 +1403,18 @@ before each edit of a kernel file. Mark each step done here.
      its decoration. It is an exported name, so the next release gives
      `ProjecturedPlatform` a minor step, which the generator of the release finds
      by itself (R36).
+   - Two defects that the images of the IDE window found after the landing,
+     fixed 2026-10-18 at the owner's "yes": (1) the page of a view showed "a Cell
+     read itself while it computed", and the editor stayed busy. The search of its
+     roster walks the groups of the task list, and a group that ran holds its
+     scheduler, a Julia `Task`, whose closure reaches the editor and the printed
+     window. The runtimes of a group and of an execution (`TaskGroupRuntime`,
+     `TaskRuntime`) are opaque to the walk now (`is_walk_opaque`). (2) In the
+     campaign window no tab held what it showed, so a run row read no details and
+     the Runner held no page: the window builds its editor with `tabs = false`,
+     and only the `tabs` wrapper and the start of the projectured application
+     acquired a window tree. The start of the campaign window acquires its tree
+     now.
    - Not done: the counts of Running now and Not expected. A roster counts no
      rows (step 3c), because the search of its source can walk into the views
      that draw the row; a count needs a way to say that a source is safe to

@@ -175,6 +175,10 @@ end
 
 TaskRuntime() = TaskRuntime(ReentrantLock(), nothing, nothing, 0, nothing, nothing, Any[])
 
+# The runtime is no document: a walk of the documents stops here and does not
+# reach what its process, its reader task and its listeners hold.
+is_walk_opaque(::TaskRuntime) = true
+
 """
     TaskExecution(task)
 

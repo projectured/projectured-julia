@@ -142,6 +142,10 @@ end
 
 TaskGroupRuntime() = TaskGroupRuntime(ReentrantLock(), nothing, nothing, nothing, nothing, nothing)
 
+# The runtime is no document: a walk of the documents, such as the search of a
+# roster, stops here and does not reach what its scheduler and its functions hold.
+is_walk_opaque(::TaskGroupRuntime) = true
+
 """
     TaskGroup(tasks; name = "task", action = "", jobs = get_default_job_count(),
               codes = nothing, preparation = nothing)
