@@ -1,6 +1,7 @@
 # The search below a node reads the folders that it needs
 
-Status: PROPOSED, 2026-10-18. It builds on steps 1 and 2 of
+Status: PROPOSED, 2026-10-18; Q2 decided (a computation, shown as a work item in
+the task list). It builds on steps 1 and 2 of
 [a-value-that-a-task-reads-is-a-cell.md](a-value-that-a-task-reads-is-a-cell.md)
 (projectured main `33a957cca` and `7c2f4d2c9`). No step has started.
 
@@ -52,7 +53,7 @@ search shows its progress and can stop.
      the answer. A decoration that read the listing would read every folder row
      in view.
    - A holder keeps only the watch: a watch is no value.
-2. **The search is a computation, not a task** (my recommendation, Q2). A document
+2. **The search is a computation, not a task** (Q2, decided). A document
    `ExplorerSearch(place, text; depth, limit)` holds the node to search below, the
    text, and the limits. Its matches are a computation that goes down the children
    of the node as the tree gives them (`get_tree_children_steps`, and of a lazy
@@ -67,10 +68,33 @@ search shows its progress and can stop.
      match of the quick filter does.
    - **The progress.** While the matches are provisional, the page says how many
      folders it waits for. When a limit stops the search, the page says so.
-   - **The stop.** The page that nobody shows reads nothing, so a visit to another
-     page, or Escape, stops the search. Back shows it again, and it goes on from
-     what it read.
-3. **The search needs nothing of a kind but its tree children.** A kind that keeps
+   - **One match cell for each folder.** The matches below a folder are a cell of
+     their own: the matches of its entries and the cells of its sub-folders. So an
+     answer for one folder computes again only the cells on its path up to the
+     node, and not the whole walk.
+3. **The search is a work item in the task list** (Q2, decided), as a group of
+   tasks is. Return in the filter makes the search, adds it to the task list of
+   the session, and opens its page. The row and the page are two views of one
+   search.
+   - **Its status follows its result.** Running while the matches are
+     provisional, with "waiting for 3 folders"; done when they are final, with
+     "12 matches" and the time that it took; failed when a read failed. The
+     decoration is that of a work item.
+   - **It computes while it shows.** The row reads the result to say its progress,
+     so the search goes on while its row or its page is in view: the task list in
+     the explorer, or the Tasks tab, keeps a long search going. Ctrl+press on the
+     row opens its page in a new tab, as for a group. This is the one exception
+     to the rule of the explorer plan that a decoration reads stored state only:
+     a work item reads its own result, because that demand is what the person
+     asked for.
+   - **The stop.** Stop takes the row out, as the close of a group does, so
+     nothing reads the result and no read runs. The page that nobody shows
+     reads nothing either; Back shows it again, and it goes on from what it read.
+   - **The verbs.** The list takes a search as it takes a group (`add_task_group!`
+     gets a method), and `list_task_groups`, `find_task_group`,
+     `describe_task_group`, `stop_tasks!` and `close_task_group!` answer a search
+     too, so the assistant sees it.
+4. **The search needs nothing of a kind but its tree children.** A kind that keeps
    its children in memory, such as the task list, is searched as it is; a kind
    whose children a task reads takes part once its listing is a background cell.
 
@@ -81,9 +105,13 @@ search shows its progress and can stop.
    with the holders. Tests: `test_filesystem()`, `test_explorer()`, the
    tests of the Files tab in `test_application()`, and a test that a closed
    folder in view reads nothing.
-2. [ ] **The search** (the explorer slice): `ExplorerSearch`, its page, Return in
-   the filter, the limits, the progress and the stop. Tests: `test_explorer()`,
-   with a folder of 3 levels that nobody opened, and a search that a visit stops.
+2. [ ] **The search** (the explorer slice, and the task slice for its row):
+   `ExplorerSearch`, the match cell of each folder, its page, Return in the
+   filter, the limits, its row in the task list with its status, the stop, and
+   the verbs. Tests: `test_explorer()`, with a folder of 3 levels that nobody
+   opened; a search whose row stays in view after a visit to another page goes
+   on, and a stop reads nothing more; `test_task_verbs()` and `test_task_views()`
+   with a search in the list.
 3. [ ] **The guides:** `filesystem.md`, `explorer.md`; the plan moves to
    `plan/done/`.
 
@@ -93,16 +121,23 @@ search shows its progress and can stop.
   background cell plan moves after its pilot, each in a plan of its own. My
   recommendation: this plan moves it, because the search needs it first, and the
   session of the background cell hears of it before step 1.
-- **Q2. A computation or a task?** §5.7 of the explorer plan said "a task, as every
-  task does", with a row in the task list. A task would wait for each folder off
-  the loop with `wait_for_cell!`, which reads through the loop every 50
-  milliseconds. My recommendation: a computation, as above, because the model
-  already does the work, the progress and the stop; the cost is that the search
-  has no row in the task list.
+- **Q2. A computation or a task? Decided (the owner, 2026-10-18: "Agreed").** A
+  computation that is a work item in the task list (§ the model, 2 and 3). The
+  options: a computation shares its reads with the tree, follows the disk, and
+  needs no new mechanism, but it computes only while a part reads it and has no
+  row of its own; a task has the row, the status and the verbs and goes on while
+  the person looks elsewhere, but it must read the folders off the loop, with code
+  of its own or with `wait_for_cell!` through the loop, and its result is a
+  snapshot. The row of a work item gives the computation what the task had.
 - **Q3. The limits.** My recommendation: a depth of 10 and 500 matches, which the
   page names when it stops there.
 
 ## Not in this plan
+
+A view of the background works of the editor, each work with its source, its count
+of values, its time and its failure, under Editor in the explorer: a plan of its
+own, with the session of the background cell, because the editor layer keeps the
+works (`BackgroundCells.jl`). The owner agreed on 2026-10-18.
 
 The drawing of a part that is provisional (step 3 of the background cell plan): until
 it lands, the page of the search shows its matches as they come, which a search
