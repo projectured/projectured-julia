@@ -8,7 +8,7 @@ A document that shows `root` and the documents under it as a tree, as a `Roster`
 shows the items of a source as a table. The children of a node are the
 documents of its collections ([`get_tree_children_steps`](@ref)), and its text
 and its icon come from [`format_tree_node_label`](@ref) and
-[`get_tree_node_icon`](@ref). `title` is the title of its tab.
+[`get_document_decoration`](@ref). `title` is the title of its tab.
 
 `expanded` holds the open places: an `IdDict` whose keys are the documents of the
 open nodes below one place, each with the `IdDict` of the open places below it.

@@ -1,7 +1,7 @@
 # The tree example: an outline of plain documents, shown as a `DocumentTree`. A
-# document becomes a node through the three generics of the tree slice, so the
-# example declares a document of its own and gives it those methods, as a slice
-# does for its kind of node.
+# document becomes a node through the generics of the tree slice and its icon
+# through its decoration, so the example declares a document of its own and gives
+# it those methods, as a slice does for its kind of node.
 
 """
     OutlineItem(title, items)
@@ -16,7 +16,8 @@ end
 
 TreeModule.get_tree_children_steps(::OutlineItem) = ((FieldReferenceStep("items"),),)
 TreeModule.format_tree_node_label(item::OutlineItem) = item.title
-TreeModule.get_tree_node_icon(item::OutlineItem) = isempty(item.items) ? :file : :folder
+ProjecturedPlatform.DomainModule.get_document_decoration(item::OutlineItem) =
+    ProjecturedPlatform.DomainModule.DocumentDecoration(; icon = isempty(item.items) ? :file : :folder)
 
 _make_outline_item(title, items...) = OutlineItem(title, CellVector(Any[items...]))
 

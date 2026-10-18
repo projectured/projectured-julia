@@ -43,14 +43,6 @@ of the children has an element.
 function has_tree_children end
 
 """
-    get_tree_node_icon(document) -> Symbol or nothing
-
-The icon of the node of `document` in a tree, a name of an icon of the widget
-layer, such as `:folder`, or `nothing` for no icon. The default is `nothing`.
-"""
-function get_tree_node_icon end
-
-"""
     is_explorer_entry_type(type) -> Bool
 
 Whether a person adds a document of `type` as an entry of an explorer: the kinds

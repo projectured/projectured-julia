@@ -17,8 +17,5 @@ end
 has_tree_children(document) =
     _count_tree_children(document) > 0 || _find_lazy_tree_children(document) !== nothing
 
-# A document shows no icon unless its slice gives one.
-get_tree_node_icon(document) = nothing
-
 # No kind is in the list of `+` of an explorer unless its slice puts it there.
 is_explorer_entry_type(::Type) = false

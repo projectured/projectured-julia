@@ -13,7 +13,7 @@
 
 Prints a [`DocumentTree`](@ref) as one `WidgetTree`, which scrolls itself in the
 slot that its parent offers. Each node computes from its own document: its text
-([`format_tree_node_label`](@ref)), its icon ([`get_tree_node_icon`](@ref)), and
+([`format_tree_node_label`](@ref)), its icon and marks ([`get_document_decoration`](@ref)), and
 its children, the documents of its collections ([`get_tree_children_steps`](@ref)),
 which a node reads only when the tree draws it or opens it. So a change of one
 document draws its own node again, and no other.
@@ -78,9 +78,7 @@ function _make_tree_node(entry::_TreeEntry)
     (_, nodes) = _compute_tree_children_lists!(entry)
     label = _format_node_line(entry.document)
     decoration = get_document_decoration(entry.document)
-    # A kind with no icon in its decoration keeps the icon of its tree generic.
-    icon = make_decoration_icon(decoration;
-                                icon = something(decoration.icon, Some(get_tree_node_icon(entry.document))))
+    icon = make_decoration_icon(decoration)
     WidgetTreeNode(icon, label, nodes;
                    gestures = _make_open_page_bindings(entry.path),
                    has_children = () -> has_tree_children(entry.document) === true,

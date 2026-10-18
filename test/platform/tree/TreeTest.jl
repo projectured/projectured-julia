@@ -63,7 +63,8 @@ TreeModule.get_tree_children_steps(::_DocTreeKnown) = ((FieldReferenceStep("chil
 TreeModule.get_tree_children_steps(::_DocTreeLazy) = ((FieldReferenceStep("children"),),)
 TreeModule.has_tree_children(node::_DocTreeKnown) = node.known
 TreeModule.get_tree_children_steps(::_DocTreePair) = ((FieldReferenceStep("parts"),), (FieldReferenceStep("notes"),))
-TreeModule.get_tree_node_icon(::_DocTreePair) = :folder
+ProjecturedPlatform.DomainModule.get_document_decoration(::_DocTreePair) =
+    ProjecturedPlatform.DomainModule.DocumentDecoration(; icon = :folder)
 DocumentModule.get_document_title(pair::_DocTreePair) = pair.name
 
 function TreeModule.format_tree_node_label(node::_DocTreeNode)
@@ -109,7 +110,7 @@ function test_document_tree()
 
     @testset "the nodes of plain documents, with one or two collections" begin
         @test get_tree_children_steps(_DocTreeLeaf(1)) == ()
-        @test get_tree_node_icon(_DocTreeLeaf(1)) === nothing
+        @test ProjecturedPlatform.DomainModule.get_document_decoration(_DocTreeLeaf(1)).icon === nothing
         @test format_tree_node_label(_DocTreeLeaf(1)) == "_DocTreeLeaf"
         @test format_tree_node_label(_doctree_make()) == "root"
         root = _doctree_make()

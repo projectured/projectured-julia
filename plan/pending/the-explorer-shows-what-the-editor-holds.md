@@ -4,8 +4,11 @@
 > documents of step 11 landed on main at the owner's word ("yes", 2026-10-18).
 > 6c is deferred (the owner: "defer"). The columns of a dashboard follow the
 > width (8, option b, the owner's choice of 2026-10-18), on branch `explorer`.
-> Next: step 10 (omnet) and the omnet guides of step 11, with the omnet UI
-> session, whose plan C changes the omnet explorer. **DESIGN DECIDED.** The owner
+> Step 10a (the explorer of the omnet window) and 10b (the decorations and the
+> state of the omnet kinds) are done on branches `explorer` and `explorer-ide`,
+> with the omnet guides of step 11; they wait for the owner to land them. Open
+> in step 10: the result folder below the project, which waits for step 3 of
+> plan C of the omnet UI session, and the counts of the two views. **DESIGN DECIDED.** The owner
 > decided Q0 to Q12 in §6 on 2026-10-17 and asked for the implementation the same
 > day. The owner refines the structure of the tree later.
 
@@ -1336,6 +1339,74 @@ before each edit of a kernel file. Mark each step done here.
    plan C step 3 is a node below the project; the decorations and the new
    state of the omnet kinds of §5.14.4 (Q12). Test: `OmnetCampaignUiTest`,
    `OmnetIdeTest`.
+   **Part 10a done 2026-10-18: the explorer of the window** (omnet `f3113b00` on
+   branch `explorer-ide`, projectured `398146e38` on branch `explorer`). What it
+   found and decided:
+   - `make_campaign_explorer(project; tasks)` (`source/campaign/CampaignExplorer.jl`)
+     makes the `Explorer` and the Tasks tab. The content is a section Simulation
+     projects with the project page, the task list of the window, a section
+     Views with the two rosters, and the folder of the project (a `Workspace`).
+     The Tasks tab is a navigator over the content, at the address that the
+     content answers for the task list.
+   - `fill_campaign_explorer_content!(editor; tasks, mcp_log)` runs once the
+     editor exists. It makes `tasks` the task list of the session
+     (`get_session_document!`), because the session finds no list inside an entry
+     of a section. Then it adds the tools of the editor
+     (`make_editor_explorer_content`), which skips a session list that the
+     entries hold already, so the list shows once.
+   - The project page has the new field `runners`, and `build_campaign_session`
+     puts the Runner of the window there. The page answers
+     `find_navigator_address` for its Runner, INI files, configurations, runs and
+     stores; the task list answers it for its groups, tasks and inner groups; a
+     section asks each entry in turn.
+   - `LegacySimulationWorkspace`, `LegacySimulationExplorer`, their projections
+     and `count_workspace_view_items` go. The tests `CampaignExplorerContentTest.jl`
+     and `CampaignExplorerTest.jl` take their place, and the omnet guides
+     `user-interface-anatomy.md` and `interface-composition.md` follow.
+   - Limit: the page of a project is one for each project in the process
+     (`_PROJECT_PAGES`), so two windows over one project share it, and `runners`
+     holds the Runner of the last window.
+   - Limit: omnet does not save the content of its explorer yet (Q5), because the
+     project page and the views have no file form.
+   - Results: campaign window 378 pass, 1 fail (`PaneProgramTest.jl:227`, as on
+     main). IDE 638 pass, 5 fail, 13 errors: select and paste 47/1/8, result
+     verbs 1, study verbs 1/1, study by hand 30/1 and the Julia file tab 1 are
+     the failures of main; the model cases wait for a baseline on main.
+   **Part 10b done 2026-10-18: the decorations and the state of the omnet kinds
+   (§5.14.4, Q12).** What it found and decided:
+   - Four Lucide glyphs are new: `package` (a project), `circle_play` (a run),
+     `database` (a store) and `circle_dashed` (the mark of an abstract
+     configuration, a condition `:abstract` that omnet adds after the name).
+   - The project page says that its discovery reads or failed, that its last
+     build runs or failed (`build_group`, which `start_project_page_group!`
+     writes), how many INI files the discovery could not read, and "not built".
+     Its node holds its Runner, its INI files and its stores (`stores`, a
+     computed collection of the fingerprint store and the baseline), so it always
+     has a chevron. The decoration reads `facts`, a computed cell that reads the
+     disk, as the page does; the cell keeps its value until a refresh or the end
+     of a build.
+   - An INI file that the discovery could not read has an entry with no
+     configurations and its `problem`, which the update of the entries writes.
+   - A configuration shows its name, "N runs" as its detail, running while a run
+     runs, the count of its failed and unexpected runs, and "N CODE" for each
+     unexpected code. A run shows the conditions and the result code of its last
+     task. The state is `last_tasks` of the configuration entry (Q12 (a)):
+     `record_run_tasks!` writes it at each start of a group of runs of a Runner
+     (Run, `run_simulations!` and the test verbs), on the task that writes the
+     documents. Not recorded: the run of a simulation card of a study, which
+     starts in a file that loads before the page.
+   - The Runner says that its last group runs (`last_group`, which Run writes)
+     and, as its detail, the line under its form.
+   - The fingerprint store says what any file says, with its count of entries;
+     the baseline says read only and its count of files.
+   - `get_tree_node_icon` goes from the tree slice: every kind names its icon in
+     its decoration. It is an exported name, so the next release gives
+     `ProjecturedPlatform` a minor step, which the generator of the release finds
+     by itself (R36).
+   - Not done: the counts of Running now and Not expected. A roster counts no
+     rows (step 3c), because the search of its source can walk into the views
+     that draw the row; a count needs a way to say that a source is safe to
+     count, and that is a new mechanism.
 11. [ ] **The documents.** Done for projectured (2026-10-18): `explorer.md` is new,
     and `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`,
     `pane.md`, `task.md`, `assistant.md` and the guides of the session documents

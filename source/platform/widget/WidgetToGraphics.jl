@@ -8862,6 +8862,10 @@ const LUCIDE_ICON_GLYPHS = (
     :circle_help    => 0xe082,  # circle-help: a page of help
     :layout_dashboard => 0xe1c1,  # layout-dashboard: a page of cards
     :panel_top      => 0xe435,  # panel-top: one card of a page
+    :package        => 0xe129,  # package: a project that builds and runs
+    :circle_play    => 0xe080,  # circle-play: one run of a configuration
+    :database       => 0xe0ad,  # database: a store of values on disk
+    :circle_dashed  => 0xe4b0,  # circle-dashed: a configuration that only others extend
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS

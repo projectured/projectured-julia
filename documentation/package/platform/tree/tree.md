@@ -19,15 +19,14 @@ The open nodes are `expanded`, the open places: an `IdDict` whose keys are the d
 
 `current` is the path from the root of the node whose row has the mark of the current page, or `nothing`. It is a value, a cell, or a function of no argument, whose answer the tree follows. The row of that node draws a narrow bar at its left edge; a path that goes on into the document of a node marks that node. An explorer gives the address of the page of its navigator, so the mark follows the page also after a link inside the page.
 
-### Four generics make a document a node
+### Three generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. A fifth generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
+The slice names no kind of node. A slice that owns a kind adds methods to three generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. A fifth generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
 
 | Generic | Answers | Default |
 | --- | --- | --- |
 | `get_tree_children_steps(document)` | the reference steps from the node to each collection of its children, in order, as a tuple of tuples | `()`: the node is a leaf |
 | `format_tree_node_label(document)` | the text of the node, in one line: the node draws a line break as a space | the title of the document, else the name of its type that a person sees |
-| `get_tree_node_icon(document)` | a Lucide glyph, as a `Symbol` | `nothing`: no icon |
 | `has_tree_children(document)` | `true`, `false`, or `nothing` while that is not known | `true` when a collection of the children has an element: the default reads the children |
 
 The children of a node are the elements of its collections, one collection after the other. So a node can have two kinds of children. The work of an agent has two: its subagents, then its background tasks. A process has one, the field `children`. A collection whose path reaches nothing gives no children.
@@ -40,7 +39,7 @@ end
 
 TreeModule.get_tree_children_steps(::Folder) = ((FieldReferenceStep("children"),),)
 TreeModule.format_tree_node_label(folder::Folder) = folder.name
-TreeModule.get_tree_node_icon(::Folder) = :folder
+DomainModule.get_document_decoration(::Folder) = DocumentDecoration(; icon = :folder)
 ```
 
 The functions run inside a computation, so they read cells, and a node follows what it reads.
@@ -106,7 +105,7 @@ These slices add kinds of node:
 
 ## Design decisions
 
-- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the four generics. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
+- **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics and a decoration. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 - **A place is open by the documents on its path.** An open node that a path of indices names would name another node after an insert, and an open node that only its document names would open at every place of the document. The owner chose places on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/pending/the-explorer-shows-what-the-editor-holds.md), Q1).
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.

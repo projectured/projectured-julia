@@ -45,7 +45,6 @@ end
 
 get_tree_children_steps(::_ExplorerMatch) = ((FieldReferenceStep("children"),),)
 format_tree_node_label(match::_ExplorerMatch) = format_tree_node_label(match.document)
-get_tree_node_icon(match::_ExplorerMatch) = get_tree_node_icon(match.document)
 get_document_decoration(match::_ExplorerMatch) = get_document_decoration(match.document)
 get_document_title(match::_ExplorerMatch) = get_document_title(match.document)
 
