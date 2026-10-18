@@ -1,7 +1,7 @@
 # The search below a node reads the folders that it needs
 
-Status: PROPOSED, 2026-10-18; Q2 decided (a computation, shown as a work item in
-the task list). It builds on steps 1 and 2 of
+Status: IN PROGRESS, 2026-10-18. The owner decided Q1 to Q3 and asked for the
+implementation ("Yes to the others"). It builds on steps 1 and 2 of
 [a-value-that-a-task-reads-is-a-cell.md](a-value-that-a-task-reads-is-a-cell.md)
 (projectured main `33a957cca` and `7c2f4d2c9`). No step has started.
 
@@ -54,7 +54,7 @@ search shows its progress and can stop.
      in view.
    - A holder keeps only the watch: a watch is no value.
 2. **The search is a computation, not a task** (Q2, decided). A document
-   `ExplorerSearch(place, text; depth, limit)` holds the node to search below, the
+   `ExplorerSearch(place, text; depth = 10, limit = 100)` holds the node to search below, the
    text, and the limits. Its matches are a computation that goes down the children
    of the node as the tree gives them (`get_tree_children_steps`, and of a lazy
    list its first nodes) and keeps each node whose label holds the text. A folder
@@ -129,8 +129,8 @@ search shows its progress and can stop.
   the person looks elsewhere, but it must read the folders off the loop, with code
   of its own or with `wait_for_cell!` through the loop, and its result is a
   snapshot. The row of a work item gives the computation what the task had.
-- **Q3. The limits.** My recommendation: a depth of 10 and 500 matches, which the
-  page names when it stops there.
+- **Q3. The limits. Decided (the owner, 2026-10-18): a depth of 10 and 100
+  matches by default**, which the page names when it stops there.
 
 ## Not in this plan
 
