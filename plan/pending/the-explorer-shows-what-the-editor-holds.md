@@ -4,11 +4,10 @@
 > documents of step 11 landed on main at the owner's word ("yes", 2026-10-18).
 > 6c is deferred (the owner: "defer"). The columns of a dashboard follow the
 > width (8, option b, the owner's choice of 2026-10-18), on branch `explorer`.
-> Step 10a (the explorer of the omnet window) and 10b (the decorations and the
-> state of the omnet kinds) are done on branches `explorer` and `explorer-ide`,
-> with the omnet guides of step 11; they wait for the owner to land them. Open
-> in step 10: the result folder below the project, which waits for step 3 of
-> plan C of the omnet UI session, and the counts of the two views. **DESIGN DECIDED.** The owner
+> Step 10 (the omnet IDE, with the counts of rosters) and the omnet guides of
+> step 11 landed on 2026-10-18 at the owner's word; the result folder below the
+> project came with step 3 of plan C of the omnet UI session. Only 6c is open,
+> deferred by the owner. **DESIGN DECIDED.** The owner
 > decided Q0 to Q12 in §6 on 2026-10-17 and asked for the implementation the same
 > day. The owner refines the structure of the tree later.
 
@@ -1331,7 +1330,7 @@ before each edit of a kernel file. Mark each step done here.
    it there has it. Results: `test_application` 381 pass, 2 broken, as on main
    (380 pass, 2 broken); the file watch window 16 pass; the tool views have only
    the failure that main has ("the file explorer opens by name, seeded").
-10. [ ] **The omnet IDE** (omnet-julia). The IDE and the campaign window make
+10. [x] **The omnet IDE** (omnet-julia). The IDE and the campaign window make
    `Explorer` with the content of §5.10 (Q6); the project page holds its runner,
    the first child of the project node (Q7); `LegacySimulationExplorer` and
    `LegacySimulationWorkspace` go;
@@ -1415,6 +1414,14 @@ before each edit of a kernel file. Mark each step done here.
      and only the `tabs` wrapper and the start of the projectured application
      acquired a window tree. The start of the campaign window acquires its tree
      now.
+   - The result folder below the project came with step 3 of plan C of the omnet
+     UI session (omnet main `1c225d1f`, 2026-10-18; the node is `6b8c241d`): the
+     project page holds one result folder for each working directory in
+     `results`, the fourth children of its node, and a run holds its result
+     files. The IDE window gives the page its folders when it opens
+     (`add_project_results!`); the campaign window gives none, so its project has
+     no node Results. That closes step 10. The page of a folder as a lazy table is
+     step 3d of plan C, which is no part of this plan.
    - Done 2026-10-18 at the owner's "Do both", after a recommendation that changes
      projectured: the counts of rosters. The cycle of step 3c was the walk into the
      scheduler of a group, which the fix above removed; with it, a count in the
@@ -1427,10 +1434,11 @@ before each edit of a kernel file. Mark each step done here.
      on `Roster`, which can disagree with the rows. So Not expected is red for a
      failed task and amber for an unexpected code, where §5.14.4 first said
      `warning` for both.
-11. [ ] **The documents.** Done for projectured (2026-10-18): `explorer.md` is new,
+11. [x] **The documents.** Done for projectured (2026-10-18): `explorer.md` is new,
     and `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`,
-    `pane.md`, `task.md`, `assistant.md` and the guides of the session documents
-    follow the branch. The omnet guides wait for step 10.
+    `pane.md`, `task.md`, `assistant.md`, `roster.md` and the guides of the session
+    documents follow the branch. Done for omnet with step 10:
+    `user-interface-anatomy.md` and `interface-composition.md`.
     The list of the step: A new `documentation/package/platform/explorer/explorer.md`;
     `tree.md`, `navigator.md`, `filesystem.md`, `shell.md`, `application.md`;
     in omnet, `user-interface-anatomy.md` and `interface-composition.md`.
