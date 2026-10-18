@@ -176,7 +176,7 @@ the pilot.
 | `kernel/cell/ReactiveCell.jl` | no | the provisional flag of a cell; a read spreads it to its reader; a computation clears it at its start and keeps it when it read a provisional cell; the stop of a computation that gives the same plain value compares the flag too; `is_cell_provisional` |
 | `kernel/cell/CellInterface.jl` | no | the contract of `is_cell_provisional` for every kind of cell; a value kind is never provisional |
 | `kernel/cell/CellComputation.jl` | yes | no change |
-| `kernel/cell/CellModule.jl` | yes | one export line for the new names of the cell layer, or no change (decision 4, QC) |
+| `kernel/cell/CellModule.jl` | yes | one export line for the new names of the cell layer, and no other change (decision 4, QC) |
 | a new file of the editor layer | no | `BackgroundSource`, `make_background_cell`, the demands of a frame, the start of the works, the operation that writes the answers, and `wait_for_cell` |
 | `kernel/editor/EditorLoop.jl` | no | after the print of a frame, the start of the works with demands |
 | the projection layer | no | the print of a part that is provisional (decision 4, QA) |
