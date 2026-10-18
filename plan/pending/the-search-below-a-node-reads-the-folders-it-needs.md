@@ -139,7 +139,12 @@ of values, its time and its failure, under Editor in the explorer: a plan of its
 own, with the session of the background cell, because the editor layer keeps the
 works (`BackgroundCells.jl`). The owner agreed on 2026-10-18.
 
-The drawing of a part that is provisional (step 3 of the background cell plan): until
-it lands, the page of the search shows its matches as they come, which a search
-shows anyway. A search by the content of a file. The other four reads of the
+The drawing of a part that is provisional is step 3 of the background cell plan,
+landed on 2026-10-18 (`90a82ff91`): a filter or a sort keeps its last final rows
+(`make_final_holding_cell`). The page and the row of the search do not hold: a
+search shows its matches as they come. A known limit of the counts of rosters,
+which this plan does not change: the count of an arranged view counts with
+`compute_shown_rows`, so while a key of its filter is still to come, its pill
+counts with the defaults while the table keeps its last rows; no view filters by
+a value that a task reads today. A search by the content of a file. The other four reads of the
 background cell plan.
