@@ -28,6 +28,7 @@ const EDITOR_TOOL_GUIDE = "Use `execute_julia_code` to inspect and modify the ed
                                   "- `search_references(editor.document, query)` returns paths to matching document nodes.\n" *
                                   "- `search_documents(editor.document, query)` returns the matching document nodes themselves (each once).\n" *
                                   "  `query` is a predicate `node -> Bool`, or a `String`/`Regex` matching leaf text (which folds to its enclosing document; pass `raw=true` for the exact matched value).\n" *
+                                  "  Both answer at most 100 matches by default, and the first line of the answer says when a limit stopped the search: pass `limit = nothing` to find every match.\n" *
                                   "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
                                   "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
                                   "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *

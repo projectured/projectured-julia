@@ -124,7 +124,7 @@ PacedLlm(inner; code_pause = 3.0, result_pause = 3.0) = PacedLlm(inner, code_pau
 
 function LlmModule.stream_turn(llm::PacedLlm, request; on_event)
     forms = ASSISTANT[] === nothing ? Any[] :
-            search_documents(ASSISTANT[].conversation, node -> node isa EvaluatorForm)
+            search_documents(ASSISTANT[].conversation, node -> node isa EvaluatorForm; limit = nothing)
     fresh = forms[(llm.seen[] + 1):end]
     llm.seen[] = length(forms)
     if !isempty(fresh)

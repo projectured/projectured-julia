@@ -67,7 +67,7 @@ collect_roster_parts(source::ItemsWithin, link) =
                    for entry in collect_roster_items(source.source, link, part)]
 
 collect_roster_items(source::ItemsWithin, link, outer) =
-    RosterItem[RosterItem(found, outer) for found in search_documents(outer, node -> node isa source.type)]
+    RosterItem[RosterItem(found, outer) for found in search_documents(outer, node -> node isa source.type; limit = nothing)]
 
 # The stores that a slice registers as a source, by name. The table is filled when
 # each slice loads (its `__init__`), as the rows of the natural renderer are, so a

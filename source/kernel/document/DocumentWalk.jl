@@ -79,13 +79,116 @@ make_string_predicate(q::AbstractString) = x -> (t = _walk_string(x); t !== noth
 make_string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
 
 """
+    WalkLimits
+
+The limits that a walk of the documents ran under, and what each one left out:
+
+- `limit` — the most matches that the walk answers, or `nothing` for every match;
+  `is_limit_reached` says that more matches exist, which the walk did not answer.
+- `maxdepth` — how deep the walk goes; `depth_stop_count` is how many parts at that
+  depth the walk did not enter, which can hold more matches.
+- `background` — whether the walk starts background work; `provisional_count` is
+  how many values that a task still computes the walk took as they are, which it
+  does when it starts no work. A match can be in the final value of such a value.
+"""
+struct WalkLimits
+    limit::Union{Int,Nothing}
+    is_limit_reached::Bool
+    maxdepth::Int
+    depth_stop_count::Int
+    background::Bool
+    provisional_count::Int
+end
+
+"""
+    DocumentMatches(matches, limits)
+
+The answer of a walk of the documents: `matches`, in the order that the walk found
+them, and the [`WalkLimits`](@ref) that the walk ran under, with what each one left
+out. It is a vector of the matches, so a caller indexes, iterates and counts it as a
+vector. Its summary, the first line of its display, names each limit that stopped
+the walk and the keyword that lifts it, so a person and the assistant see that an
+answer is not complete.
+
+# Example
+
+    matches_1 = search_documents(editor.document, "temperature")
+    is_search_complete(matches_1)
+
+See also `search_documents` and `is_search_complete`.
+"""
+struct DocumentMatches{T} <: AbstractVector{T}
+    matches::Vector{T}
+    limits::WalkLimits
+end
+
+Base.size(found::DocumentMatches) = size(found.matches)
+Base.getindex(found::DocumentMatches, index::Int) = found.matches[index]
+Base.setindex!(found::DocumentMatches, value, index::Int) = (found.matches[index] = value)
+Base.IndexStyle(::Type{<:DocumentMatches}) = IndexLinear()
+
+"""
+    is_search_complete(found::DocumentMatches) -> Bool
+
+Whether no limit of the walk left a match out: the limit of matches did not cut the
+answer, the depth stopped at no part, and the walk read no value that a task still
+computes.
+
+Use it to know whether a search found everything before you act on its answer.
+
+# Example
+
+    is_search_complete(search_documents(editor.document, "temperature"))
+
+See also `DocumentMatches`.
+"""
+function is_search_complete end
+
+function is_search_complete(found::DocumentMatches)
+    limits = found.limits
+    !limits.is_limit_reached && limits.depth_stop_count == 0 && limits.provisional_count == 0
+end
+
+# The count of the matches, then each limit that stopped the walk, with the
+# keyword that lifts it.
+function Base.summary(io::IO, found::DocumentMatches)
+    count = length(found)
+    print(io, count, count == 1 ? " match" : " matches")
+    limits = found.limits
+    limits.is_limit_reached &&
+        print(io, ". The search stopped at its limit of ", limits.limit,
+              " matches, and more exist: pass `limit = nothing` to find all")
+    limits.depth_stop_count > 0 &&
+        print(io, ". The search did not enter ", limits.depth_stop_count,
+              limits.depth_stop_count == 1 ? " part" : " parts", " below its depth of ", limits.maxdepth,
+              ": pass a larger `maxdepth` to search them")
+    limits.provisional_count > 0 &&
+        print(io, ". ", limits.provisional_count,
+              limits.provisional_count == 1 ? " value that a task still computes was taken as it is" :
+                                              " values that a task still computes were taken as they are",
+              ": pass `background = true` to wait for them")
+    nothing
+end
+
+# What a walk counts while it runs: the matches that it may still find before its
+# limit, the parts that its depth left out, and the values still to come that it
+# read as they are.
+mutable struct _WalkCounts
+    limit::Int
+    depth_stop_count::Int
+    provisional_count::Int
+end
+
+"""
     walk_document(walk::DocumentWalk, obj, predicate;
-                  include_selection=false, maxdepth=64, raw=false,
+                  include_selection=false, maxdepth=64, limit=100, raw=false,
                   descend=(parent, child) -> true,
-                  on_error=(object, exception) -> false) -> Vector
+                  on_error=(object, exception) -> false,
+                  background=false) -> DocumentMatches
 
 Walk any object graph and return the **location** of every match, as `walk`
-defines locations.
+defines locations, as a [`DocumentMatches`](@ref) that says which limit stopped the
+walk.
 
 By default the results are **document-scoped**: a match on a raw scalar (a
 String / Number / Bool leaf) folds up to the nearest enclosing `Document`, so
@@ -99,6 +202,13 @@ Each location is reported at most once. How often a *node* is visited is
 walk; a `mouse_target` field is never walked. `maxdepth` bounds recursion for
 structures that are never the *same* object — an infinite lazy list whose nodes
 are generated fresh on demand — which the visited set alone cannot stop.
+
+`limit` is the most matches that the walk answers: 100 by default, so a search in a
+large document stays small. `limit = nothing` answers every match. A caller that
+needs every match, such as a save that visits every node of a kind, passes
+`limit = nothing`. The answer says when the limit cut it, when the depth left a part
+out, and when the walk took values that a task still computes as they are
+(`is_search_complete`).
 
 `descend(parent, child) -> Bool` returns whether the walk enters `child` from
 `parent`. The walk does not match or walk a child that it does not enter. The
@@ -126,18 +236,26 @@ reaches `on_error`: it ends the walk.
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
 """
 function walk_document(walk::DocumentWalk, obj, predicate;
-                       include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false,
+                       include_selection::Bool=false, maxdepth::Int=64,
+                       limit::Union{Integer,Nothing} = 100, raw::Bool=false,
                        descend = _enter_every_child, on_error = _count_as_no_match,
                        background::Bool = false)
+    limit === nothing || limit >= 0 || throw(ArgumentError("walk_document: `limit` is a count, got $limit"))
     results = Any[]
+    # The walk looks for one match more than its limit, so it knows that the limit
+    # cut the answer.
+    counts = _WalkCounts(limit === nothing ? typemax(Int) - 1 : Int(limit), 0, 0)
     with(_IS_BACKGROUND_WORK_ALLOWED => background) do
-        root = _read_walked(obj, background)
+        root = _read_walked(obj, background, counts)
         _walk_document!(walk, results, IdDict{Any,Bool}(), root,
                         _GuardedPredicate(predicate, on_error),
                         walk.initial(root), nothing, IdDict{Any,Bool}(),
-                        include_selection, maxdepth, raw, descend, background)
+                        include_selection, maxdepth, raw, descend, background, counts)
     end
-    results
+    is_limit_reached = length(results) > counts.limit
+    is_limit_reached && pop!(results)
+    DocumentMatches(results, WalkLimits(limit === nothing ? nothing : Int(limit), is_limit_reached, maxdepth,
+                                        counts.depth_stop_count, background, counts.provisional_count))
 end
 
 # Whether a read may start background work now: false inside a walk that starts
@@ -163,8 +281,22 @@ the background work below the cell.
 """
 complete_walked_cell(cell) = unwrap_cell(cell)
 
-# The value of a field or an element for the walk.
-_read_walked(x, background::Bool) = background && x isa AbstractCell ? complete_walked_cell(x) : unwrap_cell(x)
+# The value of a field or an element for the walk. A walk that starts no
+# background work counts each value that a task still computes, which it takes as
+# it is.
+function _read_walked(x, background::Bool, counts::_WalkCounts)
+    x isa AbstractCell || return x
+    background && return complete_walked_cell(x)
+    value = unwrap_cell(x)
+    is_cell_provisional(x) && (counts.provisional_count += 1)
+    value
+end
+
+# Whether a node that the depth stops at has a part that the walk would enter.
+_has_walk_children(obj) =
+    is_element_collection(obj) ? length(obj)::Int > 0 :
+    obj isa Union{AbstractDict,AbstractArray} ? !isempty(obj) :
+    any(name -> name !== :mouse_target && name !== :selection, fieldnames(typeof(obj)))
 
 _enter_every_child(_, _) = true
 
@@ -215,9 +347,10 @@ end
 # the same enclosing location object, so that document is reported once, while
 # distinct locations are all kept.
 # All but `obj`, `location`, `enclosing`, `seen` and `depth` pass through
-# unchanged, and the compile count below is measured on this form.
+# unchanged, and the compile count below is measured on this form. The walk ends
+# when it found one match more than its limit.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
-                         seen, include_selection, depth, raw, descend, background)
+                         seen, include_selection, depth, raw, descend, background, counts)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,
     # used as an `IdDict{Any, Bool}` key, and handed down. Every use is an `Any`
     # slot already, so specialising on it buys no speed — and costs a great deal
@@ -233,6 +366,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     # the closure form compiled 16 instances, the closure with `here::Any` 14, and
     # this form 9.
     @nospecialize enclosing
+    length(results) > counts.limit && return
     leaf = _is_walk_leaf(obj)
     if !leaf
         seen = _enter_node(walk, obj, seen)
@@ -245,46 +379,54 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             push!(results, target); reported[target] = true
         end
     end
-    (leaf || depth <= 0) && return
+    leaf && return
+    if depth <= 0
+        _has_walk_children(obj) && (counts.depth_stop_count += 1)
+        return
+    end
 
     if is_element_collection(obj)
         for i in 1:(length(obj)::Int)
-            child = _read_walked(obj[i], background)
+            length(results) > counts.limit && return
+            child = _read_walked(obj[i], background, counts)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background)
+                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
         # into the hash table's internals, whose `Memory` buffers have undefined
         # slots. The key is the field name, which is how a dict entry is addressed.
         for (k, v) in obj
-            child = _read_walked(v, background)
+            length(results) > counts.limit && return
+            child = _read_walked(v, background, counts)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, k, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background)
+                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
-            child = _read_walked(obj[i], background)
+            length(results) > counts.limit && return
+            child = _read_walked(obj[i], background, counts)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background)
+                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
         end
     else
         for fn in fieldnames(typeof(obj))
             fn == :mouse_target && continue
             fn == :selection && !include_selection && continue
             isdefined(obj, fn) || continue
-            child = _read_walked(getfield(obj, fn), background)
+            length(results) > counts.limit && return
+            child = _read_walked(getfield(obj, fn), background, counts)
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, fn, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background)
+                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
         end
     end
 end

@@ -36,8 +36,9 @@ function _make_location_reference(location)
 end
 
 """
-    search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{Reference}
-    search_references(obj, query::Union{AbstractString,Regex}; …)                      -> Vector{Reference}
+    search_references(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
+                      background=false) -> DocumentMatches{Reference}
+    search_references(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches{Reference}
 
 Walk any object and return a `Reference` to every match. Pass a predicate, or
 a `String` (substring) / `Regex` that matches leaf nodes by their string form,
@@ -78,7 +79,11 @@ paths that loop back through an object
 already on the current path are dropped, which keeps cyclic graphs (e.g. a
 doubly-linked list's `prev`/`next`) finite. `maxdepth` separately bounds recursion
 depth for structures that are never the *same* object, e.g. an infinite lazy list
-whose nodes are generated fresh on demand. `descend(parent, child)` returns whether
+whose nodes are generated fresh on demand. `limit` is the most paths that it
+answers, 100 by default; `limit = nothing` answers every path. The answer is a
+[`DocumentMatches`](@ref), a vector of the paths, whose summary says when the limit,
+the depth or a value that a task still computes stopped the walk.
+`descend(parent, child)` returns whether
 the walk enters `child`, and the default enters every child. `on_error(object,
 exception)` answers the match of an object whose predicate threw an ordinary
 exception, and the default counts it as no match; see `walk_document`.
@@ -91,8 +96,9 @@ covers it (those paths are for inspection only, not selectable).
 function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
     locations = walk_document(_PATH_WALK, root, predicate; kwargs...)
-    Reference[annotate_reference_types(root, _make_location_reference(location))
-              for location in locations]
+    DocumentMatches(Reference[annotate_reference_types(root, _make_location_reference(location))
+                              for location in locations],
+                    locations.limits)
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =

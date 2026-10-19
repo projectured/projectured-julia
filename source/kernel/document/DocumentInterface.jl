@@ -458,9 +458,9 @@ edits.
 function get_edited_field end
 
 """
-    search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false,
-                     descend=(parent, child) -> true) -> Vector
-    search_documents(obj, query::Union{AbstractString,Regex}; …)                      -> Vector
+    search_documents(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
+                     descend=(parent, child) -> true, background=false) -> DocumentMatches
+    search_documents(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches
 
 Walk any object and return the matching nodes, **each at most once** even when a
 node is shared. A `String` (substring) or `Regex` matches leaf nodes by their
@@ -468,6 +468,14 @@ string form. By default the result is **document-scoped**: a scalar match folds
 up to the nearest enclosing `Document`; pass `raw=true` to return the exact
 matched value. `descend(parent, child)` returns whether the walk enters `child`;
 see `walk_document`.
+
+The search has three limits, each with a default that keeps a search of a large
+document small: at most `limit = 100` matches, no deeper than `maxdepth = 64`, and
+no background work, so a value that a task still computes is taken as it is. The
+answer is a [`DocumentMatches`](@ref), a vector of the matches, whose summary says
+which limit stopped the search and the keyword that lifts it: `limit = nothing`
+finds every match, and `background = true` waits for the values still to come.
+`is_search_complete` answers whether no limit left a match out.
 
 Use it to list the documents that hold a text, or that a test accepts, anywhere in a document.
 

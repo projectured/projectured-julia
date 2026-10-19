@@ -143,8 +143,8 @@ end
 function find_table_texts(editor)
     tables = Vector{String}[]
     for group in get_pane_groups(get_pane_tree(editor)), tab in group.tabs
-        for table in search_documents(tab, node -> node isa WidgetTable)
-            labels = search_documents(table, node -> node isa WidgetLabel)
+        for table in search_documents(tab, node -> node isa WidgetTable; limit = nothing)
+            labels = search_documents(table, node -> node isa WidgetLabel; limit = nothing)
             push!(tables, [compute_node_text(label.content) for label in labels])
         end
     end
@@ -470,7 +470,7 @@ function find_other_tab_texts(editor)
     texts = String[]
     for group in get_pane_groups(get_pane_tree(editor)), tab in group.tabs
         get_pane_tab_title_string(tab) in ("people.json", "Assistant", "Gestures") && continue
-        for node in search_documents(tab, node -> node isa Union{WidgetLabel, TextString, PrimitiveString})
+        for node in search_documents(tab, node -> node isa Union{WidgetLabel, TextString, PrimitiveString}; limit = nothing)
             push!(texts, compute_node_text(node isa WidgetLabel ? node.content : node))
         end
         push!(texts, compute_node_text(tab.content))

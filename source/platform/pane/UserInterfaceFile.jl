@@ -36,7 +36,7 @@ function save_user_interface(path::AbstractString; editor = get_evaluation_edito
         document = getfield(editor, :document)
         directory = dirname(abspath(path))
         files = Any[PredFile(basename(path), document)]
-        for file in search_documents(document, is_file_document)
+        for file in search_documents(document, is_file_document; limit = nothing)
             push!(files, file)
         end
         save_project!(FileProject(directory, files))

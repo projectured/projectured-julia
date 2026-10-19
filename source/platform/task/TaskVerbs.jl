@@ -367,7 +367,7 @@ function close_task_group!(group; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_task_group!") do
         found = search_references(getfield(editor, :document),
                                   node -> node isa PaneTab && node.content === group;
-                                  descend = is_pane_search_step)
+                                  descend = is_pane_search_step, limit = nothing)
         for reference in found
             close_pane!(reference; editor)
         end

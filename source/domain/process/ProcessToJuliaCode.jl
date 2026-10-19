@@ -122,7 +122,7 @@ _parameter_name(parameter) =
 function _assigned_names(document)
     names = String[]
     document === nothing && return names
-    for assignment in search_documents(document, x -> x isa JuliaAssignment)
+    for assignment in search_documents(document, x -> x isa JuliaAssignment; limit = nothing)
         target = assignment.target
         target isa JuliaIdentifier && push!(names, target.name)
     end

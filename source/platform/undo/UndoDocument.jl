@@ -400,7 +400,7 @@ step back there takes back the last thing that happened anywhere under it.
 """
 function find_undo_buffer(document)
     document isa UndoBuffer && return document
-    buffers = search_documents(document, node -> node isa UndoBuffer)
+    buffers = search_documents(document, node -> node isa UndoBuffer; limit = nothing)
     isempty(buffers) ? nothing : first(buffers)
 end
 

@@ -116,7 +116,7 @@ end
 # A load gives no mouse target: the saved one is where the pointer was when the
 # document was saved, which says nothing about where it is now.
 function _clear_mouse_targets!(document)
-    for node in search_documents(document, node -> hasproperty(node, :mouse_target))
+    for node in search_documents(document, node -> hasproperty(node, :mouse_target); limit = nothing)
         cell = getfield(node, :mouse_target)
         cell isa AbstractCell && cell[] !== nothing && (cell[] = nothing)
     end

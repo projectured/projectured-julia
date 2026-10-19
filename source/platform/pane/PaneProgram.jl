@@ -1369,7 +1369,7 @@ function show_layout(; include = is_layout_line, descend = is_pane_search_step,
                      editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_layout") do
         root = _get_root_document(editor)
-        paths = search_references(root, node -> node === root || include(node); descend)
+        paths = search_references(root, node -> node === root || include(node); descend, limit = nothing)
         focused = _find_focused_pane_tab(root)
         lines = Tuple{String,String,String}[]
         printed = Tuple{Vector{Any},Int}[]           # the steps of each line, and its depth

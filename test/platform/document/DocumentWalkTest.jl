@@ -1,7 +1,8 @@
 """
 `DocumentModule`'s `walk_document` — the one reflection walk, and the two searches
 over it: `search_documents` (locations are the matched objects) and
-`search_references` (locations are `Reference`s).
+`search_references` (locations are `Reference`s). The limits of a walk, and the
+answer that says which limit stopped it, are tested here too.
 
 The point of this suite is the one thing the two **deliberately disagree** about:
 the cycle policy. A shared node is *one object* but *two places*, so the value
@@ -15,6 +16,11 @@ The suite is in the platform test package, not in the kernel one, because a
 shared subtree needs a collection document, and `CellVector` is in the collection
 slice above the kernel.
 """
+
+# A document whose field holds a value that a task still computes.
+@document struct DocumentWalkTestHolder
+    value::Any
+end
 
 function test_document_walk()
 @testset "DocumentWalk" begin
@@ -158,6 +164,47 @@ end
     # raw=true reports the exact matched node, folding nothing up to a document.
     @test search_documents(nested, "Alice"; raw = true) == ["Alice"]
     @test length(search_references(nested, "Alice"; raw = true)) == 1
+end
+
+# ── The limits: the count of matches, the depth, the values still to come ───
+# Each limit has a default that keeps a search of a large document small, and the
+# answer says which limit stopped the walk, with the keyword that lifts it.
+@testset "a limit of matches cuts the answer, and the answer says so" begin
+    names = CellVector([PrimitiveString("Alice") for _ in 1:150])
+    found = search_documents(names, is_alice)
+    @test found isa DocumentMatches && length(found) == 100 && found.limits.limit == 100
+    @test found.limits.is_limit_reached && !is_search_complete(found)
+    @test startswith(summary(found), "100 matches. The search stopped at its limit of 100 matches, and more exist")
+    @test occursin("`limit = nothing`", sprint(show, MIME"text/plain"(), found))
+    # As many matches as the limit is no cut.
+    exact = search_documents(names, is_alice; limit = 150)
+    @test length(exact) == 150 && !exact.limits.is_limit_reached && is_search_complete(exact)
+    @test summary(exact) == "150 matches"
+    # No limit finds every match, and so does the search of the paths.
+    @test length(search_documents(names, is_alice; limit = nothing)) == 150
+    paths = search_references(names, is_alice; limit = 3)
+    @test paths isa DocumentMatches{Reference} && length(paths) == 3 && paths.limits.is_limit_reached
+    @test all(path -> evaluate_reference(names, path) isa PrimitiveString, paths)
+    # A limit of no match finds none, and says that it stopped there.
+    none = search_documents(names, is_alice; limit = 0)
+    @test isempty(none) && none.limits.is_limit_reached
+    @test_throws ArgumentError search_documents(names, is_alice; limit = -1)
+end
+
+@testset "the depth and the values still to come are counted, and the answer says so" begin
+    deep = CellVector([CellVector([CellVector([PrimitiveString("Alice")])])])
+    shallow = search_documents(deep, is_alice; maxdepth = 2)
+    @test isempty(shallow) && shallow.limits.depth_stop_count >= 1 && !is_search_complete(shallow)
+    @test occursin("below its depth of 2: pass a larger `maxdepth`", summary(shallow))
+    @test length(search_documents(deep, is_alice)) == 1
+    @test is_search_complete(search_documents(deep, is_alice))
+    # A value that a task still computes, in a field, is taken as it is, and counted.
+    still_to_come = Cell(@computation (mark_computation_provisional!(); PrimitiveString("Alice")))
+    holder = DocumentWalkTestHolder(still_to_come)
+    taken = search_documents(holder, is_alice)
+    @test length(taken) == 1 && taken.limits.provisional_count == 1 && !is_search_complete(taken)
+    @test occursin("1 value that a task still computes was taken as it is: pass `background = true`",
+                   summary(taken))
 end
 
 # ── A predicate that throws ───────────────────────────────────────────────
