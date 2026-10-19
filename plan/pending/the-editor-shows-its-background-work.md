@@ -1,6 +1,6 @@
 # The editor shows the work that it does in the background
 
-Status: PROPOSED, 2026-10-19. The owner agreed on 2026-10-18 that this view gets a
+Status: PROPOSED, 2026-10-19; Q1 decided by the owner on 2026-10-19. The owner agreed on 2026-10-18 that this view gets a
 plan of its own, after the search below a node
 ([the-search-below-a-node-reads-the-folders-it-needs.md](../done/the-search-below-a-node-reads-the-folders-it-needs.md),
 § Not in this plan). No step has started.
@@ -42,11 +42,23 @@ editor reads now, what it read, how long it took, and what failed.
    written, the record gets the time of its end, the count of the values that
    failed, and the message of the first failure. A record holds no input value
    and no answer, so it keeps no document alive.
-2. **A bounded log of the session.** `BackgroundWorkLog` keeps the last 100
-   records of the editor, newest first, a session document of the editor
-   (`get_session_background_work_log(; editor)`). A record of a work that runs is
-   kept until the work ends, whatever the bound.
-3. **A page of the log** under Editor in the explorer, with the title "Background
+2. **The kernel keeps the records in a plain store** (Q1, decided: (b)). A
+   `BackgroundWorkStore` of each editor holds the last 100 records, beside
+   `BackgroundDemands`, with a count of its changes. It holds no cell and is no
+   document: the kernel decides no document of the editor and no structure of
+   one. A record of a work that runs is kept until the work ends, whatever the
+   bound.
+3. **The platform owns the document, and a feed fills it.** `BackgroundWorkLog`
+   is a session document of the editor (`get_session_background_work_log(;
+   editor)`). A `BackgroundWorkFeed` copies the records of the store into it, as
+   `FrameStatisticsFeed` copies the frame measurements: at most once in a flush
+   interval, only while a view shows the log (`has_dependent_cells`), and only
+   when the count of changes of the store differs from the count that the log
+   showed. So an editor that shows no log pays one write of a plain record for
+   each work, and no cell. The wrapper `background_work = true` of `build_editor`
+   gives the editor the feed, as `frame_statistics = true` does, and the
+   application turns it on where it turns on the frame statistics.
+4. **A page of the log** under Editor in the explorer, with the title "Background
    work": a roster of the records, with the facets source, values, started, took
    (or "running"), state (running, done, failed) and failure. Its row in the tree
    says how many works run, with the running mark, and has the failed mark while a
@@ -54,31 +66,31 @@ editor reads now, what it read, how long it took, and what failed.
 
 ## Steps
 
-1. [ ] **The record and the log** (kernel, `BackgroundCells.jl`, in agreement with
-   the session of the background cell). The record at the start and at the end of
-   a work, the bounded log, `get_session_background_work_log`. Tests in
-   `test/kernel/editor/BackgroundCellTest.jl`: a work adds a record that runs and
-   then ends with its count of values; a work that throws ends with its failure;
-   the log keeps 100 records; an editor that shows nothing pays one write of a
-   record for each work.
-2. [ ] **The page** (platform): the title, the decoration, the roster of the
-   records with its facets, the entry in the Editor section, and the insertion
-   alias "background work". Tests: a folder that an explorer opens adds a record
-   "the listings of folders" that ends; a failed work shows its message on the
-   page; the row of the log runs while a work runs.
+1. [ ] **The record and the store** (kernel, `BackgroundCells.jl`; the session of
+   the background cell plans no change there, 2026-10-19). The record at the start
+   and at the end of a work, the bounded store with its count of changes, and a
+   read of the store for the feed. Tests in `test/kernel/editor/BackgroundCellTest.jl`:
+   a work adds a record that runs and then ends with its count of values; a work
+   that throws ends with its failure; the store keeps 100 records and a record of
+   a work that runs; a work writes no cell.
+2. [ ] **The log, the feed and the page** (platform): `BackgroundWorkLog`, the
+   feed and its wrapper, the title, the decoration, the roster of the records with
+   its facets, the entry in the Editor section, and the insertion alias
+   "background work". Tests: a folder that an explorer opens adds a record "the
+   listings of folders" that ends; a failed work shows its message on the page;
+   the row of the log runs while a work runs; a log that no view shows is not
+   filled.
 3. [ ] **The guides:** `editor.md`, the guide of the slice of the page,
    `explorer.md`; the plan moves to `plan/done/`.
 
 ## Questions for the owner
 
-- **Q1. Where do the records live?** (a) My recommendation: the kernel keeps the
-  log as a document of cells, and writes a record at the start and at the end of
-  each work. A write of a cell that nobody reads costs little, and a work starts
-  at most once for each source in a frame. (b) The kernel keeps a plain store,
-  and a platform feed flushes it into the document while a view shows it, as the
-  frame statistics do. It costs nothing while no view shows the log, but it needs
-  a feed and a flush interval. (c) A seam that a platform log answers, as the
-  fault log does; it needs a wrapper of `build_editor` that attaches the log.
+- **Q1. Where do the records live? Decided (the owner, 2026-10-19): "it's option
+  (b) the editor's document and it's structure is not for the kernel to
+  decide".** The kernel keeps a plain store, and a platform feed copies it into
+  the document while a view shows it, as the frame statistics do. The options
+  that were not taken: (a) the kernel keeps the log as a document of cells; (c) a
+  seam that a platform log answers, as the fault log does.
 - **Q2. What does a record keep of its inputs?** My recommendation: the first
   three inputs as text, each at most 80 characters, so the page names the folders
   or files that a work read, and holds no value of them.
