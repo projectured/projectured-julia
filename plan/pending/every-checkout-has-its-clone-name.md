@@ -24,7 +24,7 @@ The names of programs and build products do not change: the binary
    `clone-names` of each: the `[sources]`, the tracked manifests, the CI
    workflow, the default source folder of the `claude-code-acp` build, and the
    guides.
-2. [ ] Move the folders. Remove the worktree `package-compiler-reactive`, check
+2. [x] Move the folders. Remove the worktree `package-compiler-reactive`, check
    out `reactive` in `package-compiler`, rename the five folders, and repair the
    link of the worktree `package-compiler-parallel`.
 3. [ ] Fast-forward `main` of both repositories to `clone-names`. Apply the
