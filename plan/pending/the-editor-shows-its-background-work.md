@@ -66,13 +66,17 @@ editor reads now, what it read, how long it took, and what failed.
 
 ## Steps
 
-1. [ ] **The record and the store** (kernel, `BackgroundCells.jl`; the session of
+1. [x] **The record and the store** (kernel, `BackgroundCells.jl`; the session of
    the background cell plans no change there, 2026-10-19). The record at the start
    and at the end of a work, the bounded store with its count of changes, and a
    read of the store for the feed. Tests in `test/kernel/editor/BackgroundCellTest.jl`:
    a work adds a record that runs and then ends with its count of values; a work
    that throws ends with its failure; the store keeps 100 records and a record of
-   a work that runs; a work writes no cell.
+   a work that runs; a work writes no cell. Done: the store is kept for each editor
+   as `BackgroundDemands` is (`get_session_document!`), and
+   `get_background_work_store(editor)` reads it. `WriteBackgroundAnswersOperation`
+   carries the number of its record. The work that `wait_for_cell!` runs on the
+   task that owns the documents has a record too, when an editor is given.
 2. [ ] **The log, the feed and the page** (platform): `BackgroundWorkLog`, the
    feed and its wrapper, the title, the decoration, the roster of the records with
    its facets, the entry in the Editor section, and the insertion alias

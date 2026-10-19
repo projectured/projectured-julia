@@ -77,6 +77,108 @@ end
 BackgroundDemands() = BackgroundDemands(ReentrantLock(), Tuple{_BackgroundCellState,Any,Int}[])
 
 """
+    BackgroundWorkRecord
+
+What an editor keeps of one work of a [`BackgroundSource`](@ref): its number in
+the order of the works of the editor, the description of its source, the count
+of its values, its first three inputs as text, the time of its start, the time of
+its end or `nothing` while it runs, the count of its values that failed, and the
+message of the first failure, or an empty text. A plain value: it holds no input
+and no answer, so it keeps no document alive.
+"""
+struct BackgroundWorkRecord
+    number::Int
+    description::String
+    value_count::Int
+    inputs::Vector{String}
+    started::Float64
+    finished::Union{Nothing,Float64}
+    failure_count::Int
+    failure::String
+end
+
+"""
+    BackgroundWorkStore(; capacity = 100)
+
+The records of the works of the background cells of one editor, oldest first:
+the last `capacity` records of works that ended, and each record of a work that
+runs. `change_count` grows at each change, so a reader that copies the records
+knows when they changed. It is a plain store, with no cell: what shows the
+records, and as which document, is not for the kernel to decide.
+
+See also [`get_background_work_store`](@ref).
+"""
+mutable struct BackgroundWorkStore
+    records::Vector{BackgroundWorkRecord}
+    capacity::Int
+    change_count::Int
+    work_count::Int
+end
+
+BackgroundWorkStore(; capacity::Integer = 100) = BackgroundWorkStore(BackgroundWorkRecord[], Int(capacity), 0, 0)
+
+"""
+    get_background_work_store(editor) -> BackgroundWorkStore
+
+The store of the records of the works of the background cells of `editor`. The
+editor adds a record when it starts a work, and ends it when it writes the
+answers, on the task that owns its documents.
+
+Use it to copy the records of the background work into a document of a view.
+
+# Example
+
+    store = get_background_work_store(editor)
+    [record.description for record in store.records]
+
+See also [`BackgroundWorkStore`](@ref).
+"""
+get_background_work_store(editor::Editor) = get_session_document!(BackgroundWorkStore, editor, BackgroundWorkStore)
+
+const _RECORDED_INPUT_COUNT = 3
+const _RECORDED_INPUT_LENGTH = 80
+
+# An input of a work as text, at most `_RECORDED_INPUT_LENGTH` characters.
+function _format_work_input(input)
+    text = sprint(show, input; context = :limit => true)
+    length(text) <= _RECORDED_INPUT_LENGTH ? text : first(text, _RECORDED_INPUT_LENGTH - 1) * "…"
+end
+
+# Add the record of a work of `source` that starts for `inputs`, and answer its
+# number.
+function _start_background_work_record!(store::BackgroundWorkStore, source::BackgroundSource, inputs)
+    store.work_count += 1
+    description = isempty(source.description) ? "the work of background cells" : source.description
+    push!(store.records, BackgroundWorkRecord(store.work_count, description, length(inputs),
+                                              String[_format_work_input(input)
+                                                     for input in first(inputs, _RECORDED_INPUT_COUNT)],
+                                              time(), nothing, 0, ""))
+    store.change_count += 1
+    store.work_count
+end
+
+# End the record `number` with the answers of its work: the time of its end, the
+# count of the failures, and the message of the first one. The oldest records of
+# works that ended go, past the capacity.
+function _end_background_work_record!(store::BackgroundWorkStore, number::Int, answers)
+    index = findlast(record -> record.number == number, store.records)
+    index === nothing && return nothing
+    record = store.records[index]
+    failures = [answer.exception for answer in answers if answer isa _BackgroundFailure]
+    failure = isempty(failures) ? "" : first(split(sprint(showerror, first(failures)), '\n'))
+    store.records[index] = BackgroundWorkRecord(record.number, record.description, record.value_count,
+                                                record.inputs, record.started, time(), length(failures),
+                                                String(failure))
+    ended = count(record -> record.finished !== nothing, store.records)
+    while ended > store.capacity
+        deleteat!(store.records, findfirst(record -> record.finished !== nothing, store.records))
+        ended -= 1
+    end
+    store.change_count += 1
+    nothing
+end
+
+"""
     make_background_cell(source, inputs; default = nothing, working = nothing, apply = nothing) -> Cell
 
 A cell whose value `source` computes off the loop, from the values that
@@ -216,10 +318,11 @@ function start_background_cell_work!(editor::Editor)
         foreach(_mark_background_work!, states)
         inputs = Any[input for (_, input, _) in batch]
         numbers = Int[number for (_, _, number) in batch]
+        record = _start_background_work_record!(get_background_work_store(editor), source, inputs)
         description = isempty(source.description) ? "the work of background cells" : source.description
         start_background_work(; description, editor, parent = nothing) do
             answers = _run_background_work(source, inputs)
-            _post_background_answers!(editor, WriteBackgroundAnswersOperation(states, inputs, numbers, answers))
+            _post_background_answers!(editor, WriteBackgroundAnswersOperation(states, inputs, numbers, answers, record))
         end
     end
     nothing
@@ -243,10 +346,12 @@ function _post_background_answers!(editor::Editor, operation)
 end
 
 """
-    WriteBackgroundAnswersOperation(states, inputs, numbers, answers)
+    WriteBackgroundAnswersOperation(states, inputs, numbers, answers, record)
 
 Write the answers of one work of a source into its background cells: the answer
 for `inputs[i]` of the cell of `states[i]`, which demand `numbers[i]` asked for.
+It ends the record `record` of the work in the store of the editor
+([`get_background_work_store`](@ref)).
 An answer to a demand older than the demand of the answer that the cell holds is
 dropped, so a slow work does not overwrite the answer of a newer one. The write of
 an answer invalidates the readers of the cell, as any write does, so the next read
@@ -260,10 +365,12 @@ struct WriteBackgroundAnswersOperation <: Operation
     inputs::Vector{Any}
     numbers::Vector{Int}
     answers::Vector{Any}
+    record::Int
 end
 
 function OperationModule.evaluate_operation(editor::Editor, operation::WriteBackgroundAnswersOperation)
     _write_background_answers!(editor, operation.states, operation.inputs, operation.numbers, operation.answers)
+    _end_background_work_record!(get_background_work_store(editor), operation.record, operation.answers)
     nothing
 end
 
@@ -356,9 +463,12 @@ function _wait_for_cell_here(editor, cell::AbstractCell, deadline::Real, timeout
         time() < deadline || _throw_wait_timeout(timeout)
         for (source, batch) in batches
             inputs = Any[input for (_, input, _) in batch]
+            store = editor isa Editor ? get_background_work_store(editor) : nothing
+            record = store === nothing ? 0 : _start_background_work_record!(store, source, inputs)
+            answers = _run_background_work(source, inputs)
             _write_background_answers!(editor, Any[state for (state, _, _) in batch], inputs,
-                                       Int[number for (_, _, number) in batch],
-                                       _run_background_work(source, inputs))
+                                       Int[number for (_, _, number) in batch], answers)
+            store === nothing || _end_background_work_record!(store, record, answers)
         end
     end
 end

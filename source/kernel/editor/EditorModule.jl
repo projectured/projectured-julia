@@ -72,7 +72,8 @@ export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,
        get_excluded_wrappers, is_wrapper_default, make_wrapper_argument,
        make_document_projection, build_editor, make_editor_parts,
-       BackgroundSource, make_background_cell, wait_for_cell!
+       BackgroundSource, make_background_cell, wait_for_cell!,
+       BackgroundWorkRecord, BackgroundWorkStore, get_background_work_store
 
 include("Editor.jl")
 include("Inbox.jl")
