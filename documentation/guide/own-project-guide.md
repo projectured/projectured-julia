@@ -23,10 +23,10 @@ A contributor reaches the packages by path instead, the way this repository reac
 1. Clone ProjecturEd beside your project, and four packages of other repositories beside it, because the packages of ProjecturEd name their folders:
 
    ```sh
-   git clone https://github.com/projectured/AutoIntegration.jl auto-integration
-   git clone https://github.com/projectured/AgentClientProtocol.jl agent-client-protocol
-   git clone https://github.com/projectured/ClaudeCodeACP.jl claude-code-acp
-   git clone https://github.com/projectured/ModelContextProtocol.jl model-context-protocol
+   git clone https://github.com/projectured/AutoIntegration.jl
+   git clone https://github.com/projectured/AgentClientProtocol.jl
+   git clone https://github.com/projectured/ClaudeCodeACP.jl
+   git clone https://github.com/projectured/ModelContextProtocol.jl
    git clone https://github.com/projectured/projectured-julia
    ```
 

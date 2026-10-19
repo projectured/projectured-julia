@@ -13,8 +13,8 @@ ClaudeCodeACP = "397ce549-bc36-418a-97e7-6295a63dbdc4"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 
 [sources]
-AgentClientProtocol = {path = "../../../agent-client-protocol"}
-ClaudeCodeACP = {path = "../../../claude-code-acp"}
+AgentClientProtocol = {path = "../../../AgentClientProtocol.jl"}
+ClaudeCodeACP = {path = "../../../ClaudeCodeACP.jl"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 
 [compat]

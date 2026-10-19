@@ -100,39 +100,39 @@ jobs:
         if: matrix.project == 'environment/all'
         with:
           repository: projectured/AutoIntegration.jl
-          path: auto-integration
+          path: AutoIntegration.jl
       - name: Place AutoIntegration beside the repository
         if: matrix.project == 'environment/all'
-        run: mv auto-integration ../auto-integration
+        run: mv AutoIntegration.jl ../AutoIntegration.jl
       # environment/all names AgentClientProtocol by the folder beside this
       # repository too.
       - uses: actions/checkout@v7
         if: matrix.project == 'environment/all'
         with:
           repository: projectured/AgentClientProtocol.jl
-          path: agent-client-protocol
+          path: AgentClientProtocol.jl
       - name: Place AgentClientProtocol beside the repository
         if: matrix.project == 'environment/all'
-        run: mv agent-client-protocol ../agent-client-protocol
+        run: mv AgentClientProtocol.jl ../AgentClientProtocol.jl
       # And ClaudeCodeACP.
       - uses: actions/checkout@v7
         if: matrix.project == 'environment/all'
         with:
           repository: projectured/ClaudeCodeACP.jl
-          path: claude-code-acp
+          path: ClaudeCodeACP.jl
       - name: Place ClaudeCodeACP beside the repository
         if: matrix.project == 'environment/all'
-        run: mv claude-code-acp ../claude-code-acp
+        run: mv ClaudeCodeACP.jl ../ClaudeCodeACP.jl
       # And the fork of ModelContextProtocol, which ProjecturedMCP names by the
       # folder beside this repository, so the tests of ProjecturedMCP need it too.
       - uses: actions/checkout@v7
         if: matrix.project == 'environment/all' || matrix.package == 'ProjecturedMCPTest'
         with:
           repository: projectured/ModelContextProtocol.jl
-          path: model-context-protocol
+          path: ModelContextProtocol.jl
       - name: Place ModelContextProtocol beside the repository
         if: matrix.project == 'environment/all' || matrix.package == 'ProjecturedMCPTest'
-        run: mv model-context-protocol ../model-context-protocol
+        run: mv ModelContextProtocol.jl ../ModelContextProtocol.jl
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

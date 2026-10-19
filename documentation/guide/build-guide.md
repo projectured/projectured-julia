@@ -152,7 +152,7 @@ The packages reach a Julia programmer through a registry, not as a binary.
 ClaudeCodeACP: the agent of the Agent Client Protocol that runs Claude Code. An
 editor that starts agents as programs, such as Zed, starts it. ProjecturEd
 itself needs no binary of it, because it runs the same agent in its own process.
-The package comes from the folder `claude-code-acp` beside this repository, the
+The package comes from the folder `ClaudeCodeACP.jl` beside this repository, the
 folder where `environment/all` finds it too.
 
 ```sh

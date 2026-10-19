@@ -144,7 +144,7 @@ minutes, so give each Julia process a memory cap and a timeout.
 
    ```julia
    using LocalRegistry
-   register("../auto-integration";
+   register("../AutoIntegration.jl";
             registry = "/var/tmp/release/ProjecturedRegistry",
             repo = "https://github.com/projectured/AutoIntegration.jl.git", push = false)
    for folder in order
