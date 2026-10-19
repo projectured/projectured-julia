@@ -1,10 +1,10 @@
 # The search below a node reads the folders that it needs
 
-Status: IN PROGRESS, 2026-10-18. The owner decided Q1 to Q3 and asked for the
+Status: DONE, 2026-10-19. The owner decided Q1 to Q3 and asked for the
 implementation ("Yes to the others"). It builds on steps 1 and 2 of
 [a-value-that-a-task-reads-is-a-cell.md](../done/a-value-that-a-task-reads-is-a-cell.md)
-(projectured main `33a957cca` and `7c2f4d2c9`). Step 1 is done on branch
-`explorer`; steps 2 and 3 are open.
+(projectured main `33a957cca` and `7c2f4d2c9`). Step 1 landed on main
+(`a535e62c9`); steps 2 and 3 are done on branch `explorer`.
 
 ## The ask
 
@@ -106,14 +106,16 @@ search shows its progress and can stop.
    `test_filesystem()`, `test_explorer()`, the tests of the Files tab in
    `test_application()`, and a test that a closed folder in view reads nothing.
    Done; what was built is in § Step 1 as built.
-2. [ ] **The search** (the explorer slice, and the task slice for its row):
+2. [x] **The search** (the explorer slice, and the task slice for its row):
    `ExplorerSearch`, the match cell of each folder, its page, Return in the
    filter, the limits, its row in the task list with its status, the stop, and
    the verbs. Tests: `test_explorer()`, with a folder of 3 levels that nobody
    opened; a search whose row stays in view after a visit to another page goes
    on, and a stop reads nothing more; `test_task_verbs()` and `test_task_views()`
-   with a search in the list.
-3. [ ] **The guides:** `filesystem.md`, `explorer.md`; the plan moves to
+   with a search in the list. Done; what was built is in § Step 2 as built.
+3. [x] **The guides:** `filesystem.md`, `explorer.md`, and also `tree.md`,
+   `task.md`, `editor.md` (the keywords `working` and `apply`) and
+   `devices-and-backends.md` (the headless backend paints); the plan moves to
    `plan/done/`.
 
 ## Step 1 as built
@@ -123,7 +125,7 @@ search shows its progress and can stop.
   before, which keeps the document of each entry that stays, by name. The model
   of § 1 computed the entries from the listing, but a computed vector gives no
   splice, and decision 1 of
-  [an-insert-moves-the-paths-after-it.md](an-insert-moves-the-paths-after-it.md)
+  [an-insert-moves-the-paths-after-it.md](../pending/an-insert-moves-the-paths-after-it.md)
   moves the paths in the evaluation of a splice. So the listing cell only carries
   the demand, and no part that shows reads its value.
 - **Two keywords of `make_background_cell`** (kernel, `ad4c05d05`, with the consent
@@ -158,6 +160,36 @@ search shows its progress and can stop.
   slot measures its page so (`test_open_page_operation`, `window = false`). The
   offset now adds the sums of aligned blocks of lines (`get_distance_sum`), so a
   read goes log2 of the line count deep and still reads only the lines above.
+
+## Step 2 as built
+
+- **The task slice** (`3b739ca1b`): `TaskWorkItem.jl` declares
+  `get_work_item_identifier`, `describe_work_item_kind`, `stop_work_item!` and
+  `describe_work_item`, and a group answers them. `collect_work_items(list)` gives
+  the open items. The first column of the Tasks pane is "item", because it holds
+  `T3` and `S1`. For a group, the count of running items reads its status only, as
+  before, so the heading and the badge depend on the same cells.
+- **The explorer slice comes after the task slice** in `ProjecturedPlatform.jl`,
+  and its row in `PLATFORM_SLICE_EDGES` has "task".
+- **The search** (`715583bc6`): the steps are a plain value (`steps::Any`),
+  because the `@document` macro makes a field declared `Vector{Any}` a
+  `CellVector`. A search is walk-opaque, because it holds the root section again.
+  `collect_tree_children` gets `list_limit`, so a search reads every child of a
+  collection and only the head of a lazy list. The page says "No match yet." while
+  the result is provisional.
+- **An operation with no reference must say that it carries its subject.**
+  `StartExplorerSearchOperation` answers `is_self_contained_operation`; without
+  it, the default reader of a step of the root chain drops it, and Return did
+  nothing, with no fault.
+- **A visit opens the node of its page** through `make_tree_reveal_operation`, a
+  new function of the tree slice: it writes the open places as a chevron does and
+  holds the documents of the nodes that open.
+- **A search waits while nothing shows it**: a test shows that a folder below
+  stays unread while neither the page nor a row of the search shows, and that the
+  search ends when its row under the node of the tasks shows.
+- **A known limit:** the search does not watch the folders that it reads, so a
+  later change on disk reaches its result only through a holder of the folder,
+  such as an open node of the tree.
 
 ## Questions for the owner
 

@@ -301,8 +301,10 @@ of its own waits for the group and posts it, so no document holds the editor. Th
 shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 
-`TaskGroupList` is the groups of the session of an editor, in the order of their
-starts, which the Tasks pane shows newest first. It is a session document of the
+`TaskGroupList` is the work items of the session of an editor, in the order of
+their starts, which the Tasks pane shows newest first. It holds groups, closed
+groups, and any other work item, such as a search below a node of an explorer
+([explorer.md](../explorer/explorer.md)). It is a session document of the
 editor (`get_session_task_group_list(; editor = find_evaluation_editor())`), and
 no module constant holds it. The first call with an editor takes the list that a
 tab of its window shows, or that the content of a tab holds a few documents down,
@@ -312,11 +314,24 @@ it reads no lazy part of a content. A group adds itself at the end of the
 list of the editor of the evaluation when it starts. A group that starts outside
 every editor, such as from a script, joins no list.
 
+A work item answers four generics (`TaskWorkItem.jl`). A group answers them too.
+
+| Generic | Answers |
+| --- | --- |
+| `get_work_item_identifier(item)` | the identifier that never changes, `T3` for a group and `S1` for a search |
+| `describe_work_item_kind(item, count)` | the word for `count` items of the kind: "group" or "groups", "search" or "searches" |
+| `stop_work_item!(item)` | stops the item and keeps its row: a group stops its tasks, a search keeps what it found and reads nothing more |
+| `describe_work_item(item; limit = 20)` | what the item did, in at most `limit` lines |
+
+The state and the line of a work item come from its decoration (`get_document_decoration`, with `work_item = true`). `collect_work_items(list)` gives the open items. `collect_task_group_documents(list)` gives the groups only. `add_task_group!`, `remove_task_group!` and `find_navigator_address(list, item)` take any work item. `list_task_groups`, `find_task_group`, `describe_task_group`, `stop_tasks!` and `close_task_group!` take any work item too.
+
 `TaskGroupList` has the insertion alias "tasks", and its insertion gives the list of the session (`make_insertion_document`). It is a kind of the explorer (`is_explorer_entry_type`). `pred_arguments` writes no field, and a loaded list is the list of the session of the editor that loads it, so a window file and the file of the explorer keep that a tab or an entry shows the list, and no group.
 
 A group keeps its place, so a path `groups[k]` names the same group for the whole
 session. A close of its row puts a `ClosedTaskGroup` in the place: the
-identifier, the title and the line that sums the group up. The tasks and their
+identifier, the title and the line that sums the item up: for a group its kind,
+its counts and its time, and for another item its kind and the line of its
+decoration. The tasks and their
 executions go with the group, so their memory goes. The Tasks pane and the
 records of the tasks hide a closed group, `collect_task_group_documents` gives the
 open groups, and the page of a closed group says that it closed. A group that
@@ -363,9 +378,12 @@ In a tree, the text of a task is its name and its status with the time when it s
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
 pane, one row for each open group of the session, newest first, with Stop, Run
 unexpected again and Close. The title of a row is a link to the page of the group.
+
+The pane draws a row for each other open work item. The row shows its identifier, its title as a link to its page, its kind, the word and the color of the first condition of its decoration, the line of its decoration, and Stop and Close. The first column header is "item". The heading counts each kind: "2 groups · 1 search · 1 running". A list of groups only reads "2 groups · 1 running". The decoration of the list counts the running items. For a group it reads the status only.
+
 `make_task_group_list_tab_title` is the title of the Tasks tab, and the
 `make_pane_tab_title` of a list: the icon of a list, and a badge with the count of
-the groups that run. So a navigator whose page is the list gives its tab the same
+the work items that run. So a navigator whose page is the list gives its tab the same
 icon and badge. `ClosedTaskGroupToWidgetPane` draws the page of a
 closed group.
 

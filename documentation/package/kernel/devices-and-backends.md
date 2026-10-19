@@ -151,7 +151,7 @@ There are four backends and a test double:
 | `WebBackend` | `ProjecturedWeb`, opt-in | a canvas in a browser page | the events that the page sends |
 | `ConsoleBackend` | `ProjecturedConsole`, required | a terminal, for the text domain | the bytes of the terminal |
 | `VideoBackend` | `ProjecturedVideo`, opt-in | the frames of a video file | a scripted timeline |
-| `HeadlessBackend` | `ProjecturedKernelExample`, test double | a log of each output | a queue of scripted events |
+| `HeadlessBackend` | `ProjecturedKernelExample`, test double | a log of each output, which it also reads once in paint order | a queue of scripted events |
 
 Each generic has a method of its own in a backend (✓), or the backend uses the
 default of `BackendDefaults.jl`. A generic with no default and no method raises a
@@ -679,6 +679,20 @@ The dependency-free in-memory `HeadlessBackend` — which logs every
 PAR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
 no double is reachable from a production build; the kernel editor tests import it
 from there to drive the loop without any real backend.
+
+`write_to_devices!` stores the document in `rendered`. Then it reads each part of
+the document once, in paint order, as a real backend does (`_paint_headless!` in
+[BackendHeadless.jl](../../../example/kernel/BackendHeadless.jl)). It follows the
+fields `windows`, `content`, `canvas`, `elements`, `children` and `items` of a
+part, and the elements of a vector. It reads a cell. It skips a part whose read
+throws a fault.
+
+A lazy list is a chain of links with the fields `value` and `next`. The paint
+reads the links that a computation made already, and at most 200 new links in one
+paint (`_FRESH_LINKS_PER_PAINT`).
+
+A cell that a part shows computes in the frame, with the editor of the frame. So a
+background cell records its demand as it does with a real backend.
 
 ### Downward edges
 

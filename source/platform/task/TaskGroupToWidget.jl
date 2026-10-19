@@ -949,7 +949,7 @@ const _LIST_COLUMNS = ("item", "title", "kind", "state", "counts", "progress", "
 """
     make_task_group_list_tab_title(list) -> PaneTabTitle
 
-The title of the Tasks tab: its name, and a badge with the count of the groups
+The title of the Tasks tab: its name, and a badge with the count of the work items
 that run while any does. It is the title that the decoration of the list gives
 (`get_document_decoration`), so a navigator whose page is the list gives its tab
 the same icon and badge, and a row of a tree shows the same.

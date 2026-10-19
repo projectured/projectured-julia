@@ -19,15 +19,16 @@ The open nodes are `expanded`, the open places: an `IdDict` whose keys are the d
 
 `current` is the path from the root of the node whose row has the mark of the current page, or `nothing`. It is a value, a cell, or a function of no argument, whose answer the tree follows. The row of that node draws a narrow bar at its left edge; a path that goes on into the document of a node marks that node. An explorer gives the address of the page of its navigator, so the mark follows the page also after a link inside the page.
 
-### Three generics make a document a node
+### Four generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to three generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. A fifth generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
+The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. Another generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
 
 | Generic | Answers | Default |
 | --- | --- | --- |
 | `get_tree_children_steps(document)` | the reference steps from the node to each collection of its children, in order, as a tuple of tuples | `()`: the node is a leaf |
 | `format_tree_node_label(document)` | the text of the node, in one line: the node draws a line break as a space | the title of the document, else the name of its type that a person sees |
 | `has_tree_children(document)` | `true`, `false`, or `nothing` while that is not known | `true` when a collection of the children has an element: the default reads the children |
+| `demand_tree_children(document)` | `nothing`: a part that shows the children of a node calls it, so a document that reads them from outside can start the read | `nothing` |
 
 The children of a node are the elements of its collections, one collection after the other. So a node can have two kinds of children. The work of an agent has two: its subagents, then its background tasks. A process has one, the field `children`. A collection whose path reaches nothing gives no children.
 
@@ -44,6 +45,8 @@ DomainModule.get_document_decoration(::Folder) = DocumentDecoration(; icon = :fo
 
 The functions run inside a computation, so they read cells, and a node follows what it reads.
 
+A part that shows the children of a node calls `demand_tree_children(document)`. These parts call it: the entries of an open node (`_make_tree_entry` in [DocumentTreeToWidgetTree.jl](../../../../source/platform/tree/DocumentTreeToWidgetTree.jl)), the rows of the Files tab, the table of the page of a folder, and a search. The chevron and the filter of an explorer never call it, because the tree reads `get_tree_children_steps` of every row in view. A folder reads its listing cell in this generic ([filesystem.md](../filesystem/filesystem.md)).
+
 The row of a node draws the decoration of its document (`get_document_decoration` of the domain slice). The icon, with its tint and corner marks, comes from `make_decoration_icon`. The counts follow the label as pills (`make_decoration_badges`), and the detail follows as dim text. The words of the conditions are the tooltip of the row, which shows when the pointer rests on it (`_read_wtree_row_dwell`).
 
 A row draws a chevron only when `has_tree_children` answers `true`. A document whose children come from outside, such as a folder, answers from what it stores, so a closed row reads no children. `DocumentTreeToWidgetTree` gives each `WidgetTreeNode` the function `has_children = () -> has_tree_children(document) === true`. When a node gives `has_children`, the widget tree reads the chevron from it and reads no children while the row is closed. A node with no `has_children` reads its children for the chevron.
@@ -58,7 +61,7 @@ A document whose one collection of children is a lazy list, a `ListNode`, has it
 
 A tree draws through `make_graphics_projection(DocumentTree)`, which chains the print to a widget renderer of its own, so a tree draws in the natural renderer and in the card of a pane.
 
-`collect_tree_children(document; limit)` and `collect_read_tree_children(document)` are exported helpers. The first gives the first `limit` children of a document with the path of each, and walks a lazy list on from its head. The second gives only the nodes of a lazy list that a walk reached, so it reads no disk and no process. The page of a section and the filter of an explorer use them.
+`collect_tree_children(document; limit, list_limit = limit)` and `collect_read_tree_children(document)` are exported helpers. The first gives the first `limit` children of a document with the path of each. A lazy list gives at most `list_limit` nodes from its head. The second gives only the nodes of a lazy list that a walk reached, so it reads no disk and no process. The page of a section and the filter of an explorer use them.
 
 ### The maps follow the steps
 
@@ -73,6 +76,8 @@ A press on a chevron answers `ReplaceViewStateOperation(ReplaceReferencedValueOp
 A `DocumentTree` holds the documents of its open nodes and of the rows that its view shows while a tab holds the tree. The acquire of the tree acquires each open document, and the release releases the same documents. The answer of the chevron contains a `ChangeHeldDocumentsOperation` in the same view-state write. It releases the documents of the nodes that close and acquires the documents of the nodes that open. So a document that opens, such as a folder, starts its read, and an undo records neither the open node nor the change of the hold. A tree that no tab holds holds nothing.
 
 The widget writes the rows of its view as it writes its open nodes: beside each scroll and each toggle, `shown` of the widget gets the paths of the rows that the view shows after the answer. The reader turns that write into `shown` of the tree, the documents of those rows, and changes the holds once against the open and the shown documents together, so a node that closes while it is shown stays held. A document that comes into view starts what it needs, such as the read of the details of a run, and one that leaves the view is released. A tree whose view told it no row yet holds the first fifty children of each open lazy list of children at its acquire. A window that grows, or a list that changes by itself, writes no `shown`, so the rows that come into view that way are held at the next scroll or toggle ([plan/done/a-viewport-holds-the-rows-it-shows.md](../../../../plan/done/a-viewport-holds-the-rows-it-shows.md)).
+
+`make_tree_reveal_operation(tree, reference)` opens the nodes above the node at `reference`, a path from the root, as a chevron does. It writes `expanded` as view state and holds the documents of the nodes that open (`ChangeHeldDocumentsOperation`). It answers `nothing` when those nodes are open. The explorer uses it when its navigator visits a page below its root section ([explorer.md](../explorer/explorer.md)).
 
 ### The keys
 

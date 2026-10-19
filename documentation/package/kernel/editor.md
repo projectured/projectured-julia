@@ -729,7 +729,13 @@ A background cell has three parts:
 - Its **source** (`BackgroundSource`) holds the work. The work takes the inputs of all demanded cells and answers their values in the same order. It runs on a task and reads no document.
 - Its **default** is the value while the cell has no answer.
 
-`make_background_cell(source, inputs; default)` makes the cell. Make it where the document is built, never inside a computation.
+`make_background_cell(source, inputs; default = nothing, working = nothing, apply = nothing)` makes the cell. Make it where the document is built, never inside a computation.
+
+The keyword `working` is a `Cell{Bool}`. The editor sets it to `true` when the work of the cell starts (`start_background_cell_work!`). It sets it to `false` when it writes the answer of the newest demand.
+
+The keyword `apply` is a function `apply(inputs, value)` that answers an `Operation` or `nothing`. The editor evaluates that operation after it writes the answer, in the evaluation of `WriteBackgroundAnswersOperation`. The operation is a write of view state, so undo records none. For a failure, `value` is the exception.
+
+A document that stores what a task read, such as a folder, uses these two keywords to keep its own state: its `reading` flag and its entries. See [FileSystemDocument.jl](../../../source/platform/filesystem/FileSystemDocument.jl) (`_make_unread_folder`).
 
 A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come.
 

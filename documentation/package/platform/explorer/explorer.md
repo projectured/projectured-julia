@@ -49,6 +49,8 @@ The reader of the view reads the answers of the tree and of the tree of the matc
 
 The tree marks the row of the page of the navigator (`DocumentTree.current`), also after a link on a page moves the navigator.
 
+A visit of the navigator to a page below the root section, such as a link on a page or a match of a search, opens the nodes above that page in the tree (`make_tree_reveal_operation`, [tree.md](../tree/tree.md)).
+
 ### The keys of the explorer
 
 `@gestures Explorer` holds the keys that work while the selection is on a row:
@@ -60,9 +62,10 @@ The tree marks the row of the page of the navigator (`DocumentTree.current`), al
 | F2 | the caret goes to the title of a section or a dashboard, on its page |
 | Ctrl+Shift+Up, Ctrl+Shift+Down | the selected entry moves in its section |
 | Ctrl+F | the caret goes to the field of the filter |
+| Return (in the field of the filter) | a search for its text below the node of the page |
 | "New section" | a command with no key: a new section after the selected entry |
 
-The tree moves its selection with Up and Down whatever the modifiers, so the two keys that move an entry are `override` rules, and the reader gives a key that the tree answered to the table of the explorer as a claimed key. Escape in the field of the filter empties the filter; the reader reads it, as the navigator reads Escape in its address.
+The tree moves its selection with Up and Down whatever the modifiers, so the two keys that move an entry are `override` rules, and the reader gives a key that the tree answered to the table of the explorer as a claimed key. Escape in the field of the filter empties the filter; the reader reads it, as the navigator reads Escape in its address. Return in the field starts a search ([the search below a node](#the-search-below-a-node)).
 
 ### The kinds that a person adds
 
@@ -92,6 +95,25 @@ A right press on a row opens one layer named by the row: Open in a new tab; Remo
 
 The filter keeps a row when its label holds every word of the text, in any case, and its type is one of the kinds, or when a row below it stays. The tree of the matches walks the open places of the tree with `collect_read_tree_children`, so it reads the labels of the rows that the tree read, and no disk. Every row of the matches is open. `▾` lists the kinds of the read rows, with the icon `check` on the kinds that the filter keeps. An edit of the filter is view state, so an undo records none.
 
+### The search below a node
+
+Return in the field of the filter, with a text, answers `StartExplorerSearchOperation(explorer, text)`. The node is the node of the page of the navigator, or the root when the content of the navigator is not the root section.
+
+The evaluation makes `ExplorerSearch(root, steps, text; depth = 10, limit = 100, identifier)`. The identifier is `S1`, `S2`, …: one more than the items of the list of the session whose identifier starts with `S`. The evaluation adds the search to the task list of the session and shows its page in the navigator. The caret stays in the field. The operation is no edit, so undo records none, and it answers `is_self_contained_operation`.
+
+The matches are the nodes below the node whose label holds every word of the text, in any case. They lie at most `depth` levels down, there are at most `limit` of them, and they come in the order of the tree: a match, then the matches below it. The walk keeps an entry for each node it enters: a cell of its matches and a cell that calls `demand_tree_children`. A node waits while that cell is provisional. A node on the path to itself is not entered again. A lazy list of children gives its first `limit` nodes.
+
+The result holds these values:
+
+- the matches, each a document, its steps from the node, and the labels of the nodes above it;
+- the count of waiting nodes;
+- whether the limit or the depth stopped the walk;
+- the time from the start to a final result.
+
+`ExplorerSearchToWidget` draws the page. It shows the title ("Find "smoke" below Files"), the line, and a table of the matches with their places. The line reads, for example, "waiting for 3 nodes · 12 matches", "12 matches · 0.4 s", "stopped at 100 matches", "not below a depth of 10" or "stopped". A match is a link. A press opens its page here (`OpenPageOperation(root, address)`). Ctrl+press opens it in a new tab.
+
+The search is a work item of the task list ([task.md](../task/task.md)). Its decoration reads its result, so its row in the Tasks pane, the node of the tasks in the tree, or its page keeps it going. While none shows, it waits. Stop keeps its matches and reads nothing more. Close leaves a closed row.
+
 ### A dashboard
 
 `Dashboard(title, cards)` holds `DashboardCard(title, content)` cards, which are the children of its node. `DashboardToWidget` draws the title in a field and the cards in a grid in a scroll pane. The grid has as many columns as cards of `card_width` fit in the exact width of the slot, and each card fills its cell. The count is a cell that reads the cell of that width, so a drag of a splitter or a resize of the window lays the cards out again, and a width that keeps the count builds no grid. The content of a card draws by the view of its own type, and the page maps `cards[k].content.<rest>` both ways, so a press, a caret and a key in a card reach its document. Insert on the page adds a card whose content is a `DocumentInsertion`.
@@ -102,7 +124,7 @@ The filter keeps a row when its label holds every word of the text, in any case,
 
 ## How it fits
 
-The slice uses the collection, domain, focus, layout, navigator, pane, projection, serialization, style, tree and widget slices. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.
+The slice uses the collection, domain, focus, layout, navigator, pane, projection, serialization, style, task, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.
 
 ## Design decisions
 
@@ -110,12 +132,13 @@ The slice uses the collection, domain, focus, layout, navigator, pane, projectio
 - **The matches are a second tree.** A filter inside the tree would change the index path of every row, which the maps, the open places and the shown rows of the tree read.
 - **Insert opens a menu.** The completion of an insertion filters by the type of its place, and the trait of the kinds is no type, so a typed name could not show the list.
 - **The add evaluates its visit after the insert.** A visit made before the insert finds no page.
+- **A search is a computation and a work item.** It shares the reads of the tree, follows the stored state, and needs no task of its own. Its row and its page keep it going. The reasons are in [the-search-below-a-node-reads-the-folders-it-needs.md](../../../../plan/done/the-search-below-a-node-reads-the-folders-it-needs.md) (Q2 and Q4).
 
 ## Limits
 
 - **The field of the filter keeps its least width.** A text field takes the width of its text, and no text field fills its slot.
 - **A dashboard with no exact width has one column.** With no exact width at the print, as in an editor with no window size, the cards stand in one column.
-- **The search below a node is not built.** It needs a way to read unread children for a search, which no kind gives.
+- **A search does not watch the folders that it reads.** A later change on disk reaches its result only through a holder of the folder, such as an open node of the tree.
 - **The tree holds a removed document until its next toggle or scroll.**
 - **A card has no key that removes it.**
 
@@ -129,6 +152,8 @@ explorer/ExplorerModule.jl        (ExplorerModule): the module, its exports and 
     ├─ ExplorerDocument.jl        : ExplorerSection, Explorer, the root section of an editor, the kinds of +
     ├─ ExplorerToWidget.jl        : the view, its maps, and its reader
     ├─ ExplorerSectionToWidget.jl : the page of a section
+    ├─ ExplorerSearch.jl          : ExplorerSearch, StartExplorerSearchOperation, the walk of a search
+    ├─ ExplorerSearchToWidget.jl  : the page of a search
     ├─ Dashboard.jl               : Dashboard, DashboardCard
     ├─ DashboardToWidget.jl       : the page of a dashboard
     ├─ ExplorerRowMenu.jl         : the menu of a row
@@ -146,4 +171,7 @@ explorer/ExplorerModule.jl        (ExplorerModule): the module, its exports and 
 - the kinds of `+`, a folder with no place, Insert, Delete, the moves, F2, the menu of a row and the command of the pane;
 - the filter, its kinds, and the tree of the matches;
 - a dashboard with its cards, a key in a card, and Insert;
+- Return in the filter searches below the node of the page and reads the folders that nobody opened;
+- a search goes on while its page or its row shows, and waits while neither does;
+- a search stops at its depth and at its limit, and a stop keeps its matches and reads nothing more;
 - the file of the content, read back as the session of the next editor.
