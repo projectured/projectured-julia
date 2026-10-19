@@ -13,7 +13,7 @@ version = "0.5.4"
 
 [[deps.AgentClientProtocol]]
 deps = ["JSON"]
-path = "../../../agent-client-protocol"
+path = "../../../AgentClientProtocol.jl"
 uuid = "9897b34e-e318-42ec-8700-51bd28135f60"
 version = "0.1.0"
 
@@ -27,7 +27,7 @@ version = "1.11.0"
 
 [[deps.AutoIntegration]]
 deps = ["TOML"]
-path = "../../../auto-integration"
+path = "../../../AutoIntegration.jl"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 version = "0.1.1"
 
@@ -81,7 +81,7 @@ version = "1.18.7+0"
 
 [[deps.ClaudeCodeACP]]
 deps = ["AgentClientProtocol", "HTTP", "JSON", "Random", "Sockets", "UUIDs"]
-path = "../../../claude-code-acp"
+path = "../../../ClaudeCodeACP.jl"
 uuid = "397ce549-bc36-418a-97e7-6295a63dbdc4"
 version = "0.1.9"
 
@@ -771,7 +771,7 @@ version = "1.11.0"
 
 [[deps.ModelContextProtocol]]
 deps = ["Base64", "DataStructures", "Dates", "HTTP", "JSON3", "JWTs", "Logging", "MacroTools", "OrderedCollections", "PrecompileTools", "Random", "SHA", "Sockets", "StructTypes", "URIs", "UUIDs"]
-path = "../../../model-context-protocol"
+path = "../../../ModelContextProtocol.jl"
 uuid = "318f8e74-e016-4659-bb5b-d8af92946dd5"
 version = "0.7.1"
 

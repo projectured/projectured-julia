@@ -42,7 +42,7 @@ An editor such as Zed starts it as an agent of the Agent Client Protocol; it
 runs the `claude` program that the person installed.
 
 - `source` is the folder of the package, by default the folder
-  `claude-code-acp` beside this repository, where `environment/all` finds it
+  `ClaudeCodeACP.jl` beside this repository, where `environment/all` finds it
   too.
 - `workload` serves a client in the process through `initialize` while the
   image compiles; see [`CLAUDE_CODE_ACP_WORKLOAD`](@ref).
@@ -55,7 +55,7 @@ the build gives no `Usage`.
 function build_claude_code_acp_executable(; name::AbstractString = "claude-code-acp",
                                             source::AbstractString = joinpath(
                                                 dirname(make_projectured_build_context().root),
-                                                "claude-code-acp"),
+                                                "ClaudeCodeACP.jl"),
                                             workload::Bool = true,
                                             context::BuildContext = make_claude_code_acp_build_context(source),
                                             kwargs...)

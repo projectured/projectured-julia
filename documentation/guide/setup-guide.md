@@ -15,21 +15,21 @@ To use the packages in a project of your own, without the source, add them from 
 ## Start the application
 
 ```sh
-git clone https://github.com/projectured/AutoIntegration.jl auto-integration
-git clone https://github.com/projectured/AgentClientProtocol.jl agent-client-protocol
-git clone https://github.com/projectured/ClaudeCodeACP.jl claude-code-acp
-git clone https://github.com/projectured/ModelContextProtocol.jl model-context-protocol
+git clone https://github.com/projectured/AutoIntegration.jl
+git clone https://github.com/projectured/AgentClientProtocol.jl
+git clone https://github.com/projectured/ClaudeCodeACP.jl
+git clone https://github.com/projectured/ModelContextProtocol.jl
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
 ```
 
-The four folders go beside `projectured-julia`, because the packages and `environment/all` name them by those folders: `auto-integration` the umbrella, `agent-client-protocol` and `claude-code-acp` the package `ProjecturedACP`, and `model-context-protocol`, the fork of the MCP package, the package `ProjecturedMCP`.
+The four folders go beside `projectured-julia`, because the packages and `environment/all` name them by those folders: `AutoIntegration.jl` the umbrella, `AgentClientProtocol.jl` and `ClaudeCodeACP.jl` the package `ProjecturedACP`, and `ModelContextProtocol.jl`, the fork of the MCP package, the package `ProjecturedMCP`. Each folder has the name that `git clone` gives it.
 
 A worktree of this repository beside it, such as `../projectured-julia-<name>`, reaches the same folders. A worktree in `.claude/worktrees/<name>/` does not: its relative paths end in `.claude/worktrees/`, so it needs a link of the same name there for each folder, which git ignores:
 
 ```sh
-for folder in auto-integration agent-client-protocol claude-code-acp model-context-protocol; do
+for folder in AutoIntegration.jl AgentClientProtocol.jl ClaudeCodeACP.jl ModelContextProtocol.jl; do
     ln -s "$(realpath ..)/$folder" .claude/worktrees/$folder
 done
 ```

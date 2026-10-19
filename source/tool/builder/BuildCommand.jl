@@ -32,7 +32,7 @@ const BUILD_BINARIES = ["projectured" =>
     "claude-code-acp" =>
     "the ACP agent that runs Claude Code, for an\n" *
     "editor that starts agents as programs; from the\n" *
-    "folder claude-code-acp beside this repository"]
+    "folder ClaudeCodeACP.jl beside this repository"]
 
 """
     BUILD_OPTIONS
