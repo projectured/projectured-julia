@@ -46,7 +46,11 @@ function get_application_greeting_text(backend::Symbol)
         I can open a path as a tab, save one back, arrange the panes, and build \
         a card, a table or a form to show you something.
         """
-    requirement = backend === :anthropic ?
+    requirement = backend === :none ?
+        "No model backend is chosen, so I cannot answer yet. Choose one in the Start " *
+        "settings of the Settings tab, or start the window with --assistant=ollama, " *
+        "--assistant=anthropic or --assistant=acp." :
+        backend === :anthropic ?
         "I use Claude. The environment variable ANTHROPIC_API_KEY must hold your key." :
         backend === :acp ?
         "I am an external agent that runs its own loop, through the Agent Client " *
@@ -65,8 +69,9 @@ end
                                agent_session_meta = DEFAULT_AGENT_SESSION_META) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
-[`APPLICATION_ASSISTANTS`](@ref); `:none` answers `nothing`, and the window then
-has no assistant pane. An empty `model` means the default model of the backend,
+[`APPLICATION_ASSISTANTS`](@ref). With `:none` the pane opens too: it says that no
+model backend is chosen, and where to choose one, and a message that a person
+sends there names the backends. An empty `model` means the default model of the backend,
 and a `context` of `0` means its default token window. A given `llm` is the model
 that the assistant asks, in place of the one it builds from `backend`, `model` and
 `context`: a scripted model that stands in for the real one, or an `OllamaLlm`
@@ -81,7 +86,6 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
-    backend === :none && return nothing
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
@@ -95,8 +99,8 @@ end
                               settings = make_settings())
 
 The document of the application window: an Explorer whose first entry is the
-folder `root`, one file tab for each path after it in the same group, and the
-assistant when it is not `nothing`. The rest of the content of the Explorer comes
+folder `root`, in front of its group, one file tab for each path behind it in the
+same group, and the assistant when it is not `nothing`. The rest of the content of the Explorer comes
 when the editor starts ([`start_application!`](@ref)). A path that does not
 exist opens as the empty seed of its extension. Each history of the window keeps
 as many steps as the `HistorySettings` of `settings` say.
@@ -124,9 +128,9 @@ end
 _make_application_workspace(root::AbstractString) = WorkspaceExplorer(_make_application_folders(root))
 
 # The main group, with the Explorer first and a tab for each file after it, and
-# the assistant beside it. The focus starts inside the first file, or on the root
-# row of the tree of the Explorer when no file is open, so the first key reaches
-# that document and not the tab strip.
+# the assistant beside it. The focus starts on the root row of the tree of the
+# Explorer, also when files are open, so the window opens on the Explorer and the
+# assistant, and the first key reaches the tree and not the tab strip.
 function _make_application_pane_tree(tabs, root::AbstractString, assistant)
     explorer = Explorer(ExplorerSection("Explorer", Any[_make_application_folders(root)]))
     main = PaneGroup(PaneTab[PaneTab("Explorer", explorer),
@@ -140,15 +144,9 @@ function _make_application_pane_tree(tabs, root::AbstractString, assistant)
         weights = [0.68, 0.32]
     end
     tree = PaneTree(PaneSplit(:vertical, groups; weights = weights))
-    if isempty(tabs)
-        tab = get_pane_tab_reference(tree, main, 1)
-        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"), FieldReferenceStep("tree"),
-                                              FieldReferenceStep("root")))
-    else
-        tab = get_pane_tab_reference(tree, main, 2)
-        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
-                                              FieldReferenceStep("content")))
-    end
+    tab = get_pane_tab_reference(tree, main, 1)
+    set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"), FieldReferenceStep("tree"),
+                                          FieldReferenceStep("root")))
     tree
 end
 

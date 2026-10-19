@@ -78,13 +78,24 @@ end
 # would acquire the folders of the window, so each folder is read at once, as a
 # script reads a folder that it shows. With `files`, the Files tool is a group of
 # its own at the left of the window, as a person who moves it there has it.
-function _app_make_window(paths; files::Bool = false, keywords...)
+function _app_make_window(paths; files::Bool = false, focus_file::Bool = false, keywords...)
     document, projection = make_application_window(paths; keywords...)
+    focus_file && _app_focus_first_file!(document)
     files && _app_add_files_group!(document, get(keywords, :root, pwd()))
     for workspace in search_documents(document, node -> node isa Workspace)
         foreach(folder -> read_filesystem_folder!(folder.directory), workspace.folders)
     end
     (document, projection)
+end
+
+# The selection on the content of the first file of the window of `document`, as a
+# press on its tab gives it: the window opens on the Explorer, the tab before it.
+function _app_focus_first_file!(document)
+    steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
+    at = findlast(==(FieldReferenceStep("tabs")), steps)
+    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("content"))
+    set_selection!(document, extend_reference(EmptyReference(), steps...))
+    document
 end
 
 # The Files group at the left of the pane tree of `document`, over `root`. Each
@@ -112,8 +123,8 @@ function _app_add_files_group!(document, root)
     document
 end
 
-function _app_make_scene(paths, dir; assistant = nothing, files::Bool = false)
-    document, projection = _app_make_window(paths; root = dir, assistant = assistant, files)
+function _app_make_scene(paths, dir; assistant = nothing, files::Bool = false, focus_file::Bool = false)
+    document, projection = _app_make_window(paths; root = dir, assistant = assistant, files, focus_file)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -316,7 +327,9 @@ end
 function test_application()
     @testset "application" begin
         @testset "the assistant pane" begin
-            @test make_application_assistant(:none) === nothing
+            unset = make_application_assistant(:none)
+            @test unset isa Assistant && unset.backend === :none
+            @test occursin("No model backend is chosen", get_application_greeting_text(:none))
             assistant = make_application_assistant(:ollama; model = "small")
             @test assistant isa Assistant
             @test assistant.backend === :ollama && assistant.model == "small"
@@ -460,6 +473,10 @@ function test_application()
                 tree = _app_window(document)
                 path = repr(strip_reference_types(get_selection(tree)))
                 @test startswith(path, ".root.")
+                # The window opens on the Explorer, also with two files open, with the
+                # keyboard on the root of its tree.
+                focus = get_pane_focus(tree)
+                @test focus[1].tabs[focus[2]].content isa Explorer && endswith(path, ".content.tree.root")
                 level(node) = repr(strip_reference_types(get_selection(node)))
                 @test level(scene) == ".windows[1].content.content.content.content" * path
                 @test level(scene.windows[1]) == ".content.content.content.content" * path
@@ -835,7 +852,7 @@ function test_application()
 
             @testset "Ctrl+S saves the focused file" begin
                 json = joinpath(dir, "a.json")
-                document, scene, composed, iomap = _app_make_scene([json], dir)
+                document, scene, composed, iomap = _app_make_scene([json], dir; focus_file = true)
                 editor = _AppFakeEditor(scene, iomap)
                 operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
                 # The page of the file answers its own save, which checks the disk first.
@@ -1237,7 +1254,7 @@ function test_application()
             end
 
             @testset "a noted object pasted into a form runs as itself, and its tab draws the change" begin
-                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; focus_file = true)
                 editor = Editor(scene, composed; backend = ConsoleBackend(),
                                 devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
@@ -1300,7 +1317,7 @@ function test_application()
                 buffer = Ref("")
                 set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = text; true))
                 try
-                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; focus_file = true)
                     editor = Editor(scene, composed; backend = ConsoleBackend(),
                                     devices = Device[Display(), Keyboard(), Mouse()])
                     editor.iomap = iomap
@@ -1842,7 +1859,7 @@ function test_application()
             window() = begin
                 assistant = Assistant(; llm = FakeLlm("ok"))
                 document, scene, composed, iomap =
-                    _app_make_scene(paths[1:1], dir; assistant = assistant)
+                    _app_make_scene(paths[1:1], dir; assistant = assistant, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)

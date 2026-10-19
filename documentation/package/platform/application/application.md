@@ -8,7 +8,7 @@ The application slice of `ProjecturedPlatform` is the window of ProjecturEd: an 
 
 ### The window
 
-`make_application_document(paths; root, assistant)` makes the document of the window: one file tab for each path in `paths`, each wrapped in its own `UndoBuffer` so `Ctrl+Z` takes back an edit in the file a person is looking at; an `Explorer` over a section that holds the folder of `root`; and the `assistant`, when it is not `nothing`. `_make_application_pane_tree` puts them in a `PaneTree`: a main group whose first tab is the `Explorer`, followed by a tab for each file, and, when there is an assistant, a second group for it. The two groups split 0.68/0.32; with no assistant the main group fills the window. The whole tree then sits inside one more `UndoBuffer`, so a change that belongs to no file — a splitter that moves, a tab that opens — can be taken back too, and the focus is seated on the first open file, or on the root row of the tree of the Explorer when no file is open.
+`make_application_document(paths; root, assistant)` makes the document of the window: one file tab for each path in `paths`, each wrapped in its own `UndoBuffer` so `Ctrl+Z` takes back an edit in the file a person is looking at; an `Explorer` over a section that holds the folder of `root`; and the `assistant`, when it is not `nothing`. `_make_application_pane_tree` puts them in a `PaneTree`: a main group whose first tab is the `Explorer`, followed by a tab for each file, and, when there is an assistant, a second group for it. The two groups split 0.68/0.32; with no assistant the main group fills the window. The whole tree then sits inside one more `UndoBuffer`, so a change that belongs to no file — a splitter that moves, a tab that opens — can be taken back too, and the focus is seated on the root row of the tree of the Explorer, also when files are open. So the window opens on the Explorer and the assistant, and the files are tabs behind the Explorer.
 
 `start_application!` makes the first content of the explorer: `_fill_explorer_content!` calls `make_editor_explorer_content` (`ApplicationExplorer.jl`), which puts the entries that the window brought, such as its folder, before the open files, the task list and the assistant list of the editor, and the sections of the tools. `run_application` then reads the content that the state folder keeps for `root` (`get_explorer_content_file`, `load_explorer_content`) and replaces the first content with it when the file reads. It writes the content again after `run_editor!` returns (`save_explorer_content!`).
 
@@ -22,7 +22,7 @@ The chrome is `make_window_menu_bar()`, `make_window_toolbar(; assistant, explor
 
 ### The assistant's API
 
-`make_application_assistant(backend; model, context, llm)` makes the `Assistant` of the window: `backend` is one of `APPLICATION_ASSISTANTS` (`:ollama`, `:anthropic`, `:none`), and `:none` answers `nothing`. Its greeting, from `get_application_greeting_text(backend)`, says what the window shows and what the assistant needs to answer.
+`make_application_assistant(backend; model, context, llm)` makes the `Assistant` of the window: `backend` is one of `APPLICATION_ASSISTANTS` (`:ollama`, `:anthropic`, `:acp`, `:none`). With `:none` the pane opens too: its greeting says that no model backend is chosen and where to choose one. A caller that wants no assistant pane, such as the recorder of a video, passes `assistant = nothing` to `make_application_document`. Its greeting, from `get_application_greeting_text(backend)`, says what the window shows and what the assistant needs to answer.
 
 `make_editor_api()` is what the assistant of a window of the editor may write: the vocabularies that every window declares, concatenated and passed to `declare_api!`. The application declares the list as it is, and an application that builds on the editor adds the verbs of its own domain to it, so every window offers one vocabulary.
 
@@ -49,7 +49,7 @@ Each vocabulary is declared where its verbs are, so a host that offers the same 
 | --- | --- |
 | `[files...]` | the paths `run_application` opens, one tab each |
 | `--backend=NAME` | which backend draws the window, when the binary holds more than one |
-| `--assistant=ollama\|anthropic\|acp\|none` | the model backend of the assistant, an external agent (`acp`), or no assistant (default: the start settings, `ollama` at first) |
+| `--assistant=ollama\|anthropic\|acp\|none` | the model backend of the assistant, an external agent (`acp`), or no backend yet (default: the start settings, `ollama` at first) |
 | `--model=NAME` | the model of that backend (default: the start settings, else the backend's own default) |
 | `--root=DIRECTORY` | the directory of the folder of the window (default: the current directory) |
 | `--mcp` | start an MCP server at `http://127.0.0.1:9876/mcp` |

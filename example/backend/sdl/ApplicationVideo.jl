@@ -9,6 +9,17 @@
 # recording carries every tool a person sitting at the window has.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# The selection on the content of the first file tab of the main group of the
+# window `tree`, as a press on that tab gives it.
+function _focus_first_file_tab!(tree)
+    panes = ProjecturedPlatform.PaneModule
+    references = ProjecturedKernel.ReferenceModule
+    tab = panes.get_pane_tab_reference(tree, first(panes.get_pane_groups(tree)), 2)
+    ProjecturedKernel.SelectionModule.set_selection!(tree, references.extend_reference(
+        tab, references.FieldReferenceStep("content"), references.FieldReferenceStep("content")))
+    tree
+end
+
 """
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
@@ -100,13 +111,19 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   measure = FontFileMeasure(), prepare = document -> nothing)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
-    chat = make_application_assistant(assistant; model = model, context = context, llm = llm)
+    # A video with no assistant shows no assistant pane, so a take shows only what
+    # its timeline acts on.
+    chat = assistant === :none ? nothing : make_application_assistant(assistant; model = model, context = context,
+                                                                       llm = llm)
     # One `Settings` for the histories of the window and for the editor. The take
     # names its render values on its backend, so the settings read them there.
     settings = make_settings()
     settings.is_read_from_targets = true
     document = make_application_document(collect(String, paths); root, assistant = chat,
                                          settings)
+    # A take with files opens on its first file, as its timeline is written for it;
+    # the application window opens on the Explorer.
+    isempty(paths) || _focus_first_file_tab!(document)
     prepare(document)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
