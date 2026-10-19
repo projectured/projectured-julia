@@ -108,6 +108,7 @@ A feed is one registered inflow of the editor. Its producer writes a plain store
 | `MessageLogFeed` | Any task that logs | The wake | The `MessageLog` of the editor |
 | `McpLogFeed` | The MCP server, for each call | The wake | The `McpLog` of the editor |
 | `FrameStatisticsFeed` | The loop itself | A deadline, never a wake | The table and the plot of the frames |
+| `BackgroundWorkFeed` | The loop itself, at the start and at the end of each work of a background cell | A deadline while the log is due, never a wake | The log of the background work |
 | `FileChangeFeed` | A watcher task for each watched folder | The wake | The file document, or the folder document |
 | `TaskFeed` | The tasks of a task group | A deadline of 0.25 s while entries change | The rows of the task groups |
 | `ReflectionFeed` | A read of a value on a task of the default pool | The wake and a deadline | The reflected tree of the value |

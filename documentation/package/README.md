@@ -68,6 +68,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `terminal` | [terminal.md](platform/terminal/terminal.md) | a program with its output lines and an input line, with no terminal device |
 | `task` | [task.md](platform/task/task.md) | a piece of work that runs as a task and ends with a result, in the words of `opp_repl`: its execution, a group of tasks, their documents and panes, the verbs, and how a domain adds a kind |
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
+| `backgroundwork` | [backgroundwork.md](platform/backgroundwork/backgroundwork.md) | the log of the work that background cells do |
 | `shell` | [shell.md](platform/shell/shell.md) | the wrappers and the chrome of a window |
 | `help` | [help.md](platform/help/help.md) | the document types, the projections and the page about the program that the Help menu opens |
 | `conversation` | [conversation.md](platform/conversation/conversation.md), with [transcript.md](platform/conversation/transcript.md) | the evaluator and the conversation documents |

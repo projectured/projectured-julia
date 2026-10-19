@@ -1,9 +1,9 @@
 # The editor shows the work that it does in the background
 
-Status: PROPOSED, 2026-10-19; Q1 decided by the owner on 2026-10-19. The owner agreed on 2026-10-18 that this view gets a
+Status: DONE, 2026-10-19. Q1 decided by the owner on 2026-10-19; Q2 and Q3 as recommended. The owner agreed on 2026-10-18 that this view gets a
 plan of its own, after the search below a node
 ([the-search-below-a-node-reads-the-folders-it-needs.md](../done/the-search-below-a-node-reads-the-folders-it-needs.md),
-§ Not in this plan). No step has started.
+§ Not in this plan).
 
 ## The ask
 
@@ -92,8 +92,10 @@ editor reads now, what it read, how long it took, and what failed.
    with `drain_feeds!` before each frame: `run_frame!` alone drains no feed. The
    omnet IDE builds its explorer with `make_editor_explorer_content`, so its
    window turns on `background_work = true` too.
-3. [ ] **The guides:** `editor.md`, the guide of the slice of the page,
-   `explorer.md`; the plan moves to `plan/done/`.
+3. [x] **The guides:** `editor.md`, the new guide `backgroundwork.md` of the slice,
+   `communication-anatomy.md` (the table of the feeds), `application.md` and
+   `shell.md` (the wrapper), and the index of the package guides; the plan moves
+   to `plan/done/`.
 
 ## Questions for the owner
 

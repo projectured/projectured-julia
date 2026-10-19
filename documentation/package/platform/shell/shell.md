@@ -35,6 +35,8 @@ Four more features fill what a tool of the toolbar shows, instead of nesting aro
 
 [log.md](../log/log.md), [statistics.md](../statistics/statistics.md), [fault.md](../fault/fault.md) and [assistant.md](../assistant/assistant.md#the-assistants-pane) describe each one; [gesturelog.md](../gesturelog/gesturelog.md) describes `gesture_log` above.
 
+The `background_work` wrapper is in the same layer, at `:screen => 20`. It has no toolbar button: the Editor section of the explorer holds the log, and [backgroundwork.md](../backgroundwork/backgroundwork.md) describes it.
+
 - **The light under the pointer is not a wrapper.** The screen gives each move to the window that the pointer leaves and to the window at the point, and each container gives it on to its children in the same way. Each document on the path writes its `mouse_target`, so a toolbar button goes dark when the pointer goes to a row in a pane, or from a window to a popup. [widget.md](../widget/widget.md) describes the light.
 - **The tooltip window and the context menu window are wrappers that the window wrapper places.** A part answers a dwell or a right click from its own gesture table. The `tooltip` and `context_menu` wrappers of `build_editor`, on by default in the layer `:window` before the `window` wrapper, give `wrap_tooltip_window` and `wrap_context_menu_window` to it through `EditorParts.window_wrappers`, and it puts them around the screen inside the trackers. [tooltip.md](../tooltip/tooltip.md) and [context-menu.md](../widget/context-menu.md) describe them.
 

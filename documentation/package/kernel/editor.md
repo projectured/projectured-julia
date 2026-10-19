@@ -757,6 +757,16 @@ An example: a folder of a simulation has 2,000 result files, and each file entry
 
 `wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
 
+### The record of each work
+
+The editor keeps one `BackgroundWorkRecord` for each work of a background cell. A record holds the number of the work in the order of the works of the editor, the description of the source, the count of its values, its first three inputs as text of at most 80 characters, the time of its start, the time of its end, the count of failed values, and the message of the first failure. The time of the end is `nothing` while the work runs.
+
+`BackgroundWorkStore(; capacity = 100)` holds the records, oldest first: the last `capacity` records of works that ended, and every record of a work that runs. Its `change_count` grows at each change. `get_background_work_store(editor)` returns the store of an editor, which `get_session_document!` keeps for each editor, as it keeps `BackgroundDemands`.
+
+`start_background_cell_work!` adds the record. The record ends when the editor evaluates `WriteBackgroundAnswersOperation`, which carries the number of its record. The work that `wait_for_cell!` runs on the task that owns the documents also gets a record, when it is given an editor.
+
+The store is a plain value with no cell. The kernel does not decide how an editor shows its documents, so the platform owns the document of the log, and a feed fills it from the store; see [backgroundwork.md](../platform/backgroundwork/backgroundwork.md).
+
 A search of the documents starts no background work by default: it takes each background cell as it is. `search_documents(...; background = true)` waits for the final value of each provisional cell that it reads (see [the reflection walk](document.md#the-reflection-walk)).
 
 ## Adding new operations
