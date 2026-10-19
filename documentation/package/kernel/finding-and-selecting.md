@@ -72,8 +72,9 @@ Reach for a predicate when you need to match by type or shape, or to match a lea
 ## Searching for references — `search_references`
 
 ```julia
-search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{Reference}
-search_references(obj, query::Union{AbstractString,Regex}; …)                       -> Vector{Reference}
+search_references(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
+                  background=false) -> DocumentMatches{Reference}
+search_references(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches{Reference}
 ```
 
 Walks `obj` and returns a document-rooted `Reference` for **every** node whose
@@ -104,8 +105,9 @@ Because the returned paths are document-rooted, they resolve with
 ## Searching for documents — `search_documents`
 
 ```julia
-search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector
-search_documents(obj, query::Union{AbstractString,Regex}; …)                       -> Vector
+search_documents(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
+                 background=false) -> DocumentMatches
+search_documents(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches
 ```
 
 Same walk (and the same string/regex shorthand), but returns the matching
@@ -131,6 +133,41 @@ search_documents(doc, "Alice"; raw=true)  # ["Alice"]                   (the bar
 search_documents(doc, r"^\d+$")           # [<JsonNumber …>, …]         (enclosing JsonNumber documents)
 search_documents(doc, r"^\d+$"; raw=true) # [10, 20, …]                 (the raw numbers)
 ```
+
+## The limits of a search
+
+A search has three limits. Each has a default that keeps a search of a large
+document small, and the caller can lift each one:
+
+| Keyword | Default | What it limits |
+| --- | --- | --- |
+| `limit` | `100` | the count of matches; `limit = nothing` finds every match |
+| `maxdepth` | `64` | how deep the walk goes |
+| `background` | `false` | whether the walk waits for a value that a task still computes; by default it takes such a value as it is |
+
+The answer is a `DocumentMatches`: a vector of the matches, so a caller indexes,
+iterates and counts it as a vector, which also holds the limits and what each one
+left out (`found.limits`). Its summary, the first line of its display, names each
+limit that stopped the search and the keyword that lifts it. A person in the REPL
+and the assistant both see it:
+
+```julia
+search_documents(editor.document, "temperature")
+# 100 matches. The search stopped at its limit of 100 matches, and more exist: pass `limit = nothing` to find all:
+#  <JsonString value="temperature">
+#  ⋮
+is_search_complete(search_documents(editor.document, "temperature"; limit = nothing))   # true
+```
+
+`is_search_complete(found)` answers whether no limit left a match out. Code that
+must visit every match of a kind, such as a save that writes every node with a
+pointer path, passes `limit = nothing`. A search for one object, or for whether any
+node matches, keeps the default.
+
+The walk counts a value still to come where it reads a cell: in a field of a
+document. An element of a collection is read through the collection, which answers
+its value and not its cell, so the walk neither counts nor waits for an element
+still to come.
 
 ## Resolving a reference — `evaluate_reference`
 

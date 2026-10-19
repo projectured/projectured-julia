@@ -917,8 +917,10 @@ for projection-introduced elements like delimiters and brackets).
 
 To find every path to a matching node, use `search_references(document, query)`
 — it takes a predicate, a substring `String`, or a `Regex`, and returns a
-`Vector{Reference}` whose results are annotated with type checkpoints (so
-they are self-describing and replay-safe):
+vector of references, whose results are annotated with type checkpoints (so
+they are self-describing and replay-safe). The vector is a `DocumentMatches`: it
+answers at most 100 paths by default, and its summary says when a limit stopped
+the search ([the limits of a search](finding-and-selecting.md#the-limits-of-a-search)):
 
 ```julia
 for ref in search_references(editor.document, "John")   # or r"TODO", or a predicate

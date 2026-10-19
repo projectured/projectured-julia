@@ -232,6 +232,8 @@ functions in, rather than dispatching them off a subtype. That keeps the walk
 *below* the reference layer while still serving it: the walk takes no
 dependency on `Reference`, and the caller supplies it.
 
+The keyword `limit` (default `100`) is the most matches that the walk answers; `limit = nothing` answers every match. The walk looks for one match more than its limit, so it knows that the limit cut the answer, and drops that match. The answer is a `DocumentMatches`, a vector of the matches with the `WalkLimits` that the walk ran under: the limit and whether it cut the answer, the depth and how many parts at it the walk did not enter, and how many values still to come it took as they are. Its summary names each limit that stopped the walk and the keyword that lifts it, and `is_search_complete` answers whether no limit left a match out. `search_references` answers its paths in a `DocumentMatches` with the same limits. A caller that needs every match passes `limit = nothing`, as the save of a binary file and the undo do. The limits and the answer are in [finding-and-selecting.md](finding-and-selecting.md#the-limits-of-a-search).
+
 The keyword `background` (default `false`) sets whether the walk starts background work. By default a read of a [background cell](editor.md#the-background-cell) in the walk records no demand, and the walk takes the cell as it is: its last answer or its default. With `background = true`, the walk waits for the final value of each provisional cell that it reads (`complete_walked_cell`, which the editor answers). `search_documents` and `search_references` pass the keyword on. `is_background_work_allowed()` says whether a read may start background work now.
 
 ## The protocol helpers
