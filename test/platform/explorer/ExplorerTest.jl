@@ -723,5 +723,145 @@ function test_explorer()
         # The navigator beside the tree keeps its page.
         @test get_navigator_page(navigator) === content
     end
+
+    @testset "Return in the filter searches below the node of the page, and reads the folders that nobody opened" begin
+        root = mktempdir()
+        mkpath(joinpath(root, "a", "b"))
+        write(joinpath(root, "a", "b", "smoke.txt"), "")
+        write(joinpath(root, "a", "other.txt"), "")
+        mkpath(joinpath(root, "c", "d", "e"))
+        write(joinpath(root, "c", "d", "e", "smoke.jl"), "")
+        write(joinpath(root, "c", "smoke-test.jl"), "")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        content = ExplorerSection("Explorer", Any[workspace])
+        explorer = Explorer(content)
+        tree = explorer.tree
+        editor, backend = _nav_editor(explorer; tabs = true)
+        tasks = get_session_task_group_list(; editor)
+        push!(content.entries, tasks)
+        run_frame!(editor)
+        # The page of Files, then the text in the filter, then Return.
+        _nav_press!(editor, backend, _explorer_click(backend, "Files"))
+        _nav_press!(editor, backend, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0))
+        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in "smoke")...)
+        _nav_press!(editor, backend, KeyPress('\n'; time = 0.0))
+        search = only(collect_work_items(tasks))
+        @test search isa ExplorerSearch && search.identifier == "S1"
+        @test get_document_title(search) == "Find \"smoke\" below Files"
+        @test get_navigator_page(explorer.navigator) === search
+        # The page reads the result in each frame, so each folder below is read, one
+        # level a frame, and no node of the tree opens for it.
+        @test _explorer_wait_until(editor) do
+            !is_cell_provisional(getfield(search, :result))
+        end
+        @test [format_tree_node_label(match.document) for match in search.result.matches] ==
+              ["smoke.txt", "smoke.jl", "smoke-test.jl"]
+        @test [join(match.labels, " / ") for match in search.result.matches] ==
+              ["Files / work / a / b", "Files / work / c / d / e", "Files / work / c"]
+        @test collect(keys(tree.expanded[content])) == Any[]
+        @test _nav_has_text(backend, "smoke.jl") && _nav_has_text(backend, "Files / work / c / d / e")
+        @test occursin("3 matches", get_document_decoration(search).detail)
+        @test get_document_decoration(search).conditions[1].name === :done
+        # A press on a match shows its page, and opens the nodes above it in the tree.
+        _nav_press!(editor, backend, _explorer_click(backend, "smoke.txt"; side = :page))
+        file = search.result.matches[1].document
+        @test get_navigator_page(explorer.navigator) === file
+        @test _explorer_wait_until(() -> _explorer_has_tree_text(backend, "smoke.txt"), editor)
+        @test haskey(tree.expanded[content], workspace)
+        # The search is a row of the task list, which the verbs find.
+        @test find_task_group("S1"; editor) === search
+        @test startswith(string(describe_task_group(search; editor)), "Find \"smoke\" below Files\n3 matches")
+        @test occursin("smoke.txt — Files / work / a / b", string(describe_task_group(search; editor)))
+        words = _collect_task_view_words(tasks)
+        @test all(in(words), ("S1", "Find \"smoke\" below Files", "search", "done", "1 search · 0 running"))
+    end
+
+    @testset "a search goes on while its page or its row shows, and waits while neither does" begin
+        root = mktempdir()
+        mkpath(joinpath(root, "a", "b"))
+        write(joinpath(root, "a", "b", "smoke.txt"), "")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        content = ExplorerSection("Explorer", Any[workspace])
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer; tabs = true)
+        tasks = get_session_task_group_list(; editor)
+        push!(content.entries, tasks)
+        run_frame!(editor)
+        _nav_press!(editor, backend, _explorer_click(backend, "Files"))
+        _nav_press!(editor, backend, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0))
+        _nav_press!(editor, backend, (KeyPress(character; time = 0.0) for character in "smoke")...)
+        _nav_press!(editor, backend, KeyPress('\n'; time = 0.0))
+        search = only(collect_work_items(tasks))
+        # The page shows once and asks for the first folder; then the page of Files
+        # shows, and the closed node of the tasks shows no row of the search.
+        visit = make_navigator_open_operation(explorer.navigator, _explorer_entry_path(1))
+        evaluate_operation(editor, ProjecturedPlatform.ExplorerModule._get_visit_writes(visit))
+        @test get_navigator_page(explorer.navigator) === workspace
+        for _ in 1:20
+            drain_operations!(editor)
+            run_frame!(editor)
+            sleep(0.02)
+        end
+        directory = workspace.folders[1].directory
+        a = only(directory.elements)
+        @test a.state === :unread && a.read_count == 0
+        # The row of the search shows under the node of the tasks, and its
+        # decoration reads the result: the search goes on to its end.
+        _nav_press!(editor, backend, KeyDown(:escape, ModifierKeys(); time = 0.0))
+        @test get_navigator_page(explorer.navigator) === workspace
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Tasks"))
+        @test _explorer_wait_until(editor) do
+            !is_cell_provisional(getfield(search, :result))
+        end
+        @test [format_tree_node_label(match.document) for match in search.result.matches] == ["smoke.txt"]
+        @test a.state === :read
+    end
+
+    @testset "a search stops at its depth and at its limit, and a stop keeps its matches and reads nothing more" begin
+        content = ExplorerSection("Explorer", Any[_explorer_node("x top", _explorer_node("x one", _explorer_node("x deep")),
+                                                                _explorer_node("x two"), _explorer_node("x three"))])
+        deep = ExplorerSearch(content, Any[], "x"; depth = 2)
+        @test [format_tree_node_label(match.document) for match in deep.result.matches] ==
+              ["x top", "x one", "x two", "x three"]
+        @test deep.result.is_deep && !deep.result.is_limited
+        @test occursin("not below a depth of 2", get_document_decoration(deep).detail)
+        few = ExplorerSearch(content, Any[], "x"; limit = 2)
+        @test length(few.result.matches) == 2 && few.result.is_limited
+        @test occursin("stopped at 2 matches", get_document_decoration(few).detail)
+        # A search of a folder that is not read waits; a stop keeps what it found,
+        # and the frames that show it read nothing.
+        root = mktempdir()
+        write(joinpath(root, "x.txt"), "")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        editor, backend = _nav_editor(explorer; tabs = true)
+        search = ExplorerSearch(getfield(explorer, :tree)[].root, Any[FieldReferenceStep("entries"),
+                                                                      ElementReferenceStep(1)], "x")
+        add_task_group!(get_session_task_group_list(; editor), search)
+        folder = workspace.folders[1].directory
+        stop_work_item!(search)
+        @test search.stopped && isempty(search.result.matches)
+        @test get_document_decoration(search).conditions[1].name === :stopped
+        visit = make_navigator_open_operation(getfield(explorer, :navigator)[], search, EmptyReference())
+        evaluate_operation(editor, ProjecturedPlatform.ExplorerModule._get_visit_writes(visit))
+        for _ in 1:10
+            drain_operations!(editor)
+            run_frame!(editor)
+            sleep(0.02)
+        end
+        @test folder.state === :unread && folder.read_count == 0 && isempty(search.result.matches)
+    end
 end
+end
+
+# Run frames of `editor` until `test()` holds, for at most four seconds.
+function _explorer_wait_until(test, editor)
+    deadline = time() + 4
+    while time() < deadline
+        drain_operations!(editor)
+        run_frame!(editor)
+        test() && return true
+        sleep(0.02)
+    end
+    false
 end

@@ -87,6 +87,73 @@ end
 
 get_document_title(tree::DocumentTree) = tree.title
 
+"""
+    make_tree_reveal_operation(tree, reference) -> Operation or nothing
+
+The operation that opens the nodes above the node at `reference`, a path from the
+root of `tree`, so its row shows: a write of the open places as view state, as a
+chevron makes, and the hold of the documents of the nodes that open. A path that
+goes on inside the document of a node opens the nodes above that node. `nothing`
+when those nodes are open, or when `reference` names no node below the root.
+
+Use it to show the row of a node that a person reached another way, such as by a
+link on a page.
+
+# Example
+
+    operation_1 = make_tree_reveal_operation(tree_1, @reference(section_1, entries[1].directory.elements[2]))
+
+See also `DocumentTree`.
+"""
+function make_tree_reveal_operation end
+
+function make_tree_reveal_operation(tree::DocumentTree, reference::Reference)
+    nodes = _collect_path_node_documents(tree.root, get_reference_steps(strip_reference_types(reference)))
+    places = copy(tree.expanded)
+    (level, is_changed) = (places, false)
+    for document in nodes[1:(end - 1)]
+        below = get(level, document, nothing)
+        below === nothing && (is_changed = true)
+        below = below === nothing ? IdDict{Any,Any}() : copy(below)
+        level[document] = below
+        level = below
+    end
+    is_changed || return nothing
+    before = merge!(_collect_open_documents!(IdDict{Any,Nothing}(), tree.expanded), tree.shown)
+    after = merge!(_collect_open_documents!(IdDict{Any,Nothing}(), places), tree.shown)
+    acquired = Any[document for document in keys(after) if !haskey(before, document)]
+    ReplaceViewStateOperation(CompoundOperation(Any[ReplaceReferencedValueOperation(tree, "expanded", places),
+                                                    ChangeHeldDocumentsOperation(tree, Any[], acquired)]))
+end
+
+# The documents of the nodes on the path `steps` from `root`, the root first: at
+# each node, the steps of one of its collections and the step of an element. The
+# path ends at a step that names no child.
+function _collect_path_node_documents(root, steps)
+    nodes = Any[root]
+    (document, at) = (root, 1)
+    while at <= length(steps)
+        found = nothing
+        for (collection_steps, _) in _collect_tree_collections(document)
+            index_at = at + length(collection_steps)
+            index_at <= length(steps) || continue
+            all(steps[at + j - 1] == collection_steps[j] for j in eachindex(collection_steps)) || continue
+            index = steps[index_at]
+            (index isa RangeReferenceStep && is_element_reference_step(index)) || continue
+            child = try_evaluate_reference(document, extend_reference(EmptyReference(), steps[at:index_at]...),
+                                           _NO_PATH_NODE)
+            child === _NO_PATH_NODE || (found = (child, index_at + 1); break)
+        end
+        found === nothing && break
+        (document, at) = found
+        push!(nodes, document)
+    end
+    nodes
+end
+
+struct _NoPathNode end
+const _NO_PATH_NODE = _NoPathNode()
+
 # A tree holds the documents of its open nodes and of its shown rows, so a
 # document whose node is open, or whose row is in view, starts what it needs, such
 # as the read of a folder, while the tree is shown. A chevron and a scroll change

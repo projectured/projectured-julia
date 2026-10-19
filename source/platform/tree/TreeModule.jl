@@ -44,7 +44,7 @@ import ..WidgetModule: make_graphics_projection
 
 export get_tree_children_steps, format_tree_node_label, has_tree_children,
        demand_tree_children, is_explorer_entry_type
-export DocumentTree, collect_open_tree_documents
+export DocumentTree, collect_open_tree_documents, make_tree_reveal_operation
 export DocumentTreeToWidgetTree, DocumentTreeToWidgetTreeIoMap, collect_tree_children, collect_read_tree_children
 export show_document_tree!
 

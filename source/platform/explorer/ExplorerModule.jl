@@ -33,25 +33,29 @@ using ..ReferenceModule
 using ..SerializationModule
 using ..SelectionModule
 using ..StyleModule
+using ..TaskModule
 using ..ToolModule
 using ..TreeModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
+import ..DocumentModule: get_document_title, has_document_duplicate, copy_document, is_walk_opaque
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
                        get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..NavigatorModule: find_navigator_address
-import ..OperationModule: evaluate_operation, make_inverse_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation, is_self_contained_operation
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
+import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item
 import ..WidgetModule: make_graphics_projection
 
 export ExplorerFilter
 export ExplorerSection, Explorer, get_session_explorer_content
 export ExplorerToWidget
 export ExplorerSectionToWidget
+export ExplorerSearch, StartExplorerSearchOperation
+export ExplorerSearchToWidget
 export DashboardCard, Dashboard
 export DashboardToWidget
 export get_explorer_content_file, save_explorer_content!, load_explorer_content
@@ -60,6 +64,8 @@ include("ExplorerFilter.jl")
 include("ExplorerDocument.jl")
 include("ExplorerToWidget.jl")
 include("ExplorerSectionToWidget.jl")
+include("ExplorerSearch.jl")
+include("ExplorerSearchToWidget.jl")
 include("Dashboard.jl")
 include("DashboardToWidget.jl")
 include("ExplorerRowMenu.jl")

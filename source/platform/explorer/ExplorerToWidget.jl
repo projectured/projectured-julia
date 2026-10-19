@@ -23,7 +23,10 @@ the tree, so a person walks the nodes and reads each page. Ctrl+press opens the
 page in a new tab, and a double press or Return puts the keyboard in the page.
 `+` opens the menu of the kinds to add, as Insert does, and `▾` the menu of the
 kinds of the rows that the tree read, which the filter keeps. A key in the field
-of the filter edits the filter, and Escape there empties it.
+of the filter edits the filter, Escape there empties it, and Return starts an
+[`ExplorerSearch`](@ref) for its text below the node of the page. A visit of the
+navigator to a page below the root section, such as by a link on the page, opens
+the nodes above that page in the tree.
 """
 @projection UntrackedCell struct ExplorerToWidget <: Projection
     gap::Int = get_widget_style(nothing, :section_gap)
@@ -239,6 +242,14 @@ function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::Expl
     change.route === nothing && gesture isa KeyDown && gesture.key === :escape &&
         !_has_modifier_key(gesture.modifiers) && _is_filter_selected(explorer) &&
         return Intent(gesture, _make_clear_filter_operation(explorer), change.description, change.domain)
+    # Return there starts a search for its text below the node of the page.
+    if change.route === nothing && gesture isa KeyPress && gesture.char == '\n' &&
+       !_has_modifier_key(gesture.modifiers) && _is_filter_selected(explorer)
+        text = strip(getfield(explorer, :filter)[].text)
+        isempty(text) ||
+            return Intent(gesture, StartExplorerSearchOperation(explorer, String(text)), change.description,
+                          change.domain)
+    end
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     operation = answer.operation
     operation === nothing && return answer
@@ -249,7 +260,38 @@ function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::Expl
         own === nothing || return Intent(answer.gesture, own, answer.description, answer.domain)
     end
     converted = something(_convert_explorer_answer(iomap, operation, gesture), operation)
-    Intent(answer.gesture, _mark_filter_edits(converted), answer.description, answer.domain)
+    Intent(answer.gesture, _add_tree_reveal(explorer, _mark_filter_edits(converted)), answer.description,
+           answer.domain)
+end
+
+# An answer that makes the navigator visit a page below the root section, such as a
+# link on a page, opens the nodes above that page in the tree too, so its row shows.
+function _add_tree_reveal(explorer::Explorer, operation)
+    tree = getfield(explorer, :tree)[]
+    address = _find_visit_address(getfield(explorer, :navigator)[], tree.root, operation)
+    address === nothing && return operation
+    reveal = make_tree_reveal_operation(tree, address)
+    reveal === nothing ? operation : CompoundOperation(Any[operation, reveal])
+end
+
+# The address of the page that `operation` makes `navigator` visit while its content
+# is `root`, or `nothing` when it visits no page there.
+function _find_visit_address(navigator, root, operation)
+    (address, content) = (nothing, navigator.content)
+    function visit(part)
+        if part isa CompoundOperation
+            foreach(visit, part.operations)
+        elseif part isa WrappingOperation
+            visit(get_wrapped_operation(part))
+        elseif part isa ReplaceReferencedValueOperation && part.document === navigator
+            steps = get_reference_steps(strip_reference_types(part.reference))
+            length(steps) == 1 && steps[1] == FieldReferenceStep("address") && (address = part.value)
+            length(steps) == 1 && steps[1] == FieldReferenceStep("content") && (content = part.value)
+        end
+        nothing
+    end
+    visit(operation)
+    (address isa Reference && content === root) ? address : nothing
 end
 
 _has_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifiers.alt || modifiers.meta
