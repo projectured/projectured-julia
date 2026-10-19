@@ -1,8 +1,8 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the questions of step 6. The JSON pipeline is
-the pilot, built from the bottom up. Step 1 is done, in the worktree
-`projectured-julia-views-compose`, branch `views-compose`.
+Status: IN PROGRESS, decided but for the design of step 2 and the questions of
+step 7. The JSON pipeline is the pilot, built from the bottom up. Step 1 is done,
+in the worktree `projectured-julia-views-compose`, branch `views-compose`.
 
 ## The ask
 
@@ -127,31 +127,42 @@ The facts for the JSON pipeline, found 2026-10-18:
    now; two views of one content do not; the focusing projection works on views.
 6. **The plan `an-insert-moves-the-paths-after-it.md` does not come first** (the
    owner, 2026-10-19: "I don't think we need to do the insert path plan first").
-7. **Until step 8, the caret of a view ends at the view and never enters its
+7. **Until step 9, the caret of a view ends at the view and never enters its
    content** (found in step 1). The text types still have their `selection`
    fields. A path through `.content` makes the selection walk write into the shared
    text, so two views would hold one chain of cells, and an in-place caret move of
    one view (`_sync_selection!`) would move the caret of the other. So a text view
    keeps a flat caret `{k}` on itself, and an edit through it goes back as a flat
    edit of the view.
+8. **The content and the view each have a projection, and no text block carries
+   the caret of a view** (the owner, 2026-10-19: "the content should be projected
+   using two projections, no? one is for the content TextBlockToGraphicsCanvas, the
+   other is TextViewToGraphicsCanvas"). Both are rows of one dispatch table. The
+   view projection prints its content through the recursion and draws its caret
+   over that drawing, through the IO map of the content. A first form of step 1
+   printed a view as a `TextBlock` that held the caret of the view, which the owner
+   rejected ("how can a TextView be printed into a TextBlock?").
+9. **Step 1 prints a content once for each place, and the syntax step waits until
+   a content is printed once** (the owner, 2026-10-19: "in step 1, it's fine" and
+   "we should not go to the syntax step before we solve this"). That is step 2.
 
 ## What is not known yet
 
-- **A stage of the whole editor document**, which moves each content and each view
-  one domain further and reuses the print of each part that did not change, as a
-  projection reuses its children now.
+- **How a content is printed once** (step 2): where the composite prints it, and
+  how each view gets the IO map of that print, with no cache and no kernel notion
+  of a content or a view. The model says a stage of the whole editor document,
+  which moves each content and each view one domain further and reuses the print
+  of each part that did not change.
 - **How the template engine gives a view its tail.** The templates describe the
   content mapping; the generic view mapping must reach the reference maps that they
   build.
 - **The cost of the mirrors.** Each view keeps a node for each place that it
   reached, at each domain of the chain.
-- **The text is content and also the drawn form.** Step 8 takes the `selection`
-  field from `TextBlock`, but every text stage after `TextViewToText` (the
-  decorators and `TextToGraphics`) reads the caret from the `selection` of a
-  `TextBlock`. Step 8 needs those stages to read the caret of a `TextView`, or a
-  type of its own for a text with a caret.
+- **The old text chains.** `TextToGraphics` draws a `TextBlock` with its own caret
+  for every chain that is not a chain of views yet, so step 9 can take the field
+  from `TextBlock` only when no chain gives a text a caret.
 
-## Questions for step 6
+## Questions for step 7
 
 - **QA. The state of a view and the state of a place.** My proposal: the view keeps
   the caret and the folds, which its places share; the place keeps its part, its
@@ -176,72 +187,102 @@ and the output of each stage, as structures that a person reads.
    measures the cells that a move of the caret recomputes; then on the editor.
    Tests: the text suites, `test_selection_localities()`.
 
-   Done 2026-10-19. What it made:
+   Done 2026-10-19, in the shape of decision 8. What it made:
    - `TextView(content)` in `source/platform/text/TextView.jl`: the field
      `content`, and the `selection` and `mouse_target` that `@document` adds. Its
      selection is a flat place `{k}`, `{s:e}` or a box, and ends at the view
-     (decision 7). `get_edited_field` names `content`.
-   - `TextViewToText`: a `TextView` to the `TextBlock` that the view shows. The
-     output holds the `CellVector` of the lines of the content, the same object,
-     and its selection is the caret of the view, live or dormant. The text stages
-     after it read it unchanged. Backward, a caret, a range or a box is the same
-     place of the view; the lowered edit of one run goes back as a flat
-     `ReplaceTextRangeOperation` of the view.
+     (decision 7). It keeps its caret as a dormant selection when the focus leaves
+     it, in any container (`has_dormant_selection`); this is my choice, so that two
+     views keep two carets in a layout too, which keeps no dormant branch.
+     `get_edited_field` names `content`. Its keys are a table of its own,
+     `@gestures TextView`; the key helpers of the text take the caret as an
+     argument.
+   - `TextBlockToGraphicsCanvas`: the lines of a text as a canvas, with no caret,
+     laid out by the line layout of `TextToGraphics` (`_print_text_lines`). Its IO
+     map gives the forward map of a place, the caret at a point, and the caret and
+     the band of a selection (`_compute_selection_marks`). A text whose lines are a
+     lazy list still prints with `TextToGraphics`.
+   - `TextViewToGraphicsCanvas`: prints `view.content` through the recursion, and
+     draws the band and the caret of the view over that drawing
+     (`_make_selection_marks`); its output is `[band, drawing of the content,
+     caret]`. Forward, a place of the view maps through the IO map of the content;
+     backward, a point maps through it to the caret of the view. Up, Down, Home and
+     End read the segments of the content (`_read_geometry_key`). The band follows
+     each row of a range, which a reference map and `find_reference_box` do not
+     give, so the view asks the IO map of its content for the rows.
+   - `TextToGraphics` draws as before, from the same two parts: the lines, and the
+     marks of the caret of its block.
    - `evaluate_operation` of a `ReplaceTextRangeOperation` edits the content of a
      `TextView` and puts the caret on the view. An edit beside an inline image
      through a view does nothing: an element write puts its caret into the lines.
-   - The example `text_view`: a pane split of three places over one text, view A,
-     view B and view A again (`make_pane_projection_example` takes `rows`). It is
-     on the skip list of the caret sweep, as every pane tree is.
-   - The scroll stays where it is now, with the place; a `TextView` keeps none.
-     Question QA decides it at step 6.
+   - The example `text_view`: a vertical layout of three places over one text, view
+     A, view B and view A again. It is on the skip list of the caret sweep beside
+     `layout`: a layout sends a key only by the selection, so Ctrl+Home with no
+     selection reaches no caret.
+   - The scroll stays with the place; a `TextView` keeps none. Question QA decides
+     it at step 7.
 
    The shape:
 
    ```
-   documents                               projections, for each place
-   PaneTree                                PaneToWidget, then the renderer
-   └ PaneSplit                             TextView => TextViewToText, TextToGraphics
-     ├ PaneGroup ─ PaneTab ─ view A ──┐
-     ├ PaneGroup ─ PaneTab ─ view B ──┼─ content: one TextBlock
-     └ PaneGroup ─ PaneTab ─ view A ──┘
-   view A: selection {9}, live            output of TextViewToText for a place of A:
-   view B: selection {4}, dormant           TextBlock(elements = content.elements,
-   TextBlock: selection nothing                       selection = the caret of A)
+   documents                          projection: one table in a recursion
+   VerticalLayout                     VerticalLayout => VerticalLayoutToGraphicsCanvas
+   ├ [1] TextView A ──┐               TextView       => TextViewToGraphicsCanvas
+   ├ [2] TextView B ──┼─ TextBlock T  TextBlock      => TextBlockToGraphicsCanvas
+   └ [3] TextView A ──┘
+
+   IO maps
+   ChildrenIoMap                            input = the layout
+   ├ [1] TextViewToGraphicsCanvasIoMap      input = A   output = [band, drawing of T, caret of A]
+   │     └ TextBlockToGraphicsCanvasIoMap   input = T   output = drawing of T, no caret
+   ├ [2] TextViewToGraphicsCanvasIoMap      input = B   output = [band, drawing of T, caret of B]
+   │     └ TextBlockToGraphicsCanvasIoMap   input = T
+   └ [3] TextViewToGraphicsCanvasIoMap      input = A   output = [band, drawing of T, caret of A]
+         └ TextBlockToGraphicsCanvasIoMap   input = T
    ```
 
-   Measured with `is_cell_valid` over the cells of the graphics of each place:
-   a caret move in view A makes 5 cells of each place of A stale and none of the
-   place of B; one `TextBlock` in one place makes 5 stale today. A typed character
-   makes 16, 15 and 16 stale: the text of all three places changes.
+   Measured with `is_cell_valid` over the cells that the drawing of each place
+   reaches (93 for each place):
+
+   | Change | place 1 (A) | place 2 (B) | place 3 (A) | in the drawings of T |
+   | --- | --- | --- | --- | --- |
+   | a caret move in A | 5 | 0 | 5 | 0, 0, 0 |
+   | the focus from A to B | 5 | 5 | 5 | 0, 0, 0 |
+   | a caret move in B | 0 | 5 | 0 | 0, 0, 0 |
+   | a typed character in B | 14 | 15 | 14 | 10, 10, 10 |
+
+   One `TextBlock` in one place through `TextToGraphics` makes 5 cells stale for a
+   caret move. The last row shows the three prints of T (decision 9).
 
    Limits: a caret path into the content through `.content`, as a sweep or a
-   search makes one, writes selection cells into the shared text until step 8 (the
-   caret walk lists 130 in the example; a key or a click makes none). An insert
-   before the caret of another view does not move that caret. The selection
-   locality sweep fails every caret of a pane tree on `main` too (the tab strip
-   draws the focus), so it does not measure this example.
+   search makes one, writes selection cells into the shared text until step 9; a
+   key or a click makes none. An insert before the caret of another view does not
+   move that caret.
 
-   Tests: `test_text_view()` 31; the text tests 655 (`test_text`,
-   `test_text_to_graphics`, `test_text_line_model`, `test_inline_image_caret`,
-   `test_text_first_line`, `test_word_wrapping`); `test_pane_construct` and
-   `test_pane_to_widget` 94; the platform layering guard; the naming guard. The
-   printer walk and the REPL walk of the example give no error.
-2. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
+   Tests: `test_text_view()` 30; the text tests with the widget text, the syntax
+   and primitive text and the printer walk of every platform example 153713;
+   `test_json()` 239; the platform layering guard; the naming guard. The REPL walk
+   of the example gives no error.
+2. [ ] **A content is printed once** (decision 9). The text of step 1 at three
+   places is printed once, and each view draws its caret over that one print. The
+   design comes first, in this plan, for the owner to decide: where the composite
+   prints a content and how a view gets the IO map of that print. Tests:
+   `test_text_view()`, with a count of the prints of T.
+3. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
    `SyntaxToText`. Tests: `test_syntax_to_text()`.
-3. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the
+4. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the
    hidden ranges of the text view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
-4. [ ] **A JSON string and its view**, mapped to a syntax leaf view. Tests:
+5. [ ] **A JSON string and its view**, mapped to a syntax leaf view. Tests:
    `test_json_to_syntax()`.
-5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
+6. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
    `collapsed` fields of the JSON types go. Tests: `test_json()`,
    `test_example(json_example)`, `test_click_roundtrips()`.
-6. [ ] **Places**: the owner's example of one JSON file, two views and four places,
+7. [ ] **Places**: the owner's example of one JSON file, two views and four places,
    with the focusing projection printing a place; the pastes of QC.
-7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
+8. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
-8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
-9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
+9. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
+10. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
    `selection.md`, `text.md`, `syntax.md`, `json.md`; the plan moves to
    `plan/done/`.
 

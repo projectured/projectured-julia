@@ -923,11 +923,14 @@ function _collect_image_paths(text::TextBlock)
     paths
 end
 
+# The key helpers below read the caret `selection` over the lines of `text`: the
+# caret of the block itself, or the caret of a view of it (`TextView.jl`).
+
 # Insert (replace the selected flat range with) `str` at the text cursor. Produces
 # a `ReplaceTextRangeOperation` in the flat coordinate; it is lowered to a
 # span/domain edit as it threads up the projection chain.
-function _text_insert(text::TextBlock, str::AbstractString)
-    sel = _text_flat_selection(text)
+function _text_insert(text::TextBlock, str::AbstractString, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     ReplaceTextRangeOperation(make_flat_range_reference(sel[1], sel[2]), str)
 end
@@ -935,14 +938,14 @@ end
 # Enter: a break at the cursor. A projection that gives a value of one line
 # declines the break when it maps the edit back, so the key goes on to the bindings
 # around the text, such as the one that makes the value of a type-in.
-_text_break(text::TextBlock) = _text_insert(text, "\n")
+_text_break(text::TextBlock, selection = text.selection) = _text_insert(text, "\n", selection)
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
 # a caret removes the char before it (backspace) / after it (delete), clamped at
 # the ends. At the start of the text of a line (backspace) or at its end (delete) it
 # removes the break and the indentation of the lower line, so the two lines join.
-function _text_delete(text::TextBlock, key::Symbol)
-    sel = _text_flat_selection(text)
+function _text_delete(text::TextBlock, key::Symbol, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     rng = s != e ? (s, e) :
@@ -984,8 +987,8 @@ end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on
 # the near end of the selection (left end for :left, right end for :right).
-function _text_word_motion(text::TextBlock, direction::Symbol)
-    sel = _text_flat_selection(text)
+function _text_word_motion(text::TextBlock, direction::Symbol, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     chars = _flat_chars(text)
     newf = direction === :left ?
@@ -997,9 +1000,9 @@ end
 # Left / Right: per-character cursor motion, `± 1` clamped in the flat stream. A
 # range collapses to its near end. Declines when a whole element is selected (no
 # character cursor to move) so the syntax layer can tree-navigate.
-function _text_char_motion(text::TextBlock, direction::Symbol)
-    is_structural_selection(text.selection) && return nothing
-    sel = _text_flat_selection(text)
+function _text_char_motion(text::TextBlock, direction::Symbol, selection = text.selection)
+    is_structural_selection(selection) && return nothing
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     newf = if s == e
@@ -1015,9 +1018,9 @@ end
 # left, word-left and start keys move the start, and the others move the stop.
 # From a caret, the key's direction makes the range. Declines when a whole
 # element is selected, as the plain motion does.
-function _text_extend(text::TextBlock, direction::Symbol)
-    is_structural_selection(text.selection) && return nothing
-    sel = _text_flat_selection(text)
+function _text_extend(text::TextBlock, direction::Symbol, selection = text.selection)
+    is_structural_selection(selection) && return nothing
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     total = _text_flat_total(text)

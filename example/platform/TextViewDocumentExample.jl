@@ -1,26 +1,26 @@
-# One text in two views at three places. The left place and the right place show
-# view A, so they share its caret; the middle place shows view B, with a caret of
-# its own. The text holds no caret.
+# One text in two views at three places of a vertical layout. The first and the
+# third place show view A, so they share its caret; the second place shows view B,
+# with a caret of its own. The text holds no caret.
 #
-#   +--------------+--------------+--------------+
-#   |  view A      |  view B      |  view A      |
-#   +--------------+--------------+--------------+
+#   +----------------------+
+#   |  view A              |
+#   +----------------------+
+#   |  view B              |
+#   +----------------------+
+#   |  view A              |
+#   +----------------------+
 function make_text_view_document_example()
     style = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
     content = make_text_block("One text, two views.\n" *
-                              "The left and the right place\n" *
+                              "The first and the third place\n" *
                               "show view A: one caret.\n" *
-                              "The middle place shows view B,\n" *
+                              "The second place shows view B,\n" *
                               "with a caret of its own.", style)
     view_a = TextView(content)
     view_b = TextView(content)
-    tree = PaneTree(PaneSplit(:vertical, [PaneGroup([PaneTab("view A", view_a)]),
-                                          PaneGroup([PaneTab("view B", view_b)]),
-                                          PaneGroup([PaneTab("view A again", view_a)])]))
+    layout = VerticalLayout([view_a, view_b, view_a]; gap = 20)
     # The caret of view B first, so it stays when the focus goes to view A.
-    replace_selection!(tree, concat_references(@reference(tree, root.elements[2].tabs[1].content),
-                                               make_flat_caret_reference(4)))
-    replace_selection!(tree, concat_references(@reference(tree, root.elements[1].tabs[1].content),
-                                               make_flat_caret_reference(9)))
-    tree
+    replace_selection!(layout, concat_references(@reference(layout, children[2]), make_flat_caret_reference(4)))
+    replace_selection!(layout, concat_references(@reference(layout, children[1]), make_flat_caret_reference(9)))
+    layout
 end

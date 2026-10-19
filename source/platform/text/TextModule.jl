@@ -50,6 +50,7 @@ import ..CellModule: set_cell_computation!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..SelectionModule: has_dormant_selection
 
 export TextSpanReferenceStep
 export TextColumnReferenceStep
@@ -71,7 +72,8 @@ export WordWrapping, WordWrappingIoMap
 export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
-export TextView, TextViewToText, TextViewToTextIoMap
+export TextView, TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
+export TextBlockToGraphicsCanvas, TextBlockToGraphicsCanvasIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
@@ -85,6 +87,7 @@ include("TextColumnReferenceStep.jl")
 include("TextRangeReferenceStep.jl")
 include("TextDocument.jl")
 include("TextTheme.jl")
+include("TextBlockToGraphicsCanvas.jl")
 include("TextToGraphics.jl")
 include("TextGutterToGraphics.jl")
 include("TextBlockToScrollLayout.jl")
