@@ -18,6 +18,23 @@ TaskModule.get_task_columns(::_TaskViewProbeTask) = ["name" => 2]
 const _TASK_VIEW_NAME_READS = Ref(0)
 TaskModule.format_task_column(task::_TaskViewProbeTask, column::AbstractString) =
     column == "name" ? (_TASK_VIEW_NAME_READS[] += 1; task.name) : ""
+
+# A work item that is no group of tasks: it runs until it stops, and its
+# decoration says its state and what it found.
+@document struct _TaskViewProbeItem <: Document
+    identifier::String
+    title::String
+    stopped::Bool = false
+end
+TaskModule.get_work_item_identifier(item::_TaskViewProbeItem) = item.identifier
+TaskModule.describe_work_item_kind(::_TaskViewProbeItem, count::Integer) = count == 1 ? "probe" : "probes"
+TaskModule.stop_work_item!(item::_TaskViewProbeItem) = (item.stopped = true; nothing)
+TaskModule.describe_work_item(item::_TaskViewProbeItem; limit::Integer = 20) =
+    Text(join(first(String[item.stopped ? "stopped" : "running", "found 3"], limit), "\n"))
+DocumentModule.get_document_title(item::_TaskViewProbeItem) = item.title
+ProjecturedPlatform.DomainModule.get_document_decoration(item::_TaskViewProbeItem) =
+    DocumentDecoration(; icon = :search, conditions = [DocumentCondition(item.stopped ? :stopped : :running)],
+                       detail = "found 3", work_item = true)
 TaskModule.format_task_details(task::_TaskViewProbeTask, result) =
     String["script: " * task.script; result === nothing ? String[] : ["ended: " * result.result]]
 const _TASK_VIEW_PRESSES = String[]
@@ -348,6 +365,35 @@ function test_task_views()
             # A group that runs again goes back into its place.
             add_task_group!(list, groups[2])
             @test collect(list.groups) == groups
+        end
+
+        @testset "another work item has a row in the Tasks pane, which stops and closes it" begin
+            group = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("kept", "exit 0")]; name = "kept");
+                                             title = "a group")
+            item = _TaskViewProbeItem("S1", "a probe item")
+            list = TaskGroupList()
+            add_task_group!(list, group)
+            add_task_group!(list, item)
+            @test collect_work_items(list) == Any[group, item] && collect_task_group_documents(list) == [group]
+            @test evaluate_reference(list, find_navigator_address(list, item)) === item
+            # The heading counts each kind, the row says what the decoration says, and
+            # the list runs while the item does.
+            words = _collect_task_view_words(list)
+            @test "1 group · 1 probe · 1 running" in words
+            @test all(in(words), ("S1", "a probe item", "probe", "running", "found 3"))
+            @test get_document_decoration(list).counts[1].text == "1 running"
+            # Stop keeps the row, and Close leaves a closed row in its place.
+            stop_work_item!(item)
+            words = _collect_task_view_words(list)
+            @test "a probe item" in words && "stopped" in words && "1 group · 1 probe · 0 running" in words
+            remove_task_group!(list, item)
+            closed = list.groups[2]
+            @test closed isa ClosedTaskGroup && getfield(closed, :identifier)[] == "S1"
+            @test getfield(closed, :summary)[] == "probe · found 3"
+            @test collect_work_items(list) == Any[group]
+            # The item that starts again goes back into its place.
+            add_task_group!(list, item)
+            @test list.groups[2] === item
         end
     end
 end

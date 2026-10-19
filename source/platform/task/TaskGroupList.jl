@@ -97,6 +97,7 @@ the group closed.
 end
 
 get_document_title(group::ClosedTaskGroup) = getfield(group, :title)[]
+get_work_item_identifier(group::ClosedTaskGroup) = getfield(group, :identifier)[]
 
 # The counts of a group in a line: each code, then the tasks that run and wait.
 function _format_group_counts(counts)
@@ -110,13 +111,17 @@ function _format_group_counts(counts)
     join(parts, " · ")
 end
 
-# The line of a closed group: its kind, its counts and the time it took.
+# The line of a closed group: its kind, its counts and the time it took. Another
+# work item gives its kind and the line of its decoration.
 function _format_closed_task_group_summary(group::TaskGroupDocument)
     summary = get_task_group_document_summary(group)
     parts = String[get_task_group(group).name, _format_group_counts(get_task_group_document_counts(group))]
     summary.elapsed === nothing || push!(parts, format_elapsed_time(summary.elapsed; precision = 0))
     join(filter(!isempty, parts), " · ")
 end
+
+_format_closed_task_group_summary(item) =
+    join(filter(!isempty, String[describe_work_item_kind(item, 1), get_document_decoration(item).detail]), " · ")
 
 """
     collect_task_group_documents(list) -> Vector{TaskGroupDocument}
@@ -126,6 +131,24 @@ closed ones.
 """
 collect_task_group_documents(list::TaskGroupList) =
     TaskGroupDocument[group for group in list.groups if group isa TaskGroupDocument]
+
+"""
+    collect_work_items(list) -> Vector
+
+The open work items of `list`, in the order of their starts: each group of tasks
+and each other work item, such as a search, but the closed rows.
+
+Use it to read every work item of the session, whatever its kind.
+
+# Example
+
+    [get_work_item_identifier(item) for item in collect_work_items(get_session_task_group_list())]
+
+See also `collect_task_group_documents`, which gives the groups only.
+"""
+function collect_work_items end
+
+collect_work_items(list::TaskGroupList) = Any[item for item in list.groups if !(item isa ClosedTaskGroup)]
 
 # ── The addresses ────────────────────────────────────────────────────────────
 #
@@ -191,6 +214,12 @@ function find_navigator_address(list::TaskGroupList, group::TaskGroupDocument)
     steps === nothing ? nothing : extend_reference(EmptyReference(), steps...)
 end
 
+# Any other work item of the list is at its place in the list.
+function find_navigator_address(list::TaskGroupList, item)
+    index = findfirst(other -> other === item, collect(list.groups))
+    index === nothing ? nothing : extend_reference(EmptyReference(), _get_element_steps("groups", index)...)
+end
+
 # A task is at its place in its group, or it is the preparation of a group.
 function find_navigator_address(list::TaskGroupList, task::TaskDocument)
     place = find_task_document_group(task)
@@ -210,14 +239,15 @@ end
 """
     add_task_group!(list, group) -> list
 
-Put `group` at the end of the list, unless it is there already. A group whose row
-a person closed goes back into its place. A group that starts adds itself, so the
-caller is the task that writes the documents.
+Put `group`, a group of tasks or another work item, at the end of the list,
+unless it is there already. An item whose row a person closed goes back into its
+place. A group that starts adds itself, so the caller is the task that writes the
+documents.
 """
-function add_task_group!(list::TaskGroupList, group::TaskGroupDocument)
+function add_task_group!(list::TaskGroupList, group)
     groups = collect(list.groups)
     any(g -> g === group, groups) && return list
-    identifier = getfield(group, :identifier)[]
+    identifier = get_work_item_identifier(group)
     place = findfirst(g -> g isa ClosedTaskGroup && getfield(g, :identifier)[] == identifier, groups)
     place === nothing ? push!(list.groups, group) : (list.groups[place] = group)
     list
@@ -226,19 +256,23 @@ end
 """
     remove_task_group!(list, group) -> list
 
-Close the row of `group`: a [`ClosedTaskGroup`](@ref) takes its place in the
-list, and the files of the streams of its tasks go. The group goes on if it runs,
-and its tasks keep their bounded lines.
+Close the row of `group`, a group of tasks or another work item: a
+[`ClosedTaskGroup`](@ref) takes its place in the list, and the files of the
+streams of the tasks of a group go. A group goes on if it runs, and its tasks
+keep their bounded lines.
 """
-function remove_task_group!(list::TaskGroupList, group::TaskGroupDocument)
+function remove_task_group!(list::TaskGroupList, group)
     index = findfirst(g -> g === group, collect(list.groups))
     index === nothing && return list
-    list.groups[index] = ClosedTaskGroup(Cell(String(getfield(group, :identifier)[])),
-                                         Cell(String(getfield(group, :title)[])),
+    list.groups[index] = ClosedTaskGroup(Cell(String(get_work_item_identifier(group))),
+                                         Cell(String(get_document_title(group))),
                                          Cell(_format_closed_task_group_summary(group)))
-    remove_task_output_files!(group)
+    _remove_work_item_files!(group)
     list
 end
+
+_remove_work_item_files!(group::TaskGroupDocument) = remove_task_output_files!(group)
+_remove_work_item_files!(_) = nothing
 
 # The tasks of the groups of the session, as a roster reads them: one part for
 # each open group of the session list, and each task with its group as `within`.

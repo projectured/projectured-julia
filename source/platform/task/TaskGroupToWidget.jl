@@ -923,12 +923,14 @@ end
 """
     TaskGroupListToWidgetPane(; theme styles…)
 
-Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open group of
-the session, newest first, with its identifier, its title, its kind, the word of
-its state, its counts, how far it is and the time, and the buttons that stop it,
-run its unexpected tasks again, and close its row. The title is a link to the page
-of the group. A closed row leaves a [`ClosedTaskGroup`](@ref) in the list, which
-the pane does not show.
+Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open work item
+of the session, newest first. A group shows its identifier, its title, its kind,
+the word of its state, its counts, how far it is and the time, and the buttons
+that stop it, run its unexpected tasks again, and close its row. Another work
+item, such as a search, shows its identifier, its title, its kind, and the word
+of its state and its line as its decoration says them, and the buttons that stop
+it and close its row. The title is a link to the page of the item. A closed row
+leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -942,7 +944,7 @@ the pane does not show.
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
 
-const _LIST_COLUMNS = ("group", "title", "kind", "state", "counts", "progress", "elapsed", "")
+const _LIST_COLUMNS = ("item", "title", "kind", "state", "counts", "progress", "elapsed", "")
 
 """
     make_task_group_list_tab_title(list) -> PaneTabTitle
@@ -954,9 +956,9 @@ the same icon and badge, and a row of a tree shows the same.
 """
 make_task_group_list_tab_title(list::TaskGroupList; name = "Tasks") = make_pane_tab_title(list, String(name))
 
-# The list says how many of its groups run, and runs while one does.
+# The list says how many of its work items run, and runs while one does.
 function get_document_decoration(list::TaskGroupList)
-    running = count(group -> getfield(group, :status)[] in (:running, :stopping), collect_task_group_documents(list))
+    running = count(_is_work_item_running, collect_work_items(list))
     running == 0 && return DocumentDecoration(; icon = :list)
     DocumentDecoration(; icon = :list, conditions = [DocumentCondition(:running)],
                        counts = [DocumentCount(string(running, " running"); role = :accent)])
@@ -986,24 +988,68 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
                          gap = p.inline_gap)]
 end
 
-# The open groups of the list, newest first, each with its place in the list,
+# The row of another work item: its identifier, its title as a link to its page,
+# its kind, the word of its state and its line, as its decoration says them, and
+# the buttons that stop it and close its row.
+function _build_list_row(p, list::TaskGroupList, item, index::Int)
+    title = WidgetButton(get_document_title(item);
+                         gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
+                                                                        RangeReferenceStep(index - 1, index))))
+    is_going() = _is_work_item_running(item)
+    stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going)
+    close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, item);
+                                       enabled = () -> !is_going())
+    Any[WidgetLabel(get_work_item_identifier(item)),
+        title,
+        WidgetLabel(describe_work_item_kind(item, 1)),
+        _make_live_label(() -> _get_work_item_state(p, item)),
+        WidgetLabel(() -> get_document_decoration(item).detail),
+        WidgetLabel(""),
+        WidgetLabel(""),
+        HorizontalLayout(Any[stop_button, close_button]; vertical_align = :center, gap = p.inline_gap)]
+end
+
+# The word of the state of a work item and its color: the first condition of its
+# decoration.
+function _get_work_item_state(p, item)
+    conditions = get_document_decoration(item).conditions
+    isempty(conditions) && return ("", p.muted_color)
+    condition = first(conditions)
+    look = get_condition_look(Val(condition.name))
+    role = something(condition.role, Some(look.role))
+    (look.words, role === :accent ? p.running_color : role === nothing ? p.muted_color : _get_role_color(p, role))
+end
+
+# The open work items of the list, newest first, each with its place in the list,
 # which the path of its link names.
 _collect_shown_task_groups(list::TaskGroupList) =
-    [(index, group) for (index, group) in Iterators.reverse(collect(enumerate(list.groups)))
-     if group isa TaskGroupDocument]
+    [(index, item) for (index, item) in Iterators.reverse(collect(enumerate(list.groups)))
+     if !(item isa ClosedTaskGroup)]
+
+# The count of each kind of the open work items, in the order of the first start
+# of each kind, and how many run: "2 groups · 1 search · 1 running". With no item,
+# "0 groups · 0 running".
+function _format_list_heading(items)
+    kinds = Pair{Any,Vector{Any}}[]
+    for item in items
+        kind = Base.typename(typeof(item)).wrapper
+        place = findfirst(pair -> first(pair) === kind, kinds)
+        place === nothing ? push!(kinds, kind => Any[item]) : push!(last(kinds[place]), item)
+    end
+    parts = String[string(length(found), " ", describe_work_item_kind(first(found), length(found)))
+                   for (_, found) in kinds]
+    isempty(parts) && push!(parts, "0 groups")
+    join(vcat(parts, string(count(_is_work_item_running, items), " running")), " · ")
+end
 
 function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroupList, ctx)
-    heading = WidgetLabel(() -> begin
-        groups = collect_task_group_documents(list)
-        running = count(g -> getfield(g, :status)[] in (:running, :stopping), groups)
-        string(length(groups), length(groups) == 1 ? " group" : " groups", " · ", running, " running")
-    end)
+    heading = WidgetLabel(() -> _format_list_heading(collect_work_items(list)))
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         shown = _collect_shown_task_groups(list)
         isempty(shown) && return Cell[Cell(_make_label(
             "No group of tasks is open in this session.", p.muted_color))]
-        rows = Any[_build_list_row(p, list, doc, index) for (index, doc) in shown]
+        rows = Any[_build_list_row(p, list, item, index) for (index, item) in shown]
         Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
     end)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];

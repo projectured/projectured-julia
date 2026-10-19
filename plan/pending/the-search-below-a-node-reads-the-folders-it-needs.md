@@ -175,6 +175,54 @@ search shows its progress and can stop.
   snapshot. The row of a work item gives the computation what the task had.
 - **Q3. The limits. Decided (the owner, 2026-10-18): a depth of 10 and 100
   matches by default**, which the page names when it stops there.
+- **Q4. How does the task list hold a search? Decided (the owner, 2026-10-19:
+  "yes I agree").** The task list, its rows and its verbs took only a group of
+  tasks, and the explorer slice was included before the task slice. Option (a):
+  the task slice gets a small interface of a work item, and the explorer slice
+  comes after the task slice and answers it for the search. The options that
+  were not taken: (b) a search as a group of one task, which runs no task; (c) a
+  list of searches in the explorer, against Q2.
+
+## Step 2, the design
+
+- **The work item of the task list** (task slice, `TaskWorkItem.jl`). The list
+  holds a group, a closed group, or any other work item. A work item answers
+  `get_work_item_identifier` (`T3`, `S1`), `describe_work_item_kind(item, count)`
+  ("1 search", "2 searches"), `stop_work_item!` and `describe_work_item(item;
+  limit)`. Its state and its line come from its decoration
+  (`get_document_decoration`, `work_item = true`), so the interface needs no
+  word of state. A group answers the interface too. `add_task_group!`,
+  `remove_task_group!` and `find_navigator_address` of the list take any work
+  item. The Tasks pane draws a row for each open item: its identifier, its title
+  as a link to its page, its kind, its state and its line from the decoration,
+  and Stop and Close. The heading counts each kind: "2 groups · 1 search · 1
+  running", and a list of groups only reads as before. `list_task_groups`,
+  `find_task_group`, `describe_task_group`, `stop_tasks!` and
+  `close_task_group!` take any work item.
+- **Stop keeps the row** (this refines § the model, 3, which said that Stop takes
+  the row out). For a group, Stop and Close are two buttons and two verbs, and a
+  search follows them: Stop keeps the matches that the search found, and the
+  search reads nothing more; Close takes the row out and leaves a closed row, as
+  for a group.
+- **The search** (explorer slice): `ExplorerSearch` holds the root section of the
+  explorer, the steps from it to the node, the text, the limits, its identifier
+  (`S1`, `S2`, … in the order of the searches of the list of the session), the
+  time of its start, and whether it stopped. Its result is a cell for each node
+  below the node, in a tree of entries that the walk makes, as the tree of a
+  `DocumentTree` makes its entries. The cell of a node reads a cell that asks for
+  the children (`demand_tree_children`), so the node waits while that cell is
+  provisional, and the count of the nodes that wait is the count of those cells.
+  A node on the path to itself is not entered again. A lazy list of children is
+  read for its first `limit` nodes.
+- **Return in the filter** answers `StartExplorerSearchOperation(explorer, text)`:
+  the node is that of the page of the navigator, or the root. Its evaluation
+  makes the search, adds it to the list of the session, and shows its page in
+  the navigator; the caret stays in the field. It is no edit, so undo records
+  none.
+- **A press on a match** answers `OpenPageOperation(root, address)`. The explorer
+  opens the rows above the page that a visit of its navigator shows, when the
+  page is below its root section. So a link on any page in the explorer shows its
+  node in the tree, and a match does too.
 
 ## Not in this plan
 

@@ -91,8 +91,9 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        rerun_task_group_document!, stop_task_group_document!, wait_task_group_document,
        select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status
+export get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
-       add_task_group!, remove_task_group!
+       collect_work_items, add_task_group!, remove_task_group!
 export TaskTheme, ScaledTaskTheme
 export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
@@ -111,6 +112,7 @@ include("BuildStep.jl")
 include("TaskFeed.jl")
 include("TaskDocument.jl")
 include("TaskGroupDocument.jl")
+include("TaskWorkItem.jl")
 include("TaskGroupList.jl")
 include("TaskTheme.jl")
 include("TaskGroupToWidget.jl")

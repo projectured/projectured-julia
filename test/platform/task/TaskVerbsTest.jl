@@ -80,6 +80,19 @@ function test_task_group_verbs()
             @test find_task_group(identifier; editor) === nothing
         end
 
+        @testset "another work item is listed, found, described, stopped and closed" begin
+            item = _TaskViewProbeItem("S1", "a probe item")
+            add_task_group!(get_session_task_group_list(; editor), item)
+            lines = split(string(list_task_groups(; editor)), "\n")
+            @test first(lines) == "S1 · a probe item · probe · running · found 3"
+            @test find_task_group("S1"; editor) === item && find_task_group("a probe item"; editor) === item
+            @test string(describe_task_group(item; editor)) == "running\nfound 3"
+            @test string(describe_task_group(item; limit = 1, editor)) == "running"
+            @test string(stop_tasks!(item; editor)) == "Stopping the probe S1." && item.stopped
+            @test string(close_task_group!(item; editor)) == "Closed the probe S1."
+            @test find_task_group("S1"; editor) === nothing
+        end
+
         @testset "a model may call every verb" begin
             names = only(names for (owner, names) in make_task_api() if owner === TaskModule)
             @test :describe_task_group in names && :close_task_group! in names
