@@ -1,8 +1,8 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the design of step 2 and the questions of
-step 7. The JSON pipeline is the pilot, built from the bottom up. Step 1 is done,
-in the worktree `projectured-julia-views-compose`, branch `views-compose`.
+Status: IN PROGRESS, decided but for the questions of step 6. The JSON pipeline is
+the pilot, built from the bottom up. Step 1 is done, in the worktree
+`projectured-julia-views-compose`, branch `views-compose`.
 
 ## The ask
 
@@ -127,7 +127,7 @@ The facts for the JSON pipeline, found 2026-10-18:
    now; two views of one content do not; the focusing projection works on views.
 6. **The plan `an-insert-moves-the-paths-after-it.md` does not come first** (the
    owner, 2026-10-19: "I don't think we need to do the insert path plan first").
-7. **Until step 9, the caret of a view ends at the view and never enters its
+7. **Until step 8, the caret of a view ends at the view and never enters its
    content** (found in step 1). The text types still have their `selection`
    fields. A path through `.content` makes the selection walk write into the shared
    text, so two views would hold one chain of cells, and an in-place caret move of
@@ -142,27 +142,29 @@ The facts for the JSON pipeline, found 2026-10-18:
    over that drawing, through the IO map of the content. A first form of step 1
    printed a view as a `TextBlock` that held the caret of the view, which the owner
    rejected ("how can a TextView be printed into a TextBlock?").
-9. **Step 1 prints a content once for each place, and the syntax step waits until
-   a content is printed once** (the owner, 2026-10-19: "in step 1, it's fine" and
-   "we should not go to the syntax step before we solve this"). That is step 2.
+9. **Step 1 prints a content once for each place** (the owner, 2026-10-19: "in step
+   1, it's fine"), **and printing a document once is a topic of its own** (the
+   owner: "this issue of printing only once is not new, it has nothing to do with
+   the view and content separation"), in
+   `plan/tentative/a-document-at-several-places-is-printed-once.md`. Before that,
+   the owner said "we should not go to the syntax step before we solve this";
+   whether the syntax step waits for the tentative plan is not decided.
 
 ## What is not known yet
 
-- **How a content is printed once** (step 2): where the composite prints it, and
-  how each view gets the IO map of that print, with no cache and no kernel notion
-  of a content or a view. The model says a stage of the whole editor document,
-  which moves each content and each view one domain further and reuses the print
-  of each part that did not change.
+- **Printing a content once** is the tentative plan of decision 9. Until it
+  decides, a content is printed once for each place that shows a view of it, as a
+  document at several places is printed now.
 - **How the template engine gives a view its tail.** The templates describe the
   content mapping; the generic view mapping must reach the reference maps that they
   build.
 - **The cost of the mirrors.** Each view keeps a node for each place that it
   reached, at each domain of the chain.
 - **The old text chains.** `TextToGraphics` draws a `TextBlock` with its own caret
-  for every chain that is not a chain of views yet, so step 9 can take the field
+  for every chain that is not a chain of views yet, so step 8 can take the field
   from `TextBlock` only when no chain gives a text a caret.
 
-## Questions for step 7
+## Questions for step 6
 
 - **QA. The state of a view and the state of a place.** My proposal: the view keeps
   the caret and the folds, which its places share; the place keeps its part, its
@@ -220,7 +222,7 @@ and the output of each stage, as structures that a person reads.
      `layout`: a layout sends a key only by the selection, so Ctrl+Home with no
      selection reaches no caret.
    - The scroll stays with the place; a `TextView` keeps none. Question QA decides
-     it at step 7.
+     it at step 6.
 
    The shape:
 
@@ -255,7 +257,7 @@ and the output of each stage, as structures that a person reads.
    caret move. The last row shows the three prints of T (decision 9).
 
    Limits: a caret path into the content through `.content`, as a sweep or a
-   search makes one, writes selection cells into the shared text until step 9; a
+   search makes one, writes selection cells into the shared text until step 8; a
    key or a click makes none. An insert before the caret of another view does not
    move that caret.
 
@@ -263,26 +265,21 @@ and the output of each stage, as structures that a person reads.
    and primitive text and the printer walk of every platform example 153713;
    `test_json()` 239; the platform layering guard; the naming guard. The REPL walk
    of the example gives no error.
-2. [ ] **A content is printed once** (decision 9). The text of step 1 at three
-   places is printed once, and each view draws its caret over that one print. The
-   design comes first, in this plan, for the owner to decide: where the composite
-   prints a content and how a view gets the IO map of that print. Tests:
-   `test_text_view()`, with a count of the prints of T.
-3. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
+2. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
    `SyntaxToText`. Tests: `test_syntax_to_text()`.
-4. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the
+3. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the
    hidden ranges of the text view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
-5. [ ] **A JSON string and its view**, mapped to a syntax leaf view. Tests:
+4. [ ] **A JSON string and its view**, mapped to a syntax leaf view. Tests:
    `test_json_to_syntax()`.
-6. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
+5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
    `collapsed` fields of the JSON types go. Tests: `test_json()`,
    `test_example(json_example)`, `test_click_roundtrips()`.
-7. [ ] **Places**: the owner's example of one JSON file, two views and four places,
+6. [ ] **Places**: the owner's example of one JSON file, two views and four places,
    with the focusing projection printing a place; the pastes of QC.
-8. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
+7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
-9. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
-10. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
+8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
+9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
    `selection.md`, `text.md`, `syntax.md`, `json.md`; the plan moves to
    `plan/done/`.
 
