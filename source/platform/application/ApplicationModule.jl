@@ -32,6 +32,7 @@ using ..FaultViewModule
 using ..FileSystemModule
 using ..FocusModule
 using ..FrameStatisticsModule
+using ..BackgroundWorkModule
 using ..GestureHelpModule
 using ..GestureLogModule
 using ..HelpModule

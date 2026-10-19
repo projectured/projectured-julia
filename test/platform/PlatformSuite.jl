@@ -115,7 +115,10 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "dragtracking" => [],
     "display" => ["collection", "graphics", "layout", "natural", "screen", "style", "widget"],
     "essentials" => ["display", "natural", "style"],
-    "application" => ["appearance", "arrangement", "assistant", "clipboard", "collection", "conversation",
+    "backgroundwork" => ["arrangement", "collection", "domain", "layout", "projection", "roster", "serialization",
+                         "style", "widget"],
+    "application" => ["appearance", "arrangement", "assistant", "backgroundwork", "clipboard", "collection",
+                      "conversation",
                       "domain", "explorer", "fault", "fileformat", "filesystem", "focus", "gesturehelp",
                       "gesturelog", "graphics", "help", "inspector", "log", "mcplog",
                       "natural", "navigator", "pane", "primitive", "projection", "roster",
@@ -300,6 +303,7 @@ function test_platform()
         test_roster_program()
         test_document_tree()
         test_explorer()
+        test_background_work()
         test_document_decoration()
         test_system_process()
         test_work_plan()
@@ -419,7 +423,7 @@ export test_object_to_widget, test_find_bar_view_to_widget,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_text_and_syntax_themes, test_tool_themes, test_help_themes, collect_font_sizes, draw_font_sizes, draw_texts, test_appearance_wrapper, test_appearance_tab, test_appearance_file, test_settings, test_settings_wrapper, test_settings_tab, test_navigator_document, test_navigator_gestures, test_open_page_operation, test_navigator, test_navigator_visits, test_navigator_choices, test_navigator_address, test_navigator_to_widget, test_widget_tree,
-       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_widget_table_cell_order, test_widget_table_part_selection, test_arrangement,  test_arrangement_filter_sort, test_arrangement_natural, test_arrangement_menu, test_arrange_collection_operation, test_arrangement_quick_text, test_arrangement_find, test_arrangement_program, test_arrangement_group, test_roster, test_roster_table, test_roster_sources, test_roster_facets, test_roster_program, test_document_tree, test_explorer, test_document_decoration, test_system_process, test_work_plan, test_widget_table_header_levels, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_tab_label, test_mcp_log_pane, test_terminal, test_task_result, test_task_execution, test_task_group, test_build_step, test_task_document, test_task_views, test_task_group_scale, test_task_group_verbs, test_widget_split_pane, test_widget_transform_pane,
+       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_widget_table_cell_order, test_widget_table_part_selection, test_arrangement,  test_arrangement_filter_sort, test_arrangement_natural, test_arrangement_menu, test_arrange_collection_operation, test_arrangement_quick_text, test_arrangement_find, test_arrangement_program, test_arrangement_group, test_roster, test_roster_table, test_roster_sources, test_roster_facets, test_roster_program, test_document_tree, test_explorer, test_background_work, test_document_decoration, test_system_process, test_work_plan, test_widget_table_header_levels, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_tab_label, test_mcp_log_pane, test_terminal, test_task_result, test_task_execution, test_task_group, test_build_step, test_task_document, test_task_views, test_task_group_scale, test_task_group_verbs, test_widget_split_pane, test_widget_transform_pane,
        test_layout_closeout, test_grid_span, test_widget_forms, test_anchor_point, test_anchored_layout,
        test_scroll_layout, test_scroll_pane_parts, test_text_gutter,
        test_text_folding

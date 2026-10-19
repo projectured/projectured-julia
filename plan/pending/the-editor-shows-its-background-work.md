@@ -77,13 +77,21 @@ editor reads now, what it read, how long it took, and what failed.
    `get_background_work_store(editor)` reads it. `WriteBackgroundAnswersOperation`
    carries the number of its record. The work that `wait_for_cell!` runs on the
    task that owns the documents has a record too, when an editor is given.
-2. [ ] **The log, the feed and the page** (platform): `BackgroundWorkLog`, the
+2. [x] **The log, the feed and the page** (platform): `BackgroundWorkLog`, the
    feed and its wrapper, the title, the decoration, the roster of the records with
    its facets, the entry in the Editor section, and the insertion alias
    "background work". Tests: a folder that an explorer opens adds a record "the
    listings of folders" that ends; a failed work shows its message on the page;
    the row of the log runs while a work runs; a log that no view shows is not
-   filled.
+   filled. Done, in a new slice `backgroundwork` (`BackgroundWorkModule`), after
+   the frame statistics. The log holds an arrangement of a roster of its rows and
+   links the roster to itself, as the result folder of omnet does, and its page
+   draws a line that counts the works above that table. A row keeps its document
+   while its record stays, and gets only the fields that changed. The insertion
+   alias is one word, "background". A test drives the frames as the loop does,
+   with `drain_feeds!` before each frame: `run_frame!` alone drains no feed. The
+   omnet IDE builds its explorer with `make_editor_explorer_content`, so its
+   window turns on `background_work = true` too.
 3. [ ] **The guides:** `editor.md`, the guide of the slice of the page,
    `explorer.md`; the plan moves to `plan/done/`.
 

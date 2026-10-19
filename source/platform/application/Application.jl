@@ -272,7 +272,8 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
        gesture_help = (; measure),
        command_palette = (; measure),
        gesture_log = _make_gesture_log_option(document), message_log = true,
-       frame_statistics = true, fault_log = true, assistant_list = true, file_change = true)
+       frame_statistics = true, background_work = true, fault_log = true, assistant_list = true,
+       file_change = true)
 
 # The gesture log of a window records into the first gesture log that a tab of
 # its pane tree shows, or into a new one.
