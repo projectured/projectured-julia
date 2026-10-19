@@ -1,7 +1,8 @@
 # Views compose as content composes
 
-Status: LATER, decided but for the questions of step 6. The JSON pipeline is the
-pilot, built from the bottom up. No step has started.
+Status: IN PROGRESS, decided but for the questions of step 6. The JSON pipeline is
+the pilot, built from the bottom up. Step 1 is done, in the worktree
+`projectured-julia-views-compose`, branch `views-compose`.
 
 ## The ask
 
@@ -124,6 +125,15 @@ The facts for the JSON pipeline, found 2026-10-18:
 5. **The structure is recursive, and features stay** (the owner, 2026-10-18): two
    places of one view share its selection, as two places of one document share it
    now; two views of one content do not; the focusing projection works on views.
+6. **The plan `an-insert-moves-the-paths-after-it.md` does not come first** (the
+   owner, 2026-10-19: "I don't think we need to do the insert path plan first").
+7. **Until step 8, the caret of a view ends at the view and never enters its
+   content** (found in step 1). The text types still have their `selection`
+   fields. A path through `.content` makes the selection walk write into the shared
+   text, so two views would hold one chain of cells, and an in-place caret move of
+   one view (`_sync_selection!`) would move the caret of the other. So a text view
+   keeps a flat caret `{k}` on itself, and an edit through it goes back as a flat
+   edit of the view.
 
 ## What is not known yet
 
@@ -135,6 +145,11 @@ The facts for the JSON pipeline, found 2026-10-18:
   build.
 - **The cost of the mirrors.** Each view keeps a node for each place that it
   reached, at each domain of the chain.
+- **The text is content and also the drawn form.** Step 8 takes the `selection`
+  field from `TextBlock`, but every text stage after `TextViewToText` (the
+  decorators and `TextToGraphics`) reads the caret from the `selection` of a
+  `TextBlock`. Step 8 needs those stages to read the caret of a `TextView`, or a
+  type of its own for a text with a caret.
 
 ## Questions for step 6
 
@@ -151,16 +166,67 @@ The facts for the JSON pipeline, found 2026-10-18:
 ## Steps
 
 Each step is one or more commits with its tests, in a worktree, with a check of
-`SEALING.md` before each edit of a kernel file. Mark each step done here. The plan
-`an-insert-moves-the-paths-after-it.md` comes first. Each step keeps every pair below
-it working, and shows its composition: the content, the views and the output of
-each stage, as structures that a person reads.
+`SEALING.md` before each edit of a kernel file. Mark each step done here. Each step
+keeps every pair below it working, and shows its composition: the content, the views
+and the output of each stage, as structures that a person reads.
 
-1. [ ] **Text content and its view.** A `TextBlock` and a text view: one text in two
+1. [x] **Text content and its view.** A `TextBlock` and a text view: one text in two
    views, each with its own caret and scroll, and one view at two places, which
    share its caret. First in a test of the platform with no change of `main`, which
    measures the cells that a move of the caret recomputes; then on the editor.
    Tests: the text suites, `test_selection_localities()`.
+
+   Done 2026-10-19. What it made:
+   - `TextView(content)` in `source/platform/text/TextView.jl`: the field
+     `content`, and the `selection` and `mouse_target` that `@document` adds. Its
+     selection is a flat place `{k}`, `{s:e}` or a box, and ends at the view
+     (decision 7). `get_edited_field` names `content`.
+   - `TextViewToText`: a `TextView` to the `TextBlock` that the view shows. The
+     output holds the `CellVector` of the lines of the content, the same object,
+     and its selection is the caret of the view, live or dormant. The text stages
+     after it read it unchanged. Backward, a caret, a range or a box is the same
+     place of the view; the lowered edit of one run goes back as a flat
+     `ReplaceTextRangeOperation` of the view.
+   - `evaluate_operation` of a `ReplaceTextRangeOperation` edits the content of a
+     `TextView` and puts the caret on the view. An edit beside an inline image
+     through a view does nothing: an element write puts its caret into the lines.
+   - The example `text_view`: a pane split of three places over one text, view A,
+     view B and view A again (`make_pane_projection_example` takes `rows`). It is
+     on the skip list of the caret sweep, as every pane tree is.
+   - The scroll stays where it is now, with the place; a `TextView` keeps none.
+     Question QA decides it at step 6.
+
+   The shape:
+
+   ```
+   documents                               projections, for each place
+   PaneTree                                PaneToWidget, then the renderer
+   └ PaneSplit                             TextView => TextViewToText, TextToGraphics
+     ├ PaneGroup ─ PaneTab ─ view A ──┐
+     ├ PaneGroup ─ PaneTab ─ view B ──┼─ content: one TextBlock
+     └ PaneGroup ─ PaneTab ─ view A ──┘
+   view A: selection {9}, live            output of TextViewToText for a place of A:
+   view B: selection {4}, dormant           TextBlock(elements = content.elements,
+   TextBlock: selection nothing                       selection = the caret of A)
+   ```
+
+   Measured with `is_cell_valid` over the cells of the graphics of each place:
+   a caret move in view A makes 5 cells of each place of A stale and none of the
+   place of B; one `TextBlock` in one place makes 5 stale today. A typed character
+   makes 16, 15 and 16 stale: the text of all three places changes.
+
+   Limits: a caret path into the content through `.content`, as a sweep or a
+   search makes one, writes selection cells into the shared text until step 8 (the
+   caret walk lists 130 in the example; a key or a click makes none). An insert
+   before the caret of another view does not move that caret. The selection
+   locality sweep fails every caret of a pane tree on `main` too (the tab strip
+   draws the focus), so it does not measure this example.
+
+   Tests: `test_text_view()` 31; the text tests 655 (`test_text`,
+   `test_text_to_graphics`, `test_text_line_model`, `test_inline_image_caret`,
+   `test_text_first_line`, `test_word_wrapping`); `test_pane_construct` and
+   `test_pane_to_widget` 94; the platform layering guard; the naming guard. The
+   printer walk and the REPL walk of the example give no error.
 2. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
    `SyntaxToText`. Tests: `test_syntax_to_text()`.
 3. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the

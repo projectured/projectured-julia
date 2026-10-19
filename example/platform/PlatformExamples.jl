@@ -11,6 +11,7 @@ const syntax_example         = Example("syntax",         make_syntax_document_ex
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
 const plain_text_example     = Example("plain_text",     make_plain_text_document_example,     make_plain_text_projection_example)
 const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
+const text_view_example      = Example("text_view",      make_text_view_document_example,      make_text_view_projection_example)
 
 # How text layout works: one example for each rule of the line model, and one
 # for each line spacing. `run_example(text_spacing_examples)` opens the spacings
@@ -137,6 +138,7 @@ const platform_examples = Example[
     text_example,
     plain_text_example,
     text_with_image_example,
+    text_view_example,
     text_layout_examples...,
     text_spacing_examples...,
     object_example,

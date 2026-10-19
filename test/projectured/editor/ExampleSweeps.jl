@@ -271,7 +271,8 @@ function test_position_navigations()
                              # they are here for the widget-container reason
                              # above: the strip and the split pane hold the
                              # content, and Ctrl+Home reaches no caret in it.
-                             "pane", "empty_pane", "pane_json",
+                             # `text_view` is a pane tree of three places.
+                             "pane", "empty_pane", "pane_json", "text_view",
                              # `formula_report` is a Markdown page whose blocks
                              # the natural renderer stacks, here for the
                              # widget-container reason as well.

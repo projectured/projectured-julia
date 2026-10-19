@@ -6,7 +6,10 @@
 #
 # So the second stage is what decides how a tab's content looks: this one knows
 # widgets, layouts, primitive documents, and the placeholder a fresh tab holds.
-function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=default_new_pane_tab)
+# `rows` are more rows of the renderer of the tab content, before the rows of the
+# primitives, the layouts and the widgets.
+function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=default_new_pane_tab,
+                                      rows=Pair{Type,Any}[])
     font = StyleFont("Ubuntu", 20)
     widget = WidgetToGraphics(font; measure=measure)
     primitive = ChainingProjection(RecursiveProjection(PrimitiveToText()),
@@ -22,6 +25,7 @@ function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=defau
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure))
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
+        rows,
         Pair{Type,Any}[PrimitiveDocument => primitive,
                        DocumentNothing   => object],
         LayoutToGraphics().dispatch,

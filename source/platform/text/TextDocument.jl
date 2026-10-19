@@ -1472,22 +1472,24 @@ end
 _find_flat_place(text::TextBlock, flat::Int) =
     something(_flat_to_span(text, flat), _find_flat_image_place(text, flat), Some(nothing))
 
-# Standalone-TextBlock application. For a projected document the op is lowered
-# upstream and never arrives here. v1 handles the in-span case (caret or range
-# within one span); a cross-span range or an offset on a break/indentation gap
-# declines (leaves the document unchanged) — break-joins and multi-span edits are
-# a later pass.
+# The edit of a text that the reference names: a `TextBlock`, or the text of a
+# `TextView`, whose caret stays on the view. A projected text lowers the edit of one
+# run upstream, so only a text, a view, and an edit of the lines arrive here. It
+# handles a caret or a range within one span and an edit of the lines; a cross-span
+# range or an offset on a break or an indentation gap declines and leaves the
+# document unchanged.
 function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     document = editor.document
     split = _split_text_range_reference(op.reference)
     split === nothing && return
     block_path, start, stop = split
-    block = try
+    target = try
         evaluate_reference(document, block_path)
     catch
         return
     end
-    block isa TextBlock || return
+    block = _find_edited_text(target)
+    block === nothing && return
     if _is_line_edit(block, start, stop, op.replacement)
         newpos = _splice_lines!(block, start, stop, op.replacement)
         steps = get_reference_steps(strip_reference_types(op.reference))
@@ -1497,6 +1499,9 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     end
     image_edit = _make_image_edit(block, start, stop, op.replacement)
     if image_edit !== nothing
+        # An element write puts its caret into the lines that it writes, so through
+        # a view it would leave the caret in the content that the views share.
+        block === target || return
         evaluate_operation(editor, reroot_operation(image_edit, Tuple(get_reference_steps(block_path))))
         return
     end
@@ -1511,6 +1516,11 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     clear_selection!(document)
     set_selection!(document, newref)
 end
+
+# The text that an edit of a text changes: the block itself, or the content of a
+# view (`TextView.jl`); `nothing` for any other document.
+_find_edited_text(target) = nothing
+_find_edited_text(block::TextBlock) = block
 
 # The pair registers the flat edit: the kernel reroots its reference and maps it
 # back through a projection.
