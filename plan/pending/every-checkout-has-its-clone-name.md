@@ -33,4 +33,12 @@ The names of programs and build products do not change: the binary
 4. [ ] Check: no `[sources]` path is missing, `environment/build` of
    `omnet-julia` resolves and writes the IDE app, and `environment/all` of
    `projectured-julia` instantiates.
-5. [ ] Make `reactive` the default branch of projectured/PackageCompiler.jl.
+5. [x] Make `reactive` the default branch of projectured/PackageCompiler.jl.
+
+## Facts found on the way
+
+- The `project_hash` of a manifest includes the `[sources]` of its project. A
+  change of a source path thus makes `Pkg.instantiate` warn that the manifest
+  is stale. `Pkg.resolve()` in `environment/all` changed only that hash line.
+- The permission check blocks the fast-forward of `main`. The owner runs the
+  two `git merge --ff-only clone-names` commands.
