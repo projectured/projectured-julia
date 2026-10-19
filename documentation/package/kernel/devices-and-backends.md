@@ -193,9 +193,12 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
 - The painter walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls. `render_sdl_canvas` is a stub that returns an empty image.
-- `wait_for_input` blocks in `SDL_WaitEventTimeout` with a NULL event
-  pointer — SDL's look-only form, so everything stays queued for `run_read_stage!` —
-  in GC-safe slices with a `yield` between them. `wake_backend!` pushes a
+- `wait_for_input` looks at the queue and removes nothing, so everything
+  stays queued for `run_read_stage!`. A wait of at most 0.1 s looks with
+  `SDL_PollEvent` and a NULL event pointer, and sleeps 1 ms between the looks.
+  A longer wait blocks in `SDL_WaitEventTimeout` with a NULL event pointer, in
+  GC-safe slices with a `yield` between them; see [sdl.md](../backend/sdl/sdl.md).
+  `wake_backend!` pushes a
   user event registered at `initialize_backend!`; `SDL_PushEvent` is SDL's
   documented thread-safe entry, and `_poll_window_input` skips the event
   like any other unknown type.

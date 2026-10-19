@@ -94,7 +94,7 @@ while true
     if timeout > 0
         wait_for_input(editor.backend, editor.devices, timeout)
     else
-        yield()                      # the turn of the other tasks of this thread
+        sleep(TASK_SHARE)            # 1 ms: the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
     run_with_performance_counters() do   # bind a fresh per-frame counter store
@@ -137,7 +137,7 @@ most once per interval, so that the frames do not feed themselves.
 The wake-pending flag starts set, so the first frame paints before the first
 wait. A backend without a wait of its own sleeps one 10 ms poll slice per
 call, and that slice is also where cooperative `@async` tasks on the thread get
-their turn. A frame that does not wait yields once for the same reason.
+their turn.
 
 `run_frame!` is what a burst of input runs through:
 
@@ -217,7 +217,7 @@ run_on_editor_task!(() -> push!(turn.parts, part), editor; wait = false)
    channel for the answer, and a `description` that names the call.
 2. The drain of the next frame holds a posted function, so it runs as a code
    unit (`run_code_unit!`, `HeldFrames.jl`): the drain applies the operations and
-   the functions in order on a task of the default pool, and puts the value or
+   the functions in order on the task of the unit, and puts the value or
    the exception of each function into its channel.
 3. The calling task waits on the channel, and gets the value, or the exception
    thrown again. With `wait = false` the call only posts, and the posts of one
@@ -300,7 +300,8 @@ is new into a target document, on the editor task, once per frame, before
 embedder, so a person opens views on it like on any document. The contract is
 `FeedModule` (`Feed`, `drain_changes!`, `compute_wake_deadline`,
 `attach_wake_callback!`); feeds are given at construction
-(`Editor(...; feeds = Feed[…])`) and the list is fixed from then on.
+(`Editor(...; feeds = Feed[…])`). The system process slice and the assistant add
+their feed to a running editor at the first use.
 
 A producer wakes the editor through `wake_editor!` — thread-safe, coalescing,
 handed to each store as a callback at registration. A feed whose data arrives
@@ -318,6 +319,8 @@ The concrete feeds:
 | `ReflectionFeed` (the reflection slice) | a read of the value along its open paths, on a task of the default pool, which a drain starts | the snapshot of the last read | the reflected tree of the value: the next drain writes only what changed |
 | `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, and the set of those that changed | the rows of the task groups: a drain writes only the changed set |
 | `FileChangeFeed` (the filechange slice) | a watcher of each open file, which reads and parses the file after it settles | the parsed content of each changed file | the file document: the drain applies a `ReloadFileOperation` with the parsed content, or, for a document with edits that are not saved, logs that its file changed |
+| `SystemProcessFeed` (the systemprocess slice) | a read of `/proc` on a task of the default pool, which a drain starts at most once a second while a view reads the tree | the records of the last read | the tree of processes: a drain writes only what changed |
+| `AgentEventFeed` (the assistant slice) | the connection to an agent over ACP, which puts each event into an `AgentEventQueue` and wakes the editor | the events in order | the transcript of the assistant |
 
 A drain moves only data that its producer prepared off the loop: it does no I/O,
 calls no method of a type that a user defines, and does work that grows only with

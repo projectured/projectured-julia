@@ -58,6 +58,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [concepts.md](design/concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
 | [engineer-tour.md](design/engineer-tour.md) | design | How do the concepts combine into a system, each one with its real code? |
 | [system-anatomy.md](design/system-anatomy.md) | design | What is the editor made of? The pipeline, the package graph, the layers, the module inventory. |
+| [communication-anatomy.md](design/communication-anatomy.md) | design | Which parts of the editor run at the same time, and by which means do they give data to each other? |
 | [domain-anatomy.md](design/domain-anatomy.md) | design | What parts does every domain have, and how do an edit and a registration travel through them? |
 | [domain-inventory.md](design/domain-inventory.md) | reference | What are the twenty domains, what depends on what, and where is the document of each? |
 | [package/README.md](package/README.md) | reference | The design document of each package, one folder per slice. |
@@ -144,7 +145,7 @@ section of the file you are reading; cite any other file by name.
 
 1. New to ProjecturEd: [concepts.md](design/concepts.md), then [setup-guide.md](guide/setup-guide.md) and [examples-tour.md](guide/examples-tour.md).
 1b. Here to show your own data: [view-your-data-guide.md](guide/view-your-data-guide.md), then [own-project-guide.md](guide/own-project-guide.md).
-2. New and an engineer: [engineer-tour.md](design/engineer-tour.md), then [system-anatomy.md](design/system-anatomy.md).
+2. New and an engineer: [engineer-tour.md](design/engineer-tour.md), then [system-anatomy.md](design/system-anatomy.md) and [communication-anatomy.md](design/communication-anatomy.md).
 3. About to open a session: [setup-guide.md](guide/setup-guide.md), then [debugging-guide.md](guide/debugging-guide.md).
 4. About to change code: [architecture-invariants.md](rule/architecture-invariants.md), then [architecture-rules.md](rule/architecture-rules.md), [package-rules.md](rule/package-rules.md) and [naming-rules.md](rule/naming-rules.md).
 5. About to add or change a domain: [domain-anatomy.md](design/domain-anatomy.md), [domain-inventory.md](design/domain-inventory.md), the document of the domain in [package/](package/README.md), then [new-domain-guide.md](guide/new-domain-guide.md).
