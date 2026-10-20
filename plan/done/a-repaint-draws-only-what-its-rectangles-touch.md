@@ -1,7 +1,7 @@
 # A repaint draws only what its rectangles touch
 
-Status: PENDING, 2026-10-20. In progress on the branch `repaint-skip`, in the
-worktree `projectured-julia-repaint-skip`. No decision is open.
+Status: DONE, 2026-10-20, on the branch `repaint-skip`, in the worktree
+`projectured-julia-repaint-skip`. Not landed on `main`.
 
 ## The ask
 
@@ -179,7 +179,7 @@ on `main` before the owner approves.
      `Fail`, zero `Error`, and the same count of `Broken`.
 
    Commit.
-3. [ ] **The measurement and the guides.**
+3. [x] **The measurement and the guides.** Done; see [As built](#as-built).
    - In a live window, put one moving dot in a `GraphicsCanvas` tab, beside the
      Explorer and an Assistant transcript. Do not run an assistant turn. Write
      the mean frame time from `FrameStatistics` on `main` and on the branch in
@@ -215,3 +215,69 @@ on `main` before the owner approves.
   x from 45 to 57, and none at each even x. The test covers even positions, and
   it marks one odd position with `@test_broken`. This plan does not fix the
   fault: the walk, not the skip, makes these rectangles.
+- **Step 2.** The render takes the partial paint and the placement key as
+  keywords, `paint` and `key`, so a full paint, `write_image` and an overlay call
+  it as before. `_paint_dirty_rects!` answers the `_PartialPaint`, and its
+  `drawn` counts the leaves drawn. The pad of 2 pixels is the constant
+  `_DIRTY_RECT_PAD`. A run with a skip that shrinks each record by 5 pixels made
+  three testsets of the pixel test fail, so the test guards the skip. The
+  guide `sdl.md` changed in this step, with the code.
+- **Suites.** `test_sdl()`: 985 pass, 2 fail, 1 error, 1 broken on the branch;
+  975 pass and the same 2 fail and 1 error on `main` at `983d0a42b`, all in
+  `TreeRenderTest.jl:43, 44, 55`. The 10 more passes and the 1 broken are the new
+  test. `test_video()`: 74 pass, 6 fail on both, at `VideoTest.jl:146, 153` and
+  `ApplicationVideoTest.jl:163, 165, 210, 300`, the failures known on `main`.
+
+### The numbers
+
+Measured on 2026-10-20 in the lane `taskset -c 28,30,31`, with a load of 1.0 to
+1.9 on 32 cores. Each time is the median of 200 frames after 30 frames of warm
+up, in the order `main`, branch, `main`. The scripts are in
+`/var/tmp/repaint-skip/`: `repaint_bench.jl` draws a synthetic window of
+1600 × 1000 with a tree of 300 rows, a transcript of 2000 lines, a dashboard of
+4 charts with no layout, and an animation. `app_bench.jl` builds the real
+application window as the application tests build it, on a real `SdlBackend`,
+with `widget.md` in a tab and the animation in a group at its right, and it
+times `run_frame!`. Both turn vsync off.
+
+The texts drawn in each frame, counted at the text render:
+
+| Window | Scene | `main` | Branch |
+| --- | --- | --- | --- |
+| synthetic | one dot | 653 to 675 | 0 |
+| synthetic | 20 bodies with labels | 447 | 20 |
+| real application | one dot | 456, at most 668 | 0 |
+| real application | 20 bodies with labels | 354 | 20 |
+
+The 20 bodies give more than 32 rectangles, so both paint the one rectangle that
+covers them. The 20 texts of the branch are the 20 labels that move.
+
+The frame times, median in ms:
+
+| Window | Renderer | Scene | `main` | Branch |
+| --- | --- | --- | --- | --- |
+| synthetic | software | one dot | 1.70, 1.62 | 0.28 |
+| synthetic | software | 20 bodies | 1.44, 1.44 | 0.70 |
+| synthetic | OpenGL window | one dot | 2.22, 2.25 | 0.27 |
+| synthetic | OpenGL window | 20 bodies | 1.59, 1.59 | 0.62 |
+| real application | OpenGL window | no animation | 2.58, 2.69 | 2.59 |
+| real application | OpenGL window | one dot | 5.29, 4.97 | 2.40 |
+| real application | OpenGL window | 20 bodies | 4.30, 4.40 | 2.60 |
+
+In the real application, one dot added about 2.5 ms to a frame on `main`, and
+nothing measurable on the branch.
+
+The cost against the size of the window, synthetic, software renderer, one dot,
+with more charts in the dashboard:
+
+| Charts | Texts drawn on `main` | `main` | Branch | The walk alone |
+| --- | --- | --- | --- | --- |
+| 4 | 653 | 1.69 | 0.29 | 0.30 |
+| 16 | 2122 | 5.14 | 0.85 | 0.85 |
+| 64 | 7997 | 19.72 | 3.51 | 3.52 |
+
+On `main` the paint grows with what the window shows. On the branch the frame is
+the walk: the paint of a far change costs nothing measurable, and the walk grows
+with the graphics of a canvas with no layout, because it visits each of them in
+each frame. These windows are lighter than the window of the report, which took
+190 ms with one dot during an assistant turn; that window was not measured.

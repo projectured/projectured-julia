@@ -128,7 +128,7 @@ end
     @test isempty(find_differing_frames(canvas,
         [make_writes(inner_x, [20, 60]); make_writes(bar_x, [44, 46, 52, 120, 300])]))
     canvas, _, bar_x = make_scaled_scene()
-    # @broken: a viewport with a scale sets its clip in the units of its content, so a dirty rectangle that cuts its box at an odd pixel gets a clip one pixel off; plan/pending/a-repaint-draws-only-what-its-rectangles-touch.md
+    # @broken: a viewport with a scale sets its clip in the units of its content, so a dirty rectangle that cuts its box at an odd pixel gets a clip one pixel off; plan/done/a-repaint-draws-only-what-its-rectangles-touch.md
     @test_broken isempty(find_differing_frames(canvas, make_writes(bar_x, [45])))
 end
 
