@@ -107,6 +107,23 @@ Each edit is an operation with an inverse: a move is a `MoveRangeOperation`, whi
 
 `compute_pivot_measure(table, rows, measure)` computes a measure over a part. A `missing` value counts for `:count` and for nothing else. `:sum` of no value is `0`; `:mean`, `:minimum` and `:maximum` of no value are `missing`.
 
+### The assistant
+
+The model of an assistant reads and changes a pivot through `execute_julia_code`. `PivotModule.__init__` declares the names of the pivot with `register_assistant_api!`, with a paragraph of the system text that shows each verb in an example. A pivot in a tab is the `ReferencedDocument` that `get_edited_document(find_pane(title))` answers.
+
+- **Read.** The display of a pivot, `MIME"text/plain"`, is a line that names the zones as the bar names them, then the grid of the table as text: the keys of the rows and of the columns, and the value of each measure in a text column of its own. The answer of a tool is a limited display, so it shows the rows and the columns that its display size holds and says how many it leaves out. A `print` writes Julia's own form of the struct, as it does for `WidgetTable`. `find_pivot_value(pivot, row_key, column_key; measure = 1)` reads one value, the number that the cell shows. A key is a tuple of the values of the dimensions, and a key that does not occur gives `nothing`.
+- **Change.** Each verb makes the operation that the UI makes, so the tool `undo` takes it back in one step. No verb moves the selection of the person.
+  - `move_pivot_field!(pivot, column, zone; place)` makes the `MoveRangeOperation` of a drag. `zone` is `:fields`, `:columns`, `:rows` or `:cells`.
+  - A measure is an element of `pivot.measures`, so `insert_elements!` and `delete_elements!` add and remove one.
+  - `replace_referenced_value!(part, field, value)` writes a setting of the pivot, of a dimension or of a measure, as a menu writes it: `totals`, `cell_view`, `order`, `limit`, `bin`, `hidden_values` or `aggregate`. The field form of the verb writes a field of any part, also one that holds `nothing`.
+
+```julia
+pivot_1 = get_edited_document(find_pane("Sales"))
+find_pivot_value(pivot_1, ("EU", "DE"), 2025)       # 80.0
+move_pivot_field!(pivot_1, "country", :columns)
+replace_referenced_value!(pivot_1, :totals, true)
+```
+
 ## Usage
 
 ```julia
@@ -125,4 +142,4 @@ compute_pivot_measure(sales, rows, PivotMeasure("amount", :sum))   # 15.0
 
 The example `pivot` draws the sales of `make_pivot_sales_rows()` by region and country down and by year across: `run_example("pivot")`.
 
-The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`, `test_pivot_cell_views()` and `test_pivot_chart_views()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.
+The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`, `test_pivot_cell_views()`, `test_pivot_chart_views()`, `test_pivot_table_display()` and `test_pivot_assistant_api()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.

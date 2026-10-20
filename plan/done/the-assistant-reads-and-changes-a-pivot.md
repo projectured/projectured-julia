@@ -1,8 +1,8 @@
 # The assistant reads and changes a pivot
 
-> **Kind:** plan · **Status:** pending, written 2026-10-20. D1 decided the same
-> day. No step is started. ·
-> **Stands on:** [pivot-table-next-steps.md](pivot-table-next-steps.md) (P6),
+> **Kind:** plan · **Status:** done, 2026-10-21, on the branch `assistant-pivot`.
+> Written 2026-10-20, D1 decided the same day. ·
+> **Stands on:** [pivot-table-next-steps.md](../pending/pivot-table-next-steps.md) (P6),
 > [pivot.md](../../documentation/package/domain/pivot/pivot.md),
 > [the-assistant-uses-the-whole-editor.md](../done/the-assistant-uses-the-whole-editor.md) (D8),
 > [orientation.md](../../documentation/guide/orientation.md)
@@ -210,15 +210,21 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
     ranking is not changed, because a change of `search_api` waits for the owner.
   - The test is `test_pivot_assistant_api` in `test/domain/pivot/editor/PivotModuleTest.jl`,
     11 of 11. `test_assistant_documentation` 365 of 365.
-- [ ] **4. Check the neighbours.** Run `test_pivot()`, `test_application()` and
-  `test_referenced_document_editor()`, because a new declared docstring can move
-  the rank of `find_pane` in a search. Search omnet-julia for a method of
-  `replace_referenced_value!` before the step ends, because a new platform
-  method can collide with a method that omnet-julia defines.
-- [ ] **5. Document.** A section "The assistant" in
+- [x] **4. Check the neighbours.** Done 2026-10-21. Run `test_pivot()`,
+  `test_application()` and `test_referenced_document_editor()`, because a new
+  declared docstring can move the rank of `find_pane` in a search. Search
+  omnet-julia for a method of `replace_referenced_value!` before the step ends,
+  because a new platform method can collide with a method that omnet-julia
+  defines.
+  - `test_pivot()` 351 of 351. `test_application()` 385, and 2 marked broken as
+    before. `test_referenced_document_editor()` 109 and 2 failures, both in "a long
+    file tab scrolls…" at `ReferencedDocumentEditorTest.jl:369` and `:381`: the
+    known result of main 8453c0406 of 2026-10-20, which a clean checkout gives
+    too. Its search-rank testset passes 9 of 9. omnet-julia: see step 2.
+- [x] **5. Document.** Done 2026-10-21. A section "The assistant" in
   [pivot.md](../../documentation/package/domain/pivot/pivot.md) with the
   examples of the paragraph. Mark P6 done in
-  [pivot-table-next-steps.md](pivot-table-next-steps.md).
+  [pivot-table-next-steps.md](../pending/pivot-table-next-steps.md).
 
 ## Not in this plan
 
