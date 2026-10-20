@@ -6,10 +6,11 @@
 
 using Test
 
-# The window of `run_application` over `paths`, on a headless backend.
+# The window of `run_application` over `paths`, on a headless backend, with the
+# first file in front, as a press on its tab puts it.
 function _fw_make_window(paths, root)
     settings = make_settings()
-    document = make_application_document(paths; root, settings)
+    document = _app_focus_first_file!(make_application_document(paths; root, settings))
     backend = HeadlessBackend()
     editor = build_editor(document, make_application_projection(); backend, settings,
                           window = (; title = "ProjecturEd", width = 1600, height = 1000,
