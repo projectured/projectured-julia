@@ -1208,6 +1208,24 @@ _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::Nothing) =
 _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
     SDL_RenderSetClipRect(renderer, Ref(prev))
 
+# The scale in force of `renderer`: the display density times the supersample
+# factor of a window or of an offscreen renderer, times the scale of each
+# viewport that the render is in.
+function _get_render_scale(renderer::Ptr{SDL_Renderer})
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    (fx[] > 0 ? Float64(fx[]) : 1.0, fy[] > 0 ? Float64(fy[]) : 1.0)
+end
+
+# The device pixels that the logical box from `(x0, y0)` to `(x1, y1)` touches at
+# the scale `(scale_x, scale_y)`, as a rectangle to set at the scale 1: the corner
+# rounds down and the far edge rounds up.
+function _make_device_rect(x0::Int, y0::Int, x1::Int, y1::Int, scale_x::Float64, scale_y::Float64)
+    left = floor(Int32, x0 * scale_x)
+    top = floor(Int32, y0 * scale_y)
+    SDL_Rect(left, top, ceil(Int32, x1 * scale_x) - left, ceil(Int32, y1 * scale_y) - top)
+end
+
 # Viewports nest, and SDL's clip rectangle does not. `SDL_RenderSetClipRect`
 # REPLACES what is in force, and clearing it with `C_NULL` removes clipping
 # altogether rather than putting the enclosing one back. Left to SDL, a viewport
@@ -1217,6 +1235,13 @@ _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
 # would draw its later content over the tab strip and outside the page.
 #
 # So a viewport intersects with the clip in force, and restores it afterwards.
+#
+# SDL keeps a clip in device pixels: it scales a clip by the scale in force when
+# the clip is set, and it answers the clip in force in the units of the scale in
+# force, cut to whole units. Under the scale of a content, a whole unit is more
+# than one pixel. So a viewport reads and sets each clip at the scale 1, in
+# device pixels, and it sets the scale of its content after the clip: no scale
+# rounds a clip.
 #
 # In a partial paint, `key` is the placement key of the viewport. Its content
 # skips what misses the rectangle in paint, except under a scale: the records
@@ -1231,41 +1256,27 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     canvas = vp.content::GraphicsCanvas
     cx, cy = Int(canvas.x), Int(canvas.y)
     M = vp.transform::AffineTransform
-    prev = _clip_current(renderer)
     org_x, org_y, edges = _compute_viewport_content_place(vx, vy, vw, vh, cx, cy, M)
-    if _is_plain_viewport_transform(M)
-        # Fast path: a plain transform clips to the box and draws unscaled.
-        box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
-        SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
+    # Only the scale (a, d) and the translation (e, f) of a transform count; a
+    # rotation or a shear is dropped.
+    plain = _is_plain_viewport_transform(M)
+    sx = plain || M.a == 0.0 ? 1.0 : M.a
+    sy = plain || M.d == 0.0 ? 1.0 : M.d
+    base_x, base_y = _get_render_scale(renderer)
+    SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+    prev = _clip_current(renderer)
+    box = _make_device_rect(vx, vy, vx + vw, vy + vh, base_x, base_y)
+    SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
+    SDL_RenderSetScale(renderer, Cfloat(base_x * sx), Cfloat(base_y * sy))
+    if plain
         _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio;
                         paint, key = _make_render_key(paint, canvas, key))
-        _clip_restore!(renderer, prev)
-        return
+    else
+        _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio)
     end
-    # Translate+scale path. Rotation/shear (off-diagonal) is dropped for now —
-    # only the scale (a, d) and translation (e, f) are honoured.
-    sx = M.a == 0.0 ? 1.0 : M.a
-    sy = M.d == 0.0 ? 1.0 : M.d
-    # Compose the content scale onto the active render scale. Reading the
-    # current scale keeps this correct under the display density and the
-    # offscreen supersample factor (see `_render_window!` / `write_image`).
-    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
-    SDL_RenderGetScale(renderer, fx, fy)
-    base_x = Float64(fx[]); base_x <= 0 && (base_x = 1.0)
-    base_y = Float64(fy[]); base_y <= 0 && (base_y = 1.0)
-    SDL_RenderSetScale(renderer, Cfloat(base_x * sx), Cfloat(base_y * sy))
-    # Set the clip *after* the scale change, expressed in the new logical units
-    # (old-logical ÷ scale), so it lands on the same device rectangle as the
-    # viewport box regardless of the content scale. The intersection is taken in
-    # the OLD units, where the enclosing clip is expressed, and converted after.
-    box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
-    box = prev === nothing ? box : _clip_intersect(box, prev)
-    clip = Ref(SDL_Rect(Int32(round(box.x / sx)), Int32(round(box.y / sy)),
-                        Int32(round(box.w / sx)), Int32(round(box.h / sy))))
-    SDL_RenderSetClipRect(renderer, clip)
-    _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio)
-    SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
+    SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     _clip_restore!(renderer, prev)
+    SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
 end
 
 # True when a viewport draws its content unscaled and unmoved, so a plain clip to
@@ -2196,6 +2207,40 @@ function _add_dirty_rect!(region::_DirtyRegion, r::NTuple{4,Int})
     nothing
 end
 
+# True when the rectangles `a` and `b` share a pixel.
+_has_overlap(a::NTuple{4,Int}, b::NTuple{4,Int}) =
+    a[1] < b[3] && b[1] < a[3] && a[2] < b[4] && b[2] < a[4]
+
+# A rectangle of `region` that cuts the box of a viewport with a scale grows to
+# the whole box, cut to the window. The software renderer draws a scaled texture
+# that a clip cuts off its grid of pixels with another sampling, so content cut
+# that way would differ from a full paint. The records keep the box of a viewport
+# inside scaled content in the units of that content: a rectangle that meets
+# such a box only repaints more than it must.
+function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowResources)
+    isempty(region.rects) && return nothing
+    boxes = NTuple{4,Int}[]
+    for (box, _, transform) in values(res.painted.viewports)
+        _is_plain_viewport_transform(transform) && continue
+        window_box = (clamp(box[1], 0, res.width), clamp(box[2], 0, res.height),
+                      clamp(box[3], 0, res.width), clamp(box[4], 0, res.height))
+        _is_empty_box(window_box) || push!(boxes, window_box)
+    end
+    # A box that grows a rectangle can cut another box, so the passes go on until
+    # no box grows one. Each box is added once at most.
+    grown = true
+    while grown
+        grown = false
+        for box in boxes
+            any(r -> _has_overlap(r, box), region.rects) || continue
+            any(r -> _is_rect_covered(box, r), region.rects) && continue
+            _add_dirty_rect!(region, box)
+            grown = true
+        end
+    end
+    nothing
+end
+
 # True if any of `elem`'s own visual field cells is stale. A view state field is
 # the reader's (not rendered) and `:prev`/`:next` are the list spine (handled
 # separately), so they never force a repaint on their own.
@@ -2980,6 +3025,7 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
         _add_dirty_rect!(padded, (clamp(r[1] - pad, 0, res.width), clamp(r[2] - pad, 0, res.height),
                                   clamp(r[3] + pad, 0, res.width), clamp(r[4] + pad, 0, res.height)))
     end
+    _extend_over_scaled_viewports!(padded, res)
     padded.rects
 end
 
@@ -3091,11 +3137,16 @@ function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas
                              records::Union{Nothing,Dict{UInt,NTuple{4,Int}}} = nothing)
     paint = records === nothing ? nothing : _PartialPaint(records, (0, 0, 0, 0), 0)
     key = _make_render_key(paint, canvas, UInt(0))
+    # The clip and the background of a rect cover the same device pixels, as a
+    # viewport reads them (`_render_viewport!`).
+    scale_x, scale_y = _get_render_scale(renderer)
     for r in rects
-        clip = Ref(_to_sdl_rect(r))
+        clip = Ref(_make_device_rect(r[1], r[2], r[3], r[4], scale_x, scale_y))
+        SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderSetClipRect(renderer, clip)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderFillRect(renderer, clip)
+        SDL_RenderSetScale(renderer, Cfloat(scale_x), Cfloat(scale_y))
         paint === nothing || (paint.rect = r)
         _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, width, height), ratio; paint, key)
     end

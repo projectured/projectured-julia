@@ -1,7 +1,8 @@
 # A partial paint repaints the rectangles of the dirty walk. Its pixels are the
 # pixels of a full paint of the same frame: also where the ink of a glyph reaches
 # past the box of its text, where elements with alpha overlap, where two
-# rectangles overlap, in a list of nodes, and inside a viewport with a scale.
+# rectangles overlap, in a list of nodes, and inside a viewport with a scale. A
+# viewport with a scale clips at the device pixels of its box.
 function test_partial_paint()
 @testset "a partial paint" begin
 
@@ -23,9 +24,9 @@ end
 # Paint `canvas` by the rectangles of the dirty walk into one renderer, and in full
 # into another: once before the changes, and once after each of them. Answer the
 # frames whose pixels differ; frame 1 is the paint before the changes.
-function find_differing_frames(canvas, changes)
-    partial = SDL.open_offscreen_renderer(width, height; supersample = 1)
-    full = SDL.open_offscreen_renderer(width, height; supersample = 1)
+function find_differing_frames(canvas, changes; supersample = 1, density = 1)
+    partial = SDL.open_offscreen_renderer(width, height; supersample, density)
+    full = SDL.open_offscreen_renderer(width, height; supersample, density)
     differing = Int[]
     try
         state = SDL.make_offscreen_paint_state(partial)
@@ -113,23 +114,30 @@ end
 end
 
 @testset "a viewport with a scale" begin
-    # A viewport with a scale of 2, and a bar that moves across its left edge.
+    # A viewport with a scale of 2 at (50, 50), which holds a viewport with no
+    # scale: in the window, the inner one covers x 50 to 210 and y 110 to 190. A
+    # bar moves across both, to even and to odd pixels.
     function make_scaled_scene()
         inner_x = Cell(10)
+        inner = GraphicsCanvas(Any[GraphicsText("inner text", 0, 0; font, color = black),
+                                   GraphicsRect(10, 5, 50, 20; color = translucent)])
         content = GraphicsCanvas(Any[GraphicsText("scaled text", 0, 0; font, color = black),
                                      GraphicsText("ƒ second line", 0, 20; font, color = black),
-                                     GraphicsCircle(() -> inner_x[], 50, 5; color = translucent)])
+                                     GraphicsCircle(() -> inner_x[], 50, 5; color = translucent),
+                                     GraphicsViewport(0, 30, 80, 40, inner)])
         viewport = GraphicsViewport(50, 50, 200, 150, content; transform = make_affine_scale(2))
         bar_x = Cell(10)
         bar = GraphicsRect(() -> bar_x[], 40, 4, 200; color = translucent)
         (GraphicsCanvas(Any[viewport, bar]; w = width, h = height), inner_x, bar_x)
     end
-    canvas, inner_x, bar_x = make_scaled_scene()
-    @test isempty(find_differing_frames(canvas,
-        [make_writes(inner_x, [20, 60]); make_writes(bar_x, [44, 46, 52, 120, 300])]))
-    canvas, _, bar_x = make_scaled_scene()
-    # @broken: a viewport with a scale sets its clip in the units of its content, so a dirty rectangle that cuts its box at an odd pixel gets a clip one pixel off; plan/done/a-repaint-draws-only-what-its-rectangles-touch.md
-    @test_broken isempty(find_differing_frames(canvas, make_writes(bar_x, [45])))
+    # At the scale 1, at 2 as a window draws, and at 2.5, which is no whole number.
+    for (supersample, density) in ((1, 1), (2, 1), (2, 1.25))
+        canvas, inner_x, bar_x = make_scaled_scene()
+        @test isempty(find_differing_frames(canvas,
+            [make_writes(inner_x, [20, 60]);
+             make_writes(bar_x, [44, 45, 46, 47, 52, 53, 101, 103, 120, 131, 207, 209, 300])];
+            supersample, density))
+    end
 end
 
 # The records of a dirty walk, with no window.
@@ -183,6 +191,31 @@ end
     @test length(rects) == 2
     # Row 4 under the old place of the dot, row 9 under its new place, and the dot.
     @test drawn == 3
+end
+
+@testset "a viewport with a scale clips at the device pixels of its box" begin
+    # A viewport with a scale of 2, at an odd place and of an odd width, holds a
+    # wider viewport with no scale. Both are filled with black, so the black
+    # columns of a row are the clip: x 51 to 151.
+    for supersample in (1, 2)
+        inner = GraphicsViewport(-5, -5, 200, 100,
+                                 GraphicsCanvas(Any[GraphicsRect(0, 0, 200, 100; color = black)]))
+        viewport = GraphicsViewport(51, 20, 101, 60, GraphicsCanvas(Any[inner]);
+                                    transform = make_affine_scale(2))
+        off = SDL.open_offscreen_renderer(width, height; supersample)
+        try
+            SDL._render_canvas_offscreen!(off, GraphicsCanvas(Any[viewport]; w = width, h = height),
+                                          width, height, background)
+            surface = unsafe_load(off.surface)
+            pixels = unsafe_wrap(Array, Ptr{UInt32}(surface.pixels),
+                                 (Int(surface.pitch) ÷ 4, Int(surface.h)))
+            row = 40 * supersample + 1
+            black_columns = [x - 1 for x in 1:(width * supersample) if pixels[x, row] & 0x00ffffff == 0]
+            @test black_columns == collect((51 * supersample):(152 * supersample - 1))
+        finally
+            SDL.close_offscreen_renderer(off)
+        end
+    end
 end
 end
 end
