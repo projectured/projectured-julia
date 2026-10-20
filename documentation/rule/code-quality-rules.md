@@ -100,7 +100,7 @@ the shape of a histogram. The frame decides the chart: …
 
 # Example
 
-    vectors = get_simulation_vector_results(get_project_result_directory())
+    vectors = get_simulation_vector_results(get_project_result_directory(project))
     open_pane!(make_result_plot(vectors; title = "Delay"))
 
 See also `make_result_table`, which shows the same frame as rows.

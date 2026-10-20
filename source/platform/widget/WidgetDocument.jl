@@ -403,8 +403,8 @@ pixels.
 # Example
 
     open_pane!(WidgetButton("Run again";
-                                    action = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")));
-               title = "Runner")
+                            action = editor -> rerun_tasks!(find_task_group("T1"; editor); editor));
+               title = "Run again")
 
 `action` is that command. Pass an `Action` to bind a shared one: the button
 shows its `label`/`icon`, follows its `enabled`, and fires its callback (the
@@ -1120,8 +1120,7 @@ documents.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
-    open_pane!(WidgetTitlePane("Delay", table); title = "Delay")
+    open_pane!(WidgetTitlePane("Delay", WidgetLabel("1.5 s")); title = "Delay")
 
 See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
 whose `title` names a tab.
@@ -1164,10 +1163,9 @@ two documents in tabs of their own, use `show_layout` and the panes.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetSplitPane(:horizontal, Any[table, note]; sizes = [400, 400]); title = "Split")
 
 `active_splitter` and `drag_anchor` are **transient UI state** holding an
 in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
@@ -1298,10 +1296,9 @@ this is for tabs inside a widget.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetTabbedPane(Any[("Table", table), ("Note", note)]); title = "Results")
 
 Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` draws a close
 button on every tab, `new_tab` draws a new-tab button after the last one, and
@@ -1391,8 +1388,8 @@ added, which is what a log or a transcript wants.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
-    open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
+    table = WidgetTable(["run", "delay"], [[n, "1.5 s"] for n in 1:100])
+    open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Runs")
 
 With `follow_end=true` the pane sticks to the *bottom* of its content — newly
 appended content (e.g. streaming chat turns) stays in view instead of scrolling
@@ -1741,7 +1738,7 @@ surface is.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
     open_pane!(WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -2519,10 +2516,9 @@ the open one.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetAccordion(Any[("Table", table), ("Note", note)]; expanded = 2, width = 600); title = "Results")
 
 Each item is wrapped in a [`WidgetAccordionItem`](@ref).
 
@@ -3365,8 +3361,8 @@ with none otherwise.
 
 # Example
 
-    again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")))
-    open_pane!(WidgetButton(again); title = "Runner")
+    again = Action("Run again"; callback = editor -> rerun_tasks!(find_task_group("T1"; editor); editor))
+    open_pane!(WidgetButton(again); title = "Run again")
 
 `shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the
 name of an icon drawn before the label. A click invokes it through

@@ -91,10 +91,9 @@ takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(GridLayout(Any[table, plot], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
+    wide = WidgetLabel("two thirds")
+    narrow = WidgetLabel("one third")
+    open_pane!(GridLayout(Any[wide, narrow], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
 
 See also `Fill`, `Fixed` and `Content`.
 """
@@ -113,8 +112,7 @@ that takes the whole pane, two plots that share a row equally.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
     open_pane!(VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
 
 See also `Relative`, `Fixed` and `Content`.
