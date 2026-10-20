@@ -9,7 +9,7 @@
 @domain Pivot
 
 """
-    PivotDimension(column; order = :natural, descending = false, hidden_values = Any[], limit = 0)
+    PivotDimension(column; order = :natural, descending = false, hidden_values = Any[], limit = 0, bin = nothing)
 
 A dimension of a pivot: the values of column `column` of the source cut the
 rows into parts. `order` says how its values follow each other: `:natural`, the
@@ -24,6 +24,17 @@ the order, so a descending order by the measure keeps the top `limit`.
 the value itself; a positive number is the width of the bins of a number, so a
 value is the [`PivotBin`](@ref) that holds it; `:year`, `:month` and `:day` take
 the year, the [`PivotMonth`](@ref) or the day of a date.
+
+Use it to name a field of a pivot and how its values follow each other. A
+setting of a field of a pivot in a tab changes with `replace_referenced_value!`,
+as the menu of the field changes it.
+
+# Example
+
+    PivotDimension("year"; order = :measure, descending = true, limit = 5)
+    replace_referenced_value!(pivot_1.row_dimensions[1], :limit, 10)
+
+See also `move_pivot_field!`, `make_pivot_table`, `PivotMeasure`.
 """
 @document struct PivotDimension <: PivotDocument
     column::String
@@ -45,6 +56,16 @@ A measure of a pivot: what a cell computes from the values of column `column`
 in its part. `aggregate` is one of `:count`, `:sum`, `:mean`, `:minimum`,
 `:maximum` and `:distinct_count`. `:count` counts the rows of the part and
 reads no column, so its `column` can be empty.
+
+Use it to say what the cells of a pivot compute: give it to `make_pivot_table`,
+or add it to the measures of a pivot.
+
+# Example
+
+    insert_elements!(pivot_1.measures, 1, [PivotMeasure("amount", :mean)])
+    replace_referenced_value!(pivot_1.measures[1], :aggregate, :maximum)
+
+See also `make_pivot_table`, `find_pivot_value`.
 """
 @document struct PivotMeasure <: PivotDocument
     column::String = ""
@@ -67,6 +88,14 @@ abstract type PivotCellView <: PivotDocument end
 
 A cell shows the value of each measure of the pivot for its part, and the count
 of its rows when the pivot has no measure.
+
+Use it to show each cell of a pivot as numbers.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotNumberView())
+
+See also `PivotRowsView`, `PivotBarChartView`, `make_pivot_table`.
 """
 @document struct PivotNumberView <: PivotCellView
 end
@@ -77,6 +106,14 @@ end
 A cell shows the rows of its part as a table: the columns that the cell
 dimensions name, or every column when there is no cell dimension. A data frame
 shows its part as a `DataFrameView`, so an edit in the cell writes the frame.
+
+Use it to show the rows of the source in each cell of a pivot.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotRowsView())
+
+See also `PivotNumberView`, `PivotGroupView`, `make_pivot_table`.
 """
 @document struct PivotRowsView <: PivotCellView
 end
@@ -87,6 +124,14 @@ end
 A cell shows a bar chart of the first measure over the values of the first cell
 dimension in its part, with a series for each value of the second cell
 dimension. Every cell has the same categories and the same range of values.
+
+Use it to show each cell of a pivot as a bar chart of its part.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotBarChartView())
+
+See also `PivotLineChartView`, `PivotPieChartView`, `PivotNumberView`.
 """
 @document struct PivotBarChartView <: PivotCellView
 end
@@ -97,6 +142,14 @@ end
 A cell shows a line chart of the first measure over the values of the first cell
 dimension, which are its x when they are numbers, with a line for each value of
 the second cell dimension. Every cell has the same range on both axes.
+
+Use it to show each cell of a pivot as a line chart of its part.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotLineChartView())
+
+See also `PivotBarChartView`, `PivotPieChartView`, `PivotNumberView`.
 """
 @document struct PivotLineChartView <: PivotCellView
 end
@@ -106,6 +159,14 @@ end
 
 A cell shows a pie chart of the first measure over the values of the first cell
 dimension in its part. A value has the same colour in every cell.
+
+Use it to show each cell of a pivot as a pie chart of its part.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotPieChartView())
+
+See also `PivotBarChartView`, `PivotLineChartView`, `PivotNumberView`.
 """
 @document struct PivotPieChartView <: PivotCellView
 end
@@ -118,6 +179,14 @@ columns of the cell dimensions or under every column that is no row dimension,
 and the headers of the rows name the group of each row once, across its rows.
 A closed group is one row that counts its rows. Columns do not divide the rows:
 a group holds its rows of every column.
+
+Use it to list the rows of the source of a pivot under their groups.
+
+# Example
+
+    replace_referenced_value!(pivot_1, :cell_view, PivotGroupView())
+
+See also `PivotRowsView`, `PivotNumberView`, `make_pivot_table`.
 """
 @document struct PivotGroupView <: PivotCellView
 end
@@ -263,8 +332,23 @@ end
 
 A pivot of `source` whose row, column and cell dimensions are the columns of the
 source named in `rows`, `columns` and `cells`, in that order. Every other column
-of the source is an unused dimension, in the order of the source.
+of the source is an unused dimension, in the order of the source. `source` is a
+table: a data frame, a vector of named tuples or a named tuple of vectors.
+
+Use it to sum, count or average the rows of a table by the values of some of
+its columns, and show the result as a table of totals.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"],
+                               measures = [PivotMeasure("amount", :sum)])
+    open_pane!(pivot_1; title = "Sales by region")
+
+See also `PivotMeasure`, `move_pivot_field!`, `find_pivot_value`.
 """
+function make_pivot_table end
+
 function make_pivot_table(source; rows = String[], columns = String[], cells = String[],
                           measures = PivotMeasure[], cell_view = nothing, totals::Bool = false)
     is_table(source) || throw(ArgumentError("a pivot needs a table, not a $(typeof(source))"))

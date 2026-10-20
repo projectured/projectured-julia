@@ -64,4 +64,26 @@ make_graphics_projection(::Type{PivotPartTable}; measure, appearance) =
 make_graphics_projection(::Type{PivotChartCell}; measure, appearance) =
     make_pivot_chart_cell_projection(; measure, appearance)
 
+# What the model of an assistant may write about a pivot: the documents, the
+# values of a key, the read of one value and the move of a field. A setting
+# changes with `replace_referenced_value!` and a measure with the verbs of a
+# collection, which every window declares.
+function __init__()
+    register_assistant_api!(PivotModule => (:make_pivot_table, :PivotDimension, :PivotMeasure,
+                                            :PivotNumberView, :PivotRowsView, :PivotBarChartView,
+                                            :PivotLineChartView, :PivotPieChartView, :PivotGroupView,
+                                            :PivotTotal, :PivotBin, :PivotMonth,
+                                            :find_pivot_value, :move_pivot_field!);
+        description = "A pivot is `make_pivot_table(table; rows = [\"region\"], columns = [\"year\"], " *
+                      "measures = [PivotMeasure(\"amount\", :sum)])`, and `open_pane!` draws it. " *
+                      "A pivot that is the value of the last line of a call shows its zones and the " *
+                      "values of its cells, and `find_pivot_value(pivot_1, (\"EU\",), 2025)` reads one " *
+                      "value. `move_pivot_field!(pivot_1, \"country\", :columns)` moves a field to the zone " *
+                      ":fields, :columns, :rows or :cells. A measure is an element of `pivot_1.measures`: " *
+                      "`insert_elements!(pivot_1.measures, 1, [PivotMeasure(\"\", :count)])` adds one. " *
+                      "`replace_referenced_value!(part, field, value)` changes a setting: " *
+                      "`replace_referenced_value!(pivot_1.measures[1], :aggregate, :mean)`, " *
+                      "`replace_referenced_value!(pivot_1, :totals, true)`.")
+end
+
 end # module PivotModule

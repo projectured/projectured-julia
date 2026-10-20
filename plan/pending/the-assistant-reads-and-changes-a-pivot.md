@@ -187,11 +187,29 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
     (`cell_view` from `nothing`, `totals`, an aggregate, an order) and their
     undo; `test_assistant_verbs` 56 of 56, with a checkbox whose `label` holds
     `nothing`.
-- [ ] **3. Declare.** `register_assistant_api!` in `PivotModule.__init__` with the
-  names of §3 and the paragraph. Test: the calls of §2 through
-  `execute_julia_code!`, with the tool set of `start_application!`, find the
-  names, read the grid, read one value, move a field, add a measure, change an
-  aggregate and change the totals. `search_api("pivot")` answers the pivot names.
+- [x] **3. Declare.** Done 2026-10-21. `register_assistant_api!` in
+  `PivotModule.__init__` with the names of §3 and the paragraph. Test: the calls
+  of §2 through `execute_julia_code!`, with the tool set of `start_application!`,
+  find the names, read the grid, read one value, move a field, add a measure,
+  change an aggregate and change the totals. `search_api("pivot")` answers the
+  pivot names.
+  - Facts that the work found: `test_assistant_documentation` asks of every
+    declared name, a type too, a "Use it to" line, an example that parses and a
+    "See also" line, and it asks that every name that the system text writes in
+    backticks is a declared name. So the docstrings of the eleven declared types
+    got the three parts, `make_pivot_table` got its docstring on the generic
+    function, and the paragraph says "a pivot that is the value of the last line
+    of a call" and not `display(pivot_1)`.
+  - The paragraph does not name `println`, because `print` writes Julia's own
+    form of the struct, which holds the whole source. The display of
+    `WidgetTable` keeps `print` as it was, and the pivot follows it.
+  - `search_api("pivot")` answers eight pivot names, with `find_pivot_value` and
+    `move_pivot_field!`, but not `make_pivot_table`: its signature is long, and
+    the ranking by words gives a long text less weight. "make pivot table" finds
+    it, and the paragraph of the system text names it with an example. The
+    ranking is not changed, because a change of `search_api` waits for the owner.
+  - The test is `test_pivot_assistant_api` in `test/domain/pivot/editor/PivotModuleTest.jl`,
+    11 of 11. `test_assistant_documentation` 365 of 365.
 - [ ] **4. Check the neighbours.** Run `test_pivot()`, `test_application()` and
   `test_referenced_document_editor()`, because a new declared docstring can move
   the rank of `find_pane` in a search. Search omnet-julia for a method of

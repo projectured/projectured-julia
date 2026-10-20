@@ -13,6 +13,14 @@
 The value of a dimension in the key of a total: the part of every value of the
 dimension. A key `("EU", PivotTotal())` is the subtotal of the region EU, and a
 key of only `PivotTotal()` values is the total. A header shows it as `total`.
+
+Use it to name a total in a key, such as a key that `find_pivot_value` reads.
+
+# Example
+
+    find_pivot_value(pivot_1, ("EU", PivotTotal()), PivotTotal())
+
+See also `find_pivot_value`.
 """
 struct PivotTotal end
 
@@ -23,6 +31,14 @@ const _PIVOT_TOTAL = PivotTotal()
 
 The value of a number in a dimension with bins: the bin from `low`, which it
 holds, to `high`, which it does not. Bins follow each other by `low`.
+
+Use it to name a bin in a key of a dimension with bins.
+
+# Example
+
+    find_pivot_value(pivot_1, PivotBin(10.0, 20.0), 2025)
+
+See also `PivotDimension`, `find_pivot_value`.
 """
 struct PivotBin
     low::Float64
@@ -36,6 +52,14 @@ Base.isless(a::PivotBin, b::PivotBin) = isless(a.low, b.low)
 
 The value of a date in a dimension by month. Months follow each other by year,
 then by month.
+
+Use it to name a month in a key of a dimension of dates by month.
+
+# Example
+
+    find_pivot_value(pivot_1, PivotMonth(2025, 3), ())
+
+See also `PivotDimension`, `find_pivot_value`.
 """
 struct PivotMonth
     year::Int

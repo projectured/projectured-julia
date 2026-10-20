@@ -51,6 +51,7 @@ include("../../../test/domain/pivot/projection/PivotZoneEditTest.jl")
 include("../../../test/domain/pivot/projection/PivotCellViewTest.jl")
 include("../../../test/domain/pivot/projection/PivotChartViewTest.jl")
 include("../../../test/domain/pivot/projection/PivotGroupViewTest.jl")
+include("../../../test/domain/pivot/editor/PivotModuleTest.jl")
 
 include("../../../test/domain/pivot/PivotSuite.jl")
 
