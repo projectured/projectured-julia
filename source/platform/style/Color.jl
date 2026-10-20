@@ -114,7 +114,16 @@ end
 
 # ── Default ───────────────────────────────────────────────────────────────────
 
-const color_default = _color(0, 0, 0)
+"""
+    color_default
+
+The colour of a text that names no colour. A `TextToGraphics` draws it with the
+colour of the plain text of its theme, so the text follows the colour mode, and
+the console backend draws it with the foreground of the terminal. A drawer that
+knows no theme draws its own value, a black that is one step from `color_black`,
+so a text that names `color_black` stays black.
+"""
+const color_default = _color(1, 1, 1)
 
 # ── Pure ──────────────────────────────────────────────────────────────────────
 

@@ -33,7 +33,7 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 - `TextSpacing` prints one space.
 - `TextGraphics` and any other run print nothing.
 
-`color_default` gets no code, so an empty marker span takes the foreground colour of the terminal and is not black on a dark background. With `ansi = false` the backend writes plain text, and with `clear = true` it clears the screen before each frame. The editor loop writes on every tick, so the backend compares the buffer with the last frame and writes nothing when the two are equal. Without that, the terminal would flicker.
+`color_default` gets no code, so a run that names no colour takes the foreground colour of the terminal and is not black on a dark background. With `ansi = false` the backend writes plain text, and with `clear = true` it clears the screen before each frame. The editor loop writes on every tick, so the backend compares the buffer with the last frame and writes nothing when the two are equal. Without that, the terminal would flicker.
 
 ### Events in
 

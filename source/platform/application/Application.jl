@@ -163,8 +163,9 @@ A history around a file draws through the row that the undo slice registers.
 """
 function make_application_content_projections(; measure = FontFileMeasure(),
                                                appearance::Appearance = Appearance())
+    text_theme = get_scaled_theme!(appearance, TextTheme)
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
-                                          TextToGraphics(measure = measure))
+                                          TextToGraphics(measure = measure, theme = text_theme))
     conversation_rows = Pair{Type,Any}[
         make_conversation_draft_row(measure = measure, appearance = appearance),
         make_conversation_row(measure = measure, appearance = appearance),
@@ -213,7 +214,7 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         conversation_rows...,
         # A tab title and a plain text file are prose, not a quoted string.
         PrimitiveDocument => ChainingProjection(RecursiveProjection(FaultCatchingProjection(
-                                                    inner = PrimitiveToText(),
+                                                    inner = PrimitiveToText(; theme = text_theme),
                                                     substitute = FaultToText())),
                                                 text_to_graphics),
     ]

@@ -111,6 +111,28 @@ end
     @test plain.caret_color == get_theme_defaults(TextTheme).caret
 end
 
+@testset "a text that names no colour draws with the plain text of the theme, and follows the mode" begin
+    appearance = Appearance(color_mode = :dark)
+    text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))
+    function drawn_color(block)
+        colors = StyleColor[]
+        walk(c) = for element in c.elements
+            element = element isa Cell ? element[] : element
+            element isa GraphicsCanvas && walk(element)
+            element isa GraphicsText && push!(colors, element.color)
+        end
+        walk(print_document(text, nothing, block, offer).output)
+        only(unique(colors))
+    end
+    plain = make_text_block("plain")
+    @test drawn_color(plain) == resolve_theme_color(ColorRole(:text), appearance)
+    @test drawn_color(plain) != resolve_theme_color(ColorRole(:text), Appearance())
+    # A text that names black stays black.
+    @test drawn_color(make_text_block("black", StyleText(UNSTYLED_TEXT_FONT, color_black))) == color_black
+    appearance.color_mode = :light
+    @test drawn_color(plain) == resolve_theme_color(ColorRole(:text), appearance)
+end
+
 @testset "a syntax leaf with no theme has the default style, and with a theme its scaled one" begin
     @test PrimitiveNumberToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SyntaxTheme)

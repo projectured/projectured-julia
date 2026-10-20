@@ -243,10 +243,9 @@ _sgr_foreground(c::StyleColor) =
 _sgr_background(c::StyleColor) =
     string("\e[48;2;", _component(c.red), ';', _component(c.green), ';', _component(c.blue), 'm')
 
-# A foreground color is "meaningful" when it is a real color other than the
-# default (black). Default-black is only used for the empty boundary-marker
-# spans (zero-length content), and emitting it would paint black-on-dark on a
-# typical terminal — so map it to the terminal's own foreground (no code).
+# A foreground color is "meaningful" when it is a real color other than
+# `color_default`, the colour of a run that names no colour. Such a run takes the
+# terminal's own foreground (no code), so it is not black on a dark terminal.
 _meaningful_foreground(c) = c isa StyleColor && !is_color_equal(c, color_default)
 
 # ── Rendering ────────────────────────────────────────────────────────────

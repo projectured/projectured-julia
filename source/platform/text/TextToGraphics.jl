@@ -77,6 +77,7 @@ find_first_baseline(iomap::TextToGraphicsIoMap) = unwrap_cell(iomap.first_baseli
     highlight_color::StyleColor
     dormant_highlight_color::StyleColor
     highlight_radius::Int
+    plain_color::StyleColor
 end
 
 """
@@ -84,8 +85,9 @@ end
                    line_spacing = SingleSpacing())
 
 Draw a `TextBlock` as graphics, with its caret and the band under its selection.
-`theme` is a `TextTheme`, scaled or not, whose caret and selection it draws; with
-none, it draws those of the default theme, and builds no theme. `line_spacing` is
+`theme` is a `TextTheme`, scaled or not, whose caret and selection it draws, and
+whose colour of plain text a run of the colour `color_default` takes; with none,
+it draws those of the default theme, and builds no theme. `line_spacing` is
 a `LineSpacing`, or a cell that reads one of the theme, such as its
 `code_line_spacing` or `prose_line_spacing`; a builder of code or of prose passes
 the one it draws, and a widget keeps single spacing. A container that sets the
@@ -101,8 +103,14 @@ function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
                    get_text_style(theme, :caret_width),
                    get_text_style(theme, :highlight),
                    get_text_style(theme, :dormant_highlight),
-                   get_text_style(theme, :highlight_radius))
+                   get_text_style(theme, :highlight_radius),
+                   _get_plain_text_color(theme))
 end
+
+# The colour of the plain text of `theme`: a cell that reads the scaled theme with
+# no edge, or the plain value of the default theme.
+_get_plain_text_color(::Nothing) = get_theme_defaults(TextTheme).plain_text.color
+_get_plain_text_color(theme) = make_theme_cell(StyleColor, theme, values -> values.plain_text.color)
 
 # `p` at the line spacing `spacing`, with the same cells for every other field, so
 # the copy follows the theme as `p` does.
@@ -110,7 +118,8 @@ _with_line_spacing(p::TextToGraphics, spacing::LineSpacing) =
     TextToGraphics(getfield(p, :start_x), getfield(p, :start_y), getfield(p, :measure), spacing,
                    getfield(p, :caret_color), getfield(p, :dormant_caret_color),
                    getfield(p, :caret_width), getfield(p, :highlight_color),
-                   getfield(p, :dormant_highlight_color), getfield(p, :highlight_radius))
+                   getfield(p, :dormant_highlight_color), getfield(p, :highlight_radius),
+                   getfield(p, :plain_color))
 
 # The x of the character boundary `position` of `text` in `font`, from the start
 # of the text: the pen position where the character after it starts.
@@ -852,6 +861,8 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         txt = span.content::AbstractString               # reads span content cell
         sf  = span.font::StyleFont                       # reads span font cell
         col = span.font_color::StyleColor                # reads span font_color cell
+        # A run that names no colour draws with the plain text of the theme.
+        is_color_equal(col, color_default) && (col = p.plain_color::StyleColor)
         last_font = sf
 
         # An empty span draws no glyph, but it has a place: a zero-width coordinate
