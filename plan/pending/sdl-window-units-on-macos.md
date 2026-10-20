@@ -59,13 +59,17 @@ known before the first window, so the ratio there is 1 / 1, which is correct.
    creation of a window in `_open_native_window!` already converts with the ratio
    of no window, because that function is where the value is measured. The
    offscreen paint state and the two test constructions pass 1.
-2. Every SDL window value converts with the window unit ratio. The
-   creation of a window, `_native_window_size`, `_update_window_geometry!`,
+2. ~~Every SDL window value converts with the window unit ratio~~ **Done.**
+   `_native_window_size`, `_update_window_geometry!`,
    `_adopt_native_position!`, the resize, button, motion and wheel events of
    `_poll_window_input`, `_queue_pointer_move!`,
    `_update_pointer_shape_at_pointer!`, `get_pointer_position`, the display
    bounds of `get_sdl_display_size` and the size of a glyph cursor. The picture,
-   the fonts and the held frames keep the device pixel ratio.
+   the fonts and the held frames keep the device pixel ratio. Each event of
+   `_poll_window_input` converts with the ratio of its own window, so the one
+   ratio at the top of that function is gone. Two conversions keep the density,
+   because their values are device pixels: the monitor size from `xrandr`, and
+   the size of the drawing target.
 3. Tests. A window whose units are points keeps its document size
    as its native size, reads its native size back unchanged, and reads a mouse
    event at its own place. The suites of the device configuration, the native

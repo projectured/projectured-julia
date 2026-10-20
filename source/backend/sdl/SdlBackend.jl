@@ -62,9 +62,10 @@ _start_sdl_video!() = SDL_WasInit(SDL_INIT_VIDEO) != 0 || SDL_Init(SDL_INIT_VIDE
 Return the usable size of the given display (default 0) in **logical** pixels —
 the coordinate space window sizes are authored in. "Usable" means with
 OS-reserved areas like the taskbar / menu bar subtracted; the right thing for
-picking a default window size. The monitor's device-pixel size is divided by
-the density that the probe of the display finds, so that a window sized to it fills
-exactly one monitor once the backend scales it back to device pixels. Falls back
+picking a default window size. SDL gives the bounds in window units, which are
+divided by the window unit ratio of no window, and `xrandr` gives device pixels,
+which are divided by the density that the probe of the display finds. So a window
+sized to it fills exactly one monitor once the backend scales it back. Falls back
 to `(1280, 720)`
 if SDL cannot answer (no display, headless run, etc.). The video subsystem and
 the display density are initialized lazily; safe to call before `initialize_backend!`.
@@ -96,8 +97,8 @@ function get_sdl_display_size(; display::Integer=0)
     if rc != 0 || rect[].w <= 0 || rect[].h <= 0
         return (1280, 720)
     end
-    (_to_logical(Int(rect[].w), _PROBED_DISPLAY_DENSITY[]),
-     _to_logical(Int(rect[].h), _PROBED_DISPLAY_DENSITY[]))
+    unit_ratio = _get_window_unit_ratio(_PROBED_DISPLAY_DENSITY[])
+    (_to_logical(Int(rect[].w), unit_ratio), _to_logical(Int(rect[].h), unit_ratio))
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -773,8 +774,8 @@ directly.
 function BackendModule.get_pointer_position(backend::SdlBackend)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetGlobalMouseState(x_ref, y_ref)
-    ratio = get_device_pixel_ratio(backend.display)
-    (_to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio))
+    unit_ratio = _get_window_unit_ratio(get_device_pixel_ratio(backend.display))
+    (_to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio))
 end
 
 # Find the density of the display: the number of device pixels in one logical
@@ -4042,8 +4043,8 @@ is skipped here, so `(nothing, nothing)` means the queue is empty and nothing el
 `take_from_devices!` runs it in a loop and keeps only the newest motion.
 """
 function _poll_window_input(backend::SdlBackend)
-    # SDL reports device pixels; the events hold logical pixels.
-    ratio = get_device_pixel_ratio(backend.display)
+    # SDL reports window units; the events hold logical pixels. Each event converts
+    # with the window unit ratio of its own window.
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
@@ -4078,9 +4079,10 @@ function _poll_window_input(backend::SdlBackend)
             elseif sub == UInt8(SDL_WINDOWEVENT_LEAVE)
                 return (WindowInput(wid, WindowLeave(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_RESIZED)  # external/user only
-                # SDL reports device pixels; the document works in logical pixels.
-                nw = _to_logical(Int(evt.window.data1), ratio)
-                nh = _to_logical(Int(evt.window.data2), ratio)
+                # SDL reports window units; the document works in logical pixels.
+                unit_ratio = _get_window_unit_ratio(backend, wid)
+                nw = _to_logical(Int(evt.window.data1), unit_ratio)
+                nh = _to_logical(Int(evt.window.data2), unit_ratio)
                 # Mark the resource as already at this size so the reconciler's
                 # _update_window_geometry! doesn't issue a redundant
                 # SDL_SetWindowSize back at the OS (which would fight the drag).
@@ -4132,8 +4134,9 @@ function _poll_window_input(backend::SdlBackend)
             button = _sdl_button_sym(evt.button.button)
             button === nothing && continue    # a button with no name makes no event
             mods = backend.modifiers
-            x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
+            unit_ratio = _get_window_unit_ratio(backend, wid)
+            x, y = _to_logical(Int(evt.button.x), unit_ratio), _to_logical(Int(evt.button.y), unit_ratio)
             return (WindowInput(wid, MouseDown(button, x, y, mods; time = event_time)),
                     nothing)
 
@@ -4141,8 +4144,9 @@ function _poll_window_input(backend::SdlBackend)
             button = _sdl_button_sym(evt.button.button)
             button === nothing && continue    # a button with no name makes no event
             mods = backend.modifiers
-            x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
+            unit_ratio = _get_window_unit_ratio(backend, wid)
+            x, y = _to_logical(Int(evt.button.x), unit_ratio), _to_logical(Int(evt.button.y), unit_ratio)
             return (WindowInput(wid, MouseUp(button, x, y, mods; time = event_time)),
                     nothing)
 
@@ -4150,11 +4154,12 @@ function _poll_window_input(backend::SdlBackend)
             buttons = _get_held_mouse_buttons(evt.motion.state)
             mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.motion.windowID)
+            unit_ratio = _get_window_unit_ratio(backend, wid)
             # The motion slot of the pair. The caller keeps only the newest of a
             # run of these, and applies the rate limit to what it keeps.
             return (nothing, WindowInput(wid,
-                MouseMove(_to_logical(Int(evt.motion.x), ratio),
-                          _to_logical(Int(evt.motion.y), ratio), buttons, mods;
+                MouseMove(_to_logical(Int(evt.motion.x), unit_ratio),
+                          _to_logical(Int(evt.motion.y), unit_ratio), buttons, mods;
                           time = event_time)))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
@@ -4162,6 +4167,7 @@ function _poll_window_input(backend::SdlBackend)
             SDL_GetMouseState(mx_ref, my_ref)
             mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.wheel.windowID)
+            unit_ratio = _get_window_unit_ratio(backend, wid)
             dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)
             # The turn with its fraction, which a touchpad gives. SDL adds the
             # fractions up into the whole notches of `x` and `y`. An SDL that
@@ -4174,8 +4180,8 @@ function _poll_window_input(backend::SdlBackend)
                 precise_dx, precise_dy = precise_dy, 0.0
             end
             return (WindowInput(wid,
-                MouseScroll(dx, dy, _to_logical(Int(mx_ref[]), ratio),
-                            _to_logical(Int(my_ref[]), ratio), mods; time = event_time,
+                MouseScroll(dx, dy, _to_logical(Int(mx_ref[]), unit_ratio),
+                            _to_logical(Int(my_ref[]), unit_ratio), mods; time = event_time,
                             precise_dx, precise_dy)),
                 nothing)
         end
@@ -4274,12 +4280,13 @@ function _settle_native_windows!(backend::SdlBackend, opened::Vector{UInt32})
     nothing
 end
 
-# The window's current size in logical pixels. SDL reports device pixels, which
+# The window's current size in logical pixels. SDL reports window units, which
 # is what `WindowDocument` sizes are converted to when the window is created.
 function _native_window_size(res::SdlWindowResources)
     w = Ref{Cint}(0); h = Ref{Cint}(0)
     SDL_GetWindowSize(res.win, w, h)
-    (_to_logical(Int(w[]), res.ratio), _to_logical(Int(h[]), res.ratio))
+    unit_ratio = _get_window_unit_ratio(res, res.ratio)
+    (_to_logical(Int(w[]), unit_ratio), _to_logical(Int(h[]), unit_ratio))
 end
 
 # Pump the event queue, and drop the size changes belonging to the windows just
@@ -4400,11 +4407,11 @@ end
 function _queue_pointer_move!(backend::SdlBackend)
     id = _find_pointer_window(backend)
     id === nothing && return nothing
-    ratio = get_device_pixel_ratio(backend.display)
+    unit_ratio = _get_window_unit_ratio(backend, id)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     buttons = _get_held_mouse_buttons(UInt32(SDL_GetMouseState(x_ref, y_ref)))
     backend.pending_motion = WindowInput(id,
-        MouseMove(_to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio),
+        MouseMove(_to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio),
                   buttons, backend.modifiers; time = time()))
     nothing
 end
@@ -4448,11 +4455,11 @@ end
 function _update_pointer_shape_at_pointer!(backend::SdlBackend)
     id = _find_pointer_window(backend)
     id === nothing && return nothing
-    ratio = get_device_pixel_ratio(backend.display)
+    unit_ratio = _get_window_unit_ratio(backend, id)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetMouseState(x_ref, y_ref)
-    _update_pointer_shape!(backend, id, _to_logical(Int(x_ref[]), ratio),
-                           _to_logical(Int(y_ref[]), ratio))
+    _update_pointer_shape!(backend, id, _to_logical(Int(x_ref[]), unit_ratio),
+                           _to_logical(Int(y_ref[]), unit_ratio))
 end
 
 # Set the cursor of the system to `shape` when it is another shape than the one
@@ -4465,13 +4472,14 @@ function _set_pointer_shape!(backend::SdlBackend, shape::Symbol)
     nothing
 end
 
-# The cursor of `shape`, made the first time that the backend shows it.
+# The cursor of `shape`, made the first time that the backend shows it. SDL sizes
+# a cursor in window units, so its glyph is drawn at the window unit ratio.
 _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
     get!(backend.cursors, shape) do
         glyph = get(_GLYPH_OF_SHAPE, shape, nothing)
         glyph === nothing ?
             SDL_CreateSystemCursor(get(_SYSTEM_CURSOR_OF_SHAPE, shape, SDL_SYSTEM_CURSOR_ARROW)) :
-            _make_glyph_cursor(glyph, get_device_pixel_ratio(backend.display))
+            _make_glyph_cursor(glyph, _get_window_unit_ratio(get_device_pixel_ratio(backend.display)))
     end
 
 # A cursor that shows `glyph` of the Lucide font in black with a white outline, so
@@ -4585,11 +4593,12 @@ end
 # elsewhere than asked, at the first frame or when a person moves it. The document
 # takes that place when it asks for no place of its own, so a popup opens at the
 # window and not where the window was first asked to be. SDL gives the place in
-# device pixels, and `ratio` is the device pixel ratio of this frame.
+# window units, and `ratio` is the device pixel ratio of this frame.
 function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, ratio::Float64)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetWindowPosition(res.win, x_ref, y_ref)
-    x, y = _to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio)
+    unit_ratio = _get_window_unit_ratio(res, ratio)
+    x, y = _to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio)
     (x == res.x && y == res.y) && return w
     if w.x == res.x && w.y == res.y
         w.x = x
@@ -4660,16 +4669,18 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument,
         SDL_SetWindowTitle(res.win, w.title)
         res.title = String(w.title)
     end
+    # SDL takes window units.
+    unit_ratio = _get_window_unit_ratio(res, ratio)
     if w.width != res.width || w.height != res.height || ratio != res.ratio
-        SDL_SetWindowSize(res.win, Int32(max(_to_device(w.width, ratio), 1)),
-                                   Int32(max(_to_device(w.height, ratio), 1)))
+        SDL_SetWindowSize(res.win, Int32(max(_to_device(w.width, unit_ratio), 1)),
+                                   Int32(max(_to_device(w.height, unit_ratio), 1)))
         res.width = Int(w.width)
         res.height = Int(w.height)
         res.ratio = ratio
     end
     if (w.x >= 0 && w.x != res.x) || (w.y >= 0 && w.y != res.y)
-        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, ratio))
-        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, ratio))
+        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, unit_ratio))
+        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, unit_ratio))
         SDL_SetWindowPosition(res.win, px, py)
         res.x = Int(w.x)
         res.y = Int(w.y)
