@@ -3885,7 +3885,6 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     cox, coy = _content_offset(p, w)
     orientation = w.orientation::Symbol
     main_axis = orientation === :horizontal ? :x : :y
-    sizes = w.sizes
     splitter_stroke = _get_part_stroke(w, :splitter_stroke, p.splitter_stroke)
     splitter_thickness = max(1, Int(splitter_stroke.width))
     splitter_color = splitter_stroke.color
@@ -3957,12 +3956,16 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         push!(inner_iomaps, cim)
     end
 
-    # The unoffered slots, now that the children have drawn.
+    # The unoffered slots, now that the children have drawn. The sizes and the pins
+    # are read in the cells of the slots and of the allocation, and not here: a
+    # drag writes them, and a new build prints every child again, so the view
+    # state inside a child, such as the place of its own divider, would start over.
     if avail_main === nothing
         for i in 1:n
-            declared = _split_intrinsic(valid_elems[i], sizes, i, main_axis)
+            elem_local = valid_elems[i]
             cim_local = inner_iomaps[i]
             set_cell_computation!(slot_main[i], function ()
+                declared = _split_intrinsic(elem_local, w.sizes, i, main_axis)
                 declared > 0 && return declared
                 out = cim_local.output
                 out isa GraphicsCanvas || return 0
@@ -3979,9 +3982,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         local_cims  = inner_iomaps
         axis        = main_axis
         n_local     = n
-        sizes_local = sizes
-        pinned_cv   = w.pinned
         set_cell_computation!(alloc_cell, function ()
+            sizes_local = w.sizes
+            pinned_cv   = w.pinned
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)

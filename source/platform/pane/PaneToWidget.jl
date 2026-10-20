@@ -284,12 +284,14 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     # so the slots keep their intrinsic sizes.
     preferred = available === nothing ? nothing : 0
 
+    # The slots follow the elements and nothing else. The weight of a slot is a cell
+    # of its constraint, so a drag of a divider of the tree changes the shares and
+    # the split pane prints no slot again: the view state of each group, such as the
+    # place of a divider inside it, stays.
     pane = WidgetSplitPane(axis, Any[])
     set_cell_computation!(pane, () -> begin
         iomaps = element_iomaps[]
-        weights = get_pane_normalized_weights(get_pane_weights(split))
-        Any[_constrain(iomaps[i].output, horizontal,
-                       i <= length(weights) ? weights[i] : 1.0, preferred)
+        Any[_constrain(iomaps[i].output, horizontal, () -> _get_pane_slot_weight(split, i), preferred)
             for i in eachindex(iomaps)]
     end)
 
@@ -298,9 +300,20 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     iomap
 end
 
-_constrain(child, horizontal::Bool, weight::Float64, preferred) =
-    horizontal ? LayoutConstraint(child; weight_width = weight, preferred_width = preferred) :
-                 LayoutConstraint(child; weight_height = weight, preferred_height = preferred)
+# The share of the element `index` of `split`.
+function _get_pane_slot_weight(split::PaneSplit, index::Int)
+    weights = get_pane_normalized_weights(get_pane_weights(split))
+    index <= length(weights) ? weights[index] : 1.0
+end
+
+# `child` in a constraint whose weight on the axis of the split `weight` computes.
+# The weight is not read here, so the list of slots does not read the weights.
+function _constrain(child, horizontal::Bool, weight::Function, preferred)
+    constraint = horizontal ? LayoutConstraint(child; preferred_width = preferred) :
+                              LayoutConstraint(child; preferred_height = preferred)
+    set_cell_computation!(getfield(constraint, horizontal ? :weight_width : :weight_height), weight)
+    constraint
+end
 
 function map_reference_forward(::PaneSplitToWidgetSplitPane,
                                iomap::PaneSplitToWidgetSplitPaneIoMap, reference)

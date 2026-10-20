@@ -2023,6 +2023,44 @@ function test_application()
                   ReplaceSelectionOperation
             @test evaluate_reference(scene, get_selection(scene)) isa JsonString
         end
+
+        @testset "a drag of the divider between the groups keeps the divider of the Explorer where a drag put it" begin
+            mktempdir() do place
+                settings = make_settings()
+                document = make_application_document(String[]; root = place, settings,
+                                                     assistant = make_application_assistant(:none))
+                backend = HeadlessBackend()
+                editor = build_editor(document, make_application_projection(); backend, settings,
+                                      window = (; title = "ProjecturEd", width = 1600, height = 1000,
+                                                opened_window_projections = make_opened_window_projections()),
+                                      make_application_wrappers(; root = place, document)...)
+                start_application!(editor)
+                drain_operations!(editor)
+                run_frame!(editor)
+                content() = get_iomap_output(editor.iomap).windows[1].content
+                send!(event) = (push_event!(backend, WindowInput(:ProjecturEd, event)); run_frame!(editor); run_frame!(editor))
+                function drag!(from, to, time)
+                    send!(MouseDown(:left, from, 500, ModifierKeys(); time))
+                    send!(MouseMove(to, 500, MouseButtons(:left), ModifierKeys(); time = time + 0.1))
+                    send!(MouseUp(:left, to, 500, ModifierKeys(); time = time + 0.2))
+                end
+                # The middle of each divider on the line y = 500, where the pointer is
+                # a double arrow: the one inside the Explorer, then the one between the
+                # Explorer group and the assistant.
+                function dividers()
+                    xs = filter(x -> find_pointer_shape(content(), x, 500) === :double_arrow_horizontal, 0:1599)
+                    starts = [x for (i, x) in enumerate(xs) if i == 1 || xs[i - 1] != x - 1]
+                    ends = [x for (i, x) in enumerate(xs) if i == length(xs) || xs[i + 1] != x + 1]
+                    [(first + last) ÷ 2 for (first, last) in zip(starts, ends)]
+                end
+                (inner, outer) = dividers()
+                drag!(inner, inner + 100, 1.0)
+                @test dividers() == [inner + 100, outer]
+                # The groups print nothing again, so the Explorer keeps its divider.
+                drag!(outer, outer - 100, 2.0)
+                @test dividers() == [inner + 100, outer - 100]
+            end
+        end
         rm(dir; recursive = true)
     end
 end
