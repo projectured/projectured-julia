@@ -11,6 +11,25 @@ make_res() = SDL.SdlWindowResources(
     (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
     Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
 
+@testset "a guard lets the walk skip a canvas where nothing changed" begin
+    # 50 groups of 100 rectangles beside a dot; one rectangle of group 7 moves.
+    x = Cell(0)
+    row(g) = Any[GraphicsRect(8 * j, 10 * g, 6, 6) for j in 1:100]
+    moving = GraphicsRect(() -> x[], 70, 6, 6)
+    groups = Any[GraphicsCanvas(g == 7 ? Any[row(g)[1:99]; moving] : row(g)) for g in 1:50]
+    window = GraphicsCanvas(Any[GraphicsCanvas(groups), GraphicsCircle(700, 500, 5)]; w = 800, h = 600)
+    res = make_res()
+    SDL._compute_dirty_region(res, window)                 # the first walk records everything
+    @test isempty(SDL._compute_dirty_region(res, window))
+    @test res.painted.visits == 0                          # no element is tested
+    x[] = 5
+    @test !isempty(SDL._compute_dirty_region(res, window))
+    # The 2 elements of the window, the 50 groups, and the 100 rectangles of group 7.
+    @test res.painted.visits == 2 + 50 + 100
+    @test isempty(SDL._compute_dirty_region(res, window))
+    @test res.painted.visits == 0
+end
+
 @testset "detects an invalidated element and pads its bounds" begin
     # A canvas whose elements are produced by a computed thunk over `src`,
     # mirroring how the projection pipeline regenerates element vectors.

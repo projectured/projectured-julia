@@ -120,7 +120,7 @@ on `main` before the owner approves.
    maps of `DashboardToWidget`. Tests: the dashboard tests pass; a dashboard of 64
    cards in a pane that shows 4 builds the rows on screen and no others. Run the
    explorer tests, `test_platform()` and `test_sdl()`. Commit.
-3. [ ] **B: the guards.** A guard for each recorded canvas and viewport, in the
+3. [x] **B: the guards.** Done; see [As built](#as-built). A guard for each recorded canvas and viewport, in the
    painted records of the window. `_collect_canvas_dirty!` and
    `_collect_viewport_dirty!` skip a container whose guard is valid and whose
    place did not change; the walk reads each guard again after it records. Tests:
@@ -185,3 +185,24 @@ interleaved as A/B/A, and write the load of the machine beside it.
   test of the SDL suite searches with a `descend` that enters no graphics and no
   list. The helper `_nav_drawn` of the navigator tests now takes the value of a
   node of a list.
+- **Step 3.** Each painted canvas has one guard cell in the records of the window
+  (`res.painted.guards`), with the place it reads for: the content origin and
+  the clip edges (`guard_places`). `_collect_canvas_dirty!` skips a canvas that
+  did not move and whose guard is valid for its place. The guards are read once,
+  at the end of `_compute_dirty_region`, after every recording, with one read of
+  the guard of the window: that read computes again each guard that a change made
+  not valid, and makes the guard of each canvas inside on its first read. A guard
+  of a canvas at a new place, or between new edges, is a new cell; the old one has
+  no reader, and a cell keeps its readers only by weak references
+  (`_detach_upstream!` drops the dependencies of a computation that runs again).
+  A guard that throws stays not valid, so the walk enters its canvas. A leaf is
+  read as `_node_dirty` tests it, every field cell but the view state and the
+  links; a canvas gives the place of a nested canvas, the geometry of a viewport
+  and the guard of each canvas inside; the size of a canvas is not read, as the
+  walk does not read it. The walk counts the elements it tests
+  (`res.painted.visits`). A new test: 50 groups of 100 rectangles; a frame with no
+  change tests 0 elements, and a move of one rectangle of group 7 tests 152, the
+  2 of the window, the 50 groups and the 100 of group 7. `test_sdl()`: 1002 pass,
+  and only the known `TreeRenderTest.jl:43, 44, 55` fail. `test_video()`: the 6
+  known failures of `main`. Step 2 on its own: `test_platform()` 165673 pass, 7
+  broken; `test_sdl()` 996 pass and the same known failures.

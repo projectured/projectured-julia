@@ -120,16 +120,25 @@ end
 # The walk compares this frame with it by value. `baseline` is the count of
 # records after the last full paint; it bounds how many records of graphics that
 # are gone can collect.
+#
+# `guards` holds the guard cell of each painted canvas (`_read_guard!`), and
+# `guard_places` the content origin and the clip edges of the canvas, the place
+# that its guard reads for; the key of a placement names the canvas itself. `visits` is the count of the elements whose cells the last
+# walk tested (`_collect_dirty_elem!`), which a test and a measurement read.
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}
     members::Dict{UInt,Vector{UInt}}
     signatures::Dict{UInt,UInt}
     baseline::Int
+    guards::Dict{UInt,Any}
+    guard_places::Dict{UInt,Any}
+    visits::Int
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
                                       Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
-                                      Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0)
+                                      Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0,
+                                      Dict{UInt,Any}(), Dict{UInt,Any}(), 0)
 
 """
     SdlWindowResources
@@ -2503,16 +2512,17 @@ struct _DirtyWalk
     lists::Vector{Function}
     clips::Vector{Function}
     by_value::Bool
+    visits::Base.RefValue{Int}   # the elements tested, shared by every walk of one frame
 end
-_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], false)
+_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], false, Ref(0))
 
 # The walk of the second phase under a canvas of `walk` whose list is new.
 _make_by_value_walk(walk::_DirtyWalk) =
-    _DirtyWalk(walk.region, walk.deferred, walk.lists, walk.clips, true)
+    _DirtyWalk(walk.region, walk.deferred, walk.lists, walk.clips, true, walk.visits)
 
 # The walk of the content of a viewport: a region and clips of its own.
 _make_viewport_walk(walk::_DirtyWalk) =
-    _DirtyWalk(_DirtyRegion(), walk.deferred, walk.lists, Function[], walk.by_value)
+    _DirtyWalk(_DirtyRegion(), walk.deferred, walk.lists, Function[], walk.by_value, walk.visits)
 
 # Run `f` after the walk. True, so a caller can answer that something changed.
 _defer!(walk::_DirtyWalk, f::Function) = (push!(walk.deferred, f); true)
@@ -2535,6 +2545,8 @@ function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)
     delete!(res.painted.viewports, key)
     delete!(res.painted.members, key)
     delete!(res.painted.signatures, key)
+    delete!(res.painted.guards, key)
+    delete!(res.painted.guard_places, key)
     true
 end
 
@@ -2560,6 +2572,8 @@ function _forget_painted_geometry!(res::SdlWindowResources)
     empty!(res.painted.viewports)
     empty!(res.painted.members)
     empty!(res.painted.signatures)
+    empty!(res.painted.guards)
+    empty!(res.painted.guard_places)
     res.painted.baseline = 0
     nothing
 end
@@ -2570,7 +2584,7 @@ const _PAINTED_RECORD_SLACK = 10_000
 
 _count_painted_records(res::SdlWindowResources) =
     length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports) +
-    length(res.painted.members) + length(res.painted.signatures)
+    length(res.painted.members) + length(res.painted.signatures) + length(res.painted.guards)
 
 _is_painted_geometry_full(res::SdlWindowResources) =
     _count_painted_records(res) > 2 * res.painted.baseline + _PAINTED_RECORD_SLACK
@@ -2600,6 +2614,9 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # must not be mistaken for "dirty"). `(ox, oy)` already holds this canvas's own
     # offset, which the caller read, so the place is compared by value.
     moved = get(res.painted.origins, key, nothing) != (ox, oy)
+    # A valid guard at the same place: nothing that the canvas draws changed since
+    # its guard read it, so the walk tests none of its elements.
+    moved || _is_guard_valid(res, key, ox, oy, edges) && return false
     list_changed = walk.by_value || !is_cell_valid(elements_cell)
     ev = elements_cell[]                 # read after capturing validity above
     if !list_changed && ev isa CellVector && !is_cell_valid(getfield(ev, :elements))
@@ -2794,6 +2811,7 @@ end
 function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
                               edges::_ClipEdges, walk::_DirtyWalk, leaf_dirty::Bool)::Bool
     elem isa GraphicsFence && return false
+    walk.visits[] += 1
     elem isa GraphicsCanvas &&
         return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, walk)
     elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, walk)
@@ -3010,6 +3028,91 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     end)
 end
 
+# ── The guards ──
+#
+# A guard is a computed cell for one painted canvas that reads what the walk
+# tests for the elements that the render draws there: the element list, the slot
+# of each element, every field cell of a leaf (as `_node_dirty` tests them), the
+# place of a nested canvas, the geometry of a viewport, and the guard of each
+# canvas inside. A write of any of them makes the guard not valid, and so the
+# guard of each canvas around it. While a guard is valid and its canvas keeps its
+# place, nothing that the canvas draws changed, and the walk skips the canvas. A
+# guard reads only the elements between the edges, so it reads no more of a list
+# than the render draws.
+#
+# A canvas drawn at another place, or between other edges, draws other elements,
+# so it gets a new guard; the old one has no reader left, and a cell keeps its
+# readers only by weak references.
+
+# Whether the guard of the canvas at `key` is valid for the place `(ox, oy, edges)`.
+function _is_guard_valid(res::SdlWindowResources, key::UInt, ox::Int, oy::Int, edges::_ClipEdges)
+    guard = get(res.painted.guards, key, nothing)
+    guard === nothing && return false
+    get(res.painted.guard_places, key, nothing) == (ox, oy, edges) || return false
+    is_cell_valid(guard)
+end
+
+# Read the guard of `canvas` at `key` for the place `(ox, oy, edges)`, and make it
+# first when the canvas has none for that place.
+function _read_guard!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int,
+                      edges::_ClipEdges)
+    place = (ox, oy, edges)
+    guard = get(res.painted.guards, key, nothing)
+    if guard === nothing || get(res.painted.guard_places, key, nothing) != place
+        res.painted.guard_places[key] = place
+        guard = Cell(Computation(() -> _read_guarded_cells(res, canvas, key, ox, oy, edges)))
+        res.painted.guards[key] = guard
+    end
+    guard[]
+    nothing
+end
+
+# The reads of the guard of `canvas` at `key`: the elements between the edges, as
+# the render takes them.
+function _read_guarded_cells(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int,
+                             edges::_ClipEdges)
+    elements = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    if elements isa ListNode
+        early || return nothing
+        for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+            node_key = _make_placement_key(node, key)
+            value = node.value
+            _read_guarded_element(res, value, _make_placement_key(value, node_key), ox, oy, edges)
+        end
+        return nothing
+    end
+    slots = elements isa CellVector ? getfield(elements, :elements)[] : elements
+    for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(slots)
+        slot = slots[i]
+        elem = slot isa AbstractCell ? slot[] : slot
+        elem isa GraphicsFence && continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+        _read_guarded_element(res, elem, _make_placement_key(elem, key), ox, oy, edges)
+    end
+    nothing
+end
+
+# The reads of one element at the content origin `(ox, oy)`, as the walk tests it.
+function _read_guarded_element(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
+                               edges::_ClipEdges)
+    if elem isa GraphicsCanvas
+        _read_guard!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
+    elseif elem isa GraphicsViewport
+        box, content, transform = _get_viewport_geometry(elem, ox, oy)
+        cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+        _read_guard!(res, content, _make_placement_key(content, key), cox, coy, cedges)
+    elseif !(elem isa GraphicsFence)
+        for name in fieldnames(typeof(elem))
+            (is_view_state_field(name) || name === :prev || name === :next) && continue
+            field = getfield(elem, name)
+            field isa Cell && field[]
+        end
+    end
+    nothing
+end
+
 # Compute the dirty region for `canvas` (the whole window content): the walk, the
 # new element lists it queued, the recordings it deferred, and the clips of the
 # viewports (see `_DirtyWalk`). Each rectangle is clamped to the window and
@@ -3019,8 +3122,9 @@ end
 # first full paint to seed each unit's previous bounds and each graphic's place.
 function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     walk = _DirtyWalk()
-    _collect_canvas_dirty!(res, canvas, _make_placement_key(canvas, UInt(0)),
-                           0, 0, _ClipEdges(0, 0, res.width, res.height), walk)
+    root = _make_placement_key(canvas, UInt(0))
+    edges = _ClipEdges(0, 0, res.width, res.height)
+    _collect_canvas_dirty!(res, canvas, root, 0, 0, edges, walk)
     i = 0
     while i < length(walk.lists)
         i += 1
@@ -3028,6 +3132,15 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     end
     foreach(record -> record(), walk.deferred)
     foreach(clip -> clip(), walk.clips)
+    res.painted.visits = walk.visits[]
+    # The guards read after every recording, as a recording does, so no read
+    # computes a cell that the walk had still to test. A guard that throws stays
+    # not valid, and the walk enters its canvas; the paint meets the same fault.
+    try
+        _read_guard!(res, canvas, root, 0, 0, edges)
+    catch exception
+        is_fault_exception(exception) || rethrow()
+    end
     pad = _DIRTY_RECT_PAD
     padded = _DirtyRegion()
     for r in walk.region.rects
