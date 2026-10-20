@@ -540,8 +540,38 @@ and the output of each stage, as structures that a person reads.
    and text tests and the printer walk of every platform example 154209;
    `test_json()` 239. The printer walk and the REPL walk of the example give no
    error.
-4. [ ] **A JSON string and its view**, through `ViewingProjection(JsonToSyntax())`.
+4. [x] **A JSON string and its view**, through `ViewingProjection(JsonToSyntax())`.
    Tests: `test_json_to_syntax()`.
+
+   Done 2026-10-21. What it made:
+   - `JsonStringView` in `source/domain/json/JsonView.jl`, with
+     `make_content_view(::JsonString)`. A viewing step of `JsonToSyntax` prints it
+     as the `SyntaxLeafView` of the leaf of the string, and the viewing step of
+     `SyntaxToText` prints that as a `TextView`. `JsonStringToSyntaxLeaf` and
+     `SyntaxLeafToText` do not change.
+   - A viewing step maps through the projection that its content IO map names, as
+     the table of a stage does: the map of the table itself is ambiguous for a
+     template IO map.
+   - The example `json_string_view`, on the skip list of the caret sweep beside
+     `layout`.
+
+   The shape:
+
+   ```
+   JsonStringView A ── ViewingProjection(JsonToSyntax())  ──► SyntaxLeafView(leaf of the string)
+                    ── ViewingProjection(SyntaxToText())  ──► TextView(text of the leaf)
+                    ── TextView => TextViewToGraphicsCanvas ──► [band, drawing, caret]
+   ```
+
+   Limit: the keys of `@gestures JsonDocument` that replace a selected node with a
+   node of another kind (`n`, `[`, a digit) do nothing on a view of a root string.
+   A view type belongs to one content type, so the replace must also replace the
+   view, and a root content shared by two views has no place of its own before step
+   6.
+
+   Tests: `test_json_string_view()` 24; `test_json()` 263; the view, syntax and
+   folding tests and the printer walk of every platform example 155567. The
+   printer walk and the REPL walk of the example give no error.
 5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
    `collapsed` fields of the JSON types go. Tests: `test_json()`,
    `test_example(json_example)`, `test_click_roundtrips()`.

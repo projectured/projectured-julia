@@ -114,7 +114,7 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
         "ViewingProjection: the print of the content of a $(nameof(typeof(input))) gives a " *
         "$(nameof(typeof(content.output))), which has no view (make_content_view)"))
     set_output_path_computations!(output, input,
-                                  path -> map_reference_forward(p.content, content, get_content_path(input, path)))
+                                  path -> map_reference_forward(content.projection, content, get_content_path(input, path)))
     map_view_state!(output, input, content)
     ViewingIoMap(p, input, output, content)
 end
@@ -201,15 +201,17 @@ function _find_child_view(r::ViewRecursion, input, ctx)
     (view isa ContentView && getproperty(view, :content) === input) ? view : nothing
 end
 
+# The maps of a step are the maps of the projection that printed the content, which
+# the IO map of the print names: a path of a view is a path of its content.
 map_reference_forward(p::ViewingProjection, iomap::ViewingIoMap, reference) =
-    map_reference_forward(p.content, iomap.content, get_content_path(iomap.input, reference))
+    map_reference_forward(iomap.content.projection, iomap.content, get_content_path(iomap.input, reference))
 map_reference_forward(p::ViewingProjection, iomap, reference) =
-    map_reference_forward(p.content, iomap, reference)
+    map_reference_forward(iomap.projection, iomap, reference)
 
 map_reference_backward(p::ViewingProjection, iomap::ViewingIoMap, reference) =
-    map_reference_backward(p.content, iomap.content, reference)
+    map_reference_backward(iomap.content.projection, iomap.content, reference)
 map_reference_backward(p::ViewingProjection, iomap, reference) =
-    map_reference_backward(p.content, iomap, reference)
+    map_reference_backward(iomap.projection, iomap, reference)
 
 # A gesture that no later stage took goes to the key table of the view. An
 # operation goes back through the readers of the content print.
