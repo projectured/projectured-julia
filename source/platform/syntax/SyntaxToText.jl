@@ -396,6 +396,9 @@ _is_folded_by_syntax(p::SyntaxCompoundToText, node::SyntaxCompound) =
     # separator, or fewer than two children). Kept apart from `own_spans` because a
     # separator is NOT backward-addressable — see `_push_separator!`.
     sep_indices::Cell
+    # The `TextFold` of the node, made once by a projection with text folds, or
+    # `nothing`. A view of the node finds the fold that its print made here.
+    fold::Any
 end
 
 # ── Reference mapping (School A: own level + child delegation) ────────────
@@ -725,7 +728,8 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         Cell(@computation spans[].marker_index),
         Cell(@computation spans[].ellipsis_index),
         Cell(@computation spans[].own_spans),
-        Cell(@computation spans[].sep_indices))
+        Cell(@computation spans[].sep_indices),
+        fold[])
     iomap_cell[] = iomap
     iomap
 end

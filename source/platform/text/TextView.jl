@@ -15,10 +15,15 @@ another view of the same text keeps a caret of its own. A place that shows the
 view shows its caret, so two places of one view share it. The view keeps its caret
 while the focus is elsewhere, as a dormant selection.
 
+`closed_folds` are the folds of the text that this view closes, or `nothing`:
+`TextFolding` hides their lines in this view only. The view of the text of a node
+of syntax computes them from the folds of the views of the nodes.
+
 `TextViewToGraphicsCanvas` draws the view over the drawing of its content.
 """
 @document struct TextView <: ContentView
     content::TextBlock
+    closed_folds::Any = nothing
 end
 
 # The view of a text that a viewing step prints.
@@ -36,6 +41,7 @@ _find_edited_text(view::TextView) = view.content
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc.content, :delete, doc.selection)
     KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc.content, :start)
     KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc.content, :end)
+    KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc.content, :left, doc.selection)
     KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc.content, :right, doc.selection)
     KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc.content, :left, doc.selection)

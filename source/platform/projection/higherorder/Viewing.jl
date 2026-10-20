@@ -115,7 +115,53 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
         "$(nameof(typeof(content.output))), which has no view (make_content_view)"))
     set_output_path_computations!(output, input,
                                   path -> map_reference_forward(p.content, content, get_content_path(input, path)))
+    map_view_state!(output, input, content)
     ViewingIoMap(p, input, output, content)
+end
+
+"""
+    map_view_state!(output, view, content_iomap)
+
+Map the state of `view` that is not a path, such as its folds, to `output`, the view
+that a viewing step gives over the print of the content of `view`; `content_iomap`
+is the IO map of that print. It sets the computations of the cells of `output`, so
+the state follows the view. A pair of view types declares a method where such
+state crosses the step; the default maps nothing.
+"""
+function map_view_state! end
+map_view_state!(output, view, content_iomap) = output
+
+"""
+    read_view_operation(view, content_iomap, operation) -> Operation or nothing
+
+The operation of the state of `view` that `operation`, an operation of the next
+stage, is, such as a toggle of a fold of its text that is a toggle of the fold of a
+view of a node; `nothing` when `operation` is no operation of the state of the
+view, and then it goes back through the readers of the content print. A pair of
+view types declares a method where such state crosses the step.
+"""
+function read_view_operation end
+read_view_operation(view, content_iomap, operation) = nothing
+
+"""
+    ToggleFoldOperation(path)
+
+Open the fold of the view at `path` when it is closed, and close it when it is
+open. A fold is state of a view, so the content does not change, and a second view
+of the same content keeps its own fold. Each stage maps `path` back as it maps a
+caret.
+"""
+struct ToggleFoldOperation <: Operation
+    path::Reference
+end
+
+OperationModule.operation_reference(op::ToggleFoldOperation) = op.path
+OperationModule.retarget_operation(::ToggleFoldOperation, path::Reference) = ToggleFoldOperation(path)
+
+function evaluate_operation(editor, op::ToggleFoldOperation)
+    view = try_evaluate_reference(editor.document, op.path, nothing)
+    (view isa ContentView && hasproperty(view, :collapsed)) || return
+    view.collapsed = !view.collapsed
 end
 
 """
@@ -171,6 +217,11 @@ function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::Vie
     if change.operation === nothing && change.route === nothing
         return Intent(change.gesture, read_gesture(iomap.input, change.gesture),
                       change.description, change.domain)
+    end
+    if change.operation !== nothing
+        operation = read_view_operation(iomap.input, iomap.content, change.operation)
+        operation === nothing ||
+            return Intent(change.gesture, operation, change.description, change.domain)
     end
     read_intent(p.content, recursion, change, iomap.content)
 end

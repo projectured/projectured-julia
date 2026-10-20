@@ -128,6 +128,56 @@ end
               filter(m -> m.input isa SyntaxNodeView, _text_view_collect(iomap, ViewingIoMap)))
 end
 
+@testset "A fold is state of a view" begin
+    folded_leaf = SyntaxLeaf(text("ab"))
+    tree = SyntaxNode([folded_leaf, SyntaxLeaf(text("cde"))];
+                      open = "[\n", close = "\n]", sep = ",\n", indentation = 1)
+    fold_a = SyntaxNodeView(tree)
+    fold_b = SyntaxNodeView(tree)
+    layout = VerticalLayout([fold_a, fold_b, fold_a])
+    folding = RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+        VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+        SyntaxNodeView => ChainingProjection(
+            RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+            TextFolding(),
+            RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+                TextView  => TextViewToGraphicsCanvas(),
+                TextBlock => TextBlockToGraphicsCanvas(; measure),
+            ]))),
+    ]))
+    folded_iomap = print_document(folding, layout)
+    folded_editor = (; document = layout)
+    read!(event) = begin
+        operation = read_intent(folding, folded_iomap, event)
+        operation === nothing || evaluate_operation(folded_editor, operation)
+        operation
+    end
+    drawn() = [_text_view_texts(m.output) for m in _text_view_collect(folded_iomap, TextViewToGraphicsCanvasIoMap)]
+    open_text = ["[", "ab", ",", "cde", "]"]
+    closed_text = ["[", "…", "]"]
+    fold_places = [@reference(layout, children[1]), @reference(layout, children[2]), @reference(layout, children[3])]
+
+    @test drawn() == [open_text, open_text, open_text]
+    evaluate_operation(folded_editor, ToggleFoldOperation(concat_references(fold_places[1], EmptyReference())))
+    @test fold_a.collapsed && !fold_b.collapsed && !tree.collapsed
+    @test drawn() == [closed_text, open_text, closed_text]
+
+    # Ctrl+. folds the innermost fold around the caret of the view of the place.
+    replace_selection!(layout, concat_references(fold_places[2],
+                                                 strip_reference_types(@reference(fold_b, children[1].value{1}))))
+    @test read!(key(:period; ctrl = true)) isa ToggleFoldOperation
+    @test fold_a.collapsed && fold_b.collapsed && !tree.collapsed
+    @test drawn() == [closed_text, closed_text, closed_text]
+
+    # A click on the placeholder of a closed fold opens the fold of that view. The
+    # fixed measure puts `…` from x = 10 to x = 20, and the vertical layout hits it
+    # with the width of the font, about 7 pixels, so x = 16 is on it and nearest the
+    # boundary after it.
+    @test read!(MouseClick(:left, 16, Int(folded_iomap.output.elements[1].y) + 5; time = 0.0)) isa ToggleFoldOperation
+    @test !fold_a.collapsed && fold_b.collapsed && !tree.collapsed
+    @test drawn() == [open_text, closed_text, open_text]
+end
+
 @testset "A caret move recomputes only the places of its view" begin
     replace_selection!(root, caret_at(1, 3, 1))
     drawn = _text_view_collect(iomap, TextViewToGraphicsCanvasIoMap)

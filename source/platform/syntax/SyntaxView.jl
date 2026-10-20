@@ -23,14 +23,18 @@ end
 
 A view of the syntax node `content`. `children` holds the view of each child of the
 node, in the order of the children, and follows them by identity
-(`make_child_views`). The caret of the view goes into the view of a child, as
-`.children[2]` and the caret of that view, or ends at the view, as `∅` or a place
-in a delimiter. A viewing step of `SyntaxToText` prints it as the `TextView` of the
-text of the node.
+(`make_child_views`). `collapsed` is the fold of this view: a closed view shows the
+first line of its node and the placeholder of its fold, and another view of the
+same node keeps a fold of its own. The caret of the view goes into the view of a
+child, as `.children[2]` and the caret of that view, or ends at the view, as `∅` or
+a place in a delimiter. A viewing step of `SyntaxToText` prints it as the
+`TextView` of the text of the node, whose closed folds are the folds of the views
+that are closed.
 """
 @document struct SyntaxNodeView <: ContentView
     content::SyntaxNode
     children::CellVector
+    collapsed::Bool = false
 end
 
 SyntaxNodeView(content::SyntaxNode) = SyntaxNodeView(content, make_child_views(content, :children))
@@ -66,4 +70,65 @@ end
     when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
         _is_tree_selection(_get_view_caret(doc)) ?
             _navigate_syntax_tree(doc.content, _get_view_caret(doc), k) : nothing
+end
+
+# The closed folds of the text of a node view: the fold that the print of each node
+# made, for each view of a node that is closed. The walk goes only through the views
+# that the text shows, so it stops at a closed view and asks for no print inside it.
+function map_view_state!(output::TextView, view::SyntaxNodeView, iomap::SyntaxCompoundToTextIoMap)
+    set_cell_computation!(getfield(output, :closed_folds), () -> _find_closed_folds(view, iomap))
+    output
+end
+
+function _find_closed_folds(view::SyntaxNodeView, iomap::SyntaxCompoundToTextIoMap)
+    if view.collapsed
+        fold = iomap.fold
+        return fold === nothing ? Any[] : Any[fold]
+    end
+    folds = Any[]
+    for (child_view, child_iomap) in _zip_child_views(view, iomap)
+        append!(folds, _find_closed_folds(child_view, child_iomap))
+    end
+    folds
+end
+
+# The views of the children of a node view, each with the content IO map of the
+# print of its child, for the children that are nodes with a view.
+function _zip_child_views(view::SyntaxNodeView, iomap::SyntaxCompoundToTextIoMap)
+    pairs = Tuple{SyntaxNodeView, SyntaxCompoundToTextIoMap}[]
+    child_views = view.children
+    child_iomaps = iomap.child_iomaps
+    for i in 1:min(length(child_views), length(child_iomaps))
+        child_view = child_views[i]
+        child_iomap = get_content_iomap(child_iomaps[i])
+        (child_view isa SyntaxNodeView && child_iomap isa SyntaxCompoundToTextIoMap) &&
+            push!(pairs, (child_view, child_iomap))
+    end
+    pairs
+end
+
+# A toggle of a fold of the text of a node view is a toggle of the view of the node
+# whose print made that fold, at the path of that view.
+function read_view_operation(view::SyntaxNodeView, iomap::SyntaxCompoundToTextIoMap,
+                             operation::ToggleCollapseOperation)
+    operation.target isa TextFold || return nothing
+    path = _find_fold_path(view, iomap, operation.target)
+    path === nothing ? nothing : ToggleFoldOperation(path)
+end
+
+# The path of the view, from `view`, of the node whose print made `fold`, or
+# `nothing`.
+function _find_fold_path(view::SyntaxNodeView, iomap::SyntaxCompoundToTextIoMap, fold)
+    iomap.fold === fold && return EmptyReference()
+    for (i, child_view) in enumerate(view.children)
+        child_iomaps = iomap.child_iomaps
+        (child_view isa SyntaxNodeView && i <= length(child_iomaps)) || continue
+        child_iomap = get_content_iomap(child_iomaps[i])
+        child_iomap isa SyntaxCompoundToTextIoMap || continue
+        tail = _find_fold_path(child_view, child_iomap, fold)
+        tail === nothing && continue
+        return ConcreteReference(FieldReferenceStep("children"),
+                                 ConcreteReference(RangeReferenceStep(i - 1, i), tail))
+    end
+    nothing
 end

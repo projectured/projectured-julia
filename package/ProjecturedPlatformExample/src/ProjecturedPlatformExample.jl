@@ -58,6 +58,7 @@ include("../../../example/platform/SyntaxDocumentExample.jl")
 include("../../../example/platform/TextDocumentExample.jl")
 include("../../../example/platform/TextViewDocumentExample.jl")
 include("../../../example/platform/SyntaxLeafViewDocumentExample.jl")
+include("../../../example/platform/SyntaxNodeViewDocumentExample.jl")
 include("../../../example/platform/TextLayoutDocumentExample.jl")
 include("../../../example/platform/ObjectDocumentExample.jl")
 include("../../../example/platform/ObjectToWidgetDocumentExample.jl")
@@ -106,6 +107,7 @@ include("../../../example/platform/SyntaxProjectionExample.jl")
 include("../../../example/platform/TextProjectionExample.jl")
 include("../../../example/platform/TextViewProjectionExample.jl")
 include("../../../example/platform/SyntaxLeafViewProjectionExample.jl")
+include("../../../example/platform/SyntaxNodeViewProjectionExample.jl")
 include("../../../example/platform/TextLayoutProjectionExample.jl")
 include("../../../example/platform/ObjectProjectionExample.jl")
 include("../../../example/platform/ObjectToWidgetProjectionExample.jl")
@@ -212,6 +214,7 @@ export make_text_to_string_document_example, make_text_to_string_projection_exam
 export make_text_with_image_example, make_tooltip_source_document_example
 export make_text_view_document_example, make_text_view_projection_example
 export make_syntax_leaf_view_document_example, make_syntax_leaf_view_projection_example
+export make_syntax_node_view_document_example, make_syntax_node_view_projection_example
 export make_vertical_layout_document_example, make_widget_accordion_document_example
 export make_widget_alert_atom_document_example, make_widget_alert_document_example
 export make_widget_avatar_document_example, make_widget_badge_atom_document_example
@@ -262,6 +265,7 @@ export find_bar_example, filter_bar_example, highlighted_filtered_text_example
 export text_with_image_example, widget_accordion_example, widget_alert_example
 export text_view_example
 export syntax_leaf_view_example
+export syntax_node_view_example
 export widget_avatar_example, widget_badge_example, widget_button_action_example
 export widget_button_example, widget_button_image_example, widget_card_example, widget_collapsible_card_example
 export widget_checkbox_example, widget_composite_example, widget_disabled_example

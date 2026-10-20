@@ -462,15 +462,15 @@ and the output of each stage, as structures that a person reads.
    and text tests with the printer walk of every platform example 154173;
    `test_json()` 239; the platform layering guard; the naming guard. The REPL walk of
    the example gives no error.
-3. [ ] **A syntax node and its view.** R finds each child view by the step of the
+3. [x] **A syntax node and its view.** R finds each child view by the step of the
    child (decision 13). The carets of the child views join into the flat caret of
    the text view, and the folds of the views become its hidden ranges, over a
    content printed with `text_folds = true`, in the shape of decision 14. The keys
    of a compound move to its view. Tests: `test_syntax()`,
    `test_collapse_roundtrip()`.
 
-   The node, its view and its keys are done (2026-10-20); the fold is open. What
-   it made:
+   The node, its view and its keys were done on 2026-10-20, and the fold on
+   2026-10-21. What it made:
    - `ViewRecursion` (R) in `Viewing.jl`. A viewing step gives it to the content
      projection as the recursion. R takes the steps that the context of a child adds
      to the path of the view, applies them to the view, and prints the child view
@@ -493,10 +493,53 @@ and the output of each stage, as structures that a person reads.
      delimiter of the node, and the map of `SyntaxCompoundToText` names it
      `.close{0}`, as it does today.
 
-   Tests: `test_syntax_node_view()` 32, which records the documents that the stage
-   prints: only views, the three of the places and the six of their children; the
-   tests of steps 1 and 2, the syntax tests and the printer walk of every platform
-   example 153646; `test_json()` 239.
+   - The fold, in the shape of decision 14. `SyntaxNodeView.collapsed` is the fold
+     of a view. The IO map of a compound print holds the `TextFold` that the print
+     made (`fold`). Two hooks of the viewing step carry state that is not a path:
+     `map_view_state!` sets the closed folds of the output `TextView` of a node view,
+     found through the views that the text shows and never inside a closed one; and
+     `read_view_operation` makes a toggle of a fold of the text,
+     `ToggleCollapseOperation(fold)`, into `ToggleFoldOperation(path)`, the toggle of
+     the view of the node whose print made that fold. `ToggleFoldOperation` maps back
+     and reroots as a path does, and flips the fold of the view at its path.
+   - `TextView.closed_folds`, and Ctrl+. in `@gestures TextView`. `TextFolding` folds
+     a `TextView` too: it hides the lines of the closed folds of the view
+     (`TextViewFoldingIoMap`), maps the caret over the lines that it keeps, and maps a
+     flat edit back to the text. Its code takes the test of a closed fold and the
+     caret as arguments, so `TextFolding` of a text reads the cell of each fold as
+     before.
+   - The drawing gets only the lines that a fold shows, so folded lines are not laid
+     out. Their print is still computed (decision 14).
+   - The example `syntax_node_view`: one node in two views at three places, view A
+     folded and view B open with its caret.
+
+   Limits: the view chain draws no gutter, so no triangle shows: a fold opens by a
+   click on its placeholder or by Ctrl+., and closes by Ctrl+. only. The cell
+   `collapsed` of the content and `TextFolding` of a text stay for the old chains.
+
+   The shape:
+
+   ```
+   documents                          projection of a place
+   VerticalLayout                     ChainingProjection(
+   ├ [1] SyntaxNodeView A ──┐             RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+   ├ [2] SyntaxNodeView B ──┼─ node       TextFolding(),
+   └ [3] SyntaxNodeView A ──┘             RecursiveProjection(TypeDispatchingProjection(
+   A.children, B.children: the views         TextView  => TextViewToGraphicsCanvas(),
+   of the leaves, by identity               TextBlock => TextBlockToGraphicsCanvas(; measure))))
+
+   stage 1  A  → TextView(T, caret of A through M, closed folds = the fold of each closed view)
+   stage 2     → TextView(T without the lines of those folds, caret through the kept lines)
+   stage 3     → [band, drawing of the shown lines, caret]
+   ```
+
+   Tests: `test_syntax_node_view()` 41, which records the documents that the stage
+   prints (only views: the three of the places and the six of their children) and
+   folds view A, then view B by Ctrl+., and opens view A by a click on its
+   placeholder; the tests of steps 1 and 2, the folding, gutter, numbering, syntax
+   and text tests and the printer walk of every platform example 154209;
+   `test_json()` 239. The printer walk and the REPL walk of the example give no
+   error.
 4. [ ] **A JSON string and its view**, through `ViewingProjection(JsonToSyntax())`.
    Tests: `test_json_to_syntax()`.
 5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead

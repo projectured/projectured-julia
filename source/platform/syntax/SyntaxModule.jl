@@ -52,7 +52,7 @@ using ..TextModule
 import ..CellModule: set_cell_computation!
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..ProjectionAlgebraModule: make_content_view
+import ..ProjectionAlgebraModule: make_content_view, map_view_state!, read_view_operation
 
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_computation!,

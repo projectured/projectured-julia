@@ -52,9 +52,16 @@ element.
     kept::Cell
 end
 
+# Whether a fold is closed: by its own cell for a text, and by the closed folds of
+# a view for the text of a view (`TextView.jl`). The helpers below take the test as
+# `is_closed`.
+_is_fold_closed(fold::TextFold) = fold.collapsed
+_is_closed_in_view(view::TextView, fold) =
+    (closed = view.closed_folds; closed !== nothing && any(f -> f === fold, closed))
+
 # The elements of `text` that stay in view: every element but the lines that a
 # closed fold holds after its first line.
-function _find_shown_elements(text::TextBlock)
+function _find_shown_elements(text::TextBlock, is_closed)
     shown = Int[]
     hidden_until = 0
     for (i, element) in enumerate(text.elements)
@@ -62,14 +69,14 @@ function _find_shown_elements(text::TextBlock)
         push!(shown, i)
         element isa TextLine || continue
         fold = element.fold
-        (fold isa TextFold && fold.collapsed) && (hidden_until = max(hidden_until, i + fold.line_count))
+        (fold isa TextFold && is_closed(fold)) && (hidden_until = max(hidden_until, i + fold.line_count))
     end
     shown
 end
 
 # The triangle of `fold`, which follows its state.
-_make_fold_mark(p::TextFolding, fold::TextFold) =
-    TextBlock(TextLine(TextString(() -> fold.collapsed ? p.closed_mark : p.open_mark,
+_make_fold_mark(p::TextFolding, fold::TextFold, is_closed) =
+    TextBlock(TextLine(TextString(() -> is_closed(fold) ? p.closed_mark : p.open_mark,
                                   p.mark_style.font, p.mark_style.color)))
 
 # The runs that stand for the hidden lines of `fold` at the end of its first line.
@@ -82,18 +89,18 @@ end
 # The output line of the input line `line`: its spans and the placeholder while its
 # fold is closed, its indentation, its fold, its paths, and a gutter with the
 # triangle of its fold.
-function _make_folded_line(p::TextFolding, line::TextLine, marks::IdDict, placeholders::IdDict)
+function _make_folded_line(p::TextFolding, line::TextLine, marks::IdDict, placeholders::IdDict, is_closed)
     elements = CellVector(Computation(function ()
         spans = Any[span for span in line.elements]
         fold = line.fold
-        (fold isa TextFold && fold.collapsed) || return spans
+        (fold isa TextFold && is_closed(fold)) || return spans
         vcat(spans, get!(() -> _make_fold_placeholder(p, fold), placeholders, fold))
     end))
     field, gutter_type = p.field, p.gutter_type
     gutter = Cell(Computation(function ()
         fold = line.fold
         fold isa TextFold || return line.gutter
-        _make_filled_gutter(line.gutter, field, get!(() -> _make_fold_mark(p, fold), marks, fold),
+        _make_filled_gutter(line.gutter, field, get!(() -> _make_fold_mark(p, fold, is_closed), marks, fold),
                             gutter_type)
     end))
     TextLine(elements, getfield(line, :indentation), gutter, getfield(line, :fold),
@@ -101,7 +108,16 @@ function _make_folded_line(p::TextFolding, line::TextLine, marks::IdDict, placeh
 end
 
 function print_document(p::TextFolding, recursion, text::TextBlock, ctx)
-    kept = Cell(@computation _find_shown_elements(text))
+    folded = _fold_text(p, text, _is_fold_closed)
+    paths = make_output_path_cells(text, path ->
+        _forward_folded(folded.kept[], text, TextBlock(folded.elements, Cell(nothing)), path))
+    TextFoldingIoMap(p, text, TextBlock(folded.elements, paths.selection, paths.mouse_target), folded.kept)
+end
+
+# The lines of `text` that the folds closed by `is_closed` leave in view, as the
+# elements of the output, with the cell of the input index of each.
+function _fold_text(p::TextFolding, text::TextBlock, is_closed)
+    kept = Cell(@computation _find_shown_elements(text, is_closed))
     # Each output line is made once and kept while its input line is shown, so a
     # fold that closes makes no other line again.
     lines = IdDict{Any, Any}()
@@ -113,7 +129,7 @@ function print_document(p::TextFolding, recursion, text::TextBlock, ctx)
         for i in kept[]
             element = text.elements[i]
             if element isa TextLine
-                push!(out, get!(() -> _make_folded_line(p, element, marks, placeholders), lines, element))
+                push!(out, get!(() -> _make_folded_line(p, element, marks, placeholders, is_closed), lines, element))
                 live[element] = true
             else
                 push!(out, element)
@@ -124,9 +140,7 @@ function print_document(p::TextFolding, recursion, text::TextBlock, ctx)
         end
         out
     end))
-    paths = make_output_path_cells(text, path ->
-        _forward_folded(kept[], text, TextBlock(elements, Cell(nothing)), path))
-    TextFoldingIoMap(p, text, TextBlock(elements, paths.selection, paths.mouse_target), kept)
+    (elements = elements, kept = kept)
 end
 
 # The runs of flat offsets that the fold keeps: one for each line shown, as long as
@@ -187,7 +201,7 @@ end
 # The fold that a selection of the output clicks: the fold of the line whose
 # triangle it selects, or the fold of the closed line whose placeholder holds its
 # caret. `nothing` for any other selection.
-function _find_clicked_fold(p::TextFolding, iomap::TextFoldingIoMap, path)
+function _find_clicked_fold(p::TextFolding, iomap::TextFoldingIoMap, path, is_closed = _is_fold_closed)
     input, output = iomap.input, iomap.output
     kept = unwrap_cell(iomap.kept)
     k = _find_fold_mark_line(p, path)
@@ -203,7 +217,7 @@ function _find_clicked_fold(p::TextFolding, iomap::TextFoldingIoMap, path)
         caret < start && break
         caret <= start + get_flat_length(output.elements[k]) || continue
         line = input.elements[kept[k]]
-        (line isa TextLine && line.fold isa TextFold && line.fold.collapsed) || return nothing
+        (line isa TextLine && line.fold isa TextFold && is_closed(line.fold)) || return nothing
         return caret > start + get_flat_length(line) ? line.fold : nothing
     end
     nothing
@@ -219,9 +233,9 @@ function read_intent(p::TextFolding, iomap::TextFoldingIoMap, op::ReplacePathOpe
     input_path === nothing ? nothing : make_path_operation(op, input_path)
 end
 
-# The innermost fold of `text` around the line of its caret, or `nothing`.
-function _find_innermost_fold(text::TextBlock)
-    selection = get_selection(text)
+# The innermost fold of `text` around the line of the caret `selection`, the caret
+# of the text or of a view of it, or `nothing`.
+function _find_innermost_fold(text::TextBlock, selection = get_selection(text))
     selection isa Reference || return nothing
     caret = get_flat_caret(text, selection)
     caret === nothing && return nothing
@@ -287,3 +301,65 @@ function read_intent(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPres
 end
 
 read_intent(::TextFolding, ::TextFoldingIoMap, payload) = payload isa Operation ? payload : nothing
+
+# ── The fold of a text view ─────────────────────────────────────────────────
+
+"""
+    TextViewFoldingIoMap
+
+The IO map of `TextFolding` for a `TextView`: the output is the view of the lines
+that the closed folds of the view leave in view, and `content` is the IO map of the
+folding of the text of the view.
+"""
+@iomap struct TextViewFoldingIoMap
+    projection::Any
+    input::TextView
+    output::TextView
+    content::TextFoldingIoMap
+end
+
+# A text view hides the lines of its own closed folds, so two views of one text
+# fold apart; its caret maps through the lines that the folds keep.
+function print_document(p::TextFolding, recursion, view::TextView, ctx)
+    text = view.content
+    folded = _fold_text(p, text, fold -> _is_closed_in_view(view, fold))
+    shown = TextBlock(folded.elements, Cell(nothing))
+    content = TextFoldingIoMap(p, text, shown, folded.kept)
+    output = TextView(shown)
+    set_output_path_computations!(output, view,
+                                  path -> map_reference_forward(p, content, get_content_path(view, path)))
+    TextViewFoldingIoMap(p, view, output, content)
+end
+
+map_reference_forward(p::TextFolding, iomap::TextViewFoldingIoMap, reference) =
+    map_reference_forward(p, iomap.content, get_content_path(iomap.input, reference))
+
+map_reference_backward(p::TextFolding, iomap::TextViewFoldingIoMap, reference) =
+    map_reference_backward(p, iomap.content, reference)
+
+# A click on the placeholder of a fold that the view closes toggles that fold; any
+# other path maps back over the lines kept.
+function read_intent(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplacePathOperation)
+    path = get_operation_path(op)
+    if op isa ReplaceSelectionOperation
+        fold = _find_clicked_fold(p, iomap.content, path, fold -> _is_closed_in_view(iomap.input, fold))
+        fold === nothing || return ToggleCollapseOperation(fold)
+    end
+    input_path = map_reference_backward(p, iomap.content, path)
+    input_path === nothing ? nothing : make_path_operation(op, input_path)
+end
+
+# Ctrl+. gets the innermost fold around the caret of the view.
+function read_intent(::TextFolding, iomap::TextViewFoldingIoMap, op::ToggleCollapseOperation)
+    op.target === nothing || return op
+    fold = _find_innermost_fold(iomap.input.content, iomap.input.selection)
+    fold === nothing ? nothing : ToggleCollapseOperation(fold)
+end
+
+# A flat edit of the lines shown is an edit at the same place of the text.
+function read_intent(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplaceTextRangeOperation)
+    path = map_reference_backward(p, iomap.content, op.reference)
+    path === nothing ? nothing : ReplaceTextRangeOperation(path, op.replacement)
+end
+
+read_intent(::TextFolding, ::TextViewFoldingIoMap, payload) = payload isa Operation ? payload : nothing

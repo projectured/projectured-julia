@@ -64,7 +64,7 @@ export TextTheme, ScaledTextTheme
 export ReferenceTheme, ScaledReferenceTheme
 export TextToGraphics, TextToGraphicsIoMap
 export TextGutter, TextGutterToGraphics, TextBlockToScrollLayout, TextBlockToScrollLayoutIoMap
-export TextFold, TextFolding, TextFoldingIoMap
+export TextFold, TextFolding, TextFoldingIoMap, TextViewFoldingIoMap
 export TextBlockToString, TextStringToString, TextSpacingToString, TextGraphicsToString,
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
@@ -89,6 +89,7 @@ include("TextDocument.jl")
 include("TextTheme.jl")
 include("TextBlockToGraphicsCanvas.jl")
 include("TextToGraphics.jl")
+include("TextView.jl")
 include("TextGutterToGraphics.jl")
 include("TextBlockToScrollLayout.jl")
 include("TextToString.jl")
@@ -99,7 +100,6 @@ include("WordWrapping.jl")
 include("TextPattern.jl")
 include("FilteredTextToText.jl")
 include("TextFirstLine.jl")
-include("TextView.jl")
 include("HighlightedTextToText.jl")
 include("SelectionInverting.jl")
 include("PrimitiveToText.jl")
