@@ -142,12 +142,28 @@ no step of the editor loop.
 
 Each step works in a worktree, ends with its tests, and ends with a commit.
 
-- [ ] **1. Read.** The `text/plain` display of a `PivotTable` and
+- [x] **1. Read.** Done 2026-10-20. The `text/plain` display of a `PivotTable` and
   `find_pivot_value`, each with its docstring and an example. Test: the display
   of the pivot of the example names its zones and shows the value of each cell.
   A display with a small `:displaysize` says how many rows it leaves out.
   `find_pivot_value` answers the value that the cell shows, a total, and
   `nothing` for a key that does not occur.
+  - What was built: the display is the fragment `PivotTableDisplay.jl`, and
+    `find_pivot_value` is in `PivotCrossTable.jl` beside `find_pivot_part_rows`.
+    The display and the table share the text of a row label
+    (`_format_pivot_row_labels`, split out of `_make_pivot_row_labels`).
+  - A decision of the work: the display gives each measure a text column of its
+    own, with a header line of the measure names when there are several. The
+    table joins the values of the measures in one cell, but in text the values
+    then do not stand under their names.
+  - A limited display computes only the cells that it shows. It adds a column
+    of the cross table, with all its measures, while the width holds it.
+  - `find_pivot_value` takes one value as the key of one dimension, and refuses a
+    key of the wrong length or a measure that the pivot does not have, with a
+    message that names the dimensions or the measures.
+  - Tests: `test_pivot_cross_table` 112 of 112, `test_pivot_table_display` 10 of
+    10, `test_pivot_totals` 29, `test_pivot_table_projection` 36,
+    `test_pivot_group_view` 21.
 - [ ] **2. Change.** `move_pivot_field!` and the method
   `replace_referenced_value!(part, field, value)`. Test: in a headless window,
   each verb is one undo step, `undo` takes it back, and the selection of the

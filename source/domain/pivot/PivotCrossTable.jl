@@ -430,3 +430,51 @@ function compute_pivot_measure(table, rows::AbstractVector{<:Integer}, measure)
     aggregate === :maximum && return maximum(present)
     throw(ArgumentError("a pivot measure has no aggregate :$aggregate"))
 end
+
+"""
+    find_pivot_value(pivot, row_key, column_key = (); measure = 1) -> value or nothing
+
+The value of measure number `measure` of `pivot` in the cell of the row with the
+key `row_key` and the column with the key `column_key`: the number that the cell
+shows. A key is a tuple of the values of the row or the column dimensions, in
+their order, such as `("EU", "DE")`. One value is the key of one dimension, and
+`()` is the key of a pivot with no dimension there. The key of a total holds
+`PivotTotal()`, and it occurs while the pivot shows its totals. Answer `nothing`
+when a key does not occur, or no row of the source has both keys.
+
+Use it to read one value of a pivot that is too large to read in its display.
+
+# Example
+
+    pivot_1 = get_edited_document(find_pane("Sales"))
+    find_pivot_value(pivot_1, ("EU", "DE"), 2025)
+    find_pivot_value(pivot_1, ("EU", PivotTotal()), 2025; measure = 2)
+
+See also `move_pivot_field!`, `make_pivot_table`.
+"""
+function find_pivot_value end
+
+find_pivot_value(pivot::ReferencedDocument, row_key, column_key = (); measure::Integer = 1) =
+    find_pivot_value(get_document(pivot), row_key, column_key; measure)
+
+function find_pivot_value(pivot::PivotTable, row_key, column_key = (); measure::Integer = 1)
+    row_key = _check_pivot_key(row_key, pivot.row_dimensions, "row")
+    column_key = _check_pivot_key(column_key, pivot.column_dimensions, "column")
+    measures = get_pivot_measures(pivot)
+    1 <= measure <= length(measures) ||
+        throw(ArgumentError(string("The pivot has no measure ", measure, ". Its measures: ",
+                                   join((describe_pivot_measure(m) for m in measures), ", "), ".")))
+    rows = find_pivot_part_rows(pivot.cross_table, row_key, column_key)
+    rows === nothing ? nothing : compute_pivot_measure(pivot.source, rows, measures[measure])
+end
+
+# A key as a tuple, with one value for each dimension of `dimensions`. A key of
+# another length is refused, and the refusal names the dimensions.
+function _check_pivot_key(key, dimensions, kind::String)
+    key = key isa Tuple ? key : (key,)
+    count = length(dimensions)
+    length(key) == count && return key
+    names = join((dimension.column for dimension in dimensions), ", ")
+    throw(ArgumentError(string("The ", kind, " key ", repr(key), " has ", length(key), " values, and the pivot has ",
+                               count, " ", kind, " dimensions", count == 0 ? "" : ": " * names, ".")))
+end

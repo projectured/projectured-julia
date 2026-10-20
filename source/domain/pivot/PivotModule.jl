@@ -34,7 +34,7 @@ export PivotDimension, PivotMeasure, PivotCellView, PivotNumberView, PivotRowsVi
        PivotLineChartView, PivotPieChartView, PivotGroupView, PivotChartCell, PivotPartTable, PivotTable, PivotCells,
        PivotCellRow, make_pivot_table
 export PivotTotal, PivotBin, PivotMonth, PivotCrossTable, get_pivot_row_count, get_pivot_column_count, find_pivot_part_rows,
-       compute_pivot_cross_table, compute_pivot_measure
+       compute_pivot_cross_table, compute_pivot_measure, find_pivot_value
 export get_pivot_cell_view, describe_pivot_cell_view, get_pivot_cell_view_lines, get_pivot_measures,
        describe_pivot_measure, format_pivot_value, get_pivot_cell_document, get_pivot_cell_key,
        make_pivot_cell_document
@@ -52,6 +52,7 @@ include("PivotMenu.jl")
 include("PivotZoneEdit.jl")
 include("PivotTableToWidget.jl")
 include("PivotPartTableToWidget.jl")
+include("PivotTableDisplay.jl")
 
 # A pivot draws as its bar and its table in a tab, and inside any document that
 # the natural renderer draws.

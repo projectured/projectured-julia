@@ -223,16 +223,21 @@ function _make_pivot_row_header_list(pivot::PivotTable)
     make_index_list(count, 1, k -> leveled ? _make_pivot_row_labels(pivot, cross.row_keys[k]) : WidgetLabel("all"))
 end
 
-# The labels of the key of a row. The label of a closed run or group starts with ▸.
-function _make_pivot_row_labels(pivot::PivotTable, key::Tuple)
-    labels = Any[format_pivot_value(value) for value in key]
+# The labels of the key of a row.
+_make_pivot_row_labels(pivot::PivotTable, key::Tuple) =
+    CellVector(Any[WidgetLabel(label) for label in _format_pivot_row_labels(pivot, key)])
+
+# The text of each label of the key of a row. The label of a closed run or group
+# starts with ▸.
+function _format_pivot_row_labels(pivot::PivotTable, key::Tuple)
+    labels = String[format_pivot_value(value) for value in key]
     total = findfirst(value -> value isa PivotTotal, key)
     if total === nothing
         (!isempty(labels) && any(isequal(key), pivot.collapsed)) && (labels[end] = "▸ " * labels[end])
     elseif total > 1 && any(isequal(key[1:(total - 1)]), pivot.collapsed)
         labels[total - 1] = "▸ " * labels[total - 1]
     end
-    CellVector(Any[WidgetLabel(label) for label in labels])
+    labels
 end
 
 # The corner: the names of the row dimensions, one for each level of the row
