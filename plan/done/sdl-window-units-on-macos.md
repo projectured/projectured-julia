@@ -96,11 +96,17 @@ known before the first window, so the ratio there is 1 / 1, which is correct.
    All of `test_device_config`, `test_dirty_rect`, `test_laid_out_canvas`,
    `test_input_coalescing`, `test_sdl_pointer_shape`, `test_native_window` and
    `test_sdl_held_frames` pass on X11 (22 testsets, 0 fail, 0 error).
-   `test_video` gives 75 pass and 5 fail, the same 5 at the same lines as on
-   `main` at 93056f9f9 in the same X11 session. The macOS case itself can not
+   `test_video` gave 75 pass and 5 fail, the same 5 at the same lines as on
+   `main` at 93056f9f9 in the same X11 session. After the review fixes it gave a
+   sixth failure, the red band of `ApplicationVideoTest.jl:300`, which also fails
+   on `main` at times and depends on timing. The video backend calls none of the
+   changed functions, and two runs of `test_application_video` alone pass lines
+   210 and 300 and fail only 163 and 165, as `main` does. The macOS case itself can not
    run here: this machine has X11 at 96 DPI and no Wayland compositor.
-4. Documentation. [sdl.md](../../documentation/package/backend/sdl/sdl.md)
-   says the two numbers and the limit below.
+4. ~~Documentation~~ **Done.** [sdl.md](../../documentation/package/backend/sdl/sdl.md)
+   says the two numbers in a section of its own, the design decision, and the
+   limit below, with one more limit: a glyph cursor on a Retina screen is drawn
+   at one pixel per point, because SDL2 sizes a cursor in window units.
 
 ## Limit
 
