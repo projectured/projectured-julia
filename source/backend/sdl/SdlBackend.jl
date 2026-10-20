@@ -1137,6 +1137,32 @@ struct _ClipEdges
     bottom::Int
 end
 
+# A paint of one rectangle of the dirty walk at a time: the records of the walk,
+# the rectangle in paint, and the count of the leaves that the paint drew. The
+# render reads it to skip a graphic that can draw no pixel in the rectangle.
+mutable struct _PartialPaint
+    records::Dict{UInt,NTuple{4,Int}}
+    rect::NTuple{4,Int}
+    drawn::Int
+end
+
+# True when the graphic placed at `key` draws no pixel in the rectangle of
+# `paint`: its record, widened by the pad of a dirty rectangle, does not meet the
+# rectangle. The record of a canvas covers what it holds, and the record of a
+# viewport is its box. A graphic with no record is drawn.
+function _is_outside_partial_paint(paint::_PartialPaint, key::UInt)
+    bounds = get(paint.records, key, nothing)
+    bounds === nothing && return false
+    (x0, y0, x1, y1) = paint.rect
+    pad = _DIRTY_RECT_PAD
+    bounds[3] + pad <= x0 || bounds[1] - pad >= x1 || bounds[4] + pad <= y0 || bounds[2] - pad >= y1
+end
+
+# The placement key of `elem` in the container placed at `key`, made as the dirty
+# walk makes it; 0 in a full paint, which reads no record.
+_make_render_key(paint::Union{Nothing,_PartialPaint}, elem, key::UInt) =
+    paint === nothing ? UInt(0) : _make_placement_key(elem, key)
+
 # The intersection of two clip rectangles, empty when they do not meet.
 function _clip_intersect(a::SDL_Rect, b::SDL_Rect)
     x1 = max(a.x, b.x)
@@ -1169,8 +1195,13 @@ _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
 # would draw its later content over the tab strip and outside the page.
 #
 # So a viewport intersects with the clip in force, and restores it afterwards.
+#
+# In a partial paint, `key` is the placement key of the viewport. Its content
+# skips what misses the rectangle in paint, except under a scale: the records
+# there are in the units of the content.
 function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int,
-                          ratio::Float64)
+                          ratio::Float64; paint::Union{Nothing,_PartialPaint} = nothing,
+                          key::UInt = UInt(0))
     vx = Int(vp.x) + ox
     vy = Int(vp.y) + oy
     vw = Int(vp.w)
@@ -1184,7 +1215,8 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
         # Fast path: a plain transform clips to the box and draws unscaled.
         box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
         SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
-        _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio)
+        _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio;
+                        paint, key = _make_render_key(paint, canvas, key))
         _clip_restore!(renderer, prev)
         return
     end
@@ -1888,8 +1920,13 @@ end
 
 # `ratio` is the number of device pixels in one logical pixel of the render. Only
 # a text reads it: it rasterizes its glyphs at the device size.
+#
+# In a partial paint, `paint` holds the rectangle in paint and `key` is the
+# placement key of `canvas`. The render then skips each element whose record
+# misses the rectangle, with all that it holds. A full paint passes `nothing`.
 function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox::Int, oy::Int,
-                         edges::_ClipEdges, ratio::Float64)
+                         edges::_ClipEdges, ratio::Float64;
+                         paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
     layout = canvas.layout
     elements = canvas.elements
     early_stop = !canvas.overlapping_elements && layout != layout_none
@@ -1899,7 +1936,8 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
         while prev_node !== nothing
             elem = prev_node.value
             if !(elem isa GraphicsFence)
-                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
+                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
+                                         key = _make_render_key(paint, elem, _make_render_key(paint, prev_node, key)))
                 if early_stop
                     if layout == layout_vertical
                         ey = _find_render_coordinate(_render_elem_y, elem)
@@ -1926,7 +1964,8 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                         ex !== nothing && (ex + ox) > edges.right && break
                     end
                 end
-                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
+                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
+                                         key = _make_render_key(paint, elem, _make_render_key(paint, node, key)))
             end
             node = node.next
         end
@@ -1946,7 +1985,8 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                     ex !== nothing && (ex + ox) > edges.right && break
                 end
             end
-            _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
+            _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
+                                     key = _make_render_key(paint, elem, key))
         end
     end
 end
@@ -1958,7 +1998,8 @@ _compute_first_drawn_index(canvas::GraphicsCanvas, ox::Int, oy::Int, edges::_Cli
         canvas.layout == layout_horizontal ? edges.left - ox : edges.top - oy)
 
 function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
-                                edges::_ClipEdges, ratio::Float64)
+                                edges::_ClipEdges, ratio::Float64;
+                                paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
     if elem isa GraphicsText
         _render_element!(renderer, elem, ox, oy, ratio)
     elseif elem isa GraphicsRect
@@ -1976,7 +2017,7 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     elseif elem isa GraphicsArc
         _render_arc!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
-        _render_viewport!(renderer, elem, ox, oy, ratio)
+        _render_viewport!(renderer, elem, ox, oy, ratio; paint, key)
     elseif elem isa GraphicsImage
         _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
@@ -1985,7 +2026,7 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         # through unchanged: a child's local offset moves `oy`, and with it the
         # absolute y of each element, not the clip.
         cx, cy = Int(elem.x), Int(elem.y)
-        _render_canvas!(renderer, elem, ox + cx, oy + cy, edges, ratio)
+        _render_canvas!(renderer, elem, ox + cx, oy + cy, edges, ratio; paint, key)
     end
     # GraphicsFence and unknown types are silently skipped
 end
@@ -1997,10 +2038,18 @@ _render_elem_y(elem) = hasfield(typeof(elem), :y) ? Int(elem.y) : nothing
 # with its barriers on: the editor records the fault, the rest of the canvas
 # draws, and a fault that a barrier took draws as its mark on the next frame.
 # Outside such a paint the exception goes on, so a test sees it.
+#
+# In a partial paint, an element placed at `key` whose record misses the
+# rectangle in paint is not drawn, and each leaf that is drawn counts.
 function _render_element_guarded!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
-                                  edges::_ClipEdges, ratio::Float64)
+                                  edges::_ClipEdges, ratio::Float64;
+                                  paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
+    if paint !== nothing
+        _is_outside_partial_paint(paint, key) && return nothing
+        _is_leaf_graphic(elem) && (paint.drawn += 1)
+    end
     try
-        _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
+        _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio; paint, key)
     catch exception
         record_paint_fault!(exception; origin = typeof(elem)) || rethrow()
     end
@@ -2903,7 +2952,7 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     end
     foreach(record -> record(), walk.deferred)
     foreach(clip -> clip(), walk.clips)
-    pad = 2
+    pad = _DIRTY_RECT_PAD
     padded = _DirtyRegion()
     for r in walk.region.rects
         _add_dirty_rect!(padded, (clamp(r[1] - pad, 0, res.width), clamp(r[2] - pad, 0, res.height),
@@ -2983,11 +3032,19 @@ end
 
 # ── Painting a dirty region ──────────────────────────────────────────────
 
-# Each rectangle of a region is painted with its own clip, so each one costs a
-# walk of the whole canvas. Past this many, the region is painted as the one
-# rectangle that covers it. A paragraph that grows by a line gives two
-# rectangles for itself and two for each paragraph below it that moves.
+# Each rectangle of a region is painted with its own clip. Its paint looks up the
+# record of each graphic that it meets on its way down from the window, and it
+# draws only the graphics whose records meet the rectangle. Past this many, the
+# region is painted as the one rectangle that covers it. A paragraph that grows
+# by a line gives two rectangles for itself and two for each paragraph below it
+# that moves.
 const _DIRTY_RECT_LIMIT = 32
+
+# The walk widens each rectangle of a region by this many pixels on each side, so
+# the anti-aliased edge of a glyph at the border of a rectangle is not cut. A
+# partial paint widens a record by the same pad before it skips a graphic, so a
+# graphic that draws up to the pad past its record still draws.
+const _DIRTY_RECT_PAD = 2
 
 function _limit_dirty_rects(rects::Vector{NTuple{4,Int}})
     length(rects) <= _DIRTY_RECT_LIMIT && return rects
@@ -3001,18 +3058,27 @@ _to_sdl_rect(r::NTuple{4,Int}) = SDL_Rect(Int32(r[1]), Int32(r[2]), Int32(r[3] -
 # under its own clip. Not SDL_RenderClear: it ignores the clip rect and would
 # wipe the retained pixels outside the dirty region, so the background of each
 # rect is filled by hand.
+#
+# With the `records` of the dirty walk, the paint of each rect skips the graphics
+# whose records miss it, and the answer is the `_PartialPaint`, whose `drawn`
+# counts the leaves drawn. With none, each rect draws the whole canvas, as a full
+# paint must not depend on the walk, and the answer is `nothing`.
 function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas,
                              rects::Vector{NTuple{4,Int}}, bg::NTuple{4,UInt8},
-                             width::Int, height::Int, ratio::Float64)
+                             width::Int, height::Int, ratio::Float64;
+                             records::Union{Nothing,Dict{UInt,NTuple{4,Int}}} = nothing)
+    paint = records === nothing ? nothing : _PartialPaint(records, (0, 0, 0, 0), 0)
+    key = _make_render_key(paint, canvas, UInt(0))
     for r in rects
         clip = Ref(_to_sdl_rect(r))
         SDL_RenderSetClipRect(renderer, clip)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderFillRect(renderer, clip)
-        _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, width, height), ratio)
+        paint === nothing || (paint.rect = r)
+        _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, width, height), ratio; paint, key)
     end
     SDL_RenderSetClipRect(renderer, C_NULL)
-    nothing
+    paint
 end
 
 # Outline the union of `rects` in red, `thickness` logical pixels wide, inside
@@ -3133,16 +3199,18 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     changed = res.first_paint || !isempty(computed)
     if !partial || res.first_paint
         rects = [(0, 0, res.width, res.height)]
+        records = nothing
     else
         isempty(computed) && return false   # nothing invalidated — skip paint/present
         rects = _limit_dirty_rects(computed)
+        records = res.dirty_bounds
     end
     res.first_paint = false
 
     rss = Float32(res.ss) * scale
     SDL_SetRenderTarget(renderer, res.target)
     SDL_RenderSetScale(renderer, rss, rss)
-    _paint_dirty_rects!(renderer, canvas, rects, bg, res.width, res.height, res.ratio)
+    _paint_dirty_rects!(renderer, canvas, rects, bg, res.width, res.height, res.ratio; records)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     SDL_SetRenderTarget(renderer, C_NULL)
 
@@ -3644,11 +3712,12 @@ function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::Gra
     computed = _compute_dirty_region(res, canvas)
     res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
     rects = res.first_paint ? [(0, 0, res.width, res.height)] : _limit_dirty_rects(computed)
+    records = res.first_paint ? nothing : res.dirty_bounds
     res.first_paint = false
     isempty(rects) && return rects
     scale = _get_offscreen_content_scale(off)
     SDL_RenderSetScale(off.renderer, Float32(scale * off.S), Float32(scale * off.S))
-    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale)
+    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale; records)
     state.last_rects = rects
     rects
 end

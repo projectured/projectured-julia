@@ -131,5 +131,58 @@ end
     # @broken: a viewport with a scale sets its clip in the units of its content, so a dirty rectangle that cuts its box at an odd pixel gets a clip one pixel off; plan/pending/a-repaint-draws-only-what-its-rectangles-touch.md
     @test_broken isempty(find_differing_frames(canvas, make_writes(bar_x, [45])))
 end
+
+# The records of a dirty walk, with no window.
+make_resources() = SDL.SdlWindowResources(
+    C_NULL, C_NULL, :test, UInt32(0), "t", width, height, 0, 0, :default,
+    (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
+    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
+
+# Walk and paint `canvas` in full, run `change!`, then walk and paint the change by
+# its rectangles. Answer the rectangles and the count of the leaves drawn.
+function paint_change(canvas, change!)
+    resources = make_resources()
+    off = SDL.open_offscreen_renderer(width, height; supersample = 1)
+    try
+        SDL._compute_dirty_region(resources, canvas)
+        SDL._render_canvas_offscreen!(off, canvas, width, height, background)
+        change!()
+        rects = SDL._limit_dirty_rects(SDL._compute_dirty_region(resources, canvas))
+        paint = SDL._paint_dirty_rects!(off.renderer, canvas, rects, background, width, height, 1.0;
+                                        records = resources.dirty_bounds)
+        (rects, paint.drawn)
+    finally
+        SDL.close_offscreen_renderer(off)
+    end
+end
+
+@testset "a change far from a viewport draws nothing of it" begin
+    # 5000 labels in a canvas with no layout, as a chart or a graph holds them, in
+    # a viewport at the left. A dot at the right moves.
+    labels = GraphicsCanvas(Any[GraphicsText("label $k", (k % 10) * 18, (k ÷ 10) * 14; font, color = black)
+                                for k in 0:4999])
+    dot_x = Cell(300)
+    canvas = GraphicsCanvas(Any[GraphicsViewport(0, 0, 180, 300, labels),
+                                GraphicsCircle(() -> dot_x[], 150, 4; color = black)];
+                            w = width, h = height)
+    rects, drawn = paint_change(canvas, () -> dot_x[] = 360)
+    @test length(rects) == 2
+    # The dot at its new place, and no label.
+    @test drawn == 1
+end
+
+@testset "a dot that moves over a list draws the rows under it" begin
+    rows = GraphicsCanvas(CellVector(Cell[Cell(GraphicsText("row $k", 4, (k - 1) * 20; font, color = black))
+                                          for k in 1:200]);
+                          w = 180, h = 200 * 20, layout = layout_vertical, overlapping = false)
+    dot_y = Cell(3 * 20 + 7)
+    dot = GraphicsCircle(14, () -> dot_y[], 3; color = translucent)
+    canvas = GraphicsCanvas(Any[GraphicsViewport(0, 0, 180, 300, GraphicsCanvas(Any[rows, dot]))];
+                            w = width, h = height)
+    rects, drawn = paint_change(canvas, () -> dot_y[] = 8 * 20 + 7)
+    @test length(rects) == 2
+    # Row 4 under the old place of the dot, row 9 under its new place, and the dot.
+    @test drawn == 3
+end
 end
 end

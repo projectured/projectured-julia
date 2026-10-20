@@ -155,7 +155,7 @@ on `main` before the owner approves.
 
    The test passes before the change, because the paint now draws everything.
    Commit.
-2. [ ] **The skip.**
+2. [x] **The skip.** Done.
    - Add a private struct that holds the records, the rectangle and a count of
      the leaves that it draws.
    - `_paint_dirty_rects!` takes the records, or `nothing`. `_render_window!`
