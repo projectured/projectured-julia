@@ -25,7 +25,7 @@ Each editor has one root section, `get_session_explorer_content(; editor)`: the 
 | `filter` | `ExplorerFilter` | the words and the kinds that a row keeps |
 | `matches` | a `DocumentTree` of `_ExplorerMatch` rows, or `nothing` | the rows that the filter keeps, while it keeps rows out |
 
-`ExplorerToWidget` draws a `WidgetSplitPane` of two sides. The left side holds a bar (the field of the filter, `+` and `▾`) above the tree, or above the tree of the matches while the filter keeps rows out. The right side holds the navigator. Each side is a `LayoutConstraint` with a share of the width, 1 for the left side and 3 for the navigator, so the navigator starts three times as wide. A drag of the divider sets the two widths. The widths live in the split pane, so a new start of the editor starts at 1 : 3 again. The paths map so:
+`ExplorerToWidget` draws a `WidgetSplitPane` of two sides. The left side holds a bar (the field of the filter, `+` and `▾`) above the tree, or above the tree of the matches while the filter keeps rows out. The right side holds the navigator. Each side is a `LayoutConstraint` with a share of the width, 1 for the left side and 3 for the navigator, so the navigator starts three times as wide. A drag of the divider sets the two widths. After it, the tree keeps its width when the explorer gets narrower or wider, such as by a drag of a divider of the window, and the navigator takes the change. The widths live in the split pane, so a new start of the editor starts at 1 : 3 again. The paths map so:
 
 ```
 filter.text<rest>    elements[1].child.children[1].children[1].content<rest>

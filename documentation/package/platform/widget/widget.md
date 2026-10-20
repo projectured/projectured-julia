@@ -214,7 +214,7 @@ The drag state of a `WidgetSplitPane` is in cells of the pane, because the pipel
 - `sizes` holds the extent of each slot. The start of a drag fills it from the measured extents when it is empty.
 - `active_splitter` is `0`, or `k` while the divider after slot `k` is held.
 - `drag_anchor` holds the grab point and the two sizes at the grab, so each move computes from the grab and not from the last move.
-- `pinned` marks each slot that a drag has set. The allocator then gives a pinned slot its `sizes` extent and no share of the weights, so a later print does not undo the drag.
+- `pinned` marks each slot that a drag has set. A drag pins every slot but the last. The allocator gives a pinned slot its `sizes` extent and no share of the weights, so a later print does not undo the drag. The last slot takes the rest of the total, also when it has no weight of its own, so a later change of the total, such as a resize of the window or a drag of a divider around the pane, goes to it: the side bar of a split keeps its width, and no slot is cut off.
 
 Each move adds a delta to slot `k` and takes it from slot `k+1`, clamped to the minimum and maximum of each slot. The evaluation of `ResizeSplitPaneOperation` writes a size or a pin only when it changes, so a move to the point of the last move writes no cell. The check is in the evaluation and not in the reader, because the pane tree answers the resize with its own write and leaves `sizes` as they were at the grab.
 

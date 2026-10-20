@@ -3570,12 +3570,14 @@ function evaluate_operation(editor, op::ResizeSplitPaneOperation)
     k = op.splitter_index
     sizes[k] == op.new_size_a || (sizes[k] = op.new_size_a)
     sizes[k + 1] == op.new_size_b || (sizes[k + 1] = op.new_size_b)
-    # Pin both dragged slots so the constrained layout honours their new size
-    # exactly instead of redistributing it by weight.
+    # Pin every slot but the last. A pinned slot keeps its size exactly, and the
+    # last slot takes the rest of the total, so the drag is exact, and a later
+    # change of the total, such as a resize of the window, goes to the last slot.
     pinned = split.pinned
     if length(pinned) >= k + 1
-        pinned[k] === true     || (pinned[k] = true)
-        pinned[k + 1] === true || (pinned[k + 1] = true)
+        for i in 1:(length(pinned) - 1)
+            pinned[i] === true || (pinned[i] = true)
+        end
     end
 end
 

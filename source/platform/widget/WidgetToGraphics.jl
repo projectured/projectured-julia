@@ -3989,6 +3989,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)
             wts   = Vector{Float64}(undef, n_local)
+            has_pinned = false
             for i in 1:n_local
                 elem      = local_elems[i]
                 intrinsic = _split_intrinsic(elem, sizes_local, i, axis)
@@ -4001,11 +4002,15 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 if i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
                     prefs[i] = Int(sizes_local[i])
                     wts[i]   = 0.0
+                    has_pinned = true
                 else
                     prefs[i] = intrinsic
                     wts[i]   = layout_weight(elem, axis)
                 end
             end
+            # A drag pins every slot but the last, and the last takes the rest of
+            # the total, also when it has no weight of its own.
+            has_pinned && wts[n_local] == 0.0 && (wts[n_local] = 1.0)
             allocate_axis(Int(avail_main[]); mins, maxs, prefs, weights = wts,
                           gap = splitter_thickness, n = n_local)
         end)

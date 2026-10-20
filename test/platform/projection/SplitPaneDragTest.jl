@@ -125,7 +125,8 @@ end
     _feed(proj, iomap, DragEnd(380, 50; time = 0.0))
 
     @test _szs(doc) == [380, 220]
-    @test [Bool(doc.pinned[i]) for i in 1:length(doc.pinned)] == [true, true]
+    # Every slot but the last is pinned, and the last takes the rest.
+    @test [Bool(doc.pinned[i]) for i in 1:length(doc.pinned)] == [true, false]
 
     # Re-print under the same available width: allocate_axis must honour the
     # dragged size instead of redistributing back to the weighted preference.
@@ -137,6 +138,16 @@ end
     @test length(xs) == 2
     @test xs[1] == 0
     @test 379 <= xs[2] <= 381   # second child starts right after the 380px slot
+
+    # A narrower and a wider offer: the dragged slot keeps its 380 px, and the last
+    # slot takes the change, so it ends at the edge of the offer.
+    for width in (501, 801)
+        narrower = with_exact_size(PrinterContext(); width=Cell(width), height=Cell(400))
+        viewports = [e for e in print_document(proj, nothing, doc, narrower).output.elements
+                     if e isa GraphicsModule.GraphicsViewport]
+        @test Int(viewports[2].x[]) == xs[2]
+        @test Int(viewports[2].x[]) + Int(viewports[2].w[]) == width
+    end
 end
 
 @testset "splitter inside a WidgetTabbedPane is grabbable at its drawn position" begin

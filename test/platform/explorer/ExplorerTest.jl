@@ -169,6 +169,30 @@ function test_explorer()
         # After the release, a move of the pointer moves no divider.
         send!(MouseMove(divider + 200, y; time = 1.3))
         @test back_x() == before + 100
+        # The right edge of the split pane: of the canvas that holds the region of
+        # the double arrow.
+        function split_end(canvas = window(), ox = 0)
+            x = ox + Int(canvas.x)
+            for element in canvas.elements
+                element = element isa Cell ? element[] : element
+                element isa GraphicsPointerShape && element.shape === :double_arrow_horizontal &&
+                    return x + Int(canvas.w[])
+                found = element isa GraphicsCanvas ? split_end(element, x) :
+                        element isa GraphicsViewport ? split_end(element.content, x + Int(element.x) +
+                                                                 round(Int, element.transform.e)) : nothing
+                found === nothing || return found
+            end
+            nothing
+        end
+        @test split_end() == Int(window().w[])
+        # A narrower window: the tree keeps its width, and the page takes the change,
+        # so the split pane ends at the edge of the window and cuts nothing off.
+        push_event!(backend, WindowInput(:W, WindowResize(800, 500; time = 1.4)))
+        run_frame!(editor)
+        run_frame!(editor)
+        @test Int(window().w[]) == 800
+        @test back_x() == before + 100
+        @test split_end() == 800
     end
 
     @testset "a chevron opens a node, and its children show in the tree" begin
