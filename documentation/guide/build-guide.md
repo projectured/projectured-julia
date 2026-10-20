@@ -33,6 +33,14 @@ stops there. The script then starts `julia_main` of that package. A change is
 tried in the time that Julia needs to compile it, and not in the minutes that a
 build costs.
 
+The first start after an install or an update installs and compiles the
+packages of the program, which takes some minutes. When that preparation runs
+longer than ten seconds, the script says why the wait comes and shows each
+package as it installs and compiles. A normal start spends about five seconds
+there and prints nothing, and a failure shows its output. A launcher of another
+program that the builder writes does the same, with `run_with_slow_output` of
+[LauncherOutput.jl](../../source/tool/builder/LauncherOutput.jl).
+
 ## Start a build
 
 ```bash

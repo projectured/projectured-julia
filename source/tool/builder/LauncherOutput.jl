@@ -13,8 +13,8 @@ comes, so a person sees which package installs or compiles. When `work` throws,
 the held output goes there too, and the exception is thrown again.
 
 Use it in a launcher around the preparation of a program: the resolve, the
-install and the compile of its packages. A normal start of `bin/omnet_ide` spends
-about five seconds there, and the first start after an update some minutes.
+install and the compile of its packages. A normal start of `bin/projectured`
+spends about five seconds there, and the first start after an update some minutes.
 
 # Example
 

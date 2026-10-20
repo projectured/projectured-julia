@@ -1,6 +1,6 @@
 # A launcher shows its slow work
 
-Status: PROPOSED, 2026-10-20. Q1 decided by the owner on 2026-10-20. No step has started.
+Status: DONE, 2026-10-20. Q1 decided by the owner on 2026-10-20.
 
 ## The ask
 
@@ -84,10 +84,17 @@ to see by default."
    process of its own); `bin/projectured --help` in a fresh worktree showed the
    line after ten seconds and each package live, and a second start showed only
    the help.
-3. [ ] **The six omnet launchers** (omnet) call it. Test: `bin/omnet_ide --help` on a
+3. [x] **The six omnet launchers** (omnet) call it. Test: `bin/omnet_ide --help` on a
    stale cache shows the line and the progress, and on a fresh cache shows only the
-   help.
-4. [ ] **The guides:** the build guide of each repository; the plan moves to
+   help. Done: each script finds the file at
+   `$root/../projectured-julia/source/tool/builder/LauncherOutput.jl`, where the
+   `[sources]` of `OmnetBuilder` find the projectured builder, so projectured lands
+   first. Tested with a copy of the script that names the file of the worktree:
+   `omnet_ide --help` in a fresh worktree showed the line at 11 seconds and the
+   help at 155, and a second start showed only the help (15 seconds in all);
+   `omnet_legacy_sample routing --help` too, for the scripts that pass arguments.
+4. [x] **The guides:** the build guide of projectured (omnet has no build guide,
+   and its launchers carry the note in their own comments); the plan moves to
    `plan/done/`.
 
 ## Questions for the owner
