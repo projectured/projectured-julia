@@ -1,7 +1,7 @@
 # A clip is set in device pixels
 
-Status: PENDING, 2026-10-20. In progress on the branch `scaled-viewport-clip`, in
-the worktree `projectured-julia-repaint-skip`. No decision is open.
+Status: DONE, 2026-10-20, on the branch `scaled-viewport-clip`, in the worktree
+`projectured-julia-repaint-skip`. Not landed on `main`.
 
 ## The ask
 
@@ -52,7 +52,7 @@ logical box touches: the corner rounds down and the far edge rounds up.
    at a density of 1.25. The marker `@test_broken` goes. The fix as in
    [The model](#the-model). Run `test_partial_paint()`, then `test_sdl()` and
    `test_video()` against the baseline of `main` at `636013c86`. Commit.
-2. [ ] **The guide and the plan.** `sdl.md` says how a clip is set. The plan moves
+2. [x] **The guide and the plan.** Done. `sdl.md` says how a clip is set. The plan moves
    to `plan/done/`. Commit.
 
 ## As built
@@ -73,7 +73,7 @@ logical box touches: the corner rounds down and the far edge rounds up.
   scale repaints its whole box.
 - **The clip in device pixels stays.** It fixes a fault of the full paint too: a
   viewport with a scale of 2 at x = 51, of width 101, drew device columns 52 to
-  151 on `main` and loses column 51. It now draws 51 to 151. The test "a viewport
+  151 on `main` and lost column 51. It now draws 51 to 151. The test "a viewport
   with a scale clips at the device pixels of its box" checks this at supersample
   1 and 2.
 - **Suites.** `test_sdl()`: 989 pass, 2 fail, 1 error, 0 broken. The 2 fail and the
