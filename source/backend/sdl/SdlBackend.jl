@@ -7,9 +7,12 @@
 # folder exists only on the machine that built `Xorg_libX11_jll`. Without the
 # data `XSupportsLocale` is false, and SDL then gives a window no title: X11
 # shows neither `WM_NAME` nor `_NET_WM_NAME`. The artifact of the JLL holds the
-# data, so SDL reads it there. A value that the user set wins.
+# data, so SDL reads it there. A value that the user set wins. A system with no
+# build of the JLL, such as macOS, has no X11, and its JLL assigns no
+# `artifact_dir`, so there is nothing to set.
 function __init__()
     haskey(ENV, "XLOCALEDIR") && return nothing
+    Xorg_libX11_jll.is_available() || return nothing
     directory = joinpath(Xorg_libX11_jll.artifact_dir, "share", "X11", "locale")
     isdir(directory) && (ENV["XLOCALEDIR"] = directory)
     nothing
