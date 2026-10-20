@@ -220,6 +220,12 @@ end
     # The first frame is dark already.
     @test appearance.system_colors == SystemColors(; mode = :dark)
     @test window().bg == background(Appearance(color_mode = :dark))
+    # The content of the first frame is dark too, and not only the background of
+    # the window, which is a computed cell: the editor prints when it is made.
+    content = window().content
+    content isa Cell && (content = content[])
+    @test last(_collect_text_styles(content)["Name"]) ==
+          resolve_theme_color(ColorRole(:text), Appearance(color_mode = :dark))
     # A change of the system recolours the view, and the history does not record it.
     push_event!(backend, WindowInput(:none, SystemColorsChange(SystemColors(); time = 1.0)))
     run_frame!(editor)

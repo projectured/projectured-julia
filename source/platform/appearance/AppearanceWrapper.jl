@@ -10,38 +10,43 @@ manager too. It is on by default.
 
 Its argument is the `Appearance` that the projection was built with. For `true`
 the wrapper makes a new one before the editor is built, and `build_editor` gives
-the same object to the projection that it makes when the caller names none. A
-start step copies the zoom of the appearance into the `Display` of the editor,
-so an editor starts at the zoom that its appearance holds; one copies the colour
-settings of the operating system that the backend finds into the appearance, so
-a setting `:system` follows them from the first print; and one gives each window
-of the screen of the editor the colour of the role `background` as its
-background, which follows a change of the colour settings.
+the same object to the projection that it makes when the caller names none.
+
+The wrapper copies the colour settings of the operating system that the backend
+of the parts finds into the appearance before the editor exists, so a setting
+`:system` follows them from the first print, which the editor makes when it is
+made. A start step copies the zoom of the appearance into the `Display` of the
+editor, so an editor starts at the zoom that its appearance holds; and one gives
+each window of the screen of the editor the colour of the role `background` as
+its background, which follows a change of the colour settings.
 """
 function wrap_editor!(::Val{:appearance}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa AppearanceDocument && return parts
     appearance = make_wrapper_argument(Val(:appearance), argument)::Appearance
+    copy_system_colors!(parts.backend, appearance)
     parts.document = make_appearance_document(parts.document, appearance)
     parts.projection = AppearanceManagingProjection(parts.projection)
     push!(parts.start_steps, editor -> copy_zoom_to_display!(editor, appearance))
-    push!(parts.start_steps, editor -> copy_system_colors!(editor, appearance))
     push!(parts.start_steps, editor -> follow_window_backgrounds!(editor.document, appearance))
     parts
 end
 
 """
-    copy_system_colors!(editor, appearance) -> nothing
+    copy_system_colors!(backend, appearance) -> nothing
 
-Copy the colour settings of the operating system, as the backend of `editor`
-finds them, into the `system_colors` of `appearance`. A missing editor, or a
-backend that finds nothing, changes nothing. A later change comes as a
-`SystemColorsChange`, which `AppearanceManagingProjection` reads.
+Copy the colour settings of the operating system, as `backend` finds them, into
+the `system_colors` of `appearance`. A missing backend, or a backend that finds
+nothing, changes nothing. Call it before the first print: a style field of a
+projection reads the colours with no edge, so a part that the first print drew
+keeps the colours of that print until the view prints again. A later change
+comes as a `SystemColorsChange`, which `AppearanceManagingProjection` reads, and
+which prints the view again.
 """
-function copy_system_colors!(editor, appearance::Appearance)
-    editor === nothing && return nothing
+function copy_system_colors!(backend, appearance::Appearance)
+    backend === nothing && return nothing
     # Through `invokelatest`: each backend package adds a method, and a call that
     # inference resolves would be invalidated when such a package loads.
-    colors = Base.invokelatest(find_system_colors, editor.backend)
+    colors = Base.invokelatest(find_system_colors, backend)
     colors === nothing || (appearance.system_colors = colors)
     nothing
 end

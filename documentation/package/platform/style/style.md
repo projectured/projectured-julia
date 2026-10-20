@@ -302,8 +302,9 @@ whose step 9 has the nearest OKLCH hue angle (`find_nearest_accent_hue`); a grey
 accent, or none, gives blue. With no answer of a backend, as in a test or a PDF
 file, the system is light and normal.
 
-The `appearance` wrapper fills `system_colors` in a start step, from
-`find_system_colors(editor.backend)`, before the first print. A backend that
+The `appearance` wrapper fills `system_colors` from
+`find_system_colors(parts.backend)` before the editor exists, because the editor
+makes its first print when it is made. A backend that
 finds a change later reports it as a `SystemColorsChange`, which
 `AppearanceManagingProjection` writes into `system_colors` as view state: the
 view prints again, and the undo list does not record it. The SDL backend asks
