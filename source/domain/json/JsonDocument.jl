@@ -39,8 +39,8 @@ end
 
 """
 A JSON array `[…]`. `elements` holds its values, each a JSON document. The array acts
-as a vector of them: `array[1]`, `length(array)`, `for element in array`.
-`collapsed` hides the elements behind a marker in the projection.
+as a vector of them: `array[1]`, `length(array)`, `for element in array`. A fold
+is state of a view of the array (`JsonArrayView`), not of the array.
 
 Use it to read the items of a JSON list, for example the records of a JSON file
 that holds an array of objects.
@@ -53,7 +53,6 @@ that holds an array of objects.
 """
 @document struct JsonArray <: JsonDocument
     elements::CellVector{Document} = CellVector{Document}()
-    collapsed::Bool = false
 end
 
 @forward_vector_protocol on JsonArray to elements
@@ -65,8 +64,7 @@ is the JSON document of its value.
 @document struct JsonObjectEntry <: JsonDocument
     key::String
     value::Document
-    collapsed::Bool = false
-end    
+end
 
 """
 A JSON object `{…}`: `entries` holds its members in order, each a `JsonObjectEntry`
@@ -74,7 +72,7 @@ with a `key` and a `value`. The object acts as a map from key to value:
 `object["name"]` answers the value of that key, and `keys(object)`,
 `haskey(object, key)` and `get(object, key, default)` work as for a `Dict`. A value
 is a JSON document, so read the `value` field of a string, a number or a boolean for
-the plain value. `collapsed` hides the members in the projection.
+the plain value.
 
 Use it to read the fields of a JSON record by their names.
 
@@ -85,8 +83,7 @@ Use it to read the fields of a JSON record by their names.
 """
 @document struct JsonObject <: JsonDocument
     entries::CellVector{Document} = CellVector{Document}()
-    collapsed::Bool = false
-end    
+end
 
 @adapt_map_protocol on JsonObject to entries with JsonObjectEntry(key, value)
 

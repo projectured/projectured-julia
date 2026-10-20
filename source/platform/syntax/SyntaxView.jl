@@ -43,6 +43,17 @@ SyntaxNodeView(content::SyntaxNode) = SyntaxNodeView(content, make_child_views(c
 make_content_view(content::SyntaxLeaf) = SyntaxLeafView(content)
 make_content_view(content::SyntaxNode) = SyntaxNodeView(content)
 
+# The view of a node that a viewing step gives over the views of its children, as
+# the step of a JSON array gives over the steps of its elements.
+make_content_view(content::SyntaxNode, children) = SyntaxNodeView(content, children)
+
+# The fold of that view is the fold of the view that the step printed.
+function map_view_state!(output::SyntaxNodeView, view::ContentView, iomap)
+    hasproperty(view, :collapsed) &&
+        set_cell_computation!(getfield(output, :collapsed), () -> view.collapsed)
+    output
+end
+
 # The caret of a view as a path of its content, which the key helpers of the
 # syntax read; `nothing` when the view has no live caret.
 function _get_view_caret(view::ContentView)

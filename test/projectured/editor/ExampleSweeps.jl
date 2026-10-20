@@ -240,11 +240,11 @@ function test_position_navigations()
             # widget/graphics-keyboard-routing limitation.
             example.name in ("layout", "constraint_layout",
                              # `text_view`, `syntax_leaf_view`,
-                             # `syntax_node_view` and `json_string_view` are
-                             # vertical layouts of three places, here for the
-                             # reason of `layout`.
+                             # `syntax_node_view`, `json_string_view` and
+                             # `json_array_view` are vertical layouts of three
+                             # places, here for the reason of `layout`.
                              "text_view", "syntax_leaf_view", "syntax_node_view",
-                             "json_string_view",
+                             "json_string_view", "json_array_view",
                              # `chart` is a WidgetTable of charts and
                              # `chart_inspector` a WidgetSplitPane, so both are
                              # here for the widget-container reason, not a chart

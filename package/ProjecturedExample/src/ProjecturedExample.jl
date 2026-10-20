@@ -369,7 +369,8 @@ export make_json_console_projection_example
 export record_assistant_conversation_video
 export json_typein_live, json_select_and_edit_live, json_insert_live, json_build_live, json_build_example
 export generate_example_screenshots, update_guide_screenshots
-export json_example, json_sorted_example, json_insertion_example, json_string_view_example
+export json_example, json_sorted_example, json_insertion_example, json_string_view_example,
+       json_array_view_example
 export yaml_example
 export xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example

@@ -572,9 +572,57 @@ and the output of each stage, as structures that a person reads.
    Tests: `test_json_string_view()` 24; `test_json()` 263; the view, syntax and
    folding tests and the printer walk of every platform example 155567. The
    printer walk and the REPL walk of the example give no error.
-5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
+5. [x] **A JSON array and its view**, which holds the views of its elements; the dead
    `collapsed` fields of the JSON types go. Tests: `test_json()`,
    `test_example(json_example)`, `test_click_roundtrips()`.
+
+   Done 2026-10-21. What it made:
+   - The views of JSON in `JsonView.jl`: the abstract `JsonView`, and
+     `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView` and
+     `JsonArrayView`, whose `elements` hold the views of the elements and whose
+     `collapsed` is its fold.
+   - R keeps the IO map of each child view that it prints. The output view of a
+     compound is `make_content_view(content, children)` over the output views of the
+     steps of its children, so the view tree of the next domain carries the state of
+     the child views, such as their folds; `map_view_state!` of a `SyntaxNodeView`
+     takes the fold of the view that the step printed.
+   - `make_content_edit`: an edit that the key table of a view makes with the
+     helpers of its content goes through the view. Each write of a value goes below
+     `.content`, because the child fields of a view hold views; the written value
+     keeps no caret; the caret stays a path of the view, which the view of the new
+     part takes. `@gestures JsonView` replaces the element that the caret names with
+     one of another kind; `@gestures JsonArrayView` appends an element to the
+     innermost array around the caret. The table of the root view walks the caret
+     path to that array, as the table of a compound of the syntax walks its tree.
+   - `ToggleFoldOperation` reads its path by its steps alone: a stage that maps it
+     back types it with the nodes of its content.
+   - The `collapsed` fields of `JsonArray`, `JsonObject` and `JsonObjectEntry` go.
+     No code read them.
+   - The example `json_array_view`.
+
+   Facts: a comma inside a string types a comma, as now, because the text stage
+   reads the key first; the comma of the array fires where the text declines it,
+   such as on a whole element.
+
+   Limits: objects, entries and insertions have no view yet. A new element, a
+   `JsonInsertion`, prints as content, and the caret of its array view names it
+   whole. The recorded precompile statements (`package/*/precompile/*.txt`) name the
+   types before this plan and must be recorded again before a landing.
+
+   The shape:
+
+   ```
+   JsonArrayView A { content = array, elements = [JsonStringView, JsonNumberView, JsonArrayView], collapsed }
+     ── ViewingProjection(JsonToSyntax())  ──► SyntaxNodeView(node, children = the outputs of the element steps)
+     ── ViewingProjection(SyntaxToText(text_folds = true)) ──► TextView(text, closed folds of the views)
+     ── TextFolding() ──► TextView(the shown lines)
+     ── TextView => TextViewToGraphicsCanvas ──► [band, drawing, caret]
+   ```
+
+   Tests: `test_json_array_view()` 34; `test_json()` 297; the view, syntax and
+   folding tests and the printer walk of every platform example 155585;
+   `test_example(json_example)` and `test_click_roundtrips()` 7691, in a fresh
+   process. The printer walk and the REPL walk of the example give no error.
 6. [ ] **Places**: the owner's example of one JSON file, two views and four places,
    with the focusing projection printing a place; the pastes of QC.
 7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view

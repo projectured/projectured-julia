@@ -37,7 +37,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
-export JsonStringView
+export JsonView, JsonNullView, JsonBoolView, JsonNumberView, JsonStringView, JsonArrayView
 
 
 include("JsonDocument.jl")

@@ -45,6 +45,39 @@ function make_content_view end
 make_content_view(content) = nothing
 
 """
+    make_content_view(content, children) -> ContentView or nothing
+
+The view of `content` that a viewing step gives over a content with children:
+`children` holds the views of the next domain that the steps of the children gave,
+in the order of the children of `content`. A content type whose view holds the
+views of its children declares a method; any other content takes no children.
+"""
+make_content_view(content, children) = make_content_view(content)
+
+"""
+    make_content_edit(operation) -> Operation
+
+An edit that the key table of a view makes with the helpers of its content, such
+as an insert of an element or a replace of a node, as an edit through the view.
+Each write of a value goes to the same place below the field `content` of the view,
+because the child fields of a view hold views; the value keeps no caret of its own.
+Each caret stays a path of the view, which the view of the new part takes.
+"""
+make_content_edit(operation::CompoundOperation) =
+    CompoundOperation(Any[make_content_edit(member) for member in operation.operations])
+function make_content_edit(operation::ReplaceReferencedValueOperation)
+    operation.document === nothing || return operation
+    foreach(_clear_written_selection!, operation.value isa AbstractVector ? operation.value : (operation.value,))
+    content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+    ReplaceReferencedValueOperation(nothing, concat_references(content, operation.reference), operation.value)
+end
+make_content_edit(operation) = operation
+
+# A content that an edit writes carries no caret: its caret is the caret of the view.
+_clear_written_selection!(value::Document) = clear_selection!(value)
+_clear_written_selection!(value) = nothing
+
+"""
     make_child_views(content, field::Symbol) -> CellVector
 
 The views of the children in the collection `field` of `content`, in their order:
@@ -107,9 +140,9 @@ end
 
 function print_document(p::ViewingProjection, recursion, input, ctx)
     input isa ContentView || return print_document(p.content, recursion, input, ctx)
-    content = print_document(p.content, ViewRecursion(input, recursion, ctx),
-                             getproperty(input, :content), ctx)
-    output = make_content_view(content.output)
+    view_recursion = ViewRecursion(input, recursion, ctx, IdDict{Any,Any}())
+    content = print_document(p.content, view_recursion, getproperty(input, :content), ctx)
+    output = make_content_view(content.output, _make_output_children(view_recursion, content))
     output === nothing && throw(ArgumentError(
         "ViewingProjection: the print of the content of a $(nameof(typeof(input))) gives a " *
         "$(nameof(typeof(content.output))), which has no view (make_content_view)"))
@@ -158,8 +191,10 @@ end
 OperationModule.operation_reference(op::ToggleFoldOperation) = op.path
 OperationModule.retarget_operation(::ToggleFoldOperation, path::Reference) = ToggleFoldOperation(path)
 
+# A stage that maps the path back types it with the nodes of its content, so the
+# path is read on the views by its steps alone.
 function evaluate_operation(editor, op::ToggleFoldOperation)
-    view = try_evaluate_reference(editor.document, op.path, nothing)
+    view = try_evaluate_reference(editor.document, strip_reference_types(op.path), nothing)
     (view isa ContentView && hasproperty(view, :collapsed)) || return
     view.collapsed = !view.collapsed
 end
@@ -180,13 +215,34 @@ struct ViewRecursion <: Projection
     view::ContentView
     recursion::Any
     context::Any
+    # The IO map of the print of each child view, by the content IO map that the
+    # content projection got for it.
+    prints::IdDict{Any,Any}
 end
 
 function print_document(r::ViewRecursion, recursion, input, ctx)
     child_view = _find_child_view(r, input, ctx)
     child_view === nothing && return print_child(r.recursion, input, ctx)
     iomap = print_child(r.recursion, child_view, ctx)
-    iomap isa ViewingIoMap ? iomap.content : iomap
+    iomap isa ViewingIoMap || return iomap
+    r.prints[iomap.content] = iomap
+    iomap.content
+end
+
+# The output views of the children of a viewing step, in the order of the children
+# that the content print holds: the output view of the step of each child view, and
+# `nothing` for a child that printed as content. A print that a child no longer has
+# leaves the table.
+function _make_output_children(r::ViewRecursion, content)
+    CellVector(Computation(function ()
+        child_iomaps = something(get_child_iomaps(content), Any[])
+        present = IdDict{Any,Nothing}(child => nothing for child in child_iomaps)
+        for child in collect(keys(r.prints))
+            haskey(present, child) || delete!(r.prints, child)
+        end
+        Any[(print = get(r.prints, child, nothing); print === nothing ? nothing : print.output)
+            for child in child_iomaps]
+    end))
 end
 
 # The view of the child `input` of the view of `r`: the steps that the context of the

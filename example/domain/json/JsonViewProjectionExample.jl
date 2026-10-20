@@ -14,3 +14,22 @@ function make_json_string_view_projection_example(; measure = FontFileMeasure())
         JsonStringView => stages,
     ]))
 end
+
+# A place prints its array view in four stages: JSON to syntax gives the view of the
+# node of the array over the views of its elements, syntax to text the view of its
+# text with the folds of the views, `TextFolding` hides the lines of those folds,
+# and the text stage draws the view.
+function make_json_array_view_projection_example(; measure = FontFileMeasure())
+    stages = ChainingProjection(
+        RecursiveProjection(ViewingProjection(JsonToSyntax())),
+        RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+        TextFolding(),
+        RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+            TextView  => TextViewToGraphicsCanvas(),
+            TextBlock => TextBlockToGraphicsCanvas(; measure),
+        ])))
+    RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+        VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+        JsonArrayView  => stages,
+    ]))
+end
