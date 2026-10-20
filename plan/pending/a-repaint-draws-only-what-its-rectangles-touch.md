@@ -139,7 +139,7 @@ beside it. A count needs no idle machine.
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The pixel test.** A new testset in `test/backend/sdl/backend/` paints a
+1. [x] **The pixel test.** Done: `test_partial_paint()` in `PartialPaintTest.jl`. A new testset in `test/backend/sdl/backend/` paints a
    sequence of frames with `render_offscreen_changes!` into one offscreen
    renderer. It paints each frame in full into a second renderer, with a new
    `make_offscreen_paint_state`, and compares the pixels of the two surfaces.
@@ -207,4 +207,11 @@ on `main` before the owner approves.
 
 ## As built
 
-Nothing yet.
+- **Step 1.** The pixel test found a fault that is on `main` now. A viewport
+  with a scale sets its SDL clip in the units of its content, after the scale
+  change, and rounds it. With a scale of 2, a dirty rectangle that cuts the box of
+  the viewport at an odd pixel gets a clip one pixel off. The band between the
+  two clips keeps its old pixels. A probe on `main` gave a difference at each odd
+  x from 45 to 57, and none at each even x. The test covers even positions, and
+  it marks one odd position with `@test_broken`. This plan does not fix the
+  fault: the walk, not the skip, makes these rectangles.
