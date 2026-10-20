@@ -34,14 +34,45 @@ function ReferenceModule.evaluate_reference_step(step::AFieldReferenceStep, view
 end
 
 """
-    make_content_view(content) -> ContentView
+    make_content_view(content) -> ContentView or nothing
 
-The view of `content` that a step of `ViewingProjection` gives as its output: the
-view of the next domain, over the content that the step printed. The step computes
-its paths from the view that it printed, so it keeps no state of its own. Each
-content type that a viewing step prints to declares a method.
+The view of `content`: the view that a parent view makes for a child content, and
+the view of the next domain that a step of `ViewingProjection` gives over the
+content that it printed. Each content type that has a view declares a method; any
+other content answers `nothing`, and prints as content.
 """
 function make_content_view end
+make_content_view(content) = nothing
+
+"""
+    make_child_views(content, field::Symbol) -> CellVector
+
+The views of the children in the collection `field` of `content`, in their order:
+what the field of the same name of a view of `content` holds. A child keeps its
+view while it stays in the collection, at any place, so the caret and the fold of
+its view stay with it; a child that goes takes its view with it. A child that has
+no view (`make_content_view` answers `nothing`) has `nothing` at its place.
+"""
+function make_child_views(content, field::Symbol)
+    views = IdDict{Any,Any}()
+    CellVector(Computation(function ()
+        children = collect(getproperty(content, field))
+        present = IdDict{Any,Nothing}(child => nothing for child in children)
+        for child in collect(keys(views))
+            haskey(present, child) || delete!(views, child)
+        end
+        Any[get!(() -> make_content_view(child), views, child) for child in children]
+    end))
+end
+
+"""
+    get_content_path(view::ContentView, path) -> Reference
+
+A path of `view` as a path of its content: the same steps, typed with the nodes
+of the content, which the maps and the key tables of the content match.
+"""
+get_content_path(view::ContentView, path) =
+    annotate_reference_types(getproperty(view, :content), strip_reference_types(path))
 
 """
     ViewingProjection(content)
@@ -76,20 +107,56 @@ end
 
 function print_document(p::ViewingProjection, recursion, input, ctx)
     input isa ContentView || return print_document(p.content, recursion, input, ctx)
-    content = print_document(p.content, recursion, getproperty(input, :content), ctx)
+    content = print_document(p.content, ViewRecursion(input, recursion, ctx),
+                             getproperty(input, :content), ctx)
     output = make_content_view(content.output)
+    output === nothing && throw(ArgumentError(
+        "ViewingProjection: the print of the content of a $(nameof(typeof(input))) gives a " *
+        "$(nameof(typeof(content.output))), which has no view (make_content_view)"))
     set_output_path_computations!(output, input,
-                                  path -> map_reference_forward(p.content, content, _get_content_path(input, path)))
+                                  path -> map_reference_forward(p.content, content, get_content_path(input, path)))
     ViewingIoMap(p, input, output, content)
 end
 
-# A path of a view as a path of its content: the same steps, with the types of the
-# nodes of the content, which the maps of a content projection match.
-_get_content_path(view::ContentView, path) =
-    annotate_reference_types(getproperty(view, :content), strip_reference_types(path))
+"""
+    ViewRecursion(view, recursion, context)
+
+The recursion that a viewing step gives the content projection of `view`. The
+content projection prints each child through it, with the context of the child,
+whose path is the path of the view and the step of the child, such as
+`.children[2]`. The same step of the view gives the view of the child, because a
+view answers the paths of its content. The child view prints through `recursion`,
+and the content projection gets the IO map of the content of the child, so it
+builds its output as it does with no view. A child that the view has no view for
+prints as content.
+"""
+struct ViewRecursion <: Projection
+    view::ContentView
+    recursion::Any
+    context::Any
+end
+
+function print_document(r::ViewRecursion, recursion, input, ctx)
+    child_view = _find_child_view(r, input, ctx)
+    child_view === nothing && return print_child(r.recursion, input, ctx)
+    iomap = print_child(r.recursion, child_view, ctx)
+    iomap isa ViewingIoMap ? iomap.content : iomap
+end
+
+# The view of the child `input` of the view of `r`: the steps that the context of the
+# child adds to the path of the view, applied to the view. `nothing` when they reach
+# no view of `input`.
+function _find_child_view(r::ViewRecursion, input, ctx)
+    (r.context === nothing || ctx === nothing) && return nothing
+    parent = get_reference_steps(strip_reference_types(r.context.reference[]))
+    child = get_reference_steps(strip_reference_types(ctx.reference[]))
+    (length(child) > length(parent) && child[1:length(parent)] == parent) || return nothing
+    view = try_evaluate_reference(r.view, Reference(child[length(parent)+1:end]...), nothing)
+    (view isa ContentView && getproperty(view, :content) === input) ? view : nothing
+end
 
 map_reference_forward(p::ViewingProjection, iomap::ViewingIoMap, reference) =
-    map_reference_forward(p.content, iomap.content, _get_content_path(iomap.input, reference))
+    map_reference_forward(p.content, iomap.content, get_content_path(iomap.input, reference))
 map_reference_forward(p::ViewingProjection, iomap, reference) =
     map_reference_forward(p.content, iomap, reference)
 

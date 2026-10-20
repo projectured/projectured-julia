@@ -437,6 +437,35 @@ and the output of each stage, as structures that a person reads.
    the text view, and the folds of the views become its hidden ranges, over a
    content printed with `text_folds = true`. The keys of a compound move to its
    view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
+
+   The node, its view and its keys are done (2026-10-20); the fold is open. What
+   it made:
+   - `ViewRecursion` (R) in `Viewing.jl`. A viewing step gives it to the content
+     projection as the recursion. R takes the steps that the context of a child adds
+     to the path of the view, applies them to the view, and prints the child view
+     through the recursion of the stage; the content projection gets the content
+     IO map of the child. A child with no view prints as content.
+   - `make_child_views(content, field)`: the views of the children of a
+     collection, which keep their identity while their child stays, at any place.
+     `make_content_view(content)` answers `nothing` for a content with no view.
+     `get_content_path(view, path)` gives a path of a view typed against its
+     content.
+   - `SyntaxNodeView(content)` in `source/platform/syntax/SyntaxView.jl`, beside
+     `SyntaxLeafView`; its `children` hold the views of the children of the node.
+     `@gestures SyntaxNodeView` has the rows of `@gestures SyntaxCompound`
+     (Ctrl+Alt+Home, Ctrl+Space, Alt with an arrow, an arrow on a whole node); both
+     tables share `_toggle_syntax_cursor` and `_navigate_syntax_tree`.
+   - The carets of the child views map through the content IO map of the node to
+     the flat caret of the text view, with no code of the view: the map of
+     `SyntaxCompoundToText` delegates the tail of a path to its children.
+   - A caret at the end of the last child is also the caret before the closing
+     delimiter of the node, and the map of `SyntaxCompoundToText` names it
+     `.close{0}`, as it does today.
+
+   Tests: `test_syntax_node_view()` 32, which records the documents that the stage
+   prints: only views, the three of the places and the six of their children; the
+   tests of steps 1 and 2, the syntax tests and the printer walk of every platform
+   example 153646; `test_json()` 239.
 4. [ ] **A JSON string and its view**, through `ViewingProjection(JsonToSyntax())`.
    Tests: `test_json_to_syntax()`.
 5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
