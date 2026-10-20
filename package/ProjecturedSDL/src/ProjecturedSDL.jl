@@ -42,12 +42,14 @@ export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_rendere
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
-# The first window of a session in SDL, offscreen, so that this image holds the
-# code that draws a window.
+# The first window of a session in SDL, in the dummy video driver, so that this
+# image holds the code that draws a window. The dummy driver opens no display and
+# loads no OpenGL on any system. The offscreen driver is not enough: on macOS SDL
+# gives its window OpenGL, which it loads through EGL, and macOS has no EGL.
 using PrecompileTools: @setup_workload, @compile_workload
 @setup_workload begin
     @compile_workload begin
-        withenv("SDL_VIDEODRIVER" => "offscreen") do
+        withenv("SDL_VIDEODRIVER" => "dummy") do
             ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
                                                      backend = SdlBackend())
         end
