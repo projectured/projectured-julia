@@ -32,6 +32,7 @@ export BuildContext, get_package_directory, has_package_directory, collect_missi
 export Preference, make_baked_preference, make_exposed_preferences, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
 export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_if_changed
+export run_with_slow_output
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
@@ -60,6 +61,7 @@ export get_fixed_build_binary, get_build_invocation, BUILD_BINARIES, BUILD_OPTIO
        format_build_usage, parse_build_arguments, run_build_command
 
 include("BuildContext.jl")
+include("LauncherOutput.jl")
 include("Preference.jl")
 include("Usage.jl")
 include("AppPackage.jl")

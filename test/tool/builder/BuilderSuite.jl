@@ -1,5 +1,6 @@
 include("BuilderTest.jl")
 include("PackageReleaseTest.jl")
+include("LauncherOutputTest.jl")
 
 """
     test_builder_layering()
@@ -28,8 +29,9 @@ function test_builder()
     @testset "ProjecturedBuilder" begin
         test_builder_layering()
         test_build_executable()
+        test_launcher_output()
         test_package_release()
     end
 end
 
-export test_builder, test_builder_layering, test_build_executable, test_package_release
+export test_builder, test_builder_layering, test_build_executable, test_package_release, test_launcher_output
