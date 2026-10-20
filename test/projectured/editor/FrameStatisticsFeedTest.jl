@@ -19,6 +19,15 @@ _get_header_texts(table) = [table.column_headers[index].content for index in 1:l
 
 # A table with two measurements over three frames; the counter did not measure
 # the first frame.
+# The names that the frames of `editor` record, and those of them that are times:
+# a table shows a row for each name, and a plot a line for each time.
+function _get_recorded_names(editor)
+    store = editor.frame_measurements
+    names = get_frame_measurement_names(store)
+    times = [name for name in names if compute_frame_measurement_summary(store, name).unit === :second]
+    (; names, times)
+end
+
 function _make_frame_statistics_example()
     statistics = FrameStatistics()
     push!(statistics.rows,
@@ -179,9 +188,10 @@ function test_frame_statistics_feed()
         statistics.paused = true
         EditorModule.record_frame_performance!(editor, 0.020)
         clock[] += 0.25
-        # Only the plot is due, and it flushes.
+        recorded = _get_recorded_names(editor)
+        # Only the plot is due, and it flushes a line for each time.
         @test compute_wake_deadline(feed, editor) == 0.25
-        @test drain_feeds!(editor) == 1
+        @test drain_feeds!(editor) == length(recorded.times)
         @test plot.frames == [1.0, 2.0]
         @test statistics.frame_count == 1
         @test statistics.frames == [1]
@@ -191,10 +201,10 @@ function test_frame_statistics_feed()
         statistics.paused = false
         @test compute_wake_deadline(feed, editor) == 0.25
         clock[] += 0.25
-        @test drain_feeds!(editor) == 1
+        @test drain_feeds!(editor) == length(recorded.names)
         @test statistics.frame_count == 2
         @test statistics.frames == [1, 2]
-        @test (table_view[], plot_view[]) == (2, 1)
+        @test (table_view[], plot_view[]) == (2, length(recorded.times))
     end
 
     @testset "the printer shows a summary table and a table of the frames, newest first" begin
@@ -591,12 +601,14 @@ function test_frame_statistics_feed()
         view = Cell(@computation length(plot.names))
         view[]
         EditorModule.record_frame_performance!(editor, 0.016)
+        recorded = _get_recorded_names(editor)
         @test compute_wake_deadline(feed, editor) == 0.25
-        @test drain_feeds!(editor) == 1
-        @test plot.names == ["frame_time"]
+        @test drain_feeds!(editor) == length(recorded.times)
+        @test plot.names == String.(recorded.times)
+        @test first(plot.names) == "frame_time"
         @test plot.frames == [1.0]
         @test isempty(statistics.rows)
-        @test view[] == 1
+        @test view[] == length(recorded.times)
     end
 
     @testset "a plot opened after the table flushed shows the frames at once" begin
@@ -608,16 +620,17 @@ function test_frame_statistics_feed()
         table_view = Cell(@computation statistics.frame_count)
         table_view[]
         EditorModule.record_frame_performance!(editor, 0.016)
-        @test drain_feeds!(editor) == 1
+        recorded = _get_recorded_names(editor)
+        @test drain_feeds!(editor) == length(recorded.names)
         # The plot opens now, and no frame comes after it: the plot keeps its own
         # count, so it is due all the same.
         plot_view = Cell(@computation length(plot.names))
         plot_view[]
         @test compute_wake_deadline(feed, editor) == 0.25
-        @test drain_feeds!(editor) == 1
+        @test drain_feeds!(editor) == length(recorded.times)
         @test plot.frames == [1.0]
         @test compute_wake_deadline(feed, editor) === nothing
-        @test (table_view[], plot_view[]) == (1, 1)
+        @test (table_view[], plot_view[]) == (1, length(recorded.times))
     end
 end
 end
