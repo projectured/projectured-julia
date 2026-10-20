@@ -1,7 +1,7 @@
 # Guards keep the frame short at any size
 
-Status: PENDING, 2026-10-21. Step 1 runs: the record is done, the live measurement
-is open. No decision is open: D1 is decided, in [The decision](#the-decision).
+Status: PENDING, 2026-10-21. Step 1 is done. No decision is open: D1 is decided, in
+[The decision](#the-decision).
 
 ## The ask
 
@@ -227,7 +227,8 @@ on `main` before the owner approves. A guard that fails on `main` gets
 `@test_broken` with a `# @broken:` line that names its cause, and a row in
 [As built](#as-built). This plan fixes no part.
 
-1. [ ] **The record of a frame, and the cause of the slow frames.**
+1. [x] **The record of a frame, and the cause of the slow frames.** Done; see
+   [As built](#as-built).
    - [x] `_FrameStages` keeps the sum of each stage beside the slowest stage.
      `record_frame_performance!` records the names of
      [The record of a frame](#the-record-of-a-frame) in every build. The three
@@ -241,8 +242,8 @@ on `main` before the owner approves. A guard that fails on `main` gets
      records a `:compile_time` above 0. Run `test_kernel()`, and
      `test/projectured/editor/FrameStatisticsFeedTest.jl` for the view of the
      new names.
-   - [ ] Measure the cost of the record and of `--task-metrics=yes` on a frame.
-   - [ ] In the live application, with `--task-metrics=yes`, record the frames of
+   - [x] Measure the cost of the record and of `--task-metrics=yes` on a frame.
+   - [x] In the live application, with `--task-metrics=yes`, record the frames of
      10 minutes of use. Use the window and the work in which the owner sees the
      slow frames. The owner, 2026-10-20: "In the assistant pane I saw every
      second or third or so frame to be more than 50ms." So use the default
@@ -418,4 +419,70 @@ on `main` before the owner approves. A guard that fails on `main` gets
   twice in one group.
 - **Tests.** `test_editor_frame_performance()` 33 pass, `test_editor_held_frames()`
   56 pass, `test_editor_frame_drain()` 30 pass, `test_kernel()` 4906 pass; no
-  failure, no broken test.
+  failure, no broken test. `test_frame_statistics_feed()` failed 9 times on the
+  branch, because the chart of the frame times draws one line for each time, as
+  `statistics.md` says, and a frame now records nine times. The test now takes
+  the rows of the table and the lines of the chart from the names that a frame
+  records: 139 pass. `test_tool_views()` gives 17 pass, 1 fail, 1 error on the
+  branch and on `main` alike, in "the file explorer opens by name, seeded".
+- **The cost of the record.** Measured 2026-10-21 in the lane, load 2.4 to 2.7,
+  the minimum of five runs of 20_000 calls, two runs of each:
+
+  | Process | `record_frame_performance!` | `run_measured_frame!` of a small headless editor |
+  |---|---|---|
+  | no task metrics | 229 ns, 221 ns | 4.99 µs, 5.00 µs |
+  | `--task-metrics=yes` | 294 ns, 304 ns | 5.19 µs, 5.25 µs |
+
+  So the record costs less than the 5 µs of [Keep](#keep), and the task metrics
+  add about 0.2 µs to a frame.
+
+### The cause of the slow frames in the Assistant pane
+
+Measured 2026-10-21 in the lane `taskset -c 28,30,31`, load 2.4 to 4.7, with
+`julia --threads=auto,2 --task-metrics=yes` (3 default and 2 interactive threads
+in the lane). The window is the application window of 1600 × 1000 on the display
+of the owner: the Explorer, `editor.md` (900 lines) in a tab, and the Assistant
+pane. A `ScriptedLlm` streams an answer of about 4_000 words, three words for each
+delta and one delta each 30 ms, in the real loop of `run_editor!`. The script is
+`/var/tmp/frame-guards/` of this session (`assistant_frames.jl`), and the frames
+are in `live1/` (vsync on, as the application runs) and `live2/` (vsync off).
+`SdlBackend.jl` could not be the large file: the Julia parser of the editor stops
+at `.=` ("unsupported Julia construct"), so the file does not open.
+
+| Phase | Frames | Median | p90 | Above 16 ms | Above 50 ms |
+|---|---|---|---|---|---|
+| pointer over the pane, vsync on | 901 | 1.31 ms | 1.85 ms | 8 | 3 |
+| the turn streams, vsync on | 855 | 47.92 ms | 50.11 ms | 848 | 87 |
+| the turn streams, vsync off | 2067 | 2.34 ms | 20.02 ms | 477 | 6 |
+
+The medians of the parts of a frame while the turn streams, vsync on: the feed
+16.99 ms, the held frames 14.25 ms, the print and the paint 15.25 ms, the read
+1.09 ms. With vsync off, the same parts take 0.41 ms, 0.80 ms and 3 to 15 ms.
+
+Three causes, in the order of their size:
+
+1. **A delta waits three times for the vertical blank.** Each delta of the
+   answer reaches the editor as a call that the loop runs as a code unit, so the
+   frame of a delta runs held frames. With vsync on, the held frames and the
+   frame each present the window, and each present waits for the vertical blank:
+   about 3 × 16 ms. The frames of 48 ms come and go with the deltas, which
+   matches "every second or third frame more than 50 ms" of the owner, whose
+   model sends its deltas at its own pace.
+2. **A delta prints the whole answer again.** The text of a part is made again
+   from all of its text for each delta, and the print follows it. With vsync
+   off, the frame of a delta grows with the answer:
+
+   | Deltas of the turn | Frame | Print and paint | Allocated |
+   |---|---|---|---|
+   | the first 100 | 5.09 ms | 3.29 ms | 2.01 MB |
+   | the middle 100 | 10.68 ms | 9.14 ms | 8.95 MB |
+   | the last 100 | 16.64 ms | 15.25 ms | 16.14 MB |
+
+   The frames with a garbage collection grow with it, from 2 to 31 in 100 frames
+   (vsync on).
+3. **The first use compiles in a frame.** The first frame of the first turn took
+   2.98 s, of which 2.61 s in the print, while the process compiled for 5.3 s;
+   the first frame of the pointer over the pane took 0.97 s, of which 0.96 s of
+   compile. The idle frames after the turn: none, because nothing woke the loop.
+
+A frame with no delta takes 1.8 ms, also during the turn.
