@@ -50,7 +50,7 @@ import ..CellModule: set_cell_computation!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SelectionModule: has_dormant_selection
+import ..ProjectionAlgebraModule: make_content_view
 
 export TextSpanReferenceStep
 export TextColumnReferenceStep

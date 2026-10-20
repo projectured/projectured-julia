@@ -17,15 +17,12 @@ while the focus is elsewhere, as a dormant selection.
 
 `TextViewToGraphicsCanvas` draws the view over the drawing of its content.
 """
-@document struct TextView
+@document struct TextView <: ContentView
     content::TextBlock
 end
 
-# A person edits the text that a view shows.
-DocumentModule.get_edited_field(::TextView) = :content
-
-# A view keeps its caret when the focus leaves it, in any container.
-has_dormant_selection(::TextView) = true
+# The view of a text that a viewing step prints.
+make_content_view(content::TextBlock) = TextView(content)
 
 _find_edited_text(view::TextView) = view.content
 

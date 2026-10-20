@@ -1,9 +1,9 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the questions of steps 2 and 6. The JSON
+Status: IN PROGRESS, decided but for the questions of step 6. The JSON
 pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
-`projectured-julia-views-compose`, branch `views-compose`; the model of one
-recursion (decisions 10 to 13) starts with step 2.
+`projectured-julia-views-compose`, branch `views-compose`; step 2 is done in
+the model of one recursion (decisions 10 to 13).
 
 ## The ask
 
@@ -149,8 +149,6 @@ The facts for the JSON pipeline, found 2026-10-18:
 
 ### The shape for JSON
 
-The names of the view types are open (question Q0).
-
 ```julia
 array = JsonArray([JsonString("a"), JsonString("b")])   # the content
 view  = JsonArrayView(array)                             # its child views follow array.elements
@@ -196,8 +194,20 @@ element 2.
    fifth."), and the work shows the composition (the owner: "I want to see the
    composition").
 4. **The view mapping is generic**, through the reference maps of the content
-   projections; **view types are shared by shape**; **a view follows its content by
-   the identity of the content node** (the owner, 2026-10-18: "Agreed all 3").
+   projections, and **a view follows its content by the identity of the content
+   node** (the owner, 2026-10-18: "Agreed all 3"). **Each content type has a view
+   type of its own, which declares the child fields of its content** (the owner,
+   2026-10-20: "yes", which replaces "view types are shared by shape" of
+   2026-10-18). Two content types share a view type only when they have the same
+   child fields and the same key table, as the sequences of the syntax do. All views
+   are subtypes of one abstract type, `ContentView`, which holds what every view
+   does: it reads a field that it does not have through its content, it gives an
+   edit of such a field to its content, it keeps its caret when the focus leaves
+   it, and it names `content` as the field that a person edits. The reasons: a step
+   maps its paths with the maps of its content projection only when a path of the
+   view is the path of its content; the selection walk enters a child by the name
+   of its field; and a key table moves from a content type to its view type with
+   its rows and its dispatch.
 5. **The structure is recursive, and features stay** (the owner, 2026-10-18): two
    places of one view share its selection, as two places of one document share it
    now; two views of one content do not; the focusing projection works on views.
@@ -256,10 +266,6 @@ element 2.
 
 ## Questions
 
-- **Q0, for step 2. One view type for each content, or the view types shared by
-  shape.** Decision 4 says shared by shape: one leaf view, one compound view and the
-  text view. The owner named them for each content in the talk of 2026-10-19
-  (`JsonArrayView`, `SyntaxNodeView`, `SyntaxLeafView`).
 - **QA, for step 6. The state of a view and the state of a place.** My proposal: the
   view keeps the caret and the folds, which its places share; the place keeps its
   part, its scroll and the part under the pointer.
@@ -359,13 +365,73 @@ and the output of each stage, as structures that a person reads.
    and primitive text and the printer walk of every platform example 153713;
    `test_json()` 239; the platform layering guard; the naming guard. The REPL walk
    of the example gives no error.
-2. [ ] **The viewing projection, on a syntax leaf.** The viewing projection and the
+2. [x] **The viewing projection, on a syntax leaf.** The viewing projection and the
    recursion of a view (model 4), and the view of a syntax leaf. The chain is
    `ViewingProjection(SyntaxToText())` and then the text stage, where the text step
    of step 1 becomes the text case of the viewing projection over
    `TextBlockToGraphicsCanvas`. A content with no view prints as now. The keys of a
    leaf move to its view. Tests: `test_text_view()`, `test_syntax_to_text()`, and a
    test of one leaf in two views at three places, with keys, a click and an edit.
+
+   Done 2026-10-20. What it made:
+   - `ContentView`, `make_content_view`, `ViewingProjection` and `ViewingIoMap` in
+     `source/platform/projection/higherorder/Viewing.jl`. A field step that a view
+     does not have reads its content (`evaluate_reference_step`), so the
+     annotation, the validation and the selection walk take `.value{3}` at the view,
+     and the walk stops there. A `ContentView` names `content` as its edited field
+     and keeps a dormant caret.
+   - `ViewingProjection` prints the content of a view with its table and gives
+     `make_content_view(M.output)`, whose paths are the paths of the view mapped
+     through the maps of the table. A path of the view is typed against the content
+     before the map (`_get_content_path`), because the map of a content projection
+     matches the types of the content, such as `::SyntaxLeaf.value{s:_}`. A gesture
+     with no operation goes to the key table of the view; an operation goes back
+     through the readers of the content print. Any other input prints with the
+     table, as now.
+   - The recursion of a view (R) is not in this step, because a leaf prints no
+     child. It comes in step 3, with the first child.
+   - `SyntaxLeafView` in `source/platform/syntax/SyntaxLeafView.jl`, with
+     `@gestures SyntaxLeafView` (Ctrl+Space and Ctrl+Alt+Home), whose rows share
+     `_toggle_leaf_cursor` with the table of `SyntaxLeaf`. `TextView` is a
+     `ContentView`, and `make_content_view(::TextBlock)` is a `TextView`.
+   - The last stage stays the table of step 1, `TextView => TextViewToGraphicsCanvas`
+     beside `TextBlock => TextBlockToGraphicsCanvas`, and not a case of the viewing
+     projection, as the text of this step said. The view row there is the change of
+     shape of decision 8: it draws the marks of a view with the colors of a theme,
+     which a generic step does not hold.
+   - An edit of a field that its target does not have edits the document that the
+     target shows (`_get_field_holder`, in the evaluation of a string edit and of a
+     number edit), and its caret stays on the target.
+   - The example `syntax_leaf_view`, on the skip list of the caret sweep beside
+     `layout`.
+
+   The shape:
+
+   ```
+   documents                          projection
+   VerticalLayout                     VerticalLayout => VerticalLayoutToGraphicsCanvas()
+   ├ [1] SyntaxLeafView A ──┐         SyntaxLeafView => ChainingProjection(
+   ├ [2] SyntaxLeafView B ──┼─ L          RecursiveProjection(ViewingProjection(SyntaxToText())),
+   └ [3] SyntaxLeafView A ──┘             RecursiveProjection(TypeDispatchingProjection(
+                                              TextView  => TextViewToGraphicsCanvas(),
+                                              TextBlock => TextBlockToGraphicsCanvas(; measure))))
+
+   IO maps of a place
+   ChainingIoMap
+   ├ ViewingIoMap                         input = A    output = TextView A′(content = T, caret of A through M)
+   │   └ M: the IO map of SyntaxLeafToText   input = L    output = T
+   └ TextViewToGraphicsCanvasIoMap        input = A′   output = [band, drawing of T, caret]
+       └ TextBlockToGraphicsCanvasIoMap   input = T
+   ```
+
+   `SyntaxLeafToText` does not change. Back: Right gives `{k}` on A′, which the map of
+   M takes to `.value{j}` on A; a typed character gives a flat edit on A′, which the
+   reader of M makes `.value[s:e]` on A, an edit of L with the caret on A.
+
+   Tests: `test_syntax_leaf_view()` 31; `test_text_view()` 30; the syntax, primitive
+   and text tests with the printer walk of every platform example 154173;
+   `test_json()` 239; the platform layering guard; the naming guard. The REPL walk of
+   the example gives no error.
 3. [ ] **A syntax node and its view.** R finds each child view by the step of the
    child (decision 13). The carets of the child views join into the flat caret of
    the text view, and the folds of the views become its hidden ranges, over a

@@ -52,6 +52,7 @@ using ..TextModule
 import ..CellModule: set_cell_computation!
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionAlgebraModule: make_content_view
 
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_computation!,
@@ -75,12 +76,14 @@ export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSy
        insert_insertion_text_operation, delete_insertion_text_operation
 export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
+export SyntaxLeafView
 export FaultToSyntax
 
 
 include("SyntaxDocument.jl")
 include("SyntaxTheme.jl")
 include("SyntaxToText.jl")
+include("SyntaxLeafView.jl")
 include("FaultToSyntax.jl")
 include("ObjectToSyntax.jl")
 include("ObjectFieldToSyntax.jl")

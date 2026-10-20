@@ -837,10 +837,14 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
 @gestures SyntaxLeaf begin
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
-    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
-        sel = doc.selection
-        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
-                                             _promote_to_structural(sel)
-        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    end
+    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => _toggle_leaf_cursor(doc, doc.selection)
+end
+
+# Ctrl+Space on a leaf whose caret is `selection`: the whole leaf becomes a caret
+# at the start of its value, and a caret becomes the whole leaf. The caret is the
+# one of the leaf, or the one of a view of it (`SyntaxLeafView.jl`).
+function _toggle_leaf_cursor(leaf::SyntaxLeaf, selection)
+    new_path = _is_tree_selection(selection) ? _descend_to_text_cursor(leaf, selection) :
+                                               _promote_to_structural(selection)
+    new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
 end

@@ -47,6 +47,7 @@ export ConstantProjection
 export ChainingProjection, ChainingIoMap
 export TypeDispatchingProjection
 export RecursiveProjection
+export ContentView, ViewingProjection, ViewingIoMap, make_content_view
 export SwitchingProjection, SwitchingIoMap
 export PredicateDispatchingProjection
 export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
@@ -74,6 +75,7 @@ include("higherorder/PredicateDispatching.jl")
 include("higherorder/ReferenceDispatching.jl")
 include("higherorder/Nesting.jl")
 include("higherorder/WindowInputUnwrapping.jl")
+include("higherorder/Viewing.jl")
 include("ProjectionDocument.jl")
 include("higherorder/FaultCatching.jl")
 include("generic/Focusing.jl")
