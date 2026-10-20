@@ -10,11 +10,18 @@
 # data, so SDL reads it there. A value that the user set wins. A system with no
 # build of the JLL, such as macOS, has no X11, and its JLL assigns no
 # `artifact_dir`, so there is nothing to set.
-function __init__()
+function _set_x11_locale_directory!()
     haskey(ENV, "XLOCALEDIR") && return nothing
     Xorg_libX11_jll.is_available() || return nothing
     directory = joinpath(Xorg_libX11_jll.artifact_dir, "share", "X11", "locale")
     isdir(directory) && (ENV["XLOCALEDIR"] = directory)
+    nothing
+end
+
+# Each process probes its own machine, and Xlib finds its locale data.
+function __init__()
+    _reset_machine_probes!()
+    _set_x11_locale_directory!()
     nothing
 end
 
@@ -828,6 +835,21 @@ end
 const _DISPLAY_DENSITY_PROBED   = Ref(false)
 const _DISPLAY_DENSITY_DETECTED = Ref(false)
 const _PROBED_DISPLAY_DENSITY   = Ref(1.0)
+
+# Forget what the probes of the machine found: the density of the display, the
+# pixels per window unit, and whether EGL and GLX answer. A precompile workload
+# runs the probes on the machine that builds the package image, and the image
+# keeps the values. So `__init__` calls this, and each process probes its own
+# machine and reads its own `PROJECTURED_DISPLAY_DENSITY`.
+function _reset_machine_probes!()
+    _DISPLAY_DENSITY_PROBED[] = false
+    _DISPLAY_DENSITY_DETECTED[] = false
+    _PROBED_DISPLAY_DENSITY[] = 1.0
+    _LAST_PIXELS_PER_WINDOW_UNIT[] = 1.0
+    _EGL_AVAILABLE[] = nothing
+    _GLX_AVAILABLE[] = nothing
+    nothing
+end
 
 function _detect_display_density!()
     _DISPLAY_DENSITY_PROBED[] && return _DISPLAY_DENSITY_DETECTED[]
