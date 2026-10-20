@@ -63,22 +63,53 @@ end
 """
     record_frame_performance!(editor, frame_seconds) -> Nothing
 
-Record what this frame measured in `editor.frame_measurements`: the frame time
-always, and every performance count and time when the counters are compiled
-in. Runs at the end of each frame of `run_editor!`, inside the counter scope,
-so the counters of this frame are still bound. Times are in seconds.
+Record what this frame measured in `editor.frame_measurements`. Times are in
+seconds. In every build, the frame records:
+
+- `:frame_time`, the time of the whole frame, with its held frames;
+- `:feed_time`, `:read_time`, `:evaluate_time`, `:print_time` and `:report_time`,
+  the sum of each stage without its held frames; `:print_time` holds the paint;
+- `:held_time`, the time of the held frames of code units;
+- `:garbage_collection_time` and `:compile_time`, the time that the garbage
+  collector and the compiler took in the process;
+- `:yielded_time`, the time that the task of the frame did not run, only when
+  the process keeps the running time of its tasks (`--task-metrics=yes`);
+- `:allocated_bytes`, a count: the bytes that the process allocated.
+
+When the counters are compiled in, it records every performance count and time
+too. It runs at the end of each frame of [`run_measured_frame!`](@ref), inside
+the counter scope, so the counters of this frame are still bound.
 """
 function record_frame_performance!(editor::Editor, frame_seconds::Float64)
-    times = Pair{Symbol, Float64}[:frame_time => frame_seconds]
-    counts = Pair{Symbol, Float64}[]
+    stages = editor.frame_stages
+    times = Pair{Symbol, Float64}[
+        :frame_time => frame_seconds,
+        :feed_time => stages.feed_seconds,
+        :read_time => stages.read_seconds,
+        :evaluate_time => stages.evaluate_seconds,
+        :print_time => stages.print_seconds,
+        :report_time => stages.report_seconds,
+        :held_time => stages.held_seconds,
+        :garbage_collection_time => (Base.gc_time_ns() - stages.started_collection_ns) / 1e9,
+        :compile_time =>
+            (first(Base.cumulative_compile_time_ns()) - stages.started_compile_ns) / 1e9]
+    running_ns = Base.Experimental.task_running_time_ns(current_task())
+    if running_ns !== nothing && stages.started_running_ns !== nothing
+        running = (running_ns - stages.started_running_ns) / 1e9
+        push!(times, :yielded_time => max(0.0, frame_seconds - running))
+    end
+    counts = Pair{Symbol, Float64}[:allocated_bytes => Float64(Base.gc_bytes() - stages.started_bytes)]
     if PERFORMANCE_COUNTERS_ENABLED
         # Every key, in name order, so a new counter reaches the store with no
-        # change here.
+        # change here. A key that the frame records already keeps the value of the
+        # frame.
         counters = get_performance_counters()
         for key in sort!(collect(keys(counters.times)))
+            any(pair -> first(pair) === key, times) && continue
             push!(times, key => counters.times[key] / 1e9)
         end
         for key in sort!(collect(keys(counters.counts)))
+            any(pair -> first(pair) === key, counts) && continue
             push!(counts, key => Float64(counters.counts[key]))
         end
     end
@@ -119,9 +150,10 @@ end
 # gestures are fast by design, so such a frame shows work that belongs elsewhere.
 const SLOW_FRAME_SECONDS = 1.0
 
-# Time `body` as the stage `stage` of the frame, with `work` for its report, and
-# keep it when it is the slowest stage so far. The time of the held frames of a
-# code unit inside `body` does not count: the window answered meanwhile.
+# Time `body` as the stage `stage` of the frame, with `work` for its report: add
+# the time to the sum of the stage, and keep it when it is the slowest stage so
+# far. The time of the held frames of a code unit inside `body` does not count:
+# the window answered meanwhile.
 function _time_frame_stage(body, editor::Editor, stage::Symbol, work)
     stages = editor.frame_stages
     held = stages.held_seconds
@@ -130,6 +162,7 @@ function _time_frame_stage(body, editor::Editor, stage::Symbol, work)
         body()
     finally
         seconds = (time_ns() - started) / 1e9 - (stages.held_seconds - held)
+        _add_stage_seconds!(stages, stage, seconds)
         if seconds > stages.seconds
             stages.seconds = seconds
             stages.stage = stage
@@ -138,6 +171,23 @@ function _time_frame_stage(body, editor::Editor, stage::Symbol, work)
     end
 end
 
+function _add_stage_seconds!(stages::_FrameStages, stage::Symbol, seconds::Float64)
+    if stage === :feed
+        stages.feed_seconds += seconds
+    elseif stage === :read
+        stages.read_seconds += seconds
+    elseif stage === :evaluate
+        stages.evaluate_seconds += seconds
+    elseif stage === :print
+        stages.print_seconds += seconds
+    elseif stage === :report
+        stages.report_seconds += seconds
+    end
+    nothing
+end
+
+# A new record of the stages for the frame that starts, with the counters of the
+# process at its start.
 _reset_frame_stages!(editor::Editor) = (editor.frame_stages = _FrameStages(); nothing)
 
 # One line in the log for a frame that took longer than `SLOW_FRAME_SECONDS`

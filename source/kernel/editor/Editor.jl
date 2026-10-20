@@ -93,24 +93,39 @@ Holds the state for a read-eval-print loop:
                    in the inbox (internal).
   - `has_loop_ended` — the loop of [`run_editor!`](@ref) ran and ended. An editor
                    runs its loop once (internal).
-  - `frame_stages` — the slowest stage of the frame that runs, with its work, and
-                   the time that the frame spent in held frames; a frame that is
-                   slow anyway is reported with them (internal).
+  - `frame_stages` — the stages of the frame that runs: the slowest stage with
+                   its work, the sum of each stage, and the time that the frame
+                   spent in held frames. A frame that is slow anyway is reported
+                   with them, and each frame records them (internal).
   - `session_documents` — the documents of the session of this editor that a
                    slice keeps for it, by their type, such as its message log;
                    [`get_session_document!`](@ref) makes each one the first time.
                    No other editor shows them, so no document has two owners.
 """
-# The slowest stage of the frame that runs, with its work, and the time that the
-# frame spent in the held frames of code units.
+# The stages of the frame that runs: its slowest stage with its work, the sum of
+# each stage without its held frames, the time that the frame spent in the held
+# frames of code units, and the counters of the process when the frame started.
 mutable struct _FrameStages
     seconds::Float64
     stage::Symbol
     work::Any
     held_seconds::Float64
+    feed_seconds::Float64
+    read_seconds::Float64
+    evaluate_seconds::Float64
+    print_seconds::Float64
+    report_seconds::Float64
+    started_bytes::Int64
+    started_collection_ns::UInt64
+    started_compile_ns::UInt64
+    # `nothing` when the process keeps no running time of the task.
+    started_running_ns::Union{UInt64,Nothing}
 end
 
-_FrameStages() = _FrameStages(0.0, :none, nothing, 0.0)
+_FrameStages() = _FrameStages(0.0, :none, nothing, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              Base.gc_bytes(), Base.gc_time_ns(),
+                              first(Base.cumulative_compile_time_ns()),
+                              Base.Experimental.task_running_time_ns(current_task()))
 
 mutable struct Editor
     backend::Backend

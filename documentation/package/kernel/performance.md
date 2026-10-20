@@ -48,7 +48,7 @@ A `ScopedValue` binds the store: a binding of the task that ran the scope and of
 tree = @measure_performance_time :layout_time compute_layout(document)
 ```
 
-Without the counters, `@count_performance` expands to `nothing` and `@measure_performance_time` to its expression, so a count costs nothing in a normal build. A key names a count or a time, never both: the frame store throws an `ArgumentError` for a name in both groups. The editor times its three stages as `:read_time`, `:evaluate_time` and `:print_time`.
+Without the counters, `@count_performance` expands to `nothing` and `@measure_performance_time` to its expression, so a count costs nothing in a normal build. A key names a count or a time, never both: the frame store throws an `ArgumentError` for a name in both groups. The editor records the time of each stage of a frame in every build, with no macro; see the [editor guide](editor.md#performance-counters).
 
 ## The frame store
 
@@ -114,8 +114,8 @@ The layer has no interface file: it declares no seam that a layer above answers.
 ## Where the layer is used
 
 - The cell engine counts its reads, computations, invalidations and writes, in `ReactiveCell.jl`.
-- The editor runs each frame in a scope of its own, in `EditorLoop.jl`, and times its read, evaluate and print stages there. With the counters, it logs the counts of each frame that applied an operation.
-- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the frame time. With the counters, it also records every count, and every time in seconds.
+- The editor runs each frame in a scope of its own, in `run_measured_frame!` of `EditorLoop.jl`. With the counters, it logs the counts of each frame that applied an operation.
+- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the frame time, the time of each stage, of the held frames, of the garbage collector and of the compiler, and the allocated bytes, in every build; the [editor guide](editor.md#performance-counters) lists the names. With the counters, it also records every count, and every time in seconds.
 - The statistics view of the platform draws the store; see the [statistics guide of the platform](../platform/statistics/statistics.md).
 - Code that waits for the first frame, such as the check of a release, polls `get_frame_count`.
 

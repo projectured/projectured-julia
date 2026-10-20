@@ -97,8 +97,11 @@ while true
         sleep(TASK_SHARE)            # 1 ms: the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
+    run_measured_frame!(editor, (time_ns() - t_start) / 1e9)
+end
+
+function run_measured_frame!(editor, wall_time)
     run_with_performance_counters() do   # bind a fresh per-frame counter store
-        wall_time = (time_ns() - t_start) / 1e9
         set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # run_read_stage!/run_evaluate_stage! up to MAX_OPERATIONS_PER_FRAME, then run_print_stage!
@@ -107,6 +110,9 @@ while true
     end
 end
 ```
+
+`run_measured_frame!` is one turn of the loop after its wait. A test calls it to
+measure the frame that the loop runs.
 
 Between frames the editor sleeps in the backend's `wait_for_input`, and three
 things end the sleep: an input event, a `wake_editor!` from any task, and the
@@ -707,15 +713,31 @@ Each frame the editor binds a fresh counter store with `run_with_performance_cou
 and calls `_log_performance_counters!()` after rendering, which logs
 
 ```
-[perf] computes=… invalidations=… reads=… writes=… evaluate_time=…ms print_time=…ms read_time=…ms
+[perf] computes=… invalidations=… reads=… writes=…
 ```
 
 when an operation was applied. Use these to find unintentional
 recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
-The loop also records every frame in `editor.frame_measurements`: the frame time
-always, and the counters above when they are compiled in; the
+The loop also records every frame in `editor.frame_measurements`, in every
+build. `record_frame_performance!` records:
+
+- `:frame_time`, the time of the whole frame, with its held frames;
+- `:feed_time`, `:read_time`, `:evaluate_time`, `:print_time` and `:report_time`,
+  the sum of each stage without its held frames; `:print_time` holds the paint
+  and a retry of a part that failed;
+- `:held_time`, the time of the held frames of code units;
+- `:garbage_collection_time` and `:compile_time`, the time that the garbage
+  collector and the compiler took in the process during the frame;
+- `:yielded_time`, the time that the task of the frame did not run, only when
+  the process keeps the running time of its tasks (`julia --task-metrics=yes`);
+- `:allocated_bytes`, a count: the bytes that the process allocated during the
+  frame.
+
+The values of the garbage collector, the compiler and the allocations are of
+the whole process, so the work of other threads counts too. When the counters
+are compiled in, the record holds them as well; the
 [performance guide](performance.md) says how. The store keeps the
 last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
 (open a tab and type `statistics`) and their times as a chart (type
@@ -809,8 +831,8 @@ EditorModule.jl        (EditorModule) — the module: its docstring, imports, ex
     │                         projection that fails
     ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
     │                         frame, the limits of the fault counts, and the repairs
-    └─ EditorLoop.jl        — _log_performance_counters!, run_frame!, get_frame_clock_time, run_editor! and
-                              make_editor
+    └─ EditorLoop.jl        — _log_performance_counters!, run_frame!, run_measured_frame!,
+                              get_frame_clock_time, run_editor! and make_editor
 ```
 
 Scripted playback is a layer of its own, above this one, in `playback/`.

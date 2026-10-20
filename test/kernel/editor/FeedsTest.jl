@@ -7,8 +7,9 @@
 # wakes the editor through the callback the editor attached at registration.
 #
 # The file also tests the frame performance that `record_frame_performance!` of
-# `editor/Feeds.jl` records: the frame time as a time, and, when the counters
-# are compiled in, every counter of the frame with its unit.
+# `editor/Feeds.jl` records: the frame time, the time of each stage, of the held
+# frames, of the collections and of the compiles, the allocated bytes, and, when
+# the counters are compiled in, every counter of the frame with its unit.
 
 using Test
 using ProjecturedKernel.ProjectionModule
@@ -182,8 +183,93 @@ function drain_changes!(feed::SlowFrameProbeFeed, editor)
     0
 end
 
+# A feed whose drain runs `work`, so a frame does that work in its feed stage.
+struct FrameWorkProbeFeed <: Feed
+    work::Function
+end
+
+drain_changes!(feed::FrameWorkProbeFeed, editor) = (feed.work(); 0)
+
+# The store of an editor that ran one measured frame, whose feed stage runs `work`.
+function _measure_probe_frame(work)
+    editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                    backend = HeadlessBackend(), devices = Device[],
+                    feeds = Feed[FrameWorkProbeFeed(work)])
+    EditorModule.run_measured_frame!(editor, 0.0)
+    editor.frame_measurements
+end
+
+_get_frame_total(store, name) = compute_frame_measurement_summary(store, name).total
+
+const _FRAME_RECORD_TIMES = (:frame_time, :feed_time, :read_time, :evaluate_time,
+                             :print_time, :report_time, :held_time,
+                             :garbage_collection_time, :compile_time)
+
 function test_editor_frame_performance()
 @testset "the frame performance of the editor" begin
+    @testset "a measured frame records its stages, its held frames, its collections, its compile and its allocations" begin
+        store = _measure_probe_frame(() -> nothing)
+        for name in _FRAME_RECORD_TIMES
+            summary = compute_frame_measurement_summary(store, name)
+            @test (name, summary.unit, summary.count) == (name, :second, 1)
+            @test summary.total >= 0
+        end
+        @test compute_frame_measurement_summary(store, :allocated_bytes).unit === :count
+        @test _get_frame_total(store, :feed_time) <= _get_frame_total(store, :frame_time)
+    end
+
+    @testset "the time of a drain is in the feed time" begin
+        store = _measure_probe_frame(() -> sleep(0.05))
+        @test _get_frame_total(store, :feed_time) >= 0.045
+        @test _get_frame_total(store, :read_time) < 0.045
+        @test _get_frame_total(store, :print_time) < 0.045
+    end
+
+    @testset "a collection in a frame is in its garbage collection time" begin
+        store = _measure_probe_frame(() -> GC.gc())
+        @test _get_frame_total(store, :garbage_collection_time) > 0
+    end
+
+    @testset "a compile in a frame is in its compile time" begin
+        store = _measure_probe_frame() do
+            scratch = Module()
+            Core.eval(scratch, :(compiled_in_frame(x) = x * 2.5 + 1))
+            Base.invokelatest(scratch.compiled_in_frame, 3)
+        end
+        @test _get_frame_total(store, :compile_time) > 0
+    end
+
+    @testset "a frame turns off the compile timer that it turned on" begin
+        # The compile time of a new method, outside a frame.
+        function measure_compile_ns(name)
+            before = first(Base.cumulative_compile_time_ns())
+            scratch = Module()
+            Core.eval(scratch, :($name(x) = x * 3.5 + 1))
+            Base.invokelatest(getfield(scratch, name), 3)
+            first(Base.cumulative_compile_time_ns()) - before
+        end
+        # Another switch of this process can have the timer on already.
+        if measure_compile_ns(:compiled_before_frame) == 0
+            _measure_probe_frame(() -> nothing)
+            @test measure_compile_ns(:compiled_after_frame) == 0
+        end
+    end
+
+    @testset "the bytes that a frame allocates are its allocated bytes" begin
+        kept = Ref{Any}(nothing)
+        store = _measure_probe_frame(() -> (kept[] = zeros(UInt8, 10_000_000)))
+        @test _get_frame_total(store, :allocated_bytes) >= 10_000_000
+    end
+
+    @testset "the yielded time is recorded where the process keeps the running time of its tasks" begin
+        store = _measure_probe_frame(() -> sleep(0.05))
+        if Base.Experimental.task_running_time_ns(current_task()) === nothing
+            @test :yielded_time ∉ get_frame_measurement_names(store)
+        else
+            @test _get_frame_total(store, :yielded_time) >= 0.045
+        end
+    end
+
     @testset "a slow frame is reported with its slowest stage" begin
         feed = SlowFrameProbeFeed(1.1, 0)
         editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();

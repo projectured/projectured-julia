@@ -28,7 +28,7 @@ The module lives in eleven fragments that share this namespace:
 - [`HeldFrames.jl`](HeldFrames.jl) — `run_code_unit!`, which runs a code unit on a
   thread of its own, and the held frames that the loop runs meanwhile.
 - [`EditorLoop.jl`](EditorLoop.jl) — the counter log, `run_frame!`,
-  `get_frame_clock_time`, `run_editor!` and `make_editor`.
+  `run_measured_frame!`, `get_frame_clock_time`, `run_editor!` and `make_editor`.
 - [`BackendChoice.jl`](BackendChoice.jl) — the seams by which a backend type
   says what it is, and `make_default_backend`.
 - [`EditorBuild.jl`](EditorBuild.jl) — `EditorParts`, the seams of a wrapper,
@@ -59,6 +59,7 @@ using ..ToolModule
 import ..FeedModule: drain_changes!
 
 export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation, run_evaluate_stage!, run_print_stage!, run_frame!,
+       run_measured_frame!,
        find_rooted_operation, insert_elements!, delete_elements!,
        get_frame_clock_time,
        post_operation!, drain_operations!, is_editor_degraded, get_session_document!,

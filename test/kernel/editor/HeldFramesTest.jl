@@ -23,6 +23,7 @@ import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend, HeldFrameState
 using ProjecturedKernel.DeviceModule: Device
+using ProjecturedKernel.PerformanceModule: compute_frame_measurement_summary
 
 @document struct HeldFrameProbe
     value::Int = 0
@@ -213,6 +214,18 @@ function test_editor_held_frames()
                 post_operation!(editor, QuitEditorOperation())
             end, nothing; description = "a long call"))
             @test_logs min_level = Base.CoreLogging.Warn run_editor!(editor)
+        end
+
+        @testset "a frame records the time of its held frames as its held time, not as its feed time" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend())
+            post_operation!(editor, RunFunctionOperation(() -> sleep(0.2), nothing;
+                                                         description = "a long call"))
+            EditorModule.run_measured_frame!(editor, 0.0)
+            store = editor.frame_measurements
+            held = compute_frame_measurement_summary(store, :held_time).total
+            @test held >= 0.15
+            @test compute_frame_measurement_summary(store, :feed_time).total < 0.15
+            @test compute_frame_measurement_summary(store, :frame_time).total >= held
         end
 
         @testset "a task that the unit starts can not wait for the editor" begin

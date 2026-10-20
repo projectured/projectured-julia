@@ -1,4 +1,5 @@
-# Fragment of `EditorModule` — the loop: `run_frame!`, `run_editor!` and `make_editor`.
+# Fragment of `EditorModule` — the loop: `run_frame!`, `run_measured_frame!`,
+# `run_editor!` and `make_editor`.
 
 # ── Performance logging ───────────────────────────────────────────────
 
@@ -87,11 +88,9 @@ function _run_frame_stages!(editor::Editor)
     for _ in 1:MAX_OPERATIONS_PER_FRAME
         # A reader that throws is a reader that declined: the gesture is lost,
         # the frame goes on, and the fault says which reader lost it.
-        has_input = @measure_performance_time :read_time begin
-            _time_frame_stage(editor, :read, nothing) do
-                _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
-                    run_read_stage!(editor)
-                end
+        has_input = _time_frame_stage(editor, :read, nothing) do
+            _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
+                run_read_stage!(editor)
             end
         end
         has_input === _BARRIER_FAILED && break
@@ -99,10 +98,8 @@ function _run_frame_stages!(editor::Editor)
             is_input_left = false
             break
         end
-        @measure_performance_time :evaluate_time begin
-            _time_frame_stage(editor, :evaluate, editor.operation) do
-                run_evaluate_stage!(editor)
-            end
+        _time_frame_stage(editor, :evaluate, editor.operation) do
+            run_evaluate_stage!(editor)
         end
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
@@ -111,19 +108,65 @@ function _run_frame_stages!(editor::Editor)
     # turn of the loop runs a frame without a wait.
     is_input_left && (editor.wake_pending[] = true)
     editor.operation = applied
-    # Outside the paint, so a part that prints again shows in this frame.
-    editor.is_retry_pending && _retry_marked_barriers!(editor)
-    @measure_performance_time :print_time begin
-        _time_frame_stage(editor, :print, nothing) do
-            _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-                run_print_stage!(editor)
-            end
+    # Outside the paint, so a part that prints again shows in this frame. A retry
+    # prints, so its time counts as print.
+    editor.is_retry_pending &&
+        _time_frame_stage(() -> _retry_marked_barriers!(editor), editor, :print, nothing)
+    _time_frame_stage(editor, :print, nothing) do
+        _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+            run_print_stage!(editor)
         end
     end
     # The reads of the frame are done, so the background cells that they found
     # provisional start their work now, off the loop.
     start_background_cell_work!(editor)
     _consider_safe_mode!(editor)
+end
+
+"""
+    run_measured_frame!(editor::Editor, wall_time::Float64)
+
+Run one turn of the loop after its wait, and measure it: write the clock of the
+frame, drain the feeds, run the frame with [`run_frame!`](@ref), and record what
+the frame measured with `record_frame_performance!`. `wall_time` is the
+wall-clock time since the loop started, in seconds. [`run_editor!`](@ref) calls
+it once in each turn of its loop. A test calls it to measure the frame that the
+loop runs.
+
+The frame runs in a counter store of its own, so the cell operations of the frame
+count into it. The compile timer of Julia is on while the frame runs, and it
+counts the switches, so a frame inside another measurement turns off only its
+own switch.
+"""
+function run_measured_frame!(editor::Editor, wall_time::Float64)
+    frame_started = time_ns()
+    _reset_frame_stages!(editor)
+    Base.cumulative_compile_timing(true)
+    try
+        run_with_performance_counters() do
+            # A backend whose time throws is recorded, and the frame shows the
+            # wall time.
+            clock_time = _run_barrier(editor, :device; origin = typeof(editor.backend),
+                                      fallback = wall_time) do
+                get_frame_clock_time(editor.backend, wall_time)
+            end
+            set_clock_time!(editor.clock, clock_time)
+            # What was posted or stored from outside this task, applied here so
+            # the frame paints what its feeds just wrote. Each feed drains in a
+            # barrier of its own.
+            drain_feeds!(editor)
+            run_frame!(editor)
+            _run_barrier(editor, :report) do
+                _log_performance_counters!(editor)
+                frame_seconds = (time_ns() - frame_started) / 1e9
+                record_frame_performance!(editor, frame_seconds)
+                _report_slow_frame!(editor, frame_seconds)
+            end
+        end
+    finally
+        Base.cumulative_compile_timing(false)
+    end
+    nothing
 end
 
 """
@@ -246,33 +289,7 @@ function _run_editor_loop!(editor::Editor; mcp::Union{Bool,NamedTuple}, fault_po
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.
             Threads.atomic_xchg!(editor.wake_pending, false)
-            # A fresh per-frame counter store, bound for this frame's dynamic extent; the
-            # cell operations below count into it and `_log_performance_counters!` reads
-            # it.
-            frame_started = time_ns()
-            _reset_frame_stages!(editor)
-            run_with_performance_counters() do
-                wall_time = (frame_started - t_start) / 1e9
-                # A backend whose time throws is recorded, and the frame shows
-                # the wall time.
-                clock_time = _run_barrier(editor, :device;
-                                          origin = typeof(editor.backend),
-                                          fallback = wall_time) do
-                    get_frame_clock_time(editor.backend, wall_time)
-                end
-                set_clock_time!(editor.clock, clock_time)
-                # What was posted or stored from outside this task, applied
-                # here so the frame paints what its feeds just wrote. Each feed
-                # drains in a barrier of its own.
-                drain_feeds!(editor)
-                run_frame!(editor)
-                _run_barrier(editor, :report) do
-                    _log_performance_counters!(editor)
-                    frame_seconds = (time_ns() - frame_started) / 1e9
-                    record_frame_performance!(editor, frame_seconds)
-                    _report_slow_frame!(editor, frame_seconds)
-                end
-            end
+            run_measured_frame!(editor, (time_ns() - t_start) / 1e9)
         end
     catch e
         e isa QuitEditorException || rethrow()
