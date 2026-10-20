@@ -1,8 +1,9 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the questions of step 6. The JSON pipeline is
-the pilot, built from the bottom up. Step 1 is done, in the worktree
-`projectured-julia-views-compose`, branch `views-compose`.
+Status: IN PROGRESS, decided but for the questions of steps 2 and 6. The JSON
+pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
+`projectured-julia-views-compose`, branch `views-compose`; the model of one
+recursion (decisions 10 to 13) starts with step 2.
 
 ## The ask
 
@@ -41,6 +42,20 @@ The owner, 2026-10-18, after `a-view-document-keeps-the-state-of-one-view.md`:
   string and it's view fourth. Json array and its view fifth. Maybe the individual
   view documents can share the types, it depends on their shape."
 
+The owner, 2026-10-19 and 2026-10-20, on the shape of the projections:
+
+- "so a NewView(NewContent()) is basically the same as the OldContent(), right? so
+  the old SyntaxToText() recursion should be replaced by a new SyntaxToText()
+  recursion which builds a TextBlockView(TextBlock()) from
+  SyntaxNodeView(SyntaxNode()) as one step in the recursion."
+- "I kind of feel like the separation of view and content is not that much
+  different in terms of how the recursive nature of the document is structured but
+  for the projection part I sense a difficulty of having a recursive content
+  projection and and recursive view projection separately. Maybe we should have one
+  recursive projection which does both at the same time."
+- "can the view recursion reuse the individual content projection in some other way
+  to avoid duplicating them?"
+
 ## What the code does now
 
 The facts for the JSON pipeline, found 2026-10-18:
@@ -65,45 +80,106 @@ The facts for the JSON pipeline, found 2026-10-18:
   `DocumentTreeToWidgetTree` has one entry for each place, made when the tree
   reaches it.
 - **The editor holds each open file once** (`OpenFileList`), as a session document.
+- **A content projection prints each child through the recursion that it gets**
+  (`print_child(recursion, child, child_ctx)`), and the context of the child holds
+  the path of the child: the path of the parent and the step of the child. The
+  template engine gives `.field` or `.field[i]` (`_make_template_child_context`,
+  `_make_template_element_context`, where the index is a cell that follows the
+  child when it moves), and `SyntaxCompoundToText` gives `.children[i]`.
+- **The key tables of the syntax read the selection of the content**:
+  `@gestures SyntaxCompound` and `@gestures SyntaxLeaf` (`SyntaxDocument.jl`).
+- **A text fold shares the fold of its content node.** With `text_folds = true`,
+  `SyntaxCompoundToText` prints every child, and the first line of a node that folds
+  gets a `TextFold` that shares the `collapsed` cell of the node.
 
 ## The model
 
-1. **Each content type has a view type.** A view is a tree of view documents that
-   mirrors its content tree: `JsonArrayView` holds the views of the elements of its
-   `JsonArray`. Views compose as content composes, so a new domain adds its pairs of
-   content and view, and they combine with the pairs that exist.
-2. **View types are shared by shape.** A leaf view keeps a caret, for
-   `JsonString`, `JsonNumber`, `JsonBool` and `SyntaxLeaf`. A compound view keeps a
-   fold, the tail of the caret and the views of its children, for `JsonArray`,
-   `JsonObject` and `SyntaxNode`. A text view keeps a caret, a scroll and the hidden
-   ranges of a `TextBlock`. A content type gets a view type of its own only when its
-   view keeps other state.
-3. **The selection is a tail on each view node.** Each view node keeps the rest of
-   the selection path below it, the same chain as now, so a move of the caret
-   writes as few cells as now. View types declare `selection` as an ordinary field;
-   content types lose the field that `@document` adds.
-4. **The content chain is printed once; the views are mapped through it.** A
-   content document is in one place of the editor document, where the composition
-   puts it, so each content projection prints it once for all its views. A view
-   projection maps each view node through the reference maps of the content
-   projection, as the forward map maps the selection now. It has code of its own
-   only where the shape changes: the folds of a tree of syntax views become the
-   hidden ranges of one text view.
-5. **A view tree follows its content by identity, lazily.** A view makes the view
-   of a part when it first reaches the part; a part that goes takes its view with
-   it. A fold then stays at its node across an insert before it; the selection tails
-   are index paths, which `an-insert-moves-the-paths-after-it.md` moves.
-6. **Sharing is by reference, at every level.** Two views of one content are two
+1. **A view is a shadow of its content.** Each content node has a view node, so the
+   view tree mirrors the content tree. A view keeps the state of one view: the tail
+   of the caret, the fold and the part under the pointer. It answers the paths of
+   its content: the step that reaches a child content from its parent content
+   reaches the view of that child from the parent view, and a step into a field of a
+   leaf reaches that field of the content. So a path of a view, such as
+   `[2].value{3}`, is the path that the document had before the separation. A view
+   makes the view of a child lazily and follows the child content by identity; a
+   child that goes takes its view with it.
+2. **A view over its content is the document of before.** It holds what one
+   document held before: the content and the state of one view. So one projection
+   step can print both.
+3. **One recursion over the views builds both outputs.** A stage takes a view over
+   its content and gives the view of the next domain over the printed content. A
+   content with no view prints with the content recursion, as now.
+4. **A step reuses the content projection of its content.** A viewing projection
+   wraps the content table of a stage. For a view V over the content C:
+
+   ```
+   P = the row of the content table for C
+   R = the recursion of V
+   M = print_document(P, R, C, ctx)        # P prints its own level, as now
+   ```
+
+   P prints each child through its recursion, `print_child(R, child, child_ctx)`.
+   R takes the step of the child from the path of `child_ctx`, such as
+   `.elements[2]` or `.children[2]`, and applies it to V, which gives the view of
+   the child. R prints that view through the real recursion, keeps its output view,
+   and gives P the content IO map of the child, so P builds its output as now. A
+   child that V has no view for prints as content. The output of the step is the
+   view of the next domain: it holds `M.output`, the output views of the children,
+   and the state of V mapped through the reference maps of M.
+5. **Nothing new in printing.** R is a projection that implements
+   `print_document`. Printing gets no new field of the context, no new argument and
+   no new recursive function.
+6. **The output view follows the shape.** A compound view gives a compound view and
+   a leaf view gives a leaf view, with the caret and the fold mapped through M.
+   Where the shape changes, the step has code of its own: syntax to text joins the
+   carets of the child views into the flat caret of one text view and turns the
+   folds into hidden ranges; text to graphics draws the band and the caret over
+   `M.output`.
+7. **Keys belong to the views.** A key table that reads a caret belongs to a view
+   type, as the keys of a text are `@gestures TextView`. A key gives an operation
+   on the view, which goes back through the reference maps of each stage. An edit
+   through a view changes the content and leaves the caret on the view.
+8. **Sharing is by reference, at every level.** Two views of one content are two
    view trees over it, each with its own caret and folds. A view shown at two places
    is two places that refer to the one view tree, or to one subtree of it, so they
    share its caret and its folds. A place is printed by the focusing projection, and
    the part that it shows is a field of the place.
-7. **Composition crosses domains.** A view of a Markdown document holds the view of
+9. **Composition crosses domains.** A view of a Markdown document holds the view of
    its JSON part, and that JSON view can also have places of its own elsewhere.
-8. **The projection of the editor prints in stages.** Each stage takes the whole
-   editor document that the stage before it made, and moves each content document
-   and each view one domain further. The layout and the graphics come last, for
-   each place, because they follow the size of its viewport.
+
+### The shape for JSON
+
+The names of the view types are open (question Q0).
+
+```julia
+array = JsonArray([JsonString("a"), JsonString("b")])   # the content
+view  = JsonArrayView(array)                             # its child views follow array.elements
+
+ChainingProjection(
+    RecursiveProjection(ViewingProjection(JsonToSyntax())),
+    RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+    ViewingProjection(TextBlockToGraphicsCanvas(; measure)))
+```
+
+```
+JsonArrayView(JsonArray) → SyntaxNodeView(SyntaxNode) → TextView(TextBlock) → [band, drawing of the text, caret]
+```
+
+The IO maps of the first stage:
+
+```
+ViewingIoMap                              input = JsonArrayView        output = SyntaxNodeView
+├ M: the IO map of JsonArrayToSyntaxNode   input = JsonArray            output = SyntaxNode
+│   ├ child 1: a content IO map, which R gave P
+│   └ child 2: a content IO map, which R gave P
+└ the IO maps of the child views
+    ├ ViewingIoMap                        input = view of element 1    output = SyntaxLeafView
+    └ ViewingIoMap                        input = view of element 2    output = SyntaxLeafView
+```
+
+R finds the view of element 2 so: P prints element 2 with a context whose path
+ends with `.elements[2]`, and `.elements[2]` of the `JsonArrayView` is the view of
+element 2.
 
 ## Decisions
 
@@ -134,47 +210,65 @@ The facts for the JSON pipeline, found 2026-10-18:
    one view (`_sync_selection!`) would move the caret of the other. So a text view
    keeps a flat caret `{k}` on itself, and an edit through it goes back as a flat
    edit of the view.
-8. **The content and the view each have a projection, and no text block carries
-   the caret of a view** (the owner, 2026-10-19: "the content should be projected
-   using two projections, no? one is for the content TextBlockToGraphicsCanvas, the
-   other is TextViewToGraphicsCanvas"). Both are rows of one dispatch table. The
-   view projection prints its content through the recursion and draws its caret
-   over that drawing, through the IO map of the content. A first form of step 1
-   printed a view as a `TextBlock` that held the caret of the view, which the owner
-   rejected ("how can a TextView be printed into a TextBlock?").
-9. **Step 1 prints a content once for each place** (the owner, 2026-10-19: "in step
-   1, it's fine"), **and printing a document once is a topic of its own** (the
-   owner: "this issue of printing only once is not new, it has nothing to do with
-   the view and content separation"), in
-   `plan/tentative/a-document-at-several-places-is-printed-once.md`. Before that,
-   the owner said "we should not go to the syntax step before we solve this";
-   whether the syntax step waits for the tentative plan is not decided.
+8. **The content and the view each have their part of a step, and no text block
+   carries the caret of a view** (the owner, 2026-10-19: "the content should be
+   projected using two projections, no? one is for the content
+   TextBlockToGraphicsCanvas, the other is TextViewToGraphicsCanvas"). In the one
+   recursion of decision 10, the content part is the row of the content table, such
+   as `TextBlockToGraphicsCanvas`, and the view part is the output view of the step,
+   such as the band and the caret over the drawing. Step 1 built the two as rows of
+   one table; step 2 makes the view part the text case of the viewing projection. A
+   first form of step 1 printed a view as a `TextBlock` that held the caret of the
+   view, which the owner rejected ("how can a TextView be printed into a
+   TextBlock?").
+9. **A content is printed once for each place, and printing a document once is a
+   topic of its own** (the owner, 2026-10-19: "in step 1, it's fine"; "this issue of
+   printing only once is not new, it has nothing to do with the view and content
+   separation"), in `plan/tentative/a-document-at-several-places-is-printed-once.md`.
+   The owner deferred that plan, and the syntax step goes on (2026-10-19: "I defer
+   the tentative plan").
+10. **One recursion builds the output content and the output view together** (the
+    owner, 2026-10-20: "Maybe we should have one recursive projection which does
+    both at the same time"; "this looks exceptionally promising"). A step reuses the
+    content projection of its content with a recursion of its view (model 4).
+11. **Nothing new in printing** (the owner, 2026-10-20: "I would like to avoid
+    extending the printer context and I would like to also avoid changing the
+    print_document function or introducing a new recursive function").
+12. **A content with no view prints with the content recursion** (the owner,
+    2026-10-20: "we can still have the content recursion if that's what is in the
+    document (no view attached)").
+13. **The view is a shadow of its content, and the recursion of a view finds a child
+    view by the step of the child** (the owner, 2026-10-20: "when R finds the child
+    view of a child content it could use the reference of the child stored in the
+    iomap"; "Maybe we don't need the whole reference from the root only a step or
+    something but the view is basically a shadow of the content so there should be a
+    direct mapping between the two"). R reads the step from the context that P gives
+    the child, whose path ends with it. A path of a view is the path of its content
+    (model 1).
 
 ## What is not known yet
 
-- **Printing a content once** is the tentative plan of decision 9. Until it
-  decides, a content is printed once for each place that shows a view of it, as a
-  document at several places is printed now.
-- **How the template engine gives a view its tail.** The templates describe the
-  content mapping; the generic view mapping must reach the reference maps that they
-  build.
-- **The cost of the mirrors.** Each view keeps a node for each place that it
+- **The cost of the mirrors.** Each view keeps a node for each content node that it
   reached, at each domain of the chain.
 - **The old text chains.** `TextToGraphics` draws a `TextBlock` with its own caret
   for every chain that is not a chain of views yet, so step 8 can take the field
   from `TextBlock` only when no chain gives a text a caret.
 
-## Questions for step 6
+## Questions
 
-- **QA. The state of a view and the state of a place.** My proposal: the view keeps
-  the caret and the folds, which its places share; the place keeps its part, its
-  scroll and the part under the pointer.
-- **QB. A key when the caret of a view is not in the part of the focused place.** My
-  proposal: a press in a place moves the caret of its view into the part of the
-  place, and a key goes to the caret of the view.
-- **QC. The pastes of a view.** A new place of the same view, a new view that starts
-  from a copy of the state, or a copy of the content: three commands, or one paste
-  whose kind the person picks.
+- **Q0, for step 2. One view type for each content, or the view types shared by
+  shape.** Decision 4 says shared by shape: one leaf view, one compound view and the
+  text view. The owner named them for each content in the talk of 2026-10-19
+  (`JsonArrayView`, `SyntaxNodeView`, `SyntaxLeafView`).
+- **QA, for step 6. The state of a view and the state of a place.** My proposal: the
+  view keeps the caret and the folds, which its places share; the place keeps its
+  part, its scroll and the part under the pointer.
+- **QB, for step 6. A key when the caret of a view is not in the part of the focused
+  place.** My proposal: a press in a place moves the caret of its view into the part
+  of the place, and a key goes to the caret of the view.
+- **QC, for step 6. The pastes of a view.** A new place of the same view, a new view
+  that starts from a copy of the state, or a copy of the content: three commands, or
+  one paste whose kind the person picks.
 
 ## Steps
 
@@ -265,12 +359,20 @@ and the output of each stage, as structures that a person reads.
    and primitive text and the printer walk of every platform example 153713;
    `test_json()` 239; the platform layering guard; the naming guard. The REPL walk
    of the example gives no error.
-2. [ ] **A syntax leaf and its view**, mapped to text through the reference maps of
-   `SyntaxToText`. Tests: `test_syntax_to_text()`.
-3. [ ] **A syntax node and its view**: the fold of a compound view, mapped to the
-   hidden ranges of the text view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
-4. [ ] **A JSON string and its view**, mapped to a syntax leaf view. Tests:
-   `test_json_to_syntax()`.
+2. [ ] **The viewing projection, on a syntax leaf.** The viewing projection and the
+   recursion of a view (model 4), and the view of a syntax leaf. The chain is
+   `ViewingProjection(SyntaxToText())` and then the text stage, where the text step
+   of step 1 becomes the text case of the viewing projection over
+   `TextBlockToGraphicsCanvas`. A content with no view prints as now. The keys of a
+   leaf move to its view. Tests: `test_text_view()`, `test_syntax_to_text()`, and a
+   test of one leaf in two views at three places, with keys, a click and an edit.
+3. [ ] **A syntax node and its view.** R finds each child view by the step of the
+   child (decision 13). The carets of the child views join into the flat caret of
+   the text view, and the folds of the views become its hidden ranges, over a
+   content printed with `text_folds = true`. The keys of a compound move to its
+   view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
+4. [ ] **A JSON string and its view**, through `ViewingProjection(JsonToSyntax())`.
+   Tests: `test_json_to_syntax()`.
 5. [ ] **A JSON array and its view**, which holds the views of its elements; the dead
    `collapsed` fields of the JSON types go. Tests: `test_json()`,
    `test_example(json_example)`, `test_click_roundtrips()`.
@@ -280,11 +382,12 @@ and the output of each stage, as structures that a person reads.
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
 9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
-   `selection.md`, `text.md`, `syntax.md`, `json.md`; the plan moves to
-   `plan/done/`.
+   `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`; the
+   plan moves to `plan/done/`.
 
 ## Not in this plan
 
 The other domains; they follow the pilot one at a time. The navigator keeps its
 views of pages (`a-view-document-keeps-the-state-of-one-view.md`) until a step
-reaches its pages.
+reaches its pages. Printing a document once for several places is the tentative
+plan of decision 9.
