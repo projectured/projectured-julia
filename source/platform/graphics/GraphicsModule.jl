@@ -39,7 +39,7 @@ export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout
        set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
 export GraphicsCanvasToGraphicsImage, GraphicsCaching, GraphicsToGraphics
-export is_infinite_canvas, compute_first_visible_index, has_declared_extent
+export is_infinite_canvas, compute_first_visible_index, has_declared_extent, check_list_canvas
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export ContentBounds, get_content_box, extend_content_bounds!, extend_canvas_bounds!,
        extend_element_bounds!, get_canvas_content_bounds

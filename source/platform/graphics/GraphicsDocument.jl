@@ -582,14 +582,48 @@ end
 # `GraphicsCanvas()` is the macro's keyword constructor — an empty canvas at the
 # origin. Every field defaults, so Rule Y emits no positional constructor and the
 # typed constructors below stay in sole charge of positional construction.
-GraphicsCanvas(elements::CollectionDocument; x::_LiveNumber=0, y::_LiveNumber=0, w::_LiveNumber=0,
-               h::_LiveNumber=0, layout::LayoutDirection=layout_none, overlapping::Bool=true) =
+function GraphicsCanvas(elements::CollectionDocument; x::_LiveNumber=0, y::_LiveNumber=0, w::_LiveNumber=0,
+                        h::_LiveNumber=0, layout::LayoutDirection=layout_none, overlapping::Bool=true)
+    check_list_canvas(elements, layout, overlapping)
     GraphicsCanvas(_make_pixel_cell(x), _make_pixel_cell(y), _make_pixel_cell(w), _make_pixel_cell(h),
                    elements, layout, overlapping, Cell(nothing))
+end
 GraphicsCanvas(elements::Vector; kwargs...) =
     GraphicsCanvas(CellVector(Cell[Cell(e) for e in elements]); kwargs...)
 GraphicsCanvas(elements::CollectionDocument, layout::LayoutDirection) =
     GraphicsCanvas(elements; layout)
+
+"""
+    check_list_canvas(canvas) -> nothing
+    check_list_canvas(elements, layout, overlapping) -> nothing
+
+Refuse a canvas over a list of nodes that has no layout, or whose elements can
+overlap, with an `ArgumentError`. A list of nodes can be endless both ways, and
+only a layout with no overlap lets a reader stop at the edges of what it shows.
+Any other element list passes.
+
+A constructor calls it with the arguments, and a reader calls it with the
+canvas, because a cell can give the list of a canvas after the canvas is made.
+
+# Example
+
+    head = ListNode(GraphicsRect(0, 0, 10, 10))
+    check_list_canvas(head, layout_vertical, false)   # passes
+    check_list_canvas(head, layout_none, true)        # throws an ArgumentError
+
+See also `GraphicsCanvas` and `compute_first_visible_index`.
+"""
+function check_list_canvas end
+
+function check_list_canvas(elements, layout::LayoutDirection, overlapping::Bool)
+    elements isa ListNode && (layout == layout_none || overlapping) &&
+        throw(ArgumentError("a canvas over a list of nodes needs a layout and no overlap: a list can be " *
+                            "endless, and only a layout lets a reader stop at the edges of what it shows"))
+    nothing
+end
+
+check_list_canvas(canvas::GraphicsCanvas) =
+    check_list_canvas(canvas.elements, canvas.layout, canvas.overlapping_elements)
 
 # ── Viewport ─────────────────────────────────────────────────────────────
 
@@ -835,6 +869,7 @@ function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
     (ch > 0 && (y < 0 || y >= ch)) && return nothing
     early_stop = !canvas.overlapping_elements && layout != layout_none
     if elements isa ListNode
+        check_list_canvas(elements, layout, canvas.overlapping_elements)
         # Check prev-direction elements (negative offsets)
         prev_node = elements.prev
         pi = 0

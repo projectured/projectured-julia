@@ -15,18 +15,21 @@ cv = CellVector(Cell[Cell(GraphicsText("a", 0, 0; font = StyleFont("Ubuntu Mono"
 canvas3 = GraphicsCanvas(cv, layout_vertical)
 @test canvas3.layout == layout_vertical
 
-# ListNode-backed canvas
+# overlapping_elements defaults to true
+@test canvas3.overlapping_elements == true
+
+# ListNode-backed canvas: a list can be endless, so it needs a layout and no overlap
 node = ListNode(GraphicsText("line1", 0, 0; font = StyleFont("Ubuntu Mono", 20)))
 push!(node, GraphicsText("line2", 0, 20; font = StyleFont("Ubuntu Mono", 20)))
-canvas4 = GraphicsCanvas(node, layout_vertical)
+canvas4 = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
 @test canvas4.layout == layout_vertical
 @test canvas4.elements isa ListNode
-
-# overlapping_elements defaults to true
-@test canvas4.overlapping_elements == true
-# Explicit non-overlapping
-canvas5 = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
-@test canvas5.overlapping_elements == false
+@test canvas4.overlapping_elements == false
+@test_throws ArgumentError GraphicsCanvas(node)
+@test_throws ArgumentError GraphicsCanvas(node, layout_vertical)
+@test_throws ArgumentError GraphicsCanvas(node; layout = layout_horizontal, overlapping = true)
+@test check_list_canvas(canvas4) === nothing
+@test check_list_canvas(cv, layout_none, true) === nothing
 
 end # @testset
 

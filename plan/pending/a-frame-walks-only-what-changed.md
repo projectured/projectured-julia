@@ -1,7 +1,8 @@
 # A frame walks only what changed
 
-Status: PENDING, 2026-10-20. Not started. No decision is open; the work starts
-when the owner asks for it.
+Status: PENDING, 2026-10-21. In progress on the branch `frame-walk`, in the
+worktree `projectured-julia-repaint-skip`. The owner asked to start (2026-10-21:
+"Yes").
 
 ## The ask
 
@@ -109,7 +110,7 @@ already gives.
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The rule for lists.** `GraphicsCanvas` refuses a list of nodes with
+1. [x] **The rule for lists.** Done; see [As built](#as-built). `GraphicsCanvas` refuses a list of nodes with
    `layout_none` or with overlap. A test in the graphics suite. Run
    `test_platform()` and `test_sdl()`. Commit.
 2. [ ] **D: the dashboard draws the rows on screen.** `_build_card_grid` in
@@ -151,4 +152,17 @@ interleaved as A/B/A, and write the load of the machine beside it.
 
 ## As built
 
-Nothing yet.
+- **Step 1.** A cell can give the list of a canvas after the canvas is made, as
+  `LayoutList` does, so the constructor alone can not keep the rule. The exported
+  `check_list_canvas` refuses a list with no layout or with overlap. The keyword
+  constructor of `GraphicsCanvas` and `hit_element_at` call it, and so does
+  `_render_canvas!` of the SDL backend: inside the guarded call of the parent the
+  fault is recorded and the rest of the window draws. The walk and the recording
+  do not throw, so one such canvas can not stop the paint of the window: they
+  leave the list and record nothing for it. A new test gives an endless lazy
+  list through a cell: the walk, the render and the hit test read none of its
+  nodes, and the same list with a layout reads the 60 rows in the window. The
+  test of the graphics layout built a list canvas with the default overlap; it
+  now builds it with no overlap and checks the refusals. `test_platform()`:
+  165658 pass, 7 broken. `test_sdl()`: 992 pass, and only the known
+  `TreeRenderTest.jl:43, 44, 55` of `main` fail.

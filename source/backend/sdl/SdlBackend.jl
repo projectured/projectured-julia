@@ -1964,6 +1964,8 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
     elements = canvas.elements
     early_stop = !canvas.overlapping_elements && layout != layout_none
     if elements isa ListNode
+        # A list can be endless, so only a layout with no overlap may hold one.
+        check_list_canvas(elements, layout, canvas.overlapping_elements)
         # Traverse prev links to render content before the head (e.g. negative y offsets)
         prev_node = elements.prev
         while prev_node !== nothing
@@ -2410,6 +2412,9 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
     early = _is_early_stop_layout(canvas)
     acc = _DirtyAcc()
     if elements isa ListNode
+        # An endless list in a canvas that can not stop its walk records nothing,
+        # as the walk leaves it (`_collect_canvas_dirty!`).
+        early || return _record_bounds!(res, key, nothing)
         for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
             b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
@@ -2603,6 +2608,10 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
     if ev isa ListNode
+        # A list can be endless. In a canvas with no layout, or with overlap,
+        # nothing stops its walk, so the walk leaves it, and the render refuses
+        # it (`check_list_canvas`).
+        _is_early_stop_layout(canvas) || return false
         # A list has no bounds of its own to repaint: a list that moved, or that
         # was never painted, reflows as a changed spine does.
         res.painted.origins[key] = (ox, oy)

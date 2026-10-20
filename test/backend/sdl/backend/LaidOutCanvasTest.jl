@@ -71,5 +71,36 @@ end
     @test sort(read) == collect(501:561)
 end
 
+
+# An endless list of rows: each `next` is computed when a reader reads it. A read
+# past 10000 nodes throws, so a walk that does not stop fails the test and does
+# not hang it.
+function make_endless_list(read::Ref{Int}, k::Int = 1)
+    node = ListNode(GraphicsRect(0, (k - 1) * row_height, 100, row_height))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        read[] += 1
+        read[] > 10_000 && error("an endless list was walked past 10000 nodes")
+        make_endless_list(read, k + 1)
+    end)
+    node
+end
+
+@testset "a list in a canvas with no layout is refused, and never walked" begin
+    read = Ref(0)
+    head = make_endless_list(read)
+    @test_throws ArgumentError GraphicsCanvas(head)
+    # A cell can give the list after the canvas is made, which no constructor sees.
+    unbounded = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                               Cell(head), layout_none, true, Cell(nothing))
+    window = GraphicsCanvas(Any[unbounded]; w = 800, h = 600)
+    @test SDL._compute_dirty_rect(make_res(), window) === nothing
+    @test_throws ArgumentError render(window)
+    @test_throws ArgumentError hit_element_at(unbounded, 5, 5)
+    @test read[] == 0
+    # The same list with a layout and no overlap draws the rows in the window.
+    bounded = GraphicsCanvas(head; layout = layout_vertical, overlapping = false)
+    render(GraphicsCanvas(Any[bounded]; w = 800, h = 600))
+    @test 59 <= read[] <= 61
+end
 end
 end
