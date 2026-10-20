@@ -256,6 +256,36 @@ element 2.
     the child, whose path ends with it. A path of a view is the path of its content
     (model 1).
 
+14. **A fold is state of a view, as the caret is** (the owner, 2026-10-20: "Yes but
+    only if we will be able to do that the folded lines are not necessarily laid
+    out if they are actually not needed. The lazy principle must hold eventually,
+    what's not needed is not calculated"). In the long term:
+    - A content print marks where a fold can be: the `TextFold` of a node says which
+      lines are the body of the node and what its placeholder is, and holds no
+      state. The `collapsed` fields of the content types go.
+    - Each compound view holds its own fold, `collapsed`, and follows its node by
+      identity.
+    - A fold maps forward with its view. A step that maps a node to one node gives
+      the fold to the view of that node; at syntax to text, the folds of the tree of
+      views become the closed folds of the one text view.
+    - A text view hides the lines of its closed folds, in a view step of the text
+      whose closedness comes from the view.
+    - A toggle is an operation on a path of the view, which each stage maps back as
+      it maps a caret; the evaluation flips the fold of the view at that path.
+
+    The first form of the content print with the fold cell of a view, asked of the
+    recursion, was rejected: the content print would hold state of a view, as a text
+    holding the caret of a view did in the first form of step 1.
+
+    The condition holds in two layers. The layout and the drawing of folded lines
+    are not computed, because the folding step gives the drawing only the lines that
+    it shows. The print of folded text is computed while the text of a node is one
+    flat list of lines and a fold counts the lines of its body; to compute nothing
+    there, the text of a node becomes a structure of regions that a closed fold
+    skips (not in this plan). Two rules keep the way open: the step finds closed
+    folds only through the nodes that it shows, and the folding step asks a fold
+    where its region ends, not for its lines.
+
 ## What is not known yet
 
 - **The cost of the mirrors.** Each view keeps a node for each content node that it
@@ -435,8 +465,9 @@ and the output of each stage, as structures that a person reads.
 3. [ ] **A syntax node and its view.** R finds each child view by the step of the
    child (decision 13). The carets of the child views join into the flat caret of
    the text view, and the folds of the views become its hidden ranges, over a
-   content printed with `text_folds = true`. The keys of a compound move to its
-   view. Tests: `test_syntax()`, `test_collapse_roundtrip()`.
+   content printed with `text_folds = true`, in the shape of decision 14. The keys
+   of a compound move to its view. Tests: `test_syntax()`,
+   `test_collapse_roundtrip()`.
 
    The node, its view and its keys are done (2026-10-20); the fold is open. What
    it made:
@@ -485,4 +516,5 @@ and the output of each stage, as structures that a person reads.
 The other domains; they follow the pilot one at a time. The navigator keeps its
 views of pages (`a-view-document-keeps-the-state-of-one-view.md`) until a step
 reaches its pages. Printing a document once for several places is the tentative
-plan of decision 9.
+plan of decision 9. The text of a node as a structure of regions, which a closed
+fold skips with no print (decision 14).
