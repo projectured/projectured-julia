@@ -144,6 +144,8 @@ mutable struct SdlWindowResources
     bg::NTuple{4,UInt8}  # last applied background
     ss::Int              # supersample factor for anti-aliasing (1 = off)
     ratio::Float64       # last applied device pixel ratio of the backend's Display
+    pixels_per_window_unit::Float64  # device pixels in one SDL window unit: 1 on X11
+                                     # and Windows, 2 on a Retina screen of macOS
     target::Ptr{SDL_Texture}  # offscreen SSAA render target (C_NULL until created)
     target_w::Int        # current target texture size (device px)
     target_h::Int
@@ -612,13 +614,15 @@ _hidden_window_flags(style::Symbol) =
 # The window is drawn at the device pixel ratio of the `Display` of `backend`.
 function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bool = false)
     ratio = get_device_pixel_ratio(backend.display)
-    # WindowDocument places and sizes are logical; the native window is device pixels.
-    px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, ratio))
-    py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, ratio))
+    # WindowDocument places and sizes are logical; SDL takes window units. The
+    # window does not exist yet, so the ratio is that of the last window.
+    unit_ratio = _get_window_unit_ratio(ratio)
+    px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, unit_ratio))
+    py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, unit_ratio))
     flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
     win = SDL_CreateWindow(w.title, px, py,
-        Int32(max(_to_device(w.width, ratio), 1)),
-        Int32(max(_to_device(w.height, ratio), 1)), flags)
+        Int32(max(_to_device(w.width, unit_ratio), 1)),
+        Int32(max(_to_device(w.height, unit_ratio), 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
     # Linear filtering so the supersampled target downsamples smoothly.
@@ -648,12 +652,15 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
         backend.display.density = _PROBED_DISPLAY_DENSITY[]
         ratio = get_device_pixel_ratio(backend.display)
     end
+    pixels_per_window_unit = _measure_pixels_per_window_unit(win, renderer)
+    _PROBED_PIXELS_PER_WINDOW_UNIT[] = pixels_per_window_unit
 
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
-                       w.style, w.bg, backend.supersample, ratio, C_NULL, 0, 0,
-                       true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
+                       w.style, w.bg, backend.supersample, ratio, pixels_per_window_unit,
+                       C_NULL, 0, 0, true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(),
+                       Vector{NTuple{4,Int}}[])
 end
 
 # ── Vsync, where it works ──────────────────────────────────────────────
@@ -709,13 +716,46 @@ end
 # ── Logical ↔ device pixel conversion ──────────────────────────────────
 #
 # Layout, documents and events are all in *logical* pixels; the window's
-# backbuffer and the OS are in *device* pixels. `ratio` is the number of device
-# pixels in one logical pixel. `_to_device` sizes and places native windows and
-# sizes SSAA targets; `_to_logical` maps incoming device-space input (mouse,
-# resize, the place of a window, the global pointer) back to the logical space
-# everything else lives in.
+# backbuffer is in *device* pixels. `ratio` is the number of device pixels in one
+# logical pixel. `_to_device` sizes the SSAA targets and `_to_logical` maps back.
+#
+# SDL counts the size and the place of a window, a resize, the mouse and the
+# bounds of a display in *window units*. On X11 and Windows a window unit is a
+# device pixel. On macOS, and with the Wayland driver, it is a point, and a Retina
+# screen has two device pixels in each point. So a window value converts with the
+# window unit ratio, `ratio` over the pixels per window unit, which
+# `_get_window_unit_ratio` gives: on a Retina screen at zoom 1 that is 2 / 2 = 1.
 _to_device(px, ratio::Float64) = round(Int, px * ratio)
 _to_logical(px, ratio::Float64) = round(Int, px / ratio)
+
+# The pixels per window unit of the last window that opened, and 1 before any
+# window opened. A conversion with no window uses it: the bounds of a display,
+# the global pointer, the size of a new window and the size of a cursor. On macOS
+# the density is not known before the first window either, so the ratio there is
+# 1 / 1 until a window opens.
+const _PROBED_PIXELS_PER_WINDOW_UNIT = Ref(1.0)
+
+# The device pixels in one window unit of `win`: the width of the output of its
+# renderer over the width of the window, and 1 when SDL gives no width.
+function _measure_pixels_per_window_unit(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+    output_width, output_height = Ref{Cint}(0), Ref{Cint}(0)
+    window_width, window_height = Ref{Cint}(0), Ref{Cint}(0)
+    SDL_GetRendererOutputSize(renderer, output_width, output_height)
+    SDL_GetWindowSize(win, window_width, window_height)
+    (output_width[] > 0 && window_width[] > 0) || return 1.0
+    Float64(output_width[]) / Float64(window_width[])
+end
+
+# The number of SDL window units in one logical pixel: of the window `res`, of the
+# window of `id` in `backend`, or of no window, at the device pixel ratio `ratio`.
+# An id that names no window of the backend gets the probed value.
+_get_window_unit_ratio(res::SdlWindowResources, ratio::Float64) = ratio / res.pixels_per_window_unit
+_get_window_unit_ratio(ratio::Float64) = ratio / _PROBED_PIXELS_PER_WINDOW_UNIT[]
+function _get_window_unit_ratio(backend::SdlBackend, id::Symbol)
+    ratio = get_device_pixel_ratio(backend.display)
+    res = get(backend.windows, id, nothing)
+    res === nothing ? _get_window_unit_ratio(ratio) : _get_window_unit_ratio(res, ratio)
+end
 
 # Idle (no-button) mouse motion is forwarded for hover features (e.g. the
 # reference inspector) but rate-limited so a probe does not run on every pixel.
@@ -3564,7 +3604,7 @@ function make_offscreen_paint_state(off)
     width, height = _get_offscreen_content_size(off)
     res = SdlWindowResources(C_NULL, off.renderer, :offscreen, UInt32(0), "",
                              width, height, 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
-                             off.S, _get_offscreen_content_scale(off), C_NULL, 0, 0, true,
+                             off.S, _get_offscreen_content_scale(off), 1.0, C_NULL, 0, 0, true,
                              Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
     _OffscreenPaintState(res, NTuple{4,Int}[])
 end

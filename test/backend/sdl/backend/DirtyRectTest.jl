@@ -8,7 +8,7 @@ SDL = ProjecturedSDL.SdlModule   # the SDL backend slice (provides SdlWindowReso
 # renderer.
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
-    (0x00, 0x00, 0x00, 0xff), 1, 1.0, C_NULL, 0, 0, false,
+    (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
     Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
 
 @testset "detects an invalidated element and pads its bounds" begin

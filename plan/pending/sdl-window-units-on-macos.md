@@ -52,10 +52,13 @@ known before the first window, so the ratio there is 1 / 1, which is correct.
 
 ## Steps
 
-1. The resources of a window hold its pixels per window unit. A field
+1. ~~The resources of a window hold its pixels per window unit~~ **Done.** A field
    of `SdlWindowResources`, measured in `_open_native_window!`; the probed value
    for the conversions with no window; and `_get_window_unit_ratio`, which gives
-   the window unit ratio of a window, of a window id, or of no window.
+   the window unit ratio of a window, of a window id, or of no window. The
+   creation of a window in `_open_native_window!` already converts with the ratio
+   of no window, because that function is where the value is measured. The
+   offscreen paint state and the two test constructions pass 1.
 2. Every SDL window value converts with the window unit ratio. The
    creation of a window, `_native_window_size`, `_update_window_geometry!`,
    `_adopt_native_position!`, the resize, button, motion and wheel events of
