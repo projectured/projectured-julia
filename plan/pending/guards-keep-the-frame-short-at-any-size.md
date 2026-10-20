@@ -357,7 +357,13 @@ on `main` before the owner approves. A guard that fails on `main` gets
 
    For each scene, assert the budget of D1. Assert also that the live heap after
    a full collection at the end of the scene is at most 10 MB larger than at its
-   start. Write the frames of each scene as CSV. Run the suite in the lane and
+   start. Write the frames of each scene as CSV.
+
+   The suite loads the recorded workload as `bin/projectured` loads it. For each
+   scene it also asserts that the first 10 frames compile at most 50 ms in sum,
+   from `:compile_time`. A scene that compiles more names a UI part that the
+   recorded workload does not cover: write the part in [As built](#as-built),
+   and add it to `tool/precompile/recording-driver.jl`. Run the suite in the lane and
    write its table in [As built](#as-built). Commit.
 8. [ ] **The guides.**
    - [testing-guide.md](../../documentation/guide/testing-guide.md): a section
@@ -483,6 +489,15 @@ Three causes, in the order of their size:
 3. **The first use compiles in a frame.** The first frame of the first turn took
    2.98 s, of which 2.61 s in the print, while the process compiled for 5.3 s;
    the first frame of the pointer over the pane took 0.97 s, of which 0.96 s of
-   compile. The idle frames after the turn: none, because nothing woke the loop.
+   compile. These numbers are too high for the application: the script did not
+   load `ProjecturedREPL`, the leaf that replays the recorded workload. The idle
+   frames after the turn: none, because nothing woke the loop.
+
+The owner, 2026-10-21, on the compile of a first use: "we already have the trace
+based compiler workload, which may be incomplete but generally works fine. More
+UI parts must be covered though." So step 7 finds the UI parts that the recorded
+workload does not cover. The fix of causes 1 and 2 is the plan
+[an-answer-streams-in-without-holding-the-window.md](an-answer-streams-in-without-holding-the-window.md),
+which the owner asked for before step 2 of this plan.
 
 A frame with no delta takes 1.8 ms, also during the turn.
