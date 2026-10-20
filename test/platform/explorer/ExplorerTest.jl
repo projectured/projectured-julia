@@ -1,7 +1,8 @@
 # The explorer: a section of entries as a tree beside a navigator. A section is a
 # node of a tree, lists its first children, and says where it holds a document;
 # each editor has one root section; a press on a node shows its page beside the
-# tree and keeps the keys in the tree, Ctrl+press opens the page in a new tab, a
+# tree and keeps the keys in the tree, a drag of the divider between the tree and
+# the page moves it, Ctrl+press opens the page in a new tab, a
 # double press puts the keyboard in the page, a link on the page of a section
 # opens the page of its entry, and the page and the tree follow the entries. The
 # editor is the one of `NavigatorToWidgetTest.jl`.
@@ -139,6 +140,35 @@ function test_explorer()
         @test _nav_is(explorer.tree.current, _explorer_entry_path(1))
         selection = getfield(explorer, :selection)[]
         @test selection isa ConcreteReference && get_reference_head(selection) == FieldReferenceStep("tree")
+    end
+
+    @testset "the page starts three times as wide as the tree, and a drag of the divider between them moves it" begin
+        explorer = Explorer(_explorer_make())
+        backend = HeadlessBackend()
+        editor = build_editor(explorer, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1000, height = 500), tabs = false, appearance = false,
+                              settings = false)
+        run_frame!(editor)
+        window() = last(rendered_output(backend)).windows[1].content
+        back_x() = only(entry[2] for entry in _nav_drawn(window()) if entry[1] == _NAV_BACK)
+        send!(event) = (push_event!(backend, WindowInput(:W, event)); run_frame!(editor); run_frame!(editor))
+        # The divider is where the pointer is a double arrow, at a quarter of the
+        # window, and the page starts right of it.
+        y = 250
+        band = filter(x -> find_pointer_shape(window(), x, y) === :double_arrow_horizontal, 0:999)
+        @test !isempty(band)
+        divider = band[(length(band) + 1) ÷ 2]
+        @test abs(divider - 250) <= 4
+        before = back_x()
+        @test divider < before < divider + 12
+        send!(MouseDown(:left, divider, y, ModifierKeys(); time = 1.0))
+        send!(MouseMove(divider + 100, y, MouseButtons(:left), ModifierKeys(); time = 1.1))
+        @test back_x() == before + 100
+        send!(MouseUp(:left, divider + 100, y, ModifierKeys(); time = 1.2))
+        @test back_x() == before + 100
+        # After the release, a move of the pointer moves no divider.
+        send!(MouseMove(divider + 200, y; time = 1.3))
+        @test back_x() == before + 100
     end
 
     @testset "a chevron opens a node, and its children show in the tree" begin

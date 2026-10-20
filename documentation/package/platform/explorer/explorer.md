@@ -25,16 +25,16 @@ Each editor has one root section, `get_session_explorer_content(; editor)`: the 
 | `filter` | `ExplorerFilter` | the words and the kinds that a row keeps |
 | `matches` | a `DocumentTree` of `_ExplorerMatch` rows, or `nothing` | the rows that the filter keeps, while it keeps rows out |
 
-`ExplorerToWidget` draws a grid of one row. The left column holds a bar (the field of the filter, `+` and `▾`) above the tree, or above the tree of the matches while the filter keeps rows out. The right column, three times as wide, holds the navigator. The paths map so:
+`ExplorerToWidget` draws a `WidgetSplitPane` of two sides. The left side holds a bar (the field of the filter, `+` and `▾`) above the tree, or above the tree of the matches while the filter keeps rows out. The right side holds the navigator. Each side is a `LayoutConstraint` with a share of the width, 1 for the left side and 3 for the navigator, so the navigator starts three times as wide. A drag of the divider sets the two widths. The widths live in the split pane, so a new start of the editor starts at 1 : 3 again. The paths map so:
 
 ```
-filter.text<rest>    children[1].children[1].children[1].content<rest>
-tree.<rest>          children[1].children[2].children[1].<rest>    while no filter
-matches.<rest>       children[1].children[2].children[1].<rest>    while a filter
-navigator.<rest>     children[2].<rest>
+filter.text<rest>    elements[1].child.children[1].children[1].content<rest>
+tree.<rest>          elements[1].child.children[2].children[1].<rest>    while no filter
+matches.<rest>       elements[1].child.children[2].children[1].<rest>    while a filter
+navigator.<rest>     elements[2].child.<rest>
 ```
 
-The holder of the tree is a `VerticalLayout` whose one child is computed, so the other tree prints when the filter starts or ends. Each layout of the bar carries the part of the path of the grid below it, so a key reaches the part that holds the caret.
+The holder of the tree is a `VerticalLayout` whose one child is computed, so the other tree prints when the filter starts or ends. Each layout of the left side carries the part of the path of the split pane below it, so a key reaches the part that holds the caret.
 
 ### A press shows a page
 

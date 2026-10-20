@@ -4,19 +4,20 @@
 # the row of its own type; and the reader that turns a press on a node into a page
 # in the navigator, and reads the keys of the field of the filter.
 #
-#     filter.text<rest>    children[1].children[1].children[1].content<rest>
-#     tree.<rest>          children[1].children[2].children[1].<rest>, while no filter
-#     matches.<rest>       children[1].children[2].children[1].<rest>, while a filter
-#     navigator.<rest>     children[2].<rest>
+#     filter.text<rest>    elements[1].child.children[1].children[1].content<rest>
+#     tree.<rest>          elements[1].child.children[2].children[1].<rest>, while no filter
+#     matches.<rest>       elements[1].child.children[2].children[1].<rest>, while a filter
+#     navigator.<rest>     elements[2].child.<rest>
 
 """
     ExplorerToWidget(; gap)
 
-Draw an [`Explorer`](@ref) as a grid of one row: on the left the field of its
-filter and the buttons `+` and `▾` above its tree, and on the right the navigator in three
-times that width, each document drawn by the row of its own type, with `gap`
-between them. While the filter keeps rows out, the tree of the matches shows in
-the place of the tree.
+Draw an [`Explorer`](@ref) as a split pane of two sides: on the left the field of
+its filter and the buttons `+` and `▾` above its tree, and on the right the
+navigator, each document drawn by the row of its own type. The navigator starts
+three times as wide as the left side, and a drag of the divider between them
+changes the two widths. `gap` separates the parts of the left side. While the
+filter keeps rows out, the tree of the matches shows in the place of the tree.
 
 A press on a node selects it, and the navigator shows its page; the keys stay in
 the tree, so a person walks the nodes and reads each page. Ctrl+press opens the
@@ -35,7 +36,7 @@ end
 @iomap struct ExplorerToWidgetIoMap
     projection::Any
     input::Any          # Explorer
-    output::Any         # GridLayout
+    output::Any         # WidgetSplitPane
     add::Any            # the Action of `+`
     kinds::Any          # the Action of `▾`
 end
@@ -44,12 +45,15 @@ _make_steps(steps...) = extend_reference(EmptyReference(), steps...)
 
 _get_child_steps(k::Int) = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k))
 
-const _LEFT_STEPS = _get_child_steps(1)
+# A side of the split pane: its slot, and the constraint that sets its share.
+_get_side_steps(k::Int) = (FieldReferenceStep("elements"), RangeReferenceStep(k - 1, k), FieldReferenceStep("child"))
+
+const _LEFT_STEPS = _get_side_steps(1)
 const _BAR_STEPS = (_LEFT_STEPS..., _get_child_steps(1)...)
 const _FIELD_STEPS = (_BAR_STEPS..., _get_child_steps(1)...)
 const _HOLDER_STEPS = (_LEFT_STEPS..., _get_child_steps(2)...)
 const _SHOWN_STEPS = (_HOLDER_STEPS..., _get_child_steps(1)...)
-const _NAVIGATOR_STEPS = _get_child_steps(2)
+const _NAVIGATOR_STEPS = _get_side_steps(2)
 const _FIELD_CONTENT_STEPS = (_FIELD_STEPS..., FieldReferenceStep("content"))
 
 const _FILTER_FIELD_WIDTH = 80
@@ -71,12 +75,12 @@ function print_document(p::ExplorerToWidget, recursion, explorer::Explorer, cont
                             Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     left = GridLayout(Any[bar, holder], 1; vertical_gap = p.gap, column_policy = Fill,
                       row_policies = Any[Content, Fill])
-    output = GridLayout(Any[left, getfield(explorer, :navigator)[]], 2;
-                        horizontal_gap = p.gap, column_policies = Any[Relative(1), Relative(3)], row_policy = Fill)
+    output = WidgetSplitPane(:horizontal, Any[LayoutConstraint(left; width = Relative(1)),
+                                              LayoutConstraint(getfield(explorer, :navigator)[]; width = Relative(3))])
     iomap = ExplorerToWidgetIoMap(p, explorer, output, add, kinds)
     set_output_path_computations!(output, explorer, path -> map_reference_forward(p, iomap, path); dormant = false)
     # A layout passes a key by its own selection, so each one carries the part of
-    # the path of the grid below it.
+    # the path of the split pane below it.
     for (widget, steps) in ((left, _LEFT_STEPS), (bar, _BAR_STEPS), (field, _FIELD_STEPS), (holder, _HOLDER_STEPS))
         set_output_path_computations!(widget, output, path -> _find_path_below(path, steps))
     end
@@ -301,4 +305,4 @@ _has_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifiers.al
 make_graphics_projection(::Type{<:Explorer}; measure, appearance) =
     ChainingProjection(
         ExplorerToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
-        GridLayoutToGraphicsCanvas())
+        WidgetSplitPaneToGraphicsCanvas(get_scaled_theme!(appearance, WidgetTheme)))
