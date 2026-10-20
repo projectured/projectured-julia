@@ -1,8 +1,7 @@
 # A frame walks only what changed
 
-Status: PENDING, 2026-10-21. In progress on the branch `frame-walk`, in the
-worktree `projectured-julia-repaint-skip`. The owner asked to start (2026-10-21:
-"Yes").
+Status: DONE, 2026-10-21, on the branch `frame-walk`, in the worktree
+`projectured-julia-repaint-skip`. Not landed on `main`.
 
 ## The ask
 
@@ -128,7 +127,7 @@ on `main` before the owner approves.
    only the guards on its chain and the elements of the canvases on that chain;
    `test_partial_paint()`, `test_dirty_rect()` and `test_laid_out_canvas()` pass.
    Run `test_sdl()` and `test_video()` against `main`. Commit.
-4. [ ] **The numbers and the guides.** On `main` and on the branch, in the
+4. [x] **The numbers and the guides.** Done; see [As built](#as-built). On `main` and on the branch, in the
    measurement lane: `explorer_bench.jl` in both modes, 100 frames, two rounds,
    for the walk and the frame of each page of the Explorer and the check of each
    page; and `repaint_bench.jl` for the walk alone with 4, 16 and 64 charts.
@@ -206,3 +205,35 @@ interleaved as A/B/A, and write the load of the machine beside it.
   and only the known `TreeRenderTest.jl:43, 44, 55` fail. `test_video()`: the 6
   known failures of `main`. Step 2 on its own: `test_platform()` 165673 pass, 7
   broken; `test_sdl()` 996 pass and the same known failures.
+- **Step 4.** Measured on 2026-10-21 in the lane `taskset -c 28,30,31`, with a
+  load of 1.3 to 2.1, in the order `main`, branch, `main`. `main` was at
+  `6e04fdcd1`; since the base of the branch it changed only the pivot domain and
+  the pane verbs of `PaneProgram.jl`, none of which is on the path of a paint.
+  `explorer_bench.jl`, 25 pages, 100 frames each after 20 of warm-up, the second
+  round (with no compilation):
+
+  | | `main` | Branch |
+  | --- | --- | --- |
+  | idle: frame, median of each page | 0.21 to 0.90 ms | 0.04 to 0.07 ms |
+  | idle: walk | 0.18 to 0.86 ms | 0.00 ms, 0 elements tested |
+  | one moving dot: frame | 0.39 to 1.10 ms | 0.21 to 0.23 ms |
+  | one moving dot: walk | 0.21 to 0.91 ms | 0.04 ms, 28 elements tested |
+  | sum of the medians of the 25 pages, idle | 8.93, 8.22 ms | 1.38 ms |
+  | sum of the medians of the 25 pages, one dot | 12.69, 12.56 ms | 5.47 ms |
+  | partial paint against full paint | same on 100 of 100 | same on 50 of 50 |
+
+  With the guards, the frame of a page no longer depends on what the page shows.
+  The first frame of a page costs about the same: on a return visit the sum over
+  the 25 pages is 462 ms on the branch and 439 to 445 ms on `main`, about 1 ms
+  more for each switch, at most 5 ms on the page of the frame statistics, where
+  the page builds its guards. `repaint_bench.jl`, one moving dot, a dashboard
+  canvas with no layout:
+
+  | Charts | walk on `main` | walk on the branch | frame on `main` | frame on the branch |
+  | --- | --- | --- | --- | --- |
+  | 4 | 0.23, 0.25 ms | 0.018 ms | 0.28 ms | 0.016 ms |
+  | 16 | 0.86, 0.80 ms | 0.018 ms | 0.91 ms | 0.018 ms |
+  | 64 | 3.46, 3.42 ms | 0.022 ms | 2.78, 3.04 ms | 0.021 ms |
+
+  The guides: `sdl.md` describes the guards and their reason; the explorer guide
+  the rows of the dashboard; the graphics guide the rule for lists.
