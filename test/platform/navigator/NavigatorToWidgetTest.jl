@@ -34,6 +34,8 @@ function _nav_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     y = oy + Int(canvas.y)
     for element in canvas.elements
         element = element isa Cell ? element[] : element
+        # A list yields its nodes, and a node holds its graphic.
+        element isa ListNode && (element = element.value)
         if element isa GraphicsText
             push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
         elseif element isa GraphicsCanvas

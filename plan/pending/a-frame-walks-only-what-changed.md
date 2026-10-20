@@ -113,7 +113,7 @@ on `main` before the owner approves.
 1. [x] **The rule for lists.** Done; see [As built](#as-built). `GraphicsCanvas` refuses a list of nodes with
    `layout_none` or with overlap. A test in the graphics suite. Run
    `test_platform()` and `test_sdl()`. Commit.
-2. [ ] **D: the dashboard draws the rows on screen.** `_build_card_grid` in
+2. [x] **D: the dashboard draws the rows on screen.** Done; see [As built](#as-built). `_build_card_grid` in
    `DashboardToWidget.jl` gives the cards to the grid as a `ListNode` of rows of
    the column count. The path of card `k` in the grid becomes
    `children[row][column]`, both ways, in `_find_path_below` and in the reference
@@ -145,6 +145,8 @@ interleaved as A/B/A, and write the load of the machine beside it.
 - `_bounds_of_canvas` and `_extend_drawn_bounds!`, which size an image.
 - The walk of a canvas with a layout, which already stops at the edges.
 - Other grids that get a vector of cells: each one can take the list form later.
+- The walkers that read a lazy list to its end: the paint of `HeadlessBackend`
+  (`example/kernel/BackendHeadless.jl`, `_paint_list!`) and `search_documents`.
 - The cost of a switch to a page: on a return visit ProjectionList takes 170 ms
   and DocumentTypeList 100 ms, and BackgroundWorkLog and Workspace compile 77 ms
   and 30 ms on each visit; a first visit in a fresh process is up to 11 s, almost
@@ -166,3 +168,20 @@ interleaved as A/B/A, and write the load of the machine beside it.
   now builds it with no overlap and checks the refusals. `test_platform()`:
   165658 pass, 7 broken. `test_sdl()`: 992 pass, and only the known
   `TreeRenderTest.jl:43, 44, 55` of `main` fail.
+- **Step 2.** A scroll pane finds a list only in its content or in a direct child
+  (`_find_list_canvas`), so the grid is now the content of the pane itself, made
+  in a computation of that content; the vertical layout that held it is gone. The
+  list form needs a height: a pane with no offered height takes its height from
+  its content, and a list has none, so it would show no row. So a page with a
+  height gives its rows as a list, and a page with no height, such as the page of
+  an editor with no window size, keeps the vector form and draws every card.
+  The list form also divides only an offered width, so with no width its column
+  is `Fixed(card_width)`. The two reference maps read the form from the grid that
+  the page shows (`_get_grid_shape`). With the SDL renderer, a dashboard of 64
+  cards on a page of 1100 × 500 builds 1 row at the print and 8 of its 22 rows at
+  the render, and the walk reads the same 8 (`test_dashboard_render`). Two
+  walkers read a lazy list to its end and so built all 22 rows in a first test:
+  the paint of `HeadlessBackend` (`_paint_list!`) and `search_documents`; the
+  test of the SDL suite searches with a `descend` that enters no graphics and no
+  list. The helper `_nav_drawn` of the navigator tests now takes the value of a
+  node of a list.

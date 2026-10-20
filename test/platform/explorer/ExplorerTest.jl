@@ -704,14 +704,14 @@ function test_explorer()
         grid_of(width) = begin
             context = PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())
             page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context).output
-            page.children[2].child.content.children[1]
+            page.children[2].child.content
         end
         @test grid_of(430).columns == 3 && grid_of(205).columns == 1 && grid_of(220).columns == 2
         # The count follows the cell of the width while the page shows.
         width_cell = Cell(430)
         follow_page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
                               PrinterContext(EmptyReference(), width_cell, Cell(600), Dict{Symbol,Any}())).output
-        holder() = follow_page.children[2].child.content.children[1]
+        holder() = follow_page.children[2].child.content
         @test holder().columns == 3
         width_cell[] = 205
         @test holder().columns == 1
@@ -732,6 +732,14 @@ function test_explorer()
             run_frame!(live)
             @test rows() == expected
         end
+        # The path of a card in the grid names it back, whether the rows are a list,
+        # `children[r][c]`, or the cards a vector, `children[k]`.
+        for rows_are_list in (true, false), k in 1:7
+            steps = (ExplorerModule._make_card_steps(k, 3, rows_are_list)..., FieldReferenceStep("content"),
+                     FieldReferenceStep("rest"))
+            @test ExplorerModule._find_card_below(steps, 3, rows_are_list) == (k, (FieldReferenceStep("rest"),))
+        end
+        @test ExplorerModule._make_card_steps(5, 3, true)[2:3] == (RangeReferenceStep(1, 2), RangeReferenceStep(1, 2))
         # Insert on the page adds a card at the end, whose content takes a name.
         _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
         @test length(dashboard.cards) == 4 && dashboard.cards[4].content isa DocumentInsertion
