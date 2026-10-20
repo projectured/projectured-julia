@@ -358,16 +358,16 @@ end
         initialize_backend!(backend)
         canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
         window = WindowDocument(; id = :unit_window_test, title = "unit_window_test",
-                                  x = 100, y = 100, width = 200, height = 100, content = canvas)
+                                  x = 100, y = 100, width = 160, height = 80, content = canvas)
         screen = ScreenDocument([window])
         write_to_devices!(backend, Device[Display()], screen)
         resource = backend.windows[:unit_window_test]
-        @test resource.pixels_per_window_unit == 1.0
         resource.pixels_per_window_unit = pixels_per_window_unit
         backend.display.density = 2.0
         @test SDL._get_window_unit_ratio(backend, :unit_window_test) == unit_ratio
-        # The size of the document reaches SDL in window units, and the size of SDL
-        # reads back as the size of the document.
+        # A new size of the document reaches SDL in window units, and the size of
+        # SDL reads back as the size of the document.
+        window.width, window.height = 200, 100
         write_to_devices!(backend, Device[Display()], screen)
         width, height = Ref{Cint}(0), Ref{Cint}(0)
         LibSDL2.SDL_GetWindowSize(resource.win, width, height)
@@ -391,6 +391,35 @@ end
             @test (pressed.x, pressed.y) == (round(Int, 120 / unit_ratio), round(Int, 40 / unit_ratio))
         quit_backend!(backend)
     end
+end
+
+@testset "a window made in the units of another screen takes its size in its own" begin
+    # A new window is made in the units of the last window. Here the last window
+    # was on a Retina screen, with two pixels in each unit, and the new window on
+    # X11 measures one, so at the density 2 it takes its size again: 200 logical
+    # pixels are 200 units in the units of the last window and 400 in its own.
+    SDL = ProjecturedSDL.SdlModule
+    LibSDL2 = SDL.SimpleDirectMediaLayer.LibSDL2
+    # The work area that the backend reads first is in the units of that window.
+    SDL._LAST_PIXELS_PER_WINDOW_UNIT[] = 2.0
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    backend.display.density = 2.0
+    window = WindowDocument(; id = :other_units_test, title = "other_units_test",
+                              x = 100, y = 100, width = 200, height = 100,
+                              content = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]),
+                                                       layout_none))
+    write_to_devices!(backend, Device[Display()], ScreenDocument([window]))
+    resource = backend.windows[:other_units_test]
+    @test SDL._LAST_PIXELS_PER_WINDOW_UNIT[] == resource.pixels_per_window_unit
+    unit_ratio = SDL._get_window_unit_ratio(resource, 2.0)
+    width, height = Ref{Cint}(0), Ref{Cint}(0)
+    LibSDL2.SDL_GetWindowSize(resource.win, width, height)
+    @test (Int(width[]), Int(height[])) == (round(Int, 200 * unit_ratio), round(Int, 100 * unit_ratio))
+    @test SDL._native_window_size(resource) == (200, 100)
+    # The work area follows the units of the new window.
+    @test (backend.display.width, backend.display.height) == SDL.get_sdl_display_size()
+    quit_backend!(backend)
 end
 
 @testset "a start of SDL video that repeats leaves every window open" begin

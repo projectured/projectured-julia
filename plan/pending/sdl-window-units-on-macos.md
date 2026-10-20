@@ -70,18 +70,35 @@ known before the first window, so the ratio there is 1 / 1, which is correct.
    ratio at the top of that function is gone. Two conversions keep the density,
    because their values are device pixels: the monitor size from `xrandr`, and
    the size of the drawing target.
-3. ~~Tests~~ **Done.** The new testset of
-   [NativeWindowTest.jl](../../test/backend/sdl/backend/NativeWindowTest.jl)
-   opens a window on X11 and gives it two pixels per window unit, as a window on
-   a Retina screen measures, at density 2. The size of its document reaches SDL
-   unchanged, the size of SDL reads back as the size of the document, and a press
-   arrives at its own place. The same testset with one pixel per window unit
-   checks the X11 case at density 2: twice the size, half the place. All of
-   `test_device_config`, `test_dirty_rect`, `test_laid_out_canvas`,
+
+   A review of the branch found that a new window kept the size it was made
+   with. It is made in the units of the last window, so a window made after the
+   density was known, or on a screen with another number of pixels per point,
+   stayed twice too large. Now `_open_native_window!` gives the window its size
+   and place again when its own window unit ratio differs from the one it was
+   made with, and reads the work area of the display again when the window unit
+   ratio of no window changes. The density probe reuses
+   `_measure_pixels_per_window_unit`, and the stored value is named
+   `_LAST_PIXELS_PER_WINDOW_UNIT`, because each window that opens sets it.
+3. ~~Tests~~ **Done.** Two testsets of
+   [NativeWindowTest.jl](../../test/backend/sdl/backend/NativeWindowTest.jl):
+   - A window on X11 gets two pixels per window unit, as a window on a Retina
+     screen measures, at density 2. A new size of its document reaches SDL
+     unchanged, the size of SDL reads back as the size of the document, and a
+     press arrives at its own place. The same testset with one pixel per window
+     unit checks the X11 case at density 2: twice the size, half the place. The
+     testset changes the size of the document, so it does not depend on the
+     density that the machine starts with.
+   - A window made in the units of a Retina window measures one pixel per unit
+     on X11, takes twice its size in units, reads back the size of its document,
+     and the work area follows its units.
+
+   All of `test_device_config`, `test_dirty_rect`, `test_laid_out_canvas`,
    `test_input_coalescing`, `test_sdl_pointer_shape`, `test_native_window` and
-   `test_sdl_held_frames` pass on X11 (21 testsets, 0 fail, 0 error). The macOS
-   case itself can not run here: this machine has X11 at 96 DPI and no Wayland
-   compositor.
+   `test_sdl_held_frames` pass on X11 (22 testsets, 0 fail, 0 error).
+   `test_video` gives 75 pass and 5 fail, the same 5 at the same lines as on
+   `main` at 93056f9f9 in the same X11 session. The macOS case itself can not
+   run here: this machine has X11 at 96 DPI and no Wayland compositor.
 4. Documentation. [sdl.md](../../documentation/package/backend/sdl/sdl.md)
    says the two numbers and the limit below.
 

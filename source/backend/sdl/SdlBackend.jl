@@ -618,6 +618,7 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
     # WindowDocument places and sizes are logical; SDL takes window units. The
     # window does not exist yet, so the ratio is that of the last window.
     unit_ratio = _get_window_unit_ratio(ratio)
+    work_area_unit_ratio = _get_window_unit_ratio(_PROBED_DISPLAY_DENSITY[])
     px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, unit_ratio))
     py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, unit_ratio))
     flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
@@ -653,8 +654,25 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
         backend.display.density = _PROBED_DISPLAY_DENSITY[]
         ratio = get_device_pixel_ratio(backend.display)
     end
+    # The window now knows its own units. It was made in the units of the last
+    # window, so a window with other units takes its size and place again in its
+    # own: a window on a screen with another number of pixels per point, or a
+    # window made after the density was known.
     pixels_per_window_unit = _measure_pixels_per_window_unit(win, renderer)
-    _PROBED_PIXELS_PER_WINDOW_UNIT[] = pixels_per_window_unit
+    _LAST_PIXELS_PER_WINDOW_UNIT[] = pixels_per_window_unit
+    own_unit_ratio = ratio / pixels_per_window_unit
+    if own_unit_ratio != unit_ratio
+        SDL_SetWindowSize(win, Int32(max(_to_device(w.width, own_unit_ratio), 1)),
+                               Int32(max(_to_device(w.height, own_unit_ratio), 1)))
+        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, own_unit_ratio))
+        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, own_unit_ratio))
+        SDL_SetWindowPosition(win, px, py)
+    end
+    # The work area of the display is in logical pixels through the window unit
+    # ratio of no window, which this window can change.
+    if _get_window_unit_ratio(_PROBED_DISPLAY_DENSITY[]) != work_area_unit_ratio
+        backend.display.width, backend.display.height = get_sdl_display_size()
+    end
 
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
@@ -718,7 +736,8 @@ end
 #
 # Layout, documents and events are all in *logical* pixels; the window's
 # backbuffer is in *device* pixels. `ratio` is the number of device pixels in one
-# logical pixel. `_to_device` sizes the SSAA targets and `_to_logical` maps back.
+# logical pixel. `_to_device` and `_to_logical` convert with `ratio` for the SSAA
+# targets, and with the window unit ratio for the native windows and their input.
 #
 # SDL counts the size and the place of a window, a resize, the mouse and the
 # bounds of a display in *window units*. On X11 and Windows a window unit is a
@@ -734,7 +753,7 @@ _to_logical(px, ratio::Float64) = round(Int, px / ratio)
 # the global pointer, the size of a new window and the size of a cursor. On macOS
 # the density is not known before the first window either, so the ratio there is
 # 1 / 1 until a window opens.
-const _PROBED_PIXELS_PER_WINDOW_UNIT = Ref(1.0)
+const _LAST_PIXELS_PER_WINDOW_UNIT = Ref(1.0)
 
 # The device pixels in one window unit of `win`: the width of the output of its
 # renderer over the width of the window, and 1 when SDL gives no width.
@@ -751,7 +770,7 @@ end
 # window of `id` in `backend`, or of no window, at the device pixel ratio `ratio`.
 # An id that names no window of the backend gets the probed value.
 _get_window_unit_ratio(res::SdlWindowResources, ratio::Float64) = ratio / res.pixels_per_window_unit
-_get_window_unit_ratio(ratio::Float64) = ratio / _PROBED_PIXELS_PER_WINDOW_UNIT[]
+_get_window_unit_ratio(ratio::Float64) = ratio / _LAST_PIXELS_PER_WINDOW_UNIT[]
 function _get_window_unit_ratio(backend::SdlBackend, id::Symbol)
     ratio = get_device_pixel_ratio(backend.display)
     res = get(backend.windows, id, nothing)
@@ -854,13 +873,10 @@ function _update_display_density!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Render
     # Skip if a window-free phase already found the density.
     _DISPLAY_DENSITY_DETECTED[] && return false
 
-    # SDL renderer output size vs logical window size.
-    dw = Ref{Cint}(0); dh = Ref{Cint}(0)
-    ww = Ref{Cint}(0); wh = Ref{Cint}(0)
-    SDL_GetRendererOutputSize(renderer, dw, dh)
-    SDL_GetWindowSize(win, ww, wh)
-    if ww[] > 0 && dw[] > ww[]
-        _PROBED_DISPLAY_DENSITY[] = Float64(dw[]) / Float64(ww[])
+    # A window whose units are points has more than one pixel in each unit.
+    pixels_per_window_unit = _measure_pixels_per_window_unit(win, renderer)
+    if pixels_per_window_unit > 1
+        _PROBED_DISPLAY_DENSITY[] = pixels_per_window_unit
         _DISPLAY_DENSITY_DETECTED[] = true
         @debug "Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL renderer ratio)"
         return true
