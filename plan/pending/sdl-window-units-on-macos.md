@@ -70,10 +70,18 @@ known before the first window, so the ratio there is 1 / 1, which is correct.
    ratio at the top of that function is gone. Two conversions keep the density,
    because their values are device pixels: the monitor size from `xrandr`, and
    the size of the drawing target.
-3. Tests. A window whose units are points keeps its document size
-   as its native size, reads its native size back unchanged, and reads a mouse
-   event at its own place. The suites of the device configuration, the native
-   windows, the pointer shape, the input coalescing and the held frames pass.
+3. ~~Tests~~ **Done.** The new testset of
+   [NativeWindowTest.jl](../../test/backend/sdl/backend/NativeWindowTest.jl)
+   opens a window on X11 and gives it two pixels per window unit, as a window on
+   a Retina screen measures, at density 2. The size of its document reaches SDL
+   unchanged, the size of SDL reads back as the size of the document, and a press
+   arrives at its own place. The same testset with one pixel per window unit
+   checks the X11 case at density 2: twice the size, half the place. All of
+   `test_device_config`, `test_dirty_rect`, `test_laid_out_canvas`,
+   `test_input_coalescing`, `test_sdl_pointer_shape`, `test_native_window` and
+   `test_sdl_held_frames` pass on X11 (21 testsets, 0 fail, 0 error). The macOS
+   case itself can not run here: this machine has X11 at 96 DPI and no Wayland
+   compositor.
 4. Documentation. [sdl.md](../../documentation/package/backend/sdl/sdl.md)
    says the two numbers and the limit below.
 

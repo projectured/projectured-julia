@@ -316,7 +316,8 @@ end
     # A window manager can put a window elsewhere than asked, and a person can move
     # it. The document takes that place, so a popup opens at the window; a place
     # the document asks for itself still moves the window. The place of the document
-    # is in logical pixels and the place of SDL in device pixels, at each zoom.
+    # is in logical pixels and the place of SDL in window units, which are device
+    # pixels on X11, at each zoom.
     LibSDL2 = ProjecturedSDL.SdlModule.SimpleDirectMediaLayer.LibSDL2
     for zoom in (1.0, 2.0)
         backend = SdlBackend()
@@ -340,6 +341,54 @@ end
         window.x = window.x + 50
         write_to_devices!(backend, Device[Display()], screen)
         @test placed()[1] == round(Int, window.x * ratio)
+        quit_backend!(backend)
+    end
+end
+
+@testset "a window whose units are points converts with the window unit ratio" begin
+    # On macOS SDL counts a window in points, and a Retina screen has two device
+    # pixels in each point. A window on X11 measures one pixel in each unit, so the
+    # test gives it two, as a window on a Retina screen measures, at the density 2
+    # that such a window finds. A logical pixel is then one window unit. With one
+    # pixel in each unit, as on X11 at a density of 2, it is two window units.
+    SDL = ProjecturedSDL.SdlModule
+    LibSDL2 = SDL.SimpleDirectMediaLayer.LibSDL2
+    for (pixels_per_window_unit, unit_ratio) in ((2.0, 1.0), (1.0, 2.0))
+        backend = SdlBackend()
+        initialize_backend!(backend)
+        canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+        window = WindowDocument(; id = :unit_window_test, title = "unit_window_test",
+                                  x = 100, y = 100, width = 200, height = 100, content = canvas)
+        screen = ScreenDocument([window])
+        write_to_devices!(backend, Device[Display()], screen)
+        resource = backend.windows[:unit_window_test]
+        @test resource.pixels_per_window_unit == 1.0
+        resource.pixels_per_window_unit = pixels_per_window_unit
+        backend.display.density = 2.0
+        @test SDL._get_window_unit_ratio(backend, :unit_window_test) == unit_ratio
+        # The size of the document reaches SDL in window units, and the size of SDL
+        # reads back as the size of the document.
+        write_to_devices!(backend, Device[Display()], screen)
+        width, height = Ref{Cint}(0), Ref{Cint}(0)
+        LibSDL2.SDL_GetWindowSize(resource.win, width, height)
+        @test (Int(width[]), Int(height[])) ==
+              (round(Int, 200 * unit_ratio), round(Int, 100 * unit_ratio))
+        @test SDL._native_window_size(resource) == (200, 100)
+        # A press at a place in window units arrives at that place over the ratio.
+        _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONDOWN, UInt32(0),
+                                                   resource.sdl_id, UInt32(0),
+                                                   _SDL_BUTTON_LEFT, UInt8(1), UInt8(1),
+                                                   UInt8(0), Int32(120), Int32(40)))
+        pressed = nothing
+        for _ in 1:50
+            input = take_from_devices!(backend, Device[])
+            input === nothing && break
+            input isa Tuple && (input = input[1])
+            input isa WindowInput && input.event isa MouseDown && (pressed = input.event)
+        end
+        @test pressed isa MouseDown
+        pressed isa MouseDown &&
+            @test (pressed.x, pressed.y) == (round(Int, 120 / unit_ratio), round(Int, 40 / unit_ratio))
         quit_backend!(backend)
     end
 end
