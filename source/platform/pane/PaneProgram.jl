@@ -537,6 +537,7 @@ get_referenced_value(reference::ReferencedDocument; keywords...) =
 
 """
     replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text
+    replace_referenced_value!(part, field, value; editor = get_evaluation_editor()) -> ReferencedDocument
 
 Put `value` where `reference` points, and answer the new layout, as
 [`show_layout`](@ref) prints it.
@@ -549,12 +550,20 @@ reference `show_layout` printed. One call, one undo. To close a pane, use
 `reference` can also be a `ReferencedDocument`, such as the tab that
 [`find_pane`](@ref) answers, and `value` can be one too: its document is written.
 
+With a `field`, put `value` in the field `field` of `part`, a `ReferencedDocument`,
+and answer `part`. It is the edit that the menu of a part makes when it changes
+a setting, so the tool `undo` takes it back in one step. Use it for a field that
+holds a plain value, such as a `Bool`, a `Symbol`, a number or `nothing`: a read
+of such a field answers the value, not a part that a write can name.
+
 # Example
 
     tree_reference = find_pane_tree_reference()
     tree = evaluate_reference(editor.document, tree_reference)
     replace_referenced_value!(concat_references(tree_reference, @reference(tree, root.weights)),
                               [0.3, 0.7])
+    checkbox_1 = find_selected_part()
+    replace_referenced_value!(checkbox_1, :enabled, false)
 
 See also `open_pane!` to add a pane, `focus_pane!`, `PaneSplit`, `PaneGroup`,
 `PaneTab`.
@@ -614,6 +623,26 @@ replace_referenced_value!(reference::ReferencedDocument, value; keywords...) =
     replace_referenced_value!(get_reference(reference), value; keywords...)
 replace_referenced_value!(reference::Reference, value::ReferencedDocument; keywords...) =
     replace_referenced_value!(reference, get_document(value); keywords...)
+
+function replace_referenced_value!(part::ReferencedDocument, field::Union{Symbol,AbstractString}, value;
+                                   editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "replace_referenced_value!") do
+        document = get_document(part)
+        name = Symbol(field)
+        hasproperty(document, name) ||
+            throw(ArgumentError("A " * string(nameof(typeof(document))) * " has no field :" * string(name) *
+                                ". Its fields: " * join((":" * string(n) for n in propertynames(document)), ", ") * "."))
+        stored = value isa ReferencedDocument ? get_document(value) : value
+        reference = extend_reference(strip_reference_types(get_reference(part)), FieldReferenceStep(String(name)))
+        operation = find_rooted_operation(editor, reference,
+            relative -> ReplaceReferencedValueOperation(nothing, relative, stored);
+            description = "Replace " * describe_reference(reference, _get_root_document(editor)))
+        operation === nothing &&
+            throw(ArgumentError("No reader of the window takes a write of " * _path_text(reference) * "."))
+        evaluate_operation(editor, operation)
+        part
+    end
+end
 
 # The steps of `reference` after the route to its tree, as a path from the tree.
 # The write rooted at the deepest place the readers carry it from, so a history

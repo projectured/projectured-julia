@@ -5,8 +5,9 @@
 # is an operation with an inverse, so undo takes it back: a move is a
 # `MoveRangeOperation`, which keeps the cell of the item, and an insert or a
 # removal of a measure is a splice of `ReplaceReferencedValueOperation`. The keys
-# act on the item that the selection names, and a drop acts on the item that
-# the drag carries.
+# act on the item that the selection names, a drop acts on the item that the
+# drag carries, and the verb of the assistant acts on the field that it names by
+# its column.
 
 # The fields of the zones, in the order of the rows of the bar. The first four
 # hold dimensions, and the last holds measures.
@@ -58,13 +59,22 @@ end
 # the zone `into`, where `to` counts the places before the move, and the
 # selection of the item where it lands.
 function _make_pivot_item_move(pivot::PivotTable, from::String, index::Int, into::String, to::Int)
+    move = _make_pivot_range_move(pivot, from, index, into, to)
+    move === nothing && return nothing
+    operation, landed = move
+    CompoundOperation(Any[operation, ReplaceSelectionOperation(_make_pivot_zone_item_path(into, landed))])
+end
+
+# The `MoveRangeOperation` of the item at place `index` of the zone `from` to the
+# place `to` of the zone `into`, where `to` counts the places before the move,
+# and the place where the item lands; `nothing` when the item stays where it is.
+function _make_pivot_range_move(pivot::PivotTable, from::String, index::Int, into::String, to::Int)
     source = _get_pivot_zone(pivot, from)
     destination = _get_pivot_zone(pivot, into)
     to = clamp(to, 1, length(destination) + 1)
     landed = (from == into && to > index) ? to - 1 : to
     (from == into && landed == index) && return nothing
-    CompoundOperation(Any[MoveRangeOperation(source, index, index, destination, to),
-                          ReplaceSelectionOperation(_make_pivot_zone_item_path(into, landed))])
+    (MoveRangeOperation(source, index, index, destination, to), landed)
 end
 
 # A new measure of the column of `dimension` at place `to` of the measures, and
@@ -208,4 +218,85 @@ function _make_pivot_drop_operation(pivot::PivotTable, source, target)
     end
     into == "measures" && return _make_pivot_measure_insert(pivot, _get_pivot_zone(pivot, from)[index], place)
     _make_pivot_item_move(pivot, from, index, into, place)
+end
+
+# ── The verb of the assistant ────────────────────────────────────────────────
+
+# The zones that hold fields, by the names of the rows of the bar.
+const _PIVOT_FIELD_ZONES = (fields = "unused_dimensions", columns = "column_dimensions",
+                            rows = "row_dimensions", cells = "cell_dimensions")
+
+"""
+    move_pivot_field!(pivot, column, zone; place = nothing, editor = get_evaluation_editor())
+        -> ReferencedDocument
+
+Move the field of the column `column` of `pivot` into `zone`, at the 1-based
+`place` among the fields of that zone, or at its end when `place` is `nothing`.
+`zone` is `:fields`, `:columns`, `:rows` or `:cells`, a row of the bar of the
+pivot that holds fields. It is the move that a drag of the badge of the field
+makes, so the tool `undo` takes it back in one step. The selection of the person
+does not move. Answer `pivot`.
+
+Use it to change how a pivot cuts its rows: which fields go down, which go
+across, and which split a cell.
+
+# Example
+
+    pivot_1 = get_edited_document(find_pane("Sales"))
+    move_pivot_field!(pivot_1, "country", :columns)
+    move_pivot_field!(pivot_1, "year", :rows; place = 1)
+
+See also `find_pivot_value`, `replace_referenced_value!`, `insert_elements!`.
+"""
+function move_pivot_field! end
+
+function move_pivot_field!(pivot, column::AbstractString, zone::Symbol;
+                           place::Union{Integer,Nothing} = nothing, editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "move_pivot_field!") do
+        document = pivot isa ReferencedDocument ? get_document(pivot) : pivot
+        document isa PivotTable ||
+            throw(ArgumentError("move_pivot_field! moves a field of a pivot, not of a " *
+                                string(nameof(typeof(document))) * "."))
+        into = get(_PIVOT_FIELD_ZONES, zone, nothing)
+        into === nothing &&
+            throw(ArgumentError("A field goes to :fields, :columns, :rows or :cells, not :" * string(zone) *
+                                ". A value is an element of `pivot.measures`: " *
+                                "`insert_elements!(pivot.measures, 1, [PivotMeasure(\"amount\", :sum)])` adds one."))
+        found = _find_pivot_field(document, String(column))
+        found === nothing &&
+            throw(ArgumentError("The pivot has no field " * repr(String(column)) * ". Its fields: " *
+                                join(_collect_pivot_field_names(document), ", ") * "."))
+        from, index = found
+        count = length(_get_pivot_zone(document, into))
+        landing = place === nothing ? (from == into ? count : count + 1) : Int(place)
+        move = _make_pivot_range_move(document, from, index, into,
+                                      (from == into && landing > index) ? landing + 1 : landing)
+        move === nothing ||
+            _evaluate_pivot_operation!(editor, pivot, first(move), "Move the field " * String(column))
+        pivot
+    end
+end
+
+# The zone and the place of the field of `column`: `(field, index)`, or `nothing`.
+function _find_pivot_field(pivot::PivotTable, column::String)
+    for field in values(_PIVOT_FIELD_ZONES)
+        index = findfirst(dimension -> dimension.column == column, collect(_get_pivot_zone(pivot, field)))
+        index === nothing || return (field, index)
+    end
+    nothing
+end
+
+_collect_pivot_field_names(pivot::PivotTable) =
+    String[dimension.column for field in values(_PIVOT_FIELD_ZONES) for dimension in _get_pivot_zone(pivot, field)]
+
+# Evaluate `operation`, an edit of `pivot`, as an edit of the person: the readers
+# of the editor carry it from the pivot to the root, so the history of the tab
+# that shows the pivot records it. A pivot that no view shows takes the
+# operation directly.
+function _evaluate_pivot_operation!(editor, pivot, operation, description)
+    if pivot isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing
+        rooted = find_rooted_operation(editor, get_reference(pivot), relative -> operation; description)
+        rooted === nothing || return evaluate_operation(editor, rooted)
+    end
+    evaluate_operation(editor, operation)
 end

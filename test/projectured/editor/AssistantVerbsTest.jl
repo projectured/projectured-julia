@@ -126,6 +126,26 @@ function test_assistant_verbs()
                        _run_assistant_code(editor, "describe_commands(get_edited_document(find_pane(\"people.json\")))"))
     end
 
+    @testset "change: a plain field of a part, also one that holds nothing" begin
+        open_pane!(WidgetCheckbox(true); title = "Box", editor)
+        run_frame!(editor)
+        box = get_edited_document(find_pane("Box"; editor))
+        @test get_document(box).label === nothing
+        @test replace_referenced_value!(box, :enabled, false; editor) === box
+        @test replace_referenced_value!(box, :label, "Record vectors"; editor) === box
+        run_frame!(editor)
+        @test !get_document(box).enabled && get_document(box).label == "Record vectors"
+        for _ in 1:2
+            call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+            run_frame!(editor)
+        end
+        @test get_document(box).enabled && get_document(box).label === nothing
+        @test_throws ArgumentError replace_referenced_value!(box, :colour, 1; editor)
+        @test occursin("Record", _run_assistant_code(editor,
+            "box_1 = get_edited_document(find_pane(\"Box\")); replace_referenced_value!(box_1, :label, \"Record\"); get_document(box_1).label"))
+        close_pane!(find_pane("Box"; editor); editor)
+    end
+
     @testset "tell: a part opens as a page in a new tab with a navigator" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))

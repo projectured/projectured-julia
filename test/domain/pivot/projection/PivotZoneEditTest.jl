@@ -1,7 +1,8 @@
 """
 The edits of the zones of a pivot: the operations of the keys and of a drop and
-their inverses, and the press, the keys and the drags of the badges of the bar
-through the loop of a real editor.
+their inverses, the press, the keys and the drags of the badges of the bar
+through the loop of a real editor, and the verbs of the assistant in an
+application window.
 """
 
 _pz_measure() = FixedMeasure(10, 18, 6, 0)
@@ -61,6 +62,23 @@ end
 
 _pz_key!(editor, backend, key; alt = false) =
     _pz_send!(editor, backend, KeyDown(key, ModifierKeys(alt = alt); time = 3.0))
+
+# An application window with the pivot of the example in the tab "Sales", as the
+# assistant of the window meets it.
+function _pz_application()
+    document, projection = make_application_window(String[]; root = mktempdir(), assistant = nothing)
+    editor = build_editor(document, projection; backend = HeadlessBackend(), tabs = false,
+                          window = (; title = "ProjecturEd", width = 1280, height = 720,
+                                    opened_window_projections = make_opened_window_projections(;
+                                        content = make_application_content_projections())))
+    start_application!(editor)
+    run_frame!(editor)
+    open_pane!(make_pivot_document_example(); title = "Sales", editor)
+    run_frame!(editor)
+    editor
+end
+
+_pz_undo!(editor) = (call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor); run_frame!(editor))
 
 function test_pivot_zone_edits()
 @testset "the edits of the zones of a pivot" begin
@@ -177,6 +195,53 @@ _pz_send!(editor, backend, MouseDown(:right, x + 3, y + 3, _PZ_NONE; time = 5.1)
 _pz_send!(editor, backend, MouseUp(:right, x + 3, y + 3, _PZ_NONE; time = 5.15))
 menu = [t[3] for t in something(_pz_window_texts(editor, :widget_popup), [])]
 @test "Order by the measure" in menu && "Show the totals" in menu
+
+# ── The verbs of the assistant ──────────────────────────────────────────────
+
+# A field moves as a drag moves it, and each move is one step that undo takes
+# back. The selection of the person stays where it is.
+editor = _pz_application()
+pivot = get_edited_document(find_pane("Sales"; editor))
+selected = repr(get_selection(editor.document))
+@test move_pivot_field!(pivot, "country", :columns; editor) === pivot
+run_frame!(editor)
+@test _pz_columns(pivot.row_dimensions) == ["region"]
+@test _pz_columns(pivot.column_dimensions) == ["year", "country"]
+move_pivot_field!(pivot, "country", :rows; place = 1, editor)
+move_pivot_field!(pivot, "region", :rows; place = 1, editor)
+run_frame!(editor)
+@test _pz_columns(pivot.row_dimensions) == ["region", "country"]
+move_pivot_field!(pivot, "year", :fields; editor)
+run_frame!(editor)
+@test _pz_columns(pivot.unused_dimensions) == ["quarter", "product", "amount", "year"]
+@test isempty(pivot.column_dimensions)
+@test repr(get_selection(editor.document)) == selected
+_pz_undo!(editor)
+_pz_undo!(editor)
+@test _pz_columns(pivot.row_dimensions) == ["country", "region"]
+@test _pz_columns(pivot.column_dimensions) == ["year"]
+@test_throws ArgumentError move_pivot_field!(pivot, "price", :rows; editor)
+@test_throws ArgumentError move_pivot_field!(pivot, "amount", :values; editor)
+
+# A setting of the pivot, of a field and of a measure is written by its field, as
+# the menus write it. The view of the cells holds `nothing` while it is the
+# automatic one.
+document = get_document(pivot)
+@test document.cell_view === nothing
+@test replace_referenced_value!(pivot, :cell_view, PivotBarChartView(); editor) === pivot
+replace_referenced_value!(pivot, :totals, true; editor)
+replace_referenced_value!(pivot.measures[1], :aggregate, :mean; editor)
+replace_referenced_value!(pivot.row_dimensions[1], :order, :measure; editor)
+run_frame!(editor)
+@test document.cell_view isa PivotBarChartView
+@test document.totals
+@test only(document.measures).aggregate === :mean
+@test first(document.row_dimensions).order === :measure
+@test repr(get_selection(editor.document)) == selected
+foreach(_ -> _pz_undo!(editor), 1:4)
+@test document.cell_view === nothing && !document.totals
+@test only(document.measures).aggregate === :sum && first(document.row_dimensions).order === :natural
+@test_throws ArgumentError replace_referenced_value!(pivot, :colour, true; editor)
 
 end
 end

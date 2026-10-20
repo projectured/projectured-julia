@@ -40,6 +40,7 @@ export get_pivot_cell_view, describe_pivot_cell_view, get_pivot_cell_view_lines,
        make_pivot_cell_document
 export PivotChartCellToChart, make_pivot_chart_cell_projection
 export collect_pivot_cell_views
+export move_pivot_field!
 export PivotTableToWidget, PivotTableToWidgetIoMap, make_pivot_table_projection
 export PivotPartTableToWidget, make_pivot_part_table_projection
 

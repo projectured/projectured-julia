@@ -164,11 +164,29 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
   - Tests: `test_pivot_cross_table` 112 of 112, `test_pivot_table_display` 10 of
     10, `test_pivot_totals` 29, `test_pivot_table_projection` 36,
     `test_pivot_group_view` 21.
-- [ ] **2. Change.** `move_pivot_field!` and the method
+- [x] **2. Change.** Done 2026-10-21. `move_pivot_field!` and the method
   `replace_referenced_value!(part, field, value)`. Test: in a headless window,
   each verb is one undo step, `undo` takes it back, and the selection of the
   person does not change. `replace_referenced_value!(pivot_1, :cell_view, …)`
   works while the field holds `nothing`.
+  - What was built: `move_pivot_field!` is in `PivotZoneEdit.jl`. The move of a
+    field is split out of `_make_pivot_item_move` as `_make_pivot_range_move`, so
+    the keys and the drop keep their selection and the verb makes the bare
+    `MoveRangeOperation`. `_evaluate_pivot_operation!` roots it as the workflow
+    verbs root theirs. The verb also takes a plain `PivotTable`, which takes the
+    operation directly.
+  - The field form of `replace_referenced_value!` is in `PaneProgram.jl` beside
+    the other methods, and the generic docstring names it, with an example. It
+    answers `part`, so the next read of the part shows the change; the form with
+    a reference still answers the layout.
+  - A wrong zone, such as `:values`, is refused with the call that adds a
+    measure. A column that is not a field is refused with the names of the fields.
+  - omnet-julia defines no method of `replace_referenced_value!` and makes no
+    call of it with three positional arguments.
+  - Tests: `test_pivot_zone_edits` 59 of 59, with the moves, four settings
+    (`cell_view` from `nothing`, `totals`, an aggregate, an order) and their
+    undo; `test_assistant_verbs` 56 of 56, with a checkbox whose `label` holds
+    `nothing`.
 - [ ] **3. Declare.** `register_assistant_api!` in `PivotModule.__init__` with the
   names of §3 and the paragraph. Test: the calls of §2 through
   `execute_julia_code!`, with the tool set of `start_application!`, find the
