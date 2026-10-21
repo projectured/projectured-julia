@@ -24,6 +24,7 @@ function test_xml()
     @testset "ProjecturedXML" begin
         test_xml_layering()
         test_xml_parser()
+        test_xml_file_note()
         test_xml_to_syntax()
         test_xml_theme()
         test_xml_to_syntax_reader()
@@ -31,5 +32,5 @@ function test_xml()
     end
 end
 
-export test_xml, test_xml_layering, test_xml_parser, test_xml_to_syntax, test_xml_theme
+export test_xml, test_xml_layering, test_xml_parser, test_xml_file_note, test_xml_to_syntax, test_xml_theme
 export test_xml_to_syntax_reader, test_xml_override_gestures
