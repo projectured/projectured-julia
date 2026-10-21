@@ -137,10 +137,14 @@ The conversation slice gives the two generics to its own kinds of content:
 | Kind | Label | Decoration |
 | --- | --- | --- |
 | `ConversationThinking` | "Thinking" | `:circle_dashed` |
-| `EvaluatorForm` | `get_evaluation_title(form)` | `:lambda` for `eval`, else `:terminal`; while `is_running`, `:loader` and `:running`; with `is_error`, `:warning` |
+| `EvaluatorForm` | `get_evaluation_title(form)` | `:lambda` for `eval`, else `:terminal`; while `is_running`, the condition `:running`; with `is_error`, the condition `:failed` |
 | `ConversationPermissionRequest` | its `title` | `:circle_help`; while it is open, the condition `:waiting` |
 | `ConversationQuestionRequest` | the first line of its `message` | `:circle_help`; while it is open, the condition `:waiting` |
 | `ConversationSignInRequest` | the first line of its `message` | `:lock` |
+
+A tool call keeps the icon of its kind and says its state as a condition, as
+`get_document_decoration(::EvaluatorToplevel)` does. A request whose text is
+blank says "Permission", "Question" or "Sign in". (Found in step 1.)
 
 ### What else changes
 
@@ -155,7 +159,7 @@ Do the work in the worktree `../projectured-julia-conversation-outline`, on the
 branch `conversation-outline`. Make a commit for each step. Do not land on
 `main` without the approval of the owner.
 
-1. [ ] **The nodes of a turn and a part.** Add the fragment
+1. [x] **The nodes of a turn and a part.** Add the fragment
    `source/platform/conversation/ConversationTree.jl` with the methods of "The
    nodes" and of the kinds of content. Import `get_tree_children_steps` and
    `format_tree_node_label` from `TreeModule` in `ConversationModule`. Add
@@ -166,6 +170,12 @@ branch `conversation-outline`. Make a commit for each step. Do not land on
    tables, a turn that runs, the cut of a long line, and the forward of a part
    whose content gives children (an `ExplorerSection` as the content). Run
    `test_conversation_tree()` and `test_platform_slice_edges()`.
+
+   Done, 2026-10-21. `test_conversation_tree()` passes 42 of 42,
+   `test_platform_slice_edges()` 1 of 1, and `test_platform_layering()` 21 of
+   21. The test module of the conversation imports `ProjecturedJSON`, so a part
+   of JSON is the document with a natural notation that the test labels. No
+   other test reads a decoration of a conversation kind.
 2. [ ] **The turns below an assistant and a subagent.** Add
    `(FieldReferenceStep("conversation"), FieldReferenceStep("turns"))` as the
    third collection of `Assistant` and of `AgentWork`. Change the assertion of

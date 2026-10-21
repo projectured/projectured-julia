@@ -394,6 +394,8 @@ module ConversationTests
 
 using Test
 import ProjecturedPlatform
+# The notation of a part of code that a node of a tree names by its first line.
+import ProjecturedJSON
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
@@ -429,6 +431,7 @@ include("../../../test/platform/conversation/ConversationThemeTest.jl")
 include("../../../test/platform/conversation/ExternalAgentTurnTest.jl")
 include("../../../test/platform/conversation/AgentWorkTest.jl")
 include("../../../test/platform/conversation/AssistantWorkTest.jl")
+include("../../../test/platform/conversation/ConversationTreeTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests
