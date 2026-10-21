@@ -315,7 +315,7 @@ end
 
 @testset "such a window stays on the screen, and beside the pointer" begin
     place = ProjecturedSDL.SdlModule.compute_window_place
-    area = (area_width = 1000, area_height = 800)
+    area = (areas = [(0, 0, 1000, 800)],)
 
     # Inside the work area, wherever it was asked for.
     @test place(100, 100, 200, 80; area..., pointer = nothing) == (100, 100)
@@ -326,6 +326,39 @@ end
     # right when there is no room on the left.
     @test place(900, 100, 200, 80; area..., pointer = (850, 120)) == (642, 100)
     @test place(0, 100, 200, 80; area..., pointer = (40, 120)) == (48, 100)
+end
+
+@testset "a window on a monitor above, left of or right of the main one stays there" begin
+    SDL = ProjecturedSDL.SdlModule
+    place = SDL.compute_window_place
+    main, above = (0, 0, 1920, 1080), (0, -1080, 1920, 1080)
+    left, right = (-1280, 0, 1280, 1024), (1920, 0, 2560, 1440)
+    areas = [main, above, left, right]
+
+    # A tooltip beside the pointer on the monitor above stays on that monitor.
+    @test place(885, -950, 300, 60; areas, pointer = (869, -974)) == (885, -950)
+    # Each monitor keeps a window inside its own area: the bottom of the one above,
+    # the one on the left, and the right edge of the one on the right.
+    @test place(100, -50, 200, 80; areas, pointer = nothing) == (100, -80)
+    @test place(-300, 100, 200, 80; areas, pointer = nothing) == (-300, 100)
+    @test place(4400, 100, 200, 80; areas, pointer = nothing) == (4280, 100)
+    # A window beside a pointer at the left edge of the right monitor goes to the
+    # right of the pointer, and stays on that monitor.
+    @test place(1930, 100, 200, 80; areas, pointer = (1940, 120)) == (1948, 100)
+    # A point on no display takes the main one.
+    @test place(5000, 2000, 200, 80; areas, pointer = nothing) == (1720, 1000)
+
+    # Only the place (-1, -1) lets the backend choose; SDL centers that window and
+    # gets every other place as it is, negative too.
+    window(x, y) = WindowDocument(; id = :place_test, title = "place_test", x = x, y = y,
+                                    width = 200, height = 100, content = PrimitiveString("content"))
+    @test is_automatic_window_place(window(-1, -1))
+    @test !is_automatic_window_place(window(885, -950))
+    @test !is_automatic_window_place(window(-1, 100))
+    @test SDL._get_native_window_place(window(-1, -1), 1.0) ==
+          (SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED)
+    @test SDL._get_native_window_place(window(885, -950), 1.0) == (Int32(885), Int32(-950))
+    @test SDL._get_native_window_place(window(-1, 100), 2.0) == (Int32(-2), Int32(200))
 end
 
 @testset "a tooltip goes beside the pointer, and a popup stays under it" begin

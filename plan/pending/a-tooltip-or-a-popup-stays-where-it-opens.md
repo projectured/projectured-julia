@@ -99,9 +99,20 @@ owner approves.
    **Result:** `_can_take_key_focus` answers false for `:tooltip` and `:popup`;
    the case passes 9 of 9 and `test_native_window()` passes. The real check is
    on a Mac, in step 6.
-4. ⬜ **Fix 3, with tests.** Cases for the predicate, for the place that SDL gets
+4. ✅ **Fix 3, with tests.** Cases for the predicate, for the place that SDL gets
    for a negative place and for `(-1, -1)`, and for `compute_window_place` with a
    display above, left of and right of the main one.
+   **Result:** `AUTOMATIC_WINDOW_PLACE` and `is_automatic_window_place` in
+   `ScreenDocument.jl`; in the SDL backend `_get_native_window_place`,
+   `_read_work_areas!` (the start, a display event, and a window with other
+   units), `_read_display_areas`, `_find_display_area` and the new keyword
+   `areas` of `compute_window_place`. The new case passes 12 of 12, and
+   `test_native_window()` passes.
+   **Decision: no areas with one display.** `display_areas` stays empty when SDL
+   reports one display, and the work area of `backend.display` serves, read live.
+   So a single display places windows exactly as before, also where SDL folds
+   several monitors of X11 into one display, and a test that sets the size of
+   the display by hand still works.
 5. ⬜ **Run the narrow suites:** `test_native_window()`, then `test_sdl()`, the
    tooltip and screen cases of the platform, and `test_application()`.
 6. ⬜ **Check on a Mac** with the script of the tester: a menu and a dropdown stay

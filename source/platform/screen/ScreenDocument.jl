@@ -40,7 +40,9 @@ projected.
 - `id::Symbol` — stable identity used by the backend to track this
   window across frames. Must be unique within its `ScreenDocument`.
 - `title::String` — window title.
-- `x::Int`, `y::Int` — screen position in logical pixels; -1 = backend chooses.
+- `x::Int`, `y::Int` — screen position in logical pixels. The place `(-1, -1)`,
+  [`AUTOMATIC_WINDOW_PLACE`](@ref), lets the backend choose; any other place,
+  negative too, is a place on the screen.
 - `width::Int`, `height::Int` — initial size in logical pixels; 0 = auto-size.
 - `minimum_size::NTuple{2,Int}`, `maximum_size::NTuple{2,Int}` — the bounds of a
   window that fits its content. A `maximum_size` of `(0, 0)`, the default, is a
@@ -80,6 +82,23 @@ end
 
 # A window calls itself by the title it shows.
 get_document_title(window::WindowDocument) = window.title
+
+"""
+    AUTOMATIC_WINDOW_PLACE
+
+The place `(-1, -1)` of a [`WindowDocument`](@ref): the backend chooses where the
+window goes. Every other place, negative too, is a place on the screen, because a
+monitor above or left of the main one has negative coordinates.
+"""
+const AUTOMATIC_WINDOW_PLACE = (-1, -1)
+
+"""
+    is_automatic_window_place(window::WindowDocument) -> Bool
+
+Whether the backend chooses the place of `window`: its place is
+[`AUTOMATIC_WINDOW_PLACE`](@ref).
+"""
+is_automatic_window_place(window::WindowDocument) = (window.x, window.y) == AUTOMATIC_WINDOW_PLACE
 
 # ── Window operations ───────────────────────────────────────────────────────
 # The screen domain's own operation vocabulary: requests to open/close/resize a
