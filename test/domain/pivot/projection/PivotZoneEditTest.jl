@@ -178,6 +178,19 @@ _pz_drag!(editor, editor.backend, "year", x + 3, y + 3; window)
 _pz_key!(editor, editor.backend, :up; alt = true, window)
 @test _pz_columns(document.column_dimensions) == ["year"]
 @test _pz_columns(document.row_dimensions) == ["region", "country"]
+# Ctrl+Z takes back the key and then the drop, and the selection goes back with
+# each to the field where it was; Ctrl+Y puts the drop back.
+zone_item(field, index) = PivotModule._make_pivot_zone_item_path(field, index)
+_pz_send!(editor, editor.backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 3.1); window)
+@test _pz_columns(document.row_dimensions) == ["region", "country", "year"]
+@test strip_reference_types(document.selection) == zone_item("row_dimensions", 3)
+_pz_send!(editor, editor.backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 3.2); window)
+@test _pz_columns(document.column_dimensions) == ["year"]
+@test _pz_columns(document.row_dimensions) == ["region", "country"]
+@test strip_reference_types(document.selection) == zone_item("column_dimensions", 1)
+_pz_send!(editor, editor.backend, KeyDown(:y, ModifierKeys(ctrl = true); time = 3.3); window)
+@test _pz_columns(document.row_dimensions) == ["region", "country", "year"]
+@test strip_reference_types(document.selection) == zone_item("row_dimensions", 3)
 
 # ── The menu of a right click ────────────────────────────────────────────────
 

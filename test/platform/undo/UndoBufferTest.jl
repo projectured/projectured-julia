@@ -313,6 +313,28 @@ function test_undo_buffer()
               get_reference_steps(before)
     end
 
+    # A step that deletes the selected element and selects the one before it. The
+    # undo puts the element back first, and then the caret on it: the element does
+    # not exist before that, so the way back holds no move of the caret.
+    @testset "the caret of a step goes back after its edits" begin
+        list = _make_list(["a", "b", "c"])
+        buffer = UndoBuffer(list)
+        editor = _UndoEditor(buffer)
+        items = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"))
+        third = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"), RangeReferenceStep(2, 3))
+        second = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+        replace_selection!(buffer, third)
+        evaluate_operation(editor, RecordUndoOperation(buffer, CompoundOperation(Any[
+            make_delete_elements_operation(items, 3), ReplaceSelectionOperation(second)])))
+        @test _texts(list) == ["a", "b"]
+        evaluate_operation(editor, UndoOperation(buffer))
+        @test _texts(list) == ["a", "b", "c"]
+        @test get_reference_steps(strip_reference_types(get_selection(buffer))) == get_reference_steps(third)
+        evaluate_operation(editor, RedoOperation(buffer))
+        @test _texts(list) == ["a", "b"]
+        @test get_reference_steps(strip_reference_types(get_selection(buffer))) == get_reference_steps(second)
+    end
+
     # A run of typed characters is one step. A caret move, a key that is not a
     # character, and a pause each end the run. The content is the identity, so a
     # "typed character" is a `KeyPress` gesture answered with a write of the value.

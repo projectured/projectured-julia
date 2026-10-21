@@ -57,7 +57,7 @@ A buffer above a buffer keeps a copy of each step below. A run joins in both or 
 
 ### The reader wraps and never records
 
-`PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
+`PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!`, keeps its way back without the moves of the selection (see the keys below), and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
 
 `RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `is_self_contained_operation` is `true` for both and they need no rerooting.
 
@@ -91,6 +91,8 @@ So every editor that has settings can hold a history, and every editor must draw
 | Ctrl+Y, Ctrl+Shift+Z | put the last step back |
 
 A key with an empty list returns `nothing`, so the key goes on to the next reader. After a step, the caret goes back to the place saved in the entry. A saved path that no longer matches the document is ignored.
+
+**The way back holds the edits and no move of the selection.** The selection is view state, as the filter says, and the entry keeps the selection from before the step. So `RecordUndoOperation` replaces each `ReplaceSelectionOperation` and `SelectNextInsertionOperation` in the way back with `DoNothingOperation()`, and a way back with no edit left does nothing, so it adds no entry. The undo takes the edits back in reverse order, and then puts the selection back, when the place that it names exists again. For example, a step deletes the selected third element of a list and selects the second. A move of the selection in its way back would select the third element before the element comes back, and fail. The pivot makes the same kind of step when it moves a field: it moves the field, and selects it at its new place.
 
 ### What is not recorded
 

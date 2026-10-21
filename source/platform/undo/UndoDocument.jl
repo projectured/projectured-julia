@@ -295,7 +295,7 @@ make_undoable_operation(buffer::UndoBuffer, operation) =
 function evaluate_operation(editor, op::RecordUndoOperation)
     label = describe_operation(op.operation)
     before = copy_reference(get_selection(editor.document))
-    inverse = evaluate_invertible_operation!(editor, op.operation)
+    inverse = _drop_selection_moves(evaluate_invertible_operation!(editor, op.operation))
     # A step whose way back is to do nothing changed no document — a file that was
     # written, a zoom. It is not a step, so the history does not grow for it.
     inverse isa DoNothingOperation && return nothing
@@ -315,6 +315,20 @@ function evaluate_operation(editor, op::RecordUndoOperation)
         push_undo_entry!(buffer, UndoEntry(label, inverse, before, caret, time()))
     end
     nothing
+end
+
+# The way back of a step without its moves of the selection. The selection is view
+# state, which the history does not record: the entry keeps the selection from
+# before the step and puts it back after the edits, when the place that it names
+# exists again. A move inside the way back would run before an edit that it
+# follows is taken back, such as the selection of the neighbour of a deleted
+# element, and name a place that does not exist yet. A way back with no edit left
+# does nothing.
+_drop_selection_moves(operation) = operation
+_drop_selection_moves(::Union{ReplaceSelectionOperation,SelectNextInsertionOperation}) = DoNothingOperation()
+function _drop_selection_moves(operation::CompoundOperation)
+    kept = Any[_drop_selection_moves(member) for member in operation.operations]
+    all(member -> member isa DoNothingOperation, kept) ? DoNothingOperation() : CompoundOperation(kept)
 end
 
 """
