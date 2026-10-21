@@ -63,7 +63,7 @@ A comment stands where a statement stands. In an expression place, it holds the 
 
 `JuliaFile` holds a `.jl` file. A reference to a node in another file is the call `pred_ref("<<file(\"path\")>>")`, so the file stays valid Julia. `find_julia_definition(document, name)` finds a top-level definition by its name. It is the `definition` verb of the marker language, so `definition(file("steps.jl"), "queue_step")` names one function of a file. No match, or more than one, raises an error.
 
-A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring` gives the signature and the text. The docstring of a struct field gives its text.
+A `JuliaFunction` gives a `TooltipNote` with its name as the title and its call signature as code, and a `JuliaDocstring` adds its text to the same note. The docstring of a struct field gives its text.
 
 ### The duplicate
 

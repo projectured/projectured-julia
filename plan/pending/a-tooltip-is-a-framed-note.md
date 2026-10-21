@@ -152,10 +152,10 @@ Each tooltip follows these rules. They go to
 | --- | --- | --- |
 | Back, in the navigator | "Go back to the page before (Ctrl+[)." | title Back, keys Ctrl [, text "Go to the page before." |
 | Explorer, in the toolbar | "Explorer: the files, the tasks, the assistants and the tools of this editor" | title Explorer, text "The files, the tasks, the assistants and the tools of this editor." |
-| New tab, in the menu | nothing | title New tab, keys Ctrl T, text "Open an empty tab." |
-| A Markdown link | the URL | title Link, fact Target, hint "Click follows it. Ctrl+click opens it in a new tab." |
+| New tab, in the menu | nothing | nothing still: the label says it, and the menu shows Ctrl+T (rule 6, decided in step 4) |
+| A Markdown link | the URL | title Link, fact Target; no hint, because the click differs between the two views (step 5) |
 | A task group tab | four plain lines | title, a condition row, facts Finished, Passed, Started, Elapsed, Left |
-| A fault mark | the whole message | tone error, title, the first line, facts Where and Count, hint "A right click offers Try again", only when the fault has a retry |
+| A fault mark | the whole message | tone error, the origin as the title, the message, fact "Caught in", hint "A right click offers Try again." when the fault has a retry |
 | Step in, in omnet-julia | nothing | title Step in, text "Stop at the next place where the model says that its state is whole." |
 
 ## Steps
@@ -320,12 +320,53 @@ The steps are fixed. Each step is one commit.
      `test_explorer()` 240, `test_task_group()` 76, `test_task_views()` 70,
      `test_pane_rename()` 38, `test_platform_layering()`,
      `test_platform_slice_edges()`: all pass.
-6. [ ] **omnet-julia.** The transport buttons, the speed slider and the menu bar
+   A review of the diff (a reviewer agent, read only) gave these, fixed in
+   `da2e0e846`:
+   - A long signature was one label in a fact and was cut at the window. A
+     note has a `code` piece now: a string in the value text, after the
+     title, which breaks at the edge. The Julia notes use it.
+   - A toolbar item whose label is a document lost its tooltip; the title of
+     a note can be a document.
+   - A text that is a number, a fact that is a tuple, and a key text with a
+     plus at its end now draw as a string, a fact and no empty cap.
+   Kept as they are, with the reason:
+   - A button with a label shows no key in a tooltip with no text (rule 6).
+   - `format_decoration_words` has no caller in `source/` now. It is exported
+     and tested, and a removal of an export takes a minor version step.
+   - `make_decoration_note` can answer `nothing`, as `make_decoration_icon`
+     and `make_tooltip_operation` beside it do.
+
+6. [x] **omnet-julia.** The transport buttons, the speed slider and the menu bar
    of the simulation answer a note. The decoration notes come from step 5. Test:
    the test of the simulation embed toolbar.
-7. [ ] **The documentation.** [tooltip.md](../../documentation/package/platform/tooltip/tooltip.md),
+
+   Done, on the branch `tooltip-note` of omnet-julia, in the worktree
+   `omnet-julia-tooltip-note`, commit `2b3ca573`. As built:
+   - The nine transport buttons say what each does. Run, Fast and Express set
+     how closely the page follows the run and start no run, so their texts say
+     that. Step in and Stop have a hint.
+   - The slider of the pace answers a note whose facts are the pace now and
+     the range, from a cell that reads the embed.
+   - The menu bar keeps no tooltip: its items have no action yet, and a
+     tooltip would describe a command that does nothing.
+   - `TaskGroupToWidgetTest` reads the tab tooltip as a note.
+   - The omnet-julia branch needs `TooltipNote` of this branch, so this
+     branch lands first.
+   - Test, in a scratch environment over both worktrees:
+     `test_simulation_embed_card()` all pass, `test_result_folder()` 126,
+     `test_playback_mode()` 20 of 22, `test_task_group_pane()` 64 of 74. The
+     same environment on main: `test_playback_mode()` the same two (lines 125
+     and 126, a press that is view state now), and `test_task_group_pane()` 59
+     of 73, the same icon checks (lines 102, 110, 119, 137) and the four old
+     tooltip lines, which the branch replaced and which pass.
+7. [x] **The documentation.** [tooltip.md](../../documentation/package/platform/tooltip/tooltip.md),
    [tooltip-guide.md](../../documentation/guide/tooltip-guide.md) and the rules
    of the words.
+
+   Done: tooltip.md (the frame, the note, who answers a note, the decisions),
+   tooltip-guide.md (how to read a tooltip, the line of the layer keys),
+   writing-rules.md ("The words of a tooltip"), and the tooltip lines of
+   widget.md, fault.md, navigator.md and julia.md.
 
 ## Not in this plan
 

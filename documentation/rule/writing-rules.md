@@ -107,6 +107,30 @@ field, function or macro, and use no code mark. One or two sentences. The text
 for a programmer, such as how a projection reads the theme, goes in the
 paragraphs after the first one.
 
+## The words of a tooltip
+
+A tooltip is a `TooltipNote`, and each piece of it has one job. Write each piece
+for the person who rests the pointer on the part:
+
+1. The title is the name of the part, as the person sees it. It is not a
+   sentence. A control of an action takes the label of the action.
+2. The keys come from where they are bound: the `shortcut` of the action, a
+   constant such as `HELP_GESTURE`, or `find_bound_keys(type, description)` for a
+   key of a `@gestures` table. A string never holds a key.
+3. The text says what happens, or what the part shows. It does not repeat the
+   title. It is one sentence of no more than 20 words, and it ends with a
+   period.
+4. The facts give what the part does not show: the full path, the count, the
+   time, a value with its unit.
+5. The hint gives a second gesture, or the reason that a command is off and
+   what turns it on.
+6. A button with only an icon has a tooltip. A label that says all of it has
+   none.
+
+Before: `tooltip = "Go back to the page before (Ctrl+[)."`. After:
+`TooltipNote(; title = "Back", keys = find_bound_keys(Navigator, "Go back"),
+text = "Go to the page before.")`.
+
 ## The name of a guide
 
 The assistant reads the guides by name, and the name comes from the path:

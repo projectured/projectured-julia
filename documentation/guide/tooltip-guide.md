@@ -14,12 +14,27 @@ it, and the ways to close it.
 
 Not every part has something to say. Where it does not, no window opens.
 
+## Read it
+
+The window says up to four things, from the top:
+
+- the name of the part in bold, and after it the keys that do the same, each
+  key in a box;
+- what the part does, or what it shows;
+- facts that the part does not show, such as a path, a count or a time, a name
+  on the left and its value on the right;
+- in quiet text, another way to use the part, or why a command is off.
+
+A red or an amber mark before the name says that something failed or needs
+you.
+
 ## See what is around it too
 
-While the window is open:
+When the parts around have something to say too, the last line of the window
+says so, for example "F2 shows 1 more". While the window is open:
 
-- Press F2 to add what the part around it says. The window grows by one line, a
-  separator, and the name of that part.
+- Press F2 to add what the part around it says. The window grows by the name of
+  that part and what it says.
 - Press Shift+F2 to go back to one fewer.
 
 ## Close it
