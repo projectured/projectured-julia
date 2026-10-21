@@ -1,7 +1,7 @@
 # Guards keep the frame short at any size
 
-Status: PENDING, 2026-10-21. Step 1 is done. No decision is open: D1 is decided, in
-[The decision](#the-decision).
+Status: PENDING, 2026-10-21. Steps 1 and 2 are done; step 1 is on `main`. No decision
+is open: D1 is decided, in [The decision](#the-decision).
 
 ## The ask
 
@@ -253,7 +253,7 @@ on `main` before the owner approves. A guard that fails on `main` gets
      `:garbage_collection_time`, `:compile_time` or `:yielded_time`. Write the
      table in [As built](#as-built).
    - Commit.
-2. [ ] **The harness.** `FrameScene`, `measure_frame_work` and
+2. [x] **The harness.** Done; see [As built](#as-built). `FrameScene`, `measure_frame_work` and
    `compute_frame_growth` in `test/kernel/performance/`, exported by
    `ProjecturedKernelTest`.
    - A self-test with three synthetic parts: one that does fixed work, one whose
@@ -441,6 +441,47 @@ on `main` before the owner approves. A guard that fails on `main` gets
 
   So the record costs less than the 5 µs of [Keep](#keep), and the task metrics
   add about 0.2 µs to a frame.
+
+### Step 2
+
+- **The harness**, `test/kernel/performance/FrameGuard.jl`, exported by
+  `ProjecturedKernelTest`: `FrameScene(name; sizes, make_editor, give_input!,
+  is_burst, waits_for_deadline, count_work)`, `measure_frame_work(scene; warm_frames
+  = 30, frames = 50, repetitions = 5)` with one `FrameWork` row for each size,
+  `compute_frame_growth(works)` with a `FrameGrowth` of the time, the bytes, the
+  count of work and the count of frames, `print_frame_work(name, works)`, and
+  `check_frame_growth(scene; time_bound, allocation_bound, work_bound)`, which
+  asserts each ratio with `@test` and prints the rows when one fails.
+- **A frame of the harness is a frame of the loop.** The harness sets the test task
+  as `editor.loop_task` and as a writer of the cells while it measures, takes each
+  wake before a frame, and runs `run_measured_frame!`. It reads the values of each
+  frame from `editor.frame_measurements`. A burst runs frames until no wake waits
+  and `compute_wait_timeout` is not 0, at most 2000 frames.
+- **Decision: a ratio of bytes adds 4 kB on both sides**, so a frame that
+  allocates almost nothing at the smallest size gives no ratio of noise.
+- **The self-test**, `test_frame_guard()` in `FrameGuardTest.jl`, in `test_kernel()`:
+  the synthetic parts do their work in the drain of a feed of a small headless
+  editor. 16 pass. `report_frame_guard_calibration()` prints the rows.
+- **The calibration.** Five runs on 2026-10-21 in the lane `taskset -c 28,30,31`;
+  the first while the tests after the landing ran on the cores 24 to 27, load 2.5
+  to 3.3. Sizes 1_000, 10_000 and 100_000; bursts of 100, 1_000 and 10_000 items:
+
+  | Part | Time ratio, 5 runs | Ratio of bytes | Ratio of frames |
+  |---|---|---|---|
+  | fixed work | 0.93 to 1.01 | 1.00 | 1 |
+  | logarithmic work | 1.48 to 1.49 | 1.38 | 1 |
+  | 10 ns for each element | 77.6 to 84.8 | 50.87 | 1 |
+  | burst, 64 items in each frame | 1.07 to 1.12 | 1.00 | 78.5 |
+  | burst in one frame | 76.8 to 78.0 | 74.41 | 1 |
+
+  The ratios of bytes are the same in each run, and the time ratios differ by less
+  than 10 %.
+- **Decision: the bounds.** `FLAT_TIME_RATIO = 3.0`, two times 1.49.
+  `FLAT_ALLOCATION_RATIO = 3.0`, two times 1.38, so the first bound of 2 rises.
+  `FLAT_WORK_RATIO = 2.0`, as planned: a count of work is exact, and no synthetic
+  part sets it. A part that grows by 10 ns for each element passes neither bound by
+  a factor of 17 or more.
+- **Tests.** `test_kernel()`: 4922 pass, no failure, no broken test.
 
 ### The cause of the slow frames in the Assistant pane
 
