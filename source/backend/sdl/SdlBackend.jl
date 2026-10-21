@@ -180,6 +180,9 @@ mutable struct SdlWindowResources
     # (queried via EGL/GLX buffer age), so everything that changed since then
     # must be re-copied or the older edits ghost on the alternate buffer(s).
     damage_history::Vector{Vector{NTuple{4,Int}}}
+    # A target texture that a move copies the pixels of a box through, because SDL
+    # can not copy a texture into itself (C_NULL until a move needs it).
+    scratch::Ptr{SDL_Texture}
 end
 
 """
@@ -716,7 +719,7 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
                        w.style, w.bg, backend.supersample, ratio, pixels_per_window_unit,
                        C_NULL, 0, 0, true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(),
-                       Vector{NTuple{4,Int}}[])
+                       Vector{NTuple{4,Int}}[], C_NULL)
 end
 
 # ── Vsync, where it works ──────────────────────────────────────────────
@@ -953,6 +956,7 @@ end
 # module-level cache until `quit_backend!`.
 function _close_native_window!(res::SdlWindowResources)
     res.target != C_NULL && SDL_DestroyTexture(res.target)
+    res.scratch != C_NULL && SDL_DestroyTexture(res.scratch)
     _evict_renderer_textures!(res.renderer)
     SDL_DestroyRenderer(res.renderer)
     SDL_DestroyWindow(res.win)
@@ -3297,6 +3301,89 @@ function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas
     paint
 end
 
+# ── The copy of a box whose content moved ──
+#
+# A move is the box of a viewport whose content only moved since the last paint.
+# The pixels of the content that stay in the box are in the kept pixels already,
+# `offset` logical pixels from where they belong, so the paint copies them there
+# before it paints the rectangles.
+
+# The part of `box` whose pixels stay in the box after a move by `offset`, where
+# they are before the copy.
+_get_kept_box(box::NTuple{4,Int}, offset::NTuple{2,Int}) =
+    (max(box[1], box[1] - offset[1]), max(box[2], box[2] - offset[2]),
+     min(box[3], box[3] - offset[1]), min(box[4], box[4] - offset[2]))
+
+# The scratch texture of the window of `res`, at least `width` × `height` device
+# pixels, made again when it is smaller. False when SDL can not make one.
+function _ensure_scratch_texture!(res::SdlWindowResources, width::Int, height::Int)::Bool
+    if res.scratch != C_NULL
+        held_width, held_height = Ref{Cint}(0), Ref{Cint}(0)
+        SDL_QueryTexture(res.scratch, C_NULL, C_NULL, held_width, held_height)
+        held_width[] >= width && held_height[] >= height && return true
+        width, height = max(width, Int(held_width[])), max(height, Int(held_height[]))
+        SDL_DestroyTexture(res.scratch)
+    end
+    res.scratch = SDL_CreateTexture(res.renderer, UInt32(SDL_PIXELFORMAT_RGBA8888),
+                                    Int32(SDL_TEXTUREACCESS_TARGET), Int32(width), Int32(height))
+    res.scratch != C_NULL
+end
+
+# Copy the pixels that stay in `box` by `offset` logical pixels, in the kept target
+# of the window of `res`, through its scratch texture. The copy runs in device
+# pixels, at the scale 1, with no clip, and it blends nothing. The window is left
+# with its kept target as the target of its renderer. False when there is no
+# scratch texture, and then nothing is copied.
+function _copy_target_box!(res::SdlWindowResources, box::NTuple{4,Int}, offset::NTuple{2,Int})::Bool
+    kept = _get_kept_box(box, offset)
+    _is_empty_box(kept) && return true
+    factor = res.ratio * res.ss
+    source = _make_device_rect(kept..., factor, factor)
+    _ensure_scratch_texture!(res, Int(source.w), Int(source.h)) || return false
+    whole = SDL_Rect(0, 0, source.w, source.h)
+    moved = SDL_Rect(source.x + round(Int32, offset[1] * factor), source.y + round(Int32, offset[2] * factor),
+                     source.w, source.h)
+    renderer = res.renderer
+    blend = Ref{SDL_BlendMode}(SDL_BLENDMODE_NONE)
+    SDL_GetTextureBlendMode(res.target, blend)
+    SDL_SetTextureBlendMode(res.target, SDL_BLENDMODE_NONE)
+    SDL_SetTextureBlendMode(res.scratch, SDL_BLENDMODE_NONE)
+    SDL_SetRenderTarget(renderer, res.scratch)
+    SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+    SDL_RenderSetClipRect(renderer, C_NULL)
+    SDL_RenderCopy(renderer, res.target, Ref(source), Ref(whole))
+    SDL_SetRenderTarget(renderer, res.target)
+    SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+    SDL_RenderSetClipRect(renderer, C_NULL)
+    SDL_RenderCopy(renderer, res.scratch, Ref(whole), Ref(moved))
+    SDL_SetTextureBlendMode(res.target, blend[])
+    true
+end
+
+# Copy the pixels that stay in `box` by `offset` logical pixels, in the surface of
+# the offscreen renderer `off`, whose paint state is `res`. The renderer draws what
+# it holds back first, and then each row moves in place. False when the copy
+# would reach past the surface, and then nothing is copied.
+function _copy_surface_box!(off, res::SdlWindowResources, box::NTuple{4,Int}, offset::NTuple{2,Int})::Bool
+    kept = _get_kept_box(box, offset)
+    _is_empty_box(kept) && return true
+    factor = res.ratio * res.ss
+    source = _make_device_rect(kept..., factor, factor)
+    dx, dy = round(Int, offset[1] * factor), round(Int, offset[2] * factor)
+    surface = unsafe_load(off.surface)
+    x, y, w, h = Int(source.x), Int(source.y), Int(source.w), Int(source.h)
+    (min(x, x + dx) >= 0 && min(y, y + dy) >= 0 &&
+     max(x, x + dx) + w <= surface.w && max(y, y + dy) + h <= surface.h) || return false
+    SDL_RenderFlush(off.renderer)
+    pitch = Int(surface.pitch)
+    pixels = Ptr{UInt8}(surface.pixels)
+    for row in (dy > 0 ? (h - 1:-1:0) : (0:h - 1))
+        from = pixels + (y + row) * pitch + x * 4
+        unsafe_copyto!(from + dy * pitch + dx * 4, from, w * 4)
+    end
+    true
+end
+
 # Outline the union of `rects` in red, `thickness` logical pixels wide, inside
 # it: rects that overlap or touch are outlined as one shape, with no line inside.
 function _outline_dirty_rects!(renderer::Ptr{SDL_Renderer}, rects, thickness::Int)
@@ -3906,7 +3993,8 @@ function make_offscreen_paint_state(off)
     res = SdlWindowResources(C_NULL, off.renderer, :offscreen, UInt32(0), "",
                              width, height, 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
                              off.S, _get_offscreen_content_scale(off), 1.0, C_NULL, 0, 0, true,
-                             Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
+                             Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[],
+                             C_NULL)
     _OffscreenPaintState(res, NTuple{4,Int}[])
 end
 

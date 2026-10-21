@@ -278,11 +278,74 @@ end
     end
 end
 
+@testset "a copy of a box moves the pixels that stay in it" begin
+    # Squares of a color that differs in each row and each column. The box, the
+    # offset and the edges are whole device pixels at each setting.
+    squares = GraphicsCanvas(Any[GraphicsRect(x, y, 10, 10; color = StyleColor(x / width, y / height, 0.5, 1.0))
+                                 for x in 0:10:(width - 10) for y in 0:10:(height - 10)])
+    box, offset = (20, 10, 380, 290), (6, -8)
+    # The pixels `before` with the pixels that stay in `box` moved by `offset`, at
+    # `factor` device pixels for each pixel.
+    function move_pixels(before, factor)
+        source = SDL._make_device_rect(SDL._get_kept_box(box, offset)..., factor, factor)
+        xs = (source.x + 1):(source.x + source.w)
+        ys = (source.y + 1):(source.y + source.h)
+        expected = copy(before)
+        expected[xs .+ round(Int, offset[1] * factor), ys .+ round(Int, offset[2] * factor)] = before[xs, ys]
+        expected
+    end
+    for (supersample, density) in scroll_settings
+        off = SDL.open_offscreen_renderer(width, height; supersample, density)
+        try
+            state = SDL.make_offscreen_paint_state(off)
+            SDL._render_canvas_offscreen!(off, squares, width, height, background)
+            SDL.SDL_RenderFlush(off.renderer)
+            surface = unsafe_load(off.surface)
+            read_surface() = copy(unsafe_wrap(Array, Ptr{UInt32}(surface.pixels),
+                                              (Int(surface.pitch) ÷ 4, Int(surface.h))))
+            before = read_surface()
+            @test SDL._copy_surface_box!(off, state.res, box, offset)
+            @test read_surface() == move_pixels(before, state.res.ratio * state.res.ss)
+        finally
+            SDL.close_offscreen_renderer(off)
+        end
+    end
+    # The kept target of a hidden window, through its scratch texture.
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    held = WindowDocument(; id = :copy_test, title = "copy_test", x = 100, y = 100,
+                            width = width, height = height, content = PrimitiveString("content"))
+    resource = SDL._open_native_window!(backend, held; hidden = true)
+    try
+        @test SDL._ensure_ss_target!(resource)
+        renderer = resource.renderer
+        factor = resource.ratio * resource.ss
+        function read_target()
+            SDL.SDL_SetRenderTarget(renderer, resource.target)
+            pixels = Matrix{UInt32}(undef, resource.target_w, resource.target_h)
+            SDL.SDL_RenderReadPixels(renderer, C_NULL, SDL.SDL_PIXELFORMAT_ARGB8888, pixels,
+                                     resource.target_w * 4)
+            pixels
+        end
+        SDL.SDL_SetRenderTarget(renderer, resource.target)
+        SDL.SDL_RenderSetScale(renderer, Float32(factor), Float32(factor))
+        SDL._paint_dirty_rects!(renderer, squares, [(0, 0, width, height)], background, width, height,
+                                resource.ratio)
+        before = read_target()
+        @test SDL._copy_target_box!(resource, box, offset)
+        @test read_target() == move_pixels(before, factor)
+        @test resource.scratch != C_NULL
+    finally
+        SDL._close_native_window!(resource)
+        quit_backend!(backend)
+    end
+end
+
 # The records of a dirty walk, with no window.
 make_resources() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", width, height, 0, 0, :default,
     (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
-    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
+    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[], C_NULL)
 
 # Walk and paint `canvas` in full, run `change!`, then walk and paint the change by
 # its rectangles. Answer the rectangles and the count of the leaves drawn.

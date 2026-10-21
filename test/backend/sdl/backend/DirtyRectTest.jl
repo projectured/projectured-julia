@@ -9,7 +9,7 @@ SDL = ProjecturedSDL.SdlModule   # the SDL backend slice (provides SdlWindowReso
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
     (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
-    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
+    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[], C_NULL)
 
 @testset "a guard lets the walk skip a canvas where nothing changed" begin
     # 50 groups of 100 rectangles beside a dot; one rectangle of group 7 moves.

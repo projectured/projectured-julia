@@ -255,7 +255,15 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
    - supersample 2 at the densities 1, 2 and 1.25.
 
    The tests pass now, because the paint draws the whole box. Commit.
-3. [ ] **The copy of a box.** Add the copy for a window target and for an
+3. [x] **The copy of a box.** Done. `SdlWindowResources` has the field `scratch`
+   at its end, so each of its six callers passes `C_NULL` for it.
+   `_copy_target_box!` copies through the scratch texture, which
+   `_ensure_scratch_texture!` makes or grows. `_copy_surface_box!` moves the rows
+   of the surface with `unsafe_copyto!`, after `SDL_RenderFlush`. Each one answers
+   false when it cannot copy, so the caller can paint the box instead. The test "a
+   copy of a box moves the pixels that stay in it" passes at the four settings and
+   in a hidden window, with the X11 driver and with the offscreen driver; both
+   gave the accelerated `opengl` renderer. Add the copy for a window target and for an
    offscreen surface, and the scratch texture on the resources of the window. The
    walk does not use it yet. Add a test: paint a scene, copy a box by an offset,
    and compare with the same pixels moved in Julia. Do the test in an offscreen
