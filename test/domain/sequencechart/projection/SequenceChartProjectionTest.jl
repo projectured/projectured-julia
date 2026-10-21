@@ -400,7 +400,7 @@ function test_sequencechart_projection()
             @test plot.view === nothing
         end
 
-        @testset "wheel zooms about the pointer" begin
+        @testset "Ctrl and the wheel zoom about the pointer" begin
             chart = _sc_chart()
             iomap = _sequencechart_iomap(chart)
             g = _geometry_of(iomap)
@@ -411,7 +411,7 @@ function test_sequencechart_projection()
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
             focus = to_data(g.scale, g.body_w / 2)
-            op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y; time = 0.0))
+            op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y, _sc_ctrl; time = 0.0))
             @test op isa ReplaceViewStateOperation
             _sc_apply(plot, op)
 
@@ -420,6 +420,80 @@ function test_sequencechart_projection()
             # Whatever was under the pointer is still under it — the only zoom
             # that lets someone drive toward a detail.
             @test to_data(zoomed.scale, g.body_w / 2) ≈ focus rtol=1e-6
+        end
+
+        # A turn of the wheel at the middle of the body of `iomap`.
+        function _sc_wheel(iomap, dx, dy, modifiers = _sc_no_modifier)
+            g = _geometry_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            x = round(Int, g.body_x + g.body_w / 2)
+            y = round(Int, g.body_y + g.body_h / 2)
+            read_intent(stage2.projection, stage2, MouseScroll(dx, dy, x, y, modifiers; time = 0.0))
+        end
+
+        @testset "the wheel moves the window only while there is time to move to" begin
+            iomap = _sequencechart_iomap(_sc_chart())
+            plot = _plot_of(iomap)
+            # The whole trace in view, and three lanes that fit: no turn is the
+            # chart's, so the page around it scrolls.
+            @test _sc_wheel(iomap, 0, 1) === nothing
+            @test _sc_wheel(iomap, 0, 1, _sc_shift) === nothing
+            @test _sc_wheel(iomap, 1, 0) === nothing
+            # After a zoom, Shift and the wheel move the window along the time, and
+            # a turn away shows the earlier time.
+            _sc_apply(plot, _sc_wheel(iomap, 0, 2, _sc_ctrl))
+            zoomed = _geometry_of(iomap)
+            _sc_apply(plot, _sc_wheel(iomap, 0, 1, _sc_shift))
+            moved = _geometry_of(iomap)
+            @test moved.lo < zoomed.lo
+            @test moved.hi - moved.lo ≈ zoomed.hi - zoomed.lo
+            # The move stops at the first event, and the next turn is not the chart's.
+            for _ in 1:40
+                op = _sc_wheel(iomap, 0, 1, _sc_shift)
+                op === nothing && break
+                _sc_apply(plot, op)
+            end
+            @test _geometry_of(iomap).lo ≈ zoomed.coordinates[1]
+            @test _sc_wheel(iomap, 0, 1, _sc_shift) === nothing
+            @test _sc_wheel(iomap, 0, -1, _sc_shift) !== nothing
+        end
+
+        @testset "in a vertical chart the wheel moves along the time" begin
+            iomap = _sequencechart_iomap(_sc_chart(; orientation = :vertical))
+            plot = _plot_of(iomap)
+            _sc_apply(plot, _sc_wheel(iomap, 0, 2, _sc_ctrl))
+            zoomed = _geometry_of(iomap)
+            _sc_apply(plot, _sc_wheel(iomap, 0, 1))
+            @test _geometry_of(iomap).lo < zoomed.lo
+        end
+
+        @testset "a move back from the end stops the follow" begin
+            iomap = _sequencechart_iomap(_sc_chart())
+            plot = _plot_of(iomap)
+            plot.view = SequenceChartView(1, 0.0, 2.0)
+            plot.follow_end = true
+            g = _geometry_of(iomap)
+            @test g.hi ≈ g.coordinates[end]
+            @test _sc_wheel(iomap, 0, -1, _sc_shift) === nothing
+            _sc_apply(plot, _sc_wheel(iomap, 0, 1, _sc_shift))
+            @test !plot.follow_end
+            @test _geometry_of(iomap).lo < g.lo
+        end
+
+        @testset "the wheel scrolls the lanes inside their extent" begin
+            iomap = _sequencechart_iomap(_sc_chart(); height = 80)
+            plot = _plot_of(iomap)
+            room = _geometry_of(iomap).cross_room
+            @test room > 0
+            @test _sc_wheel(iomap, 0, 1) === nothing
+            for _ in 1:10
+                op = _sc_wheel(iomap, 0, -1)
+                op === nothing && break
+                _sc_apply(plot, op)
+            end
+            @test plot.cross_offset == ceil(Int, room)
+            @test _sc_wheel(iomap, 0, -1) === nothing
+            @test _sc_wheel(iomap, 0, 1) !== nothing
         end
 
         @testset "hover writes overlay state only" begin

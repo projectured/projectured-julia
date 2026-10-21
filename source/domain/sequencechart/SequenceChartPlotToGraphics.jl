@@ -192,6 +192,9 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
                                  spacing=style.axis_spacing,
                                  minimum_spacing=t.lane_spacing,
                                  offset=t.lane_offset)
+    # How far the lanes can scroll: the last lane and the margin after it, past
+    # the body.
+    cross_room = isempty(lanes) ? 0.0 : max(0.0, lanes[end] + t.lane_offset - cross_hi)
     # Lane identity → cross position, so an event finds its lane by the index it
     # actually carries rather than by where it happens to be drawn.
     lane_of = Dict{Int,Float64}()
@@ -228,7 +231,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     bands = _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
 
     (; w, h, chart, style, plot, frame, vertical, scale, lo, hi,
-       times, coordinates, order, lanes, lane_of, labels, label_sizes,
+       times, coordinates, order, lanes, lane_of, cross_room, labels, label_sizes,
        label_w, label_h, label_font, axis_font, title, title_font, title_h,
        gutter_h, ticks, tick_labels, prefix, zero_spans,
        visible_events, shapes, bands,
@@ -1206,28 +1209,26 @@ end
 _write_view_state(plot::SequenceChartPlot, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
 
-# The wheel zooms about the pointer, so whatever is under it stays under it —
-# the only zoom that lets someone drive toward a detail rather than hunt for it
-# again afterwards. Shift makes it pan instead. Over the lane labels it scrolls
-# the lanes, which is the one thing the cross axis can do.
+# Ctrl and the wheel zoom about the pointer, so whatever is under it stays under
+# it — the only zoom that lets someone drive toward a detail rather than hunt for
+# it again afterwards. With no Ctrl the wheel scrolls, as in a scroll pane: a
+# turn away from the person shows what is above, or what is to the left. A turn
+# along the time moves the window inside the first and the last event, and a turn
+# across the time scrolls the lanes, as every turn over the lane labels does. A
+# turn that moves nothing is not the chart's, so the page around it scrolls.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseScroll)
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input
     x, y = gesture.x, gesture.y
+    on_labels = _label_strip_lane(g, x, y) !== nothing
+    (on_labels || _in_body(g, x, y)) || return nothing
+    gesture.modifiers.ctrl || return _scroll_sequence_chart(g, plot, gesture; on_labels)
+    on_labels && return nothing
+
     steps = gesture.dy != 0 ? gesture.dy : gesture.dx
     steps == 0 && return nothing
-
-    if _label_strip_lane(g, x, y) !== nothing
-        return _write_view_state(plot, "cross_offset",
-                                               max(plot.cross_offset - 20 * steps, 0))
-    end
-    _in_body(g, x, y) || return nothing
-
     span = g.hi - g.lo
-    if gesture.modifiers.shift
-        return _window_operation(g, plot, g.lo + span * 0.15 * -steps, span)
-    end
     flow, _ = _local_flow_cross(g, plot, x, y)
     focus = to_data(g.scale, flow)
     factor = steps > 0 ? (0.85 ^ steps) : (1 / 0.85) ^ (-steps)
@@ -1235,6 +1236,39 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::Mouse
     # Keep the coordinate under the pointer where it was.
     fraction = span == 0 ? 0.5 : (focus - g.lo) / span
     _window_operation(g, plot, focus - fraction * new_span, new_span)
+end
+
+const _TIME_SCROLL_STEP = 0.15   # the part of the window that a notch moves along the time
+const _LANE_SCROLL_STEP = 20     # the pixels that a notch moves the lanes
+
+# The scroll of a turn with no Ctrl. Shift makes a turn go across also when the
+# backend gives it as a vertical turn, and a touchpad moves by the fraction of a
+# notch. The time runs across a horizontal chart and down a vertical one.
+function _scroll_sequence_chart(g, plot::SequenceChartPlot, gesture::MouseScroll; on_labels::Bool)
+    turn_x, turn_y = gesture.precise_dx, gesture.precise_dy
+    across = gesture.modifiers.shift || (turn_x != 0 && turn_y == 0)
+    turn = across ? (turn_x != 0 ? turn_x : turn_y) : turn_y
+    turn == 0 && return nothing
+    if on_labels || across == g.vertical
+        offset = clamp(round(Int, plot.cross_offset - _LANE_SCROLL_STEP * turn), 0,
+                       max(Int(plot.cross_offset), ceil(Int, g.cross_room)))
+        return offset == plot.cross_offset ? nothing : _write_view_state(plot, "cross_offset", offset)
+    end
+    _scroll_window(g, plot, -(g.hi - g.lo) * _TIME_SCROLL_STEP * turn)
+end
+
+# The move of the window by `d` along the time, inside the first and the last
+# event. A move back from the end of a plot that follows the end stops the
+# follow, as a scroll pane does.
+function _scroll_window(g, plot::SequenceChartPlot, d::Real)
+    coordinates = g.coordinates
+    isempty(coordinates) && return nothing
+    first_time, last_time = coordinates[1], coordinates[end]
+    d = d > 0 ? min(d, max(0.0, last_time - g.hi)) : max(d, -max(0.0, g.lo - first_time))
+    d == 0 && return nothing
+    operation = _window_operation(g, plot, g.lo + d, g.hi - g.lo)
+    (operation === nothing || !plot.follow_end) && return operation
+    CompoundOperation(Any[_write_view_state(plot, "follow_end", false), operation])
 end
 
 # A window is stored relative to an event, so committing one means choosing the

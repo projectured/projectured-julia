@@ -83,7 +83,7 @@ land on `main` before the owner approves.
    a chart that shows all its data answers `nothing`; a turn after a zoom pans and
    stops at the edge. `chart.md` gets the new table. Run `test_chart_projection`.
    Commit.
-4. [ ] **The sequence chart.** Ctrl and the wheel zoom about the pointer. The
+4. [x] **The sequence chart.** Done; see [As built](#as-built). Ctrl and the wheel zoom about the pointer. The
    direction of the turn on the screen picks the axis by the orientation: along
    the time it pans the window inside the first and the last event; across the
    time it scrolls the lanes, inside the lanes, also over the lane labels. A pan
@@ -113,3 +113,9 @@ land on `main` before the owner approves.
   caller could swap two bounds. Shift makes a turn go across also when it comes
   as a vertical turn, because a backend other than SDL can give Shift and the
   wheel as `dy`. `test_chart_projection` passes, 332 assertions.
+- **Step 4.** The geometry of the layout holds `cross_room`, how far the lanes
+  can scroll: the last lane and its margin past the body. `_scroll_sequence_chart`
+  picks the axis, and `_scroll_window` moves the window and stops the follow. A
+  notch moves 0.15 of the window along the time and 20 pixels across, the steps
+  that the pan and the lanes used before. Ctrl and the wheel over the lane labels
+  do nothing. `test_sequencechart_projection` passes, 120 assertions.

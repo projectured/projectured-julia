@@ -80,8 +80,12 @@ A click selects the most specific thing under the pointer: an event before an ar
 | `Ctrl+→` | follow the arrow on to the consequence |
 | `Ctrl+Shift+↑` `Ctrl+Shift+↓` | move the selected lane in the display order |
 | `Alt+Delete` | remove the selected lane |
-| wheel; `Shift`+wheel; wheel over the lane labels | zoom about the pointer; pan; scroll the lanes |
+| `Ctrl`+wheel | zoom about the pointer |
+| wheel; `Shift`+wheel | scroll up and down; scroll across |
+| wheel over the lane labels | scroll the lanes |
 | double click | show the whole trace again |
+
+The wheel follows the rule of the editor: `Ctrl` and the wheel zoom, and the wheel scrolls as in a scroll pane. A turn along the time moves the window by 0.15 of its span for each notch, inside the first and the last event. A turn across the time scrolls the lanes by 20 pixels for each notch, inside the last lane and its margin. A turn that moves nothing is not the chart's, so the page around a chart that shows its whole trace scrolls. A move back from the end of a plot that follows the end stops the follow.
 
 ### Cost
 
