@@ -1,7 +1,8 @@
 # An assistant shows its turns in the tree
 
 Status: IN PROGRESS, 2026-10-21, on the branch `conversation-outline`, in the
-worktree `projectured-julia-conversation-outline`. Not landed on `main`.
+worktree `projectured-julia-conversation-outline`. Steps 1 and 2 landed on
+`main` on 2026-10-21, at the request of the owner. Steps 3 to 5 are open.
 
 ## The ask
 
