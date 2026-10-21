@@ -41,10 +41,18 @@ steady frames (`/var/tmp/frame-guards/profile_probe.jl`) give four causes:
 2. **The reader of a text reads the same flat offsets.** `read_intent` of
    `TextToGraphics` calls `get_flat_cursor_coordinate`, so a key reads the flat
    offsets of every line: 479 of the 856 samples of the read stage of a caret move.
-3. **A move of the pointer updates the overlay.** The overlay cell reads the
-   selection cell of the block and, through the flat offsets, the content of every
-   span. A move of the pointer changes no selection, and still the overlay computes
-   again. The cell that changes is not found yet.
+3. **A move of the pointer updates the overlay.** A move of the pointer writes the
+   part under the pointer into each compound of the syntax (`mouse_target`), and
+   `SyntaxCompoundToText` lights the delimiters around that part: the colour of each
+   delimiter span is a cell that reads the level of its compound
+   (`_make_lit_text`). `_layout_group` reads the colour of every span, also in the
+   pass of the overlay, which needs no colour. So the new colour of one bracket lays
+   out its line again, and the overlay lays out every line again. A probe that
+   records each write of a frame and follows the readers to the overlay
+   (`/var/tmp/text-gestures/hover_cause.jl`) shows the chain in the JSON file: the
+   write of the part under the pointer, the level of a compound, the colour of a
+   delimiter, the overlay. In the Julia file the same chain stops before the
+   overlay, because the level stays `nothing`.
 4. **A long vertical layout costs its whole length.**
    - `LayoutToGraphics` makes the canvas of a `VerticalLayout` with `layout_none` and
      overlapping elements, and `_is_early_stop_layout` is then false. So the dirty
@@ -73,9 +81,11 @@ text of N lines:
    lines of the range. No overlay lays out a line again: it reads the layout that
    the line keeps.
 3. **The reader maps a key with the same structure.**
-4. **A move of the pointer changes nothing that the caret reads.** The overlay of the
-   caret depends on the selection of the block and on the lines that it reads, and
-   on nothing that a move of the pointer writes.
+4. **The colour of a span reaches only the text that draws it.** The layout of a
+   line reads the content, the font and the breaks of its spans, and not their
+   colour. The colour cell of each drawn text reads the colour of its span. So a
+   move of the pointer, which lights delimiters in a new colour, lays out no line
+   again and moves no caret.
 5. **A removal of a reader costs no scan.** A reader keeps its place in the list of
    readers of each cell that it reads. A removal moves the last entry into that
    place and corrects the place of the moved entry.
@@ -105,13 +115,13 @@ Do the work in a worktree on a branch of its own, from `frame-guards`, because t
 window guards are there. Commit each step. Do not land on `main` before the owner
 approves.
 
-1. [ ] **The guards of the text projection.** In
-   `test/platform/projection/TextToGraphicsTest.jl`: a text block of 100, 1_000 and
-   10_000 lines printed by `TextToGraphics`; the bytes of the recompute of the
-   overlay after a caret move, and of a read of a key, at each size. Both grow now:
-   mark them `@test_broken`. A locality test: a move of the pointer over the JSON
-   file leaves the overlay cell of the text valid; it fails now, and its failure
-   names the cell that changes (cause 3). Commit.
+1. [x] **The guards of the text projection.** In
+   `test/platform/projection/TextToGraphicsTest.jl`: a text block of 100 and of
+   10_000 lines printed by `TextToGraphics`; the bytes of the caret after a caret
+   move, and of a read of the key Down, at each size. Both grow now: mark them
+   `@test_broken`. A locality test: a new colour of the span under the caret leaves
+   the caret and the layout of its line valid, and the text draws the new colour
+   (cause 3). It fails now: mark it `@test_broken`. Commit.
 2. [ ] **The flat place of a line by sums of aligned blocks**, in `TextToGraphics`,
    and the overlay of the caret and of the selection that read only their lines.
    Run `test_text()`, `test/platform/projection/TextToGraphicsTest.jl`, the selection
@@ -120,8 +130,10 @@ approves.
 3. [ ] **The reader with the same structure.** The read guard of step 1 passes. Run
    the tests of step 2, `test_position_navigations()` for the text examples, and the
    click and type-in tests (`test_click_roundtrips`, `test_typeins`). Commit.
-4. [ ] **A move of the pointer leaves the caret alone.** The cell of cause 3 no longer
-   reaches the overlay. The locality test of step 1 passes. Commit.
+4. [ ] **The colour of a span reaches only the text that draws it.** The layout of a
+   line reads no colour, and the colour cell of each drawn text reads the colour of
+   its span. The locality test of step 1 passes. Run the tests of step 2 and the
+   theme tests of the text (`test/platform/projection/TextThemeTest.jl`). Commit.
 5. [ ] **A removal of a reader with no scan**, in `ReactiveCell.jl`. A new test in
    `test/kernel/cell/`: a cell with 100_000 readers, of which 1_000 detach; the time
    for each detach is flat in the count of readers. Run `test_kernel()` and
@@ -156,4 +168,25 @@ approves.
 
 ## As built
 
-Nothing yet.
+### Step 1: the guards of the text projection
+
+Three guards in `test/platform/projection/TextToGraphicsTest.jl`, all marked
+`@test_broken`:
+
+- `_ttg_measure_gesture_bytes(size)` measures the bytes of the caret after a move
+  from the third line to the fourth, and of the read of the key Down, after three
+  warm runs. `_ttg_is_flat` bounds them as the frame guards do:
+  `FLAT_ALLOCATION_RATIO`, with a floor of 4 kB.
+- The colour test gives the first line a colour cell, as `_make_lit_text` gives a
+  delimiter, and writes a new colour. The caret and the layout of the line must stay
+  valid, and the text must draw the new colour.
+
+The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
+
+| Lines | The caret after a move | The key Down |
+|---|---|---|
+| 100 | 1.56 MB | 0.47 MB |
+| 1_000 | 15.9 MB | 4.84 MB |
+| 10_000 | 160.3 MB | 49.7 MB |
+
+`test_text_to_graphics()`: 153 pass, 4 broken.

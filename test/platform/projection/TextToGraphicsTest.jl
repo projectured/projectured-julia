@@ -6,6 +6,43 @@ function _ttg_key_event(key, modifiers)
                             KeyPress(character, modifiers; time = 0.0)
 end
 
+# A text of `size` lines, `line 1` to `line size`, in one font.
+_ttg_make_long_text(size::Int) =
+    TextBlock((TextLine(TextString("line $i", StyleFont("Ubuntu Mono", 20), color_white)) for i in 1:size)...)
+
+# The caret that `iomap` draws: the third element of the canvas of the text.
+_ttg_get_caret(iomap) = unwrap_cell(unwrap_cell(getfield(iomap.output, :elements))[3])
+
+# The place and the size of `caret`, read as the renderer reads them.
+_ttg_read_caret(caret) = (Int(caret.x), Int(caret.y), Int(caret.w), Int(caret.h))
+
+# The bytes that two gestures cost in a text of `size` lines: the caret after a
+# move from the third line to the fourth, and the read of the key Down on the
+# fourth line. Each gesture runs three times before it is measured, so the
+# measure counts no compilation.
+function _ttg_measure_gesture_bytes(size::Int)
+    block = _ttg_make_long_text(size)
+    projection = TextToGraphics(measure = FixedMeasure(10, 15, 5, 0))
+    iomap = print_document(projection, block)
+    caret = _ttg_get_caret(iomap)
+    third, fourth = (TextModule.make_flat_caret_reference(TextModule.get_flat_base(block, Int[line, 1]) + 2)
+                     for line in (3, 4))
+    down = KeyDown(:down, ModifierKeys(); time = 0.0)
+    for place in (third, fourth, third)
+        set_selection!(block, place)
+        _ttg_read_caret(caret)
+        read_intent(projection, iomap, down)
+    end
+    set_selection!(block, fourth)
+    caret_bytes = @allocated _ttg_read_caret(caret)
+    key_bytes = @allocated read_intent(projection, iomap, down)
+    (caret = caret_bytes, key = key_bytes)
+end
+
+# Whether `large` bytes are flat against `small` bytes, as the frame guards bound
+# them: at most `FLAT_ALLOCATION_RATIO` times, and a count under 4 kB counts as 4 kB.
+_ttg_is_flat(small::Integer, large::Integer) = large <= FLAT_ALLOCATION_RATIO * max(small, 4096)
+
 function test_text_to_graphics()
 _test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
@@ -726,5 +763,42 @@ click = read_intent(p, iomap, MouseClick(:left, 41, 20; time = 0.0))
 @test is_reference_equal(click.path, TextModule.make_flat_caret_reference(10))
 
 end # @testset "TextToGraphics starts a row at each soft break of a line"
+
+# A gesture costs the lines that it touches: a caret move and the key Down cost the
+# same bytes in a text of 100 lines and in a text of 10_000 lines.
+@testset "TextToGraphics costs a gesture the lines that it touches" begin
+    small = _ttg_measure_gesture_bytes(100)
+    large = _ttg_measure_gesture_bytes(10_000)
+    # @broken: the overlay of the caret finds the caret from the flat offsets of every line and lays out every line again; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
+    @test_broken _ttg_is_flat(small.caret, large.caret)
+    # @broken: the reader of a key finds the caret from the flat offsets of every line and the line below from the segments of every line; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
+    @test_broken _ttg_is_flat(small.key, large.key)
+end
+
+# A move of the pointer lights the delimiters around the part under it in a new
+# colour. A new colour reaches only the text that draws it: the caret and the
+# layout of the line stay valid.
+@testset "TextToGraphics draws a new colour of a span with no new layout" begin
+    # The first line has a colour that changes, as the colour of a delimiter does.
+    font = StyleFont("Ubuntu Mono", 20)
+    lit = TextString(Cell("line 1"), font, Cell(color_white), Cell(nothing), Cell(nothing), Cell(nothing),
+                     Cell(nothing))
+    block = TextBlock(TextLine(lit), TextLine(TextString("line 2", font, color_white)),
+                      TextLine(TextString("line 3", font, color_white)))
+    projection = TextToGraphics(measure = FixedMeasure(10, 15, 5, 0))
+    iomap = print_document(projection, set_selection!(block, TextModule.make_flat_caret_reference(2)))
+    caret = _ttg_get_caret(iomap)
+    @test _ttg_read_caret(caret) == (20, 0, 2, 20)
+    @test [text.color for text in _texts(iomap.output)] == [color_white, color_white, color_white]
+    layout = iomap.line_cells(1).layout
+    @test is_cell_valid(layout)
+    block.elements[1].elements[1].font_color = color_red
+    # @broken: the layout of a line reads the colour of each span, and the overlay of the caret lays out every line again; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
+    @test_broken is_cell_valid(getfield(caret, :x))
+    # @broken: the layout of a line reads the colour of each span; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
+    @test_broken is_cell_valid(layout)
+    @test [text.color for text in _texts(iomap.output)] == [color_red, color_white, color_white]
+    @test _ttg_read_caret(caret) == (20, 0, 2, 20)
+end
 
 end # test_text_to_graphics
