@@ -43,11 +43,18 @@ the server gives its marks, the names in the colours of their kinds.
 
 `server` holds `nothing` until a tab acquires the file, and then the
 `LanguageServerConnection` of that editor for the command of the file. `answer`
-is a background cell of the last answer of the server: the text that it
-coloured and its marks. The marks of the text are that answer, moved to the
-text of now (`compute_moved_text_marks`), so a key moves no colour of the text
-around it, and the answer of the new text comes in a later frame. With no
-server, or a server that fails, the text has no marks.
+holds the last answer of the server: the text that it coloured and its marks.
+`request` is a background cell of the server, the path and the text of now: a
+read of it notes a missing answer, and the editor asks the server after the
+print and stores the answer in `answer`. The marks of the text are the stored
+answer, moved to the text of now (`compute_moved_text_marks`), so a key moves no
+colour of the text around it, and the answer of the new text comes in a later
+frame. With no server, or a server that fails, the text has no marks.
+
+The marks read `answer`, which is final, and read `request` with no tracking.
+So the marks are final while an answer is still to come: a provisional value
+computes again at each read, and the lines of a text read the marks once for
+each line.
 
 # Example
 
@@ -58,19 +65,53 @@ server, or a server that fails, the text has no marks.
     content::Any
     server::Any = nothing
     answer::Any = nothing
+    request::Any = nothing
 end
 
 function SourceFile(filename::AbstractString, content::Document)
     path = Cell(String(filename))
     server = Cell(nothing)
+    answer = Cell(nothing)
     marked = _find_marked_text(content)
-    marked === nothing && return SourceFile(path, Cell(content), server, Cell(nothing))
+    marked === nothing && return SourceFile(path, Cell(content), server, answer, Cell(nothing))
     # One source for each file, so the work of one file asks only its own server.
     source = BackgroundSource(inputs -> Any[_compute_source_file_answer(input...) for input in inputs];
                               description = "the colours of a source file")
-    answer = make_background_cell(source, () -> (server[], path[], marked.text))
-    set_cell_computation!(getfield(marked, :marks), () -> _compute_source_file_marks(answer[], marked.text))
-    SourceFile(path, Cell(content), server, answer)
+    holder = Ref{Any}(nothing)
+    request = make_background_cell(source, () -> (server[], path[], marked.text);
+                                   apply = (inputs, value) -> StoreSourceFileAnswerOperation(holder[], value))
+    set_cell_computation!(getfield(marked, :marks), function ()
+        # The inputs of the request, with tracking, so a new server or a new text
+        # reads the request again; the request itself with no tracking, so the marks
+        # do not become provisional. The read notes a missing answer for the text of
+        # now, and the stored answer makes the marks change.
+        server[]
+        path[]
+        run_without_cell_tracking(() -> request[])
+        _compute_source_file_marks(answer[], marked.text)
+    end)
+    file = SourceFile(path, Cell(content), server, answer, request)
+    holder[] = file
+    file
+end
+
+"""
+    StoreSourceFileAnswerOperation(file, answer)
+
+Store `answer`, the answer of the server that the work of the background cell
+of `file` gave, in the field `answer` of `file`. The editor evaluates it right
+after it writes the answer into the background cell. A work that threw gives
+its exception, and the file then stores no answer.
+"""
+struct StoreSourceFileAnswerOperation <: Operation
+    file::Any
+    answer::Any
+end
+
+function evaluate_operation(editor, operation::StoreSourceFileAnswerOperation)
+    answer = operation.answer
+    operation.file.answer = answer isa Exception ? nothing : answer
+    nothing
 end
 
 # The marked text of the content of a file: the content, or what its history holds.

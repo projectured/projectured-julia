@@ -26,6 +26,7 @@ using JSON3
 # Imported to extend: this module adds a method to each of these.
 import ..DomainModule: acquire_document!, release_document!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
+import ..OperationModule: evaluate_operation
 import ..SerializationModule: parse_file_content, emit_text, get_file_domain
 import ..WidgetModule: make_graphics_projection
 
@@ -35,7 +36,8 @@ export LanguageServerException, LanguageServerConnection, is_language_server_run
 export SEMANTIC_TOKEN_ROLES, compute_semantic_text_marks, close_language_server_document!,
        convert_semantic_tokens
 export LanguageServers, get_language_server!, stop_language_servers!
-export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, make_source_file_code_projection
+export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, StoreSourceFileAnswerOperation,
+       make_source_file_code_projection
 
 include("LanguageServerConnection.jl")
 include("SemanticTokens.jl")

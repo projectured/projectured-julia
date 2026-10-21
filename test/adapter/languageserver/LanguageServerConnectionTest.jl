@@ -84,7 +84,8 @@ end
     start_language_server!(connection)
     stop_language_server!(connection)
     @test length(get_fake_messages(server, "shutdown")) == 1
-    @test length(get_fake_messages(server, "exit")) == 1
+    # The server reads the notification on its own task.
+    @test timedwait(() -> length(get_fake_messages(server, "exit")) == 1, 5.0) === :ok
     @test !haskey(only(get_fake_messages(server, "shutdown")), "params")
     @test !is_language_server_running(connection)
     @test_throws LanguageServerException start_language_server!(connection)

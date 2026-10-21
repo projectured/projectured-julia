@@ -647,7 +647,10 @@ language server, a parser of a filter, a list of errors. `text` is the string
 that a person edits, with Enter, a paste of many lines and undo, as the string
 of a file. `marks` is a vector of `TextMark`, held as one value, so a new set
 of marks is one write; its cell can compute it (`set_cell_computation!`), so the
-colours follow a change of what they come from. `MarkedTextToText` draws it.
+colours follow a change of what they come from. The computation must give a
+final value: a provisional value, such as a background cell that has no answer
+yet, computes again at each read, and the lines read the marks once for each
+line. `MarkedTextToText` draws it.
 
 # Example
 

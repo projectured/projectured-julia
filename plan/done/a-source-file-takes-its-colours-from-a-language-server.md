@@ -432,3 +432,30 @@ The work is done in a worktree. Before each edit, check the file in
 - A change sent as a range, and tokens asked for the lines in view only.
 - A setting for the table of servers; NED and other languages.
 - A change of `HighlightedText`; the deferred plan stays deferred.
+
+## 8. After the landing: the marks stay final
+
+*Found 2026-10-21, in the omnet IDE, after `omnet-julia` loaded the adapter.* A
+`.cc` file opened in a tab, and then the owner task did not end its frame: a
+call to the editor waited more than 120 s. A sample of the threads (`SIGUSR1`)
+showed the paint of the IDE inside `TextLineNumbering`, which iterates the
+lines of `MarkedTextToText`: each step of the iteration read the cell of the
+lines again, and each read computed the lines again.
+
+*The cause:* the marks read the background cell with tracking. While the answer
+is to come, that read is provisional, a provisional value computes again at each
+read by a computation, and so the lines, which depend on the marks, split the
+whole text again at each line. The work that asks the server starts only after
+the print, so the answer that would end the provisional state never came. The
+headless tests and the live check of the projectured application did not show
+it, because their paints read the lines fewer times.
+
+*The fix, in the adapter:* a `SourceFile` holds the stored answer (`answer`, a
+plain cell) and the background cell (`request`). The `apply` of the background
+cell gives `StoreSourceFileAnswerOperation`, which stores each answer. The marks
+read the stored answer and the inputs of the request (the server, the path, the
+text) with tracking, and the request with no tracking
+(`run_without_cell_tracking`): the read notes a missing answer, and the marks
+stay final. The docstring of `MarkedText` says that its marks must be final.
+Tests: the source file test checks that the marks are not provisional after the
+open and after a key; `test_languageserver()` 101 pass, twice.

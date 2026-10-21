@@ -124,6 +124,10 @@ end
     _sf_give_server!(editor, path, connection)
     acquire_document!(editor, file)
     @test file.server === connection
+    # The marks are final while the answer is to come: a provisional value would
+    # compute again at each read, once for each line of the view.
+    _sf_frame!(editor, backend)
+    @test !is_cell_provisional(getfield(file.content, :marks))
     expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]
     @test _sf_wait(() -> _sf_spans(file.content.marks) == expected, editor, backend)
     opened = only(get_fake_messages(server, "textDocument/didOpen"))
@@ -141,6 +145,7 @@ end
     @test file.content.text == replace(_SF_SOURCE, "= 0" => "= 10")
     moved = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (44, 49, _SF_VARIABLE)]
     @test _sf_spans(file.content.marks) == moved
+    @test !is_cell_provisional(getfield(file.content, :marks))
     @test _sf_wait(() -> !isempty(get_fake_messages(server, "textDocument/didChange")), editor, backend)
     changed = last(get_fake_messages(server, "textDocument/didChange"))
     @test changed["params"]["textDocument"]["version"] == 2
