@@ -39,8 +39,12 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
 3. [x] `test_video()` passes: `json_build_live`, and the zoom of a take.
    79 of 79, with ffmpeg, without ffmpeg, and on one thread with coverage
    (74ad7c321, c4b6173a7, 6d2c7a70f, 7e09b1da7).
-4. [ ] `test_platform()` passes: the search of the explorer filter.
-5. [ ] `test_integration()` passes:
+4. [x] `test_platform()` passes: the search of the explorer filter.
+   `test_explorer()` 246 of 246, also with a disk that takes 0.8 s for a read
+   (706969d6a, 0336b5370).
+5. [x] `test_integration()` passes. Each test below passes in its own function
+   (97f060e2f, a289fdbf5, 7822a13cc, ec713150b, 3b4bc0404, 5610ac872,
+   0ebf0dca0, 10417d5dc, 0d0f230d7, c6ce65037):
    - `CatalogCoverageTest.jl:138`, `:228`
    - `ReplTest.jl:94` filesystem_widget (3)
    - `HistorySweepTest.jl:35`, `:121` (errors)
@@ -96,6 +100,26 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
   fault mark are the same in each run. The path where the editor stops its
   writes after 8 failed paints has no test now: a document fault no longer stops
   the paint, and a test of that path needs a fault in the backend.
+- The explorer search failed in CI because its wait ended after 4 s of wall
+  clock. CI runs with `--code-coverage=@.`, which drops the native code of the
+  packages of the repository, so the first search compiles in that time. The
+  wait now runs frames while a background work runs or a drain applies an
+  operation, with a bound of 120 s.
+- Four umbrella failures followed the explorer work of 2026-10-16 to 2026-10-21,
+  and the tests were stale:
+  - `ToolViewTest.jl:66`, `:69`: the insertion "file explorer" makes a
+    `WorkspaceExplorer` since 4014f96e4 (5610ac872).
+  - `HistorySweepTest.jl:35`, `:121`: the window opens on the Explorer since
+    16f9dfea4, so the sweep makes the window with the Files tool at its left
+    and the file in front, as the tests of the Files pane do (0ebf0dca0).
+  - `ReplTest.jl:94` `filesystem_widget`: Return on a file opens a pane, and the
+    example has no pane tree, so `open_pane!` threw. The example gives
+    `open_file = nothing` (10417d5dc).
+  - `CatalogCoverageTest.jl:228`, `:138`: six types had no atom, and the file
+    chooser draws through the natural renderer since edb7b3426. The catalog has
+    atoms for them (0d0f230d7). The atom of `BackgroundWorkLog` calls the
+    private `_make_background_work_log()`, because no public function makes a
+    log with no editor.
 - Five umbrella failures were stale tests; the code works as designed:
   - `EvaluatorDuplicateTest`: the parser keeps a comment since 948779e3a, so the
     form that keeps its string is now `y = 2x + 1` (97f060e2f).
