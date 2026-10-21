@@ -72,6 +72,10 @@ default styles for `nothing`, and the insertion and the empty placeholder, which
 registration gives the scaled theme of the `Appearance` of the editor, so the view
 follows its scales, and the appearance tab shows a section for `JsonTheme`.
 
+### The tooltip of a part
+
+A JSON file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedJSON` depends on the kernel and the platform. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.

@@ -67,6 +67,18 @@ Who answers a note:
 - a Markdown link and an RST reference: the target as a fact;
 - a Julia function: its name, and its signature as code; a docstring adds its prose.
 
+### A container says what the pointer is on
+
+A part sees only itself, so a JSON value can not say its path and a Julia call can not say the function that it names. The container around it knows: each move of the pointer writes the mouse target, and each document on the way holds the path from itself down to the part under the pointer ([mouse-target.md](../../kernel/mouse-target.md)). A container gives a tooltip binding of its own that reads that path. `find_pointed_part(container)` answers the part at the end of the mouse target, or of the selection when no pointer is on the container, as for a tooltip that a command opens, with the documents and the steps on the way; it stops where a step leads into a text.
+
+The dwell reaches the container after the part, so the order of the layers stays: when the part has a note of its own, the note of the container is the next layer, which F2 shows; when the part has none, the note of the container shows first. The containers:
+
+- a JSON or a YAML file: the path of the part, as `users[1].name`, its type, and its length, its value or its count;
+- an XML file: the path of the element, as `/root/a[1]/b`, the namespace of its prefix, its attributes and children;
+- a Julia file: for a call of a plain name, the signature and the docstring of the function of that name in the file;
+- a graph: the edges out and in, and the label, of a vertex;
+- an INI file of omnet-julia: the chain of `extends` of the section, as `X → Base → General`.
+
 ### A command runs the same binding
 
 The command palette lists the binding by its `description` on the selection, and greys it where the part says nothing. It runs the binding with no gesture, so the answer has no point, and the wrapper opens the window at the part. A command that an agent runs goes by route through the wrapper, and the wrapper takes the tooltip from that answer as well.

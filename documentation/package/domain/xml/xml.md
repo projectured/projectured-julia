@@ -64,6 +64,10 @@ default styles for `nothing`; the insertion and the empty placeholder take
 `Appearance` of the editor, so the view follows its scales, and the appearance
 tab shows a section for `XmlTheme`.
 
+### The tooltip of a part
+
+An XML file says what the pointer is on: the path of the element, as `/root/a[1]/b`, the namespace of its prefix from the `xmlns` of the elements on the path, and its attributes and children; a text or an attribute says the element that holds it ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedXML` depends on the kernel and the platform. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.

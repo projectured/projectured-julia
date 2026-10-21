@@ -132,12 +132,26 @@ The steps are fixed. Each step is one commit. projectured-julia lands first.
    Edges out, Edges in, and the Label of a vertex whose content is a string.
    No graph file type exists, so the binding is on `GraphGraph`. An edge says
    nothing. Test: `test_graph_note()` 4, `test_graph()` 471.
-6. [ ] **omnet-julia INI.** `IniFile` says for a section: the chain of
+6. [x] **omnet-julia INI.** `IniFile` says for a section: the chain of
    `extends`, such as `X → Base → General`, and its runs; for the value of
    `extends =`: the same chain. Test: the INI suite of omnet-julia.
-7. [ ] **The documentation and the catalog.** tooltip.md (a container says what
+
+   Done (written by a code agent with no Julia run, reviewed and tested here),
+   commit `dfae96b6` of the branch `pointed-part` of omnet-julia. On `[Config X]` or
+   on a part inside it: title X, fact Extends `X → Base → General`; on the
+   value of `extends = Base`: the chain of Base; on `[General]`: no fact. The
+   chain follows the rule of `_section_chain`, from the sections of the file;
+   a name that no section carries ends its branch. The runs are left out: they
+   follow `repeat` and the iteration variables, which the file alone does not
+   give. Test, in a scratch environment over both worktrees:
+   `test_ini_file_note()` 9, `test_ini()` 39.
+7. [x] **The documentation and the catalog.** tooltip.md (a container says what
    the pointer is on), the guides of the domains, and the catalog marks item 5
    done.
+
+   Done: tooltip.md ("A container says what the pointer is on"), a paragraph
+   in json.md, yaml.md, xml.md, julia.md and graph.md, and the catalog marks
+   item 2 of "What stands in the way" done.
 
 ## Not in this plan
 

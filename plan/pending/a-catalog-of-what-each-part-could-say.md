@@ -41,7 +41,9 @@ decision, not one per row.
    print, so its note must read stored values only: a file size or a time that
    needs a disk read must come from a stored stamp, never from `filesize` or
    `mtime` in the decoration.
-2. **A binding of a document sees only the node.** `make_tooltip_binding`
+2. **A binding of a document sees only the node.** Done by
+   [a-file-says-what-the-pointer-is-on.md](a-file-says-what-the-pointer-is-on.md):
+   the container says it from its own mouse target, with no new mechanism. `make_tooltip_binding`
    gets the document, not its path or its parent. A JSON path, an XML
    namespace, the degree of a graph vertex and the callee of a Julia call need
    the `source` path that `OpenTooltipOperation` carries, or a binding on the

@@ -97,6 +97,10 @@ In both, the content of a vertex is the domain node itself, held by identity. So
 
 `GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; and the color, the width and the gap of the ring of a highlight. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows under the name of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme`, scaled or not, and holds all values as one `NamedTuple` and no theme, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
 
+### The tooltip of a part
+
+A graph says, for a vertex under the pointer, its edges out and in, and its label when its content is a string ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.

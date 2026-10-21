@@ -50,6 +50,10 @@ placeholder take `syntax_theme`. The natural registration gives the scaled
 theme of the `Appearance` of the editor, so the view follows its scales, and
 the appearance tab shows a section for `YamlTheme`.
 
+### The tooltip of a part
+
+A YAML file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:

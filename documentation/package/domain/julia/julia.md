@@ -81,6 +81,10 @@ styles. The natural registration gives the scaled theme of the `Appearance` of
 the editor, so the view follows its scales, and the appearance tab shows a
 section for `JuliaTheme`.
 
+### The tooltip of a part
+
+A Julia file says, for a call of a plain name under the pointer, the signature and the docstring of the function of that name in the same file ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedJulia` depends only on the engine and the platform. The domains that embed Julia code depend on it: `ProjecturedFSM`, `ProjecturedProcess` and `ProjecturedFormula`. `ProjecturedFormula` copies the dispatch table of `JuliaToSyntax()` and adds its own rules, so one recursion prints a tree that mixes Julia and formula nodes.
