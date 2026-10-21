@@ -84,11 +84,16 @@ The work is done in the worktree, on the branch. It lands on main only after the
 owner approves.
 
 1. ✅ Write this plan.
-2. ⬜ **Fix 1, with tests.** A case in `ProjectionReferenceStepTest.jl` or a new
+2. ✅ **Fix 1, with tests.** A case in `ProjectionReferenceStepTest.jl` or a new
    tooltip case checks the comparison with an introduced reference, and a case in
    `ApplicationTest.jl` rests the pointer on an assistant button, moves to the
    same point, and finds the tooltip still open; a move to the next button closes
    it.
+   **Result:** `_expand_introduced_steps` in `TooltipWindow.jl`, and the unit case
+   in `TooltipWindowTest.jl` (the tooltip window test passes 55). The case in
+   `ApplicationTest.jl` passes 3 of 3, and with the helper switched off it fails
+   at the move to the same point, so it catches the fault. `test_application()`
+   passes 389, with its 2 marked broken.
 3. ⬜ **Fix 2, with its test.** `NativeWindowTest.jl` names `:popup` among the
    styles that never take the key focus.
 4. ⬜ **Fix 3, with tests.** Cases for the predicate, for the place that SDL gets

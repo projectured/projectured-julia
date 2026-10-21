@@ -15,6 +15,10 @@ _tw_labels(; group = nothing) = WidgetComposite(Any[
 
 _tw_measure() = FixedMeasure(10, 18, 6, 0)
 
+# A view: a projection that makes the parts it prints, so a point on one of them
+# maps back to an introduced reference.
+struct _TwMakingView <: Projection end
+
 # The window `W` at (100, 100) holds `document`, drawn with `projection`, and the
 # window `V`, when asked for, holds `other` at (600, 100).
 function _tw_editor(document = _tw_labels(); other = nothing,
@@ -360,6 +364,26 @@ end
     # And above the bottom of the text, which `x = 1` ends.
     text = find_reference_box(get_iomap_output(editor.iomap.child_iomap), window_content)
     @test tip.y < text.y + text.height
+end
+
+@testset "a move names a part that a view made in the form of the answer of that part" begin
+    expand = ProjecturedPlatform.TooltipModule._expand_introduced_steps
+    view = _TwMakingView()
+    made(steps...) = extend_reference(EmptyReference(), steps...)
+    at_view = made(FieldReferenceStep("content"))
+    button = made(FieldReferenceStep("elements"), ElementReferenceStep(2))
+    # The answer of the button: the path of the view, then the path in its output.
+    answer = concat_references(at_view, button)
+    # A point on the button: the path of the view, then an introduced step.
+    pointed(path) = strip_reference_types(concat_references(at_view,
+        make_introduced_reference(view, WidgetLabel("view"), path)))
+    @test pointed(button) != answer
+    @test expand(pointed(button)) == answer
+    # The next part of the view is another part.
+    next = made(FieldReferenceStep("elements"), ElementReferenceStep(3))
+    @test !is_reference_prefix(answer, expand(pointed(next)))
+    # A path with no introduced step stays the same path.
+    @test expand(answer) === answer
 end
 
 end # @testset

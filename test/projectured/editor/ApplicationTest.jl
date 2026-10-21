@@ -549,6 +549,44 @@ function test_application()
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
+            @testset "the tooltip of an assistant button stays while the pointer rests on it" begin
+                # The assistant pane is a view: it makes its buttons, so a point on
+                # one maps back to an introduced reference, and the answer of the
+                # button names it by its path after the view.
+                document, projection = _app_make_window(paths[1:1]; root = dir,
+                                                        assistant = make_application_assistant(:none))
+                editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
+                                      window = (; title = "ProjecturEd", width = 1280, height = 800,
+                                                opened_window_projections = vcat(
+                                                    Pair{Type,Any}[make_natural_tooltip_row(;
+                                                        measure = FixedMeasure(8, 12, 4, 0))],
+                                                    make_opened_window_projections())))
+                run_frame!(editor)
+                send!(event) = (push_event!(editor.backend, WindowInput(:ProjecturEd, event));
+                                run_frame!(editor))
+                windows() = _app_value(get_iomap_output(editor.iomap).windows)
+                tips() = [w for w in windows() if _app_value(w.style) === :tooltip]
+                said() = [text for tip in tips() for text in _app_drawn_strings(tip.content)]
+                drawn = _app_drawn_at(windows()[1].content)
+                place(code) = only((x + 4, y + 6) for (text, x, y) in drawn if text == string(Char(code)))
+                stop, camera = place(0xe167), place(0xe064)
+                # A rest on the stop button opens its tooltip.
+                t = time() - 60
+                send!(MouseMove(stop[1] - 40, stop[2] - 40; time = t))
+                send!(MouseMove(stop...; time = t + 2))
+                foreach(_ -> run_frame!(editor), 1:3)
+                @test "Stop the turn." in said()
+                # The move that the backend sends after the frame that opened it,
+                # to the same point, leaves it open. Its time is late, so no other
+                # rest ends in these frames.
+                send!(MouseMove(stop...; time = time() + 3600))
+                @test "Stop the turn." in said()
+                # A move to the next button closes it.
+                send!(MouseMove(camera...; time = time() + 3600))
+                @test !("Stop the turn." in said())
+            end
+
             @testset "the settings button opens the settings of the editor in a tab" begin
                 document, projection = _app_make_window(paths[1:1]; root = dir,
                                                                assistant = nothing)

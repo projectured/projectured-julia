@@ -222,8 +222,26 @@ function _closes_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, 
     event isa MouseMove || return false
     path = _find_path_at(p, iomap, input.window_id, event.x, event.y)
     source = iomap.input.source
-    path === nothing || source === nothing ||
-        !(path == source || is_reference_prefix(source, path))
+    (path === nothing || source === nothing) && return true
+    path = _expand_introduced_steps(path)
+    !(path == source || is_reference_prefix(source, path))
+end
+
+# `reference` with each introduced step replaced by the path that it names in the
+# output of its projection. A view maps a point on a part that it made to an
+# introduced step, and the answer of that part names it by the same path after the
+# path of the view, so the two forms compare.
+function _expand_introduced_steps(reference)
+    reference isa ConcreteReference || return reference
+    any(step -> step isa ProjectionReferenceStep, get_reference_steps(reference)) || return reference
+    steps = Any[]
+    for step in get_reference_steps(reference)
+        step isa ProjectionReferenceStep ||
+            (push!(steps, step); continue)
+        output_path = _expand_introduced_steps(step.output_path)
+        output_path isa ConcreteReference && append!(steps, get_reference_steps(output_path))
+    end
+    extend_reference(EmptyReference(), steps...)
 end
 
 # The path, from the state, of the part at `(x, y)` of the window `window`, or
