@@ -419,11 +419,12 @@ Base.showerror(io::IO, exception::AgentSignInException) = print(io, exception.me
 """
     AgentEventQueue()
 
-The events of a session of an external agent that come between two prompts, in
-the order that the agent sent them. A connection puts each one with
-[`put_agent_event!`](@ref), on a task of its own, and the caller that opened the
-session takes them all with [`take_agent_events!`](@ref). The queue holds the
-events and a lock, and no function.
+The events of a stream in the order in which they came: the events of a session
+of an external agent, which a connection puts with [`put_agent_event!`](@ref) on a
+task of its own, or the events of a turn of a model that a task streams. The
+caller that opened the session or started the turn takes them all with
+[`take_agent_events!`](@ref). The queue holds the events and a lock, and no
+function.
 """
 mutable struct AgentEventQueue
     lock::ReentrantLock

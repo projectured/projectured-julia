@@ -6,38 +6,38 @@
 
 # A backend that shows held frames and counts the code units that prepare them, and
 # paints nothing: the window of a test in which the loop runs.
-mutable struct _AsHeldFrameBackend <: BackendModule.Backend
+mutable struct _StreamHeldFrameBackend <: BackendModule.Backend
     prepared::Int
 end
-_AsHeldFrameBackend() = _AsHeldFrameBackend(0)
+_StreamHeldFrameBackend() = _StreamHeldFrameBackend(0)
 
-BackendModule.initialize_backend!(::_AsHeldFrameBackend) = nothing
-BackendModule.quit_backend!(::_AsHeldFrameBackend) = nothing
-BackendModule.take_from_devices!(::_AsHeldFrameBackend, devices) = nothing
-BackendModule.write_to_devices!(::_AsHeldFrameBackend, devices, output) = nothing
-BackendModule.wait_for_input(::_AsHeldFrameBackend, devices, timeout) = sleep(min(timeout, 0.001))
-BackendModule.prepare_held_frames!(backend::_AsHeldFrameBackend, devices, parts) =
+BackendModule.initialize_backend!(::_StreamHeldFrameBackend) = nothing
+BackendModule.quit_backend!(::_StreamHeldFrameBackend) = nothing
+BackendModule.take_from_devices!(::_StreamHeldFrameBackend, devices) = nothing
+BackendModule.write_to_devices!(::_StreamHeldFrameBackend, devices, output) = nothing
+BackendModule.wait_for_input(::_StreamHeldFrameBackend, devices, timeout) = sleep(min(timeout, 0.001))
+BackendModule.prepare_held_frames!(backend::_StreamHeldFrameBackend, devices, parts) =
     (backend.prepared += 1; nothing)
-BackendModule.run_held_frame!(::_AsHeldFrameBackend, devices, state::BackendModule.HeldFrameState) =
+BackendModule.run_held_frame!(::_StreamHeldFrameBackend, devices, state::BackendModule.HeldFrameState) =
     (sleep(0.001); :none)
-BackendModule.end_held_frames!(::_AsHeldFrameBackend, devices) = nothing
+BackendModule.end_held_frames!(::_StreamHeldFrameBackend, devices) = nothing
 
 # A model that records the request of each round and streams the rounds of a
 # scripted model.
-struct _AsRecordingLlm <: LlmModule.Llm
+struct _StreamRecordingLlm <: LlmModule.Llm
     inner::Any
     requests::Vector{Any}
 end
-_AsRecordingLlm(inner) = _AsRecordingLlm(inner, Any[])
+_StreamRecordingLlm(inner) = _StreamRecordingLlm(inner, Any[])
 
-function LlmModule.stream_turn(llm::_AsRecordingLlm, request; on_event::Function)
+function LlmModule.stream_turn(llm::_StreamRecordingLlm, request; on_event::Function)
     push!(llm.requests, request)
     LlmModule.stream_turn(llm.inner, request; on_event)
 end
 
 # Run the loop of `editor` until the turn of `a` that a submit starts ends, or 60
 # seconds pass, and quit it.
-function _as_run_turn!(editor, a::Assistant, prompt::AbstractString)
+function _stream_run_turn!(editor, a::Assistant, prompt::AbstractString)
     a.input.value = prompt
     post_operation!(editor, SubmitProseOperation(a))
     driver = @async try
@@ -52,36 +52,36 @@ function _as_run_turn!(editor, a::Assistant, prompt::AbstractString)
     nothing
 end
 
-_as_editor(a::Assistant, backend; fault_policy = make_strict_fault_policy()) =
+_stream_make_editor(a::Assistant, backend; fault_policy = make_strict_fault_policy()) =
     Editor(a, make_assistant_projection_example(); backend, devices = Device[],
            tools = register_default_tools!(ToolSet()), fault_policy)
 
 # The queues of turns that the feeds of `editor` still hold.
-_as_count_turn_sources(editor) =
+_stream_count_turn_sources(editor) =
     sum((count(source -> source isa AssistantModule._TurnEventSource, feed.sources)
          for feed in editor.feeds if feed isa AgentEventFeed); init = 0)
 
 # A model that streams a text and then fails.
-struct _AsFailingLlm <: LlmModule.Llm end
+struct _StreamFailingLlm <: LlmModule.Llm end
 
-function LlmModule.stream_turn(::_AsFailingLlm, request; on_event::Function)
+function LlmModule.stream_turn(::_StreamFailingLlm, request; on_event::Function)
     on_event(LlmTextStart())
     foreach(word -> on_event(LlmTextDelta(word)), ["Half ", "an ", "answer."])
     error("the model failed")
 end
 
-_as_answer_text(a::Assistant) =
+_stream_collect_answer_text(a::Assistant) =
     join((_text_to_string(part.content) for turn in collect(a.conversation.turns)
           if turn.role === :assistant for part in collect(turn.parts)), "\n")
 
 # Whether this process can run a code unit on a thread other than the one of this
 # task, which held frames need.
-_as_has_code_unit_thread() =
+_stream_has_code_unit_thread() =
     EditorModule._find_code_unit_place(Threads.threadid()) !== nothing
 
 # An assistant whose last turn is an answer of `count` paragraphs of 100 words, and
 # the part of that answer.
-function _as_make_long_answer(count::Integer)
+function _stream_make_long_answer(count::Integer)
     paragraph = join(("word$i" for i in 1:100), " ")
     part = ConversationPart(make_text_block(join(fill(paragraph, count), "\n")))
     a = Assistant(; conversation = ConversationConversation([
@@ -92,10 +92,10 @@ end
 
 # The output cells that one delta at the end of an answer of `count` paragraphs
 # invalidates, and the output objects that it makes again.
-function _as_measure_delta_locality(count::Integer, append!)
-    a, part = _as_make_long_answer(count)
+function _stream_measure_delta_locality(count::Integer)
+    a, part = _stream_make_long_answer(count)
     report = measure_printer_locality(a, make_assistant_projection_example(),
-                                      _ -> append!(part, " more"))
+                                      _ -> AssistantModule._append_text_delta!(part, " more"))
     (; invalidated = length(report.invalidated), lost = report.lost_objects, report.errors)
 end
 
@@ -103,7 +103,7 @@ function test_assistant_stream()
 @testset "an answer streams into a running editor through the feed of the agent events" begin
     @testset "with no loop, each event applies at once and a turn leaves no queue" begin
         a = Assistant(; llm = ScriptedLlm([_final_text_script("Done at once.")]))
-        editor = _as_editor(a, HeadlessBackend())
+        editor = _stream_make_editor(a, HeadlessBackend())
         for prompt in ("One.", "Two.")
             a.input.value = prompt
             evaluate_operation(editor, SubmitProseOperation(a))
@@ -112,19 +112,18 @@ function test_assistant_stream()
         end
         @test count(turn -> any(part -> occursin("Done at once.", _text_to_string(part.content)),
                                 collect(turn.parts)), collect(a.conversation.turns)) == 2
-        @test _as_count_turn_sources(editor) == 0
+        @test _stream_count_turn_sources(editor) == 0
     end
     @testset "a delta at the end of a long answer changes only the end of its print" begin
-        append! = AssistantModule._append_text_delta!
-        small = _as_measure_delta_locality(10, append!)
-        large = _as_measure_delta_locality(1_000, append!)
+        small = _stream_measure_delta_locality(10)
+        large = _stream_measure_delta_locality(1_000)
         @test isempty(small.errors) && isempty(large.errors)
         # 100 times the answer: the same work for a delta, with some room.
         @test large.invalidated <= 2 * small.invalidated + 10
         @test large.lost <= 2 * small.lost + 10
     end
 
-    if !_as_has_code_unit_thread()
+    if !_stream_has_code_unit_thread()
         # @broken: this process has no second thread, so a code unit runs inline and no held frame shows
         @test_broken false
     else
@@ -133,18 +132,18 @@ function test_assistant_stream()
             llm = ScriptedLlm([make_scripted_turn(make_scripted_say(join(words); chunk_words = 1,
                                                                     delay = 0.002))])
             a = Assistant(; llm)
-            backend = _AsHeldFrameBackend()
-            editor = _as_editor(a, backend)
-            _as_run_turn!(editor, a, "Count.")
+            backend = _StreamHeldFrameBackend()
+            editor = _stream_make_editor(a, backend)
+            _stream_run_turn!(editor, a, "Count.")
             @test a.status === :idle
-            @test occursin("word1 ", _as_answer_text(a))
-            @test occursin("word200", _as_answer_text(a))
+            @test occursin("word1 ", _stream_collect_answer_text(a))
+            @test occursin("word200", _stream_collect_answer_text(a))
             # The calls of the turn: the read of its settings, the messages of the
             # round, the end of the round, and the steps of its start and its end.
             # Each delta in a call of its own would add a unit for each frame that
             # drains one.
             @test 3 <= backend.prepared <= 12
-            @test _as_count_turn_sources(editor) == 0
+            @test _stream_count_turn_sources(editor) == 0
         end
 
         @testset "the messages of a round hold the text of the round before it" begin
@@ -153,10 +152,10 @@ function test_assistant_stream()
                                 _ev(LlmTextDelta("round.")), _ev(LlmTextStop())],
                      _tool_use_script("tu_1", "wait", Dict{String,Any}())),
                 _final_text_script("Second round.")])
-            llm = _AsRecordingLlm(inner)
+            llm = _StreamRecordingLlm(inner)
             a = Assistant(; llm)
-            editor = _as_editor(a, _AsHeldFrameBackend())
-            _as_run_turn!(editor, a, "Two rounds.")
+            editor = _stream_make_editor(a, _StreamHeldFrameBackend())
+            _stream_run_turn!(editor, a, "Two rounds.")
             @test length(llm.requests) == 2
             second = llm.requests[2].messages
             @test any(message -> message.role === :assistant &&
@@ -175,11 +174,11 @@ function test_assistant_stream()
         end
 
         @testset "a turn that fails shows its text before the error and leaves no queue" begin
-            a = Assistant(; llm = _AsFailingLlm())
-            editor = _as_editor(a, _AsHeldFrameBackend();
+            a = Assistant(; llm = _StreamFailingLlm())
+            editor = _stream_make_editor(a, _StreamHeldFrameBackend();
                                 fault_policy = FaultPolicy(is_console_enabled = false,
                                                            is_sound_enabled = false))
-            _as_run_turn!(editor, a, "Fail.")
+            _stream_run_turn!(editor, a, "Fail.")
             @test a.status === :error
             turns = collect(a.conversation.turns)
             answer = findfirst(turn -> any(part -> occursin("Half an answer.", _text_to_string(part.content)),
@@ -187,7 +186,7 @@ function test_assistant_stream()
             failure = findfirst(turn -> any(part -> occursin("the model failed", _text_to_string(part.content)),
                                             collect(turn.parts)), turns)
             @test answer !== nothing && failure !== nothing && answer < failure
-            @test _as_count_turn_sources(editor) == 0
+            @test _stream_count_turn_sources(editor) == 0
         end
     end
 end

@@ -879,14 +879,9 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # the tool results the previous round appended to it are exactly the continuation
     # prompt — so the conversation stays the single source of truth rather than a
     # view of some message list held elsewhere. It is read on the editor's task,
-    # after every part this turn posted before it.
-    #
-    # The end of a text block, the end of a round and the result of a tool apply in
-    # a call that waits, after the events before them: the end of a block parses its
-    # text in a code unit, so the window shows that it is busy; a tool of the round
-    # runs after every part that the round streamed; and the next tool after the
-    # result of the one before it. Such a call has no time limit, because the turn
-    # can not go on before it, and the end of the loop answers it.
+    # after every part this turn posted before it. It keeps the time limit of a call:
+    # a turn that can not read its conversation in time fails with a message, and
+    # nothing that it streamed is lost.
     try
         agent = Agent(llm, set; system, thinking = true)
         stop_reason = try
@@ -899,8 +894,16 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
                 on_event = ev -> begin
                     control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
                     observe === nothing || observe(ev)
+                    # The end of a text block, the end of a round and the result of a
+                    # tool apply in a call that waits, after the events before them: the
+                    # end of a block parses its text in a code unit, so the window shows
+                    # that it is busy; a tool of the round runs after every part that the
+                    # round streamed; and the next tool after the result of the one
+                    # before it. Such a call has no time limit, because a result that the
+                    # call drops is lost, and the end of the editor loop answers a call
+                    # that waits.
                     if ev isa Union{LlmTextStop, LlmTurnEnd, AgentToolResult}
-                        _run_turn_call!(() -> _handle_agent_event!(ev, a, turn, state, set), editor, source;
+                        _run_turn_call!(() -> _handle_turn_event!(source, ev), editor, source;
                                         timeout = Inf)
                     else
                         _post_turn_event!(editor, source, ev)
@@ -914,8 +917,8 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
             control.is_cancelled || rethrow()
             # The blocks that streamed close, so their text is drawn as an answer.
             _run_turn_call!(editor, source; wait = false) do
-                state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, set)
-                state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, set)
+                state[:current_block] === nothing || _handle_turn_event!(source, LlmTextStop())
+                state[:current_thinking] === nothing || _handle_turn_event!(source, LlmThinkingStop())
             end
             :cancelled
         end
@@ -924,8 +927,8 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
 
         _run_turn_call!(() -> _finish_turn!(a, turn, stop_reason), editor, source; wait = false)
     finally
-        # The events that wait apply before any later post of the task of the turn,
-        # also after a turn that failed, and the queue leaves the feed.
+        # The events that wait apply before the posts after the turn, such as its
+        # status and the error of a turn that failed, and the queue leaves the feed.
         _run_turn_call!(() -> _remove_agent_event_source!(editor, source), editor, source; wait = false)
     end
     nothing
@@ -1123,25 +1126,19 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
 end
 
 # A delta adds its text at the end of the text of its part, so the lines before the
-# last line keep their print.
-function _append_text_delta!(part::ConversationPart, s::AbstractString)
-    content = part.content
-    content isa TextBlock ? append_text!(content, s) :
-                            (part.content = make_text_block(_content_to_string(content) * String(s)))
-    nothing
-end
+# last line keep their print. The text of the part is the block that `LlmTextStart`
+# made.
+_append_text_delta!(part::ConversationPart, s::AbstractString) =
+    (append_text!(part.content::TextBlock, s); nothing)
 
 _append_text_delta!(_, _) = nothing
 
-# Accumulate a thinking_delta into the thinking part's text (rebuild the lines
-# of the TextBlock from the accumulated reasoning, mirroring
-# `_append_text_delta!`).
+# A thinking delta adds its text at the end of the thinking part, as
+# `_append_text_delta!` does.
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
-    text = c.text
-    text isa TextBlock ? append_text!(text, s) :
-                         (c.text = make_text_block(_content_to_string(text) * String(s)))
+    append_text!(c.text::TextBlock, s)
     nothing
 end
 

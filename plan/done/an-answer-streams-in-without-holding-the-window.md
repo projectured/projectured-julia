@@ -339,6 +339,35 @@ delta each 30 ms. The frames are in `/var/tmp/frame-guards/s3-*/`.
   queue.
 - `text.md`: `append_text!`.
 
+### The review of readability
+
+A review of the source of the plan, when it moved to `plan/done/`, found three
+faults to fix before a landing and some cheap changes. Done:
+
+- The comment of `_append_thinking_delta!` said that it makes the lines again; it
+  says that it appends. The two appends assert their `TextBlock`, because
+  `LlmTextStart` and `ConversationThinking` always make one, and drop the branch that
+  made the block again.
+- The comment of the calls that wait stands on the `if` that it explains, says
+  "the editor loop", and says why `messages` keeps the time limit of a call: a turn
+  that can not read its conversation fails with a message, and loses nothing.
+- The test helpers have the prefix `_stream_`, and the locality helper calls
+  `_append_text_delta!` itself, so no local name hides `Base.append!`.
+- `_handle_turn_event!(source, event)` applies an event of a turn; the drain of a
+  turn is the method of `_drain_agent_event_source!`; `_TurnEventSource` is
+  immutable, has no `is_open`, because the end of a turn removes it from the feed,
+  and calls its tool set `tools`. `_drain_agent_source_processes!` names what it
+  samples. `_join_stream_deltas` says why a joined delta takes the type of its
+  first delta.
+- `append_text!` says which block it takes, has a "Use it to" paragraph, and
+  makes an empty run in one way. The kernel docstring of `AgentEventQueue` names
+  the events of a turn.
+
+Left for later, as the review ranked them: a struct for the source of a session in
+place of its `NamedTuple`; one post function for both kinds of source; a function
+for the rounds of `_run_agent_loop!`, which is 113 lines; and the block that waits
+for the end of a turn, which the test and the recording driver repeat.
+
 ### Open items
 
 1. `bin/projectured` compiles a live workload that runs no turn, so its first

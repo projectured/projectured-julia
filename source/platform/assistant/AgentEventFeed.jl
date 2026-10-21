@@ -223,18 +223,22 @@ end
 # the turn into it off the loop, and the feed of the window applies them to the
 # turn, as it applies the events of a session of an external agent. The turn joins
 # the source to the feed before its first event, and removes it at its end.
-mutable struct _TurnEventSource
+struct _TurnEventSource
     assistant::Assistant
     queue::AgentEventQueue
     turn::ConversationTurn
     # The blocks that stream: the text part and the thinking part.
     state::Dict{Symbol,Any}
-    set::Any
-    is_open::Bool
+    # The `ToolSet` of the editor, which makes the result of a tool a document.
+    tools::Any
 end
 
-_TurnEventSource(a::Assistant, turn::ConversationTurn, state, set) =
-    _TurnEventSource(a, AgentEventQueue(), turn, state, set, true)
+_TurnEventSource(a::Assistant, turn::ConversationTurn, state, tools) =
+    _TurnEventSource(a, AgentEventQueue(), turn, state, tools)
+
+# Apply one event to the turn of `source`.
+_handle_turn_event!(source::_TurnEventSource, event) =
+    _handle_agent_event!(event, source.assistant, source.turn, source.state, source.tools)
 
 # An event of the turn goes into its queue, behind the events before it. An editor
 # whose loop runs applies the queue in its next frame, and the turn does not wait.
@@ -244,36 +248,30 @@ function _post_turn_event!(editor, source::_TurnEventSource, event)
     if editor isa Editor && is_editor_loop_running(editor)
         wake_editor!(editor)
     else
-        _drain_turn_events!(editor, source)
+        _drain_agent_event_source!(editor, source)
     end
     nothing
 end
 
-# Apply the events that wait in the queue of the turn, each run of text deltas and
-# each run of thinking deltas as one delta, so a frame appends to a part once.
-_drain_turn_events!(editor, source::_TurnEventSource) =
-    _apply_agent_events!(editor, _join_stream_deltas(take_agent_events!(source.queue))) do event
-        _handle_agent_event!(event, source.assistant, source.turn, source.state, source.set)
-    end
-
 # `events` with each run of text deltas, and each run of thinking deltas, joined
-# into one delta of their text.
+# into one delta of their text. Each delta type has the one field `text`, so a
+# joined delta is the type of the first delta of its run, made from the texts.
 function _join_stream_deltas(events)
     joined = Any[]
-    run = String[]
+    texts = String[]
     for event in events
-        if !isempty(run) && typeof(event) !== typeof(last(joined))
-            joined[end] = typeof(last(joined))(join(run))
-            empty!(run)
+        if !isempty(texts) && typeof(event) !== typeof(last(joined))
+            joined[end] = typeof(last(joined))(join(texts))
+            empty!(texts)
         end
         if event isa Union{LlmTextDelta, LlmThinkingDelta}
-            isempty(run) && push!(joined, event)
-            push!(run, event.text)
+            isempty(texts) && push!(joined, event)
+            push!(texts, event.text)
         else
             push!(joined, event)
         end
     end
-    isempty(run) || (joined[end] = typeof(last(joined))(join(run)))
+    isempty(texts) || (joined[end] = typeof(last(joined))(join(texts)))
     joined
 end
 
@@ -283,7 +281,7 @@ end
 # `run_on_editor_task!`, such as `wait` and `timeout`.
 _run_turn_call!(f, editor, source::_TurnEventSource; keywords...) =
     run_on_editor_task!(editor; keywords...) do
-        _drain_turn_events!(editor, source)
+        _drain_agent_event_source!(editor, source)
         f()
     end
 
@@ -678,10 +676,9 @@ function _add_agent_event_source!(editor, source)
     nothing
 end
 
-# The turn of `source` ended: the source closes and leaves the feed at once, also
-# in an editor whose feeds no loop drains.
+# The turn of `source` ended: the source leaves the feed at once, also in an editor
+# whose feeds no loop drains.
 function _remove_agent_event_source!(editor, source::_TurnEventSource)
-    source.is_open = false
     hasproperty(editor, :feeds) || return nothing
     for feed in editor.feeds
         feed isa AgentEventFeed && filter!(other -> other !== source, feed.sources)
@@ -690,19 +687,25 @@ function _remove_agent_event_source!(editor, source::_TurnEventSource)
 end
 
 # Whether the queue of `source` is still the queue of an open session of its
-# assistant, or of a turn that runs.
+# assistant. The source of a turn is open while it is in the feed: its turn removes
+# it at its end.
 _is_agent_event_source_open(source) =
     source.session.events === source.queue &&
     source.assistant.agent_session === source.session
-_is_agent_event_source_open(source::_TurnEventSource) = source.is_open
+_is_agent_event_source_open(::_TurnEventSource) = true
 
+# Apply the events that wait in the queue of `source`. The queue of a turn applies
+# each run of text deltas and each run of thinking deltas as one delta, so a frame
+# appends to a part once.
 _drain_agent_event_source!(editor, source) =
     _drain_agent_event_queue!(editor, source.assistant, source.queue)
-_drain_agent_event_source!(editor, source::_TurnEventSource) = _drain_turn_events!(editor, source)
+_drain_agent_event_source!(editor, source::_TurnEventSource) =
+    _apply_agent_events!(event -> _handle_turn_event!(source, event), editor,
+                         _join_stream_deltas(take_agent_events!(source.queue)))
 
-# A turn of the built-in assistant has no work of an agent to sample.
-_drain_agent_source_work!(source, now) = _drain_agent_work_processes!(source.assistant.agent_work, now)
-_drain_agent_source_work!(::_TurnEventSource, now) = 0
+# A turn of the built-in assistant has no tree of processes to sample.
+_drain_agent_source_processes!(source, now) = _drain_agent_work_processes!(source.assistant.agent_work, now)
+_drain_agent_source_processes!(::_TurnEventSource, now) = 0
 
 function drain_changes!(feed::AgentEventFeed, editor)
     now = time()
@@ -710,7 +713,7 @@ function drain_changes!(feed::AgentEventFeed, editor)
     for source in copy(feed.sources)
         count += _drain_agent_event_source!(editor, source)
         if _is_agent_event_source_open(source)
-            count += _drain_agent_source_work!(source, now)
+            count += _drain_agent_source_processes!(source, now)
         else
             filter!(other -> other !== source, feed.sources)
         end

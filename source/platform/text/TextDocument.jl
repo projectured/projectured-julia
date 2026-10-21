@@ -447,13 +447,16 @@ _make_text_block_line(text::AbstractString, style::StyleText) = TextLine(TextStr
 """
     append_text!(block::TextBlock, text) -> TextBlock
 
-Add `text` at the end of `block`, which a string made, as [`make_text_block`](@ref)
-makes it: the text up to the first newline goes at the end of the last run of the
-last line, and each line after a newline is a new line of one run, in the font and
-the colour of that run. The lines before the last line keep their objects and
-their text, so a view of the block computes again only the last line and the lines
-that the text adds. A text that streams in, such as the answer of a model, grows
-its block so.
+Add `text` at the end of `block`, a block that [`make_text_block`](@ref) made from a
+string, not from a function: the text up to the first newline goes at the end of
+the last run of the last line, and each line after a newline is a new line of one
+run, in the font and the colour of that run. The lines before the last line keep
+their objects and their text, so a view of the block computes again only the last
+line and the lines that the text adds.
+
+Use it to grow a text that streams in, such as the answer of a model or the output
+of a program, so that each piece costs the same at the start and at the end of a
+long text.
 
 # Example
 
@@ -463,7 +466,7 @@ its block so.
 function append_text!(block::TextBlock, text::AbstractString)
     isempty(text) && return block
     lines = block.elements
-    isempty(lines) && push!(lines, _make_text_block_line("", StyleText(UNSTYLED_TEXT_FONT, color_default)))
+    isempty(lines) && push!(lines, TextLine())
     run = _get_last_text_run!(lines[length(lines)])
     pieces = split(text, '\n')
     run.content = string(run.content::AbstractString, first(pieces))
