@@ -1,0 +1,22 @@
+name = "ProjecturedLanguageServerTest"
+uuid = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
+version = "0.1.0"
+authors = []
+
+# The language server tier of the test-package DAG. A server in this process
+# answers the tests, so the suite needs no language server. The tests that start
+# `clangd` skip themselves when it is not installed.
+
+[deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedLanguageServer = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedLanguageServer = {path = "../ProjecturedLanguageServer"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

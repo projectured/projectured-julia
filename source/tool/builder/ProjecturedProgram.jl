@@ -327,7 +327,8 @@ function build_projectured_executable(; name::AbstractString = "projectured",
     main = :(ProjecturedPlatform.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
                      packages = vcat(["ProjecturedPlatform", "ProjecturedOllama",
-                                      "ProjecturedAnthropic", "ProjecturedMCP", "ProjecturedACP"],
+                                      "ProjecturedAnthropic", "ProjecturedMCP", "ProjecturedACP",
+                                      "ProjecturedLanguageServer"],
                                      backend_packages),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
@@ -574,6 +575,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedACP" =>
         (summary = "Lets the AI assistant of ProjecturEd talk to an agent that runs its own loop, such as Claude, over the Agent Client Protocol (ACP).",
          document = "documentation/package/adapter/acp/acp.md"),
+    "ProjecturedLanguageServer" =>
+        (summary = "Colours the names of a C or C++ file by their kinds, which a language server such as clangd gives.",
+         document = "documentation/package/adapter/languageserver/languageserver.md"),
     "ProjecturedMCP" =>
         (summary = "Lets a client outside the process, such as an AI assistant, drive a running editor over the Model Context Protocol (MCP).",
          document = "documentation/package/adapter/mcp/mcp.md"),

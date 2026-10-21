@@ -69,6 +69,8 @@ ProjecturedODBCExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 ProjecturedODBCTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
 ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
+ProjecturedLanguageServer = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
+ProjecturedLanguageServerTest = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
 ProjecturedOpenRouter = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
 ProjecturedOpenRouterTest = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
@@ -185,6 +187,8 @@ ProjecturedODBCExample = {path = "../../package/ProjecturedODBCExample"}
 ProjecturedODBCTest = {path = "../../package/ProjecturedODBCTest"}
 ProjecturedOllama = {path = "../../package/ProjecturedOllama"}
 ProjecturedOllamaTest = {path = "../../package/ProjecturedOllamaTest"}
+ProjecturedLanguageServer = {path = "../../package/ProjecturedLanguageServer"}
+ProjecturedLanguageServerTest = {path = "../../package/ProjecturedLanguageServerTest"}
 ProjecturedOpenRouter = {path = "../../package/ProjecturedOpenRouter"}
 ProjecturedOpenRouterTest = {path = "../../package/ProjecturedOpenRouterTest"}
 ProjecturedPDF = {path = "../../package/ProjecturedPDF"}

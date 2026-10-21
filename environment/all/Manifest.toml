@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "ec03f7d08a48d922d6dffbc635d0ed3e362d731f"
+project_hash = "15a4c036ca8825b1de97138a6e3e1529b50aa7a8"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1245,6 +1245,18 @@ path = "../../package/ProjecturedKernelTest"
 uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"
 
+[[deps.ProjecturedLanguageServer]]
+deps = ["JSON3", "ProjecturedKernel", "ProjecturedPlatform"]
+path = "../../package/ProjecturedLanguageServer"
+uuid = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
+version = "0.1.0"
+
+[[deps.ProjecturedLanguageServerTest]]
+deps = ["JSON3", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLanguageServer", "ProjecturedPlatform", "Test"]
+path = "../../package/ProjecturedLanguageServerTest"
+uuid = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
+version = "0.1.0"
+
 [[deps.ProjecturedMCP]]
 deps = ["HTTP", "ModelContextProtocol", "ProjecturedKernel", "ProjecturedPlatform", "Random", "Sockets"]
 path = "../../package/ProjecturedMCP"
@@ -1480,7 +1492,7 @@ uuid = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["DataFrames", "HTTP", "ProjecturedACPTest", "ProjecturedAll", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFrames", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPivotTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedWorkflowTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "TOML", "Test"]
+deps = ["DataFrames", "HTTP", "ProjecturedACPTest", "ProjecturedAll", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFrames", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLanguageServerTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPivotTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedWorkflowTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "TOML", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

@@ -113,6 +113,9 @@ using ProjecturedOllamaTest
 # The suite of the ACP client. It talks to a fake agent in this process and to a
 # small child process, so it needs no Node.js and no sign-in.
 using ProjecturedACPTest
+# The suite of the language server adapter. A server in this process answers it;
+# its tests with `clangd` skip themselves when it is not installed.
+using ProjecturedLanguageServerTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
 # A pivot of a data frame names two packages that do not depend on each other.
@@ -493,6 +496,7 @@ function test_all()
     test_anthropic()
     test_ollama()
     test_acp()
+    test_languageserver()
     test_dataframes()
     test_integration()
     end

@@ -76,6 +76,7 @@ jobs:
           - {package: ProjecturedWorkflowTest, run: test_workflow}
           - {package: ProjecturedAnthropicTest, run: test_anthropic}
           - {package: ProjecturedOllamaTest, run: test_ollama}
+          - {package: ProjecturedLanguageServerTest, run: test_languageserver}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}
           - {package: ProjecturedDataFramesTest, run: test_dataframes}
           - {package: ProjecturedConsoleTest, run: test_console}

@@ -284,14 +284,30 @@ The work is done in a worktree. Before each edit, check the file in
    `test_position_navigation(; check_reaches_all = true)` 120, `test_typein` 156,
    all pass; `test_highlighted_text_to_text()` and the platform layering guard
    pass; the tree guards (`test/suite/*.jl`) report the same findings as `main`.
-   The catalog guard (`CatalogCoverageTest.jl`), which needs `environment/all`,
-   runs in step 4.
-2. ⬜ **The package and the connection (D6, D7).** The two packages, the lists
-   that name an adapter (`environment/all`, `ProjecturedTest`,
-   `IntegrationLoadingTest.jl`, the builder program, the third-party table of
-   `package-rules.md`), and the connection. Test: a fake server in the process,
-   on two streams: a request and its answer, a request of the server, a
-   notification, the end of the process.
+   The catalog guard, run in step 2: `text/marked` renders and round-trips
+   naturally. `test_catalog_coverage` fails on six types that are not of this
+   plan (`BackgroundWorkLog`, `Dashboard`, `Explorer`, `ExplorerSearch`,
+   `ExplorerSection`, `WorkspaceExplorer`), and `test_natural_renders_every_atom`
+   on `filesystem/chooser`, a known-broken atom that renders now: both are
+   failures of `main`, which other sessions' types bring.
+2. ✅ **The package and the connection (D6, D7).** The two packages, the lists
+   that name an adapter (`environment/all` and its manifest, `ProjecturedTest`,
+   `ProjecturedSuite.jl`, `IntegrationLoadingTest.jl`, the builder program and
+   its summary, `BuilderTest.jl`, the CI matrix), and the connection. The
+   third-party table of `package-rules.md` moves to step 5, with the other
+   documents, because its column of slices is known only after step 4. Test: a
+   fake server in the process, on two streams: the start and the legend, a
+   server that names no encoding, a request and its answer, an error answer, a
+   request of the server, a notification, a request with no answer, the end of
+   the server, the stop, a command that is not installed, the file URI.
+   *Facts:* the naming law names the entry point `test_languageserver()`, after
+   the folder of the slice. A request waits on a channel with a timer, not on a
+   poll. A connection whose start failed does not try again, so a missing
+   `clangd` costs one try. The builder summary names
+   `documentation/package/adapter/languageserver/languageserver.md`, so
+   `PackageReleaseTest` passes only after step 5 writes it.
+   *Results:* `test_packages_declare_triggers` 32 pass and
+   `test_umbrella_loads_integrations` 8 pass, with the new adapter.
 3. ⬜ **The tokens (D5 without the editor).** Open, change, ask; the relative
    encoding to marks; the table from a kind to a role; the `utf-16` columns.
    Tests with the fake server, and one with `clangd` when `Sys.which("clangd")`

@@ -992,7 +992,8 @@ function test_build_executable()
             @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedPlatform",
                                           PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
-                                          "ProjecturedMCP", "ProjecturedACP", "ProjecturedSDL",
+                                          "ProjecturedMCP", "ProjecturedACP",
+                                          "ProjecturedLanguageServer", "ProjecturedSDL",
                                           "ProjecturedWeb",
                                           "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
