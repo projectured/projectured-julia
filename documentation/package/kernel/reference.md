@@ -113,8 +113,8 @@ namespace), not separate modules.
   `M…` name is the plain layout. The layer also calls `walk_document` for
   `search_references`, `get_document_cell_type` for the type that a path records,
   `get_edited_field` for `get_edited_document`, and `is_element_collection`. It
-  imports `search_documents` and `get_wrapped_document` to extend them for a
-  `ReferencedDocument`.
+  imports `search_documents`, `get_wrapped_document` and `get_document` to extend
+  them for a `ReferencedDocument`.
 
 The layer imports no projection, no operation and no device. This is what keeps
 the reference layer below the selection and operation layers.
@@ -407,7 +407,12 @@ reaches — a document, a collection, or any other value.
 It acts like the document it holds. Reading or writing a property, indexing,
 iteration, `length`, `isempty`, `keys`, `haskey`, `get`, `values`, `setindex!`,
 `push!`, `insert!` and `deleteat!` all go to the document. A write stores the
-document of a `ReferencedDocument` it is given, so the tree never holds one. A read
+document of a `ReferencedDocument` it is given, so the tree never holds one. The
+rule is in the document layer: `get_document`, a function of `DocumentModule`,
+answers the document of a referenced document and any other value as it is, and
+the constructor and the setter that `@document` generates store `get_document` of
+each value. So a document that is built from a value that a read answered holds
+the document too, and no maker or verb unwraps a value on its own. A read
 that answers a document or a collection answers a `ReferencedDocument` too, with
 the reference extended by the field or the index that reached it; a read that
 answers a leaf value — a string, a number, a `Bool`, `nothing` — answers that

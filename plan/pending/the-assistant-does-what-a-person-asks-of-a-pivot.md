@@ -190,7 +190,8 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
     `test_pivot_data_frame` 47 of 47 (a pivot of a view and of its referenced
     document, and the rows view of it edits the frame). `test_dataframes()` runs
     with the comparison of step 3.
-- [ ] **3. A document keeps the document.** The rule in the generated constructor,
+- [x] **3. A document keeps the document.** Done 2026-10-21, but for the
+  measurement of the build cost, which waits for the owner. The rule in the generated constructor,
   by D3: the generic `get_document` and its fallback move to the document layer,
   and the constructor calls it for each raw value. Before the change, check by a
   search of the source that no code builds a document with a referenced document
@@ -217,6 +218,21 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
     `open_page!` keeps only the reference.
   - Tests: `test_referenced_document` 61 of 61, with a document whose constructor,
     whose write and whose list field get a referenced document.
+  - The comparison with main, in a worktree pinned to the branch point 3f8b6a126,
+    one process at a time:
+
+    | Suite | Main | Branch |
+    | --- | --- | --- |
+    | `test_kernel()` | 4875 | 4881 |
+    | `test_platform()` | 165673, 7 broken | 165690, 7 broken |
+    | `test_dataframes()` | 612 | 628 |
+    | `test_application()` | 385, 2 broken | 385, 2 broken |
+    | `test_referenced_document_editor()` | 109, 2 fail | 109, 2 fail |
+
+    No fail or error is on one tree only. The more passes are the new
+    assertions: 6 in the kernel, 17 in the table interface, 16 in the data frame
+    table. The 2 failures of the referenced document editor are the known ones of
+    main, in "a long file tab scrolls…".
 - [x] **4. The text.** Done 2026-10-21. The worked examples of the paragraph, the
   field names in the first line of the display, and `find_pivot_part_rows`
   declared with a "Use it to" line, an example and a "See also" line. Test:
@@ -241,6 +257,13 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
   [pivot.md](../../documentation/package/domain/pivot/pivot.md),
   [collection.md](../../documentation/package/platform/collection/collection.md)
   and [reference.md](../../documentation/package/kernel/reference.md).
+  - The documents are done, 2026-10-21: the three above, and `document.md` and
+    `macros.md` of the kernel, which list the generic functions of a document and
+    what the constructor and the setter do with a raw value.
+  - The rehearsal waits for memory. With the model loaded, the machine keeps
+    about 9 GB free beside the other sessions, and a run needs 13 GB; two
+    attempts ran 2 of 30 runs each. Both of the two baseline runs of "make" on
+    main failed: "no new pivot in a tab" (seeds 1 and 2 of the second attempt).
 
 ## Not in this plan
 

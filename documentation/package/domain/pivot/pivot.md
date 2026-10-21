@@ -109,19 +109,24 @@ Each edit is an operation with an inverse: a move is a `MoveRangeOperation`, whi
 
 ### The assistant
 
-The model of an assistant reads and changes a pivot through `execute_julia_code`. `PivotModule.__init__` declares the names of the pivot with `register_assistant_api!`, with a paragraph of the system text that shows each verb in an example. A pivot in a tab is the `ReferencedDocument` that `get_edited_document(find_pane(title))` answers.
+The model of an assistant reads and changes a pivot through `execute_julia_code`. `PivotModule.__init__` declares the names of the pivot with `register_assistant_api!`, with a paragraph of the system text that shows a worked example of each request that a person makes of a pivot. A pivot in a tab is the `ReferencedDocument` that `get_edited_document(find_pane(title))` answers.
 
-- **Read.** The display of a pivot, `MIME"text/plain"`, is a line that names the zones as the bar names them, then the grid of the table as text: the keys of the rows and of the columns, and the value of each measure in a text column of its own. The answer of a tool is a limited display, so it shows the rows and the columns that its display size holds and says how many it leaves out. A `print` writes Julia's own form of the struct, as it does for `WidgetTable`. `find_pivot_value(pivot, row_key, column_key; measure = 1)` reads one value, the number that the cell shows. A key is a tuple of the values of the dimensions, and a key that does not occur gives `nothing`.
+- **Make.** The source of `make_pivot_table` can be the data of a tab, as a read answers it: a referenced document of a table is a table, and a `DataFrameView` is the table of all the rows of its frame ([collection.md](../../platform/collection/collection.md)). The pivot keeps the document, not the referenced document, because the constructor of a document stores `get_document` of each value.
+- **Read.** The display of a pivot, `MIME"text/plain"`, is a line that names each zone as the bar names it, with the field of the pivot that holds it, such as `Rows (row_dimensions): region, country`, then the grid of the table as text: the keys of the rows and of the columns, and the value of each measure in a text column of its own. The answer of a tool is a limited display, so it shows the rows and the columns that its display size holds and says how many it leaves out. A `print` writes Julia's own form of the struct, as it does for `WidgetTable`. `find_pivot_value(pivot, row_key, column_key; measure = 1)` reads one value, the number that the cell shows, and `find_pivot_part_rows(pivot.cross_table, row_key, column_key)` the numbers of the rows of the source in the cell. A key is a tuple of the values of the dimensions, and a key that does not occur gives `nothing`.
 - **Change.** Each verb makes the operation that the UI makes, so the tool `undo` takes it back in one step. No verb moves the selection of the person.
   - `move_pivot_field!(pivot, column, zone; place)` makes the `MoveRangeOperation` of a drag. `zone` is `:fields`, `:columns`, `:rows` or `:cells`.
   - A measure is an element of `pivot.measures`, so `insert_elements!` and `delete_elements!` add and remove one.
-  - `replace_referenced_value!(part, field, value)` writes a setting of the pivot, of a dimension or of a measure, as a menu writes it: `totals`, `cell_view`, `order`, `limit`, `bin`, `hidden_values` or `aggregate`. The field form of the verb writes a field of any part, also one that holds `nothing`.
+  - `replace_referenced_value!(part, field, value)` writes a setting of the pivot, of a dimension or of a measure, as a menu writes it: `totals`, `cell_view`, `order`, `limit`, `bin`, `hidden_values` or `aggregate`. The field form of the verb writes a field of any part, also one that holds `nothing`. A request that changes several settings of one field, such as the top 5, is one write of a new `PivotDimension`, and one step of undo.
 
 ```julia
-pivot_1 = get_edited_document(find_pane("Sales"))
-find_pivot_value(pivot_1, ("EU", "DE"), 2025)       # 80.0
+pivot_1 = make_pivot_table(get_edited_document(find_pane("Sales")); rows = ["region", "country"],
+                           columns = ["year"], measures = [PivotMeasure("amount", :sum)])
+find_pivot_value(pivot_1, ("EU", "DE"), 2025)                       # 80.0
+find_pivot_part_rows(pivot_1.cross_table, ("EU", "DE"), (2025,))   # [5, 6, 7, 8]
 move_pivot_field!(pivot_1, "country", :columns)
 replace_referenced_value!(pivot_1, :totals, true)
+replace_referenced_value!(pivot_1.row_dimensions[1],
+                          PivotDimension("region"; order = :measure, descending = true, limit = 5))
 ```
 
 ## Usage

@@ -91,6 +91,11 @@ domain — fills in:
   hand-written document.
 - **`get_document_title`** — the name that a document carries for itself, or
   `nothing`, the default. Each slice writes the method for its own documents.
+- **`get_document`** — the document that a value stands for: any value as it is,
+  the default, and the document of a referenced document, a method that the
+  reference layer adds. The constructor and the setter that `@document`
+  generates store `get_document` of each value, so a document never holds a
+  referenced document.
 - **The seams of a wrapper** — `get_wrapped_document`, `replace_wrapped_document!`
   and `get_edited_field`. A transparent wrapper, such as a history or a tab, adds
   one method to each. The defaults answer the node itself, the replacement, and

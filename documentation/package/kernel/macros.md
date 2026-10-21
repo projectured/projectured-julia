@@ -290,9 +290,9 @@ Each write converts the value by the rules below, in this order:
 
 | Write | What it does before the rules |
 | --- | --- |
-| a constructor, with a raw value | wraps a plain vector for a list field into the list of the field |
+| a constructor, with a raw value | takes `get_document` of the value, so a referenced document gives its document, and wraps a plain vector for a list field into the list of the field |
 | a constructor, with a cell | nothing; a cell whose type is a subtype of the declared type costs nothing |
-| the setter, `doc.field = value` | wraps a plain vector for a list field |
+| the setter, `doc.field = value` | takes `get_document` of the value, and wraps a plain vector for a list field |
 | an operation, such as `ReplaceReferencedValueOperation` | nothing; rule 3 applies only here |
 | an element write of a `CellVector{X}` | checks the element against `X` |
 | a kinded copy, `copy_document(K, doc)` | gives a list field the list of the field, in cells of the kind `K` |
