@@ -95,6 +95,27 @@ output path, a character range.
 function evaluate_reference_step end
 
 """
+    has_reference_step_child(step, document) -> Bool
+
+Whether `step` reaches a place in `document`, without the step.
+
+Use it before `evaluate_reference_step` in a walk that answers "no child" for a
+path that does not fit. A step that throws records a backtrace of the whole
+stack, and a print deep in a tree pays that for each child. A field step answers
+whether the struct has the field or the dict has the key, and an element step
+whether the index is inside the length. A step of a kind with no method of its
+own answers `true`, and its evaluation decides.
+
+# Example
+
+    child = has_reference_step_child(step, document) ?
+            evaluate_reference_step(step, document) : nothing
+
+See also `evaluate_reference_step` and `try_evaluate_reference`.
+"""
+function has_reference_step_child end
+
+"""
     build_reference_step(::Val{name}, escaped_args...) -> Expr
 
 Return the expression that constructs the step type mapped to `.name(args...)`

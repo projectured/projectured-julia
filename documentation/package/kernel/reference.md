@@ -27,8 +27,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
         │                        Reference abstract types, the Reference
         │                        union, and the open generics higher packages
-        │                        add methods to (get_reference_step_kind, evaluate_reference_step, and
-        │                        the reference-step DSL seams)
+        │                        add methods to (get_reference_step_kind, evaluate_reference_step,
+        │                        has_reference_step_child, and the reference-step DSL seams)
         ├─ ReferenceStep.jl    — the kernel step types (RangeReferenceStep,
         │                        FieldReferenceStep, TypeReferenceStep) and the Position
         │                        a cursor evaluates to, each packaged with its
@@ -321,6 +321,18 @@ roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal
   remainder.
 - `is_valid_reference(document, path)` (the two-argument, document-aware method)
   is `true` iff every node type holds along the whole path.
+
+A walk that answers for a path that does not fit — `try_evaluate_reference`,
+`get_valid_reference_prefix` and `annotate_reference_types` — asks
+`has_reference_step_child(step, document)` before each step, and a "no" ends the
+walk with no exception. A field step answers whether the struct has the field or
+the dict has the key, as a `String` or a `Symbol`. An element step answers whether
+its index is inside the length of an array or of a string, counted in characters
+for a string, and a cursor always answers `true`. A step of any other kind answers
+`true`, and its evaluation decides. The reason is cost: a throw records a
+backtrace of the whole stack, and a print deep in a tree walks a path for each
+child. A step type of a higher package that can miss adds a method, so that its
+walks throw nothing either.
 
 Checkpoints are created programmatically, not by hand:
 

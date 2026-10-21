@@ -114,6 +114,15 @@ function evaluate_reference_step(step::ARangeReferenceStep, document::AbstractSt
     document[nextind(document, 0, step.start + 1)]
 end
 
+# A cursor always reaches its `Position`. An element step reaches an array or a
+# string when its index is inside the length, counted in characters for a string.
+# On any other document the evaluation decides.
+has_reference_step_child(step::ARangeReferenceStep, document::AbstractArray) =
+    is_position_reference_step(step) || checkbounds(Bool, document, step.start + 1)
+
+has_reference_step_child(step::ARangeReferenceStep, document::AbstractString) =
+    is_position_reference_step(step) || 0 <= step.start < length(document)
+
 # ── FieldReferenceStep ────────────────────────────────────────────────────────
 
 """
@@ -147,6 +156,12 @@ get_reference_step_kind(::AFieldReferenceStep) = :structural
 
 evaluate_reference_step(step::AFieldReferenceStep, document) =
     _get_field(document, step.name)
+
+has_reference_step_child(step::AFieldReferenceStep, document::AbstractDict) =
+    haskey(document, step.name) || haskey(document, Symbol(step.name))
+
+has_reference_step_child(step::AFieldReferenceStep, document) =
+    hasfield(typeof(document), Symbol(step.name))
 
 # ── TypeReferenceStep ─────────────────────────────────────────────────────────
 
@@ -190,6 +205,12 @@ end
 
 Base.:(==)(a::ATypeReferenceStep, b::ATypeReferenceStep) = a.type === b.type
 Base.hash(s::ATypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
+
+# ── Whether a step reaches a place ────────────────────────────────────────
+
+# A step of a kind with no method of its own lets its evaluation decide. So a
+# `TypeReferenceStep` still reaches the `MethodError` of its evaluation.
+has_reference_step_child(::ReferenceStep, document) = true
 
 # ── Cross-type step equality ──────────────────────────────────────────────
 

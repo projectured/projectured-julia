@@ -8,6 +8,13 @@
 # - `get_valid_reference_prefix` — follow as far as the document still allows
 # - `annotate_reference_types`   — follow, recording each node's type as it goes
 #
+# A walk that answers for a path that does not fit — `try_evaluate_reference`,
+# `get_valid_reference_prefix` and `annotate_reference_types` — asks
+# `has_reference_step_child` before each step, so a miss throws nothing. A throw
+# records a backtrace of the whole stack, and a print deep in a tree walks paths
+# for each child. The `catch` of each walk stays for a document that answers no
+# check and then throws.
+#
 # The type protocol around them (`get_reference_node_type`, `strip_reference_types`,
 # `fold_reference_types`, `is_fully_typed_reference`) is the same concept from the other
 # side: a path is *canonical at rest* when every node records the type of the
@@ -60,11 +67,24 @@ in a path is one: the path was never folded.
 """
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
-        evaluate_reference(document, path)
+        _evaluate_reference_or(document, path, default)
     catch exception
         _is_walk_passthrough(exception) && rethrow()
         default
     end
+end
+
+# `evaluate_reference`, which answers `default` with no throw where a recorded type
+# does not hold or a step does not reach a place.
+function _evaluate_reference_or(document, path::EmptyReference, default)
+    path.type === nothing || document isa path.type || return default
+    document
+end
+
+function _evaluate_reference_or(document, path::ConcreteReference, default)
+    path.type === nothing || document isa path.type || return default
+    has_reference_step_child(path.head, document) || return default
+    _evaluate_reference_or(evaluate_reference_step(path.head, document), path.tail, default)
 end
 
 # Whether an exception of a step goes on to the caller of a walker that answers a
@@ -102,9 +122,9 @@ function get_valid_reference_prefix(document, path::ConcreteReference)
     path.type === nothing || document isa path.type || return EmptyReference()
     step = path.head
     rest = path.tail
-    # Descend one level. `getindex` on a range step is allowed to throw
-    # (out-of-range, non-indexable container without a length method) and simply
-    # truncates.
+    # Descend one level. A step that does not reach a place truncates, and so does
+    # a step whose evaluation throws on a document that answers no check.
+    has_reference_step_child(step, document) || return EmptyReference()
     child = try
         evaluate_reference_step(step, document)
     catch exception
@@ -185,12 +205,14 @@ function annotate_reference_types(document, path::ConcreteReference)
     nodetype = get_reference_node_type(document)
     # Descend one step to type the rest. A zero-width cursor descends to a
     # `Position` (so its terminal records `::Position`); a structural step that
-    # cannot be followed throws and leaves the rest untyped.
-    child = try
-        evaluate_reference_step(step, document)
-    catch exception
-        _is_walk_passthrough(exception) && rethrow()
-        nothing
+    # cannot be followed leaves the rest untyped.
+    child = if has_reference_step_child(step, document)
+        try
+            evaluate_reference_step(step, document)
+        catch exception
+            _is_walk_passthrough(exception) && rethrow()
+            nothing
+        end
     end
     annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)
     ConcreteReference(nodetype, step, annotated_rest)

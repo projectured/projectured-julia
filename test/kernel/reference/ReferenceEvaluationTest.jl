@@ -44,6 +44,14 @@ ReferenceModule.get_reference_step_kind(::EvaluationStoppedStep) = :structural
 ReferenceModule.evaluate_reference_step(::EvaluationStoppedStep, document) =
     throw(InterruptException())
 
+# A step that reaches no place and whose evaluation is stopped: a walker that asks
+# before it steps answers its default, and a walker that steps is stopped.
+struct EvaluationRefusedStep <: ReferenceStep end
+ReferenceModule.get_reference_step_kind(::EvaluationRefusedStep) = :structural
+ReferenceModule.has_reference_step_child(::EvaluationRefusedStep, document) = false
+ReferenceModule.evaluate_reference_step(::EvaluationRefusedStep, document) =
+    throw(InterruptException())
+
 function test_reference_evaluation()
 @testset "ReferenceEvaluation" begin
 
@@ -64,6 +72,35 @@ function test_reference_evaluation()
         @test_throws InterruptException try_evaluate_reference(root, stopped, :none)
         @test_throws InterruptException get_valid_reference_prefix(root, stopped)
         @test_throws InterruptException annotate_reference_types(root, stopped)
+    end
+
+    @testset "a walker asks before it steps" begin
+        refused = Reference(EvaluationRefusedStep())
+        @test try_evaluate_reference(root, refused, :none) === :none
+        @test get_valid_reference_prefix(root, refused) isa EmptyReference
+        annotated = annotate_reference_types(root, refused)
+        @test annotated isa ConcreteReference && annotated.tail.type === nothing
+    end
+
+    @testset "a step says whether it reaches a place" begin
+        @test has_reference_step_child(FieldReferenceStep("left"), root)
+        @test !has_reference_step_child(FieldReferenceStep("missing"), root)
+        @test has_reference_step_child(FieldReferenceStep("a"), Dict("a" => 1))
+        @test has_reference_step_child(FieldReferenceStep("a"), Dict(:a => 1))
+        @test !has_reference_step_child(FieldReferenceStep("b"), Dict(:a => 1))
+        @test has_reference_step_child(ElementReferenceStep(2), Any[1, 2])
+        @test !has_reference_step_child(ElementReferenceStep(3), Any[1, 2])
+        @test has_reference_step_child(ElementReferenceStep(3), "héé")
+        @test !has_reference_step_child(ElementReferenceStep(4), "héé")
+        @test has_reference_step_child(PositionReferenceStep(9), Any[1, 2])
+        @test has_reference_step_child(EvaluationToyStep(), root)
+        # The walkers answer what they answer when the step throws.
+        @test try_evaluate_reference(Dict(:a => 1), Reference(FieldReferenceStep("a"))) == 1
+        @test try_evaluate_reference(Dict(:a => 1), Reference(FieldReferenceStep("b")), :none) === :none
+        @test try_evaluate_reference("héé", Reference(ElementReferenceStep(3))) == 'é'
+        @test try_evaluate_reference("héé", Reference(ElementReferenceStep(4)), :none) === :none
+        @test try_evaluate_reference(Any[1, 2], Reference(PositionReferenceStep(1))) == Position(1)
+        @test get_valid_reference_prefix(Any[1, 2], Reference(ElementReferenceStep(3))) isa EmptyReference
     end
 
     @testset "evaluate_reference walks fields" begin

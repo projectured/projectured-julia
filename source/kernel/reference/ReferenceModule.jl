@@ -22,7 +22,8 @@ The module lives in twelve fragments that share this namespace:
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
   or `nothing`), and the open generics higher packages add methods to
-  (`get_reference_step_kind`, `evaluate_reference_step`, and the reference-step DSL seams).
+  (`get_reference_step_kind`, `evaluate_reference_step`, `has_reference_step_child`, and the
+  reference-step DSL seams).
 - [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
   (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, the `Position` a cursor
   evaluates to), each step type packaged with its own `show`, `==`, and seam
@@ -113,7 +114,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
        search_references,
-       get_reference_step_kind, evaluate_reference_step,
+       get_reference_step_kind, evaluate_reference_step, has_reference_step_child,
        build_reference_step, match_reference_step, match_reference_step_value,
        get_reference_step_subpath_args,
        ReferenceRules, ReferenceRule, ReferenceRuleAnswer,

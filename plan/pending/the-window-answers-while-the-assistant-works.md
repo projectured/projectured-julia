@@ -118,7 +118,7 @@ prints again. Step 4 counts it.
    in a wrapper can follow the wrong path today, so run `test_syntax_to_text()`,
    then `test_example` and `test_position_navigation` of one Julia example and of
    one Markdown example with a code block.
-2. [ ] **A walk asks before it steps.** The predicate and its methods in
+2. [x] **A walk asks before it steps.** The predicate and its methods in
    `source/kernel/reference/`, and the three walkers. Tests in
    `test/kernel/reference/ReferenceEvaluationTest.jl`: a field that the struct does
    not have, a dict key as a `String` and as a `Symbol`, an index past the end of a
@@ -174,3 +174,28 @@ prints again. Step 4 counts it.
 - `test_syntax_to_text()`: every testset passes ("Syntax wrappers" 42). The
   navigation checks on `julia_example` and `markdown_example` run with the tests of
   step 2, because they need the umbrella `ProjecturedTest`.
+
+### Step 2
+
+- `has_reference_step_child(step, document)` is declared in `ReferenceInterface.jl`
+  and exported. Its methods sit beside the evaluation of each step in
+  `ReferenceStep.jl`: a field step on a dict (the key as a `String` or a `Symbol`)
+  and on any other document (`hasfield` of its type, as `getfield` reads it); an
+  element step on an `AbstractArray` (`checkbounds`) and on an `AbstractString`
+  (the count of characters); a cursor is always `true`. The default for every
+  other `ReferenceStep` is `true`, so a `TypeReferenceStep` still reaches the
+  `MethodError` of its evaluation, and a step type of a higher package keeps its
+  behaviour until it adds a method.
+- `try_evaluate_reference` walks step by step with `_evaluate_reference_or`, which
+  answers the default for a recorded type that does not hold or a step that
+  reaches no place. `get_valid_reference_prefix` and `annotate_reference_types`
+  ask the predicate before each step. Each walk keeps its `catch`.
+- A `CellVector` is not an `AbstractArray` (it is a `ListDocument` of the
+  platform), so an element step on it still evaluates and can throw out of range.
+  The syntax print does not reach that case: its index always fits.
+- Tests (`ReferenceEvaluationTest.jl`): "a walker asks before it steps" uses a step
+  whose predicate answers "no" and whose evaluation throws an `InterruptException`,
+  which every walker passes on; and "a step says whether it reaches a place"
+  covers each case of the predicate and the answers of the walkers.
+  `test_reference_evaluation()` 128 passes, `test_kernel()` 4932 passes, no
+  failure and no error. The guide `reference.md` names the predicate.
