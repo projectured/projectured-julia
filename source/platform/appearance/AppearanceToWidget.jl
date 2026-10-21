@@ -99,6 +99,11 @@ _make_step_operation(appearance::Appearance, field::Symbol, delta::Integer) =
     field === :zoom ? AdjustZoomOperation(appearance, delta) :
                       AdjustScaleOperation(appearance, field, delta)
 
+# The note of a button that changes a setting, made when the pointer rests: `title`
+# names the change, `text` says it, and `facts()` gives the pairs of the current
+# value and of what the button writes.
+_make_setting_note(title, text, facts) = () -> TooltipNote(; title, text, facts = facts())
+
 # A factor as a person reads it, in percent.
 _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
 
@@ -168,10 +173,10 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     theme = _get_widget_theme(appearance)
     # A button whose press answers `operation`. Its callback evaluates the same
     # operation, for a view that shows the tab with no reader of this projection.
-    function button(label, operation)
+    function button(label, operation; tooltip = nothing)
         action = Action(label; callback = editor -> evaluate_operation(editor, operation))
         commands[action] = operation
-        WidgetButton(label; action)
+        WidgetButton(label; action, tooltip)
     end
     function spin_box(value, write; min = 0, max = 400)
         box = WidgetSpinBox(Int(round(value)); min, max)
@@ -246,11 +251,19 @@ function _make_scale_card(controls)
     appearance = controls.appearance
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
+        word = lowercase(name)
+        current = () -> "Now" => _get_percent_text(getproperty(appearance, field))
         push!(cells, WidgetLabel(name),
-              controls.button("−", _make_step_operation(appearance, field, -1)),
+              controls.button("−", _make_step_operation(appearance, field, -1);
+                              tooltip = _make_setting_note("Smaller", "Make the $word smaller by one step.",
+                                                           () -> [current()])),
               WidgetLabel(_get_percent_text(getproperty(appearance, field))),
-              controls.button("+", _make_step_operation(appearance, field, 1)),
-              controls.button("Reset", _make_step_operation(appearance, field, 0)))
+              controls.button("+", _make_step_operation(appearance, field, 1);
+                              tooltip = _make_setting_note("Larger", "Make the $word larger by one step.",
+                                                           () -> [current()])),
+              controls.button("Reset", _make_step_operation(appearance, field, 0);
+                              tooltip = _make_setting_note("Reset", "Set the $word back to its default.",
+                                                           () -> [current(), "Default" => _get_percent_text(1.0)])))
     end
     rows = GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
                       vertical_gap = controls.theme.item_gap, vertical_align = :center)
@@ -416,6 +429,15 @@ _with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
                 relative_size = role.relative_size) =
     FontRole(; base = role.base, family = role.family, weight, italic, relative_size)
 
+# The notes of the buttons that step the family or the weight of `font`.
+_make_family_note(title, font::StyleFont, delta::Integer) =
+    _make_setting_note(title, "Use the $(delta < 0 ? "previous" : "next") font family in the list.",
+                       () -> ["Now" => font.family, "Becomes" => _step_font_family(font, delta).family])
+_make_weight_note(title, font::StyleFont, delta::Integer) =
+    _make_setting_note(title, "Use a $(delta < 0 ? "lighter" : "heavier") weight of the font family.",
+                       () -> ["Now" => _get_font_weight_name(font.weight),
+                              "Becomes" => _get_font_weight_name(_step_font_weight(font, delta).weight)])
+
 # The controls of the font role that `read()` answers, in one row: its family when
 # it sets one, the steps through the weights of the family of the font that it
 # gives, a checkbox for italic, and its size in percent of its base font. A step or
@@ -427,9 +449,11 @@ function _make_role_control(controls, theme, read, write)
     parts = Any[]
     role.family === nothing || push!(parts, WidgetLabel(role.family))
     append!(parts, Any[
-        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight))),
+        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight));
+                        tooltip = _make_weight_note("Lighter", font, -1)),
         WidgetLabel(_get_font_weight_name(font.weight)),
-        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight))),
+        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight));
+                        tooltip = _make_weight_note("Heavier", font, 1)),
         controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
         controls.spin_box(round(Int, role.relative_size * 100),
                           v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
@@ -447,14 +471,18 @@ function _make_font_control(controls, read, write)
     gap = controls.theme.label_gap
     VerticalLayout(Any[
         HorizontalLayout(Any[
-            controls.button("‹", write(_step_font_family(font, -1))),
+            controls.button("‹", write(_step_font_family(font, -1));
+                            tooltip = _make_family_note("Previous", font, -1)),
             WidgetLabel(font.family),
-            controls.button("›", write(_step_font_family(font, 1))),
+            controls.button("›", write(_step_font_family(font, 1));
+                            tooltip = _make_family_note("Next", font, 1)),
         ]; gap, vertical_align = :center),
         HorizontalLayout(Any[
-            controls.button("−", write(_step_font_weight(font, -1))),
+            controls.button("−", write(_step_font_weight(font, -1));
+                            tooltip = _make_weight_note("Lighter", font, -1)),
             WidgetLabel(_get_font_weight_name(font.weight)),
-            controls.button("+", write(_step_font_weight(font, 1))),
+            controls.button("+", write(_step_font_weight(font, 1));
+                            tooltip = _make_weight_note("Heavier", font, 1)),
             controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v)); label = "italic"),
             controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
         ]; gap, vertical_align = :center),
@@ -464,8 +492,20 @@ end
 # The controls of the colour that `read()` answers: its swatch and its text.
 # `write(color)` is the operation that sets a new colour.
 function _make_color_control(controls, read, write)
-    HorizontalLayout(Any[WidgetSwatch(read()), controls.color_text(read, write)];
+    HorizontalLayout(Any[WidgetSwatch(read(); tooltip = _make_swatch_note(read, nothing)),
+                         controls.color_text(read, write)];
                      gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The note of a swatch of the colour that `read()` answers, made when the pointer
+# rests: the setting, the colour it gives as `#rrggbbaa`, and its `default`.
+function _make_swatch_note(read, default, resolve = identity)
+    () -> begin
+        color = read()
+        facts = Any["Setting" => format_theme_color(color), "Color" => format_style_color(resolve(color))]
+        default === nothing || push!(facts, "Default" => format_theme_color(default))
+        TooltipNote(; title = "Color", facts)
+    end
 end
 
 # The value of the field `field` in the default theme of `theme`: the colour theme
@@ -485,31 +525,57 @@ end
 # `write(color)` is the operation that sets a new colour.
 function _make_theme_color_control(controls, read, write, default)
     color = read()
-    swatch = WidgetSwatch(resolve_theme_color(color, controls.appearance))
+    resolve(color) = resolve_theme_color(color, controls.appearance)
+    step_note(title, text, target) = _make_color_step_note(title, text, color, target)
+    swatch = WidgetSwatch(resolve(color); tooltip = _make_swatch_note(read, default, resolve))
     parts = Any[swatch]
     if color isa StyleColor
         push!(parts, controls.color_text(read, write))
     elseif color isa ColorRole
-        append!(parts, Any[controls.button("‹", write(_step_color_role(color, -1))),
+        append!(parts, Any[controls.button("‹", write(_step_color_role(color, -1));
+                                           tooltip = step_note("Previous", "Use the previous role of the colours.",
+                                                           _step_color_role(color, -1))),
                            WidgetLabel(format_theme_color(color)),
-                           controls.button("›", write(_step_color_role(color, 1)))])
+                           controls.button("›", write(_step_color_role(color, 1));
+                                           tooltip = step_note("Next", "Use the next role of the colours.",
+                                                           _step_color_role(color, 1)))])
     else
-        append!(parts, Any[controls.button("‹", write(_step_palette_hue(color, -1))),
+        append!(parts, Any[controls.button("‹", write(_step_palette_hue(color, -1));
+                                           tooltip = step_note("Previous", "Use the previous hue.",
+                                                           _step_palette_hue(color, -1))),
                            WidgetLabel(String(color.hue)),
-                           controls.button("›", write(_step_palette_hue(color, 1))),
-                           controls.button("−", write(_step_palette_step(color, -1))),
+                           controls.button("›", write(_step_palette_hue(color, 1));
+                                           tooltip = step_note("Next", "Use the next hue.",
+                                                           _step_palette_hue(color, 1))),
+                           controls.button("−", write(_step_palette_step(color, -1));
+                                           tooltip = step_note("Lower step", "Use the step before this one on the ramp.",
+                                                           _step_palette_step(color, -1))),
                            WidgetLabel(string(color.step)),
-                           controls.button("+", write(_step_palette_step(color, 1)))])
+                           controls.button("+", write(_step_palette_step(color, 1));
+                                           tooltip = step_note("Higher step", "Use the step after this one on the ramp.",
+                                                           _step_palette_step(color, 1)))])
     end
     if color isa ColorRole
         step = _find_role_step(color, controls.appearance)
-        step === nothing || push!(parts, controls.button("Step", write(step)))
+        step === nothing || push!(parts, controls.button("Step", write(step); tooltip = _make_setting_note(
+            "Step", "Use the step of the ramp that this role names, which keeps the colour.",
+            () -> ["Now" => format_theme_color(color), "Becomes" => format_theme_color(step)])))
     end
     color isa StyleColor ||
-        push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance))))
-    default === nothing || color == default || push!(parts, controls.button("Reset", write(default)))
+        push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance));
+                                     tooltip = _make_setting_note(
+            "Fix", "Write the colour that this setting gives, so it no longer follows the palette or the mode.",
+            () -> ["Now" => format_theme_color(color), "Becomes" => format_style_color(resolve(color))])))
+    default === nothing || color == default ||
+        push!(parts, controls.button("Reset", write(default); tooltip = _make_setting_note(
+            "Reset", "Set this colour back to its default.",
+            () -> ["Now" => format_theme_color(color), "Default" => format_theme_color(default)])))
     HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
 end
+
+# The note of a button that steps `color` to `target`.
+_make_color_step_note(title, text, color, target) =
+    _make_setting_note(title, text, () -> ["Now" => format_theme_color(color), "Becomes" => format_theme_color(target)])
 
 # The step of a ramp that `role` names in the colour theme of the present mode
 # and contrast of `appearance`, with the alpha of `role`; `nothing` when the role
@@ -595,12 +661,18 @@ function _make_color_settings(controls)
     for (field, name) in _COLOR_SETTING_ROWS
         swatch = field === :color_accent ? PaletteColor(:accent, 9) :
                  field === :color_neutral ? PaletteColor(:neutral, 9) : nothing
+        word = lowercase(name)
+        note(title, delta) = _make_setting_note(title, "Use the $(lowercase(title)) value of the $word in its list.",
+                                                () -> ["Now" => _format_color_setting(appearance, field),
+                                                       "Becomes" => string(_step_color_setting(appearance, field, delta))])
         push!(cells, WidgetLabel(name),
               controls.button("‹", _write_color_setting(appearance, field,
-                                                        _step_color_setting(appearance, field, -1))),
+                                                        _step_color_setting(appearance, field, -1));
+                              tooltip = note("Previous", -1)),
               WidgetLabel(_format_color_setting(appearance, field)),
               controls.button("›", _write_color_setting(appearance, field,
-                                                        _step_color_setting(appearance, field, 1))),
+                                                        _step_color_setting(appearance, field, 1));
+                              tooltip = note("Next", 1)),
               swatch === nothing ? WidgetLabel("") :
                                    WidgetSwatch(resolve_theme_color(swatch, appearance)))
     end

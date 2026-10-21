@@ -168,7 +168,7 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
             else
                 action = Action(string(describe_arrangement_part(part), " ×"))
                 edits[action] = removal
-                push!(widgets, WidgetButton(action))
+                push!(widgets, WidgetButton(action; tooltip = _make_removal_note(part)))
             end
         end
     end
@@ -177,7 +177,7 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
         fields[length(widgets)] = place
         action = Action("×")
         edits[action] = place.removal
-        push!(widgets, WidgetButton(action))
+        push!(widgets, WidgetButton(action; tooltip = _make_removal_note(place.target)))
     end
     show_all = Action("Show all")
     edits[show_all] = _make_entry_removal(arrangement, entry)
@@ -187,6 +187,10 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
     set_cell_computation!(getfield(row, :selection), () -> _find_row_caret(chips.selection, fields))
     row
 end
+
+# What a button that removes `part` from the view says: the part in words.
+_make_removal_note(part) =
+    TooltipNote(; title = "Remove", text = string("Remove this part of the view: ", describe_arrangement_part(part), "."))
 
 # The path in the chips of the entry, then `steps`.
 _make_entry_reference(steps...) = extend_reference(EmptyReference(), FieldReferenceStep("entry"), steps...)

@@ -967,7 +967,7 @@ function make_filter_bar_widget(; text, place, regex, apply, theme = nothing)
     # and the reader owns them after that.
     text_box = WidgetText(text())
     place_box = WidgetText(place())
-    regex_switch = WidgetToggle(".*"; pressed = regex())
+    regex_switch = WidgetToggle(".*"; pressed = regex(), tooltip = "Match the text as a regular expression.")
     # And the press is what says "now". Applying per keystroke would run a
     # filter over the whole history for every letter of a word — the reader
     # would pay for `pack`, `packe` and `packet` to learn about `packet`.

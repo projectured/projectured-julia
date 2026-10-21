@@ -200,10 +200,13 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     end)
 
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    run_all = _make_action_button(p, "Run all", () -> is_going() ? nothing : start_task_group_document!(doc); enabled = () -> !is_going())
-    stop = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going)
+    run_all = _make_action_button(p, "Run all", () -> is_going() ? nothing : start_task_group_document!(doc);
+                                  enabled = () -> !is_going(), tooltip = "Start every task of the group.")
+    stop = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
+                               tooltip = "Stop the tasks that run and start no more.")
     again = _make_action_button(p, "Run unexpected again", () -> rerun_task_group_document!(doc, :unexpected);
-                   enabled = () -> !is_going() && !get_summary().is_expected)
+                   enabled = () -> !is_going() && !get_summary().is_expected,
+                   tooltip = _make_rerun_note(doc))
     rows = WidgetToggleGroup(Any["all", "running", "unexpected"];
                              values = Any["all", "running", "unexpected"],
                              target = getfield(doc, :row_filter)[], field = "value")
@@ -260,12 +263,19 @@ end
 # warning, not a fault of the window.
 # An action that takes one argument gets the editor that evaluates the press, as
 # the callback of an `InvokeActionOperation` does.
-function _make_action_button(p, text, action; enabled)
-    button = WidgetButton(text; size = p.button_size, action = editor ->
+function _make_action_button(p, text, action; enabled, tooltip = nothing)
+    button = WidgetButton(text; size = p.button_size, tooltip, action = editor ->
         _run_guarded(text, applicable(action, editor) ? () -> action(editor) : action))
     set_cell_computation!(getfield(button, :enabled), enabled)
     button
 end
+
+# What "Run unexpected again" says when the pointer rests: how many tasks it runs
+# again, the ones that finished with a result that was not expected.
+_make_rerun_note(doc::TaskGroupDocument) = () ->
+    TooltipNote(; title = "Run unexpected again",
+                text = "Run again the tasks that finished with a result that was not expected.",
+                facts = ["Tasks" => string(sum(counts -> counts[3], get_task_group_document_counts(doc).counts; init = 0))])
 
 # An action must never take the window down with it.
 function _run_guarded(what::AbstractString, action)
@@ -975,12 +985,15 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
                          gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
                                                                         RangeReferenceStep(index - 1, index))))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going)
+    stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
+                                      tooltip = "Stop the tasks that run and start no more.")
     again_button = _make_action_button(p, "Run unexpected again",
                                        () -> rerun_task_group_document!(doc, :unexpected);
-                                       enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected)
+                                       enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected,
+                                       tooltip = _make_rerun_note(doc))
     close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, doc);
-                                       enabled = () -> !is_going())
+                                       enabled = () -> !is_going(),
+                                       tooltip = "Close the group: its tasks and their output are gone, and its summary stays.")
     Any[WidgetLabel(getfield(doc, :identifier)[]),
         title,
         WidgetLabel(group.name),
@@ -1000,9 +1013,11 @@ function _build_list_row(p, list::TaskGroupList, item, index::Int)
                          gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
                                                                         RangeReferenceStep(index - 1, index))))
     is_going() = _is_work_item_running(item)
-    stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going)
+    stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going,
+                                      tooltip = "Stop this work before it ends.")
     close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, item);
-                                       enabled = () -> !is_going())
+                                       enabled = () -> !is_going(),
+                                       tooltip = "Close the row: a summary of the work takes its place.")
     Any[WidgetLabel(get_work_item_identifier(item)),
         title,
         WidgetLabel(describe_work_item_kind(item, 1)),

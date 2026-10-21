@@ -423,6 +423,7 @@ function make_agent_option_bar(a::Assistant)
     for (index, (category, word)) in enumerate(_AGENT_OPTION_BAR)
         item = WidgetMenuItem(word; action = editor -> evaluate_operation(editor, StartExternalAgentOperation(a)))
         set_cell_computation!(item, () -> _get_agent_option_label(a, category, word, index))
+        set_cell_computation!(getfield(item, :tooltip), () -> _make_agent_option_note(a, category))
         set_cell_computation!(getfield(item, :visible),
                               () -> isempty(a.agent_options) ? index == 1 :
                                     _find_agent_option(a, category) !== nothing)
@@ -464,11 +465,20 @@ function _get_agent_option_label(a::Assistant, category::Symbol, word::String, i
     word * ": " * (value === nothing ? option.current_value : option.values[value].name)
 end
 
+# What the menu of an option says when the pointer rests: the description that the
+# agent gives, or nothing when it gives none.
+function _make_agent_option_note(a::Assistant, category::Symbol)
+    option = _find_agent_option(a, category)
+    (option === nothing || isempty(option.description)) && return nothing
+    TooltipNote(; title = option.name, text = option.description)
+end
+
 # The values of one option, with a mark before the one that holds.
 function _make_agent_option_menu(a::Assistant, category::Symbol)
     option = _find_agent_option(a, category)
     option === nothing && return nothing
     WidgetMenu(Any[WidgetMenuItem((value.value == option.current_value ? "✓ " : "   ") * value.name;
+                                  tooltip = isempty(value.description) ? nothing : value.description,
                                   action = editor -> evaluate_operation(editor,
                                       SetAgentOptionOperation(a, option.id, value.value)))
                    for value in option.values])

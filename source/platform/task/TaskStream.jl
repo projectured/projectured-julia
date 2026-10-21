@@ -134,15 +134,17 @@ end
 # The bar of a stream page: each button answers an operation on the lines, so the
 # readers carry it up as any answer.
 function _make_task_stream_bar(lines::TaskStreamLines)
-    button(text, make) = WidgetButton(text; gestures = GestureBinding[
+    button(text, make; tooltip = nothing) = WidgetButton(text; tooltip, gestures = GestureBinding[
         GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> something(make(), DoNothingOperation());
                        description = text, domain = "stream")])
     matches = WidgetLabel(() -> _format_stream_matches(lines))
     WidgetCard(; title = WidgetLabel("Find"), collapsible = false,
                content = HorizontalLayout(Any[
                    ObjectField(lines, "find_text"),
-                   button("‹", () -> make_task_stream_find_operation(lines, -1)),
-                   button("›", () -> make_task_stream_find_operation(lines, 1)),
+                   button("‹", () -> make_task_stream_find_operation(lines, -1);
+                          tooltip = TooltipNote(; title = "Previous match", text = "Go to the previous match.")),
+                   button("›", () -> make_task_stream_find_operation(lines, 1);
+                          tooltip = TooltipNote(; title = "Next match", text = "Go to the next match.")),
                    matches,
                    WidgetLabel("Only lines with"), ObjectField(lines, "filter_text"),
                    WidgetLabel("Follow the end"), ObjectField(lines, "follow"),

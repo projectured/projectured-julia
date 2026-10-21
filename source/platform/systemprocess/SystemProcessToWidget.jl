@@ -20,8 +20,10 @@ space between the edge of the page and what it shows.
 end
 
 function print_document(p::SystemProcessToWidget, recursion, process::SystemProcess, context)
-    interrupt = WidgetButton("Interrupt"; action = _ -> (interrupt_system_process!(process); nothing))
-    stop = WidgetButton("Stop"; action = _ -> (stop_system_process!(process); nothing))
+    interrupt = WidgetButton("Interrupt"; action = _ -> (interrupt_system_process!(process); nothing),
+                            tooltip = "Send SIGINT to the program, as Ctrl+C does.")
+    stop = WidgetButton("Stop"; action = _ -> (stop_system_process!(process); nothing),
+                       tooltip = "Send SIGTERM: ask the program to end.")
     column = VerticalLayout(Any[
         _build_command_line(p, process),
         WidgetLabel(() -> "folder " * (isempty(process.folder) ? "unknown" : process.folder)),

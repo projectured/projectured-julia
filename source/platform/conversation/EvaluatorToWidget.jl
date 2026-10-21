@@ -211,20 +211,24 @@ end
 # `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
 # give ahead of its own toggle.
 function _make_option_row(projection, t::EvaluatorToplevel)
-    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms"),
-                         _make_option_checkbox(t, :type_structured_forms, "Structured forms"),
-                         _make_option_checkbox(t, :evaluate_in_background, "Background")];
+    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms",
+                                               "Turn the code of an evaluated form into a Julia document when it prints back the same."),
+                         _make_option_checkbox(t, :type_structured_forms, "Structured forms",
+                                               "Make a fresh form a hole that is typed into as Julia code, which can hold a pasted object."),
+                         _make_option_checkbox(t, :evaluate_in_background, "Background",
+                                               "Evaluate a form as background work, so the window answers while it runs.")];
                      vertical_align = :center, gap = projection.option_gap)
 end
 
-function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString)
+function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString, text::AbstractString)
     toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
                               bind(KeyPressPattern(' '; modifiers = Symbol[])),
                               bind(KeyPressPattern('\n'; modifiers = Symbol[]))]
-    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures)
+    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures,
+                         tooltip = TooltipNote(; title = label, text))
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 

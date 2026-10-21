@@ -151,29 +151,43 @@ function _make_setting_control(group, description::SettingDescription, is_used)
     name = description.name
     values = description.values
     current = () -> getproperty(group, name)
+    tooltip = _make_setting_control_note(group, description)
     if description.type === Bool
-        control = WidgetSwitch(; checked = current())
+        control = WidgetSwitch(; checked = current(), tooltip)
         set_cell_computation!(getfield(control, :checked), current)
         convert = identity
     elseif description.type in (Int, Float64) && values isa AbstractRange
         control = WidgetSpinBox(current(); min = first(values), max = last(values),
-                                step = step(values))
+                                step = step(values), tooltip)
         set_cell_computation!(getfield(control, :value), current)
         convert = identity
     elseif description.type === Symbol && values isa Tuple
         choices = collect(values)
         control = WidgetRadioGroup(String.(choices);
-                                   selected = something(findfirst(==(current()), choices), 0))
+                                   selected = something(findfirst(==(current()), choices), 0), tooltip)
         set_cell_computation!(getfield(control, :selected),
                               () -> something(findfirst(==(current()), choices), 0))
         convert = index -> choices[index]
     else
-        control = WidgetText(string(current()))
+        control = WidgetText(string(current()); tooltip)
         set_cell_computation!(getfield(control, :content), () -> string(current()))
         convert = identity
     end
     set_cell_computation!(getfield(control, :enabled), is_used)
     control, convert
+end
+
+# What a control of a setting says when the pointer rests: its default, the values
+# it takes, and that it is read at the start of the editor. The description of
+# the setting shows under its row already, so the note does not say it again.
+function _make_setting_control_note(group, description::SettingDescription)
+    facts = Any["Default" => string(description.default)]
+    values = description.values
+    values isa AbstractRange && push!(facts, "Range" => string(first(values), " to ", last(values)))
+    values isa Tuple && push!(facts, "Choices" => join(values, ", "))
+    TooltipNote(; title = description.label, facts,
+                hint = is_settings_group_read_at_start(get_settings_group_type(group)) ?
+                       "Takes effect at the next start." : nothing)
 end
 
 # A button whose click makes the operation of `make`, and says `tooltip`.

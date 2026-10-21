@@ -177,6 +177,15 @@ function test_system_process()
         @test _nav_has_text(backend, "Interrupt") && _nav_has_text(backend, "Stop")
     end
 
+    @testset "the buttons of the page say the signal that they send" begin
+        process = SystemProcess(7, 1, "sleep 100", "/tmp", :sleeping, 1.0e9, nothing, 1024, 2, CellVector(), 0, nothing)
+        page = print_document(SystemProcessToWidget(), nothing, process, nothing).output
+        buttons = _find_widgets_below(page, WidgetButton)
+        note(label) = _read_widget_note(only(button for button in buttons if button.action.label == label))
+        @test (note("Interrupt").title, occursin("SIGINT", note("Interrupt").text)) == ("Interrupt", true)
+        @test occursin("SIGTERM", note("Stop").text)
+    end
+
     @testset "a process id with new start ticks is a new document, and a process that ended leaves" begin
         tree = SystemProcessTree([100, 2])
         sync_system_process_tree!(tree, read_system_processes([100, 2]; root = _sysproc_write(_sysproc_processes()));

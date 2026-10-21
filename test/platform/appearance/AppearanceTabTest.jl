@@ -110,6 +110,24 @@ end
     @test [op.value for op in colors.operations] == [getproperty(Appearance(), f) for f in fields]
 end
 
+@testset "a glyph button says what it changes, and its current value" begin
+    appearance = Appearance()
+    iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    buttons = _find_widgets_below(tab.child_iomap.input, WidgetButton)
+    note(label) = _read_widget_note(first(button for button in buttons if button.action.label == label))
+    smaller = note("−")
+    @test smaller.title == "Smaller"
+    @test smaller.facts == ["Now" => "100%"]
+    @test note("+").title == "Larger"
+    reset = note("Reset")
+    @test reset.title == "Reset"
+    @test reset.facts == ["Now" => "100%", "Default" => "100%"]
+    @test note("‹").title == "Previous" && note("›").title == "Next"
+    @test all(button -> _read_widget_note(button) !== nothing,
+              [button for button in buttons if button.action.label in ("−", "+", "‹", "›", "Reset")])
+end
+
 @testset "a press of a button of a row answers the step of its factor" begin
     appearance = Appearance()
     projection = NaturalToGraphics(; measure, appearance)
