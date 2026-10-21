@@ -444,6 +444,45 @@ end
 
 _make_text_block_line(text::AbstractString, style::StyleText) = TextLine(TextString(String(text), style))
 
+"""
+    append_text!(block::TextBlock, text) -> TextBlock
+
+Add `text` at the end of `block`, which a string made, as [`make_text_block`](@ref)
+makes it: the text up to the first newline goes at the end of the last run of the
+last line, and each line after a newline is a new line of one run, in the font and
+the colour of that run. The lines before the last line keep their objects and
+their text, so a view of the block computes again only the last line and the lines
+that the text adds. A text that streams in, such as the answer of a model, grows
+its block so.
+
+# Example
+
+    block = make_text_block("Hello")
+    append_text!(block, ", world\\nand more")   # the lines "Hello, world" and "and more"
+"""
+function append_text!(block::TextBlock, text::AbstractString)
+    isempty(text) && return block
+    lines = block.elements
+    isempty(lines) && push!(lines, _make_text_block_line("", StyleText(UNSTYLED_TEXT_FONT, color_default)))
+    run = _find_last_text_run!(lines[length(lines)])
+    pieces = split(text, '\n')
+    run.content = string(run.content::AbstractString, first(pieces))
+    for piece in Iterators.drop(pieces, 1)
+        push!(lines, TextLine(TextString(String(piece), run.font, run.font_color)))
+    end
+    block
+end
+
+# The last run of `line`, and a new empty run at its end when its last run is no
+# text, such as a line with no run.
+function _find_last_text_run!(line::TextLine)
+    runs = line.elements
+    if isempty(runs) || !(runs[length(runs)] isa TextString)
+        push!(runs, TextString("", UNSTYLED_TEXT_FONT))
+    end
+    runs[length(runs)]
+end
+
 # The lines of `content`, each with its text: the object of a line of `previous`
 # for each line of the common head and of the common tail, and a new line for the
 # lines between. `previous` takes the result.

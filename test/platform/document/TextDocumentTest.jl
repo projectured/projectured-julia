@@ -220,6 +220,31 @@ code[] = ""
 
 end # @testset "make_text_block gives a line for each line of a string"
 
+@testset "append_text! adds a text at the end of a block and keeps its lines" begin
+
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+runs(block) = [[span.content for span in line.elements] for line in block.elements]
+
+# The text up to the first newline goes into the last run; each line after a
+# newline is a new line in the style of that run.
+block = make_text_block("Hello", style)
+first_line = block.elements[1]
+@test append_text!(block, ", world\nand\n") === block
+@test runs(block) == [["Hello, world"], ["and"], [""]]
+@test get_flat_string(block) == "Hello, world\nand\n"
+@test block.elements[1] === first_line
+@test block.elements[2].elements[1].font == style.font
+@test block.elements[2].elements[1].font_color == style.color
+
+# An empty text changes nothing, and a block of an empty string grows as a stream
+# of deltas grows the string.
+@test runs(append_text!(block, "")) == [["Hello, world"], ["and"], [""]]
+streamed = make_text_block("")
+foreach(delta -> append_text!(streamed, delta), ["one ", "two\nthr", "ee", "\n", "four"])
+@test get_flat_string(streamed) == "one two\nthree\nfour"
+@test runs(streamed) == [["one two"], ["three"], ["four"]]
+end # @testset "append_text! adds a text at the end of a block and keeps its lines"
+
 @testset "get_flat_caret and get_flat_range read the flat and the structural form" begin
     # "ab" and "cd" on two lines: "cd" starts at flat offset 3.
     block = TextBlock(TextLine(TextString("ab")), TextLine(TextString("cd")))

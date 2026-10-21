@@ -52,9 +52,23 @@ function _as_run_turn!(editor, a::Assistant, prompt::AbstractString)
     nothing
 end
 
-_as_editor(a::Assistant, backend) =
+_as_editor(a::Assistant, backend; fault_policy = make_strict_fault_policy()) =
     Editor(a, make_assistant_projection_example(); backend, devices = Device[],
-           tools = register_default_tools!(ToolSet()))
+           tools = register_default_tools!(ToolSet()), fault_policy)
+
+# The queues of turns that the feeds of `editor` still hold.
+_as_count_turn_sources(editor) =
+    sum((count(source -> source isa AssistantModule._TurnEventSource, feed.sources)
+         for feed in editor.feeds if feed isa AgentEventFeed); init = 0)
+
+# A model that streams a text and then fails.
+struct _AsFailingLlm <: LlmModule.Llm end
+
+function LlmModule.stream_turn(::_AsFailingLlm, request; on_event::Function)
+    on_event(LlmTextStart())
+    foreach(word -> on_event(LlmTextDelta(word)), ["Half ", "an ", "answer."])
+    error("the model failed")
+end
 
 _as_answer_text(a::Assistant) =
     join((_text_to_string(part.content) for turn in collect(a.conversation.turns)
@@ -65,8 +79,51 @@ _as_answer_text(a::Assistant) =
 _as_has_code_unit_thread() =
     EditorModule._find_code_unit_place(Threads.threadid()) !== nothing
 
+# An assistant whose last turn is an answer of `count` paragraphs of 100 words, and
+# the part of that answer.
+function _as_make_long_answer(count::Integer)
+    paragraph = join(("word$i" for i in 1:100), " ")
+    part = ConversationPart(make_text_block(join(fill(paragraph, count), "\n")))
+    a = Assistant(; conversation = ConversationConversation([
+        ConversationTurn(:user, [ConversationPart("Write.")]),
+        ConversationTurn(:assistant, [part])]))
+    (a, part)
+end
+
+# The output cells that one delta at the end of an answer of `count` paragraphs
+# invalidates, and the output objects that it makes again.
+function _as_measure_delta_locality(count::Integer, append!)
+    a, part = _as_make_long_answer(count)
+    report = measure_printer_locality(a, make_assistant_projection_example(),
+                                      _ -> append!(part, " more"))
+    (; invalidated = length(report.invalidated), lost = report.lost_objects, report.errors)
+end
+
 function test_assistant_stream()
 @testset "an answer streams into a running editor through the feed of the agent events" begin
+    @testset "with no loop, each event applies at once and a turn leaves no queue" begin
+        a = Assistant(; llm = ScriptedLlm([_final_text_script("Done at once.")]))
+        editor = _as_editor(a, HeadlessBackend())
+        for prompt in ("One.", "Two.")
+            a.input.value = prompt
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test timedwait(() -> a.status === :idle, 30.0; pollint = 0.01) === :ok
+            a.llm = ScriptedLlm([_final_text_script("Done at once.")])
+        end
+        @test count(turn -> any(part -> occursin("Done at once.", _text_to_string(part.content)),
+                                collect(turn.parts)), collect(a.conversation.turns)) == 2
+        @test _as_count_turn_sources(editor) == 0
+    end
+    @testset "a delta at the end of a long answer changes only the end of its print" begin
+        append! = AssistantModule._append_text_delta!
+        small = _as_measure_delta_locality(10, append!)
+        large = _as_measure_delta_locality(1_000, append!)
+        @test isempty(small.errors) && isempty(large.errors)
+        # 100 times the answer: the same work for a delta, with some room.
+        @test large.invalidated <= 2 * small.invalidated + 10
+        @test large.lost <= 2 * small.lost + 10
+    end
+
     if !_as_has_code_unit_thread()
         # @broken: this process has no second thread, so a code unit runs inline and no held frame shows
         @test_broken false
@@ -86,7 +143,8 @@ function test_assistant_stream()
             # round, the end of the round, and the steps of its start and its end.
             # Each delta in a call of its own would add a unit for each frame that
             # drains one.
-            @test backend.prepared <= 12
+            @test 3 <= backend.prepared <= 12
+            @test _as_count_turn_sources(editor) == 0
         end
 
         @testset "the messages of a round hold the text of the round before it" begin
@@ -106,7 +164,30 @@ function test_assistant_stream()
                                                 occursin("First round.", content.text),
                                      message.content),
                       second)
-            @test occursin("Second round.", _as_answer_text(a))
+            # The text of the first round, the call of its tool and the text of the
+            # second round stand in the turn in this order.
+            parts = collect(last(collect(a.conversation.turns)).parts)
+            first_text = findfirst(part -> occursin("First round.", _text_to_string(part.content)), parts)
+            tool = findfirst(part -> part.content isa EvaluatorForm, parts)
+            second_text = findfirst(part -> occursin("Second round.", _text_to_string(part.content)), parts)
+            @test first_text !== nothing && tool !== nothing && second_text !== nothing
+            @test first_text < tool < second_text
+        end
+
+        @testset "a turn that fails shows its text before the error and leaves no queue" begin
+            a = Assistant(; llm = _AsFailingLlm())
+            editor = _as_editor(a, _AsHeldFrameBackend();
+                                fault_policy = FaultPolicy(is_console_enabled = false,
+                                                           is_sound_enabled = false))
+            _as_run_turn!(editor, a, "Fail.")
+            @test a.status === :error
+            turns = collect(a.conversation.turns)
+            answer = findfirst(turn -> any(part -> occursin("Half an answer.", _text_to_string(part.content)),
+                                           collect(turn.parts)), turns)
+            failure = findfirst(turn -> any(part -> occursin("the model failed", _text_to_string(part.content)),
+                                            collect(turn.parts)), turns)
+            @test answer !== nothing && failure !== nothing && answer < failure
+            @test _as_count_turn_sources(editor) == 0
         end
     end
 end

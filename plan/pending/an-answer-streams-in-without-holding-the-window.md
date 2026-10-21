@@ -1,7 +1,7 @@
 # An answer streams in without holding the window
 
-Status: PENDING, 2026-10-21. Step 1 is done, on the branch `answer-stream`. No
-decision is open.
+Status: PENDING, 2026-10-21. Steps 1 and 2 are done, on the branch `answer-stream`.
+No decision is open.
 
 ## The ask
 
@@ -100,7 +100,7 @@ the measurement needs the record of a frame. Commit each step. Do not land on
    - A new test: a round that follows a round of text reads the text of the first
      round in its messages.
    - Commit.
-2. [ ] **The append.** A delta appends to the last line; the deltas of one drain
+2. [x] **The append.** Done; see [As built](#as-built). A delta appends to the last line; the deltas of one drain
    are one append; the thinking part too.
    - A new test: an answer of paragraphs of 100 words streams, and the frame of a
      delta at 1_000, 10_000 and 100_000 characters of answer allocates at most 2
@@ -185,3 +185,63 @@ The work is on the branch `answer-stream`, from `frame-guards`, in the worktree
   with the same failing places, a known failure of that environment.
   `test_conversation_editor()`: 40 pass. `AgentLoopTest.jl` is a kernel test, and
   the kernel did not change, so it did not run.
+
+### The review of step 1
+
+A review of the commit of step 1 found four faults. Each is fixed in the commit of
+step 2:
+
+1. **A call that waits could time out.** The calls of the end of a round and of
+   the result of a tool had the time limit of 30 s of a call. While a code unit
+   runs longer, such as an evaluation of the person, the call was withdrawn, the
+   turn failed, and the result of a tool was lost. These calls now have no time
+   limit (`timeout = Inf`): the turn can not go on before them, and the end of the
+   loop answers a call that waits.
+2. **The parse at the end of a text block ran in the frame.** `LlmTextStop` came
+   through the queue, so `parse_markdown_blocks` ran in the drain of the feed, with
+   no busy bar. It now applies in a call that waits, as before the change: a code
+   unit with held frames, once for each block.
+3. **A source could stay open.** The source joined the feed in one call and the
+   turn joined the conversation in another, and the `try` that closes the source
+   began after `Agent(...)`. Now one call joins the source and puts the turn into
+   the conversation, and the `try` begins right after it.
+4. **With no loop, closed sources stayed in the feed.** The end of a turn now
+   removes its source from the feed at once (`_remove_agent_event_source!`), also
+   in an editor whose feeds no loop drains.
+
+The review also found that the test of the messages of a round passed before the
+change too. It now also checks the order of the parts: the text of the first
+round, the call of its tool, and the text of the second round. The test of 200
+deltas has a lower bound, at least 3 code units, so it can not pass with no held
+frames at all. Two new tests: a turn that fails shows its text before the error
+and leaves no source; with no loop, two turns leave no source.
+
+### Step 2
+
+- **`append_text!(block, text)`** in `TextDocument.jl`, exported by `TextModule`:
+  the text up to the first newline goes at the end of the last run of the last
+  line, and each line after a newline is a new line of one run in the font and the
+  colour of that run. `_append_text_delta!` and `_append_thinking_delta!` use it, and
+  make the block again only for a content that is no `TextBlock`.
+- **The deltas of one drain are one append.** `_join_stream_deltas` joins each run
+  of text deltas and each run of thinking deltas into one delta.
+  `_apply_agent_events!` holds the loop with the record of a fault, which the drain
+  of a session and the drain of a turn share.
+- **Decision: the test measures the print, not the bytes of a frame.** A frame on
+  the `HeadlessBackend` reads every part of the output, so its bytes grow with the
+  answer whatever the print does. So the test measures with
+  `measure_printer_locality` the output objects that one delta makes again:
+
+  | Paragraphs of 100 words | Objects made again, new | Objects made again, old way |
+  |---|---|---|
+  | 10 | 184 | 535 |
+  | 100 | 184 | 2_785 |
+  | 1_000 | 184 | 25_285 |
+
+  The invalidated cells are 51 with the new append and 41 with the old way, at each
+  size: the old way invalidates few cells and makes everything below them again.
+  The test asserts at most 2 times the count at 10 paragraphs, plus 10.
+- **Tests.** `test_assistant_stream()` 19 pass; `test_assistant_mvp()` 191 pass and
+  4 broken, as on `main`; `test_conversation_editor()` 40 pass; in
+  `package/ProjecturedPlatformTest`, `test_text()` with the new testset (9 pass),
+  `test_agent_work()` 158 pass and `test_external_agent_turn()` 271 pass.

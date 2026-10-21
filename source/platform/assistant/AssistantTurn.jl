@@ -863,9 +863,13 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
 
     # The events of the turn go into a queue that the feed of the window applies
     # in each frame, as it applies the events of an external agent: a stream of
-    # many small parts costs the window no call for each part.
-    source = _make_turn_event_source!(editor, a, turn, state, set)
-    run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
+    # many small parts costs the window no call for each part. The queue joins the
+    # feed in the call that puts the turn into the conversation.
+    source = _TurnEventSource(a, turn, state, set)
+    run_on_editor_task!(editor; wait = false) do
+        _add_agent_event_source!(editor, source)
+        push!(a.conversation.turns, turn)
+    end
 
     # The loop itself is the kernel's. What is left here is the two things that are
     # genuinely this domain's: how a conversation becomes messages, and how an event
@@ -877,11 +881,14 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # view of some message list held elsewhere. It is read on the editor's task,
     # after every part this turn posted before it.
     #
-    # The end of a round and the result of a tool apply in a call that waits, after
-    # the events before them, so a tool of the round runs after every part that the
-    # round streamed, and the next tool after the result of the one before it.
-    agent = Agent(llm, set; system, thinking = true)
+    # The end of a text block, the end of a round and the result of a tool apply in
+    # a call that waits, after the events before them: the end of a block parses its
+    # text in a code unit, so the window shows that it is busy; a tool of the round
+    # runs after every part that the round streamed; and the next tool after the
+    # result of the one before it. Such a call has no time limit, because the turn
+    # can not go on before it, and the end of the loop answers it.
     try
+        agent = Agent(llm, set; system, thinking = true)
         stop_reason = try
             run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
                 on_stop = _make_turn_stop_step(editor, a),
@@ -892,8 +899,9 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
                 on_event = ev -> begin
                     control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
                     observe === nothing || observe(ev)
-                    if ev isa Union{LlmTurnEnd, AgentToolResult}
-                        _run_turn_call!(() -> _handle_agent_event!(ev, a, turn, state, set), editor, source)
+                    if ev isa Union{LlmTextStop, LlmTurnEnd, AgentToolResult}
+                        _run_turn_call!(() -> _handle_agent_event!(ev, a, turn, state, set), editor, source;
+                                        timeout = Inf)
                     else
                         _post_turn_event!(editor, source, ev)
                     end
@@ -918,7 +926,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     finally
         # The events that wait apply before any later post of the task of the turn,
         # also after a turn that failed, and the queue leaves the feed.
-        _run_turn_call!(() -> (source.is_open = false), editor, source; wait = false)
+        _run_turn_call!(() -> _remove_agent_event_source!(editor, source), editor, source; wait = false)
     end
     nothing
 end
@@ -1114,11 +1122,12 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     nothing
 end
 
+# A delta adds its text at the end of the text of its part, so the lines before the
+# last line keep their print.
 function _append_text_delta!(part::ConversationPart, s::AbstractString)
-    # Append to the part's TextBlock content. Simplest reliable approach:
-    # rebuild the lines of the TextBlock from the accumulated content.
-    current = _content_to_string(part.content)
-    part.content = make_text_block(current * String(s))
+    content = part.content
+    content isa TextBlock ? append_text!(content, s) :
+                            (part.content = make_text_block(_content_to_string(content) * String(s)))
     nothing
 end
 
@@ -1130,8 +1139,9 @@ _append_text_delta!(_, _) = nothing
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
-    current = _content_to_string(c.text)
-    c.text = make_text_block(current * String(s))
+    text = c.text
+    text isa TextBlock ? append_text!(text, s) :
+                         (c.text = make_text_block(_content_to_string(text) * String(s)))
     nothing
 end
 

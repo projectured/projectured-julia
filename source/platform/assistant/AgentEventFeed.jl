@@ -190,13 +190,18 @@ function _post_agent_event!(editor, a::Assistant, queue::AgentEventQueue, event)
     nothing
 end
 
-# Apply every event that waits in `queue`, the oldest first, with `apply`, and
-# answer how many there were. An event that fails to apply is a fault of the
-# editor, and the next event still applies.
-function _drain_agent_event_queue!(editor, a::Assistant, queue;
-                                   apply = event -> apply_agent_event!(editor, a, event))
+# Apply every event that waits in `queue`, the oldest first, and answer how many
+# there were.
+function _drain_agent_event_queue!(editor, a::Assistant, queue)
     queue === nothing && return 0
-    events = take_agent_events!(queue)
+    _apply_agent_events!(event -> apply_agent_event!(editor, a, event), editor,
+                         take_agent_events!(queue))
+end
+
+# Apply each of `events` with `apply`, the oldest first, and answer how many there
+# were. An event that fails to apply is a fault of the editor, and the next event
+# still applies.
+function _apply_agent_events!(apply, editor, events)
     for event in events
         try
             apply(event)
@@ -216,8 +221,8 @@ end
 
 # The queue of a turn of the built-in assistant. The model streams the events of
 # the turn into it off the loop, and the feed of the window applies them to the
-# turn, as it applies the events of a session of an external agent. The source
-# leaves the feed at the drain after the turn closed it.
+# turn, as it applies the events of a session of an external agent. The turn joins
+# the source to the feed before its first event, and removes it at its end.
 mutable struct _TurnEventSource
     assistant::Assistant
     queue::AgentEventQueue
@@ -228,14 +233,8 @@ mutable struct _TurnEventSource
     is_open::Bool
 end
 
-# A queue for the events of `turn`, which joins the feed of the window. The join is
-# posted and not waited for, before any event of the turn, so the frame that
-# applies the first event finds the queue in the feed.
-function _make_turn_event_source!(editor, a::Assistant, turn::ConversationTurn, state, set)
-    source = _TurnEventSource(a, AgentEventQueue(), turn, state, set, true)
-    run_on_editor_task!(() -> _add_agent_event_source!(editor, source), editor; wait = false)
-    source
-end
+_TurnEventSource(a::Assistant, turn::ConversationTurn, state, set) =
+    _TurnEventSource(a, AgentEventQueue(), turn, state, set, true)
 
 # An event of the turn goes into its queue, behind the events before it. An editor
 # whose loop runs applies the queue in its next frame, and the turn does not wait.
@@ -250,16 +249,40 @@ function _post_turn_event!(editor, source::_TurnEventSource, event)
     nothing
 end
 
+# Apply the events that wait in the queue of the turn, each run of text deltas and
+# each run of thinking deltas as one delta, so a frame appends to a part once.
 _drain_turn_events!(editor, source::_TurnEventSource) =
-    _drain_agent_event_queue!(editor, source.assistant, source.queue;
-                              apply = event -> _handle_agent_event!(event, source.assistant, source.turn,
-                                                                    source.state, source.set))
+    _apply_agent_events!(editor, _join_stream_deltas(take_agent_events!(source.queue))) do event
+        _handle_agent_event!(event, source.assistant, source.turn, source.state, source.set)
+    end
+
+# `events` with each run of text deltas, and each run of thinking deltas, joined
+# into one delta of their text.
+function _join_stream_deltas(events)
+    joined = Any[]
+    run = String[]
+    for event in events
+        if !isempty(run) && typeof(event) !== typeof(last(joined))
+            joined[end] = typeof(last(joined))(join(run))
+            empty!(run)
+        end
+        if event isa Union{LlmTextDelta, LlmThinkingDelta}
+            isempty(run) && push!(joined, event)
+            push!(run, event.text)
+        else
+            push!(joined, event)
+        end
+    end
+    isempty(run) || (joined[end] = typeof(last(joined))(join(run)))
+    joined
+end
 
 # Run `f` on the task of the editor, as a call of the turn, after every event that
 # the turn posted before the call. So the call reads a conversation that holds
-# each part that the turn streamed before it.
-_run_turn_call!(f, editor, source::_TurnEventSource; wait::Bool = true) =
-    run_on_editor_task!(editor; wait) do
+# each part that the turn streamed before it. The keywords are those of
+# `run_on_editor_task!`, such as `wait` and `timeout`.
+_run_turn_call!(f, editor, source::_TurnEventSource; keywords...) =
+    run_on_editor_task!(editor; keywords...) do
         _drain_turn_events!(editor, source)
         f()
     end
@@ -604,9 +627,9 @@ applies the events that wait in each queue, the oldest first: an event of a
 session with [`apply_agent_event!`](@ref), an event of a turn to its turn. The
 events of a prompt and the events between two prompts take this one path, so they
 apply in the order in which they came. A drain also samples each tree of the
-processes of the work of an agent that a view reads. A queue leaves the feed at
-the drain after its session closed, its connection stopped, its assistant ended
-it, or its turn ended.
+processes of the work of an agent that a view reads. The queue of a session
+leaves the feed at the drain after its session closed, its connection stopped or
+its assistant ended it; the queue of a turn leaves it when its turn ends.
 
 The assistant adds the feed to the `feeds` of the editor when the window opens
 its first session or runs its first turn, and a `TaskFeed` with the first session
@@ -652,6 +675,17 @@ function _add_agent_event_source!(editor, source)
         index = length(feeds)
     end
     push!(feeds[index].sources, source)
+    nothing
+end
+
+# The turn of `source` ended: the source closes and leaves the feed at once, also
+# in an editor whose feeds no loop drains.
+function _remove_agent_event_source!(editor, source::_TurnEventSource)
+    source.is_open = false
+    hasproperty(editor, :feeds) || return nothing
+    for feed in editor.feeds
+        feed isa AgentEventFeed && filter!(other -> other !== source, feed.sources)
+    end
     nothing
 end
 
