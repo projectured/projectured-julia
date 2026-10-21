@@ -308,10 +308,16 @@ The work is done in a worktree. Before each edit, check the file in
    `PackageReleaseTest` passes only after step 5 writes it.
    *Results:* `test_packages_declare_triggers` 32 pass and
    `test_umbrella_loads_integrations` 8 pass, with the new adapter.
-3. ⬜ **The tokens (D5 without the editor).** Open, change, ask; the relative
+3. ✅ **The tokens (D5 without the editor).** Open, change, ask; the relative
    encoding to marks; the table from a kind to a role; the `utf-16` columns.
    Tests with the fake server, and one with `clangd` when `Sys.which("clangd")`
-   finds it.
+   finds it. *Names:* `compute_semantic_text_marks(connection, path, language,
+   text)` sends the text and asks; `convert_semantic_tokens(data, text,
+   token_types, encoding)` makes the marks; `close_language_server_document!`
+   sends `didClose`; `SEMANTIC_TOKEN_ROLES` is the table, which also holds the
+   kinds that `clangd` adds (`concept`, `bracket`, `label`). *Results:*
+   `test_languageserver()` 57 pass, the test with `clangd` 21.1.8 included:
+   `main` 4–8 is a function, and `count` 21–26 and 43–48 are variables.
 4. ⬜ **The file and its view (D3, D4, D5).** The type, its registrations, the
    acquire and the release, the session document, the wrapper, the view, the
    save, and a command that is not installed. Test: an editor opens a

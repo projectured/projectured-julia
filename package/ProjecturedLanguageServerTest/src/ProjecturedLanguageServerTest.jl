@@ -21,6 +21,7 @@ using ProjecturedLanguageServer
 
 include("../../../test/adapter/languageserver/FakeLanguageServer.jl")
 include("../../../test/adapter/languageserver/LanguageServerConnectionTest.jl")
+include("../../../test/adapter/languageserver/SemanticTokensTest.jl")
 include("../../../test/adapter/languageserver/LanguageServerSuite.jl")
 
 end # module ProjecturedLanguageServerTest

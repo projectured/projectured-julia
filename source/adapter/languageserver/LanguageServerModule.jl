@@ -20,7 +20,10 @@ using JSON3
 export LanguageServerException, LanguageServerConnection, is_language_server_running,
        start_language_server!, send_language_server_request!,
        send_language_server_notification!, make_file_uri, stop_language_server!
+export SEMANTIC_TOKEN_ROLES, compute_semantic_text_marks, close_language_server_document!,
+       convert_semantic_tokens
 
 include("LanguageServerConnection.jl")
+include("SemanticTokens.jl")
 
 end # module LanguageServerModule
