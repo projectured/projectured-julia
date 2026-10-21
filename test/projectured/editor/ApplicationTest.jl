@@ -1617,7 +1617,11 @@ function test_application()
                 value(v) = v isa Cell ? value(v[]) : v
                 output = value(get_iomap_output(editor.iomap))
                 canvas = value(value(output.windows)[end].content)
-                @test any(text -> startswith(text, "Message log:"), _app_drawn_strings(canvas))
+                # The note says the name of the tool as its title, and what the tool
+                # shows as its text.
+                drawn = _app_drawn_strings(canvas)
+                @test "Message log" in drawn
+                @test "What the program said in this session." in drawn
                 # The window says its bounds and is printed at its maximum, so
                 # what it holds fits: a name of one line needs neither the whole
                 # width nor the whole height a tooltip may take.
