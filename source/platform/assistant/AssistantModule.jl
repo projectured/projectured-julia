@@ -66,6 +66,7 @@ using ..TaskModule
 using ..TerminalModule
 using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 using ..WorkPlanModule

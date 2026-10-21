@@ -963,5 +963,13 @@ function get_document_decoration(evaluator::EvaluatorToplevel)
     conditions = DocumentCondition[]
     any(form -> form.is_running, forms) && push!(conditions, DocumentCondition(:running))
     !isempty(forms) && last(forms).is_error && push!(conditions, DocumentCondition(:failed))
-    DocumentDecoration(; icon = :terminal, conditions)
+    DocumentDecoration(; icon = :terminal, conditions, tooltip = () -> _make_evaluator_note(evaluator))
+end
+
+# What a row of the evaluator says when the pointer rests on it: what it does,
+# and how many forms it holds and how many failed.
+function _make_evaluator_note(evaluator::EvaluatorToplevel)
+    forms = [element for element in evaluator.elements if element isa EvaluatorForm]
+    TooltipNote(; title = "Evaluator", text = "Type Julia code, and evaluate it.",
+                facts = ["Forms" => string(length(forms)), "Failed" => string(count(form -> form.is_error, forms))])
 end

@@ -82,4 +82,6 @@ reference to.
 get_inspected_document(source::Document, root) = source
 get_inspected_document(source, root) = root
 
-get_document_decoration(::SelectionInspector) = DocumentDecoration(; icon = :crosshair)
+get_document_decoration(::SelectionInspector) =
+    DocumentDecoration(; icon = :crosshair, tooltip = () -> TooltipNote(; title = "Selection",
+                                                                         text = "What the selection of this window names."))

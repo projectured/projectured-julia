@@ -43,6 +43,7 @@ using ..SerializationModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.

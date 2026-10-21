@@ -55,4 +55,12 @@ get_insertion_aliases(::Type{AboutPage}) = ["about"]
 pred_arguments(::DocumentTypeList) = (), Pair{Symbol,Any}[]
 pred_arguments(::ProjectionList) = (), Pair{Symbol,Any}[]
 
-get_document_decoration(::Union{DocumentTypeList, ProjectionList, AboutPage}) = DocumentDecoration(; icon = :circle_help)
+get_document_decoration(::DocumentTypeList) =
+    DocumentDecoration(; icon = :circle_help, tooltip = () -> TooltipNote(; title = "Documents",
+        text = "Every document type that an empty tab can make."))
+get_document_decoration(::ProjectionList) =
+    DocumentDecoration(; icon = :circle_help, tooltip = () -> TooltipNote(; title = "Projections",
+        text = "Every projection: the views of a document, and the projections that combine them."))
+get_document_decoration(::AboutPage) =
+    DocumentDecoration(; icon = :circle_help, tooltip = () -> TooltipNote(; title = "About",
+        text = "What this program is, and its version."))

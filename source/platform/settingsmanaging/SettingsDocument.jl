@@ -168,4 +168,6 @@ end
         make_toggle_setting_operation(doc.settings, RenderSettings, :debug_dirty)
 end
 
-get_document_decoration(::Union{SettingsDocument, Settings}) = DocumentDecoration(; icon = :settings)
+get_document_decoration(::Union{SettingsDocument, Settings}) =
+    DocumentDecoration(; icon = :settings, tooltip = () -> TooltipNote(; title = "Settings",
+                                                                        text = "Change how this editor works."))

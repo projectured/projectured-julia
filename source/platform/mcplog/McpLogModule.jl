@@ -34,6 +34,7 @@ using ..RosterModule
 using ..SerializationModule
 using ..ShellModule
 using ..StyleModule
+using ..TooltipModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.

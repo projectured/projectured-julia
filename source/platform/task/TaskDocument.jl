@@ -219,8 +219,31 @@ function get_document_decoration(document::TaskDocument)
              ended === nothing ? String(status) * " since " * Libc.strftime("%H:%M:%S", started) :
              result === nothing ? String(status) * " · " * format_elapsed_time(ended - started; precision = 1) :
              format_elapsed_time(ended - started; precision = 1)
-    tooltip = result === nothing || result.reason === nothing ? nothing : string(result.reason)
-    DocumentDecoration(; icon, conditions, counts, detail, tooltip, work_item = true)
+    DocumentDecoration(; icon, conditions, counts, detail, tooltip = () -> _make_task_note(document), work_item = true)
+end
+
+# What a row of a task says when the pointer rests on it: the task line, the
+# facts of its current execution, and why its result is what it is, or what
+# the kind of task says about its result.
+function _make_task_note(document::TaskDocument)
+    task = getfield(document, :task)[]
+    current = get_current_task_execution(document)
+    current === nothing && return TooltipNote(; title = format_task_parameters(task), facts = ["State" => "pending"])
+    result = current.result
+    facts = Pair{String,Any}["State" => string(current.status)]
+    result === nothing || push!(facts, "Result" => string(result.result))
+    current.start_time === nothing || push!(facts, "Started" => Libc.strftime("%H:%M:%S", current.start_time))
+    current.start_time === nothing ||
+        push!(facts, "Duration" => format_elapsed_time((current.end_time === nothing ? time() : current.end_time) -
+                                                       current.start_time; precision = 1))
+    current.position === nothing || isempty(current.position) || push!(facts, "Position" => string(current.position))
+    current.process_id === nothing || push!(facts, "Process" => string(current.process_id))
+    current.resident_memory === nothing ||
+        push!(facts, "Memory" => string(round(current.resident_memory / 2^20; digits = 1), " MB"))
+    details = result === nothing ? String[] : format_task_details(task, result)
+    text = result !== nothing && result.reason !== nothing ? string(result.reason) :
+           isempty(details) ? nothing : join(details, "\n")
+    TooltipNote(; title = format_task_parameters(task), text, facts)
 end
 
 # The start and the end of the current execution, each `nothing` before it.

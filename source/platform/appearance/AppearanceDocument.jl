@@ -78,4 +78,6 @@ function make_pred_document(::Type{<:Appearance}, positional, keywords)
     found === nothing ? Appearance() : found
 end
 
-get_document_decoration(::Union{AppearanceDocument, Appearance}) = DocumentDecoration(; icon = :palette)
+get_document_decoration(::Union{AppearanceDocument, Appearance}) =
+    DocumentDecoration(; icon = :palette, tooltip = () -> TooltipNote(; title = "Appearance",
+                                                                       text = "The zoom and the scales of this window."))

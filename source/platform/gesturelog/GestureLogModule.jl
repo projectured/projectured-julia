@@ -40,6 +40,7 @@ using ..SyntaxModule
 using ..TextModule
 using ..EditorModule
 using ..ToolModule
+using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title

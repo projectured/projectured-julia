@@ -173,7 +173,19 @@ function get_document_decoration(search::ExplorerSearch)
     result = search.result
     condition = search.stopped ? :stopped : is_cell_provisional(getfield(search, :result)) ? :running : :done
     DocumentDecoration(; icon = :search, conditions = [DocumentCondition(condition)],
-                       detail = _format_search_line(search, result), work_item = true)
+                       detail = _format_search_line(search, result), work_item = true,
+                       tooltip = () -> _make_search_note(search))
+end
+
+# What a row of a search says when the pointer rests on it: what it looks for
+# and below which node, and what it found so far.
+function _make_search_note(search::ExplorerSearch)
+    result = search.result
+    facts = Pair{String,Any}["Matches" => string(length(result.matches)), "Waiting" => string(result.waiting),
+                             "Depth" => string(search.depth), "Limit" => string(search.limit),
+                             "Started" => Libc.strftime("%H:%M:%S", search.started)]
+    result.elapsed === nothing || push!(facts, "Took" => format_elapsed_time(result.elapsed; precision = 1))
+    TooltipNote(; title = "Search", text = get_document_title(search) * ".", facts)
 end
 
 get_work_item_identifier(search::ExplorerSearch) = search.identifier

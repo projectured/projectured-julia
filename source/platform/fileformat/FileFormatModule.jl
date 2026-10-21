@@ -40,6 +40,7 @@ using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 
 # Imported to extend: this module adds a method to each of them.
@@ -63,7 +64,7 @@ export write_document_file, read_document_file, make_document_for, make_document
 export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
        compute_file_text, compute_file_text_hash, read_file_content_again
-export get_file_icon
+export get_file_icon, make_file_note
 export FileToContent
 export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
        SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,

@@ -89,7 +89,7 @@ because the omnet-julia steps use the function form of step 1.
      changes the note, and the row stays the same object with no new label),
      `test_widget_tree()` 103, `test_tooltip_note()` 36, `test_tooltip_window()`
      51.
-2. [ ] **The Explorer rows of the platform.** Each gives a note through its
+2. [x] **The Explorer rows of the platform.** Each gives a note through its
    decoration:
    - a file: its name, the path, the format, and the lines when it is read;
    - a folder: the path, the entries, or "not read yet";
@@ -110,6 +110,39 @@ because the omnet-julia steps use the function form of step 1.
    - a system process: the full command as code, the folder, the state, the
      threads, the start.
    Test: a new `test_explorer_row_notes()`, and `test_explorer()`.
+
+   Done (written by a code agent, reviewed). As built:
+   - Each type gives `tooltip = () -> _make_…_note(x)` in its decoration, with
+     the facts listed above. A file and a read page share `make_file_note(path;
+     lines)` of the fileformat slice: the path with `~` for the home folder, the
+     format by the extension, and the lines of a plain text that is read.
+   - The logs and tools say one sentence (the toolbar sentence where one
+     exists) and their stored counts: Kept, Capacity, Recorded, Errors, Faults,
+     Running, Frames, Forms, Groups, Assistants.
+   - A system process has its command cut to 40 characters as the title, and
+     the full command as code.
+   - `get_document_title(::Assistant)` answers
+     `compute_assistant_overview_title`, which falls back to "Assistant".
+   - Left out: rows whose decoration comes through a wrapper (arrangement,
+     roster, work plan, thinking, assistant work, background work row,
+     reference inspector), and the lines of a file whose content is a document.
+   - 13 slices use the tooltip slice now: fileformat, filesystem,
+     systemprocess, conversation, assistant, log, gesturelog, mcplog,
+     backgroundwork, statistics, inspector, settingsmanaging, help.
+   - `format_decoration_words` reads only a string tooltip, so a failed folder,
+     whose tooltip is a function now, gives only its condition there;
+     `WidgetDecorationTest` reads the failure from the note instead.
+   - Test: `test_platform_layering()` 7, `test_platform_slice_edges()` 1,
+     `test_explorer_row_notes()` 30, `test_explorer()` 240, `test_task_group()`
+     76, `test_task_document()` 108, `test_task_views()` 70,
+     `test_task_group_verbs()` 34, `test_assistant_overview()` 63,
+     `test_assistant_list()` 50, `test_assistant_work()` 119, `test_agent_work()`
+     158, `test_conversation()` 765, `test_conversation_tree()` 42,
+     `test_filesystem()` 117, `test_system_process()` 78, `test_background_work()`
+     19, `test_mcp_log_pane()` 16, `test_document_decoration()` 57,
+     `test_document_tree()` 130, `test_widget_tree()` 103, `test_help()` 25,
+     `test_fault()` 118, `test_settings()` 102, `test_appearance_tab()` 119,
+     `test_tooltip_note()` 36: all pass.
 3. [ ] **The Explorer controls.** The filter field (Ctrl+F from the binding, the
    effect of Return and Escape), the kinds item (the kinds shown), the add item
    (the kinds offered), the items of the row menu and the add menu, the cards of

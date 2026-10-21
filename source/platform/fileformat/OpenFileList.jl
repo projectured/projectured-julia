@@ -33,7 +33,10 @@ function get_document_decoration(list::OpenFileList)
     unsaved = count(file -> any(condition -> condition.name in (:unsaved, :conflict),
                                 get_document_decoration(file).conditions), list.files)
     DocumentDecoration(; icon = :file_stack,
-                       counts = unsaved == 0 ? DocumentCount[] : [DocumentCount(string(unsaved, " unsaved"))])
+                       counts = unsaved == 0 ? DocumentCount[] : [DocumentCount(string(unsaved, " unsaved"))],
+                       tooltip = () -> TooltipNote(; title = "Open files", text = "The files that this editor holds open.",
+                                                   facts = ["Open" => string(length(list.files)),
+                                                            "Unsaved" => string(unsaved)]))
 end
 
 get_tree_children_steps(::OpenFileList) = ((FieldReferenceStep("files"),),)

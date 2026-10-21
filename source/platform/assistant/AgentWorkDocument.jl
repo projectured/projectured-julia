@@ -114,7 +114,19 @@ function get_document_decoration(work::AgentWork)
     icon = work.state === :running ? :loader : work.state === :idle ? :circle_check :
            work.state === :requires_action ? :warning : :bot
     DocumentDecoration(; icon, conditions = condition === nothing ? DocumentCondition[] : [condition],
-                       detail = join(words, " · "), work_item = true)
+                       detail = join(words, " · "), work_item = true, tooltip = () -> _make_agent_work_note(work))
+end
+
+# What a row of a subagent says when the pointer rests on it: its title and what
+# the agent reported of its work.
+function _make_agent_work_note(work::AgentWork)
+    facts = Pair{String,Any}[]
+    work.token_count === nothing || push!(facts, "Tokens" => _format_token_count(work.token_count))
+    work.tool_call_count === nothing || push!(facts, "Tool calls" => string(work.tool_call_count))
+    work.duration === nothing || push!(facts, "Duration" => _format_assistant_duration(work.duration))
+    isempty(work.last_tool) || push!(facts, "Last tool" => work.last_tool)
+    work.stop_reason === nothing || push!(facts, "Stop reason" => replace(string(work.stop_reason), '_' => ' '))
+    TooltipNote(; title = get_document_title(work), facts)
 end
 
 # The state of the work, with the time when it started while it runs, or with how

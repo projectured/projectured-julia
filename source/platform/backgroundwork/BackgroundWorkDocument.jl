@@ -101,7 +101,17 @@ function get_document_decoration(log::BackgroundWorkLog)
     running > 0 && push!(conditions, DocumentCondition(:running))
     failed > 0 && push!(conditions, DocumentCondition(:failed; count = failed))
     counts = running > 0 ? [DocumentCount(string(running, " running"); role = :accent)] : DocumentCount[]
-    DocumentDecoration(; icon = :loader, conditions, counts)
+    DocumentDecoration(; icon = :loader, conditions, counts, tooltip = () -> _make_background_work_note(log))
+end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many rows it keeps, how many run and how many failed.
+function _make_background_work_note(log::BackgroundWorkLog)
+    rows = collect(log.rows)
+    TooltipNote(; title = "Background work", text = "The background work of this session, and how each ended.",
+                facts = ["Kept" => string(length(rows)),
+                         "Running" => string(count(row -> row.state == "running", rows)),
+                         "Failed" => string(count(row -> row.state == "failed", rows))])
 end
 
 """

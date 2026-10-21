@@ -326,7 +326,32 @@ function get_document_decoration(file::FileDocument)
     is_editable_file_type(typeof(file)) || push!(conditions, DocumentCondition(:read_only))
     folder = dirname(name)
     DocumentDecoration(; icon = get_file_icon(name), conditions,
-                       detail = folder in ("", ".") ? "" : replace(folder, homedir() => "~"))
+                       detail = folder in ("", ".") ? "" : replace(folder, homedir() => "~"),
+                       tooltip = () -> make_file_note(name; lines = _count_file_lines(file)))
+end
+
+# The lines of a file that holds plain text, and `nothing` for a file whose
+# content is a document.
+function _count_file_lines(file::FileDocument)
+    content = get_wrapped_document(get_file_content(file))
+    text = content isa PrimitiveString ? content.value : content
+    text isa AbstractString || return nothing
+    isempty(text) ? 0 : count(==('\n'), text) + (endswith(text, '\n') ? 0 : 1)
+end
+
+"""
+    make_file_note(path; lines = nothing) -> TooltipNote
+
+What a row of the file `path` says when the pointer rests on it: its name, its
+full path, its format by its extension, and its lines when they are known. It
+reads no disk.
+"""
+function make_file_note(path::AbstractString; lines::Union{Integer,Nothing} = nothing)
+    extension = uppercase(lstrip(splitext(path)[2], '.'))
+    facts = Pair{String,Any}["Path" => replace(String(path), homedir() => "~")]
+    isempty(extension) || push!(facts, "Format" => extension)
+    lines === nothing || push!(facts, "Lines" => string(lines))
+    TooltipNote(; title = basename(path), facts)
 end
 
 # The file with the document that it holds and not a wrapper around it: a content

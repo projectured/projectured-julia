@@ -762,8 +762,11 @@ format_tree_node_label(doc::TaskGroupDocument) = getfield(doc, :identifier)[] * 
 # place there and says that it closed.
 get_tree_children_steps(::TaskGroupList) = ((FieldReferenceStep("groups"),),)
 format_tree_node_label(group::ClosedTaskGroup) = getfield(group, :identifier)[] * " " * getfield(group, :title)[]
-get_document_decoration(::ClosedTaskGroup) =
-    DocumentDecoration(; icon = :minus, conditions = [DocumentCondition(:stopped)], detail = "closed", work_item = true)
+get_document_decoration(group::ClosedTaskGroup) =
+    DocumentDecoration(; icon = :minus, conditions = [DocumentCondition(:stopped)], detail = "closed", work_item = true,
+                       tooltip = () -> TooltipNote(; title = getfield(group, :title)[],
+                                                   text = isempty(getfield(group, :summary)[]) ? nothing :
+                                                          getfield(group, :summary)[]))
 
 # ── The pane ─────────────────────────────────────────────────────────────────
 
@@ -957,9 +960,12 @@ make_task_group_list_tab_title(list::TaskGroupList; name = "Tasks") = make_pane_
 # The list says how many of its work items run, and runs while one does.
 function get_document_decoration(list::TaskGroupList)
     running = count(_is_work_item_running, collect_work_items(list))
-    running == 0 && return DocumentDecoration(; icon = :list)
+    tooltip = () -> TooltipNote(; title = "Tasks", text = "Every task group of this session, and its tasks.",
+                                facts = ["Groups" => string(length(collect(list.groups))),
+                                         "Running" => string(running)])
+    running == 0 && return DocumentDecoration(; icon = :list, tooltip)
     DocumentDecoration(; icon = :list, conditions = [DocumentCondition(:running)],
-                       counts = [DocumentCount(string(running, " running"); role = :accent)])
+                       counts = [DocumentCount(string(running, " running"); role = :accent)], tooltip)
 end
 
 function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)

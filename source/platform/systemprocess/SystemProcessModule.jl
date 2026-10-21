@@ -38,6 +38,7 @@ using ..ReferenceModule
 using ..RosterModule
 using ..StyleModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 

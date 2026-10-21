@@ -112,7 +112,7 @@ function test_document_decoration()
         folder.failure = ErrorException("no access")
         folder.state = :failed
         decoration = get_document_decoration(folder)
-        @test find_decoration_tint(decoration) === :error && occursin("no access", format_decoration_words(decoration))
+        @test find_decoration_tint(decoration) === :error && occursin("no access", make_decoration_note(decoration)().text)
         @test get_file_icon("notes.md") === :pilcrow && get_file_icon("model.jl") === :lambda && get_file_icon("x.bin") === :file
         # The logs count what they hold.
         log = MessageLog()

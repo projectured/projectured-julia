@@ -24,7 +24,18 @@ end
 
 get_document_title(card::DashboardCard) = card.title
 format_tree_node_label(card::DashboardCard) = card.title
-get_document_decoration(::DashboardCard) = DocumentDecoration(; icon = :panel_top)
+get_document_decoration(card::DashboardCard) =
+    DocumentDecoration(; icon = :panel_top, tooltip = () -> _make_card_note(card))
+
+# What a row of a card says when the pointer rests on it: the note of its
+# content, under the title of the card.
+function _make_card_note(card::DashboardCard)
+    note = make_decoration_note(get_document_decoration(card.content))
+    note isa Function && (note = note())
+    note isa TooltipNote || return TooltipNote(; title = card.title, text = note)
+    TooltipNote(; title = card.title, keys = note.keys, code = note.code, text = note.text, facts = note.facts,
+                hint = note.hint, tone = note.tone)
+end
 
 """
     Dashboard(title, cards = CellVector(Any[]))
@@ -53,7 +64,9 @@ format_tree_node_label(dashboard::Dashboard) = dashboard.title
 get_tree_children_steps(::Dashboard) = ((FieldReferenceStep("cards"),),)
 get_document_decoration(dashboard::Dashboard) =
     DocumentDecoration(; icon = :layout_dashboard, counts = isempty(dashboard.cards) ? DocumentCount[] :
-                                                            [DocumentCount(string(length(dashboard.cards)))])
+                                                            [DocumentCount(string(length(dashboard.cards)))],
+                       tooltip = () -> TooltipNote(; title = dashboard.title,
+                                                   facts = ["Cards" => string(length(dashboard.cards))]))
 
 # A person adds a new empty dashboard by name, as an entry of an explorer or in a tab.
 get_insertion_aliases(::Type{Dashboard}) = ["dashboard"]

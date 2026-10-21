@@ -485,14 +485,26 @@ end
 # with the failure in words. It reads no listing, so a row of it asks for nothing.
 function get_document_decoration(folder::FileSystemDirectory)
     state = folder.state
-    folder.reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)])
+    tooltip = () -> _make_folder_note(folder)
+    folder.reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)], tooltip)
     state === :failed &&
         return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:failed)],
-                                  tooltip = sprint(showerror, folder.failure))
-    DocumentDecoration(; icon = :folder)
+                                  tooltip = () -> _make_folder_note(folder; text = sprint(showerror, folder.failure)))
+    DocumentDecoration(; icon = :folder, tooltip)
+end
+
+# What a row of a folder says when the pointer rests on it: its path, and its
+# entries once it is read, or that it is not.
+function _make_folder_note(folder::FileSystemDirectory; text = nothing)
+    path = String(folder.pathname)
+    facts = Pair{String,Any}["Path" => replace(path, homedir() => "~")]
+    folder.state === :read && push!(facts, "Entries" => string(length(folder.elements)))
+    text === nothing && folder.state !== :read && (text = "Not read yet.")
+    TooltipNote(; title = basename(rstrip(path, '/')), text, facts)
 end
 
 # A file says what its page says once it has one, and its kind before.
 get_document_decoration(file::FileSystemFile) =
-    file.document === nothing ? DocumentDecoration(; icon = get_file_icon(file.pathname)) :
-                                get_document_decoration(file.document)
+    file.document === nothing ?
+        DocumentDecoration(; icon = get_file_icon(file.pathname), tooltip = () -> make_file_note(file.pathname)) :
+        get_document_decoration(file.document)

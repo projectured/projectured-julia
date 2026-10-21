@@ -28,7 +28,14 @@ get_document_title(section::ExplorerSection) = section.title
 
 get_tree_children_steps(::ExplorerSection) = ((FieldReferenceStep("entries"),),)
 format_tree_node_label(section::ExplorerSection) = section.title
-get_document_decoration(::ExplorerSection) = DocumentDecoration(; icon = :layers)
+get_document_decoration(section::ExplorerSection) =
+    DocumentDecoration(; icon = :layers, tooltip = () -> _make_section_note(section))
+
+# What a row of a section says when the pointer rests on it: how many entries it
+# holds, and the keys that rename it and add an entry.
+_make_section_note(section::ExplorerSection) =
+    TooltipNote(; title = section.title, facts = ["Entries" => string(length(section.entries))],
+                keys = vcat(find_bound_keys(Explorer, "Rename"), find_bound_keys(Explorer, "Add an entry")))
 
 # A person adds a new empty section by name, as an entry of a section or in a tab.
 get_insertion_aliases(::Type{ExplorerSection}) = ["section"]

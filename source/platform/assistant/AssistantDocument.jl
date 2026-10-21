@@ -330,11 +330,12 @@ function pred_arguments(a::Assistant)
 end
 
 # The name the tab calls itself: the title that an external agent gave its
-# session, else the name of the assistant. A tab with an empty name asks at each
-# draw, so the tab follows the title. No alias: `get_insertion_names` already
+# session, else the first line of its first prompt, else the name of the
+# assistant. A tab with an empty name asks at each draw, so the tab follows the
+# title. No alias: `get_insertion_names` already
 # derives one from the type name, so a person types "assistant" without a
 # hand-written method.
-get_document_title(a::Assistant) = isempty(a.agent_title) ? ASSISTANT_TITLE : a.agent_title
+get_document_title(a::Assistant) = compute_assistant_overview_title(a)
 
 # ── The duplicate ─────────────────────────────────────────────────────────────
 #

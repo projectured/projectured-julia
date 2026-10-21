@@ -185,8 +185,15 @@ get_wrapper_layers(::Val{:fault_log}) = (:screen => 30,)
 function get_document_decoration(log::FaultLog)
     faults = length(log.entries)
     DocumentDecoration(; icon = :warning,
-                       conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)])
+                       conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)],
+                       tooltip = () -> _make_fault_log_note(log))
 end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many faults it keeps.
+_make_fault_log_note(log::FaultLog) =
+    TooltipNote(; title = "Faults", text = "What failed in this session, and how often.",
+                facts = ["Faults" => string(length(log.entries)), "Capacity" => string(log.capacity)])
 
 # The command of the log, with no key: a person runs it from the command palette
 # or the menu of its row, and the count of the faults goes back to zero.

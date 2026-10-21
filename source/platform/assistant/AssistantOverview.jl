@@ -132,7 +132,25 @@ function get_document_decoration(a::Assistant)
     state = a.work_state
     counts = state === :pending ? DocumentCount[] :
              [DocumentCount(_format_work_state(state); role = _get_work_state_role(state))]
-    DocumentDecoration(; icon = :bot, conditions, counts, detail = describe_assistant_activity(a))
+    DocumentDecoration(; icon = :bot, conditions, counts, detail = describe_assistant_activity(a),
+                       tooltip = () -> _make_assistant_note(a))
+end
+
+# What a row of an assistant says when the pointer rests on it: its title, its
+# model and backend, the context it uses, its prompts, when it started and how
+# long it worked.
+function _make_assistant_note(a::Assistant)
+    facts = Pair{String,Any}[]
+    isempty(a.model) || push!(facts, "Model" => a.model)
+    push!(facts, "Backend" => string(a.backend))
+    usage = format_agent_usage(a.agent_usage)
+    isempty(usage) || push!(facts, "Context" => usage)
+    push!(facts, "Prompts" => string(compute_prompt_count(a)))
+    started = find_assistant_start_time(a)
+    started === nothing || push!(facts, "Started" => Libc.strftime("%H:%M:%S", started))
+    busy = compute_assistant_busy_time(a)
+    busy > 0 && push!(facts, "Busy" => _format_assistant_duration(busy))
+    TooltipNote(; title = compute_assistant_overview_title(a), facts)
 end
 
 """

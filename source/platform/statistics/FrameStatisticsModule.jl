@@ -36,6 +36,7 @@ using ..ReferenceModule
 using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
+using ..TooltipModule
 using ..WidgetModule
 using ..EditorModule
 using ..ToolModule

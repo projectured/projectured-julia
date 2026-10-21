@@ -74,7 +74,11 @@ function get_document_decoration(list::AssistantList)
     working > 0 && push!(conditions, DocumentCondition(:running))
     waiting > 0 && push!(conditions, DocumentCondition(:waiting; count = waiting))
     counts = working == 0 ? DocumentCount[] : [DocumentCount(string(working, " working"); role = :accent)]
-    DocumentDecoration(; icon = :chats, conditions, counts)
+    DocumentDecoration(; icon = :chats, conditions, counts,
+                       tooltip = () -> TooltipNote(; title = "Assistants", text = "Every assistant conversation of this window.",
+                                                   facts = ["Assistants" => string(length(assistants)),
+                                                            "Working" => string(working),
+                                                            "Waiting" => string(waiting)]))
 end
 
 """

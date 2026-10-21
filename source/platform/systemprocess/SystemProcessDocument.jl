@@ -129,7 +129,19 @@ format_tree_node_label(process::SystemProcess) =
     string(process.process_id, "  ", _shorten_command(process.command), "  ",
            _format_processor_load(process.processor_load), "  ", format_memory_size(process.memory))
 
-get_document_decoration(::SystemProcess) = DocumentDecoration(; icon = :terminal)
+get_document_decoration(process::SystemProcess) =
+    DocumentDecoration(; icon = :terminal, tooltip = () -> _make_process_note(process))
+
+# What a row of a process says when the pointer rests on it: its whole command as
+# code, and its folder, state, threads and start.
+function _make_process_note(process::SystemProcess)
+    facts = Pair{String,Any}["Process id" => string(process.process_id)]
+    isempty(process.folder) || push!(facts, "Folder" => replace(process.folder, homedir() => "~"))
+    push!(facts, "State" => string(process.state), "Threads" => string(process.thread_count),
+          "Started" => Libc.strftime("%H:%M:%S", process.start_time))
+    TooltipNote(; title = _shorten_command(process.command; limit = 40),
+                code = isempty(process.command) ? nothing : process.command, facts)
+end
 
 # A command as a label shows it: at most `limit` characters, the rest an ellipsis.
 _shorten_command(command::AbstractString; limit::Integer = 60) =
@@ -162,4 +174,6 @@ function _compute_elapsed_time(process::SystemProcess)
     sampled_at === nothing ? nothing : max(0.0, sampled_at - process.start_time)
 end
 
-get_document_decoration(::SystemProcessTree) = DocumentDecoration(; icon = :cpu)
+get_document_decoration(tree::SystemProcessTree) =
+    DocumentDecoration(; icon = :cpu, tooltip = () -> TooltipNote(; title = tree.title,
+        text = "The processes that run below this one, with their load and memory."))

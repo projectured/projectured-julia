@@ -106,5 +106,16 @@ function get_document_decoration(log::MessageLog)
     counts = DocumentCount[]
     errors > 0 && push!(counts, DocumentCount(string(errors, errors == 1 ? " error" : " errors"); role = :error))
     warnings > 0 && push!(counts, DocumentCount(string(warnings, warnings == 1 ? " warning" : " warnings"); role = :warning))
-    DocumentDecoration(; icon = :scroll_text, counts)
+    DocumentDecoration(; icon = :scroll_text, counts, tooltip = () -> _make_message_log_note(log))
+end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many entries it kept and recorded, and how many are errors and warnings.
+function _make_message_log_note(log::MessageLog)
+    levels = [lowercase(entry.level) for entry in log.entries]
+    facts = Pair{String,Any}["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                             "Recorded" => string(log.count),
+                             "Errors" => string(count(level -> startswith(level, "error"), levels)),
+                             "Warnings" => string(count(level -> startswith(level, "warn"), levels))]
+    TooltipNote(; title = "Log", text = "What the program said in this session.", facts)
 end

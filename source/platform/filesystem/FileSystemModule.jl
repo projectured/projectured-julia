@@ -41,6 +41,7 @@ using ..SettingsManagingModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..TooltipModule
 using ..UndoModule
 using ..TreeModule
 using ..WidgetModule

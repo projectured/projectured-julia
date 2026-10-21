@@ -44,6 +44,7 @@ using ..SelectionModule
 using ..SettingsModule
 using ..StyleModule
 using ..ToolModule
+using ..TooltipModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document

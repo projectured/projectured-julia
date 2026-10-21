@@ -155,5 +155,7 @@ copy_document(::DuplicatePolicy, explorer::WorkspaceExplorer) =
 pred_arguments(explorer::WorkspaceExplorer) = (explorer.workspace,), Pair{Symbol,Any}[]
 make_pred_document(::Type{WorkspaceExplorer}, positional, keywords) = WorkspaceExplorer(only(positional))
 
-get_document_decoration(::Union{Workspace, WorkspaceExplorer}) = DocumentDecoration(; icon = :files)
+get_document_decoration(::Union{Workspace, WorkspaceExplorer}) =
+    DocumentDecoration(; icon = :files, tooltip = () -> TooltipNote(; title = "Explorer",
+                                                                     text = "The files and folders of this workspace."))
 get_document_decoration(folder::WorkspaceFolder) = get_document_decoration(folder.directory)

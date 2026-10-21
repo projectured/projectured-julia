@@ -82,10 +82,19 @@ make_pred_document(::Type{<:McpLog}, positional, keywords) = get_session_mcp_log
 # The log of the calls of a client fails while one of its calls was a fault.
 function get_document_decoration(log::McpLog)
     faults = log.faults
-    faults == 0 && return DocumentDecoration(; icon = :plug)
+    tooltip = () -> _make_mcp_log_note(log)
+    faults == 0 && return DocumentDecoration(; icon = :plug, tooltip)
     DocumentDecoration(; icon = :plug, conditions = [DocumentCondition(:failed)],
-                       counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)])
+                       counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)],
+                       tooltip)
 end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many calls it kept, recorded and how many failed.
+_make_mcp_log_note(log::McpLog) =
+    TooltipNote(; title = "MCP log", text = "The calls that a client made to this editor.",
+                facts = ["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                         "Recorded" => string(log.count), "Faults" => string(log.faults)])
 
 # The command of the log, with no key: a person runs it from the command palette
 # or the menu of its row, and the count of the faults goes back to zero.

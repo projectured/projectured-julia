@@ -201,4 +201,12 @@ get_session_gesture_log(; editor = find_evaluation_editor()) =
 make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()
 make_pred_document(::Type{<:GestureLog}, positional, keywords) = get_session_gesture_log()
 
-get_document_decoration(::GestureLog) = DocumentDecoration(; icon = :keyboard)
+get_document_decoration(log::GestureLog) =
+    DocumentDecoration(; icon = :keyboard, tooltip = () -> _make_gesture_log_note(log))
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many gestures it kept and recorded.
+_make_gesture_log_note(log::GestureLog) =
+    TooltipNote(; title = "Gestures", text = "Every gesture of this session, and what each one did.",
+                facts = ["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                         "Recorded" => string(log.count)])

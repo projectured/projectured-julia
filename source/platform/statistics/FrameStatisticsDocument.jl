@@ -217,5 +217,10 @@ function collect_roster_items(::_SessionFrames, link, series)
                for k in eachindex(frames)]
 end
 
-get_document_decoration(::FrameStatistics) = DocumentDecoration(; icon = :chart)
-get_document_decoration(::FrameTimeSeries) = DocumentDecoration(; icon = :chart_line)
+get_document_decoration(statistics::FrameStatistics) =
+    DocumentDecoration(; icon = :chart, tooltip = () -> TooltipNote(; title = "Frame statistics",
+        text = "How long the frames of this window take.",
+        facts = ["Frames" => string(statistics.frame_count), "Paused" => statistics.paused ? "yes" : "no"]))
+get_document_decoration(series::FrameTimeSeries) =
+    DocumentDecoration(; icon = :chart_line, tooltip = () -> TooltipNote(; title = "Frame times",
+        text = "The time of each recent frame.", facts = ["Frames" => string(length(series.frames))]))
