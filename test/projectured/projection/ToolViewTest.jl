@@ -60,10 +60,10 @@ end
 end
 
 @testset "the file explorer opens by name, seeded" begin
-    # `Workspace()` holds no folder, and an empty explorer shows nothing. A
-    # person who opens one by name gets the working directory in it.
-    explorer = make_insertion_document(Workspace)
-    @test length(explorer.folders) == 1
+    # An explorer of no folder shows nothing. A person who opens one by name
+    # gets the working directory in it.
+    explorer = make_insertion_document(WorkspaceExplorer)
+    @test length(explorer.workspace.folders) == 1
     @test resolve_insertion(Document, "file explorer") === WorkspaceExplorer
     @test get_pane_tab_title_string(PaneTab("", explorer)) == "Explorer"
     @test !occursin("no natural rendering", render(explorer))
