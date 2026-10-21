@@ -111,6 +111,7 @@ function test_kernel()
         test_frame_measurements()
         test_editor_frame_performance()
         test_frame_guard()
+        test_kernel_frame_guards()
         test_playback()
         test_llm_defaults()
         test_agent_defaults()
@@ -157,7 +158,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_editor_wait, test_editor_timer, test_editor_background_cell, test_build_editor,
        test_frame_measurements,
        test_editor_frame_performance,
-       test_frame_guard, report_frame_guard_calibration,
+       test_frame_guard, report_frame_guard_calibration, test_kernel_frame_guards,
        test_editor_fault_barriers, test_editor_document_edits, test_playback
 # the frame guard: the harness that the guards of every package use
 export FrameScene, FrameWork, FrameGrowth, measure_frame_work, compute_frame_growth,

@@ -17,7 +17,8 @@ using ProjecturedKernel.PerformanceModule: get_frame_count, collect_recent_frame
 
 """
     FrameScene(name; sizes, make_editor, give_input!, is_burst = false,
-               waits_for_deadline = false, count_work = nothing)
+               is_input_done = editor -> true, waits_for_deadline = false,
+               count_work = nothing)
 
 A part of the editor that a frame guard drives at each of `sizes`.
 
@@ -27,7 +28,9 @@ A part of the editor that a frame guard drives at each of `sizes`.
   another task, or a change in a store. A function that does nothing gives an idle
   frame.
 - With `is_burst`, the input comes once, and the frames run until the editor has
-  nothing left to do: no wake waits, and the wait of the loop is not 0.
+  nothing left to do: no wake waits, the wait of the loop is not 0, and
+  `is_input_done(editor)` says that all of the input arrived, such as the posts of
+  another task.
 - With `waits_for_deadline`, each frame waits, outside its measured time, until a
   feed of the editor is due, as the loop waits for a deadline.
 - `count_work(editor)` answers a count of the work of the part that the part keeps,
@@ -39,15 +42,17 @@ struct FrameScene
     make_editor::Function
     give_input!::Function
     is_burst::Bool
+    is_input_done::Function
     waits_for_deadline::Bool
     count_work::Union{Function,Nothing}
 end
 
 FrameScene(name::AbstractString; sizes::AbstractVector{<:Integer}, make_editor::Function,
-           give_input!::Function, is_burst::Bool = false, waits_for_deadline::Bool = false,
+           give_input!::Function, is_burst::Bool = false,
+           is_input_done::Function = editor -> true, waits_for_deadline::Bool = false,
            count_work::Union{Function,Nothing} = nothing) =
     FrameScene(String(name), collect(Int, sizes), make_editor, give_input!, is_burst,
-               waits_for_deadline, count_work)
+               is_input_done, waits_for_deadline, count_work)
 
 """
     FrameWork
@@ -105,6 +110,11 @@ const FLAT_WORK_RATIO = 2.0
 # A ratio of allocated bytes adds this many bytes on both sides, so a frame that
 # allocates almost nothing at the smallest size gives no ratio of noise.
 const _ALLOCATION_FLOOR_BYTES = 4096.0
+
+# A ratio of minimum times adds this many seconds on both sides: a difference below
+# a tenth of a millisecond, such as the caches after a long input, is far below the
+# budget of a frame, and is no growth.
+const _TIME_FLOOR_SECONDS = 1e-4
 
 # The most frames that one burst may take before the harness stops it.
 const _BURST_FRAME_LIMIT = 2000
@@ -182,15 +192,21 @@ end
 _is_editor_settled(editor::Editor) =
     !editor.wake_pending[] && compute_wait_timeout(editor) > 0
 
-# The input of a burst, then frames until the editor settles; the count of frames,
-# and whether the burst ended within the limit.
+# The input of a burst, then frames until the editor settles and all of the input
+# arrived; the count of frames, and whether the burst ended within the limit.
 function _run_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame)
     scene.give_input!(editor, size)
     count = 0
     while count < _BURST_FRAME_LIMIT
         run_frame()
         count += 1
-        _is_editor_settled(editor) && return (count, true)
+        if _is_editor_settled(editor)
+            scene.is_input_done(editor) && return (count, true)
+            # The rest of the input comes from another task: wait for it, as the
+            # loop waits for input, and run no empty frame meanwhile.
+            timedwait(() -> editor.wake_pending[] || scene.is_input_done(editor),
+                      _DEADLINE_WAIT_LIMIT; pollint = 0.001)
+        end
     end
     (count, false)
 end
@@ -257,15 +273,17 @@ end
     compute_frame_growth(works::Vector{FrameWork}) -> FrameGrowth
 
 The ratios of the row of the largest size to the row of the smallest size: of the
-minimum frame time, of the allocated bytes with 4 kB added on both sides, of the
-count of work when both rows have one, and of the count of frames.
+minimum frame time with 0.1 ms added on both sides, of the allocated bytes with
+4 kB added on both sides, of the count of work when both rows have one, and of the
+count of frames.
 """
 function compute_frame_growth(works::Vector{FrameWork})
     smallest = works[argmin([work.size for work in works])]
     largest = works[argmax([work.size for work in works])]
     work_ratio = smallest.work_count === nothing || largest.work_count === nothing ? nothing :
                  (largest.work_count + 1) / (smallest.work_count + 1)
-    FrameGrowth(largest.minimum_seconds / smallest.minimum_seconds,
+    FrameGrowth((largest.minimum_seconds + _TIME_FLOOR_SECONDS) /
+                (smallest.minimum_seconds + _TIME_FLOOR_SECONDS),
                 (largest.median_allocated_bytes + _ALLOCATION_FLOOR_BYTES) /
                 (smallest.median_allocated_bytes + _ALLOCATION_FLOOR_BYTES),
                 work_ratio, largest.frame_count / smallest.frame_count)
@@ -308,6 +326,9 @@ Measure `scene` with [`measure_frame_work`](@ref), which takes `keywords`, and
 assert with `@test` that each ratio of [`compute_frame_growth`](@ref) is at most
 its bound, and that each burst ended. Call it inside a `@testset`. A check that
 fails prints the rows of the scene. A bound of `Inf` asserts nothing for its ratio.
+The bytes are those of the process, so a scene whose input allocates on other
+threads while its frames run, such as many clients that start at once, passes
+`allocation_bound = Inf` and asserts the time and the count of frames.
 """
 function check_frame_growth(scene::FrameScene; time_bound::Real = FLAT_TIME_RATIO,
                             allocation_bound::Real = FLAT_ALLOCATION_RATIO,

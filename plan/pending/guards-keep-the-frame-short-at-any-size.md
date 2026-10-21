@@ -1,6 +1,6 @@
 # Guards keep the frame short at any size
 
-Status: PENDING, 2026-10-21. Steps 1 and 2 are done; step 1 is on `main`. No decision
+Status: PENDING, 2026-10-21. Steps 1 to 3 are done; step 1 is on `main`. No decision
 is open: D1 is decided, in [The decision](#the-decision).
 
 ## The ask
@@ -264,7 +264,7 @@ on `main` before the owner approves. A guard that fails on `main` gets
      the third part fails in each run. Write the spread and the bounds in
      [As built](#as-built).
    - Commit.
-3. [ ] **The kernel and the door of MCP.** `test_kernel_frame_guards()` in
+3. [x] **The kernel and the door of MCP.** Done; see [As built](#as-built). `test_kernel_frame_guards()` in
    `test/kernel/editor/` and `test_mcp_frame_guards()` in `test/adapter/mcp/`,
    on the `HeadlessBackend` with a small view:
    - **Inbox:** a burst of 100, 1_000 and 10_000 operations from another task.
@@ -482,6 +482,55 @@ on `main` before the owner approves. A guard that fails on `main` gets
   part sets it. A part that grows by 10 ns for each element passes neither bound by
   a factor of 17 or more.
 - **Tests.** `test_kernel()`: 4922 pass, no failure, no broken test.
+
+### Step 3
+
+- **The guards**, `test_kernel_frame_guards()` in
+  `test/kernel/editor/KernelFrameGuardTest.jl`, in `test_kernel()`, and
+  `test_mcp_frame_guards()` in `test/adapter/mcp/McpFrameGuardTest.jl`, in `test_mcp()`.
+  Measured 2026-10-21 in the lane, load about 3:
+
+  | Scene | Sizes | Minimum frame | Bytes of a frame | Frames | Time ratio | Ratio of bytes | Result |
+  |---|---|---|---|---|---|---|---|
+  | operations that another task posts | 100, 1_000, 10_000 | 0.029 to 0.034 ms | 15.7 to 16.2 kB | 3, 17, 158 | 1.04 | 1.02 | pass |
+  | an operation that posts many to its own editor | 100, 1_000, 10_000 | 0.05 to 4.58 ms | 22 kB to 1.84 MB | 2, 2, 2 | 31.08 | 71.28 | broken |
+  | faults with distinct keys | 100, 1_000, 10_000 | 0.009 to 0.017 ms | 18.9 to 21.0 kB | 1, 1, 1 | 1.08 | 1.09 | pass |
+  | a write to the one shown cell of many cells | 1_000, 10_000, 100_000 | 0.005 to 0.006 ms | 3.6 kB | 50 | 1.00 | 1.00 | pass |
+  | calls that another task makes | 100, 1_000, 10_000 | 11.09 to 11.13 ms | 23.4 to 27.0 kB | 3, 17, 158 | 1.00 | 1.13 | pass |
+  | tool calls that clients make at once (MCP) | 100, 1_000, 10_000 | 11.34 to 11.60 ms | 144 kB to 8.25 MB | 4, 16, 157 | 1.02 | not asserted | pass |
+
+- **Broken: the posts of the owner task.** `drain_operations!` takes every
+  operation that the owner task posted to its own editor (`owner_posts`) in one
+  frame, with no bound, so an operation that posts 10_000 operations makes one frame
+  of 4.6 ms and 1.8 MB. The guard marks the two ratios `@test_broken`. The fix is
+  not in this plan.
+- **A frame with a code unit is one held frame.** The calls of another task and the
+  tool calls run as one code unit for each drain, and the headless backend holds
+  each held frame 10 ms, so each such frame takes about 11 ms at any size.
+- **Decision: the sizes of a part with a bound for each frame are above that
+  bound.** The fault store keeps at most 64 keys, and a drain takes at most 64 calls
+  of the inbox. At 10 faults or 10 calls the frame does less than at the bound, and
+  a ratio from there measures the bound and not a growth. So these scenes start at
+  100.
+- **Decision: a ratio of minimum times adds 0.1 ms on both sides.** The burst of
+  10_000 faults gave a time ratio of 5.9, from 0.008 ms to 0.049 ms, with flat
+  bytes and with each stage a little slower, also the read and the print, which do
+  not touch a fault: the caches after the loop that recorded the faults. A
+  difference below 0.1 ms is far below the budget of a frame. With the floor, the
+  synthetic parts that grow give 11.3 and 15.8 against the bound of 3, and the parts
+  that do not grow give 0.99 to 1.06.
+- **Decision: a burst whose input comes from another task waits for it.** A scene
+  has `is_input_done(editor)`, and a burst ends only when all of its input arrived.
+  While the editor has nothing to do and the input is not done, the harness waits
+  for a wake, as the loop waits for input, and runs no empty frame.
+- **Decision: the MCP guard asserts no bytes.** The record counts the bytes of the
+  process, and 10_000 client tasks start on other threads while the first frames
+  run. The guard asserts the time and that the largest burst takes at most
+  `cld(10_000, 64) + 5` frames: it took 157.
+- **Decision: the cell write uses 1_000, 10_000 and 100_000 cells**, not 10_000_000,
+  because 10_000_000 cells take about 1 GB.
+- **Tests.** `test_kernel()`: 4935 pass and 2 broken. `test_mcp_frame_guards()`: 4
+  pass. `test_mcp_tools()`: 180 pass.
 
 ### The cause of the slow frames in the Assistant pane
 

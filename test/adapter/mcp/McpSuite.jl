@@ -1,4 +1,6 @@
 include("McpTest.jl")
+# After the file above: it uses the editor that the file above makes.
+include("McpFrameGuardTest.jl")
 
 """
     test_mcp_layering()
@@ -27,7 +29,8 @@ function test_mcp()
         test_mcp_layering()
         test_mcp_resources()
         test_mcp_tools()
+        test_mcp_frame_guards()
     end
 end
 
-export test_mcp, test_mcp_layering
+export test_mcp, test_mcp_layering, test_mcp_frame_guards
