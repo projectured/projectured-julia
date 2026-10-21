@@ -233,6 +233,12 @@ window before zooming or panning relative to it.
 function resolve_view(plot::ChartPlot)
     v = plot.view
     v isa ChartView && return v
+    _compute_fit_view(plot)
+end
+
+# The window that fits the visible data: what a plot shows before a zoom, and the
+# extent that a scroll of the wheel stays inside.
+function _compute_fit_view(plot::ChartPlot)
     chart = plot.chart
     chart isa Chart || return ChartView(0.0, 1.0, 0.0, 1.0)
     series = _visible_series(chart)
@@ -1536,26 +1542,23 @@ end
 _pan_by(view::ChartView, dx::Real, dy::Real) =
     ChartView(view.x_min + dx, view.x_max + dx, view.y_min + dy, view.y_max + dy)
 
-# The wheel zooms; over an axis strip it zooms only that axis, which is how a
-# chart offers per-axis zoom without a separate control. Shift turns it into a
-# pan, matching the scroll convention everywhere else in the editor.
+# Ctrl and the wheel zoom; over an axis strip they zoom only that axis, which is
+# how a chart offers per-axis zoom without a separate control. A plain turn
+# scrolls the window up and down, and Shift and the wheel, or a turn across,
+# scroll it across, as a scroll pane does: a turn away from the person shows what
+# is above, or what is to the left. A scroll stops at the edges of the fit of the
+# data, and a turn that moves nothing is not the chart's, so the page around a
+# chart that shows all its data scrolls.
 function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
-    view = resolve_view(plot)
-    notches = event.dy != 0 ? event.dy : event.dx
-    notches == 0 && return nothing
-
     over_plot = _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
     over_x = event.y >= g.plot_y + g.plot_h && g.plot_x <= event.x <= g.plot_x + g.plot_w
     over_y = event.x <= g.plot_x && g.plot_y <= event.y <= g.plot_y + g.plot_h
     (over_plot || over_x || over_y) || return nothing
+    view = resolve_view(plot)
+    event.modifiers.ctrl || return _scroll_view(plot, view, event)
 
-    if event.modifiers.shift
-        frac = _PAN_STEP * notches
-        return _set_view(plot, over_y ?
-            _pan_by(view, 0.0, (view.y_max - view.y_min) * frac) :
-            _pan_by(view, (view.x_max - view.x_min) * frac, 0.0))
-    end
-
+    notches = event.dy != 0 ? event.dy : event.dx
+    notches == 0 && return nothing
     k = _ZOOM_STEP^(-notches)
     fx = to_data(g.xs, clamp(event.x, g.plot_x, g.plot_x + g.plot_w))
     fy = to_data(g.ys, clamp(event.y, g.plot_y, g.plot_y + g.plot_h))
@@ -1563,6 +1566,32 @@ function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
     ky = over_x ? 1.0 : k
     _set_view(plot, _zoom_about(view, fx, fy, kx, ky))
 end
+
+# The scroll of `view` by a turn of the wheel with no Ctrl: `_PAN_STEP` of the
+# window for each notch, and the fraction of a notch from a touchpad, inside the
+# fit of the data. Shift makes a turn go across also when the backend gives it as
+# a vertical turn.
+function _scroll_view(plot::ChartPlot, view::ChartView, event::MouseScroll)
+    turn_x, turn_y = event.precise_dx, event.precise_dy
+    across = event.modifiers.shift || (turn_x != 0 && turn_y == 0)
+    turn = across ? (turn_x != 0 ? turn_x : turn_y) : turn_y
+    turn == 0 && return nothing
+    fit = _compute_fit_view(plot)
+    if across
+        d = _clamp_pan(-(view.x_max - view.x_min) * _PAN_STEP * turn;
+                       window = (view.x_min, view.x_max), extent = (fit.x_min, fit.x_max))
+        return d == 0 ? nothing : _set_view(plot, _pan_by(view, d, 0.0))
+    end
+    d = _clamp_pan((view.y_max - view.y_min) * _PAN_STEP * turn;
+                   window = (view.y_min, view.y_max), extent = (fit.y_min, fit.y_max))
+    d == 0 ? nothing : _set_view(plot, _pan_by(view, 0.0, d))
+end
+
+# The part of a pan by `d` that keeps the `window` (low, high) inside the `extent`
+# (low, high), or 0 when the window can not move that way. A window that is past
+# an edge can move back toward the extent.
+_clamp_pan(d::Real; window, extent) =
+    d > 0 ? min(d, max(0.0, extent[2] - window[2])) : max(d, -max(0.0, window[1] - extent[1]))
 
 # Dragging in the plot draws a rubber band and commits it as the new window;
 # with Shift it pans instead. There is no precedent for a rubber band in this

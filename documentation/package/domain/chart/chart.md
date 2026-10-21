@@ -72,12 +72,13 @@ A click on a part selects it. A click on a data point or on a strip segment sele
 | Ctrl+Shift+Up, Ctrl+Shift+Down | move the selected series in the list |
 | Alt+Delete | remove the selected series |
 | click on a legend item; hover on it | hide or show that series; veil the other series |
-| wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
-| Shift+wheel, Shift+drag, Shift+arrows | pan |
+| Ctrl+wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
+| wheel; Shift+wheel | scroll up and down; scroll across |
+| Shift+drag, Shift+arrows | pan |
 | drag in the plot | rubber-band zoom |
 | double click, `0`; `+`, `-` | fit to the data; zoom about the centre |
 
-The `@gestures Chart` table in `ChartDocument.jl` holds the navigation and the edits. The reader of the renderer holds the view gestures. The arrow keys move the selection, as in every other document, so a pan takes Shift. A drag computes from its anchor, which holds the point of the press, the window and the two axis scales at the press, and the reader writes no window equal to the one that the plot holds. So a move to the point of the last move writes no cell, also after a pan changed the geometry. A drag goes on while the button is held, also off the plot. A move with no button held during a drag follows a release that the plot did not get, and it ends the drag with no change, as Escape does. A move off the plot area clears the cursor.
+The `@gestures Chart` table in `ChartDocument.jl` holds the navigation and the edits. The reader of the renderer holds the view gestures. The arrow keys move the selection, as in every other document, so a pan takes Shift. The wheel follows the rule of the editor: Ctrl and the wheel zoom, and the wheel scrolls as in a scroll pane. A notch scrolls a tenth of the window, and a touchpad scrolls by the fraction of a notch. A scroll stops at the edges of the fit of the data, and a turn that moves nothing is not the chart's. So a chart that shows all its data takes no turn, and the page around it scrolls. A drag computes from its anchor, which holds the point of the press, the window and the two axis scales at the press, and the reader writes no window equal to the one that the plot holds. So a move to the point of the last move writes no cell, also after a pan changed the geometry. A drag goes on while the button is held, also off the plot. A move with no button held during a drag follows a release that the plot did not get, and it ends the drag with no change, as Escape does. A move off the plot area clears the cursor.
 
 ### Scale
 

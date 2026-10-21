@@ -979,10 +979,11 @@ function test_chart_projection()
             mid_y = g.plot_y + g.plot_h ÷ 2
 
             before = resolve_view(plot)
-            # The wheel zooms about the cursor: the window narrows, and the data
-            # point that was under the pointer is still under it.
+            ctrl = ModifierKeys(; ctrl=true)
+            # Ctrl and the wheel zoom about the cursor: the window narrows, and the
+            # data point that was under the pointer is still under it.
             under = PlotModule.to_data(g.xs, mid_x)
-            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             after = resolve_view(plot)
@@ -996,14 +997,14 @@ function test_chart_projection()
             @test PlotModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
 
             # Wheeling out again widens it back.
-            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             back = resolve_view(plot)
             @test (back.x_max - back.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
 
             # Over the x-axis strip only x zooms; over the y strip only y.
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ModifierKeys(); time = 0.0))
+                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) < (before.x_max - before.x_min)
@@ -1011,20 +1012,58 @@ function test_chart_projection()
 
             plot.view = nothing
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, g.plot_x - 4, mid_y, ModifierKeys(); time = 0.0))
+                MouseScroll(0, 1, g.plot_x - 4, mid_y, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
             @test (v.y_max - v.y_min) < (before.y_max - before.y_min)
 
-            # Shift+wheel pans without changing the window width.
+            # A chart that shows all its data has nothing to scroll to, so a turn
+            # with no Ctrl is not the chart's, and the page around it scrolls.
             plot.view = nothing
-            op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0))
-            evaluate_operation(nothing, op)
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)) === nothing
+
+            # After a zoom, the wheel scrolls up and down, and Shift and the wheel
+            # across, by a tenth of the window, with no change of its size. A turn
+            # away shows what is above, and what is to the left.
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            zoomed = resolve_view(plot)
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)))
             v = resolve_view(plot)
-            @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
-            @test v.x_min > before.x_min
+            @test v.y_min ≈ zoomed.y_min + 0.1 * (zoomed.y_max - zoomed.y_min)
+            @test (v.y_max - v.y_min) ≈ (zoomed.y_max - zoomed.y_min)
+            @test v.x_min == zoomed.x_min
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            v = resolve_view(plot)
+            @test v.x_min ≈ zoomed.x_min - 0.1 * (zoomed.x_max - zoomed.x_min)
+            @test v.y_min == zoomed.y_min
+            # A turn across, as the backend gives Shift and the wheel, and the
+            # fraction of a notch from a touchpad.
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(-1, 0, mid_x, mid_y, ModifierKeys(); time = 0.0)))
+            @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 0, mid_x, mid_y, ModifierKeys(); time = 0.0, precise_dy = 0.5)))
+            @test resolve_view(plot).y_min ≈ zoomed.y_min + 0.05 * (zoomed.y_max - zoomed.y_min)
+
+            # The scroll stops at the edge of the data, and the next turn is not
+            # the chart's.
+            plot.view = nothing
+            fit = resolve_view(plot)
+            plot.view = zoomed
+            for _ in 1:20
+                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            @test resolve_view(plot).y_min ≈ fit.y_min
+            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) !== nothing
 
             # A wheel outside the plot and its axis strips is not ours.
             @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)) === nothing

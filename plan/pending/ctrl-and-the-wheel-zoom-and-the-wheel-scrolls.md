@@ -73,7 +73,7 @@ land on `main` before the owner approves.
    `nothing`; Ctrl and the wheel move no line of a task stream. The tests of step
    1 and `test_task_pages` pass (37, 48 and 240 assertions in the three suites
    that changed or cover the dashboard).
-3. [ ] **The chart.** In `_scroll_intent`: Ctrl and the wheel zoom, as the plain
+3. [x] **The chart.** Done; see [As built](#as-built). In `_scroll_intent`: Ctrl and the wheel zoom, as the plain
    wheel does now. A vertical turn pans the y window, and a horizontal turn pans
    the x window, inside the fit of the data, by `_PAN_STEP` of the window for each
    notch and by the fraction of a notch from a touchpad. A pan that moves nothing
@@ -107,3 +107,9 @@ land on `main` before the owner approves.
 
 - **Step 1.** The card routes the turn by `_card_route`, the helper that a press
   uses, so the answer is rerooted by the slot that answered.
+- **Step 3.** `resolve_view` gives the fit to `_compute_fit_view`, and the scroll
+  reads that fit as its extent. `_scroll_view` does the scroll, and
+  `_clamp_pan(d; window, extent)` takes the two bounds as named pairs, because a
+  caller could swap two bounds. Shift makes a turn go across also when it comes
+  as a vertical turn, because a backend other than SDL can give Shift and the
+  wheel as `dy`. `test_chart_projection` passes, 332 assertions.
