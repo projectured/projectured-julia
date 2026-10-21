@@ -76,8 +76,9 @@ The dwell reaches the container after the part, so the order of the layers stays
 - a JSON or a YAML file: the path of the part, as `users[1].name`, its type, and its length, its value or its count;
 - an XML file: the path of the element, as `/root/a[1]/b`, the namespace of its prefix, its attributes and children;
 - a Julia file: for a call of a plain name, the signature and the docstring of the function of that name in the file;
-- a graph: the edges out and in, and the label, of a vertex;
-- an INI file of omnet-julia: the chain of `extends` of the section, as `X → Base → General`.
+- a graph: the edges out and in, and the label, of a vertex.
+
+A package adds the same for its own files, with a tooltip binding on its file type.
 
 ### A command runs the same binding
 
