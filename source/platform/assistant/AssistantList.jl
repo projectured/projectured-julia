@@ -57,11 +57,13 @@ has_document_duplicate(::AssistantList) = false
 is_walk_opaque(::AssistantList) = true
 
 # In a tree the list has a node for each assistant, and an assistant has its work
-# below it: its subagents, then its background tasks.
+# and its conversation below it: its subagents, its background tasks, then the
+# turns of its conversation.
 get_tree_children_steps(::AssistantList) = ((FieldReferenceStep("assistants"),),)
 get_tree_children_steps(::Assistant) =
     ((FieldReferenceStep("agent_work"), FieldReferenceStep("subagents")),
-     (FieldReferenceStep("agent_work"), FieldReferenceStep("background_tasks")))
+     (FieldReferenceStep("agent_work"), FieldReferenceStep("background_tasks")),
+     (FieldReferenceStep("conversation"), FieldReferenceStep("turns")))
 
 # The list says how many of its assistants work, and how many wait for the person.
 function get_document_decoration(list::AssistantList)

@@ -7,7 +7,9 @@ with a subagent and a background task; a double click on the subagent opens its
 page with its transcript, Back and Parent return; a double click on the
 background task opens its detail; Cancel of a subagent reaches the agent; the
 column `plan` of the list of the assistants follows a plan; the Work button of
-the list opens one tab; and the verb answers the page in its window.
+the list opens one tab; the verb answers the page in its window; and an Explorer
+shows the turns of an assistant, where a press on a turn or a tool call shows it
+as the page of the navigator.
 """
 function test_assistant_work()
     @testset "the work page of an assistant" begin
@@ -223,8 +225,13 @@ function test_assistant_work()
             child = only(collect(a.agent_work.subagents))
             children = ((FieldReferenceStep("subagents"),),
                         (FieldReferenceStep("background_tasks"),))
+            turns = (FieldReferenceStep("conversation"), FieldReferenceStep("turns"))
             @test get_tree_children_steps(work) == children
-            @test get_tree_children_steps(child) == get_tree_children_steps(work)
+            # A subagent and an assistant also have the turns of their conversation.
+            @test get_tree_children_steps(child) == (children..., turns)
+            @test get_tree_children_steps(a) ==
+                  ((FieldReferenceStep("agent_work"), FieldReferenceStep("subagents")),
+                   (FieldReferenceStep("agent_work"), FieldReferenceStep("background_tasks")), turns)
             @test format_tree_node_label(work) == "This session"
             @test get_document_decoration(work).icon === :bot
             @test get_document_decoration(child).icon === :loader
@@ -244,6 +251,54 @@ function test_assistant_work()
             @test pred_arguments(work) == ((a,), Pair{Symbol,Any}[])
             @test is_walk_opaque(work) && !has_document_duplicate(work)
             @test search_references(work, node -> node === child) |> isempty
+        end
+
+        @testset "an Explorer shows the turns of an assistant, and a press shows a turn or a part as its page" begin
+            grep = AgentToolCallUpdate("c1"; name = "Grep", status = :completed,
+                                       input = Dict{String,Any}("pattern" => "outline"), output = "a.jl")
+            connection = ScriptedAgentConnection([Any[
+                grep, LlmTextStart(), LlmTextDelta("Found the outline."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Find the outline")
+            turns = collect(a.conversation.turns)
+            asked = turns[findlast(turn -> turn.role === :user, turns)]
+            index = findlast(turn -> turn.role === :assistant, turns)
+            answer = turns[index]
+            parts = collect(answer.parts)
+            k = findfirst(part -> part.content isa EvaluatorForm, parts)
+            @test format_tree_node_label(asked) == "You · Find the outline"
+            @test format_tree_node_label(answer) == "Assistant · Found the outline."
+            @test format_tree_node_label(parts[k]) == "tool · Grep \"outline\""
+            explorer = Explorer(ExplorerSection("Explorer", Any[a]))
+            navigator = explorer.navigator
+            # The rows of the conversation draw a turn and a part, as in the
+            # application.
+            measure = FixedMeasure(8, 12, 4, 0)
+            rows = Pair{Type,Any}[make_conversation_draft_row(; measure), make_conversation_row(; measure)]
+            editor, backend = _work_page_editor(explorer; extra = rows)
+            # The tree and the page draw the same texts, so a press goes to the
+            # text in the tree, the one at the left.
+            press!(label) = _work_page_press!(editor, backend, ProjecturedPlatformTest._explorer_click(backend, label))
+            for label in (format_tree_node_label(a), format_tree_node_label(answer))
+                chevron = ProjecturedPlatformTest._explorer_open_chevron(backend, label)
+                @test chevron !== nothing
+                _work_page_press!(editor, backend, chevron)
+            end
+            for label in ("You · Find the outline", "tool · Grep \"outline\"", "Found the outline.")
+                @test ProjecturedPlatformTest._explorer_click(backend, label) !== nothing
+            end
+            answer_steps = (FieldReferenceStep("entries"), ElementReferenceStep(1),
+                            FieldReferenceStep("conversation"), FieldReferenceStep("turns"),
+                            ElementReferenceStep(index))
+            press!(format_tree_node_label(answer))
+            @test get_navigator_page(navigator) === answer
+            @test _work_page_is(navigator.address, answer_steps...)
+            press!("tool · Grep \"outline\"")
+            @test get_navigator_page(navigator) === parts[k]
+            @test _work_page_is(navigator.address, answer_steps..., FieldReferenceStep("parts"), ElementReferenceStep(k))
+            # The page draws the tool call, right of the tree.
+            tree_x = ProjecturedPlatformTest._explorer_click(backend, "tool · Grep \"outline\"").x
+            @test any(entry -> occursin("Grep", entry[1]) && entry[2] > tree_x + 100, _work_page_texts(backend))
         end
     end
 end
@@ -273,11 +328,11 @@ function _make_worked_assistant()
     a, connection
 end
 
-# An editor whose document is `document`, drawn by the natural renderer, after its
-# first frame.
-function _work_page_editor(document; tabs::Bool = false)
+# An editor whose document is `document`, drawn by the natural renderer with the
+# rows `extra` in front of its own, after its first frame.
+function _work_page_editor(document; tabs::Bool = false, extra = Pair{Type,Any}[])
     backend = HeadlessBackend()
-    natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+    natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
     editor = EditorModule.build_editor(document, natural; backend,
                                        devices = Device[Keyboard(), Mouse(), Display()],
                                        window = false, tabs, appearance = false,

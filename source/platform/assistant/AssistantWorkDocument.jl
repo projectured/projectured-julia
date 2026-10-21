@@ -17,7 +17,8 @@ navigator.
   part of the work through them, such as `subagents[1]`, so Parent from the
   page of a subagent comes back to the page.
 - `work_tree` — the `DocumentTree` of the page itself: the session, its
-  subagents and their background tasks, at every depth.
+  subagents, their background tasks and the turns of each subagent, at every
+  depth.
 - `process_tree` — a `DocumentTree` of `processes`, or `nothing` while the agent
   names no process.
 
@@ -82,9 +83,9 @@ Show the work page of `assistant` in a tab of the window of `editor`, named
 "Work · " and the title of the assistant, and answer the page in its window. A
 tab that shows the work of `assistant` already comes to the front. The page
 shows the job of the agent, what it does now, its plans, the tree of its work —
-the session, its subagents and their background tasks — the tree of its
-processes, and its notices. A double click on a node opens its page, and Back
-returns.
+the session, its subagents, their background tasks and their turns — the tree
+of its processes, and its notices. A double click on a node opens its page, and
+Back returns.
 
 Use it to see what an external agent works on, how far its plan is, and which
 subagents and background tasks run.

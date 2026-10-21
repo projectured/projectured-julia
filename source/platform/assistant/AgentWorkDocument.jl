@@ -91,10 +91,11 @@ accepts_pasted_document(::AgentWork) = false
 
 # ── The nodes of a tree ──────────────────────────────────────────────────────
 
-# The work of an agent is a node whose children are its subagents, then its
-# background tasks.
+# The work of an agent is a node whose children are its subagents, its background
+# tasks, then the turns of its conversation.
 get_tree_children_steps(::AgentWork) =
-    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
+    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),),
+     (FieldReferenceStep("conversation"), FieldReferenceStep("turns")))
 
 # The node of a subagent: its title. Its decoration says its state as its icon,
 # and as its detail its state with the time when it started while it runs, the

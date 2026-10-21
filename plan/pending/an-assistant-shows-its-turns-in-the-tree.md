@@ -176,7 +176,7 @@ branch `conversation-outline`. Make a commit for each step. Do not land on
    21. The test module of the conversation imports `ProjecturedJSON`, so a part
    of JSON is the document with a natural notation that the test labels. No
    other test reads a decoration of a conversation kind.
-2. [ ] **The turns below an assistant and a subagent.** Add
+2. [x] **The turns below an assistant and a subagent.** Add
    `(FieldReferenceStep("conversation"), FieldReferenceStep("turns"))` as the
    third collection of `Assistant` and of `AgentWork`. Change the assertion of
    fact 8: a subagent gives the two collections of the work page and the turns.
@@ -185,6 +185,25 @@ branch `conversation-outline`. Make a commit for each step. Do not land on
    turn as the page of the navigator, and a press on the row of a tool call
    shows that part. Run `test_assistant_work()`, `test_explorer()` and
    `test_document_tree()`.
+
+   Done, 2026-10-21. `test_assistant_work()` passes 119 of 119,
+   `test_explorer()` 240 of 240, `test_document_tree()` 126 of 126, and the
+   rest of `test_conversation()` passes. The docstrings of `AssistantWork`,
+   `show_assistant_work!` and `AssistantWorkToWidget` say that the tree of
+   the work shows the turns of each subagent.
+
+   The facts found in this step:
+   - The plain `NaturalToGraphics` has no row for a conversation document.
+     Only the application puts `make_conversation_draft_row` and
+     `make_conversation_row` in front of its renderer
+     (`make_application_content_projections`). An Explorer in the
+     application draws a page of a turn or a part with them. The test gives
+     the two rows to its editor: `_work_page_editor` takes `extra`.
+   - Without these rows, the page of a turn falls through to the generic
+     object printer. It throws `UndefRefError` in `_visible_elements`
+     ([ObjectToSyntax.jl](../../source/platform/syntax/ObjectToSyntax.jl))
+     on the `Memory` of the `Dict` of a tool call, where a slot is not set.
+     This fault is on `main` too, and this plan does not fix it.
 3. [ ] **The cost.** In a scratch script, make an assistant with 200 turns of 10
    parts each, with a Markdown text of 20 lines in each part. Measure two
    values: the frame that draws the open node of the assistant, and a search
@@ -207,6 +226,9 @@ branch `conversation-outline`. Make a commit for each step. Do not land on
    screenshot, and write what it shows here.
 
 ## Open items
+
+- The generic object printer throws on a `Dict` whose `Memory` has a slot that
+  is not set (step 2). A page with no row for its document shows the fault.
 
 - D5: the tree of the work page also shows the turns below each subagent. The
   owner can keep it, or ask for the work page to show the work only.

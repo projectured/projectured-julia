@@ -16,8 +16,8 @@ Draw an [`AssistantWork`](@ref) as a column of cards, in a scroll pane:
   uses. The time reads the clock of the editor only while a turn runs, so an
   idle page draws no frame.
 - **The plans**: each other plan of the agent, with the view of a plan.
-- **Work**: the tree of the work: the session, its subagents and their
-  background tasks, at every depth. A double click on a node opens its page.
+- **Work**: the tree of the work: the session, its subagents, their
+  background tasks and the turns of each subagent, at every depth. A double click on a node opens its page.
 - **Processes**: the tree of the processes of the session, or a line that says
   that the agent gives none.
 - **Notices**: the notices of the agent, the newest first, each with its time
