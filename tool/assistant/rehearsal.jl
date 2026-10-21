@@ -711,8 +711,20 @@ function check_window_edit(editor, steps_before)
     nothing
 end
 
+# The dashboards of `section` and of the sections below it.
+function find_section_dashboards(section)
+    found = Any[]
+    for entry in section.entries
+        entry isa Dashboard && push!(found, entry)
+        entry isa ExplorerSection && append!(found, find_section_dashboards(entry))
+    end
+    found
+end
+
+# A dashboard of two charts is in the explorer, in the root section or in a section
+# below it, such as Dashboards.
 function check_dashboard_added(editor, steps_before)
-    made = [entry for entry in get_session_explorer_content(; editor).entries if entry isa Dashboard]
+    made = find_section_dashboards(get_session_explorer_content(; editor))
     isempty(made) && return "no dashboard in the explorer: $(find_entry_labels(editor))"
     any(dashboard -> length(dashboard.cards) == 2 && all(card -> card.content isa Chart, dashboard.cards), made) ||
         return "the dashboards have the cards " *
