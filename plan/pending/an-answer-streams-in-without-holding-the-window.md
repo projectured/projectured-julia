@@ -1,6 +1,6 @@
 # An answer streams in without holding the window
 
-Status: PENDING, 2026-10-21. Steps 1 to 3 are done, on the branch `answer-stream`.
+Status: PENDING, 2026-10-21. Steps 1 to 4 are done, on the branch `answer-stream`.
 No decision is open.
 
 ## The ask
@@ -114,7 +114,7 @@ the measurement needs the record of a frame. Commit each step. Do not land on
    delta at the start and at the end, and the frames with a collection. The
    target: with vsync on, the median frame of the turn is at most one refresh,
    16.7 ms. Commit.
-4. [ ] **The recorded workload streams an answer.** The recording driver streams
+4. [x] **The recorded workload streams an answer.** Done; see [As built](#as-built). The recording driver streams
    a turn of a `ScriptedLlm` in the Assistant pane of the application window,
    with text, thinking and a tool call. Record the statements again, and check
    that the new list holds the old one. Then measure the first turn in the
@@ -281,3 +281,49 @@ delta each 30 ms. The frames are in `/var/tmp/frame-guards/s3-*/`.
   answer. On the base, vsync off, the bytes grow from 3.19 MB to 15.52 MB. The
   guard of the assistant transcript, in step 5 of the guards plan, measures this
   growth; this plan does not fix it.
+
+### Step 4
+
+- **The driver.** `tool/precompile/recording-driver.jl` ends with
+  `drive_assistant_turn!`: the application window with a `ScriptedLlm` in the
+  Assistant pane, in the real loop of `run_editor!`, streams a thought, a text with
+  a newline and a call of `execute_julia_code`, and after its result a second text
+  with Markdown and a block of code. It runs after the examples, on a backend of its
+  own, because the loop quits its backend at its end.
+- **The recording.** `ProjecturedREPL.record_precompile_statements("examples")`,
+  2026-10-21, 394 s, in the build lane: 115 examples driven, the same 3 refused as
+  in the recording before (`json_sorted`, `filesystem`, `files`), and the turn
+  ended `:idle`. 49 statement files, 13_531 lines; before, 7_559 lines.
+- **Decision: the check that the new list holds the old one is the stale share
+  of a replay, not the text.** Only 335 old lines are in the new list word for
+  word, because a statement names closures and the type parameters of documents,
+  whose printed names change with the code. The driver is the same plus the turn.
+  A replay of the list in the leaf compiles 15_306 statements and skips 529 of
+  15_835, 3.3 %; with the old list the leaf skipped 2_130 of 9_871, 21.6 %. The new
+  list names the stream of an answer: 25 statements name the source of a turn, 6
+  its drain, 5 the handler of an event, 3 the feed; the old list named none of
+  them.
+- **The first answer with the workload.** Measured in the lane, load 3.9 to 6.5,
+  with vsync off, as `assistant_frames.jl` with `LOAD_LEAF=1` loads the leaf first,
+  as the `jp` alias does:
+
+  | Session | First frame of the turn | Compile of its first 10 frames | Compile of the first move of the pointer |
+  |---|---|---|---|
+  | without the leaf | 3121.86 ms | 6816.90 ms | 3225.94 ms |
+  | with the leaf and the new recording | 173.92 ms | 214.13 ms | 322.53 ms |
+
+  The median frame of the turn is 7.39 ms and 7.34 ms in these two runs, with
+  the load beside them.
+- **`bin/projectured` does not replay the recording.** Its application package
+  compiles `warm_application()`, a live workload, which runs no assistant turn, and
+  the statement files serve the leaf `ProjecturedREPL` and the build of an
+  executable. The live workload can not stream a scripted turn, because
+  `ScriptedLlm` is a test double that no production build holds. Not in this plan.
+- **Seen, cause not proven: a present that waits about 1 s.** In 3 of the 6 runs
+  with vsync on on 2026-10-21 (09:52, 10:48 and 10:58), each frame of the turn
+  that painted took about 1 s in the print, 997 ms to 999 ms, and the answer did not
+  end within 90 s; with vsync off no run did. The probe of a window at its opening,
+  `_drop_pathological_vsync!`, did not catch it. The window of the script can have
+  been hidden behind other windows then. A frame that waits in a present can also
+  hold every other thread at the next garbage collection, which can explain why the
+  turn itself went slowly. Not in this plan.
