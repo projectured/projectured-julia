@@ -140,6 +140,144 @@ end
     end
 end
 
+# The settings of each scroll: as a test paints, as a window paints, at a density
+# that gives 2.5 device pixels for each pixel, and at the density 2.
+scroll_settings = ((1, 1), (2, 1), (2, 1.25), (2, 2))
+
+# A pane over `elements` at the box `(x, y, w, h)`, as a scroll pane draws it: a
+# viewport over a canvas with no layout whose origin is the negative scroll.
+make_pane(box, elements, scroll_x, scroll_y) =
+    GraphicsViewport(box..., GraphicsCanvas(Any[elements...]; x = () -> -scroll_x[], y = () -> -scroll_y[]))
+
+# `count` rows `height` pixels apart, in a laid-out canvas. In the large font a row
+# holds a glyph that rises above the ascent of its font or one that reaches left
+# of its x, past the pad of a rectangle.
+function make_scroll_rows(count, height, row_font)
+    slots = Cell[Cell(GraphicsText(string(isodd(k) ? "Ṏ" : "ƒ", " row ", k), 4, (k - 1) * height;
+                                   font = row_font, color = black))
+                 for k in 1:count]
+    (GraphicsCanvas(CellVector(slots); w = 400, h = count * height, layout = layout_vertical,
+                    overlapping = false), slots)
+end
+
+@testset "a scroll of rows whose ink crosses the edges of the box" begin
+    for (supersample, density) in scroll_settings
+        scroll_x, scroll_y = Cell(0), Cell(0)
+        rows, slots = make_scroll_rows(100, 60, large)
+        edited = Cell("Ṏ row 9")
+        set_cell_computation!(slots[9], () -> GraphicsText(edited[], 4, 8 * 60; font = large, color = black))
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [rows], scroll_x, scroll_y)];
+                                w = width, h = height)
+        # Down, down further, up, further than the box, on both axes at once, back
+        # to the left, and a scroll with a change of a row in the same frame.
+        @test isempty(find_differing_frames(canvas,
+            [make_writes(scroll_y, [16, 85, 62, 700]);
+             () -> (scroll_x[] = 7; scroll_y[] = 724);
+             make_writes(scroll_x, [0]);
+             () -> (scroll_y[] = 450; edited[] = "Ṏ row nine")];
+            supersample, density))
+    end
+end
+
+@testset "a scroll of a list of nodes, with a pane inside it" begin
+    for (supersample, density) in scroll_settings
+        nodes = [ListNode(GraphicsText("line $k", 4, (k - 1) * 16; font, color = black)) for k in 1:60]
+        for k in 1:59
+            nodes[k].next = nodes[k + 1]
+            nodes[k + 1].prev = nodes[k]
+        end
+        list = GraphicsCanvas(nodes[1]; layout = layout_vertical, overlapping = false)
+        # A pane in the content, near its bottom edge, so the box of the outer pane
+        # cuts it until the outer pane scrolls by 40.
+        inner_rows, _ = make_scroll_rows(40, 16, font)
+        stripes = [GraphicsRect(0, 8 * k, 100, 4; color = translucent) for k in 0:79]
+        inner_scroll = Cell(0)
+        inner = make_pane((150, 160, 100, 80), [stripes..., inner_rows], Cell(0), inner_scroll)
+        outer_scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [list, inner], Cell(0), outer_scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas,
+            [make_writes(inner_scroll, [10, 27]);
+             make_writes(outer_scroll, [16, 85, 62]);
+             () -> (outer_scroll[] = 100; inner_scroll[] = 30);
+             make_writes(outer_scroll, [700])];
+            supersample, density))
+    end
+end
+
+@testset "a scroll under and over other graphics" begin
+    for (supersample, density) in scroll_settings
+        gray = StyleColor(0.8, 0.8, 0.8, 1.0)
+        # A plain fill under the whole box, stripes and a frame with a border under
+        # a part of it, a dot over it that stays and one that moves, and a second
+        # pane beside it.
+        under = GraphicsRect(10, 10, 320, 220; color = StyleColor(0.95, 0.95, 0.9, 1.0))
+        stripes = [GraphicsRect(20 + 20 * k, 20, 10, 200; color = gray) for k in 0:14]
+        frame = GraphicsRect(40, 40, 100, 100; color = color_transparent, border_width = 3,
+                             border_color = black)
+        rows, _ = make_scroll_rows(200, 16, font)
+        scroll = Cell(0)
+        still = GraphicsCircle(200, 100, 10; color = translucent)
+        dot_y = Cell(50)
+        moving = GraphicsCircle(250, () -> dot_y[], 6; color = translucent)
+        other_rows, _ = make_scroll_rows(200, 16, font)
+        other_scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[under, stripes..., frame,
+                                    make_pane((20, 20, 300, 200), [rows], Cell(0), scroll),
+                                    still, moving,
+                                    make_pane((330, 20, 60, 200), [other_rows], Cell(0), other_scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas,
+            [make_writes(scroll, [16, 85, 62]);
+             () -> (scroll[] = 100; dot_y[] = 120);
+             make_writes(dot_y, [130]);
+             () -> (scroll[] = 150; other_scroll[] = 40)];
+            supersample, density))
+    end
+end
+
+@testset "two viewports, one in the box of the other, that scroll together" begin
+    # The shape of the table of a data frame: the rules of the rows in one
+    # viewport, and the cells in a viewport inside its box, which scroll by the
+    # same cell.
+    for (supersample, density) in scroll_settings
+        rules = GraphicsCanvas(Any[GraphicsRect(0, 16 * k + 15, 200, 1; color = black) for k in 0:199];
+                               w = 200, h = 200 * 16, layout = layout_vertical, overlapping = false)
+        rows, _ = make_scroll_rows(200, 16, font)
+        scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 200, 200), [rules], Cell(0), scroll),
+                                    make_pane((30, 26, 180, 188), [rows], Cell(0), scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(scroll, [16, 85, 62, 500]);
+                                            supersample, density))
+    end
+end
+
+@testset "a scroll inside and around a scale" begin
+    for (supersample, density) in scroll_settings
+        # A pane in a viewport with a scale of 2, and a viewport with a scale of 2
+        # in the content of a pane.
+        inner_rows, _ = make_scroll_rows(100, 16, font)
+        inner_scroll = Cell(0)
+        scaled = GraphicsViewport(20, 20, 300, 160,
+                                  GraphicsCanvas(Any[make_pane((10, 10, 120, 60), [inner_rows], Cell(0),
+                                                               inner_scroll)]);
+                                  transform = make_affine_scale(2))
+        rows, _ = make_scroll_rows(100, 16, font)
+        zoomed = GraphicsViewport(150, 40, 80, 40,
+                                  GraphicsCanvas(Any[GraphicsText("zoomed", 0, 0; font, color = black)]);
+                                  transform = make_affine_scale(2))
+        scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[scaled, make_pane((20, 190, 300, 100), [rows, zoomed], Cell(0), scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas,
+            [make_writes(inner_scroll, [16, 85, 62]);
+             make_writes(scroll, [16, 33]);
+             () -> (inner_scroll[] = 100; scroll[] = 50)];
+            supersample, density))
+    end
+end
+
 # The records of a dirty walk, with no window.
 make_resources() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", width, height, 0, 0, :default,

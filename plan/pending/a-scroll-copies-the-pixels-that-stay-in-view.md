@@ -108,7 +108,9 @@ The walk takes a move for a viewport only when all of these are true:
    with the same edges.
 4. `|dx|` is less than the width of the box, and `|dy|` is less than its height.
    The box here is the box cut by the outer viewports and the window.
-5. `d × ratio × ss` is a whole number on both axes.
+5. `d × ratio × ss` is a whole number on both axes, and so is each edge of the
+   box. A device pixel that an edge of the box cuts also holds what a graphic
+   outside the box draws there, so a copy along that edge would carry it.
 6. No outer viewport has a scale.
 7. The box does not overlap the box of another move of the frame, except when
    one box holds the other and the two moves have the same `d`. The table of a
@@ -232,7 +234,8 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
      gives it nothing.
    - Write the counts in [As built](#as-built). If no pane takes a move, stop and
      report to the owner. If a pane takes moves, go on to step 2.
-2. [ ] **The pixel tests of a scroll.** In
+2. [x] **The pixel tests of a scroll.** Done: five testsets, each at the four
+   settings, 34 of 34 pass in `test_partial_paint()`. In
    [PartialPaintTest.jl](../../test/backend/sdl/backend/PartialPaintTest.jl),
    add the testset "a scroll", which compares a partial paint with a full paint
    by `find_differing_frames`. The frames include:
