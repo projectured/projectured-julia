@@ -47,8 +47,9 @@ end
 _count_pivot_display_part(count::Int, name::String) =
     count <= 0 ? "" : string(count, " ", name, count == 1 ? "" : "s")
 
-# The line that names the zones of `pivot`, as the bar shows them. A limited line
-# lists the first few names of the Fields zone and counts the others.
+# The line that names the zones of `pivot`, as the bar shows them, each with the
+# field of the pivot that holds it, which a write names. A limited line lists the
+# first few names of the Fields zone and counts the others.
 function _describe_pivot_zones(pivot::PivotTable, limited::Bool)
     describe_items(zone) = String[_describe_pivot_zone_item(item) for item in zone]
     join_items(items) = isempty(items) ? "none" : join(items, ", ")
@@ -57,13 +58,14 @@ function _describe_pivot_zones(pivot::PivotTable, limited::Bool)
     more > 0 && (fields = push!(fields[1:_PIVOT_DISPLAY_FIELD_NAMES], string("and ", more, " more")))
     parts = String[
         string("PivotTable of ", get_table_row_count(pivot.source), " source rows"),
-        "Fields: " * join_items(fields),
-        "Columns: " * join_items(describe_items(pivot.column_dimensions)),
-        "Rows: " * join_items(describe_items(pivot.row_dimensions)),
-        "Cells: " * join(push!(describe_items(pivot.cell_dimensions), _describe_pivot_cells(pivot)), ", "),
-        "Values: " * join_items(describe_items(get_pivot_measures(pivot))),
-        "Totals: " * (pivot.totals ? "shown" : "hidden")]
-    isempty(pivot.collapsed) || push!(parts, string("Closed runs: ", length(pivot.collapsed)))
+        "Fields (unused_dimensions): " * join_items(fields),
+        "Columns (column_dimensions): " * join_items(describe_items(pivot.column_dimensions)),
+        "Rows (row_dimensions): " * join_items(describe_items(pivot.row_dimensions)),
+        "Cells (cell_dimensions, cell_view): " *
+            join(push!(describe_items(pivot.cell_dimensions), _describe_pivot_cells(pivot)), ", "),
+        "Values (measures): " * join_items(describe_items(get_pivot_measures(pivot))),
+        "Totals (totals): " * (pivot.totals ? "shown" : "hidden")]
+    isempty(pivot.collapsed) || push!(parts, string("Closed runs (collapsed): ", length(pivot.collapsed)))
     join(parts, ". ") * "."
 end
 

@@ -161,12 +161,35 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
 - [ ] **1. The rehearsal of a pivot.** The window and the six tasks of §3 in
   `tool/assistant/rehearsal.jl`. Run seeds 1 to 5 on main as the baseline, and
   record the count of each task in this plan.
-- [ ] **2. A table that a read answers.** The methods of the table functions for
-  a `ReferencedDocument` in the collection slice, and for a `DataFrameView` in
-  the data frame adapter. Test: each table function answers the same for a
-  table and for a referenced read of it; `make_pivot_table` takes the table of
-  each tab of §2; a cell of the rows view of a pivot of a data frame view edits
-  the frame. Run the collection test, `test_dataframes()` and `test_pivot()`.
+  - Facts that the work found: the window of S2 no longer built on main,
+    because the application window opens on the Explorer, and `prepare_window!`
+    looked for a tab "Files". It now closes the Explorer tab and selects the
+    content of `people.json`, as the video recorder does for a take with files.
+  - The rehearsal prints the window once, before the model starts, so the two
+    pivot tabs are added before that print (`prepare_pivot_window!`); a tab that
+    is added later is not reached by the readers, and its edits are not recorded.
+  - The runner takes `make_editor` and `count_steps`, so the pivot tasks reuse
+    `run_task_rehearsals`; a change of the pivot is checked in the history of the
+    window, which records the edits of a tab that shows no file.
+  - The first baseline ran 2 of 30 runs: the rehearsal skips a run below 13 GB
+    of free memory, and other sessions held the memory. The baseline runs again
+    from the environment of the main checkout, with the rehearsal file of this
+    branch, so it runs the code of main.
+- [x] **2. A table that a read answers.** Done 2026-10-21. The methods of the
+  table functions for a `ReferencedDocument` in the collection slice, and for a
+  `DataFrameView` in the data frame adapter. Test: each table function answers
+  the same for a table and for a referenced read of it; `make_pivot_table` takes
+  the table of each tab of §2; a cell of the rows view of a pivot of a data frame
+  view edits the frame. Run the collection test, `test_dataframes()` and
+  `test_pivot()`.
+  - What was built: the eight forwarding methods at the end of
+    `TableInterface.jl`; the eight methods of a view in `DataFrameView.jl`, after
+    the type, because `DataFrameTable.jl` is included before the type exists. A
+    view gives every column of its frame too, also a column that it hides.
+  - Tests: `test_table_interface` 58 of 58, `test_data_frame_table` 30 of 30,
+    `test_pivot_data_frame` 47 of 47 (a pivot of a view and of its referenced
+    document, and the rows view of it edits the frame). `test_dataframes()` runs
+    with the comparison of step 3.
 - [ ] **3. A document keeps the document.** The rule in the generated constructor,
   by D3: the generic `get_document` and its fallback move to the document layer,
   and the constructor calls it for each raw value. Before the change, check by a
@@ -176,10 +199,43 @@ Each step works in a worktree, ends with its tests, and ends with a commit.
   `test_platform()` against a baseline of main. A measurement of the build cost
   on the JSON benchmark, before and after, waits for an idle machine and the
   owner's word.
-- [ ] **4. The text.** The worked examples of the paragraph, the field names in the
-  first line of the display, and `find_pivot_part_rows` declared with a "Use it
-  to" line, an example and a "See also" line. Test: `test_pivot()`,
-  `test_assistant_documentation()` and `test_application()`.
+  - What was built: the generic `get_document` and its docstring are in
+    `DocumentInterface.jl`, its fallback `get_document(x) = x` in
+    `DocumentDefaults.jl`, and `DocumentModule` exports it. `ReferencedDocument.jl`
+    keeps the method of a referenced document, and `ReferenceModule` imports the
+    generic and no longer exports it. The declaration of the assistant's names
+    (`PaneProgram.jl`) names it under `DocumentModule`.
+  - The generated constructor stores `get_document` of each raw value
+    (`raw_value` in `_emit_autowrap_ctor`), and the generated setter stores
+    `get_document` of its value: a write of a field is the other half of the same
+    rule, so it is in this step too.
+  - `_get_stored_value` of `ReferencedDocument.jl` did what `get_document` now
+    does, so its four writes call `get_document` and the private function is gone.
+    The field form of `replace_referenced_value!` calls `get_document` too.
+  - The search of the source: every construction of a `ReferencedDocument` outside
+    the reference layer is the answer of a verb, and none goes into a field;
+    `open_page!` keeps only the reference.
+  - Tests: `test_referenced_document` 61 of 61, with a document whose constructor,
+    whose write and whose list field get a referenced document.
+- [x] **4. The text.** Done 2026-10-21. The worked examples of the paragraph, the
+  field names in the first line of the display, and `find_pivot_part_rows`
+  declared with a "Use it to" line, an example and a "See also" line. Test:
+  `test_pivot()`, `test_assistant_documentation()` and `test_application()`.
+  - The display names each zone with its field: `Rows (row_dimensions): region,
+    country`, `Cells (cell_dimensions, cell_view)`, `Closed runs (collapsed)`.
+  - The paragraph shows a pivot of the data of a tab, a value and its rows of the
+    source, a move, a new and a removed measure, an aggregate, the totals, the
+    cells as bar charts, a hidden value, bins, and the top 5 as one write of a
+    new `PivotDimension`. A field name such as row_dimensions is written without
+    backticks, because `test_assistant_documentation` asks that each name in
+    backticks is a declared name.
+  - "Which rows are behind this cell?" is `find_pivot_part_rows`, which answers
+    the numbers of the rows in the source. Its two method docstrings became one
+    docstring on the generic function.
+  - Tests: `test_pivot` 354 of 354 (with a pivot of a tab of named tuples made
+    through `execute_julia_code`, whose source is the plain vector),
+    `test_assistant_documentation` 374 of 374, `test_assistant_verbs` 56 of 56.
+    `test_application()` runs with the comparison of step 3.
 - [ ] **5. The rehearsal after, and the documents.** Run seeds 1 to 5 of the six
   tasks again, and record the counts beside the baseline. Update
   [pivot.md](../../documentation/package/domain/pivot/pivot.md),

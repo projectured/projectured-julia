@@ -14,8 +14,10 @@ shown(pivot; context...) = sprint(show, MIME"text/plain"(), pivot; context = (co
 
 pivot = make_pivot_document_example()
 @test shown(pivot) == """
-    PivotTable of 32 source rows. Fields: quarter, product, amount. Columns: year. Rows: region, country. \
-    Cells: as numbers (automatic). Values: sum(amount). Totals: hidden.
+    PivotTable of 32 source rows. Fields (unused_dimensions): quarter, product, amount. \
+    Columns (column_dimensions): year. Rows (row_dimensions): region, country. \
+    Cells (cell_dimensions, cell_view): as numbers (automatic). Values (measures): sum(amount). \
+    Totals (totals): hidden.
     region  country  2024  2025
     EU      DE         60    80
     EU      FR        100   120
@@ -44,7 +46,7 @@ by_region_year = make_pivot_table(sales; rows = ["region"], columns = ["year"],
 getfield(pivot, :totals)[] = true
 getfield(pivot, :collapsed)[] = Any[("US",)]
 quarters = shown(pivot)
-@test occursin("Totals: shown. Closed runs: 1.", quarters)
+@test occursin("Totals (totals): shown. Closed runs (collapsed): 1.", quarters)
 @test occursin("\n▸ US    total     320   360    680\n", quarters)
 @test occursin("\ntotal   total     480   560   1040\n", quarters)
 two = make_pivot_table(sales; rows = ["region"], columns = ["year", "quarter"])
@@ -65,7 +67,7 @@ pivot = make_pivot_document_example()
 
 # A limited display lists the first eight names of the Fields zone.
 wide = NamedTuple{Tuple(Symbol.("c", 1:12))}(Tuple([1, 2] for _ in 1:12))
-@test occursin("Fields: c2, c3, c4, c5, c6, c7, c8, c9, and 3 more. Columns: none.",
+@test occursin("Fields (unused_dimensions): c2, c3, c4, c5, c6, c7, c8, c9, and 3 more. Columns (column_dimensions): none.",
                shown(make_pivot_table(wide; rows = ["c1"]); limit = true))
 
 end

@@ -65,25 +65,36 @@ make_graphics_projection(::Type{PivotChartCell}; measure, appearance) =
     make_pivot_chart_cell_projection(; measure, appearance)
 
 # What the model of an assistant may write about a pivot: the documents, the
-# values of a key, the read of one value and the move of a field. A setting
-# changes with `replace_referenced_value!` and a measure with the verbs of a
-# collection, which every window declares.
+# values of a key, the reads of one cell and the move of a field, with a worked
+# example of each request that a person makes of a pivot. A setting changes with
+# `replace_referenced_value!` and a measure with the verbs of a collection, which
+# every window declares.
 function __init__()
     register_assistant_api!(PivotModule => (:make_pivot_table, :PivotDimension, :PivotMeasure,
                                             :PivotNumberView, :PivotRowsView, :PivotBarChartView,
                                             :PivotLineChartView, :PivotPieChartView, :PivotGroupView,
                                             :PivotTotal, :PivotBin, :PivotMonth,
-                                            :find_pivot_value, :move_pivot_field!);
-        description = "A pivot is `make_pivot_table(table; rows = [\"region\"], columns = [\"year\"], " *
-                      "measures = [PivotMeasure(\"amount\", :sum)])`, and `open_pane!` draws it. " *
-                      "A pivot that is the value of the last line of a call shows its zones and the " *
-                      "values of its cells, and `find_pivot_value(pivot_1, (\"EU\",), 2025)` reads one " *
-                      "value. `move_pivot_field!(pivot_1, \"country\", :columns)` moves a field to the zone " *
-                      ":fields, :columns, :rows or :cells. A measure is an element of `pivot_1.measures`: " *
-                      "`insert_elements!(pivot_1.measures, 1, [PivotMeasure(\"\", :count)])` adds one. " *
-                      "`replace_referenced_value!(part, field, value)` changes a setting: " *
-                      "`replace_referenced_value!(pivot_1.measures[1], :aggregate, :mean)`, " *
-                      "`replace_referenced_value!(pivot_1, :totals, true)`.")
+                                            :find_pivot_value, :find_pivot_part_rows, :move_pivot_field!);
+        description = "A pivot is `make_pivot_table(table; rows = [\"region\", \"country\"], columns = [\"year\"], " *
+                      "measures = [PivotMeasure(\"amount\", :sum)])`, and `open_pane!` draws it. The table " *
+                      "can be the data of a tab: `make_pivot_table(get_edited_document(find_pane(\"Sales\")); " *
+                      "rows = [\"region\"])`. A pivot that is the value of the last line of a call shows each " *
+                      "zone with its field, such as row_dimensions, and the values of its cells. " *
+                      "`find_pivot_value(pivot_1, (\"EU\", \"DE\"), 2025)` reads one value, and " *
+                      "`find_pivot_part_rows(pivot_1.cross_table, (\"EU\", \"DE\"), (2025,))` the numbers of its " *
+                      "rows of the source. `move_pivot_field!(pivot_1, \"country\", :columns)` moves a field to " *
+                      "the zone :fields, :columns, :rows or :cells. A measure is an element of pivot_1.measures: " *
+                      "`insert_elements!(pivot_1.measures, 1, [PivotMeasure(\"\", :count)])` adds one, and " *
+                      "`delete_elements!(pivot_1.measures, 1)` removes one. " *
+                      "`replace_referenced_value!(part, field, value)` changes a setting, as a menu does: " *
+                      "`replace_referenced_value!(pivot_1.measures[1], :aggregate, :mean)`; " *
+                      "`replace_referenced_value!(pivot_1, :totals, true)`; " *
+                      "`replace_referenced_value!(pivot_1, :cell_view, PivotBarChartView())` shows each cell as " *
+                      "a bar chart; `replace_referenced_value!(pivot_1.row_dimensions[2], :hidden_values, Any[\"CA\"])` " *
+                      "leaves CA out; `replace_referenced_value!(dimension_1, :bin, :month)` groups the dates of " *
+                      "a field by month, and a number as the bin groups numbers in bins of that width. The top 5 " *
+                      "is one write of the whole field: `replace_referenced_value!(pivot_1.row_dimensions[2], " *
+                      "PivotDimension(\"country\"; order = :measure, descending = true, limit = 5))`.")
 end
 
 end # module PivotModule

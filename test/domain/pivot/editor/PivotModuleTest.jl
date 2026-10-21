@@ -15,7 +15,8 @@ count_undo_steps() = length(split(string(describe_undo_history(; editor)), '\n')
 # ── The names ───────────────────────────────────────────────────────────────
 
 declared = Set{Symbol}(name for entry in editor.tools.api for name in get_api_entry_names(entry))
-@test issubset([:make_pivot_table, :PivotMeasure, :PivotBarChartView, :find_pivot_value, :move_pivot_field!], declared)
+@test issubset([:make_pivot_table, :PivotMeasure, :PivotBarChartView, :find_pivot_value, :find_pivot_part_rows,
+                :move_pivot_field!], declared)
 found = run_code("search_api(\"pivot\")")
 @test occursin("find_pivot_value", found) && occursin("move_pivot_field!", found)
 @test occursin("make_pivot_table", run_code("search_api(\"make pivot table\")"))
@@ -24,9 +25,18 @@ found = run_code("search_api(\"pivot\")")
 # ── The display and one value ───────────────────────────────────────────────
 
 shown = run_code("pivot_1 = get_edited_document(find_pane(\"Sales\")); pivot_1")
-@test occursin("Columns: year. Rows: region, country.", shown)
+@test occursin("Columns (column_dimensions): year. Rows (row_dimensions): region, country.", shown)
 @test occursin("\nEU      DE         60    80\n", shown)
 @test strip(run_code("find_pivot_value(pivot_1, (\"US\", \"NY\"), 2025)")) == "200.0"
+@test occursin("[5, 6]", run_code("find_pivot_part_rows(pivot_1.cross_table, (\"EU\", \"DE\"), (2025,))[1:2]"))
+
+# ── A pivot of the table of a tab ───────────────────────────────────────────
+
+open_pane!(make_pivot_sales_rows(); title = "Rows", editor)
+run_frame!(editor)
+made = run_code("rows_pivot_1 = make_pivot_table(get_edited_document(find_pane(\"Rows\")); rows = [\"region\"]); rows_pivot_1")
+@test occursin("PivotTable of 32 source rows", made)
+@test strip(run_code("typeof(rows_pivot_1.source) <: Vector")) == "true"
 
 # ── The edits ───────────────────────────────────────────────────────────────
 

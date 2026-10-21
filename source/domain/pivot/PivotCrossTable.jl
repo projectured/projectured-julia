@@ -124,12 +124,26 @@ get_pivot_column_count(cross::PivotCrossTable) = length(cross.column_keys)
 
 """
     find_pivot_part_rows(cross, row, column) -> Union{AbstractVector{Int}, Nothing}
+    find_pivot_part_rows(cross, row_key::Tuple, column_key::Tuple) -> Union{AbstractVector{Int}, Nothing}
 
-The rows of the source in the cell of row `row` and column `column` of `cross`,
-in the order of the source; `nothing` when no row of the source has that row
-key and that column key. The part of a total is gathered from the parts of the
-details that it covers.
+The numbers of the rows of the source in a cell of `cross`, the cross table of a
+pivot, in the order of the source: the cell of row `row` and column `column`, or
+the cell of the row with the key `row_key` and the column with the key
+`column_key`. Answer `nothing` when a key does not occur, or no row of the source
+has both. The part of a total is gathered from the parts of the details that it
+covers.
+
+Use it to find which rows of the source a cell of a pivot counts.
+
+# Example
+
+    pivot_1 = get_edited_document(find_pane("Sales"))
+    rows_1 = find_pivot_part_rows(pivot_1.cross_table, ("EU", "DE"), (2025,))
+
+See also `find_pivot_value`, `PivotRowsView`.
 """
+function find_pivot_part_rows end
+
 function find_pivot_part_rows(cross::PivotCrossTable, row::Integer, column::Integer)
     rows, columns = cross.row_details[row], cross.column_details[column]
     if length(rows) == 1 && length(columns) == 1
@@ -144,13 +158,6 @@ function find_pivot_part_rows(cross::PivotCrossTable, row::Integer, column::Inte
     isempty(gathered) ? nothing : sort!(gathered)
 end
 
-"""
-    find_pivot_part_rows(cross, row_key::Tuple, column_key::Tuple) -> Union{AbstractVector{Int}, Nothing}
-
-The rows of the source in the cell of the row with the key `row_key` and the
-column with the key `column_key`; `nothing` when either key does not occur, or
-no row has both.
-"""
 function find_pivot_part_rows(cross::PivotCrossTable, row_key::Tuple, column_key::Tuple)
     row = get(cross.row_index, row_key, nothing)
     column = get(cross.column_index, column_key, nothing)
