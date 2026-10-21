@@ -613,6 +613,115 @@ See also `HighlightedText`, which marks the matches and keeps every line.
     invert::Bool = false
 end
 
+# ── MarkedText ──────────────────────────────────────────────────────────────
+
+"""
+    TextMark(start, stop; text = nothing)
+
+A range of the string of a `MarkedText`, and the colour of its glyphs. `start`
+and `stop` count characters from 0, and `stop` is not in the range; a break
+counts one, so they are flat offsets of the printed text. `text` is a
+`ThemeColor`, such as `ColorRole(:function_name)`, or `nothing`, which keeps the
+colour of the text.
+
+# Example
+
+    TextMark(4, 8; text = ColorRole(:function_name))   # "main" in "int main() {"
+"""
+struct TextMark
+    start::Int
+    stop::Int
+    text::Union{ThemeColor, Nothing}
+end
+
+TextMark(start::Integer, stop::Integer; text = nothing) = TextMark(Int(start), Int(stop), text)
+
+"""
+    MarkedText(; text = "", marks = TextMark[])
+
+A string of any number of lines, and marks that colour ranges of it, such as
+the names of a source file in the colours of their kinds.
+
+Use it to show a text whose colours come from somewhere else than the text: a
+language server, a parser of a filter, a list of errors. `text` is the string
+that a person edits, with Enter, a paste of many lines and undo, as the string
+of a file. `marks` is a vector of `TextMark`, held as one value, so a new set
+of marks is one write; its cell can compute it (`set_cell_computation!`), so the
+colours follow a change of what they come from. `MarkedTextToText` draws it.
+
+# Example
+
+    MarkedText(text = "int main() {\\n    return 0;\\n}",
+               marks = [TextMark(4, 8; text = ColorRole(:function_name))])
+
+See also `compute_moved_text_marks`, which moves the marks of an old text to a
+new one.
+"""
+@document struct MarkedText
+    text::String = ""
+    # `Any`, so the cell holds the vector as one value and not a list of cells.
+    marks::Any = TextMark[]
+end
+
+"""
+    compute_moved_text_marks(marks, old_text, new_text) -> Vector{TextMark}
+
+The marks that were made for `old_text`, moved to `new_text`. The two texts
+have a common head and a common tail, and the part between them changed. A
+mark in the head stays, a mark in the tail moves by the difference of the
+lengths, and a mark that touches the changed part goes.
+
+Use it to show marks that come late, such as the answer of a server, on a text
+that changed after the question: the colours of the text around a key stay.
+
+# Example
+
+    marks = [TextMark(0, 3; text = ColorRole(:keyword)), TextMark(8, 13; text = ColorRole(:variable))]
+    compute_moved_text_marks(marks, "int x = count;", "int xy = count;")
+    # [TextMark(0, 3, …), TextMark(9, 14, …)]
+"""
+function compute_moved_text_marks(marks::AbstractVector{TextMark}, old_text::AbstractString,
+                                  new_text::AbstractString)
+    old_text == new_text && return collect(TextMark, marks)
+    old_length, new_length = length(old_text), length(new_text)
+    head = _count_common_head(old_text, new_text)
+    tail = _count_common_tail(old_text, new_text, min(old_length, new_length) - head)
+    changed_stop = old_length - tail
+    shift = new_length - old_length
+    moved = TextMark[]
+    for mark in marks
+        if mark.stop <= head
+            push!(moved, mark)
+        elseif mark.start >= changed_stop
+            push!(moved, TextMark(mark.start + shift, mark.stop + shift, mark.text))
+        end
+    end
+    moved
+end
+
+# The count of the characters at the start of `a` and `b` that are the same.
+function _count_common_head(a::AbstractString, b::AbstractString)
+    count = 0
+    i, j = firstindex(a), firstindex(b)
+    while i <= ncodeunits(a) && j <= ncodeunits(b) && a[i] == b[j]
+        count += 1
+        i, j = nextind(a, i), nextind(b, j)
+    end
+    count
+end
+
+# The count of the characters at the end of `a` and `b` that are the same, at most
+# `limit`, so that a head and a tail never share a character.
+function _count_common_tail(a::AbstractString, b::AbstractString, limit::Int)
+    count = 0
+    i, j = lastindex(a), lastindex(b)
+    while count < limit && i >= 1 && j >= 1 && a[i] == b[j]
+        count += 1
+        i, j = prevind(a, i), prevind(b, j)
+    end
+    count
+end
+
 # ── Span coordinates ──────────────────────────────────────────────────────
 #
 # A span's coordinate within a block is the path `[i, j]`: the j-th span of the

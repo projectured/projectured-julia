@@ -69,6 +69,7 @@ include("../../../example/platform/WordWrappingDocumentExample.jl")
 include("../../../example/platform/TextFilteringDocumentExample.jl")
 include("../../../example/platform/FindBarViewDocumentExample.jl")
 include("../../../example/platform/TextHighlightingDocumentExample.jl")
+include("../../../example/platform/TextMarkingDocumentExample.jl")
 include("../../../example/platform/WidgetDocumentExample.jl")
 include("../../../example/platform/LayoutDocumentExample.jl")
 include("../../../example/platform/CollectionDocumentExample.jl")
@@ -115,6 +116,7 @@ include("../../../example/platform/WordWrappingProjectionExample.jl")
 include("../../../example/platform/TextFilteringProjectionExample.jl")
 include("../../../example/platform/FindBarViewProjectionExample.jl")
 include("../../../example/platform/TextHighlightingProjectionExample.jl")
+include("../../../example/platform/TextMarkingProjectionExample.jl")
 include("../../../example/platform/WidgetProjectionExample.jl")
 include("../../../example/platform/LayoutProjectionExample.jl")
 include("../../../example/platform/CollectionProjectionExample.jl")
@@ -196,6 +198,7 @@ export make_highlighted_filtered_text_document_example, make_highlighted_filtere
 export make_find_bar_document, make_find_bar_projection, make_find_bar_document_example,
        make_filter_bar_document_example
 export make_text_highlighting_document_example, make_text_highlighting_projection_example
+export make_text_marking_document_example, make_text_marking_projection_example
 export make_text_line_atom_document_example
 export make_text_projection_example, make_text_string_atom_document_example
 export make_text_layout_projection_example, make_text_baseline_document_example
@@ -252,7 +255,7 @@ export plain_server_copy_form_example, plain_server_cell_form_example, object_fi
 export object_field_form_chosen_widgets_example, plain_server_mutable_form_example
 export plain_text_example, print_example, reversing_example, rotating_vector_example
 export searching_example, sieve, sieve_bidirectional, sieve_prev, sorting_example
-export syntax_example, text_example, text_filtering_example, text_highlighting_example
+export syntax_example, text_example, text_filtering_example, text_highlighting_example, text_marking_example
 export find_bar_example, filter_bar_example, highlighted_filtered_text_example
 export text_with_image_example, widget_accordion_example, widget_alert_example
 export widget_avatar_example, widget_badge_example, widget_button_action_example

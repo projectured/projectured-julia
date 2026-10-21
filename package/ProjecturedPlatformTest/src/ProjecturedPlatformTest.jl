@@ -153,6 +153,7 @@ include("../../../test/platform/projection/FilteredTextToTextTest.jl")
 include("../../../test/platform/projection/TextFirstLineTest.jl")
 include("../../../test/platform/projection/TextLineNumberingTest.jl")
 include("../../../test/platform/projection/HighlightedTextToTextTest.jl")
+include("../../../test/platform/projection/MarkedTextToTextTest.jl")
 include("../../../test/platform/projection/SelectionInvertingTest.jl")
 # ── widget projections ───────────────────────────────────────────────────────
 include("../../../test/platform/projection/ObjectToWidgetTest.jl")

@@ -72,6 +72,7 @@ export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
+export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
@@ -96,6 +97,7 @@ include("TextPattern.jl")
 include("FilteredTextToText.jl")
 include("TextFirstLine.jl")
 include("HighlightedTextToText.jl")
+include("MarkedTextToText.jl")
 include("SelectionInverting.jl")
 include("PrimitiveToText.jl")
 include("ReferenceTheme.jl")

@@ -63,6 +63,7 @@ const syntax_folding_example = Example("syntax_folding", make_syntax_folding_doc
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
+const text_marking_example = Example("text_marking", make_text_marking_document_example, make_text_marking_projection_example)
 const find_bar_example = Example("find_bar", make_find_bar_document_example, make_find_bar_projection)
 const filter_bar_example = Example("filter_bar", make_filter_bar_document_example, make_find_bar_projection)
 const highlighted_filtered_text_example = Example("highlighted_filtered_text", make_highlighted_filtered_text_document_example, make_highlighted_filtered_text_projection_example)
@@ -158,6 +159,7 @@ const platform_examples = Example[
     word_wrapping_example,
     text_filtering_example,
     text_highlighting_example,
+    text_marking_example,
     find_bar_example,
     filter_bar_example,
     highlighted_filtered_text_example,
@@ -253,6 +255,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:text, "bare_line",    make_text_line_atom_document_example),
     # The views of a text that hold a text, and the gutter of a line on its own.
     AtomicDocument(:text, "highlighted",  make_text_highlighting_document_example),
+    AtomicDocument(:text, "marked",       make_text_marking_document_example),
     AtomicDocument(:text, "filtered",     make_text_filtering_document_example),
     AtomicDocument(:text, "gutter",       make_text_gutter_atom_document_example),
     # Widget atoms: one bare instance per widget type with a printer and no

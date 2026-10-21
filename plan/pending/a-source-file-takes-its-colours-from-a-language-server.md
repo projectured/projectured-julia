@@ -121,6 +121,11 @@ Over time:
 of any number of lines. `marks` is a vector of `TextMark`, or a cell that gives
 one.
 
+*Found in step 1:* the field is declared `marks::Any`. A field declared
+`Vector{TextMark}` becomes a `CellVector`, one cell for each mark, so an answer
+of 1827 marks would make 1827 cells and write each of them. Declared `Any`, the
+cell holds the vector as one value, and a new answer is one write.
+
 `TextMark(start, stop; text)` is a range of offsets of the string, from 0,
 `stop` excluded, and `text` is the colour of its glyphs, a `ThemeColor`. A
 break counts one, so an offset of the string is a flat offset of the printed
@@ -142,7 +147,15 @@ lines:
 - An edit of the flat range is an edit of `text` at the same offsets, a break
   included. So Enter, a join and a paste of many lines work.
 
-`move_text_marks(marks, old_text, new_text)` moves marks that were made for an
+*Found in step 1:* an edit across two runs, such as Delete of a range that
+holds the end of `int ` and the start of `main`, comes to the projection as the
+key itself. The stages after it lower a flat edit to one run, and they refuse an
+edit that crosses two. So `MarkedTextToText` reads a key that comes back to it
+against its own block, with no lowering, and makes the edit of the string.
+
+`compute_moved_text_marks(marks, old_text, new_text)` (named `move_text_marks`
+in the design; the naming rules give `compute_` to a function that loops and
+changes nothing) moves marks that were made for an
 old text to a new text. It finds the common head and the common tail of the
 two texts. A mark in the head stays, a mark in the tail moves by the difference
 of the lengths, and a mark that touches the changed part goes.
@@ -153,7 +166,7 @@ of the lengths, and a mark that touches the changed part goes.
 adapter.
 
 - `content` is a `MarkedText`. Its `marks` is a cell that takes the last answer
-  of the server and moves it to the text now (`move_text_marks`).
+  of the server and moves it to the text now (`compute_moved_text_marks`).
 - `server` is a cell. It holds `nothing` until a tab acquires the file, and
   then the server of that editor for the command of the file (D5, Q1).
 - `answer` is a background cell. Its inputs are the server, the path and the
@@ -248,7 +261,8 @@ line.
 
 `ProjecturedLanguageServer`, code in `source/adapter/languageserver/`
 (`LanguageServerModule`), with `ProjecturedLanguageServerTest` and
-`test_language_server()`. It depends on `ProjecturedKernel`,
+`test_languageserver()`, which the naming law names after the folder of the
+slice. It depends on `ProjecturedKernel`,
 `ProjecturedPlatform` and `JSON3`. Its `[auto-integration]` table has the
 trigger `Projectured` and the default `auto` (Q2).
 
@@ -257,12 +271,21 @@ trigger `Projectured` and the default `auto` (Q2).
 The work is done in a worktree. Before each edit, check the file in
 `SEALING.md`.
 
-1. ⬜ **The marked text (D1, D2).** `MarkedText`, `TextMark`,
-   `MarkedTextToText` and `move_text_marks` in the text slice, and an example
-   `marked_text_example`. Tests: the pieces and their colours; overlapping
-   marks; a mark past the end; a caret and a range round trip; a key, Enter, a
-   join and a paste of two lines change the string; an unchanged line keeps its
-   object; the moves of `move_text_marks`. Then `test_example` for the example.
+1. ✅ **The marked text (D1, D2).** `MarkedText`, `TextMark`,
+   `MarkedTextToText` and `compute_moved_text_marks` in the text slice, and the
+   example `text_marking_example` (named as `text_highlighting_example` is), with
+   its atom `text/marked` for the catalog. The section of `MarkedText` in
+   `text.md` is written here, not in step 5. Tests: the pieces and their
+   colours; overlapping marks; a mark past the end; a caret and a range round
+   trip; a key, Enter, a join and an edit across two runs change the string; an
+   unchanged line keeps its object; the moves of `compute_moved_text_marks`.
+   *Results:* `test_marked_text_to_text()` 35 pass; for the example,
+   `test_printer` 402, `test_reader` 230, `test_repl` 230,
+   `test_position_navigation(; check_reaches_all = true)` 120, `test_typein` 156,
+   all pass; `test_highlighted_text_to_text()` and the platform layering guard
+   pass; the tree guards (`test/suite/*.jl`) report the same findings as `main`.
+   The catalog guard (`CatalogCoverageTest.jl`), which needs `environment/all`,
+   runs in step 4.
 2. ⬜ **The package and the connection (D6, D7).** The two packages, the lists
    that name an adapter (`environment/all`, `ProjecturedTest`,
    `IntegrationLoadingTest.jl`, the builder program, the third-party table of
