@@ -69,15 +69,15 @@ make_window_view_menu(; recorded = RECORDED_TOOLS) =
         (:gesture_log in recorded ? (make_window_command("Gesture log",
                                          editor -> _reach_tool!(editor, GestureLog,
                                                                 _make_default_tool(GestureLog));
-                                         tooltip = "Every gesture of this session, and what each one did"),) :
+                                         tooltip = "Every gesture of this session, and what each one did."),) :
                     ())...,
         make_window_command("Appearance",
                             editor -> _reach_tool!(editor, Appearance, _make_appearance_tool);
                             shortcut = Shortcut(:comma; ctrl = true),
-                            tooltip = "The zoom and the scales of this window"),
+                            tooltip = "The zoom and the scales of this window."),
         make_window_command("Settings",
                             editor -> _reach_tool!(editor, Settings, _find_tool_settings);
-                            tooltip = "How this editor works"),
+                            tooltip = "Change how this editor works."),
     ]))
 
 """
@@ -101,31 +101,33 @@ is open. The wrapper keeps its tool, so the command sends
 the content of the shell. The wrapper is around the shell, so it finds the
 operation on its way up and answers what its key answers. The item carries no
 shortcut, because the key reaches the wrapper itself, and its tooltip names the
-key.
+key from the binding of the wrapper.
 """
 make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false, command_palette = false) =
     WidgetMenuItem("Help"; submenu = WidgetMenu(Any[
         (gesture_help ? (make_window_command("Gestures",
                              editor -> _post_shell_content_operation!(
                                  editor, ToggleGestureHelpOperation(), "Open or close the gesture help");
-                             tooltip = "The gestures that work where the selection is (F1)"),) :
+                             tooltip = TooltipNote(; title = "Gestures", keys = Any[HELP_GESTURE],
+                                                   text = "The gestures that work where the selection is.")),) :
                         ())...,
         (command_palette ? (make_window_command("Command palette",
                                 editor -> _post_shell_content_operation!(
                                     editor, ToggleCommandPaletteOperation(),
                                     "Open or close the command palette");
-                                tooltip = "Find a command that works here, and run it (Ctrl+Shift+P)"),) :
+                                tooltip = TooltipNote(; title = "Command palette", keys = Any[COMMAND_PALETTE_GESTURE],
+                                                      text = "Find a command that works here, and run it.")),) :
                            ())...,
         make_window_command("Documents",
                             editor -> _reach_tool!(editor, DocumentTypeList,
                                                    _make_scrolling_tool(DocumentTypeList));
-                            tooltip = "Every document type that an empty tab can make"),
+                            tooltip = "Every document type that an empty tab can make."),
         make_window_command("Projections",
                             editor -> _reach_tool!(editor, ProjectionList,
                                                    _make_scrolling_tool(ProjectionList));
-                            tooltip = "Every projection: the views of a document, and the projections that combine them"),
+                            tooltip = "Every projection: the views of a document, and the projections that combine them."),
         make_window_command("About", editor -> _reach_tool!(editor, AboutPage, about);
-                            tooltip = "What this program is, and its version"),
+                            tooltip = "What this program is, and its version."),
     ]))
 
 """
@@ -206,29 +208,29 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, files = nothing, 
                     assistant_list::Bool = false, extra = []) =
     WidgetToolbar(Any[
         make_window_tool_command("Explorer", Explorer; icon = :folder_tree,
-                                 tooltip = "Explorer: the files, the tasks, the assistants and the tools of this editor",
+                                 tooltip = "The files, the tasks, the assistants and the tools of this editor.",
                                  make = something(explorer, _make_default_tool(Explorer))),
         make_window_tool_command("Files", WorkspaceExplorer; icon = :folder,
-                                 tooltip = "Files: the files of this window's folder",
+                                 tooltip = "The files of the folder of this window.",
                                  make = something(files, _make_default_tool(WorkspaceExplorer))),
         (assistant === nothing ? () :
             (make_window_tool_command("Assistant", Assistant; icon = :chat,
-                                      tooltip = "Assistant: ask a model about what this window shows",
+                                      tooltip = "Ask a model about what this window shows.",
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
-                                 tooltip = "Evaluator: type Julia, and Enter evaluates it"),
+                                 tooltip = "Type Julia code, and evaluate it."),
         _make_recorded_tool_commands(recorded)...,
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
-                                 tooltip = "Selection: what the selection of this window names"),
+                                 tooltip = "What the selection of this window names."),
         make_window_tool_command("Appearance", Appearance; icon = :palette,
-                                 tooltip = "Appearance: the zoom and the scales of this window",
+                                 tooltip = "The zoom and the scales of this window.",
                                  make = _make_appearance_tool),
         make_window_tool_command("Settings", Settings; icon = :settings,
-                                 tooltip = "Settings: how this editor works",
+                                 tooltip = "Change how this editor works.",
                                  make = _find_tool_settings),
         (assistant_list ?
             (make_window_tool_command("Assistants", AssistantList; icon = :chats,
-                 tooltip = "Assistants: every assistant conversation of this window"),) : ())...,
+                 tooltip = "Every assistant conversation of this window."),) : ())...,
         extra...,
     ])
 
@@ -247,19 +249,19 @@ const RECORDED_TOOLS = (:message_log, :gesture_log, :fault_log, :frame_statistic
 _make_recorded_tool_commands(recorded) = (
     (:message_log in recorded ?
         (make_window_tool_command("Message log", MessageLog; icon = :scroll_text,
-                                  tooltip = "Message log: what the program said in this session"),) : ())...,
+                                  tooltip = "What the program said in this session."),) : ())...,
     (:gesture_log in recorded ?
         (make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
-                                  tooltip = "Gesture log: every gesture of this session, and what each one did"),) :
+                                  tooltip = "Every gesture of this session, and what each one did."),) :
         ())...,
     (:fault_log in recorded ?
         (make_window_tool_command("Fault log", FaultLog; icon = :warning,
-                                  tooltip = "Fault log: what failed in this session, and how often"),) : ())...,
+                                  tooltip = "What failed in this session, and how often."),) : ())...,
     (:frame_statistics in recorded ?
         (make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
-                                  tooltip = "Statistics: how long the frames of this window take"),
+                                  tooltip = "How long the frames of this window take."),
          make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
-                                  tooltip = "Frame times: the time of each recent frame")) : ())...)
+                                  tooltip = "The time of each recent frame.")) : ())...)
 
 """
     make_window_tool_command(label, type; icon = nothing, tooltip = nothing,

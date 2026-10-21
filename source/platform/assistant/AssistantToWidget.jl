@@ -374,7 +374,7 @@ the stop icon and no word, so the row of the options of an agent keeps its
 room; its tooltip says what it does.
 """
 function make_assistant_stop_button(a::Assistant)
-    button = WidgetButton(""; icon = :stop, tooltip = "Stop the turn",
+    button = WidgetButton(""; icon = :stop, tooltip = "Stop the turn.",
                           action = editor -> evaluate_operation(editor, CancelAssistantTurnOperation(a)))
     set_cell_computation!(getfield(button, :enabled), () -> is_assistant_turn_running(a))
     button
@@ -390,13 +390,13 @@ tooltip says what it does.
 """
 make_assistant_picture_button(a::Assistant) =
     WidgetButton(""; icon = :camera,
-                 tooltip = "Add a picture of the selected part, or else of the window, to the message",
+                 tooltip = "Add a picture of the selected part, or of the window, to the message.",
                  action = editor -> evaluate_operation(editor, AddDraftPictureOperation(a)))
 
 # The button that shows the work page of the agent of an assistant in a tab.
 _make_assistant_work_button(a::Assistant) =
     WidgetButton(""; icon = :list,
-                 tooltip = "Show the work of the agent: its plans, subagents and tasks",
+                 tooltip = "Show the plans, the subagents and the tasks of the agent.",
                  action = editor -> (show_assistant_work!(a; editor); nothing))
 
 # The options of an external agent that the bar shows, in this order, with the
@@ -433,7 +433,7 @@ function make_agent_option_bar(a::Assistant)
     set_cell_computation!(getfield(commands, :visible), () -> !isempty(a.agent_commands))
     set_cell_computation!(getfield(commands, :submenu), () -> _make_agent_command_menu(a))
     push!(items, commands)
-    sign_out = WidgetMenuItem("Sign out"; tooltip = "Sign the agent out",
+    sign_out = WidgetMenuItem("Sign out"; tooltip = "Sign the agent out.",
                               action = editor -> evaluate_operation(editor, SignOutAgentOperation(a)))
     set_cell_computation!(getfield(sign_out, :visible), () -> !isempty(a.agent_options) && _has_agent_sign_out(a))
     push!(items, sign_out)

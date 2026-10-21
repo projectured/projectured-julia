@@ -70,8 +70,8 @@ end
 
 # The parts of the header of column `name` after its name: the glyph, a flat
 # toolbar item whose own gestures sort, and the place of its key when more than
-# one column sorts. The label of the item is its tooltip. `p` carries the style
-# of the data frame theme.
+# one column sorts. The tooltip names the column, and its hint the gesture that
+# adds the column to the order. `p` carries the style of the data frame theme.
 function _make_sort_glyph(p, view, name::String)
     query = view.query
     state = _find_sort_state(query, name)
@@ -79,11 +79,14 @@ function _make_sort_glyph(p, view, name::String)
     sort(adding) = (document, event) -> _make_sort_operation(view, name, adding)
     bind(pattern, adding, description) = GestureBinding(pattern, sort(adding); description,
                                                         domain = "data frame")
+    adding = MouseClickPattern(:left; modifiers = [:shift])
     gestures = GestureBinding[
         bind(MouseClickPattern(:left; modifiers = Symbol[]), false, "Order the rows by the column"),
-        bind(MouseClickPattern(:left; modifiers = [:shift]), true, "Add the column to the order of the rows")]
+        bind(adding, true, "Add the column to the order of the rows")]
     style = state === nothing ? WidgetStyle(; label_text_color = p.unsorted_glyph) : nothing
-    item = WidgetToolbarItem("Sort by $(name); Shift adds it to the sort"; icon, gestures, style)
+    tooltip = TooltipNote(; title = "Sort by $(name)", text = "Order the rows by this column.",
+                          hint = string(describe_gesture_pattern(adding), " adds it to the order of the rows."))
+    item = WidgetToolbarItem("Sort by $(name)"; icon, gestures, style, tooltip)
     (state !== nothing && length(query.sort_keys) > 1) || return Any[item]
     Any[item, WidgetLabel(string(state[2]))]
 end

@@ -365,7 +365,7 @@ function _sign_in_card(p, request::ConversationSignInRequest, part::Conversation
         set_cell_computation!(getfield(button, :enabled), () -> request.start !== nothing && !request.is_signing_in)
         push!(buttons, button)
     end
-    retry = WidgetButton("Try again"; tooltip = "Start the agent again",
+    retry = WidgetButton("Try again"; tooltip = "Start the agent again.",
                          action = editor -> (try_again = request.retry; try_again === nothing || try_again(editor)))
     set_cell_computation!(getfield(retry, :enabled), () -> request.retry !== nothing)
     push!(buttons, retry)

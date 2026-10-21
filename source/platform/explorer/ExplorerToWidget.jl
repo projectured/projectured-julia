@@ -64,8 +64,10 @@ function print_document(p::ExplorerToWidget, recursion, explorer::Explorer, cont
     set_cell_computation!(getfield(field, :content), () -> String(filter.text))
     add = Action("Add an entry"; icon = :plus)
     kinds = Action("Keep the rows of some kinds"; icon = :funnel)
-    bar = GridLayout(Any[field, WidgetToolbarItem(add; tooltip = "Add an entry after the selected one (Insert)."),
-                         WidgetToolbarItem(kinds; tooltip = "Keep only the rows of some kinds.")], 3;
+    add_note = TooltipNote(; title = "Add an entry", keys = find_bound_keys(Explorer, "Add an entry"),
+                           text = "Add an entry after the selected one.")
+    bar = GridLayout(Any[field, WidgetToolbarItem(add; tooltip = add_note),
+                         WidgetToolbarItem(kinds; tooltip = "Show only the rows of the kinds that you choose.")], 3;
                      horizontal_gap = p.gap, vertical_align = :center, column_policies = Any[Fill, Content, Content])
     # The tree, or the tree of the matches while the filter keeps rows out: the one
     # child of a layout whose children follow, so the other one prints when it

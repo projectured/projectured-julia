@@ -238,10 +238,46 @@ The steps are fixed. Each step is one commit.
      `test_widget_tab_label()` 24, `test_widget_table_list()` 253,
      `test_widget_table_list_header_floor()` 5, `test_widget_tree()` 103,
      `test_tooltip_window()` 51, `test_tooltip_note()` 22: all pass.
-4. [ ] **The words of the platform.** The window chrome (22), the navigator (9),
+4. [x] **The words of the platform.** The window chrome (22), the navigator (9),
    the assistant and the conversation (14), the explorer, the terminal, the
    settings, the work plan and the workflow domain (8) follow the rules. The 12
    keys leave the strings. Test: the suite of each slice that asserts a text.
+
+   Done. As built:
+   - The texts of the window tools lose the "Label:" start, and each text is a
+     sentence. The title of a tool button is its label.
+   - A key comes from where it is bound: `HELP_GESTURE` and
+     `COMMAND_PALETTE_GESTURE` for Gestures and Command palette, and
+     `find_bound_keys(type, description)`, a function of the tooltip slice, for
+     a key in a `@gestures` table: the navigator (Back, Forward, Parent, the
+     path), the explorer (Add an entry) and the data frame view (Refresh).
+     `find_bound_keys` keeps only key patterns, because the navigator binds
+     the back button of the mouse to "Go back" too.
+   - The kernel names the punctuation keys by their signs in
+     `_get_key_label` (`GesturePattern.jl`, not sealed): `[`, `]`, `\`, `,`,
+     `/`, `*`, `=`, `-`, not "Left_bracket". The gesture help and the command
+     palette show the same signs.
+   - "Ctrl+C" of the Stop button of the terminal is the signal that the button
+     sends, not a key of the editor, so the text says it in words.
+   - New tab, Close tab and the two splits keep no tooltip: the label says it
+     (rule 6), and the menu shows the key beside the label.
+   - A workflow button shows a glyph or a short word, so the name of its
+     command is the title of its note.
+   - The data frame refresh glyph has the label "Refresh" and a note with F5
+     from the view; the sort glyph says the column as the title, and its hint
+     says the gesture of its binding ("Shift+Left click adds it ...").
+   - A crumb of the navigator address says its path as a fact.
+   - A text that is also the description of a gesture binding (the find bar,
+     the settings) keeps the form of a description.
+   - The navigator and the explorer slices use the tooltip slice now: two
+     edges in `PLATFORM_SLICE_EDGES`.
+   - Test: `test_gesture_module()` 64, `test_platform_layering()`,
+     `test_platform_slice_edges()`, `test_navigator_to_widget()` 68,
+     `test_navigator_gestures()` 26, `test_explorer()` 240,
+     `test_widget_tooltip()` 29, `test_tooltip_window()` 51,
+     `test_tooltip_note()` 25, `test_workflow()` 199, `test_data_frame_sort()`
+     17, `test_data_frame_refresh()` 16, `test_data_frame_filter()` 106,
+     `test_data_frame_cells()` 173: all pass.
 5. [ ] **Structured answers.** A decoration answers a note with a condition row
    for each condition. A task group answers facts. A fault answers the tone
    `:error`. A Markdown link and an RST reference answer a fact and a hint. A

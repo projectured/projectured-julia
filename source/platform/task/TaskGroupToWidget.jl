@@ -327,7 +327,7 @@ _format_or_blank(value) = value === nothing ? "" : string(value)
 
 # What a press on a row of a table of tasks does, for a person who rests the
 # pointer on it.
-const _TABLE_TOOLTIP = "A press shows the task below. A double press opens its page, and Ctrl+press opens it in a new tab."
+const _TABLE_TOOLTIP = "A press shows the task below. A double press opens its page, and a Ctrl+press opens it in a new tab."
 
 # The place, among the shown rows `shown`, of the row at the head of the list of
 # the table: the row of the anchor of the group, else the first row after it

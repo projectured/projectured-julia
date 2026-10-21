@@ -72,12 +72,15 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
                parent = _make_action("Parent", :arrow_up,
                                      () -> find_navigator_parent_address(navigator) !== nothing),
                open_tab = _make_action("Open in a tab", :external_link, () -> true))
-    buttons = Any[WidgetToolbarItem(actions.back; tooltip = "Go back to the page before (Ctrl+[)."),
-                  WidgetToolbarItem(actions.forward; tooltip = "Go forward to the next page (Ctrl+])."),
-                  WidgetToolbarItem(actions.parent; tooltip = "Go to the page that holds this page (Ctrl+Up).")]
+    # Each button names the key of the navigator that does what it does.
+    note(title, binding, text) = TooltipNote(; title, keys = find_bound_keys(Navigator, binding), text)
+    buttons = Any[WidgetToolbarItem(actions.back; tooltip = note("Back", "Go back", "Go to the page before.")),
+                  WidgetToolbarItem(actions.forward; tooltip = note("Forward", "Go forward", "Go to the next page.")),
+                  WidgetToolbarItem(actions.parent;
+                                    tooltip = note("Parent", "Go to the parent page", "Go to the page that holds this page."))]
     # The bar ends with Open in a tab, after the address, so the path view keeps its
-    # place in the bar.
-    open_tab = WidgetToolbarItem(actions.open_tab; tooltip = "Open this page in a new tab.")
+    # place in the bar. Its label says what it does.
+    open_tab = WidgetToolbarItem(actions.open_tab)
     crumbs = Cell(@computation _make_address_crumbs(navigator))
     switch = _make_view_switch(navigator.address_draft)
     address_projection = make_navigator_address_projection(navigator; p.syntax_theme)
@@ -129,8 +132,9 @@ const _ADDRESS_VIEWS = [:titles, :path, :types]
 function _make_view_switch(draft::NavigatorAddress)
     switch = WidgetToggleGroup(["Names", "Path", "Types"]; look = :step, values = _ADDRESS_VIEWS,
                                target = draft, field = "view",
-                               tooltip = "The address as names, as a path, or as a path with types: " *
-                                         "a press shows the next, Shift+press the one before.")
+                               tooltip = TooltipNote(; title = "View of the address",
+                                   text = "Show the address as names, as a path, or as a path with types.",
+                                   hint = "A press shows the next view, and a Shift+press the one before."))
     set_cell_computation!(getfield(switch, :selected),
                           () -> something(findfirst(==(draft.view), _ADDRESS_VIEWS), 1))
     switch
@@ -143,7 +147,8 @@ function _make_address_part(navigator::Navigator, crumbs, address_output, path)
     draft = navigator.address_draft
     view = draft.view
     if view === :path
-        draft.edited || return Any[WidgetToolbarItem(path; tooltip = "Edit the path (Ctrl+L).")]
+        draft.edited || return Any[WidgetToolbarItem(path; tooltip = TooltipNote(; title = "Path",
+                                       keys = find_bound_keys(Navigator, "Edit the address"), text = "Edit the path."))]
         draft.unreached_step == 0 && return Any[address_output]
         return Any[address_output, WidgetLabel("✗ step $(draft.unreached_step) reaches no part")]
     end
@@ -222,7 +227,8 @@ function _make_address_crumbs(navigator::Navigator)
 end
 
 # The name, the tooltip and the address of each document from the content to the
-# page, past the collections, and of the page last.
+# page, past the collections, and of the page last. The tooltip of a part names
+# its path as a fact.
 function _get_address_parts(navigator::Navigator)
     content = navigator.content
     steps = get_reference_steps(get_navigator_page_address(navigator))
@@ -232,12 +238,13 @@ function _get_address_parts(navigator::Navigator)
         (stop == length(steps) || is_navigator_stop(evaluate_reference(content, prefix(stop)))) &&
             push!(stops, stop)
     end
-    parts = Tuple{String,String,Reference}[]
+    parts = Tuple{String,Any,Reference}[]
     for (index, stop) in enumerate(stops)
         address = prefix(stop)
         label = _get_address_label(evaluate_reference(content, address),
                                    steps[(index == 1 ? 1 : stops[index - 1] + 1):stop])
-        tooltip = stop == 0 ? "The whole content." : print_path_text(address)
+        tooltip = stop == 0 ? "The whole content." :
+                  TooltipNote(; title = label, facts = ["Path" => print_path_text(address)])
         push!(parts, (label, tooltip, address))
     end
     parts

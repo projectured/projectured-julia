@@ -116,7 +116,7 @@ _has_result_row(form::EvaluatorForm) = form.is_running === true || _has_result(f
 # What the `=` row shows while the evaluation of `form` runs in the background:
 # a word, and a button that stops it.
 function _make_running_row(projection, form::EvaluatorForm)
-    stop = WidgetButton("Stop"; icon = :stop, tooltip = "Stop the evaluation",
+    stop = WidgetButton("Stop"; icon = :stop, tooltip = "Stop the evaluation.",
                         action = editor -> evaluate_operation(editor, StopEvaluatorFormOperation(form)))
     HorizontalLayout(Any[WidgetLabel("Running"), stop]; vertical_align = :center,
                      gap = projection.prompt_gap)

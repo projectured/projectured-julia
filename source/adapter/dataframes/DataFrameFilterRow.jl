@@ -174,12 +174,14 @@ function _make_expression_bar(p, view)
 end
 
 # The glyph that reads the frame of `view` again: a flat toolbar item, whose
-# tooltip names the key that does the same.
+# tooltip names the key of the view that does the same.
 function _make_refresh_glyph(view)
     refresh = (document, event) -> RefreshDataFrameViewOperation(view)
     gestures = GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), refresh;
                                              description = "Read the frame again", domain = "data frame")]
-    WidgetToolbarItem("Read the frame again (F5)"; icon = :refresh, gestures)
+    tooltip = TooltipNote(; title = "Refresh", keys = find_bound_keys(DataFrameView, "Read the frame again"),
+                          text = "Read the frame again.")
+    WidgetToolbarItem("Refresh"; icon = :refresh, gestures, tooltip)
 end
 
 # The path in the view of a path in the grid of the view that goes into a field

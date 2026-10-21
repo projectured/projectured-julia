@@ -238,12 +238,13 @@ end
 # ── Buttons ──────────────────────────────────────────────────────────────
 
 # A button whose press answers the operation that `make()` makes at the time of
-# the press.
-_make_workflow_button(text::AbstractString, tooltip::AbstractString, make) =
-    WidgetButton(text; tooltip,
+# the press. `name` says what the press does: it is the title of the tooltip, as
+# the button shows a glyph or a short word, and the description of the gesture.
+_make_workflow_button(text::AbstractString, name::AbstractString, make) =
+    WidgetButton(text; tooltip = TooltipNote(; title = name),
                  gestures = GestureBinding[
                      GestureBinding(MouseClickPattern(:left), (_, _) -> make();
-                                    description = tooltip, domain = "workflow")])
+                                    description = name, domain = "workflow")])
 
 _make_fold_button(document) =
     _make_workflow_button(document.collapsed ? "▸" : "▾",

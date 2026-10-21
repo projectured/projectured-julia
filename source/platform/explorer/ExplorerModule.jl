@@ -35,6 +35,7 @@ using ..SelectionModule
 using ..StyleModule
 using ..TaskModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 

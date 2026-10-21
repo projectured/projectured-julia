@@ -60,4 +60,4 @@ A host passes it to the `tools` of the `shell` wrapper when its editor serves MC
 """
 make_mcp_log_tool() =
     make_window_tool_command("MCP log", McpLog; icon = :bot,
-                             tooltip = "MCP log: every call that a client made over MCP in this session")
+                             tooltip = "Every call that a client made over MCP in this session.")

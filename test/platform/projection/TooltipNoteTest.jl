@@ -113,6 +113,12 @@ end
     end
 end
 
+@testset "a note finds the keys that a gesture table binds to a command" begin
+    @test describe_gesture_pattern.(find_bound_keys(Navigator, "Go back")) == ["Ctrl+["]
+    @test describe_gesture_pattern.(find_bound_keys(Navigator, "Edit the address")) == ["Ctrl+L"]
+    @test isempty(find_bound_keys(Navigator, "a command that no key reaches"))
+end
+
 @testset "a piece that is a document stands as it is" begin
     texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
     @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]

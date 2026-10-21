@@ -73,7 +73,7 @@ function _build_agent_page_card(p, work::AgentWork, part, children)
 end
 
 function _build_agent_header_lines(work::AgentWork)
-    cancel = WidgetButton("Cancel"; tooltip = "Stop the work of the subagent",
+    cancel = WidgetButton("Cancel"; tooltip = "Stop the work of the subagent.",
                           action = editor -> _cancel_agent_subagent_work(editor, work))
     set_cell_computation!(getfield(cancel, :visible),
                           () -> work.state === :running && work.can_cancel)
@@ -154,7 +154,7 @@ function _make_agent_work_link(work::AgentWork, field::AbstractString, index::In
     binding = GestureBinding(MouseClickPattern(:left), open;
                              description = "Open the page of a part of the work",
                              domain = "assistant")
-    link = WidgetButton(""; tooltip = "Open its page", gestures = GestureBinding[binding])
+    link = WidgetButton(""; tooltip = "Open the page of this part of the work.", gestures = GestureBinding[binding])
     set_cell_computation!(link, () -> _format_one_line(_join_label_and_detail(child)))
 end
 

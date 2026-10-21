@@ -92,7 +92,7 @@ function _build_assistant_row(list::AssistantList, a::Assistant, clock)
     pick = WidgetButton("›"; action = _ -> select_assistant!(list, a))
     show = WidgetButton("Show"; action = editor -> open_assistant_tab!(editor, list, a))
     show_work = editor -> (show_assistant_work!(a; editor); nothing)
-    work_page = WidgetButton("Work"; tooltip = "Show the work of the agent",
+    work_page = WidgetButton("Work"; tooltip = "Show the plans, the subagents and the tasks of the agent.",
                              action = show_work)
     work = WidgetBadge(() -> _format_work_state(a.work_state))
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))

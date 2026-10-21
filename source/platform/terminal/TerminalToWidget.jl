@@ -59,7 +59,7 @@ const _TERMINAL_INPUT_PREFIX = Any[FieldReferenceStep("children"), RangeReferenc
 
 function print_document(p::TerminalToWidget, recursion, terminal::TerminalDocument, ctx)
     status = WidgetLabel(() -> _format_terminal_status(terminal.status); text_style = p.status_text)
-    stop = WidgetButton("Stop"; tooltip = "Stop the program: Ctrl+C, and a second press ends it",
+    stop = WidgetButton("Stop"; tooltip = "Interrupt the program, and end it at a second press.",
                         action = _ -> stop_terminal!(terminal))
     set_cell_computation!(getfield(stop, :enabled), () -> is_terminal_running(terminal))
     header = HorizontalLayout(Any[WidgetLabel(format_terminal_command(terminal.command); text_style = p.status_text),

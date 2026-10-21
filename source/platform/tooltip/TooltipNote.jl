@@ -35,3 +35,20 @@ Each piece that is `nothing` or empty draws nothing.
     hint::Any = nothing
     tone::Symbol = :plain
 end
+
+"""
+    find_bound_keys(type, description) -> Vector{GesturePattern}
+
+The key patterns that the gesture table of the document type `type` binds to
+the command `description`, for the `keys` of a note about a control that does
+what that key does: the note then names the key that works, and a change of the
+binding changes the note. A pointer gesture bound to the same command, such as
+the back button of a mouse, is not a key, and the note leaves it out. Empty when
+the table binds no key to `description`.
+"""
+find_bound_keys(type::Type, description::AbstractString) =
+    GesturePattern[binding.pattern for binding in collect_document_gesture_bindings(type)
+                   if binding.description == description && _is_key_pattern(binding.pattern)]
+
+_is_key_pattern(::GesturePattern{<:Union{KeyDown,KeyPress}}) = true
+_is_key_pattern(_) = false
