@@ -1,6 +1,7 @@
 # Frame statistics print only their new rows
 
-Status: PENDING, 2026-10-21. In progress. No decision is open.
+Status: DONE, 2026-10-21, on the branch `frame-statistics-rows`, in the worktree
+`projectured-julia-frame-statistics`. Not landed on `main`.
 
 ## The ask
 
@@ -48,8 +49,7 @@ every second frame took 10 to 15 ms while nothing happened:
 - The list keeps its head at `anchor`, counted from the newest frame, as now. A
   new frame makes a new list over the same rows, so the grid prints only the rows
   of the new frames. The paint of the SDL backend does not change.
-- The title is "Frame statistics", the tool command "Frame statistics" with the
-  tooltip "Frame statistics: how long the frames of this window take", and the
+- The title is "Frame statistics", the tool command "Frame statistics", and the
   insertion aliases "frame statistics" and "statistics".
 
 ## Steps
@@ -65,7 +65,7 @@ on `main` before the owner approves.
    same objects, and makes rows only for the new frames; the slow colour follows a
    new median. Run the statistics tests, `test_platform()` and the feed test of
    the umbrella package. Commit.
-3. [ ] **The numbers and the guide.** In the measurement lane, on `main` and on
+3. [x] **The numbers and the guide.** Done; see [As built](#as-built). In the measurement lane, on `main` and on
    the branch: the time of the flush frame on the frame statistics page of the
    application window, with the window open long enough to hold the 1000 frames
    of the ring. The guide of the statistics slice says how the rows are kept. The
@@ -84,8 +84,10 @@ interleaved as A/B/A, and write the load of the machine beside it.
 
 ## As built
 
-- **Step 1.** The title, the tool command and its tooltip say "Frame statistics";
-  the aliases are "frame statistics" and "statistics". No guide named the old
+- **Step 1.** The title and the tool command say "Frame statistics"; the aliases
+  are "frame statistics" and "statistics". At the rebase onto `main`, the tooltips
+  had become sentences ("How long the frames of this window take."), so the
+  tooltip keeps the sentence of `main`. No guide named the old
   title. `test_editor_display()` 28, `test_window_wrappers()` 58,
   `test_window_shell()` 140, `test_application()` 385 pass and 2 broken.
 - **Step 2.** The rows by frame number were not enough: a probe that paints the
@@ -121,4 +123,25 @@ interleaved as A/B/A, and write the load of the machine beside it.
   `test_sdl()` 1006 and the known `TreeRenderTest.jl:43, 44, 55`,
   `test_application()` 385 and 2 broken, `test_file_watch_window()` 16,
   `test_documentation()` 1.
+- **Step 3.** `/var/tmp/frame-statistics/flush_bench.jl` builds the application
+  window on a real `SdlBackend` with vsync off, shows the frame statistics in the
+  navigator of the Explorer, runs frames until the ring holds 1000 frames, and
+  then, 40 times, waits 0.26 s so the feed is due and times the flush frame and
+  the frame after it. In the lane `taskset -c 28,30,31`, with a load of 2.4 to
+  3.3, `main` at `3f8b6a126`:
+
+  | | `main` | Branch |
+  | --- | --- | --- |
+  | flush frame, median | 13.05, 13.29, 13.67 ms | 9.82, 10.10 ms |
+  | flush frame, p90 | 14.01, 14.27, 15.04 ms | 10.94, 11.09 ms |
+  | of it, the render of the window, median | 12.55 ms | 7.93 ms |
+  | the frame after it, median | 0.46 to 0.48 ms | 0.46 to 0.47 ms |
+  | rows printed in a flush | 50 | 4 |
+
+  The render of the window holds the print, because the cells of the rows compute
+  when the backend reads them. The 7.9 ms that stay are the walk and the paint of
+  a table whose visible rows all move down at each flush; the paint of the SDL
+  backend did not change, as the owner asked. The rest of the flush frame was
+  2.17 ms on the branch and 1.12 ms on `main`, in one run each. The guides of the
+  statistics slice and of the widget slice say how the rows are kept.
 
