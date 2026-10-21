@@ -890,11 +890,9 @@ function test_explorer()
         visit = make_navigator_open_operation(explorer.navigator, _explorer_entry_path(1))
         evaluate_operation(editor, ProjecturedPlatform.ExplorerModule._get_visit_writes(visit))
         @test get_navigator_page(explorer.navigator) === workspace
-        for _ in 1:20
-            drain_operations!(editor)
-            run_frame!(editor)
-            sleep(0.02)
-        end
+        # The frames run until the read of the first folder ends and nothing more
+        # runs, so a read that the search started would end too.
+        _explorer_run_until_idle(editor)
         directory = workspace.folders[1].directory
         a = only(directory.elements)
         @test a.state === :unread && a.read_count == 0
@@ -963,6 +961,10 @@ function _explorer_wait_until(test, editor)
     end
     false
 end
+
+# Run frames of `editor` until nothing runs or waits, as a wait for a test that
+# never holds ends.
+_explorer_run_until_idle(editor) = (_explorer_wait_until(() -> false, editor); nothing)
 
 # Whether a work of a background cell of `editor` runs, or ended and its answers
 # wait in the inbox: its record ends when the editor writes the answers.
