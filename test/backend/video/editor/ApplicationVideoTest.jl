@@ -2,9 +2,9 @@
 # test/backend/video/editor/ApplicationVideoTest.jl
 #
 # Smoke test for `record_application_video`: a short clip of the application
-# window with no file — the Files pane, an empty tab, no assistant — typing
-# `repl` into a freshly opened tab and pressing Enter. Asserts the file exists
-# and, when `ffprobe` is available, bounds its reported duration rather than
+# window with no file — the Explorer, no assistant — typing `repl` into a
+# freshly opened tab and pressing Enter. Asserts the file exists and bounds the
+# duration that `ffprobe` reports rather than
 # pinning it to the timeline's own scripted total: a cold, unprecompiled
 # process overshoots that total by however long the first-ever compile of the
 # panes/widgets/font stack takes, and `VideoBackend`'s own clock starts only
@@ -18,17 +18,16 @@
 # duration, which `ffmpeg`'s constant frame rate makes an exact relation.
 # ═══════════════════════════════════════════════════════════════════════════
 
-# `(duration_seconds, frame_count)` from `ffprobe`, or `(nothing, nothing)`
-# when `ffprobe` is not on `PATH` or the probe fails.
+# The `ffmpeg` and the `ffprobe` of FFMPEG_jll, which `ProjecturedVideo` encodes
+# with, so the checks of a video run also where no `ffmpeg` is installed.
+const _FFMPEG = ProjecturedVideo.VideoModule.FFMPEG
+
+# `(duration_seconds, frame_count)` from `ffprobe`, each `nothing` when the probe
+# does not report it.
 function _probe_video(filename::AbstractString)
-    text = try
-        read(`ffprobe -v error -count_frames -select_streams v:0
-                       -show_entries format=duration:stream=nb_read_frames
-                       -of default=noprint_wrappers=1 $filename`, String)
-    catch e
-        @warn "ffprobe unavailable, skipping its assertions: $e"
-        return (nothing, nothing)
-    end
+    text = read(`$(_FFMPEG.ffprobe()) -v error -count_frames -select_streams v:0
+                     -show_entries format=duration:stream=nb_read_frames
+                     -of default=noprint_wrappers=1 $filename`, String)
     duration_m = match(r"duration=([\d.]+)", text)
     frames_m = match(r"nb_read_frames=(\d+)", text)
     duration = duration_m === nothing ? nothing : parse(Float64, duration_m.captures[1])
@@ -124,19 +123,26 @@ end
     end
 end
 
-# The last frame of a video as rows of RGB pixels, or `nothing` when `ffmpeg` is
-# not on `PATH`.
+# The frames of `bytes`, raw RGB frames of `width` by `height`, each as rows of
+# pixels.
+_split_frames(bytes, width::Integer, height::Integer) =
+    [[(Int(bytes[at + 3 * (y * width + x) + 1]), Int(bytes[at + 3 * (y * width + x) + 2]),
+       Int(bytes[at + 3 * (y * width + x) + 3])) for y in 0:height - 1, x in 0:width - 1]
+     for at in 0:width * height * 3:length(bytes) - width * height * 3]
+
+# The last frame of a video as rows of RGB pixels, or `nothing` when the video
+# has no frame of `width` by `height`.
 function _read_last_frame(filename::AbstractString, width::Integer, height::Integer)
-    bytes = try
-        read(`ffmpeg -v error -sseof -0.1 -i $filename -frames:v 1 -f rawvideo -pix_fmt rgb24 -`)
-    catch e
-        @warn "ffmpeg unavailable, skipping the frame assertions: $e"
-        return nothing
-    end
+    bytes = read(`$(_FFMPEG.ffmpeg()) -v error -sseof -0.1 -i $filename
+                  -frames:v 1 -f rawvideo -pix_fmt rgb24 -`)
     length(bytes) == width * height * 3 || return nothing
-    [(Int(bytes[3 * (y * width + x) + 1]), Int(bytes[3 * (y * width + x) + 2]), Int(bytes[3 * (y * width + x) + 3]))
-     for y in 0:height - 1, x in 0:width - 1]
+    only(_split_frames(bytes, width, height))
 end
+
+# Every frame of a short video, in order.
+_read_frames(filename::AbstractString, width::Integer, height::Integer) =
+    _split_frames(read(`$(_FFMPEG.ffmpeg()) -v error -i $filename
+                        -f rawvideo -pix_fmt rgb24 -`), width, height)
 
 @testset "the pointer is drawn where the last mouse event left it" begin
     width, height = 480, 360
@@ -257,14 +263,14 @@ end
     end
 end
 
-@testset "a take whose window can not paint still ends, with the fault on its frames" begin
+@testset "a take goes on past a paint that fails, with the fault on the frames it holds" begin
     width, height, fps = 480, 360, 10
     root = mktempdir()
     path = joinpath(root, "items.json")
     write(path, """[{"name": "tea", "price": 3}]""")
-    # A JSON string whose text can not be computed makes every paint of the
-    # file fail from the frame after the insert on, whichever projection draws
-    # it, and after eight failed paints the editor stops painting.
+    # A JSON string whose text can not be computed makes the paint after the
+    # insert fail. The frames then hold the last picture with the fault on it,
+    # until the string shows its fault in its place and the window paints again.
     break_paint = (await = editor -> begin
                        items = get_edited_document(find_pane("items.json"; editor))
                        broken = JsonString("tea")
@@ -281,24 +287,28 @@ end
     ]
     schedule = 0.2 + 0.2 + 1.5 + 0.5 + 0.3
     filename = tempname() * ".mp4"
+    # In video time, so the frames are the same on a slow and on a fast machine.
     recording = @async record_application_video([path], timeline, filename;
                                                 width = width, height = height, fps = fps,
                                                 assistant = :none, root = root,
                                                 initial_hold = 0.2, final_hold = 0.3,
-                                                supersample = 1)
+                                                supersample = 1, video_time = true)
     # A recorder that waits for a frame that never comes does not end.
     @test timedwait(() -> istaskdone(recording), 180.0) === :ok
     @test istaskdone(recording) && !istaskfailed(recording)
     if istaskdone(recording) && !istaskfailed(recording)
         duration, _ = _probe_video(filename)
         duration === nothing || @test schedule * 0.5 <= duration
-        frame = _read_last_frame(filename, width, height)
-        if frame !== nothing
-            # The held picture carries the red band of the fault across the
-            # bottom; this row is in the band, above its text.
-            is_red(p) = p[1] > 170 && p[2] < 100 && p[3] < 100
-            @test count(is_red, frame[height - 25, :]) > 0.8 * width
-        end
+        frames = _read_frames(filename, width, height)
+        # A held picture carries the red band of the fault across the bottom; this
+        # row is in the band, above its text.
+        is_red(p) = p[1] > 170 && p[2] < 100 && p[3] < 100
+        has_band(frame) = count(is_red, frame[height - 25, :]) > 0.8 * width
+        # The insert is at 0.4 s, and the first frame with the band is its frame or
+        # the next one.
+        @test findfirst(has_band, frames) in round(Int, 0.4 * fps) .+ (1:2)
+        # The window paints again, so the take ends on a frame with no band.
+        @test !isempty(frames) && !has_band(last(frames))
         rm(filename; force = true)
     end
 end
