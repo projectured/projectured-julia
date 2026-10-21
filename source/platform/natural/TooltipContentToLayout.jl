@@ -7,7 +7,7 @@ A `TooltipContent` as a column of one block, a frame around the layers, which th
 natural projection draws: the content of each shown layer, and each re-enters the
 natural projection in its own domain, so a tooltip can be prose, markdown, a table
 or a widget. When more than one layer shows, each layer starts with a label that
-names the part it comes from, and a separator stands between two layers. When the
+names the part it comes from, in the quiet text of a layer. When the
 window can show more or fewer layers, the last line names the keys that do it. A
 tooltip is read, never edited, so the column maps no reference of its own.
 
@@ -39,8 +39,7 @@ function print_document(p::TooltipContentToVerticalLayout, recursion, content::T
     shown = clamp(content.shown, 1, max(1, count))
     layer_text = unwrap_cell(p.layer_text)
     children = Any[]
-    for (index, (title, document)) in enumerate(layers[1:min(shown, count)])
-        index > 1 && push!(children, WidgetSeparator())
+    for (title, document) in layers[1:min(shown, count)]
         shown > 1 && push!(children, WidgetLabel(title; text_style = layer_text))
         push!(children, document)
     end

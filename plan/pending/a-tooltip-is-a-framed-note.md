@@ -174,6 +174,10 @@ The steps are fixed. Each step is one commit.
    - `TooltipTheme` got `font`, `surface`, `line`, `line_width` (not
      `border_width`, after `WidgetTheme`), `padding`, `gap` and `layer_text`.
      The natural projection takes the scaled `TooltipTheme` of the appearance.
+   - Between two layers stands no line. In an SDL picture, a `WidgetSeparator`
+     there drew only as wide as the first layer, not the whole column, so the
+     title of each layer marks where it starts, with the gap of the column
+     above it.
    - A layer title is the title in `text_faint`, 0.9 of the size. It is not
      in capitals: a text has no letter spacing, and a type name such as
      `JuliaDocstring` in capitals is hard to read.
