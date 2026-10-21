@@ -3,7 +3,8 @@
 # A data frame is a table of the table interface of the collection slice. A
 # column is the vector of the frame, and a part of the rows is a `SubDataFrame`,
 # so an edit in a part writes the frame. The document of a data frame is its
-# view, with the other columns hidden.
+# view, with the other columns hidden. The view is a table too, by its frame
+# (`DataFrameView.jl`).
 
 is_table(::AbstractDataFrame) = true
 get_table_row_count(frame::AbstractDataFrame) = nrow(frame)

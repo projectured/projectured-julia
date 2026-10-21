@@ -93,6 +93,18 @@ function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anc
     _set_path_fields!(_set_kept_row_computations!(view))
 end
 
+# A view is a table of the table interface: all the rows of its frame, whatever
+# rows its query keeps, as a spreadsheet makes a pivot of its whole source range.
+# A part of a view is a part of its frame, so an edit in the part writes the frame.
+is_table(::DataFrameView) = true
+get_table_row_count(view::DataFrameView) = get_table_row_count(view.frame)
+get_table_column_names(view::DataFrameView) = get_table_column_names(view.frame)
+get_table_column_type(view::DataFrameView, column::AbstractString) = get_table_column_type(view.frame, column)
+get_table_value(view::DataFrameView, row::Integer, column::AbstractString) = get_table_value(view.frame, row, column)
+find_table_column(view::DataFrameView, column::AbstractString) = find_table_column(view.frame, column)
+make_table_part(view::DataFrameView, rows::AbstractVector{<:Integer}) = make_table_part(view.frame, rows)
+make_table_document(view::DataFrameView, columns::Vector{String}) = make_table_document(view.frame, columns)
+
 """
     DataFrameViewRows(view)
 

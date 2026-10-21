@@ -14,8 +14,10 @@ Whether `value` is a table that the functions of the table interface read:
 [`find_table_column`](@ref) and [`make_table_part`](@ref).
 
 A vector of named tuples, a named tuple of vectors of one length, and a
-[`TablePart`](@ref) are tables. A package that owns a kind of table adds the
-methods for it: `ProjecturedDataFrames` adds them for an `AbstractDataFrame`.
+[`TablePart`](@ref) are tables, and a referenced document of a table is the
+table of its document. A package that owns a kind of table adds the methods for
+it: `ProjecturedDataFrames` adds them for an `AbstractDataFrame` and for its
+`DataFrameView`.
 """
 is_table(::Any) = false
 
@@ -142,3 +144,19 @@ the caller then shows the table in its own way. `ProjecturedDataFrames` gives a
 `DataFrameView` of a data frame, so an edit in it writes the frame.
 """
 make_table_document(::Any, ::Vector{String}) = nothing
+
+# ── A table that a read answers ──────────────────────────────────────────────
+# A read of a document answers a referenced document, which acts like its
+# document, so a referenced table is the table of its document.
+
+is_table(table::ReferencedDocument) = is_table(get_document(table))
+get_table_row_count(table::ReferencedDocument) = get_table_row_count(get_document(table))
+get_table_column_names(table::ReferencedDocument) = get_table_column_names(get_document(table))
+get_table_column_type(table::ReferencedDocument, column::AbstractString) =
+    get_table_column_type(get_document(table), column)
+get_table_value(table::ReferencedDocument, row::Integer, column::AbstractString) =
+    get_table_value(get_document(table), row, column)
+find_table_column(table::ReferencedDocument, column::AbstractString) = find_table_column(get_document(table), column)
+make_table_part(table::ReferencedDocument, rows::AbstractVector{<:Integer}) = make_table_part(get_document(table), rows)
+make_table_document(table::ReferencedDocument, columns::Vector{String}) =
+    make_table_document(get_document(table), columns)

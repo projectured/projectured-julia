@@ -1,7 +1,8 @@
 """
 The table interface of `CollectionModule`: a vector of named tuples and a named
-tuple of vectors give the same rows, the same columns and the same parts, and a
-part of a part is a part of the table.
+tuple of vectors give the same rows, the same columns and the same parts, a
+part of a part is a part of the table, and a referenced document of a table is
+the table of its document.
 """
 
 function test_table_interface()
@@ -49,6 +50,22 @@ mixed = NamedTuple[(a = 1, b = "x"), (a = 2.5, b = "y")]
 @test get_table_value(mixed, 2, "a") == 2.5
 @test get_table_row_count(NamedTuple[]) == 0
 @test get_table_column_names(NamedTuple[]) == String[]
+
+# A referenced document of a table, as a read answers it, is the table of its
+# document: every function answers what it answers for the document.
+for table in (rows, columns)
+    referenced = ReferencedDocument(table, EmptyReference())
+    @test is_table(referenced)
+    @test get_table_row_count(referenced) == 3
+    @test get_table_column_names(referenced) == ["region", "year", "amount"]
+    @test get_table_column_type(referenced, "year") == Int
+    @test get_table_value(referenced, 3, "amount") == 15.0
+    @test find_table_column(referenced, "year") === find_table_column(table, "year")
+    part = make_table_part(referenced, [3, 1])
+    @test part.table === table && part.rows == [3, 1]
+    @test make_table_document(referenced, ["year"]) === nothing
+end
+@test !is_table(ReferencedDocument(42, EmptyReference()))
 
 end
 end
