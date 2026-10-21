@@ -26,12 +26,13 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
 
 ## Steps
 
-1. [ ] The static guards pass.
-   - `arguments.jl`: `PivotCrossTable.jl:488`, `:491` (`find_pivot_value`),
+1. [ ] The static guards pass. Done except `CellModule.jl:48`
+   (daa936f68, c47a05319, 8ae34c944).
+   - [x] `arguments.jl`: `PivotCrossTable.jl:488`, `:491` (`find_pivot_value`),
      `TaskGroupDocument.jl:379` (`rerun_task_group_document!`).
-   - `exports.jl`: `CellModule.jl:48` (sealed 🔒, needs the owner's permission),
-     `FileChangeModule.jl:35`, `BuilderModule.jl:35`.
-   - `style.jl`: `Application.jl:472`, `FilePageToWidget.jl:72`, `TextDocument.jl:438`.
+   - [ ] `exports.jl`: `CellModule.jl:48` (sealed 🔒, needs the owner's permission).
+     [x] `FileChangeModule.jl:35`, `BuilderModule.jl:35`.
+   - [x] `style.jl`: `Application.jl:472`, `FilePageToWidget.jl:72`, `TextDocument.jl:438`.
 2. [ ] `test_sdl()` passes: the scroll paint of a window, and the tree render.
 3. [ ] `test_video()` passes: `json_build_live`, and the zoom of a take.
 4. [ ] `test_platform()` passes: the search of the explorer filter.
@@ -48,5 +49,21 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
    with the offscreen driver, and passes.
 
 ## Decisions and facts
+
+- The optional positional arguments of `find_pivot_value` (`column_key`) and of
+  `rerun_task_group_document!` (`which`) stay positional, with a `# @optional:`
+  marker. `column_key` is a coordinate of the cell, as `row_key` is, and about 15
+  calls and the guide write it so. omnet-julia calls
+  `rerun_task_group_document!(doc, :failed)` in three places.
+- The band of a file page takes its padding from a new theme field
+  `band_padding`, with the same value as before. No field of the theme had that
+  value. The padding now scales with the theme, as the other paddings do.
+- The example canvas in the system text of the assistant, and the hint colour of
+  a text block, keep their values with a `# @style:` marker: the first is text
+  for the agent and draws nothing; the second is the same colour that
+  `make_hinted_text` marks so.
+- The fix of `CellModule.jl:48` moves `is_cell_provisional` into the first
+  export statement, after `is_cell_valid`, because `CellInterface.jl` declares
+  it. The file is sealed.
 
 ## Not in this plan
