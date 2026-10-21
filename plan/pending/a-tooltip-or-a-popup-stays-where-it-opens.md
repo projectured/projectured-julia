@@ -113,8 +113,17 @@ owner approves.
    So a single display places windows exactly as before, also where SDL folds
    several monitors of X11 into one display, and a test that sets the size of
    the display by hand still works.
-5. ⬜ **Run the narrow suites:** `test_native_window()`, then `test_sdl()`, the
+5. ✅ **Run the narrow suites:** `test_native_window()`, then `test_sdl()`, the
    tooltip and screen cases of the platform, and `test_application()`.
+   **Result:** `test/suite/naming.jl` passes. `test_sdl()` passes 1027; its 2
+   failures and 1 error are `test_tree_render` at `TreeRenderTest.jl:43-55`, which
+   fails in the same way on main. The twelve tooltip, popup, window and screen
+   tests of the platform pass (`test_tooltip`, `test_tooltip_note`,
+   `test_widget_popup_example`, `test_window_fit`, `test_window_wrapper`,
+   `test_context_menu_window`, `test_tracking_screen`, `test_widget_tooltip`,
+   `test_window_shell`, `test_window_wrap`, `test_window_wrappers`,
+   `test_window_input_unwrapping`), `test_tooltip_window()` passes 55, and
+   `test_application()` passes 389 with its 2 marked broken.
 6. ⬜ **Check on a Mac** with the script of the tester: a menu and a dropdown stay
    open, a click on an item acts, the item under the pointer lights, the arrow
    keys move in a dropdown, and a tooltip on the monitor above shows there. Check
