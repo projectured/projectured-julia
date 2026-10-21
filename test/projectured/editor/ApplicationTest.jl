@@ -1924,8 +1924,9 @@ function test_application()
                 draft = w.assistant.draft
                 @test get_selection(draft) === nothing
                 @test get_stored_selection(draft) !== nothing
-                # The focus comes back to the assistant, and the caret with it.
-                focus_pane!(find_pane_reference("Assistant"; editor = w.editor); editor = w.editor)
+                # The focus comes back to the assistant, and the caret with it. An
+                # untitled assistant is called by the first line of its first prompt.
+                focus_pane!(find_pane_reference("hello"; editor = w.editor); editor = w.editor)
                 @test holds_one_path(w)
                 @test get_selection(draft) !== nothing
                 @test carets(w) == 1
