@@ -212,9 +212,28 @@ The steps are fixed. Each step is one commit.
      catalog covers `TooltipNote`.
    - Test: `test_tooltip_note()` 22 of 22, `test_tooltip_window()` 51 of 51,
      `test_platform_layering()` 7 of 7, `test_platform_slice_edges()` passes.
-3. [ ] **A widget answers a note.** `_find_widget_tooltip` makes a note: the
+3. [x] **A widget answers a note.** `_find_widget_tooltip` makes a note: the
    label is the title, `action.shortcut` gives the keys, the string is the text.
    A `WidgetMenuItem` does the same. Test: `test_widget_tooltip()`.
+
+   Done. As built:
+   - A string tooltip of any widget is the text of a `TooltipNote`; an empty
+     string says nothing; any other document, a note too, says itself.
+   - A control of an action (`WidgetToolbarItem`, `WidgetMenuItem`,
+     `WidgetButton`) answers `_make_action_note`: the label is the title, the
+     `shortcut` is the key cap, the tooltip is the text.
+   - A menu item, and a button with a label, show their label, so with no
+     tooltip they say nothing more (rule 6). A toolbar item, and a button with
+     an empty label, show only a picture, so they say their label and their
+     key with no tooltip. So the plan's "a menu item does the same" holds for
+     a menu item with a tooltip; one with none stays quiet.
+   - Three readers of the widget slice answer a note too: the edge of a table
+     column ("Drag to set the width."), a table cell whose edit failed (its
+     reason, tone `:error`), and a row of a tree (its decoration words).
+   - Test: `test_widget_tooltip()` 29, `test_widget_toolbar()` 83,
+     `test_widget_tab_label()` 24, `test_widget_table_list()` 253,
+     `test_widget_table_list_header_floor()` 5, `test_widget_tree()` 103,
+     `test_tooltip_window()` 51, `test_tooltip_note()` 22: all pass.
 4. [ ] **The words of the platform.** The window chrome (22), the navigator (9),
    the assistant and the conversation (14), the explorer, the terminal, the
    settings, the work plan and the workflow domain (8) follow the rules. The 12

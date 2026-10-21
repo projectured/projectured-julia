@@ -130,7 +130,7 @@ end
     @test tip.content.shown == 1
     title, content = only(tip.content.layers)
     @test title == "WidgetLabel"
-    @test content.value == "what this label is for"
+    @test content.text == "what this label is for"
     # It says its bounds rather than a size: it is printed at the maximum, and the
     # backend gives it the extent of what it printed, never below the minimum.
     @test tip.minimum_size == (120, 32)
@@ -177,7 +177,7 @@ end
     _tw_rest!(editor, backend, 20, 10, 1.0; window = :V)
     tip = only(_tw_tooltips(scene))
     @test (tip.x, tip.y) == (600 + 20 + 16, 100 + 10 + 20)
-    @test only(tip.content.layers)[2].value == "what this label is for"
+    @test only(tip.content.layers)[2].text == "what this label is for"
 end
 
 # A dwell goes by its position, as a click does: each container gives it to the
@@ -189,7 +189,7 @@ end
     replace_selection!(labels, annotate_reference_types(labels, second))
     editor, backend, scene = _tw_editor(labels)
     _tw_rest!(editor, backend, 20, 10, 1.0)
-    @test only(only(_tw_tooltips(scene)).content.layers)[2].value == "what this label is for"
+    @test only(only(_tw_tooltips(scene)).content.layers)[2].text == "what this label is for"
 end
 
 # A pane that scrolls gives the dwell to its content in the frame of the content,
@@ -204,7 +204,7 @@ end
     editor, backend, scene = _tw_editor(pane)
     _tw_rest!(editor, backend, 20, 10, 1.0)
     tip = only(_tw_tooltips(scene))
-    @test only(tip.content.layers)[2].value == "the lower label"
+    @test only(tip.content.layers)[2].text == "the lower label"
     @test (tip.x, tip.y) == (100 + 20 + 16, 100 + 10 + 20)
 end
 
@@ -271,7 +271,7 @@ end
     editor, backend, scene = _tw_editor(_tw_labels(; group = "the group"))
     _tw_rest!(editor, backend, 20, 50, 1.0)
     tip = only(_tw_tooltips(scene))
-    @test only(tip.content.layers)[2].value == "the group"
+    @test only(tip.content.layers)[2].text == "the group"
 end
 
 @testset "a command runs the binding with no pointer, and the window opens below the part" begin
@@ -295,7 +295,7 @@ end
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))
-    @test only(tip.content.layers)[2].value == "what this button is for"
+    @test only(tip.content.layers)[2].text == "what this button is for"
     # With no point, the window stands below the button, with the left edges
     # aligned and a gap of 4 pixels.
     @test (tip.x, tip.y) == (100 + 10, 100 + 30 + 24 + 4)

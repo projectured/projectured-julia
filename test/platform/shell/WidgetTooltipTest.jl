@@ -16,14 +16,34 @@ function test_widget_tooltip()
 
 @testset "a widget answers the field it was given" begin
     @test _read_widget_tooltip(WidgetButton("Run"; size = Point2D(80, 24))) === nothing
-    # A string is wrapped, because a one-line tooltip is what a caller writes.
+    # A string is the text of a note, because a one-line tooltip is what a caller
+    # writes, and the label of the button is its title.
     answer = _read_widget_tooltip(WidgetButton("Run";
                                                size = Point2D(80, 24), tooltip = "Run the selected configurations"))
-    @test answer isa PrimitiveString
-    @test answer.value == "Run the selected configurations"
+    @test answer isa TooltipNote
+    @test (answer.title, answer.text) == ("Run", "Run the selected configurations")
+    @test _read_widget_tooltip(WidgetLabel("x"; tooltip = "a tip")).text == "a tip"
+    @test _read_widget_tooltip(WidgetLabel("x"; tooltip = "")) === nothing
     # A document passes through as it is.
     given = WidgetLabel("a tip")
     @test _read_widget_tooltip(WidgetLabel("x"; tooltip = given)) === given
+end
+
+@testset "a control of an action says its label, its key and its text" begin
+    new_tab = Action("New tab"; shortcut = Shortcut(:t; ctrl = true))
+    # A menu item shows its label, so with no tooltip it says nothing more.
+    @test _read_widget_tooltip(WidgetMenuItem(new_tab)) === nothing
+    note = _read_widget_tooltip(WidgetMenuItem(new_tab; tooltip = "Open an empty tab."))
+    @test (note.title, note.text) == ("New tab", "Open an empty tab.")
+    @test describe_gesture_pattern.(note.keys) == ["Ctrl+T"]
+    # A toolbar item shows only a picture, so it says its label and its key with
+    # no tooltip of its own.
+    note = _read_widget_tooltip(WidgetToolbarItem(new_tab))
+    @test (note.title, note.text) == ("New tab", nothing)
+    @test describe_gesture_pattern.(note.keys) == ["Ctrl+T"]
+    # A note that the author gives says itself.
+    given = TooltipNote(; title = "Mine")
+    @test _read_widget_tooltip(WidgetToolbarItem(new_tab; tooltip = given)) === given
 end
 
 @testset "the answer is an operation that opens the tooltip" begin

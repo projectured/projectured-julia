@@ -1953,7 +1953,7 @@ function _read_table_column_edge_dwell(p::WidgetTableToGraphicsCanvas, iomap::Wi
     (found === nothing || found[1] !== :header) && return nothing
     edge = _find_table_column_edge_at(iomap.state, found[2])
     edge === nothing && return nothing
-    tooltip = make_tooltip_operation(iomap.input, PrimitiveString("Drag to set the width"), g)
+    tooltip = make_tooltip_operation(iomap.input, TooltipNote(; text = "Drag to set the width."), g)
     reroot_operation(tooltip, (FieldReferenceStep("columns"), RangeReferenceStep(first(edge) - 1, first(edge)),
                               FieldReferenceStep("policy")))
 end

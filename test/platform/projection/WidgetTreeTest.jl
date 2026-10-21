@@ -130,7 +130,7 @@ end
     io = print_document(_treeproj, w)
     op = _readop(io, MouseDwell(30, 2, _mods; time = 0.0))
     @test op isa OpenTooltipOperation
-    @test op.layers[1][1] == "notes" && op.layers[1][2].value == "unsaved edits"
+    @test op.layers[1][1] == "notes" && op.layers[1][2].text == "unsaved edits"
     # A row whose node has no tooltip says nothing.
     @test _readop(io, MouseDwell(30, 22, _mods; time = 0.0)) === nothing
 end

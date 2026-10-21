@@ -270,9 +270,9 @@ end
     dwell(item) = let operation = read_gesture(item, MouseDwell(0, 0; time = 0.0))
         operation === nothing ? nothing : only(get_wrapped_operation(operation).layers)[2]
     end
-    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
-    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard,
-                                  tooltip = "Every gesture")).value == "Every gesture"
+    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard)).title == "Gesture log"
+    note = dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard, tooltip = "Every gesture"))
+    @test (note.title, note.text) == ("Gesture log", "Every gesture")
     @test dwell(WidgetToolbarItem(""; icon = :keyboard)) === nothing
 end
 

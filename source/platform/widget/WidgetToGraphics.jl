@@ -11429,7 +11429,8 @@ end
 function _read_cell_mark_dwell(w::WidgetTable, k::Int, c::Int, g::MouseDwell)
     cell = _find_open_cell(w, k, c)
     (cell === nothing || cell.reason === nothing) && return nothing
-    reroot_operation(make_tooltip_operation(w, PrimitiveString(cell.reason), g), _wt_get_cell_steps(w, k, c))
+    reroot_operation(make_tooltip_operation(w, TooltipNote(; text = cell.reason, tone = :error), g),
+                     _wt_get_cell_steps(w, k, c))
 end
 
 _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
@@ -12521,7 +12522,7 @@ function _read_wtree_row_dwell(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeT
     node = _find_wtree_node(iomap.geometry, iomap.input, row.path)
     tooltip = _tree_tooltip(node)
     (tooltip === nothing || isempty(tooltip)) && return nothing
-    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), PrimitiveString(String(tooltip)))],
+    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), TooltipNote(; text = String(tooltip)))],
                                 EmptyReference(), (g.x, g.y))
     reroot_operation(ReplaceViewStateOperation(open), Tuple(get_reference_steps(_wtree_path_ref(row.path))))
 end

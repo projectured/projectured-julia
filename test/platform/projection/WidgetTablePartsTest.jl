@@ -918,7 +918,7 @@ end
     tooltip = read(io, MouseDwell(edge, y1 + 2; time = 0.0))
     @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
     layers = get_wrapped_operation(tooltip).layers
-    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "Drag to set the width", layers)
+    @test any(layer -> last(layer) isa TooltipNote && last(layer).text == "Drag to set the width.", layers)
 end
 
 @testset "a table whose columns are a list takes the width of a column from its owner" begin
@@ -1011,7 +1011,8 @@ end
     tooltip = read(io, MouseDwell(x + 2, y + 2; time = 0.0))
     @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
     layers = get_wrapped_operation(tooltip).layers
-    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "not a number", layers)
+    @test any(layer -> last(layer) isa TooltipNote && last(layer).text == "not a number" &&
+                           last(layer).tone === :error, layers)
     getfield(table, :open_cells)[] = Any[]
     @test rects_in(io.output, get_theme_defaults(WidgetTheme).destructive) == marks
 end
