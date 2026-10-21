@@ -32,10 +32,10 @@ import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..DomainModule: acquire_document!, release_document!
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
-export FileChangeStore, get_session_file_change_store, find_file_change_store, watch_document_file!,
-       unwatch_document_file!, is_document_file_watched, close_file_change_store!,
-       drain_file_changes!, watch_folder!, unwatch_folder!, is_folder_watched, receive_folder_change!,
-       FOLDER_WATCH_LIMIT
+export FOLDER_WATCH_LIMIT, FileChangeStore, get_session_file_change_store, find_file_change_store,
+       watch_document_file!, unwatch_document_file!, is_document_file_watched,
+       receive_folder_change!, watch_folder!, unwatch_folder!, is_folder_watched,
+       close_file_change_store!, drain_file_changes!
 export FileChangeFeed, make_file_change_feeds
 
 include("FileChangeStore.jl")
