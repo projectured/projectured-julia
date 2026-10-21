@@ -857,10 +857,15 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # this single turn holding every part in order. `build_messages` re-expands it
     # into the tool_use/tool_result message shape.
     turn = ConversationTurn(:assistant; start_time = time())
-    run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
 
     # The blocks currently being streamed into (one text part, one thinking part).
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing)
+
+    # The events of the turn go into a queue that the feed of the window applies
+    # in each frame, as it applies the events of an external agent: a stream of
+    # many small parts costs the window no call for each part.
+    source = _make_turn_event_source!(editor, a, turn, state, set)
+    run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
 
     # The loop itself is the kernel's. What is left here is the two things that are
     # genuinely this domain's: how a conversation becomes messages, and how an event
@@ -872,41 +877,49 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # view of some message list held elsewhere. It is read on the editor's task,
     # after every part this turn posted before it.
     #
-    # An event changes the conversation, so its part is posted to the editor's
-    # task and not waited for: a stream of many small parts is applied in few
-    # frames. The posts of this task keep their order.
+    # The end of a round and the result of a tool apply in a call that waits, after
+    # the events before them, so a tool of the round runs after every part that the
+    # round streamed, and the next tool after the result of the one before it.
     agent = Agent(llm, set; system, thinking = true)
-    stop_reason = try
-        run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
-            on_stop = _make_turn_stop_step(editor, a),
-            messages = () -> begin
-                control.is_cancelled && throw(TurnCancelledException())
-                run_on_editor_task!(() -> build_messages(a.conversation; until = turn), editor)
-            end,
-            on_event = ev -> begin
-                control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
-                observe === nothing || observe(ev)
-                run_on_editor_task!(editor; wait = false) do
-                    _handle_agent_event!(ev, a, turn, state, set)
-                end
-                control.is_cancelled && throw(TurnCancelledException())
-            end)
-    catch exception
-        is_fault_exception(exception) || rethrow()
-        # A backend can wrap what a callback threw, so the flag tells a stop
-        # from a failure.
-        control.is_cancelled || rethrow()
-        # The blocks that streamed close, so their text is drawn as an answer.
-        run_on_editor_task!(editor; wait = false) do
-            state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, set)
-            state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, set)
+    try
+        stop_reason = try
+            run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
+                on_stop = _make_turn_stop_step(editor, a),
+                messages = () -> begin
+                    control.is_cancelled && throw(TurnCancelledException())
+                    _run_turn_call!(() -> build_messages(a.conversation; until = turn), editor, source)
+                end,
+                on_event = ev -> begin
+                    control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
+                    observe === nothing || observe(ev)
+                    if ev isa Union{LlmTurnEnd, AgentToolResult}
+                        _run_turn_call!(() -> _handle_agent_event!(ev, a, turn, state, set), editor, source)
+                    else
+                        _post_turn_event!(editor, source, ev)
+                    end
+                    control.is_cancelled && throw(TurnCancelledException())
+                end)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            # A backend can wrap what a callback threw, so the flag tells a stop
+            # from a failure.
+            control.is_cancelled || rethrow()
+            # The blocks that streamed close, so their text is drawn as an answer.
+            _run_turn_call!(editor, source; wait = false) do
+                state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, set)
+                state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, set)
+            end
+            :cancelled
         end
-        :cancelled
+
+        @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
+
+        _run_turn_call!(() -> _finish_turn!(a, turn, stop_reason), editor, source; wait = false)
+    finally
+        # The events that wait apply before any later post of the task of the turn,
+        # also after a turn that failed, and the queue leaves the feed.
+        _run_turn_call!(() -> (source.is_open = false), editor, source; wait = false)
     end
-
-    @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
-
-    run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
     nothing
 end
 

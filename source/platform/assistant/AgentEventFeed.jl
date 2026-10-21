@@ -1,9 +1,10 @@
 # Fragment of `AssistantModule` — the events of the session of an external agent
-# applied to its assistant, and the feed of a window that applies them. Each event
-# of a session goes into the queue of the session, in a prompt and between two
-# prompts, so the events apply in the order in which they came: the text, the
-# reasoning and the tool calls into the turn that takes them, and the work of the
-# agent into the `AgentWork` of the assistant.
+# and of a turn of the built-in assistant, applied to their assistant, and the feed
+# of a window that applies them. Each event of a session goes into the queue of the
+# session, in a prompt and between two prompts, so the events apply in the order in
+# which they came: the text, the reasoning and the tool calls into the turn that
+# takes them, and the work of the agent into the `AgentWork` of the assistant. Each
+# event of a turn goes into the queue of the turn in the same way.
 
 # ── One event ────────────────────────────────────────────────────────────────
 
@@ -189,15 +190,16 @@ function _post_agent_event!(editor, a::Assistant, queue::AgentEventQueue, event)
     nothing
 end
 
-# Apply every event that waits in `queue`, the oldest first, and answer how many
-# there were. An event that fails to apply is a fault of the editor, and the next
-# event still applies.
-function _drain_agent_event_queue!(editor, a::Assistant, queue)
+# Apply every event that waits in `queue`, the oldest first, with `apply`, and
+# answer how many there were. An event that fails to apply is a fault of the
+# editor, and the next event still applies.
+function _drain_agent_event_queue!(editor, a::Assistant, queue;
+                                   apply = event -> apply_agent_event!(editor, a, event))
     queue === nothing && return 0
     events = take_agent_events!(queue)
     for event in events
         try
-            apply_agent_event!(editor, a, event)
+            apply(event)
         catch exception
             is_fault_exception(exception) || rethrow()
             traceback = catch_backtrace()
@@ -209,6 +211,58 @@ function _drain_agent_event_queue!(editor, a::Assistant, queue)
     end
     length(events)
 end
+
+# ── A turn of the built-in assistant ─────────────────────────────────────────
+
+# The queue of a turn of the built-in assistant. The model streams the events of
+# the turn into it off the loop, and the feed of the window applies them to the
+# turn, as it applies the events of a session of an external agent. The source
+# leaves the feed at the drain after the turn closed it.
+mutable struct _TurnEventSource
+    assistant::Assistant
+    queue::AgentEventQueue
+    turn::ConversationTurn
+    # The blocks that stream: the text part and the thinking part.
+    state::Dict{Symbol,Any}
+    set::Any
+    is_open::Bool
+end
+
+# A queue for the events of `turn`, which joins the feed of the window. The join is
+# posted and not waited for, before any event of the turn, so the frame that
+# applies the first event finds the queue in the feed.
+function _make_turn_event_source!(editor, a::Assistant, turn::ConversationTurn, state, set)
+    source = _TurnEventSource(a, AgentEventQueue(), turn, state, set, true)
+    run_on_editor_task!(() -> _add_agent_event_source!(editor, source), editor; wait = false)
+    source
+end
+
+# An event of the turn goes into its queue, behind the events before it. An editor
+# whose loop runs applies the queue in its next frame, and the turn does not wait.
+# With no loop, as in a test, the event applies at once.
+function _post_turn_event!(editor, source::_TurnEventSource, event)
+    put_agent_event!(source.queue, event)
+    if editor isa Editor && is_editor_loop_running(editor)
+        wake_editor!(editor)
+    else
+        _drain_turn_events!(editor, source)
+    end
+    nothing
+end
+
+_drain_turn_events!(editor, source::_TurnEventSource) =
+    _drain_agent_event_queue!(editor, source.assistant, source.queue;
+                              apply = event -> _handle_agent_event!(event, source.assistant, source.turn,
+                                                                    source.state, source.set))
+
+# Run `f` on the task of the editor, as a call of the turn, after every event that
+# the turn posted before the call. So the call reads a conversation that holds
+# each part that the turn streamed before it.
+_run_turn_call!(f, editor, source::_TurnEventSource; wait::Bool = true) =
+    run_on_editor_task!(editor; wait) do
+        _drain_turn_events!(editor, source)
+        f()
+    end
 
 # ── The work of the agent ────────────────────────────────────────────────────
 
@@ -543,18 +597,21 @@ end
 """
     AgentEventFeed()
 
-The feed of a window whose assistants talk to external agents. An assistant
-registers there the queue of each session that it opens, and each drain applies
-the events that wait in each queue, the oldest first, with
-[`apply_agent_event!`](@ref). The events of a prompt and the events between two
-prompts take this one path, so they apply in the order in which they came. A
-drain also samples each tree of the processes of the work of an agent that a
-view reads. A queue leaves the feed at the drain after its session closed, its
-connection stopped or its assistant ended it.
+The feed of a window whose assistants stream events: the sessions of external
+agents and the turns of the built-in assistant. An assistant registers there the
+queue of each session that it opens and of each turn that it runs, and each drain
+applies the events that wait in each queue, the oldest first: an event of a
+session with [`apply_agent_event!`](@ref), an event of a turn to its turn. The
+events of a prompt and the events between two prompts take this one path, so they
+apply in the order in which they came. A drain also samples each tree of the
+processes of the work of an agent that a view reads. A queue leaves the feed at
+the drain after its session closed, its connection stopped, its assistant ended
+it, or its turn ended.
 
 The assistant adds the feed to the `feeds` of the editor when the window opens
-its first session, and a `TaskFeed` when the window has none, which syncs the
-background tasks of the agents. An event of a prompt asks for a frame itself.
+its first session or runs its first turn, and a `TaskFeed` with the first session
+when the window has none, which syncs the background tasks of the agents. An
+event of a prompt or of a turn asks for a frame itself.
 Between two prompts the window wakes four times a second while an agent has a
 subagent or a background task that runs, and for five seconds after a prompt
 ends, because an agent reports more after its answer; it wakes for the next
@@ -572,37 +629,54 @@ AgentEventFeed() = AgentEventFeed(Any[])
 const _AGENT_EVENT_INTERVAL = 0.25
 const _AGENT_EVENT_LINGER = 5.0
 
-# The queue of a session of `a` joins the feed of the editor, which the first
-# session of the window adds, with a feed of the tasks when the window has none.
-# An editor with no feeds, as in a test, applies the events of a prompt at once
-# and drains no queue between two prompts.
+# The queue of a session of `a` joins the feed of the editor, with a feed of the
+# tasks when the window has none, which syncs the background tasks of the agent.
 function _register_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSession,
                                       queue::AgentEventQueue)
+    hasproperty(editor, :feeds) || return nothing
+    _add_agent_event_source!(editor, (assistant = a, session = session, queue = queue))
+    feeds = editor.feeds
+    any(feed -> feed isa TaskFeed, feeds) || push!(feeds, TaskFeed())
+    nothing
+end
+
+# `source` joins the feed of the editor, which the first source of the window adds.
+# An editor with no feeds, as in a test, applies the events of a prompt or a turn
+# at once and drains no queue between two prompts.
+function _add_agent_event_source!(editor, source)
     hasproperty(editor, :feeds) || return nothing
     feeds = editor.feeds
     index = findfirst(feed -> feed isa AgentEventFeed, feeds)
     if index === nothing
         push!(feeds, AgentEventFeed())
-        any(feed -> feed isa TaskFeed, feeds) || push!(feeds, TaskFeed())
-        index = findfirst(feed -> feed isa AgentEventFeed, feeds)
+        index = length(feeds)
     end
-    push!(feeds[index].sources, (assistant = a, session = session, queue = queue))
+    push!(feeds[index].sources, source)
     nothing
 end
 
 # Whether the queue of `source` is still the queue of an open session of its
-# assistant.
+# assistant, or of a turn that runs.
 _is_agent_event_source_open(source) =
     source.session.events === source.queue &&
     source.assistant.agent_session === source.session
+_is_agent_event_source_open(source::_TurnEventSource) = source.is_open
+
+_drain_agent_event_source!(editor, source) =
+    _drain_agent_event_queue!(editor, source.assistant, source.queue)
+_drain_agent_event_source!(editor, source::_TurnEventSource) = _drain_turn_events!(editor, source)
+
+# A turn of the built-in assistant has no work of an agent to sample.
+_drain_agent_source_work!(source, now) = _drain_agent_work_processes!(source.assistant.agent_work, now)
+_drain_agent_source_work!(::_TurnEventSource, now) = 0
 
 function drain_changes!(feed::AgentEventFeed, editor)
     now = time()
     count = 0
     for source in copy(feed.sources)
-        count += _drain_agent_event_queue!(editor, source.assistant, source.queue)
+        count += _drain_agent_event_source!(editor, source)
         if _is_agent_event_source_open(source)
-            count += _drain_agent_work_processes!(source.assistant.agent_work, now)
+            count += _drain_agent_source_work!(source, now)
         else
             filter!(other -> other !== source, feed.sources)
         end
@@ -614,6 +688,8 @@ function compute_wake_deadline(feed::AgentEventFeed, editor)
     now = time()
     deadline = nothing
     for source in feed.sources
+        # Each event of a turn of the built-in assistant wakes the editor itself.
+        source isa _TurnEventSource && continue
         # A session that closed wakes nothing; its source leaves at the next drain.
         _is_agent_event_source_open(source) || continue
         work = source.assistant.agent_work

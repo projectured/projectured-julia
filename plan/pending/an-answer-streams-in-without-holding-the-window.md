@@ -1,6 +1,7 @@
 # An answer streams in without holding the window
 
-Status: PENDING, 2026-10-21. Not started. No decision is open.
+Status: PENDING, 2026-10-21. Step 1 is done, on the branch `answer-stream`. No
+decision is open.
 
 ## The ask
 
@@ -88,7 +89,7 @@ Do the work in a worktree on a branch of its own, from `frame-guards`, because
 the measurement needs the record of a frame. Commit each step. Do not land on
 `main` before the owner approves.
 
-1. [ ] **The door.** The queue of a turn, its source in the `AgentEventFeed`,
+1. [x] **The door.** Done; see [As built](#as-built). The queue of a turn, its source in the `AgentEventFeed`,
    the two steps in the queue, and the calls that apply the queue first.
    - Tests: the assistant tests in `test/projectured/editor/AssistantMvpTest.jl`
      and `test/kernel/agent/AgentLoopTest.jl`.
@@ -143,4 +144,44 @@ the measurement needs the record of a frame. Commit each step. Do not land on
 
 ## As built
 
-Nothing yet.
+The work is on the branch `answer-stream`, from `frame-guards`, in the worktree
+`projectured-julia-frame-guards`, which has its environment built.
+
+### Step 1
+
+- **The source of a turn.** `_TurnEventSource` holds the assistant, the queue, the
+  turn, the state of the blocks that stream and the tool set, and whether the turn
+  is open. `_make_turn_event_source!` posts its join to the feed without a wait,
+  before the call that puts the turn into the conversation. `_post_turn_event!` puts
+  an event into the queue and wakes the editor; with no loop it applies the event at
+  once. `_drain_agent_event_queue!` takes the function that applies an event, so the
+  drain of a session and the drain of a turn share the record of a fault.
+- **The feed.** `_add_agent_event_source!` adds the feed when the editor has none and
+  joins a source; `_register_agent_event_queue!` uses it and adds the `TaskFeed`
+  only for a session. The feed drains a source of a turn as it drains a session,
+  samples no processes for it, and asks no deadline for it, because each event wakes
+  the editor.
+- **Decision: the start of the turn stays a call.** The model says "the two steps
+  that the turn posts without a wait go into the same queue". The start stays a
+  call: the inbox drains before every other feed in a frame, so the call that puts
+  the turn into the conversation applies before the events after it. The end, the
+  close of the blocks after a stop, and a `finally` that closes the source are calls
+  that apply the queue first (`_run_turn_call!`), so every event applies before
+  them, also after a turn that failed. Then the steps of `_launch_agent_turn!` after
+  the turn, such as the status and the error, apply after every event too.
+- **Decision: the end of a round and the result of a tool apply in a call that
+  waits.** A tool of a round can write the turn: `ask_person` puts a question into
+  it. The inbox drains before the feed, so a tool that runs in a call would come
+  before the events that wait. So `LlmTurnEnd` and `AgentToolResult` apply in a call
+  that waits and applies the queue first: a tool runs after every part of its round,
+  and the next tool after the result of the tool before it. This costs one code unit
+  for each round and for each tool, not for each delta.
+- **Tests.** `test_assistant_stream()` in `test/projectured/editor/AssistantStreamTest.jl`:
+  7 pass. On `main`, the same file fails: a stream of 200 deltas prepares held frames
+  151 to 155 times (`155 <= 12` fails); on the branch, 5 times. `test_assistant_mvp()`:
+  191 pass, 4 broken, on `main` and on the branch. `test_agent_work()` and
+  `test_external_agent_turn()` in `package/ProjecturedPlatformTest`: 158 and 271 pass.
+  In `environment/all` they give 95/10/8 and 122/50/30 on `main` and on the branch,
+  with the same failing places, a known failure of that environment.
+  `test_conversation_editor()`: 40 pass. `AgentLoopTest.jl` is a kernel test, and
+  the kernel did not change, so it did not run.
