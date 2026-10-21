@@ -12,13 +12,16 @@ end
 PaneModule.make_pane_tab_title(::ReferencedTitledNote, name::AbstractString) =
     PaneTabTitle(name; icon = :loader, tooltip = "a note")
 
-function _make_referenced_application(directory; paths = nothing)
+# The window opens on the Explorer; with `focus_file`, the first file is in front
+# and has the keys, as a press on its tab gives them.
+function _make_referenced_application(directory; paths = nothing, focus_file::Bool = false)
     if paths === nothing
         write(joinpath(directory, "people.json"),
               "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}]")
         paths = [joinpath(directory, "people.json")]
     end
     document, projection = make_application_window(paths; root = directory, assistant = nothing)
+    focus_file && _app_focus_first_file!(document)
     editor = build_editor(document, projection; backend = HeadlessBackend(), tabs = false,
                           window = (; title = "ProjecturEd", width = 1280, height = 720,
                                     opened_window_projections = make_opened_window_projections(;
@@ -344,7 +347,8 @@ function test_referenced_document_editor()
         long_directory = mktempdir()
         long_path = joinpath(long_directory, "long.json")
         write(long_path, "[" * join(("{\"n\": $i}" for i in 1:60), ", ") * "]")
-        long_editor = _make_referenced_application(long_directory; paths = [long_path])
+        long_editor = _make_referenced_application(long_directory; paths = [long_path],
+                                                   focus_file = true)
         long_tab = find_pane("long.json"; editor = long_editor)
         page = get_document(long_tab).content
         @test page isa FilePage
