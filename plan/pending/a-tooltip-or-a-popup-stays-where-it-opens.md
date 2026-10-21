@@ -1,9 +1,11 @@
 # A tooltip or a popup stays where it opens
 
-> **Status (2026-10-21): planned.** The owner asked for these three fixes on
-> 2026-10-21, after an investigation the same day, and deferred a fourth fault
-> (the black first tooltip on macOS). Built on the branch `tooltip-stays` in the
-> worktree `projectured-julia-tooltip-stays`.
+> **Status (2026-10-21): steps 1 to 5 done and on main, pushed; step 6 open.**
+> The owner asked for these three fixes on 2026-10-21, after an investigation the
+> same day, and deferred a fourth fault (the black first tooltip on macOS). The
+> owner asked to land and push the branch `tooltip-stays` the same day, before the
+> checks of step 6, so the plan stays in `plan/pending/` until a tester on a Mac
+> and a check by hand on Linux are done.
 
 ## The faults
 
