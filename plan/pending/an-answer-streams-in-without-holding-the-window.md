@@ -1,6 +1,6 @@
 # An answer streams in without holding the window
 
-Status: PENDING, 2026-10-21. Steps 1 and 2 are done, on the branch `answer-stream`.
+Status: PENDING, 2026-10-21. Steps 1 to 3 are done, on the branch `answer-stream`.
 No decision is open.
 
 ## The ask
@@ -106,7 +106,7 @@ the measurement needs the record of a frame. Commit each step. Do not land on
      delta at 1_000, 10_000 and 100_000 characters of answer allocates at most 2
      times the bytes at 1_000 characters.
    - The tests of step 1 again. Commit.
-3. [ ] **The measurement.** Run `/var/tmp/frame-guards/assistant_frames.jl` on
+3. [x] **The measurement.** Done; see [As built](#as-built). Run `/var/tmp/frame-guards/assistant_frames.jl` on
    the branch and on `frame-guards`, A/B/A, with vsync on and with vsync off. The
    answer of the script gets paragraphs of 100 words. Write in
    [As built](#as-built) the median and the 90th percentile of a frame while the
@@ -245,3 +245,39 @@ and leaves no source; with no loop, two turns leave no source.
   4 broken, as on `main`; `test_conversation_editor()` 40 pass; in
   `package/ProjecturedPlatformTest`, `test_text()` with the new testset (9 pass),
   `test_agent_work()` 158 pass and `test_external_agent_turn()` 271 pass.
+
+### Step 3
+
+Measured 2026-10-21 from 09:45 to 10:02 in the lane `taskset -c 28,30,31`, with
+`/var/tmp/frame-guards/run_step3.sh`: the branch at `6c0328b6c` and its base
+`frame-guards` at `15ef8ec74`, in the order branch, base, branch. The load of one
+minute was 7.1 to 10.6 on 32 cores, so the times are high. The answer has 22
+paragraphs of five sentences, about 2_300 words, three words for each delta, one
+delta each 30 ms. The frames are in `/var/tmp/frame-guards/s3-*/`.
+
+| Side | vsync | Frames of the turn | Median | p90 | Above 16 ms | Above 50 ms | Bytes of a frame | Frames with a collection |
+|---|---|---|---|---|---|---|---|---|
+| base | on | 193, the turn did not end in 90 s | 47.91 ms | 2999.22 ms | 181 | 41 | 3.03 MB | 5 |
+| branch | on | 2435 | 2.21 ms | 9.24 ms | 23 | 6 | 0.96 MB | 91 |
+| branch, again | on | 2219 | 2.58 ms | 17.04 ms | 253 | 6 | 0.57 MB | 78 |
+| base | off | 925 | 31.07 ms | 45.70 ms | 841 | 46 | 8.45 MB | 119 |
+| branch | off | 2469 | 2.12 ms | 8.34 ms | 9 | 5 | 0.95 MB | 80 |
+
+- **The target is met.** With vsync on, the median frame of the turn is 2.21 ms and
+  2.58 ms, under one refresh of 16.7 ms. On the base it is 47.91 ms, and the base
+  takes more than 90 s for an answer that the branch streams in 37 s.
+- **The frames above 50 ms on the branch** are the first frames of the turn: 3.0 s,
+  0.8 s and 0.7 s, of compile. The script does not load the recorded workload.
+- **A small growth remains.** Over the turn on the branch, vsync on, first run, in
+  windows of 200 frames at the start, the middle and the end:
+
+  | Part of the turn | Median | p90 | Bytes of a frame | Frames with a collection |
+  |---|---|---|---|---|
+  | start | 2.38 ms | 3.99 ms | 0.77 MB | 1 |
+  | middle | 2.21 ms | 8.01 ms | 0.95 MB | 7 |
+  | end | 2.19 ms | 11.79 ms | 1.17 MB | 14 |
+
+  The median stays flat, but the slow frames and the bytes still grow with the
+  answer. On the base, vsync off, the bytes grow from 3.19 MB to 15.52 MB. The
+  guard of the assistant transcript, in step 5 of the guards plan, measures this
+  growth; this plan does not fix it.
