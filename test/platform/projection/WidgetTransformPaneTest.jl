@@ -122,6 +122,21 @@ function test_widget_transform_pane()
         @test Int(_written(op).y[]) > 0
     end
 
+    @testset "Ctrl and the wheel never scroll a page" begin
+        proj  = _proj()
+        iomap = print_document(proj, _card_page())
+        @test read_intent(proj, iomap, MouseScroll(0, -1, 50, 12, ModifierKeys(ctrl=true); time = 0.0)) === nothing
+    end
+
+    @testset "a zoom at its limit gives the page no notch" begin
+        pane  = WidgetTransformPane(WidgetComposite(Any[WidgetLabel("x")]);
+                                    size=Point2D(200, 200), transform=make_affine_scale(4.0, 4.0))
+        proj  = _proj()
+        iomap = print_document(proj, WidgetScrollPane(WidgetCard(; title = WidgetLabel("plot"), content = pane);
+                                                      size = Point2D(240, 120)))
+        @test read_intent(proj, iomap, MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0)) === nothing
+    end
+
     @testset "successive zooms accumulate" begin
         doc   = _doc()
         proj  = _proj()

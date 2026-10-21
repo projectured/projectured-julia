@@ -144,6 +144,11 @@ function test_task_pages()
             @test lines.follow
             _nav_apply!(holder, read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(), 0.0)))
             @test !lines.follow && lines.top_row < 298
+            # Ctrl and the wheel zoom, and move no line.
+            top = lines.top_row
+            answer = read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0))
+            answer === nothing || _nav_apply!(holder, answer)
+            @test lines.top_row == top
         end
 
         # The pages in a window, as a person reaches them: the page of the group in

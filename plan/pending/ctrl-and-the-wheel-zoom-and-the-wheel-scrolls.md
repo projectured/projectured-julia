@@ -66,11 +66,13 @@ land on `main` before the owner approves.
    scrolls the pane. `test_widget_transform_pane`, `test_widget_card_fold`,
    `test_scroll_pane_hover`, `test_widget_button_behavior` and `test_explorer`
    pass.
-2. [ ] **Ctrl and the wheel never scroll.** `_self_scroll`, the tab strip of
+2. [x] **Ctrl and the wheel never scroll.** Done. `_self_scroll`, the tab strip of
    `WidgetTabbedPane` and `TaskStreamLinesToWidget` answer `nothing` for a turn
    with Ctrl. Tests: Ctrl and the wheel over a scroll pane with room give
    `nothing`; Ctrl and the wheel over a transform pane at 4× in a scroll pane give
-   `nothing`. Run the tests of step 1 and `test_task_pages`. Commit.
+   `nothing`; Ctrl and the wheel move no line of a task stream. The tests of step
+   1 and `test_task_pages` pass (37, 48 and 240 assertions in the three suites
+   that changed or cover the dashboard).
 3. [ ] **The chart.** In `_scroll_intent`: Ctrl and the wheel zoom, as the plain
    wheel does now. A vertical turn pans the y window, and a horizontal turn pans
    the x window, inside the fit of the data, by `_PAN_STEP` of the window for each

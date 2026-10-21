@@ -5060,8 +5060,8 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
             cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
             # A wheel over the strip scrolls it horizontally (the strip is a horizontal
             # row, so vertical wheel maps to horizontal motion); over the content it
-            # scrolls the active tab as before.
-            if !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
+            # scrolls the active tab as before. Ctrl and the wheel never scroll it.
+            if !evt.modifiers.ctrl && !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
                 view_w = _tab_view_w(iomap, strip_w)
                 max_s = max(0, strip_w - view_w)
                 if max_s > 0
@@ -5996,9 +5996,11 @@ _add_wheel_run(op, w, run) =
 # Scroll this pane, if the wheel landed on it. Only reached once the content has
 # declined the event, so the innermost pane under the pointer wins. A notch
 # scrolls `lines_per_notch` lines, more in a fast run, and at most the view less
-# one line.
+# one line. Ctrl and the wheel zoom and never scroll, so a zoom that stops at its
+# limit does not give the next notch to the page.
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
+    evt.modifiers.ctrl && return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
     _, line = _text_size(p.measure, p.font, "M")
     # The turn with its fraction, so a touchpad scrolls smoothly.

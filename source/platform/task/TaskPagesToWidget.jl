@@ -371,7 +371,7 @@ end
 # A turn of the wheel moves the line at the top by three lines a notch, and a
 # write of the value of the scroll bar is a jump to the line at that value; at the
 # last lines the page follows the end again, and above them it stops. Every other
-# answer passes on.
+# answer passes on, and so does a turn with Ctrl, which zooms and never scrolls.
 function read_intent(p::TaskStreamLinesToWidget, recursion, change::Intent, iomap::TaskStreamLinesToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     lines = iomap.input
@@ -379,7 +379,7 @@ function read_intent(p::TaskStreamLinesToWidget, recursion, change::Intent, ioma
     visible = iomap.visible
     top = _compute_stream_top_row(lines, count, visible)
     gesture = change.gesture
-    if gesture isa MouseScroll && gesture.dy != 0
+    if gesture isa MouseScroll && gesture.dy != 0 && !gesture.modifiers.ctrl
         return Intent(gesture, _make_stream_scroll_operation(lines, top - 3 * gesture.dy, count, visible),
                       change.description, change.domain)
     end
