@@ -56,3 +56,40 @@ find_bound_keys(type::Type, description::AbstractString) =
 
 _is_key_pattern(::GesturePattern{<:Union{KeyDown,KeyPress}}) = true
 _is_key_pattern(_) = false
+
+"""
+    find_pointed_part(container) -> NamedTuple or nothing
+
+The part of `container` that a person points at: the end of the mouse target of
+`container`, which is the path from it down to the part under the pointer; or,
+when the pointer is not on it, the end of its selection, as for a tooltip that a
+command opens. The path is followed while each step leads to a document, so a
+step into a text, such as the place of a caret in a string, is left out.
+
+Answers `(part, documents, steps)`: the part, the documents from `container` down
+to the part, and the steps between them, so `documents[k + 1]` is `steps[k]` from
+`documents[k]`. `nothing` when `container` has neither path, or the path names no
+document below it.
+
+Use it in a tooltip binding of a container that says what the pointer is on.
+"""
+function find_pointed_part(container)
+    path = something(get_mouse_target(container), Some(get_selection(container)))
+    path isa ConcreteReference || return nothing
+    documents = Any[container]
+    steps = ReferenceStep[]
+    node = container
+    for step in get_reference_steps(strip_reference_types(path))
+        node = try
+            evaluate_reference_step(step, node)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            break
+        end
+        node isa Document || break
+        push!(steps, step)
+        push!(documents, node)
+    end
+    isempty(steps) && return nothing
+    (part = last(documents), documents, steps)
+end

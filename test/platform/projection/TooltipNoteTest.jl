@@ -149,6 +149,23 @@ end
     @test [place[1] for place in _tn_texts(TooltipNote(; keys = ["Ctrl+"]))] == ["Ctrl"]
 end
 
+@testset "a container finds the part that the pointer is on, or else the selected part" begin
+    first_label, second_label = WidgetLabel("a"), WidgetLabel("b")
+    container = WidgetComposite(Any[first_label, second_label])
+    @test find_pointed_part(container) === nothing
+    to_second = only(search_references(container, node -> node === second_label))
+    # A path that ends in the text of the label ends at the label.
+    replace_mouse_target!(container, extend_reference(to_second, FieldReferenceStep("content")))
+    found = find_pointed_part(container)
+    @test found.part === second_label
+    @test found.documents[1] === container && length(found.documents) == length(found.steps) + 1
+    # With no pointer on it, a container finds its selected part.
+    selected = WidgetComposite(Any[WidgetLabel("c"), WidgetLabel("d")])
+    third = only(search_references(selected, node -> node isa WidgetLabel && node.content == "c"))
+    replace_selection!(selected, third)
+    @test find_pointed_part(selected).part.content == "c"
+end
+
 @testset "a piece that is a document stands as it is" begin
     texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
     @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]

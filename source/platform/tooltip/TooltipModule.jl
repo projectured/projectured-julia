@@ -19,6 +19,7 @@ using ..CellModule
 using ..DocumentModule
 using ..EditorModule
 using ..EventModule
+using ..FaultModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
@@ -44,7 +45,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 export TooltipSource
 export TooltipDecoratorProjection, TooltipDecoratorIoMap
 export OpenTooltipOperation, make_tooltip_operation, make_tooltip_binding
-export TooltipContent, TooltipNote, describe_layer_keys, find_bound_keys
+export TooltipContent, TooltipNote, describe_layer_keys, find_bound_keys, find_pointed_part
 export TooltipWindowState, TooltipWindowProjection, TooltipWindowIoMap
 export make_tooltip_window_document, make_tooltip_window_projection, wrap_tooltip_window
 export TooltipTheme, ScaledTooltipTheme

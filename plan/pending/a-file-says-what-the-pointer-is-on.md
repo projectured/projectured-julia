@@ -54,7 +54,7 @@ nothing. The file answers a note: title `a.json`, facts "Path: users[3].name",
 
 The steps are fixed. Each step is one commit. projectured-julia lands first.
 
-1. [ ] **The part that a container points at.** A helper of the tooltip slice,
+1. [x] **The part that a container points at.** A helper of the tooltip slice,
    `find_pointed_part(container) -> (steps, part)` or `nothing`: the path of the
    mouse target, else of the selection, cut to its deepest document, and the
    document there. The first test proves the ground of the plan in a real
@@ -62,6 +62,24 @@ The steps are fixed. Each step is one commit. projectured-julia lands first.
    the `JsonFile`. If it does not, the step records which document of the walk
    is the outermost one of the domain, and the later steps use that one.
    Test: a new `test_pointed_part()`, through an editor.
+
+   Done. As built:
+   - `find_pointed_part(container)` answers `(part, documents, steps)`: it
+     follows the mouse target, else the selection, while each step leads to a
+     document, so the place of a caret inside a string is left out.
+   - The ground holds in the application: with "a.json" open in a tab, a move
+     on "Alice" writes the mouse target
+     `.content.content.entries[1].value.elements[1].entries[1].value.value{0}`
+     into the `JsonFile`, the value answers no dwell, and a tooltip binding of
+     the `JsonFile` answers it with that path in hand.
+   - A file drawn bare in a window by `NaturalToGraphics`, as the tooltip window
+     test draws its documents, takes no move into its content: the window keeps
+     the empty path. So a test of a dwell on a file uses the setup of
+     `ApplicationTest` (`_app_make_scene`), which opens the file as the
+     application does.
+   - Test: `test_tooltip_note()` 40 (a container finds the part under the
+     pointer, cut at the text of a label, and else its selected part),
+     `test_platform_layering()`, `test_platform_slice_edges()`.
 2. [ ] **JSON and YAML.** `JsonFile` and `YamlFile` say: the path of the part
    (`users[3].name`), its type, and its length, its value or its count of
    entries. Test: the JSON and YAML suites.
