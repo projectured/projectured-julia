@@ -947,14 +947,24 @@ function test_explorer()
 end
 end
 
-# Run frames of `editor` until `test()` holds, for at most four seconds.
+# Run frames of `editor` until `test()` holds, while the editor has work that can
+# change what a frame shows: a work of a background cell that runs or whose answers
+# wait, or an operation that the last drain applied. A frame after which nothing
+# runs or waits ends the wait, so the wait follows the work, and a slow machine
+# waits as long as its work takes. The deadline only ends a work that never ends.
 function _explorer_wait_until(test, editor)
-    deadline = time() + 4
+    deadline = time() + 120
     while time() < deadline
-        drain_operations!(editor)
+        drained = drain_operations!(editor)
         run_frame!(editor)
         test() && return true
+        (drained > 0 || _explorer_has_running_work(editor)) || return false
         sleep(0.02)
     end
     false
 end
+
+# Whether a work of a background cell of `editor` runs, or ended and its answers
+# wait in the inbox: its record ends when the editor writes the answers.
+_explorer_has_running_work(editor) =
+    any(record -> record.finished === nothing, get_background_work_store(editor).records)
