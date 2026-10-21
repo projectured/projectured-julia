@@ -342,6 +342,7 @@ function test_platform()
         # interaction decorators
         test_clipboard()
         test_tooltip()
+        test_tooltip_note()
         test_window_fit()
         test_window_wrapper()
         test_document_composition()
@@ -427,7 +428,7 @@ export test_object_to_widget, test_find_bar_view_to_widget,
        test_layout_closeout, test_grid_span, test_widget_forms, test_anchor_point, test_anchored_layout,
        test_scroll_layout, test_scroll_pane_parts, test_text_gutter,
        test_text_folding
-export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,
+export test_clipboard, test_tooltip, test_tooltip_note, test_window_fit, test_window_wrapper, test_document_composition,
        test_tabs_wrapper, test_split_pane_drag, test_part_pointer_shape, test_routed_gesture,
        test_layout_point, test_widget_point, test_column_chooser, test_widget_swatch, test_baseline_alignment,
        test_widget_forward,

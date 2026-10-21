@@ -44,7 +44,7 @@ function print_document(p::TooltipContentToVerticalLayout, recursion, content::T
         shown > 1 && push!(children, WidgetLabel(title; text_style = layer_text))
         push!(children, document)
     end
-    keys = _describe_layer_keys(shown, count)
+    keys = describe_layer_keys(shown, count)
     keys === nothing || push!(children, WidgetLabel(keys; text_style = layer_text))
     column = VerticalLayout(children; gap = unwrap_cell(p.gap))
     SimpleIoMap(p, content, VerticalLayout(Any[_make_tooltip_frame(p, column)]))
@@ -59,16 +59,6 @@ function _make_tooltip_frame(p::TooltipContentToVerticalLayout, column)
                     padding = unwrap_cell(p.padding),
                     style = WidgetStyle(border_color = unwrap_cell(p.line),
                                         padding_color = surface, content_color = surface))
-end
-
-# The line that names the keys of the layers, `nothing` when one layer is all
-# there is: the key of one more while the parts around have more to say, and the
-# key of one fewer while more than one shows.
-function _describe_layer_keys(shown::Int, count::Int)
-    more = shown < count ? string(describe_gesture_pattern(WINDOW_LAYER_MORE_KEY), " shows ",
-                                  count - shown, " more") : nothing
-    fewer = shown > 1 ? string(describe_gesture_pattern(WINDOW_LAYER_FEWER_KEY), " shows one fewer") : nothing
-    more === nothing ? fewer : fewer === nothing ? more : string(more, ", ", fewer)
 end
 
 """

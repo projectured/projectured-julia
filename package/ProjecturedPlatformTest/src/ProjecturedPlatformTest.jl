@@ -267,6 +267,7 @@ include("../../../test/platform/projection/TextFoldingTest.jl")
 # fixtures (Primitive / Text / Screen), so this is their lowest test home.
 include("../../../test/platform/projection/ClipboardTest.jl")
 include("../../../test/platform/projection/TooltipProjectionTest.jl")
+include("../../../test/platform/projection/TooltipNoteTest.jl")
 include("../../../test/platform/projection/WindowFitTest.jl")
 include("../../../test/platform/projection/WindowWrapperTest.jl")
 include("../../../test/platform/projection/DocumentCompositionTest.jl")

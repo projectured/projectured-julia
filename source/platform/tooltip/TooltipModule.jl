@@ -44,7 +44,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 export TooltipSource
 export TooltipDecoratorProjection, TooltipDecoratorIoMap
 export OpenTooltipOperation, make_tooltip_operation, make_tooltip_binding
-export TooltipContent
+export TooltipContent, TooltipNote, describe_layer_keys
 export TooltipWindowState, TooltipWindowProjection, TooltipWindowIoMap
 export make_tooltip_window_document, make_tooltip_window_projection, wrap_tooltip_window
 export TooltipTheme, ScaledTooltipTheme
@@ -54,6 +54,7 @@ include("TooltipDocument.jl")
 include("TooltipDecorator.jl")
 include("TooltipOperation.jl")
 include("TooltipContent.jl")
+include("TooltipNote.jl")
 include("TooltipTheme.jl")
 include("TooltipWindow.jl")
 

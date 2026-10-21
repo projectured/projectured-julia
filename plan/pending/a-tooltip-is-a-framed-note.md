@@ -182,9 +182,36 @@ The steps are fixed. Each step is one commit.
      `make_window_layer_bindings` binds: "F2 shows 1 more", "Shift+F2 shows
      one fewer", or both.
    - Test: `test_tooltip_window()` 51 of 51, `test_platform_layering()` 7 of 7.
-2. [ ] **The note.** `TooltipNote` in the tooltip slice, and its projection in
+2. [x] **The note.** `TooltipNote` in the tooltip slice, and its projection in
    the natural slice. An example in `example/platform/`. Test: a new
    `test_tooltip_note()`, and `test_example` of the example.
+
+   Done. As built:
+   - `TooltipNoteToVerticalLayout` draws a column: the head (the mark, the
+     title and the key caps), the text, the facts, the hint, with a
+     `WidgetSeparator` between the parts. A string text and a string hint are
+     a `TextBlock`, so they break at the edge of the window. A fact value
+     that is a document stands as it is.
+   - The key caps stand after the title with `head_gap`, not at the right
+     edge: the window fits what it prints, and a `Fill` would make each
+     tooltip as wide as the largest window.
+   - A key is a `GesturePattern` or a string such as `"Ctrl+click"`. Two keys
+     have an "or" between them. A key text splits at each plus, and a plus at
+     the end is the key of the plus.
+   - The mark of a tone is the warning glyph of the icon font
+     (`find_icon_character(:warning)`) in a label, in the theme texts
+     `warning_mark` and `error_mark`. A `WidgetIcon` draws only inside a widget
+     that holds it; alone, the natural projection reflects it as a struct.
+   - `TooltipTheme` got `title_text`, `body_text`, `muted_text`, `value_text`,
+     `key_text`, `key_fill`, `key_line`, `key_padding`, `key_gap`, `head_gap`,
+     `fact_gap`, `fact_row_gap`, `warning_mark` and `error_mark`.
+   - The line of the layer keys moved to the tooltip slice as
+     `describe_layer_keys(shown, count)`: the table of the slice edges does not
+     let the natural slice use the screen slice, and the tooltip slice may.
+   - The example is the atom `make_tooltip_note_document_example`, so the
+     catalog covers `TooltipNote`.
+   - Test: `test_tooltip_note()` 22 of 22, `test_tooltip_window()` 51 of 51,
+     `test_platform_layering()` 7 of 7, `test_platform_slice_edges()` passes.
 3. [ ] **A widget answers a note.** `_find_widget_tooltip` makes a note: the
    label is the title, `action.shortcut` gives the keys, the string is the text.
    A `WidgetMenuItem` does the same. Test: `test_widget_tooltip()`.

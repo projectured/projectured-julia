@@ -373,6 +373,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:dragtracking, "state",        make_drag_tracking_state_document_example),
     AtomicDocument(:gesturetracking, "state",     make_gesture_tracking_state_document_example),
     AtomicDocument(:tooltip, "content",           make_tooltip_content_document_example),
+    AtomicDocument(:tooltip, "note",              make_tooltip_note_document_example),
     AtomicDocument(:tooltip, "window_state",      make_tooltip_window_state_document_example),
     # The logs and the tables of the tools of an editor.
     AtomicDocument(:log, "message_log",           make_message_log_document_example),

@@ -66,7 +66,6 @@ using ..ProjectionModule
 using ..StyleModule
 using ..TextModule
 using ..TooltipModule
-using ..ScreenModule
 using ..GestureModule
 using ..WidgetModule
 using ..ReferenceModule
@@ -89,7 +88,7 @@ export ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap, ArrangementG
        ArrangementGroupRowsToWidgetIoMap
 export NaturalToGraphics,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
-export TooltipContentToVerticalLayout, make_natural_tooltip_row
+export TooltipContentToVerticalLayout, TooltipNoteToVerticalLayout, make_natural_tooltip_row
 
 
 include("NaturalNotation.jl")
@@ -97,5 +96,6 @@ include("NaturalRegistry.jl")
 include("NaturalArrangement.jl")
 include("NaturalProjection.jl")
 include("TooltipContentToLayout.jl")
+include("TooltipNoteToLayout.jl")
 
 end # module

@@ -202,6 +202,9 @@ function NaturalToGraphics(; measure::TextMeasure,
             # domain, in a frame.
             TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = tooltip_theme),
                                                  stack()),
+            # What a part says about itself in a tooltip, piece by piece.
+            TooltipNote     => ChainingProjection(TooltipNoteToVerticalLayout(; theme = tooltip_theme),
+                                                 stack()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package
         # that can draw anything reaches its tail; one that did not reaches the
