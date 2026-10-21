@@ -1,7 +1,7 @@
 # The assistant works in the Explorer
 
-Status: IN PROGRESS, 2026-10-21, on the branch `assistant-explorer` (worktree
-`projectured-julia-assistant-explorer`). No decision is open.
+Status: DONE, 2026-10-21, on the branch `assistant-explorer` (worktree
+`projectured-julia-assistant-explorer`), rebased on main f593feb4a. Not landed.
 
 ## The ask
 
@@ -127,7 +127,7 @@ without the approval of the owner.
    node below an entry, the navigator shows the page, the tree shows its row,
    and the selection does not move; a document that the Explorer does not hold
    throws.
-4. [ ] **The words.** `EDITOR_SYSTEM` gets one sentence for each new verb and
+4. [x] **The words.** `EDITOR_SYSTEM` gets one sentence for each new verb and
    for `describe_commands` on a row. `orientation.md` changes at lines 54 and
    191. `explorer.md` gets a section "What an assistant calls", and
    `navigator.md` names `open_explorer_page!` beside `open_page!`.
@@ -197,3 +197,42 @@ without the approval of the owner.
   does not find the file of a tab through them, and the verb refuses it. The test
   uses the "Editor" section in a tab of its own for the held case.
   Tests: `test_assistant_verbs()` 79 pass, run with the step 4 changes in place.
+- **Step 4.** The system text names `find_explorer_content`,
+  `format_tree_node_label`, `open_explorer_page!`, the commands of a row, and
+  the add of a `Dashboard` or an `ExplorerSection`. The orientation guide names
+  the verbs in its Intent bullet, uses `StyleColor` in place of `color_black`,
+  `color_red` and `color_blue`, and has a section "Work in the explorer". The
+  guides `explorer.md` (a section "What an assistant calls"), `gesturehelp.md`
+  (the commands of a part for a verb) and `navigator.md` name the new verbs.
+  A change from the model: `format_tree_node_label` joins the scope, with a
+  complete docstring and a method for a `ReferencedDocument`, because a model must
+  read the label of an entry and no verb in the scope gave it. The docstring of
+  `ExplorerSection` gets a "Use it to" line; step 1 missed it, because I did not
+  run `test_assistant_documentation()` then.
+  The rehearsal (`run_explorer_task_rehearsals`) has three tasks on the window of
+  S2 with the Explorer in its tab. The first runs, before the example of the
+  labels was in the system text: dashboard 3 of 4, remove 4 of 5, show 0 of 1.
+  In the failed show run the model did not find that "the task list" is the
+  entry Tasks, and `print_natural_text` of the section failed. With the example
+  `[format_tree_node_label(entry) for entry in find_explorer_content().entries]`
+  in the system text: dashboard 5 of 5, remove 5 of 5, show 5 of 5, on seeds 1
+  to 5. One dashboard run (seed 2) put the dashboard into the section Dashboards,
+  and the check took only the root section; the check now takes every section,
+  and the same seed passes. The guard of the rehearsal skipped runs when the
+  loaded model left less free memory than it needs, so the runs went in small
+  batches. Tests on the rebased branch: `test_assistant_verbs()` 79 pass,
+  `test_assistant_documentation()` 389 pass, `test_explorer()` 249 pass,
+  `test_document_tree()` 130 pass, `test_platform_layering()` 7 pass,
+  `test_referenced_document_editor()` 109 pass and the 2 known failures of main.
+
+## Open items
+
+1. The open files of an editor (`OpenFileList`) have no `find_navigator_address`
+   method, so the explorer does not find the file of a tab through them:
+   `open_explorer_page!` refuses the document of a file tab, and a link to an
+   open file does not open in the explorer. The method belongs to a slice above
+   the file format slice, such as the application.
+2. A section has no natural text, so `print_natural_text(find_explorer_content())`
+   fails. A model tried it in one run.
+3. A path of the navigator does not follow an insert or a delete before it
+   (see Step 2), which `plan/pending/an-insert-moves-the-paths-after-it.md` fixes.
