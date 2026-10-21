@@ -497,7 +497,7 @@ The owner, 2026-10-21, on the compile of a first use: "we already have the trace
 based compiler workload, which may be incomplete but generally works fine. More
 UI parts must be covered though." So step 7 finds the UI parts that the recorded
 workload does not cover. The fix of causes 1 and 2 is the plan
-[an-answer-streams-in-without-holding-the-window.md](an-answer-streams-in-without-holding-the-window.md),
+[an-answer-streams-in-without-holding-the-window.md](../done/an-answer-streams-in-without-holding-the-window.md),
 which the owner asked for before step 2 of this plan.
 
 A frame with no delta takes 1.8 ms, also during the turn.

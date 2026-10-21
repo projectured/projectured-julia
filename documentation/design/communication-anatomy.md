@@ -113,7 +113,7 @@ A feed is one registered inflow of the editor. Its producer writes a plain store
 | `TaskFeed` | The tasks of a task group | A deadline of 0.25 s while entries change | The rows of the task groups |
 | `ReflectionFeed` | A read of a value on a task of the default pool | The wake and a deadline | The reflected tree of the value |
 | `SystemProcessFeed` | A sampler of `/proc`, at most once a second | A deadline | The tree of processes |
-| `AgentEventFeed` | The connection to an agent over ACP | The wake and a deadline | The transcript of the assistant |
+| `AgentEventFeed` | The connection to an agent over ACP, and a turn of the built-in assistant | The wake and a deadline | The transcript of the assistant |
 
 The application gives most feeds when it makes the editor. The system process slice and the assistant add their feed to a running editor at the first use.
 
@@ -188,7 +188,7 @@ A post during a frame shows in the next frame. A demand that the print records s
 | A folder opens in the tree | `AcquireDocumentOperation` starts a watch. The print reads the listing cell, which records a demand. Background work reads the folder and posts the answer, and the next print shows the entries |
 | A file changes on disk | The watcher task waits until the file settles, then hashes and parses it. It stores the result and wakes the editor. The drain calls `receive_file_change!`, which evaluates `ReloadFileOperation` |
 | An MCP client calls a tool | The server task calls `run_on_editor_task!`. The drain runs the tool in a code unit, and the server task sends the answer. `McpLogFeed` copies the call into the MCP log |
-| The assistant answers | A turn runs as background work and streams from the model. It posts each part with `run_on_editor_task!(...; wait = false)` |
+| The assistant answers | A turn runs as background work and streams from the model. It puts each event into the queue of the turn and wakes the editor. `AgentEventFeed` applies the events in order, and each call of the turn applies them first |
 | An agent over ACP answers | The connection task puts each event into an `AgentEventQueue` and wakes the editor. `AgentEventFeed` applies the events in order |
 | A process of a task group writes a line | A reader task writes the execution under the lock of the runtime. A listener marks the entry in the store, and `TaskFeed` copies it at its next deadline |
 | A terminal writes text | A reader task posts the text with `run_on_editor_task!(...; wait = false)` |

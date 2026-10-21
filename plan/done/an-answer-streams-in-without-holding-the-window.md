@@ -1,11 +1,11 @@
 # An answer streams in without holding the window
 
-Status: PENDING, 2026-10-21. Steps 1 to 4 are done, on the branch `answer-stream`.
-No decision is open.
+Status: DONE, 2026-10-21, on the branch `answer-stream`; not on `main`. No decision
+is open.
 
 ## The ask
 
-Step 1 of [guards-keep-the-frame-short-at-any-size.md](guards-keep-the-frame-short-at-any-size.md)
+Step 1 of [guards-keep-the-frame-short-at-any-size.md](../pending/guards-keep-the-frame-short-at-any-size.md)
 found why the frames of the Assistant pane are slow while an answer streams. The
 owner, 2026-10-21, to the question "Do you want me to write a small plan now that
 fixes how an answer streams in, before I continue with step 2 of the guards?":
@@ -64,7 +64,7 @@ delta each 30 ms. The numbers are in the As built of the guards plan.
    of a turn holds the turn in place of a session.
 
 The `AgentEventFeed` joins the editor as it does now for a session of an external
-agent. [the-feeds-of-an-editor-are-its-own.md](the-feeds-of-an-editor-are-its-own.md)
+agent. [the-feeds-of-an-editor-are-its-own.md](../pending/the-feeds-of-an-editor-are-its-own.md)
 gives every editor its feed through a wrapper; that plan then covers the turn too.
 
 ## Keep
@@ -121,7 +121,7 @@ the measurement needs the record of a frame. Commit each step. Do not land on
    application with its workload, as `bin/projectured` loads it: the compile time
    of its first frames, from the record of a frame. Write it in
    [As built](#as-built). Commit.
-5. [ ] **The guides.** [assistant.md](../../documentation/package/platform/assistant/assistant.md):
+5. [x] **The guides.** Done; see [As built](#as-built). [assistant.md](../../documentation/package/platform/assistant/assistant.md):
    how an answer streams in. [communication-anatomy.md](../../documentation/design/communication-anatomy.md):
    the producers of the `AgentEventFeed`. Move this plan to `plan/done/`.
    Commit.
@@ -327,3 +327,23 @@ delta each 30 ms. The frames are in `/var/tmp/frame-guards/s3-*/`.
   been hidden behind other windows then. A frame that waits in a present can also
   hold every other thread at the next garbage collection, which can explain why the
   turn itself went slowly. Not in this plan.
+
+### Step 5
+
+- `assistant.md`: how an answer streams in (the queue of the turn, the join of the
+  deltas, `append_text!`, the calls that apply the queue first and their time
+  limit), the feed of the window with the queues of turns, a part that fails, and
+  `test_assistant_stream()`.
+- `communication-anatomy.md`: the `AgentEventFeed` has a turn of the built-in
+  assistant as a producer, and the path "The assistant answers" goes through the
+  queue.
+- `text.md`: `append_text!`.
+
+### Open items
+
+1. `bin/projectured` compiles a live workload that runs no turn, so its first
+   answer compiles at first use (step 4).
+2. A present with vsync on waited about 1 s in 3 of 6 runs, and the probe at the
+   opening of a window did not catch it (step 4).
+3. The slow frames and the bytes of a frame still grow a little with the answer
+   (step 3); step 5 of the guards plan measures it.
