@@ -653,7 +653,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         kids = get_syntax_children(node)
         result = IoMap[]
         for (i, child) in enumerate(kids)
-            child_ctx = make_child_context(ctx, node, (@reference_step children), (@reference_step [i]))
+            child_ctx = make_child_context(ctx, node, make_syntax_child_steps(node, i)...)
             push!(result, get!(() -> print_child(recursion, child, child_ctx), child_cache, child))
         end
         seen = Set{UInt}(objectid(c) for c in kids)

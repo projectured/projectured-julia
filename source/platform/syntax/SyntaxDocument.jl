@@ -62,7 +62,7 @@ get_syntax_children(::SyntaxDocument) = nothing
 # The one place the two kinds of compound genuinely differ. A sequence's child `i` is
 # `.children[i]`; a wrapper's only child is `.content`. Everything else — the splice
 # printer, both mappers, both readers, tree navigation, collapse resolution, the flat
-# metric — is written against these two functions and so does not care which it has.
+# metric — is written against these functions and so does not care which it has.
 
 """
     build_syntax_child_path(doc, i, inner) -> Reference
@@ -84,6 +84,19 @@ build_syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
 
 build_syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
     ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
+
+"""
+    make_syntax_child_steps(doc, i) -> Tuple
+
+The steps from `doc` down into its `i`-th child, with no types: `.children` and `[i]`
+for a sequence, `.content` for a wrapper. They are the steps of
+[`build_syntax_child_path`](@ref), for a caller that types them against the document
+itself, as `make_child_context` does. Reads nothing from the document.
+"""
+make_syntax_child_steps(::SyntaxSequence, i::Int) =
+    (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
+
+make_syntax_child_steps(::SyntaxWrapper, ::Int) = (FieldReferenceStep("content"),)
 
 """
     peel_child_step(path) -> (i, tail) | nothing

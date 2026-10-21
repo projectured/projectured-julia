@@ -59,7 +59,7 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
        is_on_closing_delimiter,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
-       build_syntax_child_path, peel_child_step
+       build_syntax_child_path, make_syntax_child_steps, peel_child_step
 export SyntaxTheme, ScaledSyntaxTheme
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap

@@ -110,7 +110,7 @@ prints again. Step 4 counts it.
 
 ## Steps
 
-1. [ ] **The child of a wrapper has its own path.** `SyntaxToText.jl:666` uses the
+1. [x] **The child of a wrapper has its own path.** `SyntaxToText.jl:666` uses the
    steps of `build_syntax_child_path`. Tests in
    `test/platform/projection/SyntaxToTextTest.jl`: the context of the child of a
    wrapper is `.content`, the context of a child of a sequence is `.children[i]`,
@@ -159,4 +159,18 @@ prints again. Step 4 counts it.
 
 ## As built
 
-Nothing yet.
+### Step 1
+
+- `make_syntax_child_steps(doc, i)` (`SyntaxDocument.jl`, exported by
+  `SyntaxModule`) answers the steps to child `i` with no types: `.children` and
+  `[i]` for a sequence, `.content` for a wrapper. It sits beside
+  `build_syntax_child_path`, which answers the same steps with their node types.
+  The print needs the steps without types, because `make_child_context(ctx, node,
+  steps...)` types them against `node` itself.
+- The test "the print gives a child the path that its compound gives it"
+  (`SyntaxToTextTest.jl`) prints a wrapper and a sequence through a recursion that
+  records the context of each child. It checks the steps, and that every node of
+  each path has its type.
+- `test_syntax_to_text()`: every testset passes ("Syntax wrappers" 42). The
+  navigation checks on `julia_example` and `markdown_example` run with the tests of
+  step 2, because they need the umbrella `ProjecturedTest`.

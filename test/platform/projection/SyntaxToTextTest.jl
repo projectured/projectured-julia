@@ -1,6 +1,23 @@
 # The text of each span of each line of `block`, in order.
 _s2t_span_texts(block) = [span.content for line in block.elements for span in line.elements]
 
+# A recursion that records the path of the context of each child that a node
+# printer prints through it, and prints that child with `inner`.
+struct _SyntaxChildPathRecorder
+    inner::Any
+    paths::Vector{Any}
+end
+
+function ProjectionModule.print_document(recorder::_SyntaxChildPathRecorder,
+                                         ::_SyntaxChildPathRecorder, input, ctx)
+    push!(recorder.paths, ctx.reference[])
+    print_document(recorder.inner, recorder.inner, input, ctx)
+end
+
+# The type that each node of `path` records, the terminal last.
+_s2t_path_types(path::EmptyReference) = Any[path.type]
+_s2t_path_types(path::ConcreteReference) = Any[path.type; _s2t_path_types(path.tail)]
+
 function test_syntax_to_text()
 @testset "SyntaxToText" begin
 
@@ -793,6 +810,21 @@ end
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
         @test _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, sel)) == k
+    end
+end
+
+@testset "the print gives a child the path that its compound gives it" begin
+    # The context of a child holds its path, typed at each node: `.content` below a
+    # wrapper, `.children[i]` below a sequence.
+    wrapper = SyntaxDelimitation(SyntaxLeaf("x"); opening_delimiter="(", closing_delimiter=")")
+    sequence = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="[", close="]", sep=",")
+    for (node, steps) in ((wrapper, [Any[FieldReferenceStep("content")]]),
+                          (sequence, [Any[FieldReferenceStep("children"), RangeReferenceStep(0, 1)],
+                                      Any[FieldReferenceStep("children"), RangeReferenceStep(1, 2)]]))
+        recorder = _SyntaxChildPathRecorder(s2st, Any[])
+        get_flat_string(print_document(s2st.child, recorder, node, PrinterContext()).output)
+        @test [collect(Any, get_reference_steps(path)) for path in recorder.paths] == steps
+        @test all(path -> all(!isnothing, _s2t_path_types(path)), recorder.paths)
     end
 end
 
