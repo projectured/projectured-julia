@@ -67,11 +67,28 @@ The user answered the three questions on 2026-10-21: "1: yes", "2: agreed",
 The steps are fixed. Each step is one commit. projectured-julia lands first,
 because the omnet-julia steps use the function form of step 1.
 
-1. [ ] **The note made at the dwell.** `_as_tooltip_document` calls a function;
+1. [x] **The note made at the dwell.** `_as_tooltip_document` calls a function;
    `make_decoration_note` answers a function when `decoration.tooltip` is one;
    the tree row and the tab call it at the dwell. Test: `test_widget_tooltip()`,
    `test_document_decoration()`, `test_widget_tree()`, and a check that a fact
    that changes does not rebuild the row.
+
+   Done. As built:
+   - `_as_tooltip_document(make::Function)` calls `make()`; a control of an
+     action passes a function tooltip through it too, so the window never gets a
+     function.
+   - `make_decoration_note` answers `() -> _join_decoration_note(conditions,
+     tooltip())` for a function, so the conditions are read with the row and
+     the facts at the dwell. `_join_decoration_note` also keeps the `code` of a
+     note, which `make_decoration_note` dropped before.
+   - A tab: `make_pane_tab_title` computes `make_decoration_note(decoration())`
+     in a cell; that cell now holds the function, and the tab label calls it at
+     the dwell.
+   - Test: `test_widget_tooltip()` 31, `test_document_decoration()` 57,
+     `test_document_tree()` 130 (a new case: a fact that only the tooltip reads
+     changes the note, and the row stays the same object with no new label),
+     `test_widget_tree()` 103, `test_tooltip_note()` 36, `test_tooltip_window()`
+     51.
 2. [ ] **The Explorer rows of the platform.** Each gives a note through its
    decoration:
    - a file: its name, the path, the format, and the lines when it is read;

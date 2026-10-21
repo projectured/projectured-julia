@@ -74,6 +74,21 @@ end
 
 _doctree_node(name, children...) = _DocTreeNode(name, CellVector(Any[children...]))
 
+# A node whose tooltip says a fact that changes often, which only the tooltip reads.
+@document struct _DocTreeNoted
+    name::String
+    position::Int
+end
+
+function TreeModule.format_tree_node_label(node::_DocTreeNoted)
+    _DOCTREE_LABEL_COUNTS[node] = get(_DOCTREE_LABEL_COUNTS, node, 0) + 1
+    node.name
+end
+
+ProjecturedPlatform.DomainModule.get_document_decoration(node::_DocTreeNoted) =
+    ProjecturedPlatform.DomainModule.DocumentDecoration(;
+        icon = :file, tooltip = () -> TooltipNote(; facts = ["Position" => string(node.position)]))
+
 # A root with two parts and a note; the first part holds two nodes.
 function _doctree_make()
     first_part = _doctree_node("alpha", _doctree_node("alpha one"), _doctree_node("alpha two"))
@@ -482,6 +497,22 @@ function test_document_tree()
         @test all(_DOCTREE_LABEL_COUNTS[nodes[n]] == before[n] for n in 2:5)
         # The nodes under it are the same nodes.
         @test widget.roots[1].children[1].children === under
+    end
+
+    @testset "a fact that only the tooltip reads changes the note and not the row" begin
+        noted = _DocTreeNoted("moving", 1)
+        root = _doctree_node("root", noted)
+        tree = DocumentTree(root)
+        tree.expanded = IdDict{Any,Any}(root => IdDict{Any,Any}())
+        widget = print_document(projection, nothing, tree, nothing).output
+        row() = widget.roots[1].children[1]
+        before, count = row(), _DOCTREE_LABEL_COUNTS[noted]
+        @test row().tooltip isa Function
+        @test row().tooltip().facts == ["Position" => "1"]
+        noted.position = 7
+        # The row is the same row, and its label was not computed again.
+        @test row() === before && _DOCTREE_LABEL_COUNTS[noted] == count
+        @test row().tooltip().facts == ["Position" => "7"]
     end
 
     @testset "the verb shows a tree in a tab" begin

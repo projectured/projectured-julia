@@ -24,6 +24,8 @@ function test_widget_tooltip()
     @test (answer.title, answer.text) == ("Run", "Run the selected configurations")
     @test _read_widget_tooltip(WidgetLabel("x"; tooltip = "a tip")).text == "a tip"
     @test _read_widget_tooltip(WidgetLabel("x"; tooltip = "")) === nothing
+    # A function makes the note when the pointer rests.
+    @test _read_widget_tooltip(WidgetLabel("x"; tooltip = () -> TooltipNote(; text = "made now"))).text == "made now"
     # A document passes through as it is.
     given = WidgetLabel("a tip")
     @test _read_widget_tooltip(WidgetLabel("x"; tooltip = given)) === given
@@ -44,6 +46,7 @@ end
     # A note that the author gives says itself.
     given = TooltipNote(; title = "Mine")
     @test _read_widget_tooltip(WidgetToolbarItem(new_tab; tooltip = given)) === given
+    @test _read_widget_tooltip(WidgetToolbarItem(new_tab; tooltip = () -> given)) === given
 end
 
 @testset "the answer is an operation that opens the tooltip" begin

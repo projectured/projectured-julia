@@ -3653,11 +3653,14 @@ FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[
 # fields hold `nothing` until somebody sets one. A `String` is the text of a
 # `TooltipNote`, because most tooltips are one line and
 # `tooltip = "Run the selected configurations"` is what a caller wants to write;
-# any other document, a note too, says itself.
+# any other document, a note too, says itself. A function with no argument makes
+# the note when the pointer rests, so a part reads its facts only when a person
+# asks, and a fact that changes often costs nothing before that.
 _find_widget_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
 
 _as_tooltip_document(::Nothing) = nothing
 _as_tooltip_document(text::AbstractString) = isempty(text) ? nothing : TooltipNote(; text = String(text))
+_as_tooltip_document(make::Function) = _as_tooltip_document(make())
 _as_tooltip_document(document) = document
 
 # A control of an action says a note: the label of the action is its title, the
@@ -3665,7 +3668,7 @@ _as_tooltip_document(document) = document
 # control that shows its label says nothing more with no tooltip of its own; a
 # control that shows only a picture says its label and its key all the same.
 function _make_action_note(action::Action, tooltip; shows_label::Bool)
-    tooltip === nothing || tooltip isa AbstractString || return tooltip
+    tooltip === nothing || tooltip isa AbstractString || return _as_tooltip_document(tooltip)
     text = tooltip === nothing || isempty(tooltip) ? nothing : String(tooltip)
     text === nothing && shows_label && return nothing
     label = action.label

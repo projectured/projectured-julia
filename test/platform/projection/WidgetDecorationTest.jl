@@ -173,6 +173,15 @@ function test_document_decoration()
         merged = make_decoration_note(_decorated(DocumentCondition(:done); tooltip = given))
         @test (merged.title, merged.text) == ("smoke test", "Ran the tests.")
         @test merged.facts[1] isa DocumentCondition && merged.facts[2] == ("Finished" => "3 of 3")
+        # A function in the decoration gives a function, which makes the whole note
+        # when the pointer rests, from the values of that time.
+        count = Ref(1)
+        lazy = make_decoration_note(_decorated(DocumentCondition(:running);
+                                               tooltip = () -> TooltipNote(; facts = ["Count" => string(count[])])))
+        @test lazy isa Function
+        @test [fact isa Pair ? fact : fact.name for fact in lazy().facts] == [:running, "Count" => "1"]
+        count[] = 2
+        @test last(lazy().facts) == ("Count" => "2")
     end
 end
 end

@@ -129,23 +129,34 @@ function _push_icon_mark!(elements::Vector, badge, mark::WidgetIconMark, corner:
 end
 
 """
-    make_decoration_note(decoration) -> TooltipNote or nothing
+    make_decoration_note(decoration) -> TooltipNote, Function or nothing
 
 What a row or a tab of a decorated document says when the pointer rests on it:
 each condition of `decoration` that has words, as a fact with the mark of its
 look in the color of its role and its count, and then the tooltip of the
-decoration: a string as the text of the note, or a note whose title, keys, text,
-facts and hint follow the conditions. `nothing` when the decoration says
-nothing.
+decoration: a string as the text of the note, a note whose title, keys, code,
+text, facts and hint follow the conditions, or a function with no argument that
+makes such a note. For a function, the answer is a function too, which makes the
+whole note when the pointer rests: a row and a tab then read the facts only when
+a person asks, and a fact that changes often rebuilds no row. `nothing` when the
+decoration says nothing.
 
 See also `collect_decoration_conditions`.
 """
 function make_decoration_note(decoration::DocumentDecoration)
     conditions = Any[collect_decoration_conditions(decoration)...]
     tooltip = decoration.tooltip
-    tooltip isa TooltipNote &&
-        return TooltipNote(; title = tooltip.title, keys = tooltip.keys, text = tooltip.text,
-                           facts = Any[conditions..., tooltip.facts...], hint = tooltip.hint, tone = tooltip.tone)
+    tooltip isa Function && return () -> _join_decoration_note(conditions, tooltip())
+    _join_decoration_note(conditions, tooltip)
+end
+
+# The conditions of a decoration as facts, then its tooltip: the pieces of a note,
+# or a string as the text; `nothing` when neither says anything.
+_join_decoration_note(conditions, tooltip::TooltipNote) =
+    TooltipNote(; title = tooltip.title, keys = tooltip.keys, code = tooltip.code, text = tooltip.text,
+                facts = Any[conditions..., tooltip.facts...], hint = tooltip.hint, tone = tooltip.tone)
+
+function _join_decoration_note(conditions, tooltip)
     text = tooltip isa AbstractString && !isempty(tooltip) ? String(tooltip) : nothing
     isempty(conditions) && text === nothing && return nothing
     TooltipNote(; text, facts = conditions)
