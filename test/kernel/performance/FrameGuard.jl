@@ -58,7 +58,8 @@ FrameScene(name::AbstractString; sizes::AbstractVector{<:Integer}, make_editor::
     FrameWork
 
 The frames of a `FrameScene` at one size, as `measure_frame_work` answers them:
-the minimum and the median frame time, the median time of each stage, the median
+the minimum and the median frame time without the garbage collections of the
+frame, the median time of each stage, the median
 of the bytes that a frame allocated, the time of the garbage collector and of the
 compiler over the measured frames, and the median count of work, or `nothing`. A
 burst gives, for each of its repetitions, the slowest frame and the frame that
@@ -116,30 +117,35 @@ const _ALLOCATION_FLOOR_BYTES = 4096.0
 # budget of a frame, and is no growth.
 const _TIME_FLOOR_SECONDS = 1e-4
 
-# The most frames that one burst may take before the harness stops it.
+# The most frames that one burst may take before the harness stops it, unless a
+# measurement names another limit.
 const _BURST_FRAME_LIMIT = 2000
 
 # The longest wait for a deadline before a frame of a scene that waits for one.
 const _DEADLINE_WAIT_LIMIT = 2.0
 
 """
-    measure_frame_work(scene; warm_frames = 30, frames = 50, repetitions = 5) -> Vector{FrameWork}
+    measure_frame_work(scene; warm_frames = 30, frames = 50, repetitions = 5,
+                       frame_limit = 2000) -> Vector{FrameWork}
 
 Drive `scene` at each of its sizes, in order, and answer one row for each size.
 
 At each size, the harness makes the editor, runs `warm_frames` frames to compile,
 collects the garbage, and then measures `frames` frames, each after the input of a
 frame. A burst gives its input `repetitions` times, and each time runs the frames
-until the editor has nothing left to do. Each frame runs as the loop runs it, with
+until the editor has nothing left to do, at most `frame_limit` frames. Each frame runs as the loop runs it, with
 [`run_measured_frame!`](@ref), on this task as the loop task and the writer of the
 cells.
 """
 function measure_frame_work(scene::FrameScene; warm_frames::Integer = 30,
-                            frames::Integer = 50, repetitions::Integer = 5)
-    [_measure_frame_work_at(scene, size, warm_frames, frames, repetitions) for size in scene.sizes]
+                            frames::Integer = 50, repetitions::Integer = 5,
+                            frame_limit::Integer = _BURST_FRAME_LIMIT)
+    [_measure_frame_work_at(scene, size, warm_frames, frames, repetitions, frame_limit)
+     for size in scene.sizes]
 end
 
-function _measure_frame_work_at(scene::FrameScene, size::Int, warm_frames, frames, repetitions)
+function _measure_frame_work_at(scene::FrameScene, size::Int, warm_frames, frames, repetitions,
+                                frame_limit)
     editor = scene.make_editor(size)
     previous_loop_task = editor.loop_task
     editor.loop_task = current_task()
@@ -148,9 +154,9 @@ function _measure_frame_work_at(scene::FrameScene, size::Int, warm_frames, frame
     try
         run_frame = () -> _run_scene_frame!(scene, editor, started)
         if scene.is_burst
-            _run_burst!(scene, editor, size, run_frame)        # the warm-up
+            _run_burst!(scene, editor, size, run_frame, frame_limit)        # the warm-up
             GC.gc()
-            bursts = [_measure_burst!(scene, editor, size, run_frame) for _ in 1:repetitions]
+            bursts = [_measure_burst!(scene, editor, size, run_frame, frame_limit) for _ in 1:repetitions]
             _make_burst_work(size, bursts)
         else
             for _ in 1:warm_frames
@@ -194,10 +200,10 @@ _is_editor_settled(editor::Editor) =
 
 # The input of a burst, then frames until the editor settles and all of the input
 # arrived; the count of frames, and whether the burst ended within the limit.
-function _run_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame)
+function _run_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame, frame_limit)
     scene.give_input!(editor, size)
     count = 0
-    while count < _BURST_FRAME_LIMIT
+    while count < frame_limit
         run_frame()
         count += 1
         if _is_editor_settled(editor)
@@ -211,9 +217,9 @@ function _run_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame)
     (count, false)
 end
 
-function _measure_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame)
+function _measure_burst!(scene::FrameScene, editor::Editor, size::Int, run_frame, frame_limit)
     first = get_frame_count(editor.frame_measurements) + 1
-    count, is_finished = _run_burst!(scene, editor, size, run_frame)
+    count, is_finished = _run_burst!(scene, editor, size, run_frame, frame_limit)
     rows = _collect_frame_rows(editor, first)
     work = scene.count_work === nothing ? nothing : Float64(scene.count_work(editor))
     (; rows, count, is_finished, work)
@@ -238,10 +244,15 @@ end
 _get_frame_value(row, name::Symbol) =
     (value = get(row, name, NaN); isnan(value) ? 0.0 : value)
 
+# The time of a frame without its garbage collections: a collection comes from the
+# bytes of many frames, and the ratio of bytes guards it.
+_get_frame_work_seconds(row) =
+    max(0.0, _get_frame_value(row, :frame_time) - _get_frame_value(row, :garbage_collection_time))
+
 const _STAGE_NAMES = (:feed_time, :read_time, :evaluate_time, :print_time, :report_time)
 
 function _make_frame_work(size::Int, rows, work_count, frame_count::Int, is_finished::Bool)
-    times = [_get_frame_value(row, :frame_time) for row in rows]
+    times = [_get_frame_work_seconds(row) for row in rows]
     stages = NamedTuple{_STAGE_NAMES}(Tuple(_median(_get_frame_value(row, name) for row in rows)
                                             for name in _STAGE_NAMES))
     FrameWork(size, minimum(times), _median(times), stages,
@@ -255,7 +266,7 @@ end
 # the minimum of the slowest frames, the median of the most bytes, and the median
 # count of frames.
 function _make_burst_work(size::Int, bursts)
-    slowest = [maximum(_get_frame_value(row, :frame_time) for row in burst.rows) for burst in bursts]
+    slowest = [maximum(_get_frame_work_seconds(row) for row in burst.rows) for burst in bursts]
     most_bytes = [maximum(_get_frame_value(row, :allocated_bytes) for row in burst.rows) for burst in bursts]
     all_rows = reduce(vcat, [burst.rows for burst in bursts])
     stages = NamedTuple{_STAGE_NAMES}(Tuple(_median(_get_frame_value(row, name) for row in all_rows)

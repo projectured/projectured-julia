@@ -349,6 +349,7 @@ function test_platform()
         test_program_task()
         test_task_document()
         test_task_kind_facets()
+        test_feed_frame_guards()
         test_task_views()
         test_task_group_table()
         test_task_pages()
@@ -434,6 +435,7 @@ function test_platform_examples()
 end
 
 export test_platform, test_platform_layering, test_platform_examples
+export test_feed_frame_guards
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity

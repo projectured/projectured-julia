@@ -1,6 +1,6 @@
 # Guards keep the frame short at any size
 
-Status: PENDING, 2026-10-21. Steps 1 to 3 are done; step 1 is on `main`. No decision
+Status: PENDING, 2026-10-21. Steps 1 to 4 are done; step 1 is on `main`. No decision
 is open: D1 is decided, in [The decision](#the-decision).
 
 ## The ask
@@ -281,7 +281,7 @@ on `main` before the owner approves. A guard that fails on `main` gets
    - **The door of MCP:** 1, 10 and 100 tool calls in flight, each a tool with
      an empty body, through `render_mcp_tools`.
    - Run `test_kernel()` and `test_mcp_tools()`. Commit.
-4. [ ] **The feeds and the stores.** `test_feed_frame_guards()` in
+4. [x] **The feeds and the stores.** Done; see [As built](#as-built). `test_feed_frame_guards()` in
    `test/platform/editor/` and `test_formula_frame_guards()` in
    `test/domain/formula/`, on the `HeadlessBackend` with a view of a fixed size
    or no view:
@@ -531,6 +531,59 @@ on `main` before the owner approves. A guard that fails on `main` gets
   because 10_000_000 cells take about 1 GB.
 - **Tests.** `test_kernel()`: 4935 pass and 2 broken. `test_mcp_frame_guards()`: 4
   pass. `test_mcp_tools()`: 180 pass.
+
+### Step 4
+
+- **The guards**, `test_feed_frame_guards()` in
+  `test/platform/editor/FeedFrameGuardTest.jl`, in `test_platform()`, and
+  `test_formula_frame_guards()` in `test/domain/formula/FormulaFrameGuardTest.jl`, in
+  `test_formula()`. Each scene has its own store and its own feed, and a view of
+  one value. Measured 2026-10-21 in the lane, load about 3:
+
+  | Scene | Sizes | Slowest or minimum frame | Bytes of a frame | Time ratio | Ratio of bytes | Result |
+  |---|---|---|---|---|---|---|
+  | a burst of lines in the message log | 10, 100, 1_000 lines | 0.02 to 1.16 ms | 8.9 to 564 kB | 9.6 | 43.6 | broken |
+  | the flush of the log of background work | 1, 10, 100 records | 0.008 to 0.064 ms | 5.7 to 110 kB | 1.5 | 11.6 | bytes broken |
+  | a change of one of many tasks | 10, 100, 1_000 tasks | 0.005 ms | 4.0 kB | 1.00 | 1.00 | pass |
+  | a change of one of many watched files | 10, 100, 1_000 files | 0.005 to 0.011 ms | 4.5 kB | 1.05 | 1.00 | pass |
+  | a burst of output into a full terminal | 100, 1_000, 10_000 chunks | 11.1 to 11.3 ms | 8.05 MB | 1.02 | 1.00 | pass |
+  | a burst of text of an external agent | 10, 100, 1_000 deltas | 0.024 to 1.15 ms | 22 kB to 1.46 MB | 10.0 | 56.0 | broken |
+  | the flush of the frame statistics | 1_000, 10_000, 100_000 frames | 0.29 ms | 770 kB | 1.02 | 1.01 | pass |
+  | a change of the input of many formulas | 10, 1_000 formulas | 2.2 to 5.5 ms | 0.8 to 2.9 MB | 2.4 | 3.6 | bytes broken |
+
+- **Broken: the message log.** `MessageLogFeed` copies every new line of the store
+  into the log in one frame, up to the 1000 lines of the store: 1.16 ms and 564 kB
+  for a burst of 1000 lines.
+- **Broken: the log of background work, in bytes.** A flush makes every row of the
+  log again, also when one record changed, up to the 100 records of the store; at
+  100 records it costs 0.06 ms and 110 kB.
+- **Broken: the events of an external agent.** `AgentEventFeed` applies every event
+  that waits in the queue of a session in one frame, and that queue joins no text
+  deltas, as the queue of a turn of the built-in assistant does: 1.15 ms and 1.46 MB
+  for 1000 deltas.
+- **Broken: the formulas, in bytes.** Each frame of the formula task allocates
+  about 0.8 MB at 10 and at 1000 formulas, so a change of the input of 1000 formulas
+  allocates about 800 MB in all. About one frame in 200 allocates 2.9 MB at 1000
+  formulas: frames 2 and 18, and then about every 216th. The cause is not found.
+- **Seen, not broken: the terminal.** The frames stay flat, but each frame with 64
+  chunks of output allocates 8 MB, because `add_terminal_text!` copies all 2000
+  lines of the terminal for each chunk.
+- **Decision: the formula guard uses a backend that shows no held frames.** The
+  headless backend holds each held frame 10 ms, which hides the work of a call
+  inside a constant frame. With no held frames a call runs in its frame. The burst
+  of 1000 formulas takes about 2000 frames, so `measure_frame_work` has a keyword
+  `frame_limit`, and the guard runs one repetition with a limit of 5000.
+- **Decision: the time of a frame is without its garbage collections.** A burst of
+  one repetition took its slowest frame from a collection (107 ms of collections in
+  2003 frames). A collection comes from the bytes of many frames, and the ratio of
+  bytes guards it, so the harness subtracts the collection time of each frame.
+- **Decision: a scene with a view of a fixed size.** The message log and the
+  terminal start full, at their capacities of 200 entries and 2000 lines, so their
+  views have the same size at each size of a burst.
+- **Tests.** `test_platform()`: 165_982 pass and 12 broken, of which 5 are new.
+  `test_formula()`: 229 pass and 1 broken, the new one. `test_kernel_frame_guards()`
+  and `test_frame_guard()` again after the changes of the harness: 13 pass and 2
+  broken, and 16 pass.
 
 ### The cause of the slow frames in the Assistant pane
 

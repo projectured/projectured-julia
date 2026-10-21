@@ -266,6 +266,8 @@ include("../../../test/platform/task/BuildStepTest.jl")
 include("../../../test/platform/task/ProgramTaskTest.jl")
 include("../../../test/platform/task/TaskDocumentTest.jl")
 include("../../../test/platform/task/TaskKindFacetsTest.jl")
+# After the task tests: it uses the probe task that they make.
+include("../../../test/platform/editor/FeedFrameGuardTest.jl")
 include("../../../test/platform/task/TaskGroupToWidgetTest.jl")
 include("../../../test/platform/task/TaskGroupTableTest.jl")
 include("../../../test/platform/task/TaskPagesTest.jl")

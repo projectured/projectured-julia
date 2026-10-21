@@ -51,6 +51,8 @@ include("../../../test/domain/formula/FormulaFileTest.jl")
 include("../../../test/domain/formula/FormulaMathTest.jl")
 include("../../../test/domain/formula/FormulaNameTest.jl")
 include("../../../test/domain/formula/FormulaEvaluationTest.jl")
+# After the file above: it uses the sheet that the file above makes.
+include("../../../test/domain/formula/FormulaFrameGuardTest.jl")
 
 include("../../../test/domain/formula/FormulaSuite.jl")
 
