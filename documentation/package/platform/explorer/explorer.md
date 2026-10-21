@@ -89,7 +89,7 @@ A kind is in the list of `+` when `is_explorer_entry_type(::Type)` of the tree s
 
 ### The menu of a row
 
-A right press on a row opens one layer named by the row: Open in a new tab; Remove from explorer for an entry, or Add to explorer for a node below an entry; Rename for a section or a dashboard; New section and Add… for a section; Open as a list for a node with a lazy list or more than 50 children; then each command of the gesture table of the document that applies now, rerooted from the place of the document in the tree.
+A right press on a row opens one layer named by the row: Open in a new tab; Remove from explorer for an entry, with Move the entry earlier and Move the entry later where the entry can move, or Add to explorer for a node below an entry; Rename for a section or a dashboard; New section and Add… for a section; Open as a list for a node with a lazy list or more than 50 children; then each command of the gesture table of the document that applies now, rerooted from the place of the document in the tree. One function, `_collect_row_commands(explorer, steps; selects)`, builds the items of the explorer, and the commands of a row for an assistant come from it too ([below](#what-an-assistant-calls)).
 
 ### The filter
 
@@ -124,11 +124,27 @@ The search is a work item of the task list ([task.md](../task/task.md)). Its dec
 
 ### What a row and a control say
 
-Each row says what it holds when the pointer rests on it: the decoration of its document gives a function that makes a `TooltipNote` at that moment (see [tooltip.md](../tooltip/tooltip.md)). The filter field says what it keeps, its key (Ctrl+F) and what Return and Escape do; the kinds item says the kinds shown; the add item the kinds it offers; the items of the row menu say what they do, with the keys of Remove and Rename; the card of an entry on a section page says the note of the entry.
+Each row says what it holds when the pointer rests on it: the decoration of its document gives a function that makes a `TooltipNote` at that moment (see [tooltip.md](../tooltip/tooltip.md)). The filter field says what it keeps, its key (Ctrl+F) and what Return and Escape do; the kinds item says the kinds shown; the add item the kinds it offers; the items of the row menu say what they do, with the keys of Remove, the moves and Rename; the card of an entry on a section page says the note of the entry.
+
+### What an assistant calls
+
+An assistant works in the explorer with the verbs of its scope, and moves no selection of the person:
+
+| Verb | What it does |
+| --- | --- |
+| `find_explorer_content()` | answers the root section as a part of the window, through the first tab that shows an explorer of it |
+| `insert_elements!(content.entries, index, [document])` and `delete_elements!` | add and remove an entry, as an edit that undo takes back |
+| `describe_commands(entry)` and `run_command!(entry, words)` | list and run the commands of the row of a node |
+| `open_explorer_page!(part)` | shows the page of a node, or of a document that an entry holds, in the navigator, and opens the rows above it |
+| `format_tree_node_label(entry)` | the label of a node as the tree shows it |
+
+`Dashboard`, `DashboardCard` and `ExplorerSection` are in the scope too, so the assistant makes the documents that it adds.
+
+The commands of a row come from `collect_part_commands(::Explorer, steps)`, the method of the explorer for the generic of the gesture help slice ([gesturehelp.md](../gesturehelp/gesturehelp.md)). They are the items of the menu of the row with `selects = false`: a removal is only the delete, and a move and a new section add with no visit and no selection. Rename and Add… are not commands for an assistant, because one puts the caret in a field and the other opens a menu for the person; the assistant renames with `replace_referenced_value!(entry, :title, text)` and adds with an insert. A path of the navigator does not follow an insert or a delete before it, so after a removal by an assistant the page of a later entry can show the entry after it.
 
 ## How it fits
 
-The slice uses the collection, domain, focus, layout, navigator, pane, projection, serialization, style, task, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.
+The slice uses the collection, domain, focus, gesture help, layout, navigator, pane, projection, serialization, style, task, tooltip, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.
 
 ## Design decisions
 
@@ -153,14 +169,14 @@ The slice is the folder [source/platform/explorer/](../../../../source/platform/
 ```
 explorer/ExplorerModule.jl        (ExplorerModule): the module, its exports and its include order
     ├─ ExplorerFilter.jl          : ExplorerFilter, the rows of the matches, the kinds of the read rows
-    ├─ ExplorerDocument.jl        : ExplorerSection, Explorer, the root section of an editor, the kinds of +
+    ├─ ExplorerDocument.jl        : ExplorerSection, Explorer, the root section of an editor, the kinds of +, the verbs of an assistant
     ├─ ExplorerToWidget.jl        : the view, its maps, and its reader
     ├─ ExplorerSectionToWidget.jl : the page of a section
     ├─ ExplorerSearch.jl          : ExplorerSearch, StartExplorerSearchOperation, the walk of a search
     ├─ ExplorerSearchToWidget.jl  : the page of a search
     ├─ Dashboard.jl               : Dashboard, DashboardCard
     ├─ DashboardToWidget.jl       : the page of a dashboard
-    ├─ ExplorerRowMenu.jl         : the menu of a row
+    ├─ ExplorerRowMenu.jl         : the menu of a row, and the commands of a row for a verb
     ├─ ExplorerEntryEdits.jl      : the add of an entry, the keys of the explorer
     └─ ExplorerContentFile.jl     : the file of the content in the state folder
 ```

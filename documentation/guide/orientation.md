@@ -19,7 +19,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `projection/higher-order-projections`, `projection/generic-projections` |
 | Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
 | Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `get_parent`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
-| Work beside the person | read: `find_selected_part`, `find_part_under_pointer`, `find_focused_pane`, `describe_undo_history`, `print_pred_text`; tell: `GraphicsCanvas`, `Chart`, `GraphGraph`, `get_reactive_clock_time`, `open_page!`, `select_part!`; control: `change_setting!`, `describe_settings`; change: `describe_commands`, `run_command!`, `parse_natural_text` | `guide/orientation` |
+| Work beside the person | read: `find_selected_part`, `find_part_under_pointer`, `find_focused_pane`, `describe_undo_history`, `print_pred_text`, `find_explorer_content`; tell: `GraphicsCanvas`, `Chart`, `GraphGraph`, `get_reactive_clock_time`, `open_page!`, `select_part!`, `open_explorer_page!`; control: `change_setting!`, `describe_settings`; change: `describe_commands`, `run_command!`, `parse_natural_text` | `guide/orientation` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `make_replace_document_operation` / `make_insert_elements_operation` / `make_delete_elements_operation`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
@@ -51,12 +51,14 @@ browsing tools below. Do not guess names — search for them.
 - **Editor** — a verb acts on the editor that runs the code, so the code does not
   pass `editor` to a verb. `editor` is still bound, and `editor.document` is the
   root that a path starts at.
-- **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
-  (e.g. `ReplaceSelectionOperation(path)` to select), or call a verb that makes
-  one, such as `replace_referenced_value!`, `insert_elements!` or
-  `delete_elements!`. This is how to change the document;
+- **Intent** — call a verb that makes an operation, such as
+  `replace_referenced_value!`, `insert_elements!`, `delete_elements!` or
+  `run_command!`. This is how to change the document;
   operations carry their own target, so they work through any
-  `ScreenDocument`/`WindowDocument` wrapping. A direct write to a document, such as
+  `ScreenDocument`/`WindowDocument` wrapping. Code in a package builds an
+  `Operation` and gives it to `evaluate_operation(editor, op)`, such as
+  `ReplaceSelectionOperation(path)` to select. The assistant has no such call, and
+  `select_part!` selects a part for it. A direct write to a document, such as
   `part.value = new_value`, works, but the editor does not handle it as an edit:
   Ctrl+Z can not undo it, and the editor does not check its permissions or
   transform it, as it does for an operation.
@@ -188,8 +190,8 @@ canvas; the coordinates are pixels from the top left of the canvas:
 sketch_1 = GraphicsCanvas([
     GraphicsRect(10, 10, 160, 50; color = StyleColor(0.85, 0.9, 1.0, 1.0)),
     GraphicsText("the queue", 20, 40; font = StyleFont("DejaVu Sans", 14)),
-    GraphicsLine(170, 35, 230, 35; color = color_black, width = 2),
-    GraphicsCircle(250, 35, 15; color = color_red)]; w = 280, h = 70)
+    GraphicsLine(170, 35, 230, 35; color = StyleColor(0.0, 0.0, 0.0, 1.0), width = 2),
+    GraphicsCircle(250, 35, 15; color = StyleColor(0.85, 0.2, 0.2, 1.0))]; w = 280, h = 70)
 tab_1 = open_pane!(sketch_1; title = "Sketch")
 ```
 
@@ -211,7 +213,7 @@ closes:
 orbit_1 = GraphicsCanvas([
     GraphicsCircle(() -> 100 + 60 * cos(get_reactive_clock_time(editor.clock)),
                    () -> 100 + 60 * sin(get_reactive_clock_time(editor.clock)), 10;
-                   color = color_blue)]; w = 200, h = 200)
+                   color = StyleColor(0.2, 0.4, 0.8, 1.0))]; w = 200, h = 200)
 open_pane!(orbit_1; title = "Orbit")
 ```
 
@@ -248,4 +250,27 @@ person. List them, and run one by its words:
 ```julia
 println(describe_commands(people_1))
 run_command!(people_1, "Insert a new element")
+```
+
+### Work in the explorer
+
+The explorer is a tab of the window: a tree of sections and entries beside the
+page of the selected node. `find_explorer_content()` answers its root section, and
+`format_tree_node_label` gives the label of an entry as the tree shows it. Add a
+document with an insert into the entries, such as a dashboard of cards:
+
+```julia
+content_1 = find_explorer_content()
+println([format_tree_node_label(entry) for entry in content_1.entries])
+study_1 = Dashboard("Queue study", [DashboardCard("Notes", ExplorerSection("Notes"))])
+insert_elements!(content_1.entries, length(content_1.entries) + 1, [study_1])
+```
+
+An entry has the commands of its row, such as a move and a removal, and
+`open_explorer_page!` shows the page of an entry beside the tree:
+
+```julia
+println(describe_commands(content_1.entries[1]))
+run_command!(content_1.entries[1], "Move the entry later")
+open_explorer_page!(content_1.entries[length(content_1.entries)])
 ```

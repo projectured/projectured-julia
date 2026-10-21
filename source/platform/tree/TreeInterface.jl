@@ -24,7 +24,16 @@ The text of the node of `document` in a tree, in one line: the node draws a line
 break as a space. It runs inside the computation of the node, so it reads cells,
 and the node draws again when what it reads changes, and no other node does. The
 default is the title of the document, or the name of its type that a person
-sees.
+sees. A part that a verb answered has the label of its document.
+
+Use it to name an entry of the explorer or a node of a tree as the person sees it.
+
+# Example
+
+    content_1 = find_explorer_content()
+    [format_tree_node_label(entry) for entry in content_1.entries]
+
+See also `find_explorer_content`, `show_document_tree!`.
 """
 function format_tree_node_label end
 

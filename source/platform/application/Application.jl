@@ -404,8 +404,9 @@ make_editor_api() = Any[
     # The verbs that list, describe, stop, run again and close the groups of tasks
     # of the session, whichever verb started them.
     make_task_api()...,
-    # The verb that shows a document and the documents under it as a tree.
-    TreeModule => (:DocumentTree, :show_document_tree!),
+    # The verb that shows a document and the documents under it as a tree, and the
+    # label of a node as a tree shows it.
+    TreeModule => (:DocumentTree, :show_document_tree!, :format_tree_node_label),
     # The verbs that show the processes under a process as a tree, and write them
     # as text.
     SystemProcessModule => (:show_system_process_tree!, :describe_system_process_tree),
@@ -450,6 +451,9 @@ const EDITOR_SYSTEM =
     "`show_layout()` prints what is where, `describe_settings()` lists the " *
     "settings, and `read_os_clipboard()` answers the text that the person copied. " *
     "`search_documents` finds a document in the window when no tab names it. " *
+    "`find_explorer_content()` answers the root section of the explorer, whose " *
+    "entries are the documents that the person keeps there, and " *
+    "`format_tree_node_label(entry)` says the label of an entry. " *
     "Example: `part_1 = find_selected_part(); println(print_natural_text(part_1))`.\n\n" *
     "TELL the person with a document in a tab: `open_pane!(document; title, " *
     "target, side)` puts it in a tab, beside or under another tab. WidgetModule " *
@@ -462,7 +466,8 @@ const EDITOR_SYSTEM =
     "arguments for a coordinate, and one that reads " *
     "`get_reactive_clock_time(editor.clock)` moves the shape on each frame. " *
     "`open_page!(part)` opens a part as a " *
-    "page of its own, `select_part!(part)` selects a part to show it, and " *
+    "page of its own, `open_explorer_page!(part)` shows its page in the explorer " *
+    "beside the tree, `select_part!(part)` selects a part to show it, and " *
     "`write_os_clipboard!(text)` gives the person a text to paste. " *
     "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *
     "shows a table of the members of one kind, gathered from the whole window or " *
@@ -497,7 +502,11 @@ const EDITOR_SYSTEM =
     "`parse_natural_text(format, text)` makes a document from its text, and " *
     "`describe_natural_formats()` lists the formats. `describe_commands(part)` " *
     "lists the commands of a part, which a key or the command palette runs for the " *
-    "person, and `run_command!(part, description)` runs one by its words. " *
+    "person, and `run_command!(part, description)` runs one by its words. On an " *
+    "entry of the explorer they also give the commands of its row, such as a move. " *
+    "To add a document to the explorer, insert it into the entries of " *
+    "`find_explorer_content()`, such as `Dashboard(title, [DashboardCard(title, document)])` " *
+    "or `ExplorerSection(title)`. " *
     "Example: `delete_elements!(people_1, 2)`."
 
 """

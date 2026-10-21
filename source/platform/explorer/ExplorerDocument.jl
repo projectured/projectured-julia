@@ -11,7 +11,8 @@ of the editor, a project, a dashboard, another section. A section links its
 entries and does not own them, so one document can be an entry of many sections,
 and a removal of an entry leaves the document as it is.
 
-Use it as the root of an [`Explorer`](@ref), and to group the entries in it.
+Use it to group the entries of an explorer, such as the documents of one study,
+and as the root of an [`Explorer`](@ref).
 
 # Example
 

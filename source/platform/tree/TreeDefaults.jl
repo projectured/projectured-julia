@@ -12,6 +12,9 @@ function format_tree_node_label(document)
     document isa Document ? compute_item_facet(document, Val(:type)) : string(nameof(typeof(document)))
 end
 
+# A part that a verb answered has the label of its document.
+format_tree_node_label(part::ReferencedDocument) = format_tree_node_label(get_document(part))
+
 # A node has children when a collection of its children has an element, or when
 # its children are a lazy list, which has a node at its head.
 has_tree_children(document) =

@@ -15,6 +15,10 @@
 # The requests that a person makes of a pivot run the same way:
 #
 #     Rehearsal.run_pivot_task_rehearsals(1:5; directory = "/var/tmp/s2/loop/out/pivot")
+#
+# And the requests that a person makes of the explorer:
+#
+#     Rehearsal.run_explorer_task_rehearsals(1:5; directory = "/var/tmp/s2/loop/out/explorer")
 
 module Rehearsal
 
@@ -70,16 +74,19 @@ LlmModule.compute_meaning_vectors(llm::WatchedLlm, texts; kwargs...) =
 
 # The window of the take: people.json, the Explorer closed, the session's
 # gesture log in a pane below the file, the assistant a little wider, and the
-# selection in the file, as a take with files starts.
-function prepare_window!(document)
+# selection in the file, as a take with files starts. With `closes_explorer`
+# false, the Explorer stays in its tab.
+function prepare_window!(document; closes_explorer::Bool = true)
     for assistant in search_documents(document, node -> node isa Assistant)
         assistant.collapse_thinking = false
     end
     tree = only(search_documents(document, node -> node isa PaneTree))
     is_titled(title) = tab -> get_pane_tab_title_string(tab) == title
-    explorer = only(g for g in get_pane_groups(tree) if any(is_titled("Explorer"), g.tabs))
-    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, explorer,
-                                                              findfirst(is_titled("Explorer"), explorer.tabs)))
+    if closes_explorer
+        explorer = only(g for g in get_pane_groups(tree) if any(is_titled("Explorer"), g.tabs))
+        apply_pane_operation!(tree, make_pane_close_tab_operation(tree, explorer,
+                                                                  findfirst(is_titled("Explorer"), explorer.tabs)))
+    end
     group = only(g for g in get_pane_groups(tree) if any(is_titled("people.json"), g.tabs))
     # The selection is a path through the tree, so it is set after the split moves
     # the group of the file one level down.
@@ -686,6 +693,64 @@ data frame tab and its pivot.
 """
 run_pivot_task_rehearsals(seeds; directory, tasks = PIVOT_TASKS, kwargs...) =
     run_task_rehearsals(seeds; directory, tasks, make_editor = make_pivot_rehearsal_editor,
+                        count_steps = count_window_steps, kwargs...)
+
+# ── Tasks of the explorer ───────────────────────────────────────────────────
+#
+# The requests that a person makes of the explorer, one prompt each, on the
+# window of S2 with the Explorer in its tab.
+
+make_explorer_rehearsal_editor(directory, llm) =
+    make_rehearsal_editor(directory, llm; prepare = document -> prepare_window!(document; closes_explorer = false))
+
+# The labels of the entries of the root section of the explorer.
+find_entry_labels(editor) = [format_tree_node_label(entry) for entry in get_session_explorer_content(; editor).entries]
+
+function check_window_edit(editor, steps_before)
+    count_window_steps(editor) > steps_before || return "the window history took no step: the change is not an edit"
+    nothing
+end
+
+function check_dashboard_added(editor, steps_before)
+    made = [entry for entry in get_session_explorer_content(; editor).entries if entry isa Dashboard]
+    isempty(made) && return "no dashboard in the explorer: $(find_entry_labels(editor))"
+    any(dashboard -> length(dashboard.cards) == 2 && all(card -> card.content isa Chart, dashboard.cards), made) ||
+        return "the dashboards have the cards " *
+               join(([nameof(typeof(card.content)) for card in dashboard.cards] for dashboard in made), "; ")
+    check_window_edit(editor, steps_before)
+end
+
+# Help leaves the root section, and the entries around it stay.
+function check_help_removed(editor, steps_before)
+    labels = find_entry_labels(editor)
+    ("Help" in labels || !("Settings" in labels) || !("Files" in labels)) && return "the entries are $(labels)"
+    check_window_edit(editor, steps_before)
+end
+
+function check_tasks_shown(editor, steps_before)
+    explorer = get_document(get_edited_document(find_pane("Explorer"; editor)))
+    page = get_navigator_page(getfield(explorer, :navigator)[])
+    tasks = only(entry for entry in get_session_explorer_content(; editor).entries
+                 if format_tree_node_label(entry) == "Tasks")
+    page === tasks || return "the explorer shows $(format_tree_node_label(page))"
+    nothing
+end
+
+const EXPLORER_TASKS = [
+    SingleTask("dashboard", "Add a dashboard to the explorer with two charts: the age of each person in people.json, " *
+                            "and the length of each name.", check_dashboard_added),
+    SingleTask("remove", "Remove the Help entry from the explorer.", check_help_removed),
+    SingleTask("show", "Show the task list in the explorer.", check_tasks_shown),
+]
+
+"""
+    run_explorer_task_rehearsals(seeds; directory, tasks = EXPLORER_TASKS)
+
+[`run_task_rehearsals`](@ref) of the tasks of the explorer, on the window of S2
+with the Explorer in its tab.
+"""
+run_explorer_task_rehearsals(seeds; directory, tasks = EXPLORER_TASKS, kwargs...) =
+    run_task_rehearsals(seeds; directory, tasks, make_editor = make_explorer_rehearsal_editor,
                         count_steps = count_window_steps, kwargs...)
 
 # ── Documentation by name ────────────────────────────────────────────────────

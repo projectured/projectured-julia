@@ -50,6 +50,10 @@ The output is one `GraphicsCanvas` whose first element is the inner output, open
 
 Nothing but declare its gestures with `@gestures`. The description of a rule is what both lists show, and a rule with no description shows its key alone. A rule with `nothing` in the pattern slot has no key; it appears in the palette by its name.
 
+### The commands of a part for a verb
+
+`describe_commands(part)` and `run_command!(part, words)` (`PartCommands.jl`) list and run the commands of a part for an assistant, and the selection of the person does not move. The part is read again from the root by its reference. Its commands are the rows of its own table, read with `CollectIntents`, and then the commands that each document on the path of the part gives to it, the nearest document first: `collect_part_commands(holder, steps)` answers them for the part at `steps` below `holder`, and the default answers none. A row keeps the place of the document that gave it, and `run_command!` roots its operation there with `read_rooted_operation`, so every reader above that place lifts it and the history records it as an edit. A command whose words a nearer row has is left out. The explorer gives the commands of the menu of a row this way ([explorer.md](../explorer/explorer.md#what-an-assistant-calls)).
+
 ### The theme
 
 `GestureHelpTheme` holds the text of the header, a gesture, a description and the muted parts of the gesture map; the text of the query, a header, the selected row, a command and the muted parts of the command palette; and the background, the border, the radius, the border width and the padding of the panel of the palette. Each value has the default that the slice draws with no
