@@ -37,7 +37,7 @@ An acquire of the folder reads nothing. It watches the folder and its sub-folder
 
 The release stops the watches and keeps the entries. The folder shows its last listing when a holder acquires it again.
 
-`read_filesystem_folder!(folder; depth)` reads a folder at once on the calling task, and its sub-folders down to `depth` levels. A script, an example and a test use it when no editor runs. It never runs in a print.
+`read_filesystem_folder!(folder; depth)` reads a folder at once on the calling task, and its sub-folders down to `depth` levels. A script, an example and a test use it when no editor runs. It never runs in a print. It reads through the listing, with `wait_for_cell!` and no editor, so the listing holds the answer of the read and its value is final. A listing with no answer is provisional, and a computation that reads a provisional cell computes it again at each read: the rows of a tree over the folder would be made again at each read, and an editor would read the folder a second time. A listing that holds an answer already reads again for a new `read_count`.
 
 ### The workspace and the explorer
 

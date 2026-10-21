@@ -269,16 +269,21 @@ end
 Read `folder` at once on the calling task, and its sub-folders down to `depth`
 levels, for a script, an example or a test that shows a folder with no editor.
 It never runs in a print. A folder that can not be read is `:failed`.
+
+A folder made from the disk reads through its listing, which then holds what the
+read found, so a part that shows its entries reads a final value and asks for no
+read. A listing that holds an answer already reads again for a new count of
+changes.
 """
 function read_filesystem_folder!(folder::FileSystemDirectory; depth::Integer = 1)
     depth < 1 && return folder
-    listing = try
-        _read_folder_listing(folder.pathname)
-    catch exception
-        exception isa Base.IOError || rethrow()
-        exception
+    if folder.listing_source === nothing
+        _apply_folder_listing!(nothing, folder, _read_folder_answer(folder.pathname))
+    else
+        listing = getfield(folder, :listing)
+        is_cell_provisional(listing) || (folder.read_count += 1)
+        wait_for_cell!(listing; editor = nothing)
     end
-    _apply_folder_listing!(nothing, folder, listing)
     for entry in folder.elements
         entry isa FileSystemDirectory && read_filesystem_folder!(entry; depth = depth - 1)
     end
