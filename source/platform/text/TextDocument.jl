@@ -464,7 +464,7 @@ function append_text!(block::TextBlock, text::AbstractString)
     isempty(text) && return block
     lines = block.elements
     isempty(lines) && push!(lines, _make_text_block_line("", StyleText(UNSTYLED_TEXT_FONT, color_default)))
-    run = _find_last_text_run!(lines[length(lines)])
+    run = _get_last_text_run!(lines[length(lines)])
     pieces = split(text, '\n')
     run.content = string(run.content::AbstractString, first(pieces))
     for piece in Iterators.drop(pieces, 1)
@@ -475,7 +475,7 @@ end
 
 # The last run of `line`, and a new empty run at its end when its last run is no
 # text, such as a line with no run.
-function _find_last_text_run!(line::TextLine)
+function _get_last_text_run!(line::TextLine)
     runs = line.elements
     if isempty(runs) || !(runs[length(runs)] isa TextString)
         push!(runs, TextString("", UNSTYLED_TEXT_FONT))
