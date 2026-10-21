@@ -24,7 +24,7 @@
 # composite's `elements` *without* re-running `print_document`.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
+using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!, is_background_work_done
 using ProjecturedPlatform.AssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc, AssistantToWidgetCard,
@@ -73,13 +73,19 @@ end
 # Wait while a turn of `a` streams, and answer the status after it. A submit
 # runs the turn as background work, and the end of that work puts the status
 # back; a message that waited starts the next turn there. So the wait follows
-# the work of each turn, however long its first run compiles, and no deadline
-# ends it before the turn ends.
-function _mvp_wait_idle!(a::Assistant)
-    while a.status === :streaming
+# the work of each turn, however long its first run compiles. The bound is far
+# above the time of any turn of these tests: it only ends a turn that never ends,
+# so that the test fails and does not hang.
+function _mvp_wait_idle!(a::Assistant; timeout_seconds::Real = 120)
+    deadline = time() + timeout_seconds
+    while a.status === :streaming && time() < deadline
         control = a.turn_control
         work = control === nothing ? nothing : lock(() -> get(_TURN_WORKS, control, nothing), _TURN_WORKS_LOCK)
-        work === nothing ? yield() : fetch(work)
+        if work === nothing || is_background_work_done(work)
+            sleep(0.005)
+        else
+            timedwait(() -> is_background_work_done(work), max(deadline - time(), 0.0); pollint = 0.01)
+        end
     end
     a.status
 end
