@@ -59,6 +59,17 @@ _format_work_state(state::Symbol) = replace(String(state), "_" => " ")
 _get_work_state_role(state::Symbol) =
     state === :in_progress ? :accent : state === :abandoned ? :warning : nothing
 
+# What a state of the work means, for the badge of the table.
+const _WORK_STATE_MEANINGS = (pending = "The work of this conversation has not begun.",
+                              in_progress = "The work of this conversation is under way.",
+                              complete = "The work of this conversation is done.",
+                              abandoned = "The work of this conversation was dropped.")
+
+# What the badge of the work says when the pointer rests: the state, as a person
+# set it, in words.
+_make_work_state_note(a::Assistant) = () ->
+    TooltipNote(; title = "Work", text = get(_WORK_STATE_MEANINGS, a.work_state, nothing))
+
 # A duration as the table writes it: `42 s` under a minute, then `12:05` and
 # `1:02:05`.
 function _format_assistant_duration(seconds::Real)
@@ -88,13 +99,23 @@ function _format_elapsed_time(a::Assistant, clock)
     elapsed === nothing ? "" : _format_assistant_duration(elapsed)
 end
 
+# What the started cell says when the pointer rests: the full date and time at
+# which the conversation started, or nothing before it has.
+function _make_assistant_start_note(a::Assistant)
+    time = find_assistant_start_time(a)
+    time === nothing ? nothing :
+        TooltipNote(; title = "Started",
+                    text = "The conversation started at " * Libc.strftime("%Y-%m-%d %H:%M:%S", time) * ".")
+end
+
 function _build_assistant_row(list::AssistantList, a::Assistant, clock)
-    pick = WidgetButton("›"; action = _ -> select_assistant!(list, a))
+    pick = WidgetButton("›"; tooltip = TooltipNote(; title = "Pick", text = "Show this assistant below."),
+                        action = _ -> select_assistant!(list, a))
     show = WidgetButton("Show"; action = editor -> open_assistant_tab!(editor, list, a))
     show_work = editor -> (show_assistant_work!(a; editor); nothing)
     work_page = WidgetButton("Work"; tooltip = "Show the plans, the subagents and the tasks of the agent.",
                              action = show_work)
-    work = WidgetBadge(() -> _format_work_state(a.work_state))
+    work = WidgetBadge(() -> _format_work_state(a.work_state); tooltip = _make_work_state_note(a))
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
@@ -104,11 +125,12 @@ function _build_assistant_row(list::AssistantList, a::Assistant, clock)
         turn,
         WidgetLabel(() -> describe_assistant_activity(a)),
         WidgetLabel(() -> string(compute_prompt_count(a))),
-        WidgetLabel(() -> format_agent_usage(a.agent_usage)),
+        WidgetLabel(() -> format_agent_usage(a.agent_usage); tooltip = () -> describe_agent_usage(a.agent_usage)),
         WidgetLabel(() -> compute_item_facet(a, Val(:plan))),
         WidgetLabel(() -> string(compute_item_facet(a, Val(:subagents)))),
         WidgetLabel(() -> string(compute_item_facet(a, Val(:background_tasks)))),
-        WidgetLabel(() -> _format_assistant_time(find_assistant_start_time(a))),
+        WidgetLabel(() -> _format_assistant_time(find_assistant_start_time(a));
+                    tooltip = () -> _make_assistant_start_note(a)),
         WidgetLabel(() -> _format_elapsed_time(a, clock))]
 end
 

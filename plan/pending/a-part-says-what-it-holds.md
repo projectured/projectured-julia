@@ -143,23 +143,55 @@ because the omnet-julia steps use the function form of step 1.
      `test_document_tree()` 130, `test_widget_tree()` 103, `test_help()` 25,
      `test_fault()` 118, `test_settings()` 102, `test_appearance_tab()` 119,
      `test_tooltip_note()` 36: all pass.
-3. [ ] **The Explorer controls.** The filter field (Ctrl+F from the binding, the
+3. [x] **The Explorer controls.** The filter field (Ctrl+F from the binding, the
    effect of Return and Escape), the kinds item (the kinds shown), the add item
    (the kinds offered), the items of the row menu and the add menu, the cards of
    a section page. Test: `test_explorer()`.
-4. [ ] **The glyph controls.** The Appearance buttons and swatches say the
+
+   Done (written by a code agent, reviewed). The filter field has its title,
+   Ctrl+F from the binding, the text and a hint for Return and Escape; the kinds
+   item a function note with the kinds shown; the add item the kinds offered;
+   the row menu items Remove, Add to explorer, Rename, New section, Add… and
+   Open as a list a text, with the keys of Remove and Rename; a card of a
+   section page the note of its entry. A test helper,
+   `test/platform/document/WidgetNotes.jl`, reads the note of a widget for
+   every test module. Test: `test_explorer()` 246, `test_explorer_row_notes()`
+   30, `test_widget_tooltip()` 31.
+4. [x] **The glyph controls.** The Appearance buttons and swatches say the
    setting, its value now and the next value; the filter chip, the ".*" toggle,
    the process signals, the find buttons of a task stream, the Close, Stop and
    Run again of the Tasks list, the agent options with their descriptions, the
    Evaluator check boxes, and the default, the range and "takes effect at the
    next start" of a setting. Test: `test_appearance()`, `test_settings()`, the
    suites of the assistant, task and arrangement slices.
-5. [ ] **Tables and cells with data on hand.** The assistants table (context,
+
+   Done (written by a code agent, reviewed). The Appearance buttons share
+   `_make_setting_note`: titles Smaller, Larger, Previous, Next, Lower step,
+   Higher step, Step, Fix, Reset, and the facts Now, Becomes or Default; a
+   swatch says its setting, its `#rrggbbaa` and its default. A filter chip says
+   "Remove this part of the view: …", because a chip can be a sort or a group.
+   The task stream find buttons have no key and no match count: no key is
+   bound, and the count would read the stream file. "Run unexpected again"
+   counts the tasks it reruns. A setting says its Default, and its Range or
+   Choices, and "Takes effect at the next start." where it applies. Test:
+   `test_appearance_tab()` 126, `test_settings()` 107, `test_settings_tab()`
+   55, `test_system_process()` 80, `test_task_group()` 76, `test_task_views()`
+   70, `test_conversation()` 767, `test_arrangement_natural()` 11.
+5. [x] **Tables and cells with data on hand.** The assistants table (context,
    start, work badge, the "›" button), the pivot zone badges, the formula cell
    (the formula as code, the type, "computing"), a Markdown heading (the anchor,
    the level), a math symbol (its name and how to type it), the slow frame and
    the Pause toggle of the frame statistics. Test: the suites of the pivot,
    formula, markdown and math domains, and `test_frame_statistics()`.
+
+   Done (written by a code agent, reviewed). The pivot badges take their keys
+   from `find_bound_keys(PivotTable, …)` and a drag hint; the formula cell has
+   its formula as code; a Markdown heading and a math symbol answer a binding
+   (Anchor and Level; Glyph and "Typed as"); a slow frame says "Slow: 50.0 ms,
+   over 2 times the median." Test: `test_assistant_list()` 52, `test_pivot()`
+   355, `test_formula()` 229, `test_markdown()` 269, `test_math()` 185,
+   `test_frame_statistics_feed()` 151, `test_platform_layering()`,
+   `test_platform_slice_edges()`.
 6. [ ] **omnet-julia tree rows.** The project, a configuration, a run, the
    Runner, a result file, a result run, a result folder, an INI file, a NED file,
    a NED package, a NED type, the fingerprint store and the statistical

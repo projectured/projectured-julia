@@ -339,6 +339,17 @@ half-typed name is still visible.
 """
 get_math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
 
+# A symbol says its name, its glyph and how to type it when the pointer rests on it.
+const _MATH_SYMBOL_BINDINGS = GestureBinding[
+    make_tooltip_binding(symbol -> TooltipNote(; title = String(symbol.name),
+                             facts = ["Glyph" => get_math_symbol_glyph(symbol.name),
+                                      "Typed as" => "\\" * String(symbol.name)]);
+                         description = "Show the name of the symbol")]
+
+@gestures MathSymbol begin
+    splice(_MATH_SYMBOL_BINDINGS)
+end
+
 # ── Large operators ───────────────────────────────────────────────────────────
 
 # glyph, and the name the linear form writes.

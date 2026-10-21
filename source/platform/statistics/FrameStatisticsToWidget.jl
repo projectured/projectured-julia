@@ -144,7 +144,8 @@ end
 _make_pause_toggle(statistics::FrameStatistics) =
     WidgetToggle(Cell(Point2D(0, 0)), Cell("Pause"), getfield(statistics, :paused), Cell(true),
                  Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
-                 Cell(nothing), Cell(nothing))
+                 Cell(TooltipNote(; title = "Pause", text = "Stop adding frames; the tables keep their rows.")),
+                 Cell(nothing))
 
 _make_cell_label(p::FrameStatisticsToWidget, content) = WidgetLabel(content; text_style = p.row_text)
 
@@ -279,7 +280,7 @@ function _make_frame_row(p::FrameStatisticsToWidget, statistics::FrameStatistics
                          slow_column::Union{Int,Nothing}, limit::Cell, frame::Int)
     slow = Cell(@computation _is_slow_frame(statistics, slow_column, limit[], frame))
     function make_label(content)
-        label = WidgetLabel(content)
+        label = WidgetLabel(content; tooltip = () -> _make_slow_frame_note(statistics, slow_column, limit, frame))
         set_cell_computation!(getfield(label, :text_style), () -> slow[] ? p.slow_text : p.row_text)
         label
     end
@@ -287,6 +288,18 @@ function _make_frame_row(p::FrameStatisticsToWidget, statistics::FrameStatistics
         make_label(() -> _format_frame_value(units[c], _find_frame_value(statistics, c, frame)))
         for c in eachindex(units)])
     (row = row, header = make_label(string(frame)))
+end
+
+# What a row of a slow frame says when the pointer rests on it: the frame time and
+# the median it is over; nothing for a frame that is not slow.
+function _make_slow_frame_note(statistics::FrameStatistics, slow_column::Union{Int,Nothing}, limit::Cell,
+                               frame::Int)
+    _is_slow_frame(statistics, slow_column, limit[], frame) || return nothing
+    milliseconds(seconds) = string(round(1000 * seconds; digits = 1), " ms")
+    TooltipNote(; title = string("Frame ", frame),
+                text = string("Slow: ", milliseconds(_find_frame_value(statistics, slow_column, frame)), ", over ",
+                              _SLOW_FRAME_FACTOR, " times the median."),
+                facts = ["Median" => milliseconds(limit[] / _SLOW_FRAME_FACTOR)])
 end
 
 # Drop the kept rows of the frames that the document no longer holds: the frames

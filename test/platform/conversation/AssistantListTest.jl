@@ -133,6 +133,16 @@ function test_assistant_list()
             @test operation isa InvokeActionOperation
             operation.action.callback(nothing)
             @test length(shown) == 1 && only(shown) === first_assistant
+            # The pick button and the work badge say what they do.
+            pane = print_document(AssistantListToWidgetPane(), nothing, list, PrinterContext()).output
+            buttons = ProjecturedPlatformTest._find_widgets_below(pane, WidgetButton)
+            pick = first(button for button in buttons if button.action.label == "›")
+            pick_note = ProjecturedPlatformTest._read_widget_note(pick)
+            @test pick_note.text == "Show this assistant below."
+            badges = ProjecturedPlatformTest._find_widgets_below(pane, WidgetBadge)
+            work_notes = [ProjecturedPlatformTest._read_widget_note(badge) for badge in badges]
+            @test any(note -> note isa TooltipNote && note.title == "Work" && occursin("under way", note.text),
+                      work_notes)
         end
 
         @testset "the detail of an assistant" begin

@@ -57,6 +57,17 @@ function compute_markdown_heading_slug(heading::MarkdownHeading)
     String(take!(buffer))
 end
 
+# A heading says its anchor and its level when the pointer rests on it.
+const _MARKDOWN_HEADING_BINDINGS = GestureBinding[
+    make_tooltip_binding(heading -> TooltipNote(; title = "Heading",
+                             facts = ["Anchor" => "#" * compute_markdown_heading_slug(heading),
+                                      "Level" => string(heading.level)]);
+                         description = "Show the anchor of the heading")]
+
+@gestures MarkdownHeading begin
+    splice(_MARKDOWN_HEADING_BINDINGS)
+end
+
 # A page names its headings; it has no file, so it names no file.
 find_navigator_target(root::MarkdownRoot, target::AbstractString) =
     _find_markdown_heading(root, target, ReferenceStep[])

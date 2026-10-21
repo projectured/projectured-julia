@@ -212,6 +212,9 @@ function test_frame_statistics_feed()
         _, _, root = _print_frame_statistics(statistics)
         @test _get_frame_statistics_head(root) == "3 frames"
         @test root.children[1].children[2] isa WidgetToggle
+        pause = only(get_wrapped_operation(read_gesture(root.children[1].children[2],
+                                                        MouseDwell(0, 0; time = 0.0))).layers)[2]
+        @test pause.title == "Pause" && occursin("tables keep their rows", pause.text)
         @test root.children[2].content == "Summary"
         summary = root.children[3]
         @test _get_header_texts(summary) ==
@@ -248,6 +251,10 @@ function test_frame_statistics_feed()
         @test !any(is_slow(middle[index]) for index in 1:length(middle))
         @test !is_slow(frames.row_headers.next.value)
         @test !is_color_equal(p.row_text.color, slow_color)
+        # A slow row says how slow, and a row that is not says nothing.
+        note = only(get_wrapped_operation(read_gesture(newest[1], MouseDwell(0, 0; time = 0.0))).layers)[2]
+        @test note.title == "Frame 3" && occursin("Slow: 50.0 ms", note.text)
+        @test read_gesture(middle[1], MouseDwell(0, 0; time = 0.0)) === nothing
         # A frame at two times the median is not slow: the limit is strict.
         statistics.columns = [[0.01, 0.02, 0.04], [NaN, 120.0, 5000.0]]
         @test !is_slow(frames.cells.value[1])

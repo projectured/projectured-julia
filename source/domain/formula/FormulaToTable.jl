@@ -45,7 +45,16 @@ end
 # A cell of the grid: the stored value of `formula`, which the label reads, so a
 # new value draws only its own cell again; an empty cell for no formula.
 _make_grid_cell(::Nothing) = WidgetLabel("")
-_make_grid_cell(formula::FormulaFormula) = WidgetLabel(() -> _format_grid_value(formula))
+_make_grid_cell(formula::FormulaFormula) =
+    WidgetLabel(() -> _format_grid_value(formula); tooltip = () -> _make_grid_cell_note(formula))
+
+# What a cell says when the pointer rests on it: the name and the code of its
+# formula, the type of the stored result, and that a computation of it runs.
+function _make_grid_cell_note(formula::FormulaFormula)
+    facts = Any["Type" => formula.result === nothing ? "not computed" : string(typeof(formula.result))]
+    formula.is_computing && push!(facts, "Computing" => "yes")
+    TooltipNote(; title = formula.name, code = print_natural_text(formula.code), facts)
+end
 
 function _format_grid_value(formula::FormulaFormula)
     value = formula.result

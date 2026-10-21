@@ -110,5 +110,12 @@ function test_markdown_link_gestures()
         (_, content) = only(opened.layers)
         @test content isa TooltipNote && content.facts == ["Target" => "#install-it"]
     end
+
+    @testset "the tooltip of a heading shows its anchor and its level" begin
+        root = parse_markdown(_MARKDOWN_LINK_SOURCE)
+        opened = get_wrapped_operation(read_gesture(root.elements[3], MouseDwell(0, 0; time = 0.0)))
+        (_, content) = only(opened.layers)
+        @test content isa TooltipNote && content.facts == ["Anchor" => "#install-it", "Level" => "2"]
+    end
 end
 end

@@ -51,6 +51,17 @@ end
 @test place_of("Fields")[2] < place_of("Columns")[2] < place_of("Rows")[2] < place_of("Values")[2]
 @test place_of("Fields")[2] <= place_of("quarter")[2] < place_of("Columns")[2]
 
+# A badge of a zone says what it holds, and how to move it.
+badges(field) = ProjecturedPlatformTest._find_widgets_below(
+    PivotModule._make_pivot_zone_row(PivotTableToWidget(), pivot, field), WidgetBadge)
+note_of(badge) = ProjecturedPlatformTest._read_widget_note(badge)
+dimension_note = note_of(first(badges("row_dimensions")))
+@test dimension_note.title == "region"
+@test first.(dimension_note.facts) == ["Distinct values", "Order", "Limit"]
+@test !isempty(dimension_note.keys) && dimension_note.hint !== nothing
+measure_note = note_of(first(badges("measures")))
+@test measure_note.title == "sum(amount)" && measure_note.facts == ["Aggregate" => "sum", "Column" => "amount"]
+
 # ── The headers ──────────────────────────────────────────────────────────────
 
 @test count(==("2024"), drawn) == 1 && count(==("2025"), drawn) == 1

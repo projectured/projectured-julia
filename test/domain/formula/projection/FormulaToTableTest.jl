@@ -26,6 +26,11 @@ function test_formula_grid()
             env.formulas[8].is_computing = true             # D2
             @test get_text(2, 4) == "27.5 ⋯"
         end
+        @testset "a cell says its formula, its type and that it computes" begin
+            note = ProjecturedPlatformTest._read_widget_note(table.cells[2][4])
+            @test note isa TooltipNote && note.code isa AbstractString && !isempty(note.code)
+            @test first.(note.facts) == ["Type", "Computing"]
+        end
         @testset "a formula with another name is not in the grid" begin
             sheet = FormulaEnvironment([FormulaFormula("rate", parse_julia("0.04")),
                                         FormulaFormula("B2", parse_julia("rate * 100"))])

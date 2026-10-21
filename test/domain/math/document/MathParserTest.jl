@@ -136,5 +136,14 @@ function test_math_parser()
         @test emit_text(loaded) == "W = 1/(μ - λ)\n"
         rm(directory; recursive = true, force = true)
     end
+
+    @testset "a symbol says its name, its glyph and how it is typed" begin
+        symbol = parse_math("λ")
+        @test symbol isa MathSymbol
+        opened = get_wrapped_operation(read_gesture(symbol, MouseDwell(0, 0; time = 0.0)))
+        (_, content) = only(opened.layers)
+        @test content isa TooltipNote && content.title == "lambda"
+        @test content.facts == ["Glyph" => "λ", "Typed as" => "\\lambda"]
+    end
 end
 end

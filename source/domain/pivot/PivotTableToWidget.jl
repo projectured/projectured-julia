@@ -140,7 +140,7 @@ function _make_pivot_zone_row(p::PivotTableToWidget, pivot::PivotTable, field::S
             text = many == 0 ? _describe_pivot_zone_item(item) :
                                string(_describe_pivot_zone_item(item), " (", many, " values)")
             rest = many == 0 ? :secondary : :destructive
-            badge = WidgetBadge(text; variant = rest)
+            badge = WidgetBadge(text; variant = rest, tooltip = () -> _make_pivot_zone_note(pivot, item))
             set_cell_computation!(getfield(badge, :variant),
                                   () -> _find_pivot_zone_item(pivot.selection) == (field, entry) ? :default : rest)
             push!(chips, badge)
@@ -156,6 +156,31 @@ function _make_pivot_zone_row(p::PivotTableToWidget, pivot::PivotTable, field::S
     end
     HorizontalLayout(chips; gap = p.chip_gap)
 end
+
+# What a badge of a zone says when the pointer rests: for a dimension its column,
+# its distinct values, its order and its limit; for a measure its aggregate and
+# its column; and how to move it.
+function _make_pivot_zone_note(pivot::PivotTable, dimension::PivotDimension)
+    order = dimension.descending ? string(dimension.order, ", descending") : string(dimension.order)
+    TooltipNote(; title = dimension.column, text = "A dimension: it groups the rows of the source.",
+                facts = ["Distinct values" => string(_count_pivot_categories(pivot, dimension)), "Order" => order,
+                         "Limit" => dimension.limit == 0 ? "none" : string(dimension.limit)],
+                keys = _find_pivot_move_keys(), hint = _PIVOT_MOVE_HINT)
+end
+
+function _make_pivot_zone_note(::PivotTable, measure::PivotMeasure)
+    facts = Any["Aggregate" => string(measure.aggregate)]
+    measure.aggregate === :count || push!(facts, "Column" => measure.column)
+    TooltipNote(; title = describe_pivot_measure(measure), text = "A measure: it fills the cells of the table.",
+                facts, keys = _find_pivot_move_keys(), hint = _PIVOT_MOVE_HINT)
+end
+
+const _PIVOT_MOVE_HINT = "Drag the badge to another place, or select it and press the keys."
+
+_find_pivot_move_keys() =
+    vcat((find_bound_keys(PivotTable, description) for description in
+          ("Move the field one place to the left", "Move the field one place to the right",
+           "Move the field to the row above", "Move the field to the row below"))...)
 
 _describe_pivot_zone_item(dimension::PivotDimension) = dimension.column
 _describe_pivot_zone_item(measure::PivotMeasure) = describe_pivot_measure(measure)
