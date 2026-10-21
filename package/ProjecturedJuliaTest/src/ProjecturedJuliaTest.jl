@@ -42,6 +42,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/julia/document/JuliaParserTest.jl")
+include("../../../test/domain/julia/document/JuliaFileNoteTest.jl")
 include("../../../test/domain/julia/document/JuliaExpressionTest.jl")
 include("../../../test/domain/julia/document/JuliaDefinitionTest.jl")
 include("../../../test/domain/julia/document/JuliaDuplicateTest.jl")

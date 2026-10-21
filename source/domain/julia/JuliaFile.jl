@@ -131,3 +131,30 @@ _julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
 _julia_definition_names(doc) =
     String[n for n in (get_julia_definition_name(s) for s in _julia_toplevel_statements(doc))
              if n !== nothing]
+
+# ── What the pointer is on ──────────────────────────────────────────────────
+
+# The file says what a call is, for a call that no node says anything of: the note
+# of the function of the same name in the file, its signature and, when it has
+# one, its docstring. With no pointer on the file, it says the selected call.
+function _make_julia_call_note(file::JuliaFile)
+    found = find_pointed_part(file)
+    found === nothing && return nothing
+    place = findlast(document -> document isa JuliaCall, found.documents)
+    place === nothing && return nothing
+    callee = found.documents[place].callee
+    callee isa JuliaIdentifier || return nothing
+    documented = search_documents(file, node -> node isa JuliaDocstring && node.subject isa JuliaFunction &&
+                                                _julia_signature_name(node.subject.name) == callee.name;
+                                  limit = nothing)
+    isempty(documented) || return _make_julia_docstring_note(first(documented))
+    defined = search_documents(file, node -> node isa JuliaFunction && _julia_signature_name(node.name) == callee.name;
+                               limit = nothing)
+    isempty(defined) ? nothing : _make_julia_function_note(first(defined))
+end
+
+# The table of the file: a dwell answers the note of the call under the pointer.
+const _JULIA_FILE_BINDINGS = GestureBinding[
+    make_tooltip_binding(_make_julia_call_note; description = "Show the function that is called")]
+
+get_document_gesture_bindings_own(::Type{JuliaFile}) = _JULIA_FILE_BINDINGS
