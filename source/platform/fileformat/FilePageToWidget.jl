@@ -13,14 +13,15 @@
 # content, and take them off.
 
 """
-    FilePageToWidget(; surface, text)
+    FilePageToWidget(; surface, text, padding)
     FilePageToWidget(theme)
 
 The projection of a [`FilePage`](@ref): its [`FileBand`](@ref) above its content,
 as one row with the sentence of the band and a button for each of its choices. A
 click on a button answers the operation of its choice. `surface` is the color
-behind the row and `text` the color of the sentence; the default and `theme`, a
-widget theme, give the warning colors of the theme.
+behind the row, `text` the color of the sentence and `padding` the space inside the
+row; the default and `theme`, a widget theme, give the warning colors and the
+`band_padding` of the theme.
 
 Chain it with `VerticalLayoutToGraphicsCanvas`, in a recursion that draws the
 content and the widgets:
@@ -30,11 +31,13 @@ content and the widgets:
 @projection UntrackedCell struct FilePageToWidget
     surface::StyleColor = make_theme_cell(StyleColor, make_scaled_theme(WidgetTheme()), t -> t.warning_surface)
     text::StyleColor = make_theme_cell(StyleColor, make_scaled_theme(WidgetTheme()), t -> t.warning_foreground)
+    padding::Inset = make_theme_cell(Inset, make_scaled_theme(WidgetTheme()), t -> t.band_padding)
 end
 
 FilePageToWidget(theme) =
     FilePageToWidget(; surface = make_theme_cell(StyleColor, theme, t -> t.warning_surface),
-                       text = make_theme_cell(StyleColor, theme, t -> t.warning_foreground))
+                       text = make_theme_cell(StyleColor, theme, t -> t.warning_foreground),
+                       padding = make_theme_cell(Inset, theme, t -> t.band_padding))
 
 const _FILE_PAGE_CONTENT_STEP = FieldReferenceStep("content")
 const _FILE_PAGE_FIRST_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
@@ -69,7 +72,7 @@ function _make_file_band_row(p::FilePageToWidget, band::FileBand)
                                      description = label, domain = "file")])
                   for (label, operation) in band.choices]
     row = HorizontalLayout(Any[sentence, buttons...]; gap = 12, vertical_align = :center)
-    band_widget = WidgetComposite(Any[row]; padding = Inset(6, 10, 6, 10),
+    band_widget = WidgetComposite(Any[row]; padding = p.padding,
                                   style = WidgetStyle(; content_color = p.surface, padding_color = p.surface))
     LayoutConstraint(band_widget; height = Content)
 end

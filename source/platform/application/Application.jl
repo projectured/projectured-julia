@@ -480,6 +480,7 @@ const EDITOR_SYSTEM =
     "`show_system_process_tree!(process_ids; title)` and " *
     "`describe_system_process_tree(process_ids)` show processes, and " *
     "`show_assistant_work!(assistant)` shows the work of the agent of an assistant. " *
+    # @style: the example is text for the agent; it shows how a canvas is written, and draws nothing
     "Example: `open_pane!(GraphicsCanvas([GraphicsRect(10, 10, 120, 40; " *
     "color = StyleColor(0.2, 0.4, 0.8, 1.0)), GraphicsText(\"hello\", 20, 34; " *
     "font = StyleFont(\"DejaVu Sans\", 14))]; w = 200, h = 80); title = \"Sketch\")`.\n\n" *

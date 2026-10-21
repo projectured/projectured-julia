@@ -114,6 +114,8 @@ builder fills them from a theme, scaled or not.
     toolbar_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
     "The space inside a button of a toolbar."
     toolbar_item_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside the band of a file page: the sentence and the buttons of a choice."
+    band_padding::Spacing = Spacing(Inset(6, 10, 6, 10))
     "The space inside a status bar."
     status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the edge of a tabbed pane and its tab strip and page."

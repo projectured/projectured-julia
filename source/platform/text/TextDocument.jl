@@ -435,7 +435,7 @@ function make_text_block(content::Function, style::StyleText;
     TextBlock(function ()
         if placeholder !== nothing && empty_thunk !== nothing && empty_thunk()
             hint[] === nothing &&
-                (hint[] = TextLine(TextString(String(placeholder), style.font, color_solarized_gray)))
+                (hint[] = TextLine(TextString(String(placeholder), style.font, color_solarized_gray)))  # @style: the hint colour of the content of the document, as `make_hinted_text` has it
             return TextDocument[hint[]]
         end
         _compute_text_block_lines!(previous, content(), style)
