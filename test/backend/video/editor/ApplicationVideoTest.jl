@@ -146,8 +146,17 @@ _read_frames(filename::AbstractString, width::Integer, height::Integer) =
 
 @testset "the pointer is drawn where the last mouse event left it" begin
     width, height = 480, 360
-    timeline = Any[(event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.5)]
-    # One folder for both takes: the Files pane shows its name.
+    # The shape that the window gives the pointer at the point of the event.
+    shape = Ref(:default)
+    note_shape = (await = editor -> begin
+                      windows = editor.iomap.output.windows
+                      window = first(w for w in windows if w isa WindowDocument)
+                      shape[] = find_pointer_shape(window.content, 300, 200)
+                      true
+                  end, hold = 1.0)
+    move = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0)
+    timeline = Any[(event = move, hold = 0.5), note_shape]
+    # One folder for both takes, so both show the same window.
     root = mktempdir()
     frames = map((true, false)) do pointer
         filename = tempname() * ".mp4"
@@ -158,18 +167,28 @@ _read_frames(filename::AbstractString, width::Integer, height::Integer) =
         rm(filename; force = true)
         frame
     end
+    # The pixels of the picture of that shape, with its hot spot at the point, on a
+    # grey ground.
+    graphics = ProjecturedVideo.VideoModule._make_pointer_shape_graphics(shape[], 300, 200)
+    filename = tempname() * ".bmp"
+    write_image(GraphicsCanvas(graphics; w = width, h = height), filename; width, height,
+                background = (0x80, 0x80, 0x80, 0xff), supersample = 1)
+    pixels = _read_bmp_pixels(filename)
+    rm(filename; force = true)
+    drawn = [Tuple(index) for index in CartesianIndices(pixels)
+             if pixels[index] != (0x80, 0x80, 0x80)]
     if !any(isnothing, frames)
         with_pointer, without = frames
         # The pixels that the pointer changed, beyond the noise of the encoder.
         changed = [Tuple(index) for index in CartesianIndices(with_pointer)
                    if maximum(abs.(with_pointer[index] .- without[index])) > 60]
         @test !isempty(changed)
-        rows, columns = first.(changed), last.(changed)
-        # Julia indices start at 1, pixels at 0.
-        @test abs(minimum(columns) - 1 - 300) <= 2
-        @test abs(minimum(rows) - 1 - 200) <= 2
-        @test maximum(columns) - minimum(columns) <= 16
-        @test maximum(rows) - minimum(rows) <= 24
+        # They fill the box of the picture, up to an outline of one pixel in the
+        # colour of the window under it and the noise of the encoder.
+        get_box(points) = (extrema(first.(points)), extrema(last.(points)))
+        (rows, columns), (picture_rows, picture_columns) = get_box(changed), get_box(drawn)
+        @test all(abs.(rows .- picture_rows) .<= 2)
+        @test all(abs.(columns .- picture_columns) .<= 2)
     end
 end
 @testset "the views of the window and its Appearance tab draw with the appearance of the take" begin
