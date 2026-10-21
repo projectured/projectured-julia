@@ -489,25 +489,9 @@ end
 
 @testset "a window paints a scroll with the pixels of a full paint" begin
     # Two hidden windows show one canvas: one paints by the copies and the
-    # rectangles, and one paints in full. Their kept targets hold the same pixels.
-    backends = (SdlBackend(; partial_render = true), SdlBackend(; partial_render = false))
-    foreach(initialize_backend!, backends)
-    gray = StyleColor(0.8, 0.8, 0.8, 1.0)
-    rows, _ = make_scroll_rows(50, 60, large)
-    other_rows, _ = make_scroll_rows(200, 16, font)
-    scroll, other_scroll, dot_y = Cell(0), Cell(0), Cell(50)
-    canvas = GraphicsCanvas(Any[GraphicsRect(10, 10, 320, 220; color = gray),
-                                [GraphicsRect(20 + 20 * k, 20, 10, 200; color = translucent) for k in 0:14]...,
-                                make_pane((20, 20, 300, 200), [rows], Cell(0), scroll),
-                                GraphicsCircle(250, () -> dot_y[], 6; color = translucent),
-                                make_pane((330, 20, 60, 200), [other_rows], Cell(0), other_scroll)];
-                            w = width, h = height)
-    resources = [SDL._open_native_window!(backend,
-                                          WindowDocument(; id = Symbol(:scroll_window_, k), title = "scroll_window",
-                                                           x = 100, y = 100, width, height,
-                                                           content = PrimitiveString("content"));
-                                          hidden = true)
-                 for (k, backend) in enumerate(backends)]
+    # rectangles, and one paints in full. Their kept targets hold the same pixels:
+    # with the renderer that SDL picks on this machine, and with the software
+    # renderer, which a machine with no graphics card draws a window with.
     function read_target(resource)
         SDL.SDL_SetRenderTarget(resource.renderer, resource.target)
         pixels = Matrix{UInt32}(undef, resource.target_w, resource.target_h)
@@ -516,23 +500,46 @@ end
         SDL.SDL_SetRenderTarget(resource.renderer, C_NULL)
         pixels
     end
-    differing = Int[]
-    try
-        changes = Any[() -> nothing; make_writes(scroll, [16, 85, 62, 700]);
-                      () -> (scroll[] = 100; dot_y[] = 120);
-                      () -> (scroll[] = 150; other_scroll[] = 40)]
-        for (frame, change!) in enumerate(changes)
-            change!()
-            foreach((backend, resource) -> SDL._render_window!(backend, resource, canvas), backends, resources)
-            read_target(resources[1]) == read_target(resources[2]) || push!(differing, frame)
+    for driver in (nothing, "software")
+        driver === nothing || SDL.SDL_SetHintWithPriority(SDL.SDL_HINT_RENDER_DRIVER, driver,
+                                                          SDL.SDL_HINT_OVERRIDE)
+        backends = (SdlBackend(; partial_render = true), SdlBackend(; partial_render = false))
+        foreach(initialize_backend!, backends)
+        gray = StyleColor(0.8, 0.8, 0.8, 1.0)
+        rows, _ = make_scroll_rows(50, 60, large)
+        other_rows, _ = make_scroll_rows(200, 16, font)
+        scroll, other_scroll, dot_y = Cell(0), Cell(0), Cell(50)
+        canvas = GraphicsCanvas(Any[GraphicsRect(10, 10, 320, 220; color = gray),
+                                    [GraphicsRect(20 + 20 * k, 20, 10, 200; color = translucent) for k in 0:14]...,
+                                    make_pane((20, 20, 300, 200), [rows], Cell(0), scroll),
+                                    GraphicsCircle(250, () -> dot_y[], 6; color = translucent),
+                                    make_pane((330, 20, 60, 200), [other_rows], Cell(0), other_scroll)];
+                                w = width, h = height)
+        resources = [SDL._open_native_window!(backend,
+                                              WindowDocument(; id = Symbol(:scroll_window_, k), title = "scroll_window",
+                                                               x = 100, y = 100, width, height,
+                                                               content = PrimitiveString("content"));
+                                              hidden = true)
+                     for (k, backend) in enumerate(backends)]
+        differing = Int[]
+        try
+            changes = Any[() -> nothing; make_writes(scroll, [16, 85, 62, 700]);
+                          () -> (scroll[] = 100; dot_y[] = 120);
+                          () -> (scroll[] = 150; other_scroll[] = 40)]
+            for (frame, change!) in enumerate(changes)
+                change!()
+                foreach((backend, resource) -> SDL._render_window!(backend, resource, canvas), backends, resources)
+                read_target(resources[1]) == read_target(resources[2]) || push!(differing, frame)
+            end
+            @test isempty(differing)
+            # A window at a whole device pixel ratio copied a box; at another ratio a
+            # scroll paints its box.
+            @test !isinteger(resources[1].ratio) || resources[1].scratch != C_NULL
+        finally
+            foreach(SDL._close_native_window!, resources)
+            foreach(quit_backend!, backends)
+            driver === nothing || SDL.SDL_ResetHint(SDL.SDL_HINT_RENDER_DRIVER)
         end
-        @test isempty(differing)
-        # A window at a whole device pixel ratio copied a box; at another ratio a
-        # scroll paints its box.
-        @test !isinteger(resources[1].ratio) || resources[1].scratch != C_NULL
-    finally
-        foreach(SDL._close_native_window!, resources)
-        foreach(quit_backend!, backends)
     end
 end
 

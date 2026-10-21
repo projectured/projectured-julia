@@ -1159,6 +1159,14 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         rendered === nothing && return
         surface, left, ascent = rendered
         texture = SDL_CreateTextureFromSurface(renderer, surface)
+        # The software renderer draws a scaled texture that a clip cuts from the
+        # cut part of its source, so a linear sample at the edge of the clip takes
+        # other texels than an uncut draw: a rectangle of a partial paint that cuts
+        # a text would draw other pixels than a full paint. A nearest sample of a
+        # text that the supersample scales by a whole number is the same under any
+        # clip.
+        _is_software_renderer(renderer) &&
+            SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest)
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
         SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
         SDL_FreeSurface(surface)
@@ -1179,6 +1187,14 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
                          Cfloat(baseline - entry.ascent / ratio),
                          Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
     SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
+end
+
+# True when `renderer` is the software renderer of SDL: the renderer of each
+# offscreen render, and of a window on a machine with no accelerated driver.
+function _is_software_renderer(renderer::Ptr{SDL_Renderer})
+    info = Ref{SDL_RendererInfo}()
+    SDL_GetRendererInfo(renderer, info) == 0 &&
+        (info[].flags & SDL_RENDERER_SOFTWARE) != 0
 end
 
 # ── Render a GraphicsViewport element ────────────────────────────────
