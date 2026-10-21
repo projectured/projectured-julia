@@ -316,11 +316,14 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
      window, and the present. Write the numbers in [As built](#as-built).
    - In a real window, read the target after each scroll frame, and compare it
      with a full paint of the same frame.
-   - In [sdl.md](../../documentation/package/backend/sdl/sdl.md), describe the
+   - [x] In [sdl.md](../../documentation/package/backend/sdl/sdl.md), describe the
      move in the paragraph of the partial paint, in the present tense. Add a
      design decision that says why the walk proves a move by the guard and not by
-     the pixels.
-   - Move this plan to `plan/done/`. Commit.
+     the pixels. Done. The design decision links this plan in `plan/pending/`,
+     because the check of the documentation refuses a link to a file that is not
+     there; the move of the plan changes the link.
+   - Move this plan to `plan/done/`, and change the link in `sdl.md` with it.
+     Commit.
 
 ## Not in this plan
 
