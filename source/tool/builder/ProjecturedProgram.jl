@@ -755,8 +755,11 @@ end
 # through `ProjecturedAll`.
 _format_projectured_runtests(name, test_package, suite) = """
     # The suite of `$test_package`, which the release holds in `test/` and the
-    # registry serves. SDL draws into memory when no display is named.
-    haskey(ENV, "SDL_VIDEODRIVER") || (ENV["SDL_VIDEODRIVER"] = "offscreen")
+    # registry serves. SDL draws into memory when no display is named: in the
+    # offscreen driver, and on macOS in the dummy driver, because there the
+    # offscreen driver loads OpenGL through EGL, which macOS does not have.
+    haskey(ENV, "SDL_VIDEODRIVER") ||
+        (ENV["SDL_VIDEODRIVER"] = Sys.isapple() ? "dummy" : "offscreen")
     using $name
     using $test_package
     $suite()
