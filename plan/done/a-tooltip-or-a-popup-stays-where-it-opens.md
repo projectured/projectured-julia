@@ -1,11 +1,10 @@
 # A tooltip or a popup stays where it opens
 
-> **Status (2026-10-21): steps 1 to 5 done and on main, pushed; step 6 open.**
-> The owner asked for these three fixes on 2026-10-21, after an investigation the
-> same day, and deferred a fourth fault (the black first tooltip on macOS). The
-> owner asked to land and push the branch `tooltip-stays` the same day, before the
-> checks of step 6, so the plan stays in `plan/pending/` until a tester on a Mac
-> and a check by hand on Linux are done.
+> **Status (2026-10-21): done, on main and pushed.** The owner asked for these
+> three fixes on 2026-10-21, after an investigation the same day, and deferred a
+> fourth fault (the black first tooltip on macOS). The owner landed and pushed
+> the branch `tooltip-stays` the same day, checked the assistant tooltip on Linux
+> by hand, and closed the plan without the check on a Mac.
 
 ## The faults
 
@@ -126,11 +125,17 @@ owner approves.
    `test_window_shell`, `test_window_wrap`, `test_window_wrappers`,
    `test_window_input_unwrapping`), `test_tooltip_window()` passes 55, and
    `test_application()` passes 389 with its 2 marked broken.
-6. ⬜ **Check on a Mac** with the script of the tester: a menu and a dropdown stay
+6. ✅ **Check on a Mac** with the script of the tester: a menu and a dropdown stay
    open, a click on an item acts, the item under the pointer lights, the arrow
    keys move in a dropdown, and a tooltip on the monitor above shows there. Check
    the assistant tooltip on Linux by hand.
-7. ⬜ Write the results into this plan, and move it to `plan/done/`.
+   **Result:** on Linux the owner checked by hand that the tooltip of an
+   assistant button stays. The check on a Mac was not done: the owner closed the
+   plan on the expectation that it passes. The point that only a Mac can show is
+   whether AppKit sends pointer moves to a popup window that can not become key,
+   so the item under the pointer lights; a report of a menu on macOS whose item
+   does not light starts there.
+7. ✅ Write the results into this plan, and move it to `plan/done/`.
 
 ## Not in this plan
 
