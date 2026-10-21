@@ -663,6 +663,14 @@ new one.
     marks::Any = TextMark[]
 end
 
+# A marked text that a file read again replaces keeps its object and takes the new
+# string, so its marks keep the cell that computes them, and they follow the new
+# string as they follow an edit.
+function replace_wrapped_document!(text::MarkedText, document::MarkedText)
+    text.text = document.text
+    text
+end
+
 """
     compute_moved_text_marks(marks, old_text, new_text) -> Vector{TextMark}
 

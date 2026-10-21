@@ -16,12 +16,17 @@ using Test
 using JSON3
 using ProjecturedKernel
 using ProjecturedKernelTest
+using ProjecturedKernelExample: HeadlessBackend, push_event!, rendered_output
+using ProjecturedKernel.DeviceModule: Device
+using ProjecturedKernel.ToolModule: run_with_evaluation_editor
+using ProjecturedKernel.EditorModule: drain_operations!
 using ProjecturedPlatform
 using ProjecturedLanguageServer
 
 include("../../../test/adapter/languageserver/FakeLanguageServer.jl")
 include("../../../test/adapter/languageserver/LanguageServerConnectionTest.jl")
 include("../../../test/adapter/languageserver/SemanticTokensTest.jl")
+include("../../../test/adapter/languageserver/SourceFileTest.jl")
 include("../../../test/adapter/languageserver/LanguageServerSuite.jl")
 
 end # module ProjecturedLanguageServerTest

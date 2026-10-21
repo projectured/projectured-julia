@@ -105,9 +105,11 @@ get_edited_field(::UndoBuffer) = :content
 get_document_title(buffer::UndoBuffer) = get_document_title(buffer.content)
 
 # A buffer survives its document being replaced, and forgets its history: the
-# steps of the old document say nothing about the new one.
+# steps of the old document say nothing about the new one. The document that it
+# holds takes the new one first, so a document that must survive the replacement
+# can, as in an arrangement.
 function replace_wrapped_document!(buffer::UndoBuffer, document)
-    buffer.content = document
+    buffer.content = replace_wrapped_document!(buffer.content, document)
     clear_undo_history!(buffer)
     buffer
 end

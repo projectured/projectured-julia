@@ -1246,13 +1246,13 @@ uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"
 
 [[deps.ProjecturedLanguageServer]]
-deps = ["JSON3", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["JSON3", "PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedLanguageServer"
 uuid = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
 version = "0.1.0"
 
 [[deps.ProjecturedLanguageServerTest]]
-deps = ["JSON3", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLanguageServer", "ProjecturedPlatform", "Test"]
+deps = ["JSON3", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLanguageServer", "ProjecturedPlatform", "Test"]
 path = "../../package/ProjecturedLanguageServerTest"
 uuid = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
 version = "0.1.0"

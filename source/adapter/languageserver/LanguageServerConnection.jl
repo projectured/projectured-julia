@@ -117,6 +117,9 @@ function _start_language_server!(connection::LanguageServerConnection)
         capabilities = get(result, "capabilities", Dict{String, Any}())
         provider = get(capabilities, "semanticTokensProvider", nothing)
         lock(connection.state_lock) do
+            # A new process holds no file, also after a process that ended, so
+            # each file opens again as its first version.
+            empty!(connection.documents)
             connection.position_encoding = String(get(capabilities, "positionEncoding", "utf-16"))
             connection.token_types = provider isa AbstractDict ?
                 String.(get(get(provider, "legend", Dict{String, Any}()), "tokenTypes", String[])) : String[]
@@ -127,6 +130,9 @@ function _start_language_server!(connection::LanguageServerConnection)
             LanguageServerException("the language server $(join(connection.command, ' ')) did not start: " *
                                     sprint(showerror, exception))
         lock(() -> connection.failure = failure, connection.state_lock)
+        # The one line of the message log for this server: a later use throws the
+        # same failure and tries nothing.
+        @warn "$(failure.message); its files show plain text"
         _close_language_server_streams!(connection)
         throw(failure)
     end

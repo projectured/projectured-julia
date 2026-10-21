@@ -34,4 +34,9 @@ for _n in names(LanguageServerModule)
     _n === :LanguageServerModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
+# The view of a source file is a natural row, which every first window of the
+# display builds.
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(LanguageServerModule)
+
 end # module ProjecturedLanguageServer

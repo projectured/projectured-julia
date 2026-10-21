@@ -130,6 +130,17 @@ end
     @test document.text == "ininX() {\n    int count = 0;\n}"
 end
 
+@testset "a file read again keeps the marked text and its marks, also in a history" begin
+    document = MarkedText(text = "a", marks = [TextMark(0, 1; text = ColorRole(:keyword))])
+    @test replace_wrapped_document!(document, MarkedText(text = "b")) === document
+    @test document.text == "b"
+    @test length(document.marks) == 1
+    buffer = UndoBuffer(document)
+    @test replace_wrapped_document!(buffer, MarkedText(text = "c")) === buffer
+    @test buffer.content === document
+    @test document.text == "c"
+end
+
 @testset "marks move from an old text to a new one" begin
     marks = _mt_marks()
     @test compute_moved_text_marks(marks, _MT_SOURCE, _MT_SOURCE) == marks

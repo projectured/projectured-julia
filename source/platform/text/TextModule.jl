@@ -47,6 +47,7 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
+import ..DocumentModule: replace_wrapped_document!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

@@ -79,5 +79,25 @@ end
     end
 end
 
+@testset "a clangd that ended starts again, and the file opens again" begin
+    if Sys.which("clangd") === nothing
+        @test_skip "clangd is not installed"
+    else
+        directory = mktempdir()
+        path = joinpath(directory, "again.c")
+        write(path, _ST_SOURCE)
+        connection = LanguageServerConnection(["clangd", "--log=error"]; directory)
+        try
+            @test length(compute_semantic_text_marks(connection, path, "c", _ST_SOURCE)) == 3
+            kill(connection.process)
+            @test timedwait(() -> !is_language_server_running(connection), 10.0) === :ok
+            @test length(compute_semantic_text_marks(connection, path, "c", _ST_SOURCE)) == 3
+            @test connection.documents[make_file_uri(path)] == 1
+        finally
+            stop_language_server!(connection)
+        end
+    end
+end
+
 end # @testset
 end

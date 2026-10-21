@@ -318,12 +318,49 @@ The work is done in a worktree. Before each edit, check the file in
    kinds that `clangd` adds (`concept`, `bracket`, `label`). *Results:*
    `test_languageserver()` 57 pass, the test with `clangd` 21.1.8 included:
    `main` 4–8 is a function, and `count` 21–26 and 43–48 are variables.
-4. ⬜ **The file and its view (D3, D4, D5).** The type, its registrations, the
+4. ✅ **The file and its view (D3, D4, D5).** The type, its registrations, the
    acquire and the release, the session document, the wrapper, the view, the
    save, and a command that is not installed. Test: an editor opens a
    `SourceFile` with the fake server; the runs of a name take its colour after
    the answer; a key keeps the colours of the other lines; a save writes the
    text.
+   *Decisions and facts found here:*
+   - `SourceFile(filename::AbstractString, content::Document)` builds the cells:
+     the `@document` macro makes an untyped two-argument form, and a typed form
+     is a different signature, so both exist (no precompile clash). Each file has
+     its own `BackgroundSource`, so the work of one file asks only its server.
+   - `.h` is C++ (`cpp`): the headers of `omnet-cpp` and `inet-cpp` are C++.
+     The command is `clangd --log=error --background-index=false`, so `clangd`
+     writes no index into the folder of a project.
+   - **A reload keeps the text object.** Ctrl+O and the reload of a file that
+     changed on disk put a new document into the history of the file, which
+     would drop the computation of the marks with the old `MarkedText`. The
+     contract of `replace_wrapped_document!` says that a node that must survive
+     a replacement writes the new document into itself. So
+     `replace_wrapped_document!(::MarkedText, ::MarkedText)` writes the new string
+     into the old text and answers it, and the history (`UndoBuffer`) passes the
+     new document on to the document that it holds, as an arrangement does. For
+     every other type the default answers the new document, so nothing else
+     changes.
+   - A server that ended starts again at the next work, and it holds no file,
+     so the connection forgets the versions at each start.
+   - The start of a server that fails writes one warning to the message log.
+   - The package has `@compile_workload run_natural_rows_workload(LanguageServerModule)`
+     and depends on `PrecompileTools`, as the package graph test asks of a
+     package with a natural row.
+   - **A print is lazy.** In a headless test, nothing reads the output, so no
+     background cell asks; the test walks the output as the evaluation of the
+     editor (`run_with_evaluation_editor`), as a paint does, and applies what the
+     tasks posted (`drain_operations!`), as the loop does.
+   *Results:* `test_languageserver()` 99 pass, with two tests with `clangd`
+   (an editor that opens a C file, and a server that ended and starts again);
+   `test_marked_text_to_text()` 41, `test_undo()` 126,
+   `test_arrangement_program()` 13, `test_file_tab()` 33,
+   `test_package_graph()` 405, `test_packages_declare_triggers()` 32,
+   `test_umbrella_loads_integrations()` 8,
+   `test_integrations_load_with_extensions()` 3; the tree guards report what
+   `main` reports, and one finding that step 5 removes: no guide names the
+   slice `source/adapter/languageserver` yet.
 5. ⬜ **The example, the live check and the documents.** An example that opens a
    small `.cc` file. In the application: open
    `omnet-cpp/src/sim/csimulation.cc` and a file of `inet-cpp`, see the colours,
