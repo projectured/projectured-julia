@@ -338,6 +338,10 @@ function test_mouse_clicks()
             # All widget examples (incl. the editable widget_text) nest their
             # caret inside child canvases, which the top-level get_cursor_rect
             # scan can't see — skip the whole family here.
+            # `formula_report` is a Markdown page whose blocks the natural
+            # renderer stacks as child canvases: the top level holds only an
+            # empty highlight rect, so an "outside" click lands in the heading,
+            # and the caret it gives draws inside the canvas of the heading.
             startswith(example.name, "widget") && continue
             example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
@@ -346,7 +350,7 @@ function test_mouse_clicks()
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               "collection", "reversing", "filtering",
-                              "sorting") && continue
+                              "sorting", "formula_report") && continue
             @testset "$(example.name)" begin
                 test_mouse_click_roundtrip(example.name, example.document, example.projection;
                                            broken=mouse_broken(example.name))
