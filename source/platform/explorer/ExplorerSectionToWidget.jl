@@ -75,8 +75,9 @@ function _make_entry_card(p::ExplorerSectionToWidget, section::ExplorerSection, 
     title = _make_section_link(section, format_tree_node_label(entry), place)
     lines = Any[_make_section_link(section, format_tree_node_label(child), concat_references(place, reference))
                 for (reference, child) in collect_tree_children(entry; limit = p.limit)]
-    isempty(lines) && return WidgetCard(; title)
-    WidgetCard(; title, content = VerticalLayout(lines; child_width = Fill))
+    tooltip = make_decoration_note(get_document_decoration(entry))
+    isempty(lines) && return WidgetCard(; title, tooltip)
+    WidgetCard(; title, content = VerticalLayout(lines; child_width = Fill), tooltip)
 end
 
 # A link to the part at `reference` from `section`: a press opens its page here,

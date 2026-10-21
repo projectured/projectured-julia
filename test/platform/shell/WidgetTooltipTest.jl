@@ -6,10 +6,7 @@
 
 # The content of the one layer that the dwell binding of `document` answers, or
 # `nothing` when the binding does not answer.
-function _read_widget_tooltip(document)
-    operation = read_gesture(document, MouseDwell(0, 0; time = 0.0))
-    operation === nothing ? nothing : only(get_wrapped_operation(operation).layers)[2]
-end
+_read_widget_tooltip(document) = ProjecturedPlatformTest._read_widget_note(document)
 
 function test_widget_tooltip()
 @testset "a widget says what it is" begin

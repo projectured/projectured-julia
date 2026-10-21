@@ -25,22 +25,30 @@ function _make_row_menu_operation(explorer::Explorer, gesture)
     place = _find_entry_place(tree.root, steps)
     items = Any[WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(navigator.content, address, :new_tab))]
     if place !== nothing && place.is_entry && place.index !== nothing
-        push!(items, WidgetMenuItem("Remove from explorer"; operation = _make_remove_entry_operation(explorer, node)))
+        push!(items, WidgetMenuItem("Remove from explorer"; operation = _make_remove_entry_operation(explorer, node),
+                                     tooltip = TooltipNote(; keys = find_bound_keys(Explorer, "Remove from explorer"),
+                                                           text = "Take the entry out of the explorer; its document stays as it is.")))
     elseif place !== nothing && !place.is_entry
-        push!(items, WidgetMenuItem("Add to explorer"; operation = AddExplorerEntryOperation(document)))
+        push!(items, WidgetMenuItem("Add to explorer"; operation = AddExplorerEntryOperation(document),
+                                     tooltip = "Keep this document as an entry of the explorer."))
     end
     _has_title_field(document) && place !== nothing && place.is_entry &&
-        push!(items, WidgetMenuItem("Rename"; operation = _make_rename_operation(explorer, node)))
+        push!(items, WidgetMenuItem("Rename"; operation = _make_rename_operation(explorer, node),
+                                     tooltip = TooltipNote(; keys = find_bound_keys(Explorer, "Rename"),
+                                                           text = "Edit the title of the entry.")))
     if document isa ExplorerSection && place !== nothing && place.is_entry
-        push!(items, WidgetMenuItem("New section"; operation = _make_new_section_operation(explorer, node)),
-              WidgetMenuItem("Add…"; operation = _make_add_menu_operation(explorer, place, nothing)))
+        push!(items, WidgetMenuItem("New section"; operation = _make_new_section_operation(explorer, node),
+                             tooltip = "Add an empty section at the end of this section."),
+              WidgetMenuItem("Add…"; operation = _make_add_menu_operation(explorer, place, nothing),
+                             tooltip = "Choose the kind of document to add at the end of this section."))
     end
     list = _find_long_children_steps(document)
     if list !== nothing
         # The navigator beside the tree shows the list, as a press on a row shows a
         # page.
         visit = make_navigator_open_operation(navigator, concat_references(address, list))
-        visit === nothing || push!(items, WidgetMenuItem("Open as a list"; operation = _get_visit_writes(visit)))
+        visit === nothing || push!(items, WidgetMenuItem("Open as a list"; operation = _get_visit_writes(visit),
+                                       tooltip = "Show the children of this row as a page, for a row with many children."))
     end
     commands = _make_command_items(document, node_steps)
     isempty(commands) || push!(items, WidgetSeparator(), commands...)

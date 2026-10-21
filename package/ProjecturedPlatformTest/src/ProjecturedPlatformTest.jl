@@ -94,6 +94,7 @@ for _src in _SOURCES
 end
 
 # ── the tests of the packages that came out of base ─────────────────────────
+include("../../../test/platform/document/WidgetNotes.jl")
 include("../../../test/platform/document/CollectionDocumentTest.jl")
 include("../../../test/platform/document/TableInterfaceTest.jl")
 include("../../../test/platform/document/MouseTargetFieldTest.jl")

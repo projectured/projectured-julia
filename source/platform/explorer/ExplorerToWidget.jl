@@ -58,16 +58,28 @@ const _FIELD_CONTENT_STEPS = (_FIELD_STEPS..., FieldReferenceStep("content"))
 
 const _FILTER_FIELD_WIDTH = 80
 
+# What the field of the filter says when the pointer rests on it.
+_make_filter_field_note() =
+    TooltipNote(; title = "Filter", keys = find_bound_keys(Explorer, "Put the keyboard in the filter"),
+                text = "Show the rows whose label holds these words.",
+                hint = "Return searches below the selected row. Escape clears the filter.")
+
+# What `▾` says when the pointer rests on it: the kinds that the filter keeps.
+_make_kinds_note(filter::ExplorerFilter) =
+    TooltipNote(; title = "Kinds", text = "Show only the rows of the kinds that you choose.",
+                facts = ["Shown" => isempty(filter.kinds) ? "every kind" : join(_format_kind_name.(filter.kinds), ", ")])
+
 function print_document(p::ExplorerToWidget, recursion, explorer::Explorer, context)
     filter = getfield(explorer, :filter)[]
-    field = WidgetText(""; width = _FILTER_FIELD_WIDTH, placeholder = "Filter")
+    field = WidgetText(""; width = _FILTER_FIELD_WIDTH, placeholder = "Filter", tooltip = _make_filter_field_note())
     set_cell_computation!(getfield(field, :content), () -> String(filter.text))
     add = Action("Add an entry"; icon = :plus)
     kinds = Action("Keep the rows of some kinds"; icon = :funnel)
     add_note = TooltipNote(; title = "Add an entry", keys = find_bound_keys(Explorer, "Add an entry"),
-                           text = "Add an entry after the selected one.")
+                           text = "Add an entry after the selected one.",
+                           facts = ["Kinds" => join(first.(_collect_entry_kinds()), ", ")])
     bar = GridLayout(Any[field, WidgetToolbarItem(add; tooltip = add_note),
-                         WidgetToolbarItem(kinds; tooltip = "Show only the rows of the kinds that you choose.")], 3;
+                         WidgetToolbarItem(kinds; tooltip = () -> _make_kinds_note(filter))], 3;
                      horizontal_gap = p.gap, vertical_align = :center, column_policies = Any[Fill, Content, Content])
     # The tree, or the tree of the matches while the filter keeps rows out: the one
     # child of a layout whose children follow, so the other one prints when it

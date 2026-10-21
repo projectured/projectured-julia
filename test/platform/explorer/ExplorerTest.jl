@@ -285,6 +285,23 @@ function test_explorer()
         @test occursin("2 entries", page.children[1].content)
     end
 
+    @testset "the filter, the kinds and the add items say what they do" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        output = print_document(ExplorerToWidget(), nothing, explorer, nothing).output
+        texts = _find_widgets_below(output, WidgetText)
+        field = _read_widget_note(first(text for text in texts if text.placeholder == "Filter"))
+        @test field.title == "Filter" && !isempty(field.keys) && occursin("Escape", field.hint)
+        add, kinds = _find_widgets_below(output, WidgetToolbarItem)
+        @test first.(_read_widget_note(add).facts) == ["Kinds"]
+        @test _read_widget_note(kinds).facts == ["Shown" => "every kind"]
+        page = print_document(ExplorerSectionToWidget(), nothing, content, nothing).output
+        cards = _find_widgets_below(page, WidgetCard)
+        @test length(cards) == 2
+        @test _read_widget_note(cards[1]) === nothing
+        @test _read_widget_note(cards[2]).title == "Inner"
+    end
+
     @testset "a file is one document: its page, its tab and the open files show the same one" begin
         root = mktempdir()
         path = joinpath(root, "notes.txt")

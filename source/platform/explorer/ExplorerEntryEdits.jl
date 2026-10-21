@@ -105,7 +105,8 @@ function _make_add_menu_operation(explorer::Explorer, place, gesture)
                                               selection = _make_entry_node_path(steps, index))
     items = Any[WidgetMenuItem(name; operation = add(make_insertion_document(type)))
                 for (name, type) in _collect_entry_kinds()]
-    push!(items, WidgetMenuItem("Other document"; operation = add(DocumentInsertion(""))))
+    push!(items, WidgetMenuItem("Other document"; operation = add(DocumentInsertion("")),
+                           tooltip = "Add an empty document and choose its type by its name."))
     make_context_menu_operation(explorer, WidgetMenu(items), gesture)
 end
 
