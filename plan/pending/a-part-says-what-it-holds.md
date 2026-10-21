@@ -192,12 +192,21 @@ because the omnet-julia steps use the function form of step 1.
    355, `test_formula()` 229, `test_markdown()` 269, `test_math()` 185,
    `test_frame_statistics_feed()` 151, `test_platform_layering()`,
    `test_platform_slice_edges()`.
-6. [ ] **omnet-julia tree rows.** The project, a configuration, a run, the
+6. [x] **omnet-julia tree rows.** The project, a configuration, a run, the
    Runner, a result file, a result run, a result folder, an INI file, a NED file,
    a NED package, a NED type, the fingerprint store and the statistical
    baseline give a note with their stored facts. Test: the legacy suites that
    build these rows.
-7. [ ] **omnet-julia simulation, results and tests.** The Next, In and At lines;
+
+   Done (written by a code agent with no Julia run, reviewed and tested here),
+   with step 7 in one commit `4ed2ed5d` of the branch `part-notes` of
+   omnet-julia, because both change the file of the Runner row and form. The
+   project, a configuration, a run, an INI file, the Runner, a result file, run
+   and folder, a NED file, package and type, and the two stores give their
+   stored facts; a failure text stays the text. A configuration has no
+   "Extends": no stored field holds it. A result size is
+   `Base.format_bytes`, as other omnet-julia code writes a size.
+7. [x] **omnet-julia simulation, results and tests.** The Next, In and At lines;
    the configuration form rows (the operator, the value kind, why unused); the
    captions of the engine dashboards; the pause point, panes and run-until
    buttons; the scalar, vector, statistic and parameter rows of a result file;
@@ -207,9 +216,29 @@ because the omnet-julia steps use the function form of step 1.
    calculated and the expected fingerprint with its ingredients in words; the
    reason of a verdict). Test: `test_simulation_embed_card()`,
    `test_task_group_pane()` and the legacy test suites.
-8. [ ] **The documentation and the catalog.** tooltip.md (a note made at the
+
+   Done in the same commit. The Next, In and At lines, the configuration form,
+   the dashboard captions, the pause point and pane buttons (with the words of
+   the transport, `_make_embed_verb_note`), the result items, the Runner form
+   (the Run button says "Start N runs." or why nothing starts) and
+   `format_task_details` of the smoke, statistical and fingerprint tests (the
+   ingredients in words). The methods of `format_task_details` stand in the
+   presentation package, where the method for a task of a run is.
+   Test, in a scratch environment over both worktrees: `test_project_page()`
+   96, `test_result_folder()` 140, `test_simulation_filter()` 60,
+   `test_fingerprint_test()` 77, `test_statistical_test()` 59,
+   `test_simulation_test_task()` 40, `test_project_ned_files()` 40,
+   `test_configuration_form()` all pass, `test_next_event_row()` 30,
+   `test_simulation_embed_card()` all pass; `test_task_group_pane()` 64 of 74,
+   the same ten icon checks that fail on `main`.
+8. [x] **The documentation and the catalog.** tooltip.md (a note made at the
    dwell), the guides of the slices that changed, and the catalog marks each
    part of wave 1 done.
+
+   Done: tooltip.md (a note made when the pointer rests, and what each
+   Explorer row says), explorer.md ("What a row and a control say"),
+   writing-rules.md (when to give a function), and the catalog marks wave 1
+   implemented.
 
 ## Not in this plan
 

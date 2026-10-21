@@ -57,10 +57,12 @@ The title and the text stand `gap` apart, and the parts `section_gap` apart. A p
 
 The note takes its keys from where they are bound: the `shortcut` of an `Action`, a constant such as `HELP_GESTURE`, or `find_bound_keys(type, description)`, which reads the key patterns that the gesture table of a type binds to a command. So a change of a binding changes the note.
 
+**A note made when the pointer rests.** A `tooltip` of a widget, of a `PaneTabTitle`, and `decoration.tooltip` can be a function with no argument that makes the note. The dwell calls it, so a part reads its facts only when a person asks. A row of a tree is built in a computation that reads its decoration; a fact read in the decoration would rebuild the row each time it changes, as the position of a running task does, and a fact read in the function costs nothing until the pointer rests. A note reads only what a document holds: no disk read, because a reader and a computation read no disk.
+
 Who answers a note:
 
 - a widget: a string `tooltip` is the text of a note; a control of an action (`WidgetToolbarItem`, `WidgetMenuItem`, `WidgetButton`) says the label of the action as the title and its `shortcut` as a key cap. A control that shows only a picture says its label and its key with no tooltip of its own; one that shows its label says nothing more;
-- a decorated document, in a row of a tree and in a tab: `make_decoration_note(decoration)` says each condition that has words as a fact, then the tooltip of the decoration, a string or a note;
+- a decorated document, in a row of a tree and in a tab: `make_decoration_note(decoration)` says each condition that has words as a fact, then the tooltip of the decoration, a string, a note, or a function that makes one. Each row of the Explorer gives a function: a file its path, format and lines (`make_file_note`), a folder its path and entries, a task its state, result, times, position and process, an assistant its model, context and prompts, a log its stored counts, a system process its full command;
 - a fault: `make_fault_report_note(report)`, in the tone of an error;
 - a Markdown link and an RST reference: the target as a fact;
 - a Julia function: its name, and its signature as code; a docstring adds its prose.

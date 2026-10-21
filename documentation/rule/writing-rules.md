@@ -131,6 +131,10 @@ Before: `tooltip = "Go back to the page before (Ctrl+[)."`. After:
 `TooltipNote(; title = "Back", keys = find_bound_keys(Navigator, "Go back"),
 text = "Go to the page before.")`.
 
+When a fact changes often, such as the position of a running task, give the
+tooltip as a function with no argument that makes the note: it runs only when
+the pointer rests, and the part is not drawn again at each change.
+
 ## The name of a guide
 
 The assistant reads the guides by name, and the name comes from the path:

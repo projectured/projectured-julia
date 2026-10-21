@@ -122,6 +122,10 @@ The search is a work item of the task list ([task.md](../task/task.md)). Its dec
 
 `get_explorer_content_file(folder)` is `projectured/explorer/<name>-<hash>.pred` in the state folder of the user, with a 32-bit FNV-1a hash of the absolute path. `save_explorer_content!(content, path; editor)` writes the section, each entry as its kind writes itself, and `load_explorer_content(path; editor)` reads it, or answers `nothing`. A session document writes a mark that a load gives back as the session document of the editor that loads it. A file of an explorer, as the window file writes it, keeps the section only.
 
+### What a row and a control say
+
+Each row says what it holds when the pointer rests on it: the decoration of its document gives a function that makes a `TooltipNote` at that moment (see [tooltip.md](../tooltip/tooltip.md)). The filter field says what it keeps, its key (Ctrl+F) and what Return and Escape do; the kinds item says the kinds shown; the add item the kinds it offers; the items of the row menu say what they do, with the keys of Remove and Rename; the card of an entry on a section page says the note of the entry.
+
 ## How it fits
 
 The slice uses the collection, domain, focus, layout, navigator, pane, projection, serialization, style, task, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.

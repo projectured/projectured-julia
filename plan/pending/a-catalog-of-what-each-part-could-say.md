@@ -1,7 +1,8 @@
 # A catalog of what each part could say
 
-Status: CATALOG, 2026-10-21. Nothing is implemented. Wave 1 is planned in
-[a-part-says-what-it-holds.md](a-part-says-what-it-holds.md).
+Status: CATALOG, 2026-10-21. Wave 1 is implemented by
+[a-part-says-what-it-holds.md](a-part-says-what-it-holds.md) (see its "As built"
+notes for what each part says and what it left out). Waves 2 and 3 are open.
 
 ## The ask
 
