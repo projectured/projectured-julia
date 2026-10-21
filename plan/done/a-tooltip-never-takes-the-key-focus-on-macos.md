@@ -1,9 +1,10 @@
 # A tooltip never takes the key focus on macOS
 
-> **Status (2026-10-21): step 2 done, on the branch `tooltip-never-key` in the
-> worktree `projectured-julia-tooltip-never-key`, not on main.** The owner asked
-> for this plan on 2026-10-21, after a test on macOS confirmed the cause, and
-> asked for the implementation the same day. Step 3 needs a Mac.
+> **Status (2026-10-21): done, on the branch `tooltip-never-key` (pushed to
+> origin), not on main.** The owner asked for this plan on 2026-10-21, after a
+> test on macOS confirmed the cause, and asked for the implementation the same
+> day. A tester checked the branch on a Mac the same day, and all five checks of
+> step 3 pass. The branch lands on main only with the owner's approval.
 
 ## The fault
 
@@ -130,14 +131,32 @@ passes and the owner approves.
    `test_tree_render` fails 2 and errors 1 at `TreeRenderTest.jl:43-55`; main at
    c092f2aff, the base of the branch, fails there in the same way, so the fault
    comes from main.
-3. ⬜ **Check on a Mac** with the script of the tester, click-through off:
+3. ✅ **Check on a Mac** with the script of the tester, click-through off:
    - on the main monitor, 5 of 5 clicks after a tooltip arrive;
    - when the tooltip opens, window 1 gets no `FOCUS_LOST` and no `LEAVE`;
    - the tooltip stays while the pointer rests on the button, and closes when the
      pointer leaves it;
    - a key typed while the tooltip shows reaches the IDE window;
    - on the second monitor the tooltip does not open again every 0.6 s.
-4. ⬜ Write the results of step 3 into this plan, and move it to `plan/done/`.
+
+   **Result (53726543d, macOS, `CGEventPost` trials, `SDL_EVENT_LOGGING=1`):**
+
+   | Check | Main monitor | Second monitor |
+   |---|---|---|
+   | Clicks after a tooltip arrive | 5 of 5 | 5 of 5 |
+   | No `FOCUS_LOST` and no `LEAVE` for window 1 at the tooltip | 11 of 11 tooltips | 9 of 9 tooltips |
+   | The tooltip stays while the pointer rests, and closes when it leaves | 3 trials | 2 trials |
+   | A key typed while the tooltip shows reaches window 1 | 2 of 2 | 1 of 1 |
+   | No open-and-hide loop | — | pass |
+
+   Clicks before a tooltip arrive too, 3 of 3 on each monitor. A click gives
+   `SDL_MOUSEBUTTONDOWN` for window 1 within 35 to 55 ms, and the tooltip hides 3
+   to 5 ms after the press. When the tooltip opens, its window gets only `SHOWN`
+   and `EXPOSED`, and no `FOCUS_GAINED`. It stayed for 5 s of rest and hid 40 to
+   230 ms after the pointer left. A Shift pressed while it showed gave
+   `SDL_KEYDOWN` and `SDL_KEYUP` for window 1. The IDE did not crash or freeze at
+   the first tooltip, which is where the new Objective-C code first runs.
+4. ✅ Write the results of step 3 into this plan, and move it to `plan/done/`.
 
 ## Not in this plan
 
@@ -149,3 +168,11 @@ passes and the owner approves.
   but it leaves the flicker, the lost keys and the loop, and it changes the first
   click after a switch from another application.
 - SDL3, which has non-focusable and popup windows on Cocoa.
+- The first tooltip after a start showed as a black box for at least 3.7 s on the
+  Mac, and later ones drew; probably the present made while the window is hidden
+  is dropped and the first frame after the show is long, which nobody saw while
+  a tooltip lived 15 to 60 ms.
+- A negative `x` or `y` of a `WindowDocument` means "center"
+  (`SDL_WINDOWPOS_CENTERED` in `_open_native_window!` and two more places), so a
+  tooltip on a monitor above or left of the main one opens in the center of the
+  main display; the same code is on main.
