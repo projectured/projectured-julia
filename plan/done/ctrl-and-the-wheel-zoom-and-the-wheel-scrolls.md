@@ -1,6 +1,6 @@
 # Ctrl and the wheel zoom, and the wheel scrolls
 
-Status: IN PROGRESS, 2026-10-21, on the branch `wheel-zoom`, in the worktree
+Status: DONE, 2026-10-21, on the branch `wheel-zoom`, in the worktree
 `projectured-julia-wheel-zoom`. Not landed on `main`.
 
 ## The ask
@@ -91,7 +91,7 @@ land on `main` before the owner approves.
    pane does. A turn that moves nothing answers `nothing`. Tests in
    `SequenceChartProjectionTest.jl`; `sequencechart.md` gets the new table. Run
    `test_sequencechart_projection`. Commit.
-5. [ ] **The guides and the close.** `widget.md` says that a card gives the wheel
+5. [x] **The guides and the close.** Done; see [As built](#as-built). `widget.md` says that a card gives the wheel
    to its slot and that Ctrl and the wheel never scroll. Run `test_platform()`
    (12 GB) once, and the chart and sequence chart suites. The plan moves to
    `plan/done/`. Commit.
@@ -119,3 +119,16 @@ land on `main` before the owner approves.
   notch moves 0.15 of the window along the time and 20 pixels across, the steps
   that the pan and the lanes used before. Ctrl and the wheel over the lane labels
   do nothing. `test_sequencechart_projection` passes, 120 assertions.
+- **Step 5.** `widget.md` gives the rule in the part about the wheel of a scroll
+  pane. The results on the branch:
+
+  | Suite | Pass | Fail | Broken |
+  | --- | --- | --- | --- |
+  | `test_platform()` | 165679 | 1 | 7 |
+  | `test_chart()` | 387 | 0 | 0 |
+  | `test_sequencechart()` | 308 | 0 | 0 |
+
+  The one failure is `SystemProcessTest.jl:323`, the process tree of a running
+  task, which fails now and then on `main` too. `test_system_process()` alone
+  passes, 78 of 78, on the branch and on `main` `a1cbc1e5c`. The 7 broken are
+  the count on `main` of 2026-10-18. The naming guard passes.

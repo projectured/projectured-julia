@@ -1263,8 +1263,8 @@ end
 function _scroll_window(g, plot::SequenceChartPlot, d::Real)
     coordinates = g.coordinates
     isempty(coordinates) && return nothing
-    first_time, last_time = coordinates[1], coordinates[end]
-    d = d > 0 ? min(d, max(0.0, last_time - g.hi)) : max(d, -max(0.0, g.lo - first_time))
+    first_coordinate, last_coordinate = coordinates[1], coordinates[end]
+    d = d > 0 ? min(d, max(0.0, last_coordinate - g.hi)) : max(d, -max(0.0, g.lo - first_coordinate))
     d == 0 && return nothing
     operation = _window_operation(g, plot, g.lo + d, g.hi - g.lo)
     (operation === nothing || !plot.follow_end) && return operation
