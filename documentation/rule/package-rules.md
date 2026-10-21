@@ -61,7 +61,7 @@ says why. `test_package_graph()` asserts it, along with two more:
 backends and the eighteen domain packages, none of which has a third-party
 dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedACP`, `ProjecturedMCP`,
-`ProjecturedWeb`, `ProjecturedDataFrames` or
+`ProjecturedWeb`, `ProjecturedDataFrames`, `ProjecturedLanguageServer` or
 `ProjecturedAdaptagrams`, each of which owns one. The umbrella `Projectured`
 depends on `ProjecturedPlatform` and `AutoIntegration`, and re-exports only the
 names of `ProjecturedPlatform.EssentialsModule`. AutoIntegration loads each
@@ -303,6 +303,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedACP` | Kernel | JSON3 |
+| `ProjecturedLanguageServer` | Domain, Editor, FileFormat, Graphics, Projection, Serialization, Style, Text, Undo, Widget | JSON3 |
 | `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
 | `ProjecturedMCP` | Kernel, McpLog | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |

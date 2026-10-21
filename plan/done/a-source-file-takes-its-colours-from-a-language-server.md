@@ -1,8 +1,8 @@
 # A source file takes its colours from a language server
 
-> **Kind:** plan · **Status:** pending, design, 2026-10-21. The owner decided
-> five points on 2026-10-21 (section 6). No question is open. No step is
-> started.
+> **Kind:** plan · **Status:** done, 2026-10-21, on the branch `language-server-colours`. The owner decided
+> five points on 2026-10-21 (section 6). Every step is done; the time of a
+> frame for a key is not measured (step 5).
 
 ## 1. The goal
 
@@ -361,13 +361,41 @@ The work is done in a worktree. Before each edit, check the file in
    `test_integrations_load_with_extensions()` 3; the tree guards report what
    `main` reports, and one finding that step 5 removes: no guide names the
    slice `source/adapter/languageserver` yet.
-5. ⬜ **The example, the live check and the documents.** An example that opens a
+5. ✅ **The example, the live check and the documents.** An example that opens a
    small `.cc` file. In the application: open
    `omnet-cpp/src/sim/csimulation.cc` and a file of `inet-cpp`, see the colours,
    type, and measure the time of a frame for a key. The design document
    `documentation/package/adapter/languageserver/languageserver.md`, the
    section of `MarkedText` in `text.md`, and the tables of `system-anatomy.md`,
    `package/README.md` and `testing-guide.md`.
+   *Changed here:* no example package. A source file needs a file on disk and a
+   server, so an example of it would not be hermetic; `text_marking_example`
+   (step 1) shows the projection, and the live check opens real files. The time
+   of a frame was **not measured**: a timing needs an idle machine and the word
+   of the owner, so it is an open item of the report.
+   *The live check (2026-10-21, a real SDL window, the application of the
+   worktree with the files on its command line, a driver task that read the
+   state on the owner task and quit the window):*
+   - Both files open as `SourceFile`: `csimulation.cc` (39805 characters) and
+     `inet-cpp/src/inet/common/packet/Packet.cc` (12464 characters).
+   - `csimulation.cc` gets 384 marks: the 402 tokens of the probe less the 18 of
+     the kind `unknown`, which gets no mark. By role: parameter 113,
+     function 109, keyword 77 (`modifier`), macro 18, variable 15, field 14,
+     type 14, comment 14 (the code of an inactive `#if`), operator 8,
+     module 2. `Packet.cc` gets 48, mostly macros and inactive code: with no
+     `compile_commands.json`, `clangd` finds no header of inet.
+   - A line written before the code moves every mark by its length, and the
+     text written back gives the marks of the start again.
+   - After the quit, the server of the editor does not run, and no `clangd`
+     process is left.
+   - The file drawn offscreen by the same projection
+     (`/var/tmp/language-server-colours/live/csimulation.png`) shows the
+     namespace and the classes in the colour of a type, the macros, the fields
+     and the methods in theirs, and the inactive code muted.
+   The documents: the design document, the paragraph in `text.md` (step 1),
+   the rows of `system-anatomy.md`, `package/README.md`, `testing-guide.md`,
+   `package-rules.md` (the stem list and the third-party table),
+   `autointegration.md` and `own-project-guide.md`.
 
 ## 6. Decisions and questions
 

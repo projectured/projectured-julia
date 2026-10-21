@@ -51,6 +51,10 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 18 domain te
   translation of the updates of an agent, the connection against a fake agent
   in the test process, the transport with a small child agent, and the start of
   the built-in agent) needs no network, no Node.js, no `claude` and no sign-in.
+  [package/languageserver/test](../../package/ProjecturedLanguageServerTest)
+  (`test_languageserver()` — the connection and the semantic tokens against a
+  language server in the test process, a source file in a headless editor, and
+  three tests with `clangd`, which skip themselves when it is not installed).
 - [package/projectured/test](../../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,

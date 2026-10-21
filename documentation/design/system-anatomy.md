@@ -144,7 +144,7 @@ The five backends (depend on the kernel and the platform):
   Web     (web/)       → opt-in, HTTP/JSON3                    WebBackend; assets in web/assets/
   Video   (video/)     → opt-in, FFMPEG; depends on Sdl         record_video method on the kernel seam
 
-The nine adapters (opt-in, loaded only when you `using` them):
+The ten adapters (opt-in, loaded only when you `using` them, or with `Projectured` when AutoIntegration loads them):
   Tulip      (tulip/) → Platform's layout slice      MathOptInterface/Tulip       the linear-programming constraint solver
   Odbc       (odbc/)  → Sql, DbCatalog, Database      ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
   Adaptagrams          → Graph                        native C++ shim              the graph layout engine
@@ -154,6 +154,7 @@ The nine adapters (opt-in, loaded only when you `using` them):
   Acp        (acp/)    → Kernel                       JSON3                        AcpConnection; make_agent_connection(:acp)
   OpenRouter           → Kernel                       HTTP/JSON3                   the relevance model on the Decisions API
   DataFrames           → Kernel, Platform; DataFrames.jl                           DataFrameView
+  LanguageServer       → Kernel, Platform               JSON3                    SourceFile, LanguageServerConnection; clangd
 ```
 
 The four-level division rule: **package** = one concept, or an
@@ -384,7 +385,8 @@ ProjecturedKernel ◄── ProjecturedPlatform ◄── the 18 domains ◄─�
    Mcp, Anthropic,  Console, Pdf, AutoIntegration
    Ollama, Acp,     Sdl, Web,
    OpenRouter       Video, Tulip,
-                     DataFrames
+                     DataFrames,
+                     LanguageServer
 
 ProjecturedIntegrations ◄── Projectured, and the six packages above that own a
                              third-party dependency (Sdl, DataFrames, Video,
