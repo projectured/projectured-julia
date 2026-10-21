@@ -1,8 +1,10 @@
 # The history holds the edits a person makes, and nothing else: a gesture that
 # only changes what the window shows adds no step. Two sweeps say so. The first
 # presses such gestures in the application window and asks both histories, the
-# window's and the file's. The second moves the pointer and turns the wheel over
-# every example, and asks the history's own filter about each answer.
+# window's and the file's: the window has the Files tool in a group at its left, as
+# a person who moves it there has it, and the file in front of the Explorer. The
+# second moves the pointer and turns the wheel over every example, and asks the
+# history's own filter about each answer.
 
 using Test
 
@@ -41,7 +43,8 @@ function test_history_sweep()
                 json = joinpath(dir, "a.json")
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
                 document, scene, composed, iomap =
-                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")))
+                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
+                                    files = true, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 buffers = search_documents(scene, node -> node isa UndoBuffer)
                 window = only(buffer for buffer in buffers if buffer.content isa PaneTree)
@@ -123,7 +126,8 @@ function test_history_sweep()
                 json = joinpath(dir, "a.json")
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\"}"), json)
                 document, scene, composed, iomap =
-                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")))
+                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
+                                    files = true, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 buffers = search_documents(scene, node -> node isa UndoBuffer)
                 window = only(buffer for buffer in buffers if buffer.content isa PaneTree)
