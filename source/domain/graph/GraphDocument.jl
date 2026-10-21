@@ -107,3 +107,29 @@ function GraphGraph(vertices::Vector, edges::Vector)
                CellVector(Cell[e isa Cell ? e : Cell(e) for e in edges]),
                Cell(nothing), Cell(nothing), Cell(GraphConstraint[]), Cell(nothing))
 end
+
+# The graph says what the pointer is on, for a vertex that says nothing of its own:
+# how many edges leave it and how many arrive, and its label when its content is a
+# text. With no pointer on the graph, it says the selected vertex.
+function _make_graph_vertex_note(graph::GraphGraph)
+    found = find_pointed_part(graph)
+    found === nothing && return nothing
+    place = findlast(document -> document isa GraphVertex, found.documents)
+    place === nothing && return nothing
+    vertex = found.documents[place]
+    edges = collect(graph.edges)
+    facts = Pair{String,Any}["Edges out" => string(count(edge -> edge.source === vertex, edges)),
+                             "Edges in" => string(count(edge -> edge.target === vertex, edges))]
+    content = vertex.content
+    content isa PrimitiveString && content.value !== nothing && !isempty(content.value) &&
+        push!(facts, "Label" => content.value)
+    TooltipNote(; title = "Vertex", facts)
+end
+
+# The table of the graph: a dwell answers the note of the vertex under the pointer.
+const _GRAPH_GRAPH_BINDINGS = GestureBinding[
+    make_tooltip_binding(_make_graph_vertex_note; description = "Show the edges of the vertex")]
+
+@gestures GraphGraph begin
+    splice(_GRAPH_GRAPH_BINDINGS)
+end

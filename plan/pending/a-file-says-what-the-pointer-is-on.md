@@ -102,14 +102,36 @@ The steps are fixed. Each step is one commit. projectured-julia lands first.
      as the application opens it, a move and a dwell on "Alice" answer the note
      with "Path: users[1].name". `test_json()` 245, `test_yaml()` 64 and 2
      broken, as before.
-3. [ ] **XML.** `XmlFile` says for an element: its path (`/root/a[2]/b`), the
+3. [x] **XML.** `XmlFile` says for an element: its path (`/root/a[2]/b`), the
    namespace of its prefix from the `xmlns` of the elements on the path, and its
    attributes and children. Test: the XML suite.
-4. [ ] **Julia.** `JuliaFile` says for a call: the signature and the docstring of
+
+   Done (written by a code agent, reviewed). For the text "hi" in
+   `<root xmlns="urn:r"><a><b>hi</b></a><a/></root>`: Path `/root/a[1]/b`,
+   Namespace `urn:r`, Attributes 0, Children 0. A text or an attribute says the
+   element that holds it. Test: `test_xml_file_note()` 6, `test_xml()` 86.
+4. [x] **Julia.** `JuliaFile` says for a call: the signature and the docstring of
    the function that it names, when that function is in the same file, with
    `_make_julia_function_note`. Test: `test_julia_tooltip()`.
-5. [ ] **Graph.** The graph says for a vertex: its edges in and out. Test: the
+
+   Done (written by a code agent, reviewed, and checked in the application).
+   The file says the note of the called function: its name as the title, its
+   signature as code, its docstring as text. In the application, a dwell on
+   the call `helper(x)` inside `function bar` gives one note, from the file:
+   "helper", `helper(y)`, "Add one."; the enclosing function answers nothing
+   there. Only a call of a plain name is covered: `a.b(x)` and `f{T}(x)` say
+   nothing, and of two functions of one name the first is said. The table is
+   `get_document_gesture_bindings_own(::Type{JuliaFile})`, as `JuliaFunction`
+   has, because a `@gestures` block in this file breaks the test that reads
+   the file back through `parse_julia`. Test: `test_julia_file_note()` 8,
+   `test_julia()` 690.
+5. [x] **Graph.** The graph says for a vertex: its edges in and out. Test: the
    graph suite.
+
+   Done (written by a code agent, reviewed). `GraphGraph` says for a vertex:
+   Edges out, Edges in, and the Label of a vertex whose content is a string.
+   No graph file type exists, so the binding is on `GraphGraph`. An edge says
+   nothing. Test: `test_graph_note()` 4, `test_graph()` 471.
 6. [ ] **omnet-julia INI.** `IniFile` says for a section: the chain of
    `extends`, such as `X → Base → General`, and its runs; for the value of
    `extends =`: the same chain. Test: the INI suite of omnet-julia.
