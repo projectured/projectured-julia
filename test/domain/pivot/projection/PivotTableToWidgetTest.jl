@@ -122,6 +122,16 @@ replace_selection!(pivot, run_op.path)
       ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(2, 3),
           ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))
 
+# ── The part under the pointer lights in the table ──────────────────────────
+
+# The table holds the cell that the mouse target of the pivot names, so it lights
+# the row of that cell. A badge of the bar is no part of the table.
+replace_mouse_target!(pivot, cell_path(2, 1))
+@test strip_reference_types(table.mouse_target) == cell_path(2, 1)
+replace_mouse_target!(pivot, PivotModule._make_pivot_zone_item_path("row_dimensions", 1))
+@test table.mouse_target === nothing
+replace_mouse_target!(pivot, nothing)
+
 # ── A pivot with no dimension on an axis ────────────────────────────────────
 
 flat = make_pivot_table(sales; rows = ["region"], measures = [PivotMeasure("amount", :sum), PivotMeasure("", :count)])

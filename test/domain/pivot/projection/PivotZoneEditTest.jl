@@ -43,25 +43,25 @@ function _pz_window_texts(editor, id::Symbol)
 end
 
 # A move of the pointer onto `text`, and a press there.
-function _pz_press!(editor, backend, text; nth = 1, time = 1.0)
+function _pz_press!(editor, backend, text; nth = 1, time = 1.0, window = :W)
     x, y = _pz_place(editor, text; nth)
-    _pz_send!(editor, backend, MouseMove(x + 3, y + 3, MouseButtons(), _PZ_NONE; time))
-    _pz_send!(editor, backend, MouseDown(:left, x + 3, y + 3, _PZ_NONE; time = time + 0.01))
+    _pz_send!(editor, backend, MouseMove(x + 3, y + 3, MouseButtons(), _PZ_NONE; time); window)
+    _pz_send!(editor, backend, MouseDown(:left, x + 3, y + 3, _PZ_NONE; time = time + 0.01); window)
     (x + 3, y + 3)
 end
 
 # A drag from `text` to the point `(x, y)`, through two held moves.
-function _pz_drag!(editor, backend, text, x, y; nth = 1, release = true)
-    sx, sy = _pz_press!(editor, backend, text; nth, time = 2.0)
-    _pz_send!(editor, backend, MouseMove(sx + 20, sy, MouseButtons(:left), _PZ_NONE; time = 2.1))
-    _pz_send!(editor, backend, MouseMove(x, y, MouseButtons(:left), _PZ_NONE; time = 2.2))
-    _pz_send!(editor, backend, MouseMove(x + 1, y, MouseButtons(:left), _PZ_NONE; time = 2.3))
-    release && _pz_send!(editor, backend, MouseUp(:left, x + 1, y, _PZ_NONE; time = 2.4))
+function _pz_drag!(editor, backend, text, x, y; nth = 1, release = true, window = :W)
+    sx, sy = _pz_press!(editor, backend, text; nth, time = 2.0, window)
+    _pz_send!(editor, backend, MouseMove(sx + 20, sy, MouseButtons(:left), _PZ_NONE; time = 2.1); window)
+    _pz_send!(editor, backend, MouseMove(x, y, MouseButtons(:left), _PZ_NONE; time = 2.2); window)
+    _pz_send!(editor, backend, MouseMove(x + 1, y, MouseButtons(:left), _PZ_NONE; time = 2.3); window)
+    release && _pz_send!(editor, backend, MouseUp(:left, x + 1, y, _PZ_NONE; time = 2.4); window)
     nothing
 end
 
-_pz_key!(editor, backend, key; alt = false) =
-    _pz_send!(editor, backend, KeyDown(key, ModifierKeys(alt = alt); time = 3.0))
+_pz_key!(editor, backend, key; alt = false, window = :W) =
+    _pz_send!(editor, backend, KeyDown(key, ModifierKeys(alt = alt); time = 3.0); window)
 
 # An application window with the pivot of the example in the tab "Sales", as the
 # assistant of the window meets it.
@@ -163,6 +163,21 @@ x, y = _pz_place(editor, "Fields")
 _pz_drag!(editor, backend, "count(quarter)" in [t[3] for t in _pz_texts(editor)] ? "count(quarter)" : "count",
           x + 3, y + 3)
 @test [(m.column, m.aggregate) for m in pivot.measures] == [("amount", :sum)]
+
+# In a tab of an application window, a drop and a key move the field too: the
+# move goes up through every view between the pivot and the window.
+editor = _pz_application()
+document = get_document(get_edited_document(find_pane("Sales"; editor)))
+window = _pz_force(_pz_force(get_iomap_output(editor.iomap)).windows)[1].id
+x, y = _pz_place(editor, "Rows")
+_pz_drag!(editor, editor.backend, "year", x + 3, y + 3; window)
+@test document.drag === nothing
+@test isempty(document.column_dimensions)
+@test _pz_columns(document.row_dimensions) == ["region", "country", "year"]
+@test count(t -> t[3] == "year", _pz_texts(editor)) == 2   # the badge and the corner
+_pz_key!(editor, editor.backend, :up; alt = true, window)
+@test _pz_columns(document.column_dimensions) == ["year"]
+@test _pz_columns(document.row_dimensions) == ["region", "country"]
 
 # ── The menu of a right click ────────────────────────────────────────────────
 

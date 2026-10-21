@@ -76,6 +76,17 @@ function print_document(p::PivotTableToWidget, recursion, pivot::PivotTable, ctx
         selection = table.selection
         selection === nothing ? nothing : _make_pivot_grid_reference(2, selection)
     end)
+    # The part under the pointer is the mouse target of the pivot, mapped forward
+    # as a selection is. So the table lights the row under the pointer, and the
+    # grid and the table know the child that the pointer leaves.
+    set_cell_computation!(getfield(grid, :mouse_target),
+                          () -> map_mouse_target_forward(pivot, path -> _map_pivot_reference_forward(p, pivot, path)))
+    for (k, child) in enumerate((bar, table))
+        set_cell_computation!(getfield(child, :mouse_target), () -> begin
+            target = grid.mouse_target
+            target isa Reference ? _find_pivot_grid_child_path(target, k) : nothing
+        end)
+    end
     PivotTableToWidgetIoMap(p, pivot, grid, table)
 end
 
@@ -403,11 +414,16 @@ function _find_pivot_path_in_bar(pivot::PivotTable, path)
     _make_pivot_zone_path(field)
 end
 
-function map_reference_forward(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, reference)
+map_reference_forward(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, reference) =
+    _map_pivot_reference_forward(p, iomap.input, reference)
+
+# The path in the grid of `reference`, a path of `pivot`: a part of the bar or of
+# the table, the grid itself for the empty path, or `nothing`.
+function _map_pivot_reference_forward(p::PivotTableToWidget, pivot::PivotTable, reference)
     reference isa Reference || return nothing
-    bar_path = _find_pivot_bar_path(iomap.input, reference)
+    bar_path = _find_pivot_bar_path(pivot, reference)
     bar_path === nothing || return _make_pivot_grid_reference(1, bar_path)
-    path = _find_pivot_table_path(p, reference, _is_pivot_group_layout(iomap.input))
+    path = _find_pivot_table_path(p, reference, _is_pivot_group_layout(pivot))
     path === nothing && return nothing
     path isa EmptyReference && return EmptyReference()
     _make_pivot_grid_reference(2, path)

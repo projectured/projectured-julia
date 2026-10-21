@@ -59,9 +59,9 @@ relocated, so element identity is preserved.
 
 The `CellVector`s are carried by the operation directly (resolved by the reader
 from the live `content`), rather than as `editor.document`-rooted paths — this
-mirrors how the split-pane operations carry the `WidgetSplitPane` itself, and
-sidesteps re-rooting the reference up through the projections above
-`DraggingProjection`.
+mirrors how the split-pane operations carry the `WidgetSplitPane` itself. The
+operation is self-contained (`is_self_contained_operation`), so it goes up
+through every projection above the one that made it unchanged.
 """
 struct MoveRangeOperation <: Operation
     source::CellVector
@@ -70,6 +70,10 @@ struct MoveRangeOperation <: Operation
     destination::CellVector
     destination_index::Int
 end
+
+# The operation carries the vectors that it moves and names no place, so every
+# projection on the way up passes it on as it is.
+OperationModule.is_self_contained_operation(::MoveRangeOperation) = true
 
 function evaluate_operation(editor, op::MoveRangeOperation)
     src = op.source

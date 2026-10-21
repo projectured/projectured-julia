@@ -87,7 +87,9 @@ A cell that no row reaches is empty. A row of the table is as tall as the lines 
 - **The bar** has a row for each zone: Fields, Columns, Rows, Cells and Values. Each row shows the name of the zone and a badge for each dimension or measure in it. An empty Values row shows a muted `count` badge.
 - **The table** is a `WidgetTable` that scrolls its own parts. Its rows are a list, so it builds only the rows that it shows. The header of a column is a `CellVector` of the labels of its key, and so is the header of a row, so the table draws one level for each dimension and merges a run of equal labels; see the headers with levels in [widget.md](../../platform/widget/widget.md). The corner names the row dimensions. With no column dimension, the one column is headed by the names of the measures; with no row dimension, the one row is headed `all`.
 
-`cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table.
+`cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table. The mouse target of the pivot maps forward the same way into the mouse targets of the grid, the bar and the table, so the table lights the row under the pointer, and a container knows the child that the pointer leaves.
+
+A chart in a cell takes the gestures of a chart: Ctrl and the wheel zoom it, a drag draws a band and zooms to it, and Shift and a drag pan it. The parts of the drag come back to the chart through the table by the path of the cell. A plain turn of the wheel scrolls a chart only while it is zoomed in; otherwise the table scrolls.
 
 ### The bar
 

@@ -12,7 +12,7 @@ A left `MouseDown` with no press yet keeps one, with `source` the path that the 
 
 `DragEnd` reads the drop at the mouse target of the content, at the release — the same field the moves already kept up to date — through `find_drop_zone(state::DraggingState, dragged, point)`, and clears the press. `DragCancel` clears the press and moves nothing.
 
-`MoveRangeOperation` holds the source `CellVector`, the range, the destination `CellVector` and the index. It moves the cells themselves, so a moved element keeps its identity and its IO map. Its inverse moves the block back.
+`MoveRangeOperation` holds the source `CellVector`, the range, the destination `CellVector` and the index. It moves the cells themselves, so a moved element keeps its identity and its IO map. Its inverse moves the block back. It names no place in a document, so it is self-contained (`is_self_contained_operation`): every projection between the reader that made it and the editor passes it on as it is, also the views of a tab in an application window.
 
 ## How it fits
 

@@ -2030,6 +2030,77 @@ function read_table_column_drag(w::WidgetTable, g)
     CompoundOperation(Any[width(drag.width), ending, shape])
 end
 
+# ── A route into a part ──────────────────────────────────────────────────────
+
+# A change whose route names a cell, a header or the corner goes to the document
+# there, with the point in the frame of its canvas wherever the pointer is, and
+# its answer is rooted under the part. So the parts of a drag that a document in
+# a cell started, such as the rubber band of a chart, come back to it. `nothing`
+# when the route names no part that the table shows.
+function _read_routed_table_part(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
+                                 iomap::WidgetTableListIoMap)
+    found = _find_routed_table_part(p, iomap, change.route)
+    found === nothing && return nothing
+    cim, steps, x, y = found
+    routed = follow_intent_route(change, steps...)
+    routed === nothing && return nothing
+    answer = read_routed_child_in_frame(recursion, routed, cim;
+                                        move_in = (px, py) -> (px - x, py - y),
+                                        move_out = (px, py) -> (px + x, py + y))
+    Intent(change.gesture, reroot_operation(answer.operation, steps))
+end
+
+# The IO map of the part that `route` names, the steps of the route to it, and
+# the place of its canvas in the table: a cell `cells[r][c]`, a header at its
+# last level or a label of a level of the header column, and the corner.
+# `nothing` for any other route, and for a part that the table does not show.
+function _find_routed_table_part(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, route)
+    st = iomap.state
+    steps = get_reference_steps(route)
+    head = first(steps)
+    head isa FieldReferenceStep || return nothing
+    content_x, content_y = _content_offset(p, iomap.input)
+    header_w, header_h = Int(st.header_width[]), Int(st.header_height[])
+    if head.name == "corner"
+        st.corner === nothing && return nothing
+        return (st.corner, (head,), content_x + st.bw + st.pad_x, content_y + st.bw + st.pad_y)
+    end
+    index(n) = (length(steps) >= n && steps[n] isa RangeReferenceStep) ? steps[n].stop : nothing
+    first_index, second_index = index(2), index(3)
+    first_index === nothing && return nothing
+    if head.name == "cells"
+        second_index === nothing && return nothing
+        k, c = _is_column_major(iomap.input) ? (second_index, first_index) : (first_index, second_index)
+        return _find_routed_part_place(st, st.cells_pane, _find_table_cell(st, k, c), steps[1:3],
+                                       content_x + header_w, content_y + header_h)
+    elseif head.name == "row_headers" && st.row_header_pane !== nothing
+        levels = st.levels.row_levels
+        levels == 0 && return _find_routed_part_place(st, st.row_header_pane, _find_table_row_header(st, first_index),
+                                                      steps[1:2], content_x, content_y + header_h)
+        second_index === nothing && return nothing
+        return _find_routed_part_place(st, st.row_header_pane,
+                                       _find_part_cell(st, st.row_header_pane, first_index, second_index),
+                                       steps[1:3], content_x, content_y + header_h)
+    elseif head.name == "column_headers" && st.column_header_pane !== nothing
+        levels = st.levels.column_levels
+        count = levels == 0 ? 2 : 3
+        (levels == 0 || second_index == levels) || return nothing
+        return _find_routed_part_place(st, st.column_header_pane, _find_table_header_cell(st, first_index),
+                                       steps[1:count], content_x + header_w, content_y)
+    end
+    nothing
+end
+
+# The part of the table in `cell`, `(iomap, left, top)` in the coordinates of the
+# rules of `pane`, whose region lies at `(x, y)` in the table: its IO map,
+# `steps`, and the place of its canvas in the table. `nothing` for no cell.
+function _find_routed_part_place(st::WidgetTablePartsState, pane, cell, steps, x::Int, y::Int)
+    cell === nothing && return nothing
+    cim, left, top = cell
+    rule_x, rule_y = _get_rule_point(st, pane, 0, 0)
+    (cim, Tuple(steps), x - rule_x + left, y - rule_y + top)
+end
+
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
                      iomap::WidgetTableListIoMap)
     g = change.gesture
@@ -2038,7 +2109,13 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
         _is_table_bar_event(iomap.state.cells_pane, place, g) &&
             return Intent(g, _add_top_row(iomap, _read_table_bar_event(iomap.state.cells_pane, place, g)))
     end
-    g isa Union{DragMove,DragEnd,DragCancel} && return Intent(g, read_table_column_drag(iomap.input, g))
+    # The parts of a drag come by the path of the part that started it: the table
+    # itself for the width of a column, or a document in a cell.
+    if g isa Union{DragMove,DragEnd,DragCancel}
+        routed = change.route isa ConcreteReference ? _read_routed_table_part(p, recursion, change, iomap) : nothing
+        routed === nothing || return routed
+        return Intent(g, read_table_column_drag(iomap.input, g))
+    end
     if change.operation === nothing
         if g isa MouseDown && g.button === :left
             op = _read_table_column_edge_press(p, iomap, g)
