@@ -83,7 +83,16 @@ end
 
 # ── What a list needs, said before anything is drawn ─────────────────────────
 
+# The check reads the form of the rows and of the row headers. It runs in a cell
+# of its own that nothing reads again, so these reads are no dependency of the
+# print that checks: a new list of rows is a new head of the grid of the cells,
+# and no new print of the table.
 function _check_table_parts(w::WidgetTable, height)
+    peek(Cell(@computation _check_table_list_form(w, height)))
+    nothing
+end
+
+function _check_table_list_form(w::WidgetTable, height)
     height === nothing &&
         error("WidgetTable: a table whose rows are a list needs an offered height, ",
               "because a list has no extent to size it by")
@@ -382,21 +391,43 @@ _print_table_corner(recursion, w::WidgetTable, inner) =
                             :x),
                         :y))
 
+# The rows of one cell that hold the row headers, by the header, for the head of
+# the list now and for the head before it. A header that the new head reaches
+# again keeps its row, so the grid keeps the print of the row; a row that no head
+# reaches goes with the head after it.
+mutable struct _HeaderRows
+    current::IdDict{Any,Any}
+    before::IdDict{Any,Any}
+end
+_HeaderRows() = _HeaderRows(IdDict{Any,Any}(), IdDict{Any,Any}())
+
+# A new head of the list of the row headers.
+function _start_header_rows!(rows::_HeaderRows)
+    rows.before = rows.current
+    rows.current = IdDict{Any,Any}()
+    nothing
+end
+
+# The row of one cell that holds `header`: the row of the head before, or a new one.
+_take_header_row!(rows::_HeaderRows, header) =
+    get!(() -> something(pop!(rows.before, header, nothing), CellVector(Cell[Cell(header)])),
+         rows.current, header)
+
 # The node of a list that mirrors the headers of `header_node` as rows of one
-# cell, the form of a row of a grid. A node is built when a walk first reaches
-# it, so the header column reaches as far as the rows do.
-function _make_header_row_node(header_node::ListNode)
+# cell, the form of a row of a grid, each kept in `rows`. A node is built when a
+# walk first reaches it, so the header column reaches as far as the rows do.
+function _make_header_row_node(header_node::ListNode, rows::_HeaderRows)
     header = header_node.value
-    node = ListNode(CellVector(Cell[Cell(header === nothing ? _wt_empty_cell() : header)]))
+    node = ListNode(header === nothing ? CellVector(Cell[Cell(_wt_empty_cell())]) : _take_header_row!(rows, header))
     set_lazy_link!(node, :next, () -> begin
         following = header_node.next
         following === nothing && return nothing
-        _make_header_row_node(following)
+        _make_header_row_node(following, rows)
     end)
     set_lazy_link!(node, :prev, () -> begin
         preceding = header_node.prev
         preceding === nothing && return nothing
-        _make_header_row_node(preceding)
+        _make_header_row_node(preceding, rows)
     end)
     node
 end
@@ -419,8 +450,12 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
         cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, 1)
         max(_get_part_child_width(corner), cell === nothing ? 0 : _get_part_child_width(cell[3]))
     end)
-    rows = Cell(@computation (headers = w.row_headers;
-                              headers isa ListNode ? _make_header_row_node(headers) : nothing))
+    kept = _HeaderRows()
+    rows = Cell(@computation begin
+        headers = w.row_headers
+        _start_header_rows!(kept)
+        headers isa ListNode ? _make_header_row_node(headers, kept) : nothing
+    end)
     grid = GridLayout(rows, Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
                       Cell(@computation Fixed(width[])), getfield(w, :row_policy), Cell(Any[]),
                       Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))

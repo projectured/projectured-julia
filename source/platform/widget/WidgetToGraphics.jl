@@ -10851,8 +10851,11 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # this is: a list in either direction draws the rows a viewport shows, a
     # vector draws them all.
     # A corner makes a table of a list, whose rows can be an empty vector at
-    # first.
-    (_is_listed_body(w) || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
+    # first. The form is read in a cell of its own, so the print depends on the
+    # form and not on the list: a new list of rows is a new head of the grid of
+    # the cells, and no new print of the table.
+    listed = Cell(@computation _is_listed_body(w))
+    (listed[] || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.

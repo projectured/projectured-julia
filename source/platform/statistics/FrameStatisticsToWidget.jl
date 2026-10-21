@@ -146,8 +146,7 @@ _make_pause_toggle(statistics::FrameStatistics) =
                  Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                  Cell(nothing), Cell(nothing))
 
-_make_cell_label(p::FrameStatisticsToWidget, content; slow::Bool = false) =
-    WidgetLabel(content; text_style = slow ? p.slow_text : p.row_text)
+_make_cell_label(p::FrameStatisticsToWidget, content) = WidgetLabel(content; text_style = p.row_text)
 
 # A frame is slow when its frame time is more than this many times the median.
 const _SLOW_FRAME_FACTOR = 2
@@ -164,9 +163,30 @@ function _compute_slow_frame_limit(columns, column::Union{Int,Nothing})
     _SLOW_FRAME_FACTOR * median
 end
 
-# Whether the frame at the place `i` of `columns` is slow.
-_is_slow_frame(columns, column::Union{Int,Nothing}, limit::Float64, i::Int) =
-    column !== nothing && column <= length(columns) && columns[column][i] > limit
+# The value of the column `c` for the frame with the number `frame`, or `NaN`
+# when the document holds no such frame or column.
+function _find_frame_value(statistics::FrameStatistics, c::Int, frame::Int)
+    i = _find_frame_place(statistics.frames, frame)
+    columns = statistics.columns
+    (i === nothing || c > length(columns)) ? NaN : columns[c][i]
+end
+
+# The place of the frame with the number `frame` among `frames`, which are oldest
+# first, or `nothing`: a binary search.
+function _find_frame_place(frames, frame::Int)
+    low, high = 1, length(frames)
+    while low <= high
+        middle = (low + high) >>> 1
+        number = frames[middle]
+        number == frame && return middle
+        number < frame ? (low = middle + 1) : (high = middle - 1)
+    end
+    nothing
+end
+
+# Whether the frame with the number `frame` is slow.
+_is_slow_frame(statistics::FrameStatistics, column::Union{Int,Nothing}, limit::Float64, frame::Int) =
+    column !== nothing && _find_frame_value(statistics, column, frame) > limit
 
 # The unit of a row as its column shows it.
 _format_unit(row::FrameStatisticsRow) = row.unit === :second ? "ms" : ""
@@ -207,11 +227,14 @@ _format_frame_header(row::FrameStatisticsRow) =
     row.unit === :second ? string(row.name, " (ms)") : row.name
 
 # The table of the frames. Its rows and its row headers are lists from `anchor`,
-# counted from the newest frame, and every flush builds them again from the
-# frames of the document; the table builds only the rows that it shows. A list
-# keeps the frames and the columns that it was built from, so a row that a walk
-# builds later shows the same flush. The columns are those of `summary`, so the
-# headers and the cells agree while a new measurement reaches the parts.
+# counted from the newest frame, and the table builds only the rows that it shows.
+# The page keeps one row and one row header for each frame that the document
+# holds, by the number of the frame. A flush makes new lists over the same rows,
+# and the grid keeps the print of a row that it printed under the list before, so
+# a flush prints only the rows of the new frames. A cell reads the value of its
+# frame and the slow limit in the document, so a kept row follows a new value and
+# a new median. The columns are those of `summary`, so the headers and the cells
+# agree while a new measurement reaches the parts.
 function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, summary::Vector,
                            bar::WidgetScrollBar)
     units = [row.unit for row in summary]
@@ -220,22 +243,18 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                               for row in summary])
     policies = Cell(@computation _make_frame_column_policies(p, summary, units, statistics.columns))
     columns = Any[_make_frame_column(policies, c) for c in eachindex(units)]
+    limit = Cell(@computation _compute_slow_frame_limit(statistics.columns, slow_column))
+    kept = Dict{Int,Any}()
+    get_kept_row(frame) = get!(() -> _make_frame_row(p, statistics, units, slow_column, limit, frame),
+                               kept, frame)
     rows = Cell(@computation begin
-        columns = statistics.columns
-        limit = _compute_slow_frame_limit(columns, slow_column)
-        _make_frame_list(statistics, i -> begin
-            slow = _is_slow_frame(columns, slow_column, limit, i)
-            make_widget_table_row(Any[
-                _make_cell_label(p, _format_frame_value(units[c], c <= length(columns) ? columns[c][i] : NaN);
-                                 slow)
-                for c in eachindex(units)])
-        end)
+        frames = statistics.frames
+        _forget_left_frames!(kept, frames)
+        _make_frame_list(statistics, i -> get_kept_row(frames[i]).row)
     end)
     row_headers = Cell(@computation begin
-        frames, columns = statistics.frames, statistics.columns
-        limit = _compute_slow_frame_limit(columns, slow_column)
-        _make_frame_list(statistics, i -> _make_cell_label(p, string(frames[i]);
-                                                           slow = _is_slow_frame(columns, slow_column, limit, i)))
+        frames = statistics.frames
+        _make_frame_list(statistics, i -> get_kept_row(frames[i]).header)
     end)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns, border_width,
@@ -249,6 +268,33 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
                 Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto), Cell(nothing), Cell(nothing))
+end
+
+# The row and the row header of the frame with the number `frame`, which the page
+# keeps while the document holds the frame. A cell reads the value of the frame,
+# and every label of the row takes the slow style while the frame is slower than
+# `limit`. Whether it is slow is a cell of its own: a flush computes it again, and
+# a flag that stays the same leaves the style, and so the print, of each label.
+function _make_frame_row(p::FrameStatisticsToWidget, statistics::FrameStatistics, units::Vector{Symbol},
+                         slow_column::Union{Int,Nothing}, limit::Cell, frame::Int)
+    slow = Cell(@computation _is_slow_frame(statistics, slow_column, limit[], frame))
+    function make_label(content)
+        label = WidgetLabel(content)
+        set_cell_computation!(getfield(label, :text_style), () -> slow[] ? p.slow_text : p.row_text)
+        label
+    end
+    row = make_widget_table_row(Any[
+        make_label(() -> _format_frame_value(units[c], _find_frame_value(statistics, c, frame)))
+        for c in eachindex(units)])
+    (row = row, header = make_label(string(frame)))
+end
+
+# Drop the kept rows of the frames that the document no longer holds: the frames
+# that left the ring, and every frame of a store that started again.
+function _forget_left_frames!(kept::Dict{Int,Any}, frames)
+    isempty(frames) && return empty!(kept)
+    oldest, newest = first(frames), last(frames)
+    filter!(entry -> oldest <= first(entry) <= newest, kept)
 end
 
 # The data of column `c` of the frames, aligned right, whose width reads entry

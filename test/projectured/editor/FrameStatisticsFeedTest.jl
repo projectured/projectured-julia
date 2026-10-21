@@ -59,6 +59,32 @@ function _get_drawn_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String}[];
     found
 end
 
+# Each text that a canvas draws, as the text and its graphic, walking a list at
+# most `limit` nodes each way from its head, as `_get_drawn_texts` does.
+function _get_drawn_text_graphics(node, found = Dict{String,Any}(); limit = 50)
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            for link in (:next, :prev)
+                current = link === :next ? elements : elements.prev
+                seen = 0
+                while current !== nothing && seen < limit
+                    _get_drawn_text_graphics(current.value, found; limit)
+                    current = getproperty(current, link)
+                    seen += 1
+                end
+            end
+        else
+            foreach(element -> _get_drawn_text_graphics(element, found; limit), elements)
+        end
+    elseif node isa GraphicsViewport
+        _get_drawn_text_graphics(node.content, found; limit)
+    elseif node isa GraphicsText
+        found[string(node.text)] = node
+    end
+    found
+end
+
 # A backend that takes the events that a test queues, and draws nothing.
 mutable struct _FrameStatisticsBackend <: ProjecturedAll.BackendModule.Backend
     events::Vector{Any}
@@ -280,6 +306,50 @@ function test_frame_statistics_feed()
         @test _get_frame_statistics_head(root) == "4 frames"
         @test _get_row_texts(frames.cells.value) == ["40.00", "7"]
         @test frames.row_headers.value.content == "4"
+    end
+
+    @testset "a flush keeps the rows of the frames that stay, and makes rows for the new frames" begin
+        statistics = _make_frame_statistics_example()
+        _, _, root = _print_frame_statistics(statistics)
+        frames = _get_frame_table(root)
+        # Frames 3, 2 and 1, newest first.
+        rows = [frames.cells.value, frames.cells.next.value, frames.cells.next.next.value]
+        headers = [frames.row_headers.value, frames.row_headers.next.value]
+        statistics.rows[1].count = 3
+        statistics.frame_count = 4
+        statistics.frames = [2, 3, 4]
+        statistics.columns = [[0.02, 0.03, 0.04], [120.0, 5000.0, 7.0]]
+        newest = frames.cells
+        @test _get_row_texts(newest.value) == ["40.00", "7"]
+        # Frames 3 and 2 keep their rows and their row headers; frame 1 left.
+        @test newest.next.value === rows[1]
+        @test newest.next.next.value === rows[2]
+        @test newest.next.next.next === nothing
+        @test frames.row_headers.next.value === headers[1]
+        @test frames.row_headers.next.next.value === headers[2]
+        @test _get_row_texts(newest.next.next.value) == ["20.00", "120"]
+    end
+
+    @testset "a flush prints only the rows of the new frames, and keeps the prints of the others" begin
+        # Frame `k` takes `k / 100` ms, so the texts of frames 97 and 98, as row
+        # headers and as values, appear once.
+        store = FrameMeasurementStore()
+        for frame in 1:100
+            record_frame_measurements!(store; times = [:frame_time => frame / 1e5])
+        end
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
+        natural = RecursiveProjection(NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0)))
+        output = print_document(natural, nothing, statistics, context).output
+        before = _get_drawn_text_graphics(output; limit = 10)
+        record_frame_measurements!(store; times = [:frame_time => 101 / 1e5])
+        flush_frame_statistics!(statistics, store)
+        after = _get_drawn_text_graphics(output; limit = 10)
+        @test haskey(after, "1.01") && !haskey(before, "1.01")
+        # The row headers and the cells of the frames that stay are the same graphics.
+        @test after["98"] === before["98"] && after["97"] === before["97"]
+        @test after["0.98"] === before["0.98"] && after["0.97"] === before["0.97"]
     end
 
     @testset "an empty table shows its head line and no table" begin

@@ -60,7 +60,7 @@ on `main` before the owner approves.
 1. [x] **The rename.** Done; see [As built](#as-built). The title, the tool command and its tooltip, the
    aliases; the five tests of this repository. The test of `omnet-julia` follows
    when this lands. Run the tests that name the title. Commit.
-2. [ ] **The rows by frame number.** In `FrameStatisticsToWidget.jl`. A test: a
+2. [x] **The rows by frame number.** Done; see [As built](#as-built). In `FrameStatisticsToWidget.jl`. A test: a
    flush that adds frames keeps the row documents of the frames that stay, as the
    same objects, and makes rows only for the new frames; the slow colour follows a
    new median. Run the statistics tests, `test_platform()` and the feed test of
@@ -88,3 +88,37 @@ interleaved as A/B/A, and write the load of the machine beside it.
   the aliases are "frame statistics" and "statistics". No guide named the old
   title. `test_editor_display()` 28, `test_window_wrappers()` 58,
   `test_window_shell()` 140, `test_application()` 385 pass and 2 broken.
+- **Step 2.** The rows by frame number were not enough: a probe that paints the
+  page with the SDL renderer still printed every visible row in a flush, on
+  `main` and on the branch alike. Three causes, each found with a probe:
+  1. **The whole page printed again.** `print_document` of `WidgetTable` read
+     `w.cells` to choose between the list form and the vector form
+     (`_is_listed_body`), and `_check_table_parts` read `w.cells` and
+     `w.row_headers` to check the list form. Both reads ran in the print, so the
+     computation that builds the page depended on the list of rows itself, and a
+     new list built the page, the table and its grids again. Now the form is a
+     cell of its own whose value is a `Bool`, so a new list that keeps the form
+     changes nothing above the table, and the check runs in a cell of its own that
+     the print only peeks at. This is in the table of every widget, so a table of a
+     data frame keeps its prints too.
+  2. **The header column made new rows.** `_make_header_row_node` wrapped each
+     row header in a new row of one cell for each new head, so the grid of the
+     header column found no kept print. `_HeaderRows` keeps the row of each header
+     for the head now and the head before, as `KeptListPrints` keeps prints, so a
+     header that no head reaches goes.
+  3. **The style of a label changed on each flush.** A style cell that read the
+     slow limit computed again at each flush, and a `StyleText` is no plain data
+     for the cell engine, so the same style counted as a change and the label made
+     its text graphic again. Whether a frame is slow is now a cell of its own with
+     a `Bool` value, and the style of a label reads that flag.
+
+  With the three, a flush that adds two frames prints 4 rows, the two new frames
+  in each of the two grids, against 34 before (the probe
+  `/var/tmp/frame-statistics/row_print_probe.jl`). Two tests: a flush keeps the
+  row documents of the frames that stay, and the graphics of the texts of a kept
+  row are the same objects after a flush. `test_frame_statistics_feed()` 148,
+  `test_platform()` 165673 pass and 7 broken, `test_dataframes()` 612,
+  `test_sdl()` 1006 and the known `TreeRenderTest.jl:43, 44, 55`,
+  `test_application()` 385 and 2 broken, `test_file_watch_window()` 16,
+  `test_documentation()` 1.
+
