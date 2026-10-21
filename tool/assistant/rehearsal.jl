@@ -11,11 +11,16 @@
 # each step a check says whether the step did what the screenplay needs. The
 # model is watched before each of its rounds, and a run stops at the first
 # watch that fails, so a run that goes wrong costs seconds, not minutes.
+#
+# The requests that a person makes of a pivot run the same way:
+#
+#     Rehearsal.run_pivot_task_rehearsals(1:5; directory = "/var/tmp/s2/loop/out/pivot")
 
 module Rehearsal
 
 using ProjecturedAll, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
-      ProjecturedSDL, ProjecturedSDLExample
+      ProjecturedSDL, ProjecturedSDLExample, ProjecturedDataFrames, ProjecturedPivotExample
+using DataFrames: DataFrame
 using Dates
 
 const LlmModule = ProjecturedAll.LlmModule
@@ -63,21 +68,22 @@ LlmModule.compute_meaning_vectors(llm::WatchedLlm, texts; kwargs...) =
 
 # ── The window ───────────────────────────────────────────────────────────────
 
-# The window of the take: people.json, the Files tab closed, the session's
-# gesture log in a pane below the file, the assistant a little wider.
+# The window of the take: people.json, the Explorer closed, the session's
+# gesture log in a pane below the file, the assistant a little wider, and the
+# selection in the file, as a take with files starts.
 function prepare_window!(document)
     for assistant in search_documents(document, node -> node isa Assistant)
         assistant.collapse_thinking = false
     end
-    # The selection is a path through the tree, so it is set again after the
-    # split moves the group of the file one level down.
-    selected = try_evaluate_reference(document, get_selection(document), nothing)
     tree = only(search_documents(document, node -> node isa PaneTree))
-    files = only(g for g in get_pane_groups(tree)
-                 if any(tab -> get_pane_tab_title_string(tab) == "Files", g.tabs))
-    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, files, 1))
-    group = only(g for g in get_pane_groups(tree)
-                 if any(tab -> get_pane_tab_title_string(tab) == "people.json", g.tabs))
+    is_titled(title) = tab -> get_pane_tab_title_string(tab) == title
+    explorer = only(g for g in get_pane_groups(tree) if any(is_titled("Explorer"), g.tabs))
+    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, explorer,
+                                                              findfirst(is_titled("Explorer"), explorer.tabs)))
+    group = only(g for g in get_pane_groups(tree) if any(is_titled("people.json"), g.tabs))
+    # The selection is a path through the tree, so it is set after the split moves
+    # the group of the file one level down.
+    selected = only(tab for tab in group.tabs if is_titled("people.json")(tab)).content.content
     apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation = :horizontal,
                                                           side = :below,
                                                           tab = PaneTab("Gestures", get_session_gesture_log())))
@@ -85,21 +91,22 @@ function prepare_window!(document)
     split.weights = [0.8, 0.2]
     tree.root.weights = [0.55, 0.45]
     apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
-    selected === nothing ||
-        set_selection!(document, annotate_reference_types(document,
-                                    first(search_references(document, node -> node === selected))))
+    set_selection!(document, annotate_reference_types(document,
+                                first(search_references(document, node -> node === selected))))
     nothing
 end
 
 # The editor of a rehearsal: the window of the application over one file,
 # printed once and started as the application starts, with no loop and no
 # frames. A call of a tool then runs at once on the task that makes it.
-function make_rehearsal_editor(directory, llm)
+# `prepare` arranges the window before the print, so the readers reach every tab
+# that it adds.
+function make_rehearsal_editor(directory, llm; prepare = prepare_window!)
     path = joinpath(directory, "people.json")
     write(path, PEOPLE)
     assistant = make_application_assistant(:ollama; llm = llm)
     document, projection = make_application_window([path]; root = directory, assistant = assistant)
-    prepare_window!(document)
+    prepare(document)
     scene = make_window_scene(document, "ProjecturEd"; width = WIDTH, height = HEIGHT)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -499,17 +506,20 @@ const TASKS = [
     SingleTask("close", "Close the Gestures pane.", check_pane_closed),
 ]
 
+# One run of `task` with `seed`. `make_editor` builds the window, and
+# `count_steps` counts the steps of the history that the check of the task reads.
 function run_task_rehearsal(task::SingleTask, seed; transcript, max_rounds = 8, max_seconds = 300.0,
-                            context = 32768, system = identity)
+                            context = 32768, system = identity, make_editor = make_rehearsal_editor,
+                            count_steps = editor -> length(get_file_history(editor).undo_entries))
     state = Dict{Symbol,Any}(:editor => nothing, :rounds_at_turn => 0,
                              :max_rounds => max_rounds, :max_seconds => max_seconds,
                              :started => time())
     llm = WatchedLlm(OllamaLlm(context = context, seed = seed); watch = make_watch(state))
     state[:llm] = llm
-    editor, assistant = make_rehearsal_editor(mktempdir(), llm)
+    editor, assistant = make_editor(mktempdir(), llm)
     assistant.system = system(assistant.system)
     state[:editor] = editor
-    steps_before = length(get_file_history(editor).undo_entries)
+    steps_before = count_steps(editor)
     seconds = run_turn!(editor, assistant, task.prompt; cap = max_seconds)
     outcome = llm.stopped === nothing ? task.check(editor, steps_before) : "stopped: " * llm.stopped
     open(io -> write_conversation(io, assistant), transcript, "w")
@@ -554,6 +564,129 @@ function run_task_rehearsals(seeds; directory, tasks = TASKS, kwargs...)
     open(io -> println(io, "passed ", passed, " of ", runs), summary, "a")
     read(summary, String)
 end
+
+# ── Tasks of a pivot ────────────────────────────────────────────────────────
+#
+# The requests that a person makes of a pivot, one prompt each, on the window of
+# S2 with two more tabs: "Sales", the display of a data frame of sales, and
+# "Sales pivot", a pivot of that frame by region and country down and by year
+# across, with the sum of the amounts.
+
+const SALES_PIVOT = "Sales pivot"
+
+# The window of S2, with the two tabs in the group of people.json.
+function prepare_pivot_window!(document)
+    prepare_window!(document)
+    tree = only(search_documents(document, node -> node isa PaneTree))
+    group = only(g for g in get_pane_groups(tree)
+                 if any(tab -> get_pane_tab_title_string(tab) == "people.json", g.tabs))
+    frame = DataFrame(make_pivot_sales_rows())
+    pivot = make_pivot_table(frame; rows = ["region", "country"], columns = ["year"],
+                             measures = [PivotMeasure("amount", :sum)])
+    for (title, content) in (("Sales", make_value_document(frame)), (SALES_PIVOT, pivot))
+        apply_pane_operation!(tree, make_pane_open_tab_operation(tree, group, PaneTab(title, content)))
+    end
+    nothing
+end
+
+make_pivot_rehearsal_editor(directory, llm) = make_rehearsal_editor(directory, llm; prepare = prepare_pivot_window!)
+
+# The steps of the history of the window, which records an edit of a tab that
+# shows no file.
+count_window_steps(editor) =
+    length(only(search_documents(editor.document, node -> node isa UndoBuffer && node.content isa PaneTree)).undo_entries)
+
+get_sales_pivot(editor) = get_document(get_edited_document(find_pane(SALES_PIVOT; editor)))
+
+# The values of the dimension of `column` that the rows or the columns of `pivot`
+# show, with no total, sorted.
+function find_shown_values(pivot, column)
+    cross = pivot.cross_table
+    for (dimensions, keys) in ((pivot.row_dimensions, cross.row_keys), (pivot.column_dimensions, cross.column_keys))
+        index = findfirst(dimension -> dimension.column == column, collect(dimensions))
+        index === nothing && continue
+        return sort(unique(String[string(key[index]) for key in keys if !(key[index] isa PivotTotal)]))
+    end
+    String[]
+end
+
+describe_pivot_zones(pivot) =
+    string("rows ", [d.column for d in pivot.row_dimensions], ", columns ", [d.column for d in pivot.column_dimensions],
+           ", values ", [describe_pivot_measure(m) for m in get_pivot_measures(pivot)])
+
+# A change of the pivot is an edit of the window, and it keeps every row of the
+# source.
+function check_pivot_edit(editor, steps_before)
+    count_window_steps(editor) > steps_before || return "the window history took no step: the change is not an edit"
+    get_table_row_count(get_sales_pivot(editor).source) == 32 || return "the source of the pivot lost rows"
+    nothing
+end
+
+function check_pivot_made(editor, steps_before)
+    made = Any[]
+    for group in get_pane_groups(get_pane_tree(editor)), tab in group.tabs
+        get_pane_tab_title_string(tab) == SALES_PIVOT && continue
+        append!(made, search_documents(tab, node -> node isa PivotTable; limit = nothing))
+    end
+    isempty(made) && return "no new pivot in a tab"
+    for pivot in made
+        ([d.column for d in pivot.row_dimensions] == ["region"] && [d.column for d in pivot.column_dimensions] == ["year"] &&
+         [(m.column, m.aggregate) for m in get_pivot_measures(pivot)] == [("amount", :sum)]) && return nothing
+    end
+    "the new pivots have " * join((describe_pivot_zones(pivot) for pivot in made), "; ")
+end
+
+function check_value_told(editor, steps_before)
+    text = find_final_message(only(search_documents(editor.document, node -> node isa Assistant)))
+    occursin(r"\b200(\.0+)?\b", text) || return "the last message does not say 200: $(repr(first(text, 200)))"
+    nothing
+end
+
+function check_top_countries(editor, steps_before)
+    shown = find_shown_values(get_sales_pivot(editor), "country")
+    shown == ["CA", "NY"] || return "the pivot shows the countries $(shown)"
+    check_pivot_edit(editor, steps_before)
+end
+
+function check_ca_left_out(editor, steps_before)
+    shown = find_shown_values(get_sales_pivot(editor), "country")
+    shown == ["DE", "FR", "NY"] || return "the pivot shows the countries $(shown)"
+    check_pivot_edit(editor, steps_before)
+end
+
+function check_bar_charts(editor, steps_before)
+    view = get_pivot_cell_view(get_sales_pivot(editor))
+    view isa PivotBarChartView || return "the cells show $(nameof(typeof(view)))"
+    check_pivot_edit(editor, steps_before)
+end
+
+function check_years_down(editor, steps_before)
+    pivot = get_sales_pivot(editor)
+    rows, columns = [d.column for d in pivot.row_dimensions], [d.column for d in pivot.column_dimensions]
+    ("year" in rows && "country" in columns && !("year" in columns) && !("country" in rows)) ||
+        return "the pivot has " * describe_pivot_zones(pivot)
+    check_pivot_edit(editor, steps_before)
+end
+
+const PIVOT_TASKS = [
+    SingleTask("make", "Make a pivot table of the Sales tab with the regions down, the years across and the sum of the amounts, in a new tab.",
+               check_pivot_made),
+    SingleTask("read", "How much did NY sell in 2025, as the Sales pivot shows it?", check_value_told),
+    SingleTask("top", "In the Sales pivot, show only the 2 countries with the highest sales.", check_top_countries),
+    SingleTask("hide", "Leave CA out of the Sales pivot.", check_ca_left_out),
+    SingleTask("chart", "Show each cell of the Sales pivot as a bar chart.", check_bar_charts),
+    SingleTask("move", "In the Sales pivot, put the years down and the countries across.", check_years_down),
+]
+
+"""
+    run_pivot_task_rehearsals(seeds; directory, tasks = PIVOT_TASKS)
+
+[`run_task_rehearsals`](@ref) of the tasks of a pivot, on the window of S2 with a
+data frame tab and its pivot.
+"""
+run_pivot_task_rehearsals(seeds; directory, tasks = PIVOT_TASKS, kwargs...) =
+    run_task_rehearsals(seeds; directory, tasks, make_editor = make_pivot_rehearsal_editor,
+                        count_steps = count_window_steps, kwargs...)
 
 # ── Documentation by name ────────────────────────────────────────────────────
 
