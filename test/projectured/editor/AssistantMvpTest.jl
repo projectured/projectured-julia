@@ -27,7 +27,8 @@
 using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
 using ProjecturedPlatform.AssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
-                                            _eval_form_doc, AssistantToWidgetCard
+                                            _eval_form_doc, AssistantToWidgetCard,
+                                            _TURN_WORKS, _TURN_WORKS_LOCK
 import ProjecturedKernel.LlmModule: stream_turn,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmToolUse, LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
@@ -69,14 +70,16 @@ function make_assistant_mvp_setup(; reply::AbstractString = "Yes, sir!")
     a
 end
 
-# After SubmitProseOperation launches `_run_agent_loop!` on an @async task,
-# spin until status returns to `:idle` (or until the deadline). Tests must
-# observe the post-stream state.
-function _mvp_wait_idle!(a::Assistant; timeout_seconds::Real = 2.0)
-    deadline = time() + timeout_seconds
-    while a.status === :streaming && time() < deadline
-        yield()
-        sleep(0.005)
+# Wait while a turn of `a` streams, and answer the status after it. A submit
+# runs the turn as background work, and the end of that work puts the status
+# back; a message that waited starts the next turn there. So the wait follows
+# the work of each turn, however long its first run compiles, and no deadline
+# ends it before the turn ends.
+function _mvp_wait_idle!(a::Assistant)
+    while a.status === :streaming
+        control = a.turn_control
+        work = control === nothing ? nothing : lock(() -> get(_TURN_WORKS, control, nothing), _TURN_WORKS_LOCK)
+        work === nothing ? yield() : fetch(work)
     end
     a.status
 end
@@ -319,7 +322,8 @@ end
 # A turn runs as background work, so its stop stops the background work of the
 # tool call that it waits for: the code ends at its `sleep`, and the turn ends
 # long before the sleep would, with the result of the call. The first print of a
-# stack trace in a process compiles for some seconds, so the wait is long.
+# stack trace in a process compiles for some seconds, so the bound of the time is
+# far above the time of a stop and far below the time of the sleep.
 function _mvp_test_stop_turn_stops_background_call()
     @testset "a stop of a turn stops the background work of its tool call" begin
         code = Dict{String,Any}("code" => "sleep(60)", "background" => true)
@@ -331,7 +335,7 @@ function _mvp_test_stop_turn_stops_background_call()
         evaluate_operation(editor, SubmitProseOperation(a))
         sleep(1.0)                                   # the turn waits for the work of its call
         evaluate_operation(editor, CancelAssistantTurnOperation(a))
-        @test _mvp_wait_idle!(a; timeout_seconds = 30) === :idle
+        @test _mvp_wait_idle!(a) === :idle
         @test time() - started < 40
         last_turn = collect(a.conversation.turns)[end]
         @test last_turn.stop_reason === :cancelled
@@ -589,7 +593,7 @@ function _mvp_test_agent_markdown_tool_result()
         editor = _mvp_editor(a)
         a.input.value = "Look it up"
         evaluate_operation(editor, SubmitProseOperation(a))
-        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test _mvp_wait_idle!(a) === :idle
         forms = [part.content for turn in a.conversation.turns for part in turn.parts
                  if part.content isa EvaluatorForm]
         @test [form.tool_name for form in forms] == ["read_resource", "Read", "read_resource"]
@@ -628,7 +632,7 @@ function _mvp_test_ask_person()
         @test a.status === :streaming
         collect(request.form.values)[1].value = "Blue"
         answer_question_request!(request, find_question_values(request))
-        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test _mvp_wait_idle!(a) === :idle
         @test request.answer == "Answered: Choice: Blue"
         results = [content for message in build_messages(a.conversation) for content in message.content
                    if content isa LlmToolResult]
@@ -649,7 +653,7 @@ function _mvp_test_ask_person()
         request = only(requests(a))
         @test [field.kind for field in request.fields] == [:text]
         evaluate_operation(editor, CancelAssistantTurnOperation(a))
-        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test _mvp_wait_idle!(a) === :idle
         @test request.answer == "Declined"
     end
 end
@@ -706,7 +710,7 @@ function _mvp_test_agent_resource_result()
         editor = _mvp_editor(a)
         a.input.value = "Read them"
         evaluate_operation(editor, SubmitProseOperation(a))
-        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test _mvp_wait_idle!(a) === :idle
         page, code, plain = [part.content for turn in a.conversation.turns for part in turn.parts
                              if part.content isa EvaluatorForm]
         @test page.result isa MarkdownRoot
