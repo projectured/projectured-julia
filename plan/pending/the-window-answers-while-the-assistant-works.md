@@ -125,7 +125,7 @@ prints again. Step 4 counts it.
    vector and of a string, and a position. Each answers the same result as today.
    Then `test_kernel()`. The guide `documentation/package/kernel/reference.md` names
    the predicate.
-3. [ ] **The workloads print one assistant turn.** `warm_assistant_turn!` in
+3. [x] **The workloads print one assistant turn.** `warm_assistant_turn!` in
    `source/platform/assistant/`, with a test in a headless editor: the turn has
    each kind of part, the editor records no fault, and the function answers the
    assistant. The call in `warm_application()` lands on main of projectured-julia
@@ -239,6 +239,23 @@ prints again. Step 4 counts it.
   `TypeinTest.jl:733`. The base commit `4c07f266c` gives the same 3357 and the same
   84 failures, so they come before this branch: the Julia example draws no caret on
   its identifier leaves.
-- The call in `OmnetIde.precompile_workload!` is in the worktree of omnet-julia, on
-  the branch `window-answers`. It is checked in a scratch copy of the app
-  environment whose paths go to both worktrees.
+- The call in `OmnetIde.precompile_workload!` is omnet-julia `e6fe4a3b` on the
+  branch `window-answers` (worktree `omnet-julia-window-answers`). It opens an
+  assistant pane in the tree of the workload, prints the turn through the wrapped
+  projection, reads 400 pointer moves over a grid of the window of 1200 × 800, and
+  answers the request with `answer_permission_request!`. The workload has no
+  editor, so the hover operations that the moves answer are read, not evaluated.
+- Fact: `campaign_assistant(choice; llm)` makes an `Assistant` only for
+  `choice === :auto`, with the backend `llm`; another `choice` is answered as it
+  is. So the workload calls `campaign_assistant(:auto; llm = :acp)`, as
+  `--assistant=acp` does. The first version called `campaign_assistant(:acp)`, and
+  the `catch` of the workload hid the `MethodError`.
+- The block is checked in a scratch copy of the app environment
+  (`/var/tmp/window-answers-app/omnet_ide`, paths to both worktrees) by a script
+  that runs it with no `catch` (`/var/tmp/window-answers-tests/check_ide_workload.jl`):
+  313 drawn texts with the code tokens, the Markdown text, the answer, the search
+  and the option; the moves answer `nothing` or a `ReplaceMouseTargetOperation`;
+  the answered request prints.
+- The precompile of the app logs "The pane has no duplicate" twice for the
+  `StudyStudy` pane. The F1 and Ctrl+Shift+P reads of the workload make it while
+  the Study tab has the focus, before the assistant pane opens.
