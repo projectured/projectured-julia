@@ -2247,12 +2247,15 @@ end
 _has_overlap(a::NTuple{4,Int}, b::NTuple{4,Int}) =
     a[1] < b[3] && b[1] < a[3] && a[2] < b[4] && b[2] < a[4]
 
-# A rectangle of `region` that cuts the box of a viewport with a scale grows to
-# the whole box, cut to the window. The software renderer draws a scaled texture
-# that a clip cuts off its grid of pixels with another sampling, so content cut
-# that way would differ from a full paint. The records keep the box of a viewport
-# inside scaled content in the units of that content: a rectangle that meets
-# such a box only repaints more than it must.
+# A box of a viewport with a scale that a rectangle of `region` cuts is painted
+# after the rectangles, whole, cut only to the window. The software renderer draws
+# a scaled texture that a clip cuts off its grid of pixels with another sampling,
+# so content cut that way would differ from a full paint, and a later paint of the
+# whole box draws over the cut. A box that a box painted so cuts is painted too.
+# The smaller boxes go first, so a box inside another one is painted again by it,
+# under the clips of a full paint. A rectangle that such a box covers is dropped.
+# The records keep the box of a viewport inside scaled content in the units of
+# that content: a rectangle that meets such a box only repaints more than it must.
 function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowResources)
     isempty(region.rects) && return nothing
     boxes = NTuple{4,Int}[]
@@ -2262,17 +2265,22 @@ function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowReso
                       clamp(box[3], 0, res.width), clamp(box[4], 0, res.height))
         _is_empty_box(window_box) || push!(boxes, window_box)
     end
-    # A box that grows a rectangle can cut another box, so the passes go on until
-    # no box grows one. Each box is added once at most.
+    cuts(r, box) = _has_overlap(r, box) && !_is_rect_covered(box, r)
+    painted = NTuple{4,Int}[]
     grown = true
     while grown
         grown = false
         for box in boxes
-            any(r -> _has_overlap(r, box), region.rects) || continue
-            any(r -> _is_rect_covered(box, r), region.rects) && continue
-            _add_dirty_rect!(region, box)
+            box in painted && continue
+            (any(r -> cuts(r, box), region.rects) || any(b -> cuts(b, box), painted)) || continue
+            push!(painted, box)
             grown = true
         end
+    end
+    sort!(painted; by = b -> (b[3] - b[1]) * (b[4] - b[2]))
+    for box in painted
+        filter!(r -> !_is_rect_covered(r, box), region.rects)
+        push!(region.rects, box)
     end
     nothing
 end
@@ -2510,6 +2518,21 @@ end
 
 _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, key)
 
+# The content of a viewport that only moved since the last paint. `box` is the box
+# of the viewport, cut by the boxes of the viewports around it as the walk leaves
+# them, and `clip` is the box of the viewport, which clips its content. `offset`
+# is how far the content moved, `key` places the viewport, `guard` is the guard of
+# the content that the last paint read, and `rects` are the bounds of the
+# graphics of the content that the copy does not give.
+mutable struct _ContentMove
+    box::NTuple{4,Int}
+    clip::NTuple{4,Int}
+    offset::NTuple{2,Int}
+    key::UInt
+    guard::Any
+    rects::Vector{NTuple{4,Int}}
+end
+
 # What one walk collects: the dirty region, and the recordings it defers.
 #
 # A recording reads the new values of what it records, and a read computes a
@@ -2531,23 +2554,30 @@ _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, ke
 # in the `clips` of the walk that holds it, runs after every recording, because a
 # recording adds the rectangles it clips; a viewport keeps the clips of the
 # viewports inside it and runs them first.
+#
+# The content of a viewport that only moved is a move, in `moves`: the walk tests
+# nothing in it and records it at its new place, and the clip of each viewport
+# around it cuts its box. After the recordings, `_settle_content_moves!` gives
+# each move the rectangles that a copy of its box cannot give, or its whole box.
 struct _DirtyWalk
     region::_DirtyRegion
     deferred::Vector{Function}
     lists::Vector{Function}
     clips::Vector{Function}
+    moves::Vector{_ContentMove}
     by_value::Bool
     visits::Base.RefValue{Int}   # the elements tested, shared by every walk of one frame
 end
-_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], false, Ref(0))
+_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], _ContentMove[], false, Ref(0))
 
 # The walk of the second phase under a canvas of `walk` whose list is new.
 _make_by_value_walk(walk::_DirtyWalk) =
-    _DirtyWalk(walk.region, walk.deferred, walk.lists, walk.clips, true, walk.visits)
+    _DirtyWalk(walk.region, walk.deferred, walk.lists, walk.clips, walk.moves, true, walk.visits)
 
-# The walk of the content of a viewport: a region and clips of its own.
+# The walk of the content of a viewport: a region, clips and moves of its own.
 _make_viewport_walk(walk::_DirtyWalk) =
-    _DirtyWalk(_DirtyRegion(), walk.deferred, walk.lists, Function[], walk.by_value, walk.visits)
+    _DirtyWalk(_DirtyRegion(), walk.deferred, walk.lists, Function[], _ContentMove[], walk.by_value,
+               walk.visits)
 
 # Run `f` after the walk. True, so a caller can answer that something changed.
 _defer!(walk::_DirtyWalk, f::Function) = (push!(walk.deferred, f); true)
@@ -2565,6 +2595,12 @@ function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)
     _is_painted(res, key) || return false
     old = get(res.dirty_bounds, key, nothing)
     old === nothing || _add_dirty_rect!(walk.region, old)
+    _forget_painted!(res, key)
+    true
+end
+
+# Forget the records of the graphic placed at `key`.
+function _forget_painted!(res::SdlWindowResources, key::UInt)
     delete!(res.dirty_bounds, key)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
@@ -2572,7 +2608,7 @@ function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)
     delete!(res.painted.signatures, key)
     delete!(res.painted.guards, key)
     delete!(res.painted.guard_places, key)
-    true
+    nothing
 end
 
 # A dirty unit: after the walk, its previous (cached) bounds and its new bounds go
@@ -2872,15 +2908,29 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
         return _defer!(walk, () -> _record_painted_viewport!(res, vp, key, ox, oy))
     end
     cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+    content_key = _make_placement_key(content, key)
+    # A content that only moved is a move: the walk tests nothing in it, and it
+    # records the content at its new place. The second phase compares by value,
+    # where a guard says nothing, so it takes no move.
+    move = walk.by_value ? nothing :
+           _find_content_move(res, key, content_key, box, transform, cox, coy, cedges)
+    if move !== nothing
+        push!(walk.moves, move)
+        old_edges = _move_clip_edges(cedges, move.offset)
+        _defer!(walk, () -> _record_moved_canvas!(res, content, content_key, cox, coy, cedges, old_edges,
+                                                  move.rects))
+        return false
+    end
     # The content can answer that nothing changed in its bounds while a viewport
     # inside it has rectangles to give, so the clip always runs, after the
     # recordings; an empty region costs nothing there. The clips of the viewports
     # inside the content, also those that the second phase finds, run first, so
     # they add their rectangles before this one clips them.
     inner = _make_viewport_walk(walk)
-    _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, inner)
+    _collect_canvas_dirty!(res, content, content_key, cox, coy, cedges, inner)
     push!(walk.clips, () -> begin
         foreach(clip -> clip(), inner.clips)
+        _clip_inner_moves!(walk, inner, box, transform)
         isempty(inner.region.rects) && return
         # Under a scale the content's dirty region is in scaled content units;
         # rather than map every sub-rect through the transform, treat any dirty
@@ -2897,6 +2947,244 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
         end
     end)
     false
+end
+
+# The move of the content of the viewport placed at `key`, or `nothing`. The
+# caller found the box, the content and the transform as the last paint drew
+# them. The content moved when its origin `(cox, coy)` is not the origin that the
+# last paint recorded. Nothing in it changed when the guard that the last paint
+# read for it, at that origin and between the same edges, is still valid: a
+# guard reads every cell that the render reads for the elements between its
+# edges, and not the origin of its own canvas.
+function _find_content_move(res::SdlWindowResources, key::UInt, content_key::UInt, box::NTuple{4,Int},
+                            transform::AffineTransform, cox::Int, coy::Int, cedges::_ClipEdges)
+    _is_plain_viewport_transform(transform) || return nothing
+    origin = get(res.painted.origins, content_key, nothing)
+    (origin === nothing || origin == (cox, coy)) && return nothing
+    guard = get(res.painted.guards, content_key, nothing)
+    guard === nothing && return nothing
+    get(res.painted.guard_places, content_key, nothing) == (origin[1], origin[2], cedges) || return nothing
+    is_cell_valid(guard) || return nothing
+    _ContentMove(box, box, (cox - origin[1], coy - origin[2]), key, guard, NTuple{4,Int}[])
+end
+
+_move_clip_edges(edges::_ClipEdges, offset::NTuple{2,Int}) =
+    _ClipEdges(edges.left + offset[1], edges.top + offset[2], edges.right + offset[1], edges.bottom + offset[2])
+
+_move_box(box::NTuple{4,Int}, offset::NTuple{2,Int}) =
+    (box[1] + offset[1], box[2] + offset[2], box[3] + offset[1], box[4] + offset[2])
+
+_intersect_boxes(a::NTuple{4,Int}, b::NTuple{4,Int}) =
+    (max(a[1], b[1]), max(a[2], b[2]), min(a[3], b[3]), min(a[4], b[4]))
+
+# Give the moves found in the content of a viewport with the box `box` to the walk
+# around it, with their boxes cut to that box. Under a scale the records of the
+# content are in its own units, so a move there paints its box instead, and the
+# clip of the viewport grows that to the box of the viewport.
+function _clip_inner_moves!(walk::_DirtyWalk, inner::_DirtyWalk, box::NTuple{4,Int},
+                            transform::AffineTransform)
+    plain = _is_plain_viewport_transform(transform)
+    for move in inner.moves
+        if plain
+            move.box = _intersect_boxes(move.box, box)
+            push!(walk.moves, move)
+        else
+            _add_dirty_rect!(inner.region, move.box)
+        end
+    end
+    empty!(inner.moves)
+    nothing
+end
+
+# Record a canvas of the content of a move at its new content origin `(ox, oy)`,
+# and answer the bounds of what it draws. `edges` are the box of the viewport. The
+# content did not change, so the last paint drew the elements between
+# `old_edges`, the edges moved by the offset of the move. An element between both
+# edges is recorded at its new place. One between `edges` only came into view,
+# and one between `old_edges` only left it: each adds its bounds to `rects`, and
+# one that left is forgotten.
+#
+# An element between both edges that is not a canvas also adds its bounds when
+# they cross an edge of the box at its new place or at its old one. The software
+# renderer of SDL samples a scaled texture that a clip cuts on another grid, so
+# a text that the edge cuts by another amount draws other pixels.
+function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
+                               ox::Int, oy::Int, edges::_ClipEdges, old_edges::_ClipEdges,
+                               rects::Vector{NTuple{4,Int}})
+    res.painted.origins[key] = (ox, oy)
+    elements = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    acc = _DirtyAcc()
+    if elements isa ListNode
+        early || return _record_bounds!(res, key, nothing)
+        drawn = _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+        drawn_before = _collect_drawn_nodes(elements, ox, oy, old_edges, layout, early)
+        kept = Base.IdSet{ListNode}(drawn_before)
+        for node in drawn
+            if node in kept
+                node_key = _make_placement_key(node, key)
+                res.painted.origins[node_key] = (ox, oy)
+                value = node.value
+                b = _record_bounds!(res, node_key,
+                                    _record_moved_element!(res, value, _make_placement_key(value, node_key),
+                                                           ox, oy, edges, old_edges, rects))
+                value isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+            else
+                b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
+                b === nothing || push!(rects, b)
+            end
+            b === nothing || _acc_extend!(acc, b)
+        end
+        shown = Base.IdSet{ListNode}(drawn)
+        for node in drawn_before
+            node in shown && continue
+            node_key = _make_placement_key(node, key)
+            value = node.value
+            _clear_moved_left_view!(res, rects, node_key, edges, old_edges) do
+                _forget_painted!(res, node_key)
+                _forget_recorded_element!(res, value, _make_placement_key(value, node_key), ox, oy, old_edges)
+            end
+        end
+        return _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
+    end
+    first_now = _compute_first_drawn_index(canvas, ox, oy, edges)
+    first_before = _compute_first_drawn_index(canvas, ox, oy, old_edges)
+    members = UInt[]
+    past_now = past_before = false
+    for i in min(first_now, first_before):length(elements)
+        elem = elements[i]
+        elem isa GraphicsFence && continue
+        past_now = past_now || _is_past_early_stop(elem, ox, oy, edges, layout, early)
+        past_before = past_before || _is_past_early_stop(elem, ox, oy, old_edges, layout, early)
+        past_now && past_before && break
+        now = i >= first_now && !past_now
+        before = i >= first_before && !past_before
+        elem_key = _make_placement_key(elem, key)
+        if now
+            push!(members, elem_key)
+            if before
+                b = _record_moved_element!(res, elem, elem_key, ox, oy, edges, old_edges, rects)
+                elem isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+            else
+                b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
+                b === nothing || push!(rects, b)
+            end
+            b === nothing || _acc_extend!(acc, b)
+        elseif before
+            _clear_moved_left_view!(res, rects, elem_key, edges, old_edges) do
+                _forget_recorded_element!(res, elem, elem_key, ox, oy, old_edges)
+            end
+        end
+    end
+    res.painted.members[key] = members
+    _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
+end
+
+_get_edges_box(edges::_ClipEdges) = (edges.left, edges.top, edges.right, edges.bottom)
+
+# True when `bounds` meet `box` and reach past it.
+_is_crossing_box(bounds::NTuple{4,Int}, box::NTuple{4,Int}) =
+    _has_overlap(bounds, box) && !_is_rect_covered(bounds, box)
+
+# Add `bounds` to `rects` when they cross the box of `edges` or of `old_edges`. A
+# box that did not move against the content cuts each graphic by the same amount
+# in both frames, so then nothing is added.
+function _add_crossing_bounds!(rects::Vector{NTuple{4,Int}}, bounds, edges::_ClipEdges,
+                               old_edges::_ClipEdges)
+    (bounds === nothing || edges == old_edges) && return nothing
+    (_is_crossing_box(bounds, _get_edges_box(edges)) || _is_crossing_box(bounds, _get_edges_box(old_edges))) &&
+        push!(rects, bounds)
+    nothing
+end
+
+# An element of the content of a move that the render draws in both frames: a
+# canvas can show other elements between the new edges, so it is recorded as a
+# moved canvas, and a viewport as a moved viewport; anything else draws the same,
+# at its new place.
+function _record_moved_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
+                                edges::_ClipEdges, old_edges::_ClipEdges, rects::Vector{NTuple{4,Int}})
+    elem isa GraphicsCanvas &&
+        return _record_moved_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, old_edges, rects)
+    elem isa GraphicsViewport && return _record_moved_viewport!(res, elem, key, ox, oy, edges, old_edges, rects)
+    _record_painted_element!(res, elem, key, ox, oy, edges)
+end
+
+# A viewport in the content of a move that the render draws in both frames. Its
+# box moved with the content, so its content shows the same elements, between its
+# own box in both frames. A viewport with a scale puts its content on the grid of
+# its own units, which a move does not keep, and the edge of the box that cuts a
+# viewport cuts it by another amount: each of them adds its box to `rects`.
+function _record_moved_viewport!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt, ox::Int, oy::Int,
+                                 edges::_ClipEdges, old_edges::_ClipEdges, rects::Vector{NTuple{4,Int}})
+    box, content, transform = _get_viewport_geometry(vp, ox, oy)
+    if !_is_plain_viewport_transform(transform) ||
+       (edges != old_edges && (_is_crossing_box(box, _get_edges_box(edges)) ||
+                               _is_crossing_box(box, _get_edges_box(old_edges))))
+        b = _record_painted_viewport!(res, vp, key, ox, oy)
+        b === nothing || push!(rects, b)
+        return b
+    end
+    res.painted.origins[key] = (ox, oy)
+    res.painted.viewports[key] = (box, objectid(content), transform)
+    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+    _record_moved_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges, cedges, rects)
+    _record_bounds!(res, key, _is_empty_box(box) ? nothing : box)
+end
+
+# An element of the content of a move, placed at `key`, that the last paint drew
+# between `old_edges` and that the render no longer reaches. After the copy its
+# old pixels lie where its record moves by the offset of the move, so that place
+# goes into `rects`. Then `forget` forgets its records.
+function _clear_moved_left_view!(forget::Function, res::SdlWindowResources, rects::Vector{NTuple{4,Int}},
+                                 key::UInt, edges::_ClipEdges, old_edges::_ClipEdges)
+    old = get(res.dirty_bounds, key, nothing)
+    offset = (old_edges.left - edges.left, old_edges.top - edges.top)
+    old === nothing || push!(rects, _move_box(old, offset))
+    forget()
+    nothing
+end
+
+# Forget the records that a recording of `elem` placed at `key`, at the content
+# origin `(ox, oy)` and between `edges`, writes: its own, and those of all that it
+# draws there.
+function _forget_recorded_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
+                                   edges::_ClipEdges)
+    _forget_painted!(res, key)
+    if elem isa GraphicsCanvas
+        _forget_recorded_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
+    elseif elem isa GraphicsViewport
+        box, content, transform = _get_viewport_geometry(elem, ox, oy)
+        cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+        content_key = _make_placement_key(content, key)
+        _forget_painted!(res, content_key)
+        _forget_recorded_canvas!(res, content, content_key, cox, coy, cedges)
+    end
+    nothing
+end
+
+function _forget_recorded_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
+                                  ox::Int, oy::Int, edges::_ClipEdges)
+    elements = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    if elements isa ListNode
+        early || return nothing
+        for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+            node_key = _make_placement_key(node, key)
+            _forget_painted!(res, node_key)
+            value = node.value
+            _forget_recorded_element!(res, value, _make_placement_key(value, node_key), ox, oy, edges)
+        end
+        return nothing
+    end
+    for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+        elem = elements[i]
+        elem isa GraphicsFence && continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+        _forget_recorded_element!(res, elem, _make_placement_key(elem, key), ox, oy, edges)
+    end
+    nothing
 end
 
 # The nodes of a list that the render draws, in its order: back along the prev
@@ -3138,14 +3426,185 @@ function _read_guarded_element(res::SdlWindowResources, elem, key::UInt, ox::Int
     nothing
 end
 
-# Compute the dirty region for `canvas` (the whole window content): the walk, the
-# new element lists it queued, the recordings it deferred, and the clips of the
-# viewports (see `_DirtyWalk`). Each rectangle is clamped to the window and
-# padded a couple of logical pixels so anti-aliased glyph edges straddling the
-# clip boundary are not clipped. Empty when nothing changed. Recording what was
-# painted is a side effect, so this is also called (its region ignored) on the
-# first full paint to seed each unit's previous bounds and each graphic's place.
-function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
+# The parts of `box` that a copy of its pixels by `offset` gives no pixels for: the
+# band at each edge that the content moved away from.
+function _compute_move_strips(box::NTuple{4,Int}, offset::NTuple{2,Int})
+    (x0, y0, x1, y1) = box
+    (dx, dy) = offset
+    strips = NTuple{4,Int}[]
+    dy > 0 && push!(strips, (x0, y0, x1, y0 + dy))
+    dy < 0 && push!(strips, (x0, y1 + dy, x1, y1))
+    dx > 0 && push!(strips, (x0, y0, x0 + dx, y1))
+    dx < 0 && push!(strips, (x1 + dx, y0, x1, y1))
+    strips
+end
+
+# True when the box of `move` can be copied in the window of `res`: it covers a
+# pixel, no outer viewport and no edge of the window cut it, so its edges are the
+# edges that the recording tested, the offset is less than its size, and the
+# guard of the content is still valid after the recordings, which read the
+# graphics that came into view. The device pixel ratio must be a whole number. A
+# text rasterizes at that ratio and is scaled by the supersample, and at another
+# ratio the edge of a rectangle can cut it off the grid of its texels, which the
+# software renderer of SDL then samples on another grid.
+function _is_copyable_move(move::_ContentMove, res::SdlWindowResources)
+    (x0, y0, x1, y1) = move.box
+    (dx, dy) = move.offset
+    isinteger(res.ratio) && !_is_empty_box(move.box) && move.box == move.clip &&
+        abs(dx) < x1 - x0 && abs(dy) < y1 - y0 && is_cell_valid(move.guard)
+end
+
+# The moves in groups whose boxes overlap, each move in one group.
+function _group_overlapping_moves(moves::Vector{_ContentMove})
+    groups = Vector{_ContentMove}[]
+    for move in moves
+        joined = [group for group in groups if any(m -> _has_overlap(m.box, move.box), group)]
+        filter!(group -> !any(j -> j === group, joined), groups)
+        push!(groups, vcat(joined..., [move]))
+    end
+    groups
+end
+
+# Settle the moves of `walk` after its recordings, and answer the boxes to copy,
+# each with its offset. Each box is cut to the window. A move that cannot be
+# copied paints its box. The moves whose boxes overlap form a group, which is
+# copied as the box of its largest move when that box holds the others and all of
+# them have one offset; any other group paints its boxes. A box that is painted is
+# a change like any other, so it joins the region before a copied group takes the
+# rectangles from outside the contents.
+#
+# A copied group gives the region what the copy cannot give: the strips of each
+# box; for each move inside the largest one, the band that its box covers after
+# the copy and did not cover before; the bounds of the graphics that came into
+# view or left it, cut to their box; and, cut to the box and moved by the offset,
+# each rectangle of the region from outside the contents, where a graphic changed
+# that the copy moves. `_collect_cover_rects!` adds the graphics outside the
+# contents that the copy moves.
+function _settle_content_moves!(res::SdlWindowResources, canvas::GraphicsCanvas, walk::_DirtyWalk)
+    window = (0, 0, res.width, res.height)
+    moves = _ContentMove[]
+    for move in walk.moves
+        move.box = _intersect_boxes(move.box, window)
+        _is_copyable_move(move, res) ? push!(moves, move) : _add_dirty_rect!(walk.region, move.box)
+    end
+    groups = Tuple{_ContentMove,Vector{_ContentMove}}[]
+    for group in _group_overlapping_moves(moves)
+        top = group[argmax([(m.box[3] - m.box[1]) * (m.box[4] - m.box[2]) for m in group])]
+        if all(m -> m.offset == top.offset && _is_rect_covered(m.box, top.box), group)
+            push!(groups, (top, group))
+        else
+            foreach(m -> _add_dirty_rect!(walk.region, m.box), group)
+        end
+    end
+    outside = copy(walk.region.rects)
+    copies = Tuple{NTuple{4,Int},NTuple{2,Int}}[]
+    for (top, group) in groups
+        rects = _compute_move_strips(top.box, top.offset)
+        nested = Dict{UInt,_ContentMove}(m.key => m for m in group if m !== top)
+        for move in values(nested)
+            append!(rects, _compute_move_strips(move.box, move.offset))
+            band = _compute_move_strips(_move_box(move.box, move.offset), (-move.offset[1], -move.offset[2]))
+            append!(rects, (_intersect_boxes(b, top.box) for b in band))
+        end
+        for move in group, r in move.rects
+            push!(rects, _intersect_boxes(r, move.box))
+        end
+        for r in outside
+            _has_overlap(r, top.box) &&
+                push!(rects, _intersect_boxes(_move_box(_intersect_boxes(r, top.box), top.offset), top.box))
+        end
+        _collect_cover_rects!(rects, res, canvas, top, nested)
+        foreach(r -> _add_dirty_rect!(walk.region, r), rects)
+        push!(copies, (top.box, top.offset))
+    end
+    copies
+end
+
+# Add to `rects` what a copy of the box of `move` makes wrong in the graphics that
+# are not in its content. The copy moves their pixels too, so each one whose
+# record, widened by the pad, meets the box gives that place and the place that
+# the copy moved it to, cut to the box. The walk goes down from the window by the records, as a partial
+# paint does. A filled rectangle whose inside covers the box gives nothing, and
+# a viewport in `nested`, whose content moved by the same offset, gives its own
+# strips in `_settle_content_moves!`.
+function _collect_cover_rects!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources,
+                               canvas::GraphicsCanvas, move::_ContentMove, nested::Dict{UInt,_ContentMove})
+    _collect_cover_canvas!(rects, res, canvas, _make_placement_key(canvas, UInt(0)), 0, 0,
+                           _ClipEdges(0, 0, res.width, res.height), move, nested)
+end
+
+function _collect_cover_canvas!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources,
+                                canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int, edges::_ClipEdges,
+                                move::_ContentMove, nested::Dict{UInt,_ContentMove})
+    elements = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    if elements isa ListNode
+        early || return nothing
+        for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+            value = node.value
+            _collect_cover_element!(rects, res, value, _make_placement_key(value, _make_placement_key(node, key)),
+                                    ox, oy, edges, move, nested)
+        end
+        return nothing
+    end
+    for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+        elem = elements[i]
+        elem isa GraphicsFence && continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+        _collect_cover_element!(rects, res, elem, _make_placement_key(elem, key), ox, oy, edges, move, nested)
+    end
+    nothing
+end
+
+function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources, elem, key::UInt,
+                                 ox::Int, oy::Int, edges::_ClipEdges, move::_ContentMove,
+                                 nested::Dict{UInt,_ContentMove})
+    (key == move.key || haskey(nested, key)) && return nothing
+    record = get(res.dirty_bounds, key, nothing)
+    record === nothing && return nothing
+    pad = _DIRTY_RECT_PAD
+    padded = (record[1] - pad, record[2] - pad, record[3] + pad, record[4] + pad)
+    _has_overlap(padded, move.box) || return nothing
+    if elem isa GraphicsCanvas
+        return _collect_cover_canvas!(rects, res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges,
+                                      move, nested)
+    elseif elem isa GraphicsViewport
+        box, content, transform = _get_viewport_geometry(elem, ox, oy)
+        if _is_plain_viewport_transform(transform)
+            cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+            return _collect_cover_canvas!(rects, res, content, _make_placement_key(content, key), cox, coy,
+                                          cedges, move, nested)
+        end
+    elseif _covers_box_with_one_color(elem, ox, oy, move.box)
+        return nothing
+    end
+    cut = _intersect_boxes(padded, move.box)
+    push!(rects, cut, _intersect_boxes(_move_box(cut, move.offset), move.box))
+    nothing
+end
+
+# True for a filled rectangle whose inside, within its border and its corners,
+# covers `box`: each pixel of it in the box has the one color of its fill, so a
+# copy inside the box leaves it as it is.
+function _covers_box_with_one_color(elem, ox::Int, oy::Int, box::NTuple{4,Int})
+    elem isa GraphicsRect || return false
+    border = elem.border_color.alpha == 0 ? 0 : Int(elem.border_width)
+    inset = border + max(Int(elem.radius_tl), Int(elem.radius_tr), Int(elem.radius_br), Int(elem.radius_bl))
+    x, y = ox + Int(elem.x), oy + Int(elem.y)
+    _is_rect_covered(box, (x + inset, y + inset, x + Int(elem.w) - inset, y + Int(elem.h) - inset))
+end
+
+# Compute what changed in `canvas` (the whole window content): the walk, the new
+# element lists it queued, the recordings it deferred, the clips of the viewports
+# (see `_DirtyWalk`) and the moves. Answer the dirty region, and the boxes whose
+# pixels a paint copies first, each with the offset of its content. Each
+# rectangle is clamped to the window and padded a couple of logical pixels so
+# anti-aliased glyph edges straddling the clip boundary are not clipped. The
+# region is empty when nothing changed. Recording what was painted is a side
+# effect, so this is also called (its answer ignored) on the first full paint to
+# seed each unit's previous bounds and each graphic's place.
+function _compute_dirty_change(res::SdlWindowResources, canvas::GraphicsCanvas)
     walk = _DirtyWalk()
     root = _make_placement_key(canvas, UInt(0))
     edges = _ClipEdges(0, 0, res.width, res.height)
@@ -3158,6 +3617,7 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     foreach(record -> record(), walk.deferred)
     foreach(clip -> clip(), walk.clips)
     res.painted.visits = walk.visits[]
+    moves = _settle_content_moves!(res, canvas, walk)
     # The guards read after every recording, as a recording does, so no read
     # computes a cell that the walk had still to test. A guard that throws stays
     # not valid, and the walk enters its canvas; the paint meets the same fault.
@@ -3173,8 +3633,12 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
                                   clamp(r[3] + pad, 0, res.width), clamp(r[4] + pad, 0, res.height)))
     end
     _extend_over_scaled_viewports!(padded, res)
-    padded.rects
+    (padded.rects, moves)
 end
+
+# The dirty region of `canvas`, as `_compute_dirty_change` finds it.
+_compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas) =
+    first(_compute_dirty_change(res, canvas))
 
 # The smallest rectangle that covers the dirty region, or `nothing` when nothing
 # changed: the size of a frame's repaint in one number, for a log or a test.
@@ -3384,6 +3848,18 @@ function _copy_surface_box!(off, res::SdlWindowResources, box::NTuple{4,Int}, of
     true
 end
 
+# Copy each box of `moves` that no rectangle of `rects` covers, with
+# `copy(box, offset)`, and answer the boxes that it copied. A box that `copy`
+# cannot copy goes into `rects`, so the paint draws it.
+function _copy_moved_boxes!(copy::Function, rects::Vector{NTuple{4,Int}}, moves)
+    copied = NTuple{4,Int}[]
+    for (box, offset) in moves
+        any(r -> _is_rect_covered(box, r), rects) && continue
+        copy(box, offset) ? push!(copied, box) : push!(rects, box)
+    end
+    copied
+end
+
 # Outline the union of `rects` in red, `thickness` logical pixels wide, inside
 # it: rects that overlap or touch are outlined as one shape, with no line inside.
 function _outline_dirty_rects!(renderer::Ptr{SDL_Renderer}, rects, thickness::Int)
@@ -3451,11 +3927,11 @@ function _walk_window_change!(res::SdlWindowResources, canvas::GraphicsCanvas)
         _forget_painted_geometry!(res)
         res.first_paint = true
     end
-    computed = _compute_dirty_region(res, canvas)
+    change = _compute_dirty_change(res, canvas)
     # A walk with no records paints the whole window as one unit, so it
     # records everything that is there: the count to measure growth against.
     res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
-    computed
+    change
 end
 
 # Repaint `canvas` into the window, restricting the work to the invalidated
@@ -3482,7 +3958,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     if !_ensure_ss_target!(res)
         # No usable retained target — fall back to the classic full repaint
         # straight to the window backbuffer.
-        computed = _walk_window_change!(res, canvas)
+        computed, _ = _walk_window_change!(res, canvas)
         changed = res.first_paint || !isempty(computed)
         res.first_paint = false
         SDL_RenderSetScale(renderer, scale, scale)
@@ -3498,7 +3974,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     # be cleared (the target is undefined and margins outside the content have no
     # element to mark them dirty), so the region is the full window, but the
     # walk still runs for its records.
-    computed = _walk_window_change!(res, canvas)
+    computed, moves = _walk_window_change!(res, canvas)
     changed = res.first_paint || !isempty(computed)
     if !partial || res.first_paint
         rects = [(0, 0, res.width, res.height)]
@@ -3512,6 +3988,9 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
 
     rss = Float32(res.ss) * scale
     SDL_SetRenderTarget(renderer, res.target)
+    # The pixels that stay in the box of a move go to their new place first. A full
+    # paint covers each box, so it copies nothing.
+    copied = _copy_moved_boxes!((box, offset) -> _copy_target_box!(res, box, offset), rects, moves)
     SDL_RenderSetScale(renderer, rss, rss)
     _paint_dirty_rects!(renderer, canvas, rects, bg, res.width, res.height, res.ratio; records)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
@@ -3537,6 +4016,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     else
         damage = _DirtyRegion()
         foreach(r -> _add_dirty_rect!(damage, r), rects)
+        foreach(r -> _add_dirty_rect!(damage, r), copied)
         for i in 1:(age - 1), r in res.damage_history[i]
             _add_dirty_rect!(damage, r)
         end
@@ -3549,7 +4029,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         end
     end
     # Record this frame's content damage (most-recent first) for future copies.
-    pushfirst!(res.damage_history, rects)
+    pushfirst!(res.damage_history, vcat(rects, copied))
     length(res.damage_history) > _DAMAGE_HISTORY_CAP && resize!(res.damage_history, _DAMAGE_HISTORY_CAP)
 
     if debug
@@ -4002,8 +4482,9 @@ end
     render_offscreen_changes!(renderer, state, canvas; background) -> rects
 
 Render `canvas` into `renderer` as a window with `partial_render` does: the
-surface keeps its pixels, and only the rects that the dirty walk finds are
-painted again. The first frame paints everything. Answers the rects painted,
+surface keeps its pixels, the pixels that stay in the box of a viewport whose
+content only moved are copied to their new place, and only the rects that the
+dirty walk finds are painted again. The first frame paints everything. Answers the rects painted,
 empty when nothing changed.
 """
 function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::GraphicsCanvas;
@@ -4013,12 +4494,13 @@ function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::Gra
         _forget_painted_geometry!(res)
         res.first_paint = true
     end
-    computed = _compute_dirty_region(res, canvas)
+    computed, moves = _compute_dirty_change(res, canvas)
     res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
     rects = res.first_paint ? [(0, 0, res.width, res.height)] : _limit_dirty_rects(computed)
     records = res.first_paint ? nothing : res.dirty_bounds
     res.first_paint = false
     isempty(rects) && return rects
+    _copy_moved_boxes!((box, offset) -> _copy_surface_box!(off, res, box, offset), rects, moves)
     scale = _get_offscreen_content_scale(off)
     SDL_RenderSetScale(off.renderer, Float32(scale * off.S), Float32(scale * off.S))
     _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale; records)

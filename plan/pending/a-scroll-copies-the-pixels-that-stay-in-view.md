@@ -107,10 +107,13 @@ The walk takes a move for a viewport only when all of these are true:
 3. The old guard of the content is valid, and its place is the recorded origin
    with the same edges.
 4. `|dx|` is less than the width of the box, and `|dy|` is less than its height.
-   The box here is the box cut by the outer viewports and the window.
-5. `d × ratio × ss` is a whole number on both axes, and so is each edge of the
-   box. A device pixel that an edge of the box cuts also holds what a graphic
-   outside the box draws there, so a copy along that edge would carry it.
+   No outer viewport and no edge of the window cuts the box, because the
+   recording tests the edges of the box itself (rule 2 of the rectangles).
+5. The device pixel ratio is a whole number. Then `d` and each edge of the box
+   are whole device pixels too. A text rasterizes at the ratio and is scaled by
+   the supersample. At another ratio, the edge of a rectangle can cut a text off
+   the grid of its texels, and the software renderer of SDL then samples it on
+   another grid (see [As built](#as-built)).
 6. No outer viewport has a scale.
 7. The box does not overlap the box of another move of the frame, except when
    one box holds the other and the two moves have the same `d`. The table of a
@@ -119,7 +122,10 @@ The walk takes a move for a viewport only when all of these are true:
 8. After the recordings, the old guard is still valid. A read of a new row must
    not have changed a row that stays in view.
 
-When a condition is false, the walk does what it does now.
+When a condition is false, the move paints its box. That box is a change like
+any other, so it joins the region before a copied move takes the rectangles from
+outside the contents (rule 3 below). A copy that carries the old pixels of such a
+box then repaints them.
 
 ### The rectangles of a move
 
@@ -133,17 +139,26 @@ When a condition is false, the walk does what it does now.
    - An element between both edges is recorded at its new place, and gives no
      rectangle.
    - An element between the new edges only gives its new bounds, cut to the box.
-   - An element between the old edges only gives its bounds, cut to the box,
-     because its old pixels lie there after the copy. Its records are cleared.
+   - An element between the old edges only gives its record moved by `d`, cut
+     to the box, because its old pixels lie there after the copy. Its records,
+     and the records of all that it draws, are cleared.
 
    This rule finds ink that reaches past the box of a row. The strip alone does
-   not find it.
+   not find it. Two more cases give rectangles:
+   - An element between both edges that is not a canvas gives its bounds when
+     they cross an edge of the box at its new place or at its old place. The
+     edge cuts it by another amount in each frame, and the software renderer of
+     SDL samples a scaled texture that a clip cuts on another grid.
+   - A viewport inside the content gives its box when it has a scale, because
+     its content lies on the grid of its own units, and when the edge of the box
+     cuts it. Any other viewport inside the content is recorded as moved content,
+     between its own box in both frames.
 3. **Graphics from outside the content.** The copy moves the pixels of a graphic
    that is not in the content but meets the box: the thumb of the scroll bar, a
    drag badge, or a background with a border. After the recordings, the walk goes
    from the window down to the viewport by the records, as the paint does. For
-   each graphic that meets the box, it adds its record cut to the box and the
-   same rectangle moved by `d`. The walk skips a filled rectangle when the area
+   each graphic whose record, widened by the pad, meets the box, it adds that
+   record cut to the box and the same rectangle moved by `d`. The walk skips a filled rectangle when the area
    inside its border and its corners covers the box, because that area has the
    same color at each pixel. The old place of a graphic that changed in the frame
    is a rectangle of the region. So each rectangle of the region from outside the
@@ -154,6 +169,14 @@ When a condition is false, the walk does what it does now.
    band that its box covers after the copy but did not cover before: its box
    moved by `d`, minus its box, cut to the outer box. The paint copies only the
    outer box.
+5. **A box with a scale that a rectangle cuts.** The paint draws it after all
+   the rectangles, whole, the smaller boxes first. The software renderer of SDL
+   samples the scaled content that a clip cuts on another grid, so the cut part
+   of a rectangle must be drawn over. Before this change,
+   `_extend_over_scaled_viewports!` added such a box only when no rectangle
+   covered it, and a rectangle painted after the one that covered it could
+   still cut it. That fault was older than
+   this plan, but a scroll over a chart meets it often.
 
 ### The records
 
@@ -268,7 +291,8 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
    walk does not use it yet. Add a test: paint a scene, copy a box by an offset,
    and compare with the same pixels moved in Julia. Do the test in an offscreen
    renderer, and in a hidden window for the texture path. Commit.
-4. [ ] **The walk finds a move, and the paint copies first.** Add the conditions,
+4. [x] **The walk finds a move, and the paint copies first.** Done; see
+   [As built](#as-built). Add the conditions,
    the three kinds of rectangle, the records, the cut by the outer viewports, the
    rule that drops a move, and the damage of the box. Then:
    - The tests of step 2 pass.
@@ -308,6 +332,10 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
 - An outline of the copied box under `debug_dirty`.
 - The canvas of 4003 elements with no layout in the view of a Julia source,
   which each rectangle visits whole.
+- Three scenes of the random test of the review, seeds 38, 292 and 416, whose
+  partial paint differs from a full paint on `main` too, with no move.
+- A list of nodes in a pane that scrolls by pixels: the render draws it from its
+  head, so the walk records each node above the view again in each frame.
 
 ## As built
 
@@ -346,7 +374,46 @@ this one use:
   The walk of a move clears them (rule 2 of the rectangles).
 - **The Julia source paints thousands of elements that it does not show.** Its
   box shows 36 texts, but a canvas of 4003 elements with no layout lies inside
-  it, and the walk keeps only 1667 records for the whole window. The paint cannot stop early in a
-  canvas with no layout, and it draws a graphic that has no record. So each
+  it, and the walk keeps only 1667 records for the whole window. The paint cannot
+  stop early in a canvas with no layout, and it draws a graphic that has no
+  record. So each
   rectangle of a scroll frame visits that canvas whole. The copy makes the
   rectangles smaller, but it does not change this.
+
+### Step 4: the move in the walk, 2026-10-21
+
+The pixel tests of step 2 found three faults of the first version, and a review
+of the diff by the `code-reviewer` agent found two more. Each one changed a rule
+above:
+
+| Fault | Found by | What changed |
+| --- | --- | --- |
+| Two full paints of the software renderer at supersample 2 differ after a scroll by 15 or 16 pixels, for a text "Ṏ row 1" that the top edge of the box cuts | pixel test | rule 2: an element that crosses an edge gives its bounds |
+| A viewport with a scale of 2 in the content: its content origin is rounded to its own units, so a move by 17 moves its content by 18 | pixel test | rule 2: such a viewport gives its box |
+| At the density 1.25, a rectangle that cuts a text draws other pixels than a full paint. This holds for a partial paint with no move too | pixel test | condition 5: the ratio is a whole number |
+| A move that is not copied, in the box of a move that is copied: the copy carried its old pixels, and no rectangle repainted them | review | a box that is painted joins the region before the rectangles from outside |
+| A box with a scale that one rectangle covers and a later one cuts: the later one draws its cut part. The fault is older than this plan | review | rule 5 |
+
+The review also found that a row that left the view kept the records of all that
+it holds. The walk now forgets them. In 200 notches of 48 pixels, rows that are
+canvases keep 205 records, and text rows keep 72. Without the move they grow to
+6205 and 1872. A list of nodes grows to 3109 records with the move and without
+it, because the render draws a list from its head.
+
+The results, in the test lane, with no time taken:
+
+- `test_partial_paint()`: 66 of 66 pass, with the X11 driver and with the
+  offscreen driver. A scroll by 69 pixels of 2000 rows of 23 pixels in a box of
+  290 pixels gives one move by `(0, -69)`. Its rectangles meet rows 13 to 16; a
+  paint of the box draws 13 rows. In a hidden window at the density 1 the
+  accelerated `opengl` renderer copied a box, and its target equals a full paint.
+- The random scenes of the review: 300 of 300 pass in the first test. In the
+  second test, 1494 of 1500 pass. The 6 that fail are seeds 38, 292 and 416, and
+  each one fails in the same frame and the same pixels with no move. Seed 38 also
+  fails so on `main`.
+- `test_sdl()` with the offscreen driver: 1053 pass, and the test of the tree
+  render fails 2 and errors 1, as on `main`. `test_video()`: 74 pass. It fails
+  `json_build_live` 2, the pointer test 2 and the zoom test 1, as on `main`, and
+  the take whose window cannot paint 1. That take also failed on `main` at
+  `f593feb4a` at the same time, and passed there an hour before.
+

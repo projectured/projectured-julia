@@ -250,6 +250,16 @@ end
                                 w = width, h = height)
         @test isempty(find_differing_frames(canvas, make_writes(scroll, [16, 85, 62, 500]);
                                             supersample, density))
+        # A pane in the box of another one, shorter than the scroll, so its box is
+        # painted and only the other box is copied: the copy carries its old
+        # pixels, which the paint draws over.
+        bars = GraphicsCanvas(Any[GraphicsRect(0, y, 180, 10; color = black) for y in (0, 20, 1000)];
+                              w = 180, h = 2000, layout = layout_vertical, overlapping = false)
+        short_scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 200, 200), [rules], Cell(0), short_scroll),
+                                    make_pane((30, 100, 180, 30), [bars], Cell(0), short_scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(short_scroll, [40, 45]); supersample, density))
     end
 end
 
@@ -275,7 +285,34 @@ end
              make_writes(scroll, [16, 33]);
              () -> (inner_scroll[] = 100; scroll[] = 50)];
             supersample, density))
+        # A stripe under a part of the box, whose rectangles cut the box of the
+        # viewport with a scale in the content.
+        for stripe_x in (161, 163)
+            rows, _ = make_scroll_rows(100, 16, font)
+            zoomed = GraphicsViewport(150, 40, 80, 40,
+                                      GraphicsCanvas(Any[GraphicsText("zoomed", 0, 0; font, color = black)]);
+                                      transform = make_affine_scale(2))
+            scroll = Cell(0)
+            canvas = GraphicsCanvas(Any[GraphicsRect(stripe_x, 60, 30, 200; color = StyleColor(0.8, 0.8, 0.8, 1.0)),
+                                        make_pane((20, 20, 300, 200), [rows, zoomed], Cell(0), scroll)];
+                                    w = width, h = height)
+            @test isempty(find_differing_frames(canvas, make_writes(scroll, [5, 21, 16]); supersample, density))
+        end
     end
+end
+
+@testset "a box with a scale that one rectangle covers and another one cuts" begin
+    # No scroll: a rectangle that moves by one pixel holds the box of a viewport
+    # with a scale of 2 in its old and its new bounds, and a dot moves to cut the
+    # box at its row 118.
+    zoomed = GraphicsViewport(245, 113, 72, 32, GraphicsCanvas(Any[GraphicsText("zoom", 0, 0; font, color = black)]);
+                              transform = make_affine_scale(2))
+    big_y = Cell(2)
+    big = GraphicsRect(167, () -> big_y[], 196, 148; color = StyleColor(0.9, 0.9, 0.7, 0.5))
+    dot_y = Cell(200)
+    dot = GraphicsRect(152, () -> dot_y[], 242, 70; color = StyleColor(0.2, 0.2, 0.9, 0.3))
+    canvas = GraphicsCanvas(Any[big, zoomed, dot]; w = width, h = height)
+    @test isempty(find_differing_frames(canvas, [() -> (big_y[] = 3; dot_y[] = 118)]))
 end
 
 @testset "a copy of a box moves the pixels that stay in it" begin
@@ -392,6 +429,111 @@ end
     @test length(rects) == 2
     # Row 4 under the old place of the dot, row 9 under its new place, and the dot.
     @test drawn == 3
+end
+
+@testset "a scroll paints only what the copy of its box does not give" begin
+    # 2000 rows of 23 pixels in a pane of 290 pixels. A scroll by 69 pixels shows
+    # rows 4 to 16, and the box moves by -69. The copy gives rows 4 to 12. The paint
+    # draws rows 14 to 16 in the strip of 69 pixels at the bottom, and row 13, which
+    # crosses the bottom edge of the box at its old place. A paint of the whole box
+    # draws all 13 rows.
+    slots = Cell[Cell(GraphicsText("row $k", 4, (k - 1) * 23; font, color = black)) for k in 1:2000]
+    rows = GraphicsCanvas(CellVector(slots); w = 200, h = 2000 * 23, layout = layout_vertical, overlapping = false)
+    scroll = Cell(0)
+    pane = make_pane((0, 0, 200, 290), [rows], Cell(0), scroll)
+    canvas = GraphicsCanvas(Any[pane]; w = width, h = height)
+    resources = make_resources()
+    SDL._compute_dirty_change(resources, canvas)
+    scroll[] = 69
+    rects, moves = SDL._compute_dirty_change(resources, canvas)
+    @test moves == [((0, 0, 200, 290), (0, -69))]
+    # The keys of the rows, made as the walk makes them.
+    pane_key = SDL._make_placement_key(pane, SDL._make_placement_key(canvas, UInt(0)))
+    rows_key = SDL._make_placement_key(rows, SDL._make_placement_key(pane.content, pane_key))
+    paint = SDL._PartialPaint(resources.dirty_bounds, (0, 0, 0, 0), 0)
+    function meets(rect, k)
+        paint.rect = rect
+        key = SDL._make_placement_key(slots[k][], rows_key)
+        haskey(resources.dirty_bounds, key) && !SDL._is_outside_partial_paint(paint, key)
+    end
+    @test filter(k -> any(r -> meets(r, k), rects), 1:2000) == 13:16
+    # The paint of each rectangle draws the rows that it meets, and nothing else.
+    off = SDL.open_offscreen_renderer(width, height; supersample = 1)
+    try
+        drawn = SDL._paint_dirty_rects!(off.renderer, canvas, rects, background, width, height, 1.0;
+                                        records = resources.dirty_bounds).drawn
+        @test drawn == sum(r -> count(k -> meets(r, k), 13:16), rects)
+    finally
+        SDL.close_offscreen_renderer(off)
+    end
+end
+
+@testset "two viewports that scroll together are one copy" begin
+    # The shape of the table of a data frame: the copy of the outer box moves the
+    # inner one, which gives its strip and the band that its box covers after the
+    # copy, and not its whole box.
+    rules = GraphicsCanvas(Any[GraphicsRect(0, 16 * k + 15, 200, 1; color = black) for k in 0:199];
+                           w = 200, h = 200 * 16, layout = layout_vertical, overlapping = false)
+    rows, _ = make_scroll_rows(200, 16, font)
+    scroll = Cell(0)
+    canvas = GraphicsCanvas(Any[make_pane((20, 20, 200, 200), [rules], Cell(0), scroll),
+                                make_pane((30, 26, 180, 188), [rows], Cell(0), scroll)];
+                            w = width, h = height)
+    resources = make_resources()
+    SDL._compute_dirty_change(resources, canvas)
+    scroll[] = 16
+    rects, moves = SDL._compute_dirty_change(resources, canvas)
+    @test moves == [((20, 20, 220, 220), (0, -16))]
+    @test !any(r -> SDL._is_rect_covered((30, 26, 210, 214), r), rects)
+end
+
+@testset "a window paints a scroll with the pixels of a full paint" begin
+    # Two hidden windows show one canvas: one paints by the copies and the
+    # rectangles, and one paints in full. Their kept targets hold the same pixels.
+    backends = (SdlBackend(; partial_render = true), SdlBackend(; partial_render = false))
+    foreach(initialize_backend!, backends)
+    gray = StyleColor(0.8, 0.8, 0.8, 1.0)
+    rows, _ = make_scroll_rows(50, 60, large)
+    other_rows, _ = make_scroll_rows(200, 16, font)
+    scroll, other_scroll, dot_y = Cell(0), Cell(0), Cell(50)
+    canvas = GraphicsCanvas(Any[GraphicsRect(10, 10, 320, 220; color = gray),
+                                [GraphicsRect(20 + 20 * k, 20, 10, 200; color = translucent) for k in 0:14]...,
+                                make_pane((20, 20, 300, 200), [rows], Cell(0), scroll),
+                                GraphicsCircle(250, () -> dot_y[], 6; color = translucent),
+                                make_pane((330, 20, 60, 200), [other_rows], Cell(0), other_scroll)];
+                            w = width, h = height)
+    resources = [SDL._open_native_window!(backend,
+                                          WindowDocument(; id = Symbol(:scroll_window_, k), title = "scroll_window",
+                                                           x = 100, y = 100, width, height,
+                                                           content = PrimitiveString("content"));
+                                          hidden = true)
+                 for (k, backend) in enumerate(backends)]
+    function read_target(resource)
+        SDL.SDL_SetRenderTarget(resource.renderer, resource.target)
+        pixels = Matrix{UInt32}(undef, resource.target_w, resource.target_h)
+        SDL.SDL_RenderReadPixels(resource.renderer, C_NULL, SDL.SDL_PIXELFORMAT_ARGB8888, pixels,
+                                 resource.target_w * 4)
+        SDL.SDL_SetRenderTarget(resource.renderer, C_NULL)
+        pixels
+    end
+    differing = Int[]
+    try
+        changes = Any[() -> nothing; make_writes(scroll, [16, 85, 62, 700]);
+                      () -> (scroll[] = 100; dot_y[] = 120);
+                      () -> (scroll[] = 150; other_scroll[] = 40)]
+        for (frame, change!) in enumerate(changes)
+            change!()
+            foreach((backend, resource) -> SDL._render_window!(backend, resource, canvas), backends, resources)
+            read_target(resources[1]) == read_target(resources[2]) || push!(differing, frame)
+        end
+        @test isempty(differing)
+        # A window at a whole device pixel ratio copied a box; at another ratio a
+        # scroll paints its box.
+        @test !isinteger(resources[1].ratio) || resources[1].scratch != C_NULL
+    finally
+        foreach(SDL._close_native_window!, resources)
+        foreach(quit_backend!, backends)
+    end
 end
 
 @testset "a viewport with a scale clips at the device pixels of its box" begin
