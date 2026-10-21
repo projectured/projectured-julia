@@ -259,3 +259,19 @@ prints again. Step 4 counts it.
 - The precompile of the app logs "The pane has no duplicate" twice for the
   `StudyStudy` pane. The F1 and Ctrl+Shift+P reads of the workload make it while
   the Study tab has the focus, before the assistant pane opens.
+
+### Step 4
+
+- The cell probe (`/var/tmp/window-answers-tests/probe_delta_cells.jl`) wraps
+  `_run_computation` of the cell module with `@eval` in a scratch process and counts
+  each computation by its module and the name of its closure. A `@computation` has
+  no line of its own, so the name of the closure (`#print_document##28`) tells the
+  function that made it. In the application window with the warm turn:
+  - one text delta into the open text part: 31 computations at 26 places, one
+    closure each: the text part, its lines, its layout and the canvas;
+  - one more text delta: the same 31;
+  - a new tool call part: 289 computations at 73 places, the new form and the
+    places of the parts beside it.
+
+  No computation of an earlier part runs, and none of the syntax print. A delta
+  does not print the parts before it again.
