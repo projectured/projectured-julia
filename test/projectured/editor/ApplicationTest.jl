@@ -1066,9 +1066,9 @@ function test_application()
                 # Assistants button lists the assistant tabs, so every window has it.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
+                       "Frame statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
-                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
+                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Frame statistics", "Frame times",
                              "Appearance")
                     @test !any(text -> occursin(word, text), drawn)
                 end

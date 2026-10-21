@@ -57,7 +57,7 @@ every second frame took 10 to 15 ms while nothing happened:
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The rename.** The title, the tool command and its tooltip, the
+1. [x] **The rename.** Done; see [As built](#as-built). The title, the tool command and its tooltip, the
    aliases; the five tests of this repository. The test of `omnet-julia` follows
    when this lands. Run the tests that name the title. Commit.
 2. [ ] **The rows by frame number.** In `FrameStatisticsToWidget.jl`. A test: a
@@ -84,4 +84,7 @@ interleaved as A/B/A, and write the load of the machine beside it.
 
 ## As built
 
-Nothing yet.
+- **Step 1.** The title, the tool command and its tooltip say "Frame statistics";
+  the aliases are "frame statistics" and "statistics". No guide named the old
+  title. `test_editor_display()` 28, `test_window_wrappers()` 58,
+  `test_window_shell()` 140, `test_application()` 385 pass and 2 broken.

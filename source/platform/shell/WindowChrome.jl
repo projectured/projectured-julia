@@ -258,7 +258,7 @@ _make_recorded_tool_commands(recorded) = (
         (make_window_tool_command("Fault log", FaultLog; icon = :warning,
                                   tooltip = "What failed in this session, and how often."),) : ())...,
     (:frame_statistics in recorded ?
-        (make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
+        (make_window_tool_command("Frame statistics", FrameStatistics; icon = :chart,
                                   tooltip = "How long the frames of this window take."),
          make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
                                   tooltip = "The time of each recent frame.")) : ())...)

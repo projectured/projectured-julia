@@ -191,7 +191,7 @@ end
         shell = editor.document
         @test shell isa WidgetShell
         @test labels(shell.toolbar) == ["Explorer", "Files", "Assistant", "Evaluator", "Message log", "Gesture log",
-                                        "Fault log", "Statistics", "Frame times", "Selection", "Appearance",
+                                        "Fault log", "Frame statistics", "Frame times", "Selection", "Appearance",
                                         "Settings"]
         @test shell.status_bar === nothing
     finally

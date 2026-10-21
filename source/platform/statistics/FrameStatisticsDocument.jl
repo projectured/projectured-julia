@@ -49,8 +49,8 @@ end
 
 # The name the tab calls itself, and the name a person types into an empty
 # tab to open one.
-get_document_title(::FrameStatistics) = "Statistics"
-get_insertion_aliases(::Type{FrameStatistics}) = ["statistics"]
+get_document_title(::FrameStatistics) = "Frame statistics"
+get_insertion_aliases(::Type{FrameStatistics}) = ["frame statistics", "statistics"]
 
 # Last session's numbers are not this one's: a file keeps that it shows the
 # statistics of the session, and a load gives those of the session of its editor.

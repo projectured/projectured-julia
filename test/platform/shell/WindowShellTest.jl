@@ -253,7 +253,7 @@ end
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     tools = ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
-             "Statistics", "Frame times", "Selection", "Appearance", "Settings"]
+             "Frame statistics", "Frame times", "Selection", "Appearance", "Settings"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
