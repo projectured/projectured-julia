@@ -94,8 +94,11 @@ owner approves.
    `ApplicationTest.jl` passes 3 of 3, and with the helper switched off it fails
    at the move to the same point, so it catches the fault. `test_application()`
    passes 389, with its 2 marked broken.
-3. ⬜ **Fix 2, with its test.** `NativeWindowTest.jl` names `:popup` among the
+3. ✅ **Fix 2, with its test.** `NativeWindowTest.jl` names `:popup` among the
    styles that never take the key focus.
+   **Result:** `_can_take_key_focus` answers false for `:tooltip` and `:popup`;
+   the case passes 9 of 9 and `test_native_window()` passes. The real check is
+   on a Mac, in step 6.
 4. ⬜ **Fix 3, with tests.** Cases for the predicate, for the place that SDL gets
    for a negative place and for `(-1, -1)`, and for `compute_window_place` with a
    display above, left of and right of the main one.

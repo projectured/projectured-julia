@@ -613,7 +613,8 @@ const _WINDOW_FLAGS_FLOATING = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
 # A popup, a menu or a dropdown list, never takes the focus. With
 # `SDL_WINDOW_POPUP_MENU` the window manager of X11 does not manage the window,
 # so it can not give the window the focus and take it back, as it does with a
-# managed window the moment it opens.
+# managed window the moment it opens. SDL on Cocoa reads no such flag, and
+# `_refuse_key_focus!` keeps the focus in the window under the popup.
 const _WINDOW_FLAGS_POPUP    = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS |
                                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR |
                                SDL_WINDOW_POPUP_MENU | SDL_WINDOW_ALLOW_HIGHDPI
@@ -625,9 +626,10 @@ function _window_flags(style::Symbol)
     return _WINDOW_FLAGS_DEFAULT
 end
 
-# Whether a window of `style` can take the key focus. A tooltip takes no input of
-# its own: its keys come through the window under it, and a press closes it.
-_can_take_key_focus(style::Symbol) = style !== :tooltip
+# Whether a window of `style` can take the key focus. A tooltip and a popup take
+# their keys through the window under them: F2 of a tooltip, and the arrows, Return
+# and Escape of a menu or a dropdown. A popup still takes the press that chooses.
+_can_take_key_focus(style::Symbol) = style !== :tooltip && style !== :popup
 
 # The same flags, with the window held back until it holds a frame. A window
 # that is shown before it is painted holds an undefined back buffer, and the

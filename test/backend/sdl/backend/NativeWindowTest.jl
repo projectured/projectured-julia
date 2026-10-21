@@ -90,12 +90,14 @@ end
 
 end
 
-@testset "a tooltip window never takes the key focus" begin
+@testset "a tooltip or a popup window never takes the key focus" begin
     SDL = ProjecturedSDL.SdlModule
 
-    # Only a tooltip refuses the key focus: it takes no input of its own.
+    # A tooltip and a popup refuse the key focus: their keys come through the
+    # window under them.
     @test !SDL._can_take_key_focus(:tooltip)
-    @test all(SDL._can_take_key_focus, (:default, :floating, :popup))
+    @test !SDL._can_take_key_focus(:popup)
+    @test all(SDL._can_take_key_focus, (:default, :floating))
 
     backend = SdlBackend()
     initialize_backend!(backend)
