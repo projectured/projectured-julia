@@ -411,6 +411,9 @@ make_editor_api() = Any[
     SystemProcessModule => (:show_system_process_tree!, :describe_system_process_tree),
     # The verb that shows the work of the agent of an assistant as a page.
     AssistantModule => (:show_assistant_work!,),
+    # The content of the explorer of the window as a part of it, and the documents
+    # that a model adds to it: a section and a dashboard of cards.
+    ExplorerModule => (:find_explorer_content, :ExplorerSection, :Dashboard, :DashboardCard),
     PaneModule => (:TabDocuments,),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.

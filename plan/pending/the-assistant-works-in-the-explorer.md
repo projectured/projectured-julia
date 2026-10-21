@@ -107,7 +107,7 @@ implement".
 Each step runs in a worktree, has its own commit, and does not land on main
 without the approval of the owner.
 
-1. [ ] **The content of the Explorer in the scope.** `find_explorer_content`,
+1. [x] **The content of the Explorer in the scope.** `find_explorer_content`,
    and `Dashboard`, `DashboardCard`, `ExplorerSection` in `make_editor_api`.
    Test, in `test/projectured/editor/AssistantVerbsTest.jl`: the verb answers the
    root section; an insert of a dashboard into `entries` adds a row; the tool
@@ -147,4 +147,15 @@ without the approval of the owner.
 
 ## As built
 
-Nothing yet.
+- **Step 1.** `find_explorer_content` is in `ExplorerDocument.jl`. It walks the
+  tabs of the window as `find_pane_reference` does, and in each tab it searches
+  for an `Explorer` whose root is the session content, with the depth and the
+  filter of `_find_window_explorer_content`. The answer is the section with the
+  reference `<tab>.content.<layers>.tree.root`. A probe on main showed that an
+  insert into `entries` of this part goes through the readers to the root, undo
+  takes it back, and the selection does not move, so no new operation is needed.
+  The Explorer slice now uses the kernel `AgentModule` for
+  `run_on_editor_task!`. The docstring of `ExplorerSection` names
+  `find_explorer_content` in place of `get_session_explorer_content`. Tests:
+  `test_assistant_verbs()` 62 pass; `test_referenced_document_editor()` 109 pass
+  and 2 fail, the 2 known failures of main at lines 369 and 381.

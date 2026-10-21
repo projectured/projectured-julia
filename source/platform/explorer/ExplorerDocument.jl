@@ -17,7 +17,7 @@ Use it as the root of an [`Explorer`](@ref), and to group the entries in it.
 
     section_1 = ExplorerSection("Tools", Any[get_session_task_group_list()])
 
-See also `Explorer` and `get_session_explorer_content`.
+See also `Explorer` and `find_explorer_content`.
 """
 @document struct ExplorerSection <: Document
     title::String
@@ -202,3 +202,46 @@ const _EXPLORER_SEARCH_DEPTH = 3
 # The search enters a document that a field holds, and no collection, so it reads
 # no lazy part of a content.
 _is_held_document(_, child) = child isa Document && !is_element_collection(child)
+
+"""
+    find_explorer_content(; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
+
+The root section of the explorer of the window, as a part of the window: it acts
+like the section and carries its complete reference from the root, through the
+first tab that shows an explorer of it. So a verb that edits a collection edits
+its entries as a person does, and undo takes the edit back. `nothing` when no tab
+shows the explorer.
+
+Use it to read the entries of the explorer, to add a document to it, such as a
+dashboard, and to find an entry for `describe_commands`.
+
+# Example
+
+    content_1 = find_explorer_content()
+    [format_tree_node_label(entry) for entry in content_1.entries]
+    insert_elements!(content_1.entries, length(content_1.entries) + 1,
+                     [Dashboard("Queue study", [DashboardCard("Tasks", get_session_task_group_list())])])
+
+See also `ExplorerSection`, `Dashboard`, `describe_commands`.
+"""
+function find_explorer_content end
+
+function find_explorer_content(; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "find_explorer_content") do
+        root = getfield(editor, :document)
+        content = get_session_explorer_content(; editor)
+        is_shown = document -> document isa Explorer && getfield(document, :tree)[].root === content
+        for tab_reference in search_references(root, node -> node isa PaneTab; descend = is_pane_search_step,
+                                               limit = nothing)
+            tab = evaluate_reference(root, tab_reference)
+            for found in search_references(tab.content, is_shown; maxdepth = _EXPLORER_SEARCH_DEPTH,
+                                           descend = _is_held_document, limit = 1)
+                steps = (get_reference_steps(strip_reference_types(tab_reference))..., FieldReferenceStep("content"),
+                         get_reference_steps(strip_reference_types(found))...,
+                         FieldReferenceStep("tree"), FieldReferenceStep("root"))
+                return ReferencedDocument(content, annotate_reference_types(root, _make_steps(steps...)))
+            end
+        end
+        nothing
+    end
+end

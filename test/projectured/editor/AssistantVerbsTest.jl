@@ -146,6 +146,24 @@ function test_assistant_verbs()
         close_pane!(find_pane("Box"; editor); editor)
     end
 
+    @testset "change: a dashboard joins the explorer, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        @test content isa ReferencedDocument
+        @test get_document(content) === get_session_explorer_content(; editor)
+        selected = get_selection(editor.document)
+        count = length(content.entries)
+        _run_assistant_code(editor, "content_1 = find_explorer_content(); " *
+            "insert_elements!(content_1.entries, length(content_1.entries) + 1, " *
+            "[Dashboard(\"Study\", [DashboardCard(\"Notes\", ExplorerSection(\"Notes\"))])])")
+        run_frame!(editor)
+        @test length(content.entries) == count + 1
+        @test get_document(content.entries[count + 1]).title == "Study"
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test length(content.entries) == count
+    end
+
     @testset "tell: a part opens as a page in a new tab with a navigator" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))

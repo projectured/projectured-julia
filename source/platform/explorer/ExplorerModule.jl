@@ -12,6 +12,7 @@ every explorer of its window shows.
 """
 module ExplorerModule
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -52,7 +53,7 @@ import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_wor
 import ..WidgetModule: make_graphics_projection
 
 export ExplorerFilter
-export ExplorerSection, Explorer, get_session_explorer_content
+export ExplorerSection, Explorer, get_session_explorer_content, find_explorer_content
 export ExplorerToWidget
 export ExplorerSectionToWidget
 export ExplorerSearch, StartExplorerSearchOperation
