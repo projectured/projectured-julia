@@ -202,6 +202,44 @@ function test_assistant_verbs()
         @test get_navigator_page(last(pages)) === get_document(people[2])
     end
 
+    @testset "tell: a page shows in the explorer, its row shows, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        explorer = get_document(get_edited_document(find_pane("Explorer"; editor)))
+        navigator = getfield(explorer, :navigator)[]
+        selected = get_selection(editor.document)
+        titles = [format_tree_node_label(get_document(entry)) for entry in content.entries]
+        section = content.entries[findfirst(==("Editor"), titles)]
+        @test open_explorer_page!(section; editor) isa Text
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(section)
+        # A node below an entry: the row of its section opens, so its row shows.
+        below = section.entries[1]
+        open_explorer_page!(below; editor)
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(below)
+        @test any(document -> document === get_document(section),
+                  collect_open_tree_documents(getfield(explorer, :tree)[]))
+        @test get_selection(editor.document) == selected
+        # A part of a document that an entry holds, reached through another tab.
+        open_pane!(get_document(section); title = "Editor section", editor)
+        run_frame!(editor)
+        held = get_edited_document(find_pane("Editor section"; editor)).entries[1]
+        open_explorer_page!(section; editor)
+        run_frame!(editor)
+        open_explorer_page!(held; editor)
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(below)
+        @test get_selection(editor.document) == selected
+        close_pane!(find_pane("Editor section"; editor); editor)
+        # A document that the explorer does not hold is refused.
+        open_pane!(WidgetCheckbox(true); title = "Box", editor)
+        run_frame!(editor)
+        @test_throws ArgumentError open_explorer_page!(get_edited_document(find_pane("Box"; editor)); editor)
+        close_pane!(find_pane("Box"; editor); editor)
+        @test occursin("The explorer shows", _run_assistant_code(editor,
+            "open_explorer_page!(find_explorer_content().entries[1])"))
+    end
+
     @testset "tell: a shape that reads the clock moves with it" begin
         circle = GraphicsCircle(() -> 50 + 30 * cos(get_reactive_clock_time(editor.clock)), 50, 5)
         set_clock_time!(editor.clock, 0.0)

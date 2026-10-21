@@ -122,7 +122,7 @@ without the approval of the owner.
    `run_command!(entry, "Remove from explorer")` removes the entry, undo puts it
    back, and the selection does not move. In `test/platform/explorer/ExplorerTest.jl`,
    the menu of a row has the same items as the commands of that row.
-3. [ ] **A page in the Explorer.** `open_explorer_page!` in the navigator
+3. [x] **A page in the Explorer.** `open_explorer_page!` in the explorer
    slice of the scope. Test, in `AssistantVerbsTest.jl`: on an entry and on a
    node below an entry, the navigator shows the page, the tree shows its row,
    and the selection does not move; a document that the Explorer does not hold
@@ -185,3 +185,15 @@ without the approval of the owner.
   this reason. `plan/pending/an-insert-moves-the-paths-after-it.md` is the general
   fix. Tests: `test_assistant_verbs()` 70 pass, `test_explorer()` 249 pass,
   `test_platform_layering()` 7 pass.
+- **Step 3.** `open_explorer_page!` is in `ExplorerDocument.jl`, in the explorer
+  slice, because the navigator slice is below the explorer. It roots the visit
+  writes (`_get_visit_writes`, so no selection) and the reveal of the tree at the
+  place of the explorer with `read_rooted_operation`. A change from the model: the
+  address of a part is the rest of its reference below the root section, else the
+  path where an entry holds the nearest document on the reference of the part,
+  with the rest of the reference after it. So a part of a held document opens too,
+  also when another tab shows that document. A fact found: the open files of the
+  editor (`OpenFileList`) have no `find_navigator_address` method, so the explorer
+  does not find the file of a tab through them, and the verb refuses it. The test
+  uses the "Editor" section in a tab of its own for the held case.
+  Tests: `test_assistant_verbs()` 79 pass, run with the step 4 changes in place.

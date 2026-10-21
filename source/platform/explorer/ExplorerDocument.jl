@@ -213,7 +213,7 @@ its entries as a person does, and undo takes the edit back. `nothing` when no ta
 shows the explorer.
 
 Use it to read the entries of the explorer, to add a document to it, such as a
-dashboard, and to find an entry for `describe_commands`.
+dashboard, and to find an entry for `describe_commands` and `open_explorer_page!`.
 
 # Example
 
@@ -222,7 +222,7 @@ dashboard, and to find an entry for `describe_commands`.
     insert_elements!(content_1.entries, length(content_1.entries) + 1,
                      [Dashboard("Queue study", [DashboardCard("Tasks", get_session_task_group_list())])])
 
-See also `ExplorerSection`, `Dashboard`, `describe_commands`.
+See also `ExplorerSection`, `Dashboard`, `describe_commands`, `open_explorer_page!`.
 """
 function find_explorer_content end
 
@@ -244,4 +244,77 @@ function find_explorer_content(; editor = get_evaluation_editor())
         end
         nothing
     end
+end
+
+"""
+    open_explorer_page!(part; editor = get_evaluation_editor()) -> Text
+
+Show the page of `part` in the navigator of the explorer, beside its tree, and open
+the rows of the tree above it so its row shows, as a press on a link on a page
+does. The selection of the person does not move. `part` is a node of the content
+of the explorer, such as an entry of [`find_explorer_content`](@ref), or a part of
+a document that an entry holds, such as a task group of the task list, also when
+another tab shows it. A part that the explorer does not hold is refused: add its
+document to the explorer first.
+
+Use it to show the person a document in the explorer, such as a new dashboard, in
+place of a new tab.
+
+# Example
+
+    content_1 = find_explorer_content()
+    open_explorer_page!(content_1.entries[1])
+
+See also `find_explorer_content`, `open_page!`.
+"""
+function open_explorer_page! end
+
+function open_explorer_page!(part::ReferencedDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_explorer_page!") do
+        content = find_explorer_content(; editor)
+        content === nothing && throw(ArgumentError("No tab of the window shows the explorer."))
+        address = _find_explorer_address(editor, content, part)
+        address === nothing &&
+            throw(ArgumentError("The explorer holds no " * describe_document(part) * ". Add it to the explorer " *
+                                "first, with an insert into `find_explorer_content().entries`."))
+        steps = get_reference_steps(strip_reference_types(get_reference(content)))
+        place = annotate_reference_types(getfield(editor, :document), _make_steps(steps[1:(end - 2)]...))
+        explorer = evaluate_reference(getfield(editor, :document), place)
+        operations = Any[]
+        visit = make_navigator_open_operation(getfield(explorer, :navigator)[], address)
+        visit === nothing || push!(operations, _get_visit_writes(visit))
+        reveal = make_tree_reveal_operation(getfield(explorer, :tree)[], address)
+        reveal === nothing || push!(operations, reveal)
+        isempty(operations) && return nothing
+        rooted = read_rooted_operation(editor, place, CompoundOperation(operations);
+                                       description = "Show " * describe_document(part) * " in the explorer")
+        rooted === nothing && throw(ArgumentError("The window can not show this part in the explorer."))
+        evaluate_operation(editor, rooted)
+    end
+    Text("The explorer shows the page of " * describe_document(part) * ".")
+end
+
+# The path of `part` from the root section `content` of the explorer: the rest of
+# its reference when the reference goes through the section; else the path where
+# an entry holds the nearest document on the reference of the part
+# (`find_navigator_address`), with the rest of the reference after that document;
+# `nothing` when the section holds none of them.
+function _find_explorer_address(editor, content::ReferencedDocument, part::ReferencedDocument)
+    prefix = get_reference_steps(strip_reference_types(get_reference(content)))
+    steps = collect(get_reference_steps(strip_reference_types(get_reference(part))))
+    length(steps) >= length(prefix) && steps[1:length(prefix)] == collect(prefix) &&
+        return _make_steps(steps[(length(prefix) + 1):end]...)
+    nodes = Any[getfield(editor, :document)]
+    for step in steps
+        node = try_evaluate_reference(nodes[end], extend_reference(EmptyReference(), step), missing)
+        node === missing && break
+        push!(nodes, node)
+    end
+    for count in (length(nodes) - 1):-1:1
+        nodes[count + 1] isa Document || continue
+        held = find_navigator_address(get_document(content), nodes[count + 1])
+        held === nothing ||
+            return concat_references(strip_reference_types(held), _make_steps(steps[(count + 1):end]...))
+    end
+    nothing
 end
