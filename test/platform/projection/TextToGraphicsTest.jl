@@ -769,8 +769,7 @@ end # @testset "TextToGraphics starts a row at each soft break of a line"
 @testset "TextToGraphics costs a gesture the lines that it touches" begin
     small = _ttg_measure_gesture_bytes(100)
     large = _ttg_measure_gesture_bytes(10_000)
-    # @broken: the overlay of the caret finds the caret from the flat offsets of every line and lays out every line again; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
-    @test_broken _ttg_is_flat(small.caret, large.caret)
+    @test _ttg_is_flat(small.caret, large.caret)
     # @broken: the reader of a key finds the caret from the flat offsets of every line and the line below from the segments of every line; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
     @test_broken _ttg_is_flat(small.key, large.key)
 end

@@ -494,6 +494,161 @@ function _find_caret_coordinate(styled::TextBlock, coord_map, current)
     nothing
 end
 
+# ── The places of the lines ────────────────────────────────────────────
+
+# A value of each place of a text, combined over aligned blocks of places: a block
+# of `size` places, a power of two, starts after a multiple of `size`, and it
+# combines the totals of its two halves. `read_value(L)` reads the value of place
+# `L` from its cells, and `combine` is `+` or `max`. The total of the places before
+# a place combines the blocks of the binary form of their count, so it reads cells
+# to a depth of log2 of the count of places, and never a chain of every place
+# before it, which would overflow the stack of the first read. The cell of a block
+# and of a total is made at its first read, and kept.
+struct _PlaceBlocks{T}
+    read_value::Function
+    combine::Function
+    blocks::Dict{Tuple{Int,Int},Cell}
+    prefixes::Dict{Int,Cell}
+end
+
+_PlaceBlocks{T}(read_value::Function, combine::Function) where {T} =
+    _PlaceBlocks{T}(read_value, combine, Dict{Tuple{Int,Int},Cell}(), Dict{Int,Cell}())
+
+# The total of the `size` places from `first`.
+function _get_block_total(blocks::_PlaceBlocks{T}, first::Int, size::Int) where {T}
+    size == 1 && return blocks.read_value(first)::T
+    cell = get!(blocks.blocks, (first, size)) do
+        half = size ÷ 2
+        Cell(@computation blocks.combine(_get_block_total(blocks, first, half),
+                                         _get_block_total(blocks, first + half, half)))
+    end
+    cell[]::T
+end
+
+# The total of the places before place `L`: the blocks of the binary form of
+# `L - 1`, the largest first, so the totals of all places share their blocks.
+function _get_prefix_total(blocks::_PlaceBlocks{T}, L::Int) where {T}
+    cell = get!(blocks.prefixes, L) do
+        L == 1 && return Cell(zero(T))
+        Cell(Computation(function ()
+            total = zero(T)
+            first = 1
+            size = prevpow(2, L - 1)
+            while first < L
+                if first + size <= L
+                    total = blocks.combine(total, _get_block_total(blocks, first, size))
+                    first += size
+                end
+                size ÷= 2
+            end
+            total
+        end))
+    end
+    cell[]::T
+end
+
+# The place among the first `count` that holds `offset` in a sum of lengths, and
+# the offset where that place starts: the last place that starts at or before
+# `offset`, found by a descent through the blocks, the largest first. An offset
+# past the end is in the last place.
+function _find_place_at(blocks::_PlaceBlocks{T}, offset, count::Int) where {T}
+    place = 1
+    start = zero(T)
+    size = prevpow(2, count)
+    while size >= 1
+        if place + size - 1 <= count
+            total = _get_block_total(blocks, place, size)
+            if start + total <= offset
+                start += total
+                place += size
+            end
+        end
+        size ÷= 2
+    end
+    place <= count && return (place, start)
+    (count, start - _get_block_total(blocks, count, 1))
+end
+
+# The lines of a printed text and the sums that place a flat offset on them: the
+# groups (`_line_groups`), the `TextLine` of each group, the cells of each place,
+# and the flat lengths of the places in the caret space and in the box space (see
+# `_compute_span_bases`), each with the break after the place.
+struct _TextPlaces
+    lines::Cell
+    group_lines::Cell
+    get_line_cells::Function
+    caret_lengths::_PlaceBlocks{Int}
+    box_lengths::_PlaceBlocks{Int}
+end
+
+# The flat length of `group` in the caret space and in the box space: its
+# indentation and its spans, without a break.
+function _compute_flat_lengths(group)
+    caret = box = group.indentation::Int
+    for (_, span) in group.spans
+        caret += get_flat_length(span)
+        box += _box_flat_length(span)
+    end
+    (caret = caret, box = box)
+end
+
+# The group that the cells of place `L` lay out: the group of its line alone, with
+# its spans named `[1, j]`, or the group at the place.
+function _get_place_group(places::_TextPlaces, L::Int)
+    line = places.group_lines[][L]
+    line === nothing ? places.lines[][L] : _make_line_group(line::TextLine)
+end
+
+# The span of `group` and the character that the flat offset `flat` names, when
+# the group starts at the flat offset `base`, by the rule of `_find_flat_place`:
+# the first text run that holds the offset, so a boundary is the end of the
+# earlier run, and else the first inline image beside it. `nothing` on a gap.
+function _find_group_flat_place(group, base::Int, flat::Int)
+    position = base + group.indentation::Int
+    for (path, span) in group.spans
+        span_length = get_flat_length(span)
+        span isa TextString && position <= flat <= position + span_length && return (span = path, char = flat - position)
+        position += span_length
+    end
+    position = base + group.indentation::Int
+    for (path, span) in group.spans
+        span isa TextGraphics && position <= flat <= position + 1 && return (span = path, char = flat - position)
+        position += get_flat_length(span)
+    end
+    nothing
+end
+
+# The flat offset in the caret space where the span at `path` of `text` starts, as
+# `get_flat_base` finds it, or `nothing` when the path does not land on a span.
+function _find_span_flat_base(places::_TextPlaces, text::TextBlock, path::SpanPath)
+    length(path) == 2 || return nothing
+    i, j = path
+    (1 <= i <= length(text.elements)) || return nothing
+    line = text.elements[i]
+    line isa TextLine || return nothing
+    spans = line.elements
+    (1 <= j <= length(spans)) || return nothing
+    base = _get_prefix_total(places.caret_lengths, i) + line.indentation
+    for k in 1:(j - 1)
+        base += get_flat_length(spans[k])
+    end
+    base
+end
+
+# The flat selection `(start, stop)` of `selection` over `text`, as
+# `_text_flat_selection` finds it, with the flat base of a span from the places.
+function _find_flat_selection(places::_TextPlaces, text::TextBlock, selection)
+    sel = strip_reference_types(selection)
+    if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
+        return (sel.head.start, sel.head.stop)
+    end
+    range = _text_selection_range(text, selection)
+    range === nothing && return nothing
+    path, a, b = range
+    base = _find_span_flat_base(places, text, path)
+    base === nothing ? nothing : (base + a, base + b)
+end
+
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
@@ -530,16 +685,106 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # dirty walk descends into it to find just the edited line stale. Editing the
     # last line moves nothing below it, so its dirty rect is tight.
     #
-    # The caret/highlight stay a single selection-driven `overlay`, laid out in
-    # absolute coordinates over the whole stack, so a pure caret move still
-    # invalidates only the two overlay rects (dimension A): the spans never read
-    # the selection. `overlay` re-runs the same `_layout_group` pass the lines do,
-    # so the caret lands exactly where the glyph it sits against was drawn.
-    #
     # The block's prevailing font sizes a blank line that has no font of its own
     # (an empty `TextLine`). It lives in its own cell because only such a line
     # reads it: a font edit still re-lays out just the lines that render glyphs.
     block_font = Cell(@computation _block_font(styled))
+
+    # The block resolved into visual lines (see `_line_groups`). Reads only the
+    # element structure, the element types and a line's indentation — never a span's
+    # `.content` — so it is invariant under content edits.
+    lines_cell = Cell(@computation _line_groups(styled))
+
+    # The `TextLine` of each group, when the group holds the spans of that line only,
+    # and the place in the stack of each such line.
+    group_lines = Cell(Computation(() -> Any[_find_group_line(styled, group) for group in lines_cell[]]))
+    line_places = Cell(Computation(function ()
+        places = IdDict{Any,Int}()
+        for (L, line) in enumerate(group_lines[])
+            line === nothing || (places[line] = L)
+        end
+        places
+    end))
+
+    # Per-line reactive cells, built once and reused. A `TextLine` keeps its cells
+    # while it stays in the block, at any place, so a line inserted above it lays out
+    # nothing of it again and keeps its graphics; a group that is no line keeps its
+    # cells by its place. A line's `layout` reads only that line's spans' content,
+    # and its `flat_lengths` only their lengths; its `y` reads the offset of its
+    # place, the sum of the real line distances of the places above, rounded once,
+    # so a long text does not drift (editing the last line moves nothing; editing a
+    # middle line reflows the lines below — matching ListNode spines).
+    # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
+    # re-layouts, its fields `set_cell_computation!` cells reading the placement back out of the
+    # line's `layout` (printer locality — dimension C, now line-local).
+    line_entries = IdDict{Any,NamedTuple}()
+    place_entries = Dict{Int,NamedTuple}()
+    # The line distances, the widths and the flat lengths of the places, each
+    # combined over aligned blocks of places (`_PlaceBlocks`). The offset of a line,
+    # the width of the text and the line of a flat offset each read cells to a depth
+    # of log2 of the count of lines. The flat length of a place counts the break
+    # after it, so the flat offset of a line is the sum of the places above it.
+    distances = _PlaceBlocks{Float64}(L -> get_line_cells(L).distance[], +)
+    widths = _PlaceBlocks{Int}(L -> get_line_cells(L).layout[].width, max)
+    caret_lengths = _PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].caret + 1, +)
+    box_lengths = _PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].box + 1, +)
+    function make_line_entry(line_layout::Cell, line_y::Cell, flat_lengths::Cell)
+        line_h = Cell(@computation Int32(line_layout[].height))
+        line_distance = Cell(@computation line_layout[].distance)
+        cache = Dict{Any,Any}()
+        segs = CellVector(Computation(function ()
+            pls = line_layout[].spans
+            out = Any[]
+            live = Set{Any}()
+            for pl in pls
+                if pl isa NamedTuple
+                    push!(live, pl.key)
+                    push!(out, _persistent_graphic!(cache, line_layout, pl))
+                else
+                    push!(out, pl)
+                end
+            end
+            for k in collect(keys(cache))
+                k in live || delete!(cache, k)
+            end
+            out
+        end))
+        sub = GraphicsCanvas(Cell(Int32(0)), line_y, Cell(Int32(0)), Cell(Int32(0)),
+                             segs, layout_none, false, Cell(nothing))
+        (layout = line_layout, h = line_h, distance = line_distance, y = line_y, canvas = sub,
+         flat_lengths = flat_lengths)
+    end
+    # The cells of the line `line`, wherever it stands.
+    function get_line_cells(line::TextLine)
+        get!(line_entries, line) do
+            line_layout = Cell(@computation _layout_group(p, spacing, _make_line_group(line), 0, nothing, true,
+                                                          block_font))
+            line_y = Cell(Computation(function ()
+                L = get(line_places[], line, nothing)
+                L === nothing ? Int32(0) : Int32(round(Int, _get_prefix_total(distances, L)))
+            end))
+            make_line_entry(line_layout, line_y, Cell(@computation _compute_flat_lengths(_make_line_group(line))))
+        end
+    end
+    # The cells of the group at place `L`.
+    function get_line_cells(L::Int)
+        line = group_lines[][L]
+        line === nothing || return get_line_cells(line::TextLine)
+        get!(place_entries, L) do
+            line_layout = Cell(@computation _layout_group(p, spacing, lines_cell[][L], 0, nothing, true, block_font))
+            make_line_entry(line_layout, Cell(@computation Int32(round(Int, _get_prefix_total(distances, L)))),
+                            Cell(@computation _compute_flat_lengths(lines_cell[][L])))
+        end
+    end
+    text_places = _TextPlaces(lines_cell, group_lines, get_line_cells, caret_lengths, box_lengths)
+
+    # The caret/highlight stay a single selection-driven `overlay`, laid out in
+    # absolute coordinates over the whole stack, so a pure caret move still
+    # invalidates only the two overlay rects (dimension A): the spans never read
+    # the selection. `overlay` reads only the lines that the selection touches,
+    # and lays out the line of the caret with the same `_layout_group` pass the line
+    # runs, so the caret lands exactly where the glyph it sits against was drawn.
+    #
     # The overlay is laid out from the **stored** selection, live or dormant, so a
     # dormant caret still has a place on the screen. `is_live` decides only how it
     # is painted. Reading the raw cell is what makes a dormant selection visible at
@@ -547,7 +792,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # every other reader correct.
     selection_cell = getfield(styled, :selection)
     overlay = Cell(@computation _layout_overlay(p, spacing, styled, _get_stored_path(selection_cell[]),
-                                                block_font))
+                                                block_font, text_places))
     is_live = Cell(@computation _is_live_selection(selection_cell[]))
 
     # Persistent overlay elements. Their geometry cells read the selection-
@@ -601,116 +846,6 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     highlight_canvas = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), Cell(Int32(0)), Cell(Int32(0)),
                                       highlight_elements, layout_none, false, Cell(nothing))
 
-    # The block resolved into visual lines (see `_line_groups`). Reads only the
-    # element structure, the element types and a line's indentation — never a span's
-    # `.content` — so it is invariant under content edits.
-    lines_cell = Cell(@computation _line_groups(styled))
-
-    # The `TextLine` of each group, when the group holds the spans of that line only,
-    # and the place in the stack of each such line.
-    group_lines = Cell(Computation(() -> Any[_find_group_line(styled, group) for group in lines_cell[]]))
-    line_places = Cell(Computation(function ()
-        places = IdDict{Any,Int}()
-        for (L, line) in enumerate(group_lines[])
-            line === nothing || (places[line] = L)
-        end
-        places
-    end))
-
-    # Per-line reactive cells, built once and reused. A `TextLine` keeps its cells
-    # while it stays in the block, at any place, so a line inserted above it lays out
-    # nothing of it again and keeps its graphics; a group that is no line keeps its
-    # cells by its place. A line's `layout` reads only that line's spans' content;
-    # its `y` reads the offset of its place, the sum of the real line distances of
-    # the places above, rounded once, so a long text does not drift (editing the
-    # last line moves nothing; editing a middle line reflows the lines below —
-    # matching ListNode spines).
-    # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
-    # re-layouts, its fields `set_cell_computation!` cells reading the placement back out of the
-    # line's `layout` (printer locality — dimension C, now line-local).
-    line_entries = IdDict{Any,NamedTuple}()
-    place_entries = Dict{Int,NamedTuple}()
-    # The sum of the line distances of the `size` places from `first`, for a block
-    # whose size is a power of two and whose first place follows a multiple of its
-    # size. A block reads its two halves, so the offset of the last line of a long
-    # text reads cells to a depth of log2 of its line count, never a chain of every
-    # line above it, which would overflow the stack of the first read.
-    distance_sums = Dict{Tuple{Int,Int},Cell}()
-    function get_distance_sum(first::Int, size::Int)
-        size == 1 && return get_line_cells(first).distance
-        get!(distance_sums, (first, size)) do
-            half = size ÷ 2
-            Cell(@computation get_distance_sum(first, half)[] + get_distance_sum(first + half, half)[])
-        end
-    end
-    # The offset of place `L` adds the blocks of the binary form of `L - 1`, the
-    # largest first, so the offsets of all places share their blocks.
-    offsets = Dict{Int,Cell}()
-    function get_offset(L::Int)
-        get!(offsets, L) do
-            L == 1 && return Cell(0.0)
-            Cell(Computation(function ()
-                total = 0.0
-                first = 1
-                size = prevpow(2, L - 1)
-                while first < L
-                    if first + size <= L
-                        total += get_distance_sum(first, size)[]
-                        first += size
-                    end
-                    size ÷= 2
-                end
-                total
-            end))
-        end
-    end
-    function make_line_entry(line_layout::Cell, line_y::Cell)
-        line_h = Cell(@computation Int32(line_layout[].height))
-        line_distance = Cell(@computation line_layout[].distance)
-        cache = Dict{Any,Any}()
-        segs = CellVector(Computation(function ()
-            pls = line_layout[].spans
-            out = Any[]
-            live = Set{Any}()
-            for pl in pls
-                if pl isa NamedTuple
-                    push!(live, pl.key)
-                    push!(out, _persistent_graphic!(cache, line_layout, pl))
-                else
-                    push!(out, pl)
-                end
-            end
-            for k in collect(keys(cache))
-                k in live || delete!(cache, k)
-            end
-            out
-        end))
-        sub = GraphicsCanvas(Cell(Int32(0)), line_y, Cell(Int32(0)), Cell(Int32(0)),
-                             segs, layout_none, false, Cell(nothing))
-        (layout = line_layout, h = line_h, distance = line_distance, y = line_y, canvas = sub)
-    end
-    # The cells of the line `line`, wherever it stands.
-    function get_line_cells(line::TextLine)
-        get!(line_entries, line) do
-            line_layout = Cell(@computation _layout_group(p, spacing, _make_line_group(line), 0, nothing, true,
-                                                          block_font))
-            line_y = Cell(Computation(function ()
-                L = get(line_places[], line, nothing)
-                L === nothing ? Int32(0) : Int32(round(Int, get_offset(L)[]))
-            end))
-            make_line_entry(line_layout, line_y)
-        end
-    end
-    # The cells of the group at place `L`.
-    function get_line_cells(L::Int)
-        line = group_lines[][L]
-        line === nothing || return get_line_cells(line::TextLine)
-        get!(place_entries, L) do
-            line_layout = Cell(@computation _layout_group(p, spacing, lines_cell[][L], 0, nothing, true, block_font))
-            make_line_entry(line_layout, Cell(@computation Int32(round(Int, get_offset(L)[]))))
-        end
-    end
-
     # Vertical stack of line sub-canvases. Its membership reads only `lines_cell`
     # (structure); `get_line_cells` builds/looks up cells without forcing them, so
     # no content is read here and the stack stays valid across content edits.
@@ -763,13 +898,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
-    canvas_w = Cell(Computation(function ()
-        w = 0
-        for L in 1:length(lines_cell[])
-            w = max(w, get_line_cells(L).layout[].width)
-        end
-        Int32(w)
-    end))
+    canvas_w = Cell(Computation(() -> Int32(_get_prefix_total(widths, length(lines_cell[]) + 1))))
     canvas_h = Cell(Computation(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
@@ -1104,10 +1233,6 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
     nothing
 end
 
-# Locate the caret and the selection highlight over the whole block, in the same
-# absolute coordinates the line sub-canvases render into — by running the very
-# layout the lines run, group by group.
-#
 # Two tables map a span's `SpanPath` to the flat offset it starts at, one for each
 # space a range is expressed in. Both count a character and an inline image as 1,
 # and the implicit break and the indentation of a `TextLine` (the rule of
@@ -1137,27 +1262,72 @@ function _compute_span_bases(styled::TextBlock)
     (box_offsets, caret_offsets)
 end
 
-function _layout_overlay(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell)
-    cursor_pos = get_flat_cursor_coordinate(styled, sel)
-    coord_map = SegmentCoordinate[]
-    box_offsets, caret_offsets = _compute_span_bases(styled)
-    cursor = nothing
-    offset = Float64(p.start_y)   # the real top of the next group
+# Locate the caret and the selection highlight in the same absolute coordinates
+# the line sub-canvases render into, from the lines that the selection touches.
+function _layout_overlay(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell,
+                         places::_TextPlaces)
+    count = length(places.lines[])
+    (cursor = _compute_overlay_caret(p, spacing, styled, sel, block_font, places, count),
+     highlight = _compute_overlay_highlight(p, sel, places, count))
+end
 
-    for group in _line_groups(styled)
-        laid = _layout_group(p, spacing, group, round(Int, offset), cursor_pos, false, block_font)
-        append!(coord_map, laid.coord_map)
-        cursor === nothing && (cursor = laid.cursor)
-        offset += laid.distance
-    end
+# The caret `(x, y, h)` of a caret selection, or `nothing`: the line that holds its
+# flat offset, laid out again with the caret by the very layout the line runs, at
+# the place of the line.
+function _compute_overlay_caret(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel,
+                                block_font::Cell, places::_TextPlaces, count::Int)
+    flat = _find_flat_selection(places, styled, sel)
+    (flat === nothing || flat[1] != flat[2]) && return nothing
+    L, base = _find_place_at(places.caret_lengths, flat[1], count)
+    group = _get_place_group(places, L)
+    caret = _find_group_flat_place(group, base, flat[1])
+    caret === nothing && return nothing
+    cursor = _layout_group(p, spacing, group, 0, caret, false, block_font).cursor
+    cursor === nothing && return nothing
+    top = p.start_y + Int(places.get_line_cells(L).y[])
+    (cursor[1], cursor[2] + top, cursor[3])
+end
 
-    highlight = NTuple{4,Int}[]
-    hl_range = _highlight_char_range(sel, coord_map)
-    if hl_range !== nothing
-        offsets = hl_range[3] === :caret ? caret_offsets : box_offsets
-        highlight = _compute_span_rows(coord_map, offsets, hl_range[1], hl_range[2], p)
+# The rows of the highlight of `sel` (see `_compute_span_rows`), from the segments
+# of the lines that its range touches and the flat base of each of their spans.
+function _compute_overlay_highlight(p::TextToGraphics, sel, places::_TextPlaces, count::Int)
+    range = _highlight_char_range(sel)
+    range === nothing && return NTuple{4,Int}[]
+    start, stop, space = range
+    lengths = space === :caret ? places.caret_lengths : places.box_lengths
+    measure_span = space === :caret ? get_flat_length : _box_flat_length
+    first_line, base = _find_place_at(lengths, start, count)
+    last_line = first(_find_place_at(lengths, stop, count))
+    coordinates = SegmentCoordinate[]
+    bases = Dict{SpanPath,Int}()
+    for L in first_line:last_line
+        base = _collect_line_segments!(coordinates, bases, p, places, L, base, measure_span)
     end
-    (cursor = cursor, highlight = highlight)
+    _compute_span_rows(coordinates, bases, start, stop, p)
+end
+
+# Push the segments of the line at place `L` onto `coordinates`, at the place of
+# the line and with the span paths of the block, and the flat base of each of its
+# spans onto `bases`, from `base`, the flat offset where the line starts, and the
+# flat length of each span, `measure_span`. Answers where the next line starts.
+function _collect_line_segments!(coordinates::Vector{SegmentCoordinate}, bases::Dict{SpanPath,Int},
+                                 p::TextToGraphics, places::_TextPlaces, L::Int, base::Int, measure_span)
+    cells = places.get_line_cells(L)
+    group = places.lines[][L]
+    top = p.start_y + Int(cells.y[])
+    is_line = places.group_lines[][L] !== nothing
+    for segment in cells.layout[].coord_map
+        path = is_line ? Int[group.line, segment.span_path[2]] : segment.span_path
+        push!(coordinates, SegmentCoordinate(path, segment.char_start, segment.char_end, segment.x,
+                                             segment.y + top, segment.font, segment.text, segment.width,
+                                             segment.height))
+    end
+    position = base + group.indentation::Int
+    for (path, span) in group.spans
+        bases[path::SpanPath] = position
+        position += measure_span(span)
+    end
+    position + 1
 end
 
 # The flat character length a span contributes to the box space (see
@@ -1606,7 +1776,7 @@ end
 # ── Highlight helpers ─────────────────────────────────────────────────────
 
 """
-    _highlight_char_range(sel, coord_map) -> (start, stop, space) or nothing
+    _highlight_char_range(sel) -> (start, stop, space) or nothing
 
 Extract the flat character range to highlight from the TextBlock's selection,
 and the space its offsets are in (see `_layout_overlay`). Recognized shapes:
@@ -1616,13 +1786,9 @@ and the space its offsets are in (see `_layout_overlay`). Recognized shapes:
 - `ConcreteReference(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`, in the box space.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
-function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
-    sel = sel
-    if sel isa EmptyReference
-        isempty(coord_map) && return nothing
-        # Cover all segments: use a large sentinel that exceeds any absolute offset.
-        return (0, typemax(Int) >> 1, :box)
-    end
+function _highlight_char_range(sel)
+    # Cover all segments: use a large sentinel that exceeds any absolute offset.
+    sel isa EmptyReference && return (0, typemax(Int) >> 1, :box)
     sel isa ConcreteReference || return nothing
     h = sel.head
     sel.tail isa EmptyReference || return nothing

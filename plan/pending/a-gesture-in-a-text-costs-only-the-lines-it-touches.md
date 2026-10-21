@@ -77,9 +77,9 @@ text of N lines:
    `get_flat_offsets` of `TextDocument` stays for the callers that need every
    offset.
 2. **The overlay reads only its lines.** The caret reads the line of the caret: its
-   flat base, its layout cell and its offset. The highlight of a selection reads the
-   lines of the range. No overlay lays out a line again: it reads the layout that
-   the line keeps.
+   flat base, its offset, and one layout of that line with the caret, by the loop
+   that lays out the line, so the caret stands where its glyph is drawn. The
+   highlight of a selection reads the layouts that the lines of its range keep.
 3. **The reader maps a key with the same structure.**
 4. **The colour of a span reaches only the text that draws it.** The layout of a
    line reads the content, the font and the breaks of its spans, and not their
@@ -122,7 +122,7 @@ approves.
    `@test_broken`. A locality test: a new colour of the span under the caret leaves
    the caret and the layout of its line valid, and the text draws the new colour
    (cause 3). It fails now: mark it `@test_broken`. Commit.
-2. [ ] **The flat place of a line by sums of aligned blocks**, in `TextToGraphics`,
+2. [x] **The flat place of a line by sums of aligned blocks**, in `TextToGraphics`,
    and the overlay of the caret and of the selection that read only their lines.
    Run `test_text()`, `test/platform/projection/TextToGraphicsTest.jl`, the selection
    and printer locality tests (`test_selection_locality`, `test_value_locality`), and
@@ -144,8 +144,11 @@ approves.
    test (`test_partial_paint()`), and the window guards. Commit.
 7. [ ] **The measurement and the guides.** The window guards on the branch and on its
    base, A/B/A; the broken markers of the gestures come off where a guard passes.
-   Write the table in [As built](#as-built). The guides of the text and of the
-   layouts say how a gesture reads its place. Move this plan to `plan/done/`. Commit.
+   Write the table in [As built](#as-built). Record the compile workload again
+   (`ProjecturedREPL.record_precompile_statements("examples")`), because the new
+   functions of the overlay and of the reader are not in it. The guides of the text
+   and of the layouts say how a gesture reads its place. Move this plan to
+   `plan/done/`. Commit.
 
 ## Not in this plan
 
@@ -190,3 +193,80 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
 | 10_000 | 160.3 MB | 49.7 MB |
 
 `test_text_to_graphics()`: 153 pass, 4 broken.
+
+### Step 2: the flat place of a line, and the overlay
+
+- **One structure for the places of the lines.** `_PlaceBlocks{T}` combines a
+  value of each place over aligned blocks of places, with `+` or `max`. Its
+  functions are `_get_block_total`, `_get_prefix_total` (the total of the places
+  before a place) and `_find_place_at` (the place of an offset, a descent through
+  the blocks). It replaces the closures `get_distance_sum` and `get_offset` of
+  `print_document`. The text keeps four of them: the line distances (the `y` of a
+  line), the widths (the width of the canvas, which read the layout of every line
+  before), and the flat lengths of the places in the caret space and in the box
+  space. Each line entry has a cell `flat_lengths`, which reads only the lengths of
+  the spans of its line. The flat length of a place counts the break after it.
+- **The overlay.** `_layout_overlay` now takes `_TextPlaces`: the groups, the
+  `TextLine` of each group, the cells of each place, and the two flat sums.
+  - The caret: `_find_flat_selection` finds the flat selection, with the base of a
+    structural `.content` caret from the sums (`_find_span_flat_base`).
+    `_find_place_at` finds the line, `_find_group_flat_place` the span and the
+    character, by the rule of `_find_flat_place`. `_layout_group` lays out that one
+    line with the caret, and the `y` of the line places it.
+  - The highlight: the lines from the place of the start to the place of the stop,
+    their segments from the layout that each line keeps
+    (`_collect_line_segments!`), and `_compute_span_rows` as before.
+    `_highlight_char_range` no longer takes the segments.
+- **A decision against the first model.** The model said that the overlay lays out
+  no line again. The caret needs the baseline of its row and the font at its place,
+  which the layout of a line does not keep. A second way to place a caret from the
+  segments would have to agree with `_layout_group` in each case: a soft break, an
+  image, an empty line. So the overlay lays out the caret line once more with the
+  same loop. It costs one line.
+- **A trap.** A computation in `print_document` assigns a local named `places`, and
+  a closure that assigns a name of its outer function writes the outer variable. So
+  the outer variable is `text_places`.
+- **The bytes** with `FixedMeasure(10, 15, 5, 0)`, after three warm runs:
+
+  | Lines | The caret, before | The caret, after |
+  |---|---|---|
+  | 100 | 1.56 MB | 11.6 kB |
+  | 1_000 | 15.9 MB | 11.7 kB |
+  | 10_000 | 160.3 MB | 12.3 kB |
+
+- **Tests.**
+  - `test_text_to_graphics()`: 154 pass, 3 broken. The caret guard is a `@test` now.
+  - The 34 text parts of `test_platform()`, one at a time
+    (`/var/tmp/text-gestures/platform_text.jl`), on the branch and on `frame-guards`:
+    equal counts, no failure. The whole `test_platform()` did not end in 10 minutes
+    on this machine, on the base too, so I ran these parts.
+  - `test_selection_localities()` fails on `main` in every example (13346 of 20957
+    on 2026-10-01: the caret and ring graphics). A probe counted the kinds of the
+    flagged cells per example on the branch and on `frame-guards`
+    (`/var/tmp/text-gestures/locality_tags.jl`): the same kinds in all 76 examples.
+    Four examples (`text_with_image`, `widget_button_image`, `filesystem`, `files`)
+    have more carets on the branch, because the path of the worktree is one
+    character longer, and the same failures for each caret.  - `test_value_localities()`, with the same kind of probe
+    (`/var/tmp/text-gestures/value_locality.jl`): the same counts on the branch and on
+    `frame-guards` in all 118 examples; its failures are those of `main`.
+  - `test_window_frame_guards()`: 17 pass, 14 broken, as on `frame-guards`. No guard
+    is flat yet: the read stage of a key still reads every line (step 3), and the
+    Markdown file is step 6.
+- **The window frames**, A/B/A on the lane `taskset -c 28,30,31` on 2026-10-21
+  (`/var/tmp/text-gestures/window_aba.sh`), the minimum frame at the large size; the
+  second run of the branch is within 15% of the first, except the move of the
+  pointer in the Julia file (13.4 and 18.6 ms):
+
+  | Gesture | `frame-guards` | The branch |
+  |---|---|---|
+  | Julia, 1_000 lines: a typed character | 554 ms | 104 ms |
+  | Julia: a caret move by a line | 382 ms (print 288) | 116 ms (print 1.4) |
+  | Julia: a click on a line | 331 ms | 48 ms |
+  | Julia: a move of the pointer | 12 ms | 13 ms |
+  | JSON, 1_000 objects: a typed character | 1984 ms | 488 ms |
+  | JSON: a caret move by a line | 255 ms | 228 ms |
+  | JSON: a click on a line | 1156 ms | 16 ms |
+  | JSON: a move of the pointer | 2307 ms | 49 ms |
+  | Markdown, 3_000 paragraphs: a typed character | 438 ms | 445 ms |
+  | The open of a Julia file of 1_000 lines | 853 ms | 698 ms |
+
