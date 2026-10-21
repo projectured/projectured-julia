@@ -1,7 +1,11 @@
 # A tooltip is a framed note
 
-Status: IN PROGRESS, 2026-10-21, on the branch `tooltip-note`, in the worktree
-`projectured-julia-tooltip-note`. Not landed on `main`.
+Status: DONE, 2026-10-21, on the branch `tooltip-note` of projectured-julia, in
+the worktree `projectured-julia-tooltip-note`, rebased on `main` `9ac02d16b`, and
+on the branch `tooltip-note` of omnet-julia, in the worktree
+`omnet-julia-tooltip-note`, on `main` `84814625`. Not landed on `main`. The
+projectured-julia branch lands first, because the omnet-julia branch uses
+`TooltipNote`.
 
 ## The ask
 
@@ -367,6 +371,24 @@ The steps are fixed. Each step is one commit.
    tooltip-guide.md (how to read a tooltip, the line of the layer keys),
    writing-rules.md ("The words of a tooltip"), and the tooltip lines of
    widget.md, fault.md, navigator.md and julia.md.
+
+## Final checks
+
+After the rebase on `main` `9ac02d16b`, each suite in its own process:
+
+| Suite | Result |
+| --- | --- |
+| `test_kernel()` | 4875 pass |
+| `test_platform()` | 165955 pass, 7 broken; 3 failures in `WindowShellTest`, which asserted the old words ("(F1)" at the end, "Label:" at the start); fixed, `test_window_shell()` 140 pass |
+| `test_julia()` | 682 pass |
+| `test_dataframes()` | 612 pass |
+| `test_workflow()` | 199 pass |
+| `test_markdown()` | 268 pass |
+| `test_rst()` | 111 pass |
+| `test_documentation()` | pass |
+| `test_catalog_coverage()` | 2 pass, 1 fail, 1 broken; the same on `main`: six types with no atom (`BackgroundWorkLog`, `Dashboard`, `Explorer`, `ExplorerSearch`, `ExplorerSection`, `WorkspaceExplorer`); `TooltipNote` has its atom |
+
+The branch adds and removes no `@test_broken` marker.
 
 ## Not in this plan
 
