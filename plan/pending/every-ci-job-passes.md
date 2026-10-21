@@ -1,7 +1,9 @@
 # Every CI job passes
 
 Status: IN PROGRESS on the branch `ci-green`, worktree
-`../projectured-julia-ci-green`, base `main` 5ecc0c0e4.
+`../projectured-julia-ci-green`, base `main` 5ecc0c0e4. Every job that failed
+passes locally as CI runs it, except the export guard at the sealed
+`CellModule.jl:48`, which waits for the owner. Not landed, not pushed.
 
 ## The ask
 
@@ -60,9 +62,12 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
    - [x] `test_video()`: 79 pass.
    - [x] `test_platform()`: 166512 pass, 7 broken (CI had 7 broken).
    - [x] The guards: all pass except the export of the sealed `CellModule.jl`.
-   - [ ] `test_integration()`: the first run reached the kernel tests and the
-     OOM killer stopped it at a cap of 10 GB after 46 minutes. It runs again at
-     16 GB, the memory of the CI runner.
+   - [x] `test_integration()`: 1891786 pass, 2803 broken (CI had 2803 broken),
+     in 64 minutes. The first run reached the kernel tests and the OOM killer
+     stopped it at a cap of 10 GB after 46 minutes; the second run had 16 GB,
+     the memory of the CI runner.
+   - [x] `test_repository()`: 460 pass. `test_json()`: 252 pass. These jobs
+     passed before; the change touches guides, examples and the JSON domain.
 
 ## Decisions and facts
 
