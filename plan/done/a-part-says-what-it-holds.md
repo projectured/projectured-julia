@@ -1,7 +1,10 @@
 # A part says what it holds
 
-Status: IN PROGRESS, 2026-10-21, on the branch `part-notes`, in the worktree
-`projectured-julia-part-notes`. Not landed on `main`. The user, 2026-10-21: "yes,
+Status: DONE, 2026-10-21, on the branch `part-notes` of projectured-julia, in the
+worktree `projectured-julia-part-notes`, rebased on `main` `31b107f18`, and on the
+branch `part-notes` of omnet-julia (`4ed2ed5d` on `main` `07833b42`), in the
+worktree `omnet-julia-part-notes`. Not landed on `main`. projectured-julia lands
+first. The user, 2026-10-21: "yes,
 let's go". Wave 1 of
 [a-catalog-of-what-each-part-could-say.md](a-catalog-of-what-each-part-could-say.md).
 
@@ -239,6 +242,14 @@ because the omnet-julia steps use the function form of step 1.
    Explorer row says), explorer.md ("What a row and a control say"),
    writing-rules.md (when to give a function), and the catalog marks wave 1
    implemented.
+
+## Final checks
+
+After the rebase, each suite in its own process: `test_platform()` 166045 pass,
+7 broken, no failure; `test_pivot()` 358; `test_formula()` 229;
+`test_markdown()` 269; `test_math()` 185; `test_naming()`, `test_documentation()`
+and `test_frame_statistics_feed()` 152 pass. The omnet-julia suites are in step 7.
+The branch adds and removes no `@test_broken` marker.
 
 ## Not in this plan
 
