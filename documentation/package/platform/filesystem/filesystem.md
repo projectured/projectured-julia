@@ -119,7 +119,7 @@ explorer = WorkspaceExplorer(workspace)   # a tab shows it, and its folders read
 run_example("files")                      # the Explorer view of the fixture project
 ```
 
-- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `files_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/` with `read_filesystem_folder!`, so they do not change when the repository changes.
+- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `files_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/` with `read_filesystem_folder!`, so they do not change when the repository changes. The tree of `filesystem_widget_example` passes `open_file = nothing`: the example has no pane tree to open a file in.
 - Test: `test_filesystem()` runs the layering guard, the two projection tests, `test_filesystem_document()`, which checks the acquire, the read and the watch of a folder, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back. `FileDialogTest.jl` of the shell slice draws the chooser. The SDL suite has `test_tree_render()`, which renders a folder of 1,000 entries in a small pane and checks that only the drawn rows build their nodes.
 
 ## Limits
