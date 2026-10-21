@@ -1,8 +1,10 @@
 # A file says what the pointer is on
 
-Status: IN PROGRESS, 2026-10-21, on the branch `pointed-part`, in the worktree
-`projectured-julia-pointed-part`. Not landed on `main`. The user, 2026-10-21, to
-"Shall I implement this plan now": "yes". Item 5 of wave 2 of
+Status: DONE, 2026-10-21, on the branch `pointed-part` of projectured-julia, in the
+worktree `projectured-julia-pointed-part`, rebased on `main` `f593feb4a`, and on
+the branch `pointed-part` of omnet-julia (`dfae96b6` on `main` `4ed2ed5d`), in the
+worktree `omnet-julia-pointed-part`. Not landed on `main`. projectured-julia lands
+first. Item 5 of wave 2 of
 [a-catalog-of-what-each-part-could-say.md](a-catalog-of-what-each-part-could-say.md).
 
 ## The ask
@@ -152,6 +154,15 @@ The steps are fixed. Each step is one commit. projectured-julia lands first.
    Done: tooltip.md ("A container says what the pointer is on"), a paragraph
    in json.md, yaml.md, xml.md, julia.md and graph.md, and the catalog marks
    item 2 of "What stands in the way" done.
+
+## Final checks
+
+After the rebase, each suite in its own process: `test_platform()` 166054 pass,
+7 broken, no failure; `test_json()` 245; `test_yaml()` 64 and 2 broken, as
+before; `test_xml()` 86; `test_julia()` 694; `test_graph()` 471;
+`test_pointed_part()` 3 and `test_naming()` pass. `test_documentation()` failed
+once: tooltip.md named the private package of the INI step. The guide now says
+that a package adds the same for its own files, and the test passes.
 
 ## Not in this plan
 
