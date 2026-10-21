@@ -90,6 +90,41 @@ end
 
 end
 
+@testset "a tooltip window never takes the key focus" begin
+    SDL = ProjecturedSDL.SdlModule
+
+    # Only a tooltip refuses the key focus: it takes no input of its own.
+    @test !SDL._can_take_key_focus(:tooltip)
+    @test all(SDL._can_take_key_focus, (:default, :floating, :popup))
+
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    tooltip = WindowDocument(; id = :key_focus_test, title = "key_focus_test",
+                               x = 100, y = 100, width = 200, height = 100,
+                               style = :tooltip, content = PrimitiveString("content"))
+    resource = SDL._open_native_window!(backend, tooltip; hidden = true)
+
+    # The backend reads the window struct of SDL by offset. On X11 the subsystem
+    # is X11, and the first handle, the `Display`, is set.
+    found = SDL._find_native_window_handle(resource.win)
+    if unsafe_string(SDL.SDL_GetCurrentVideoDriver()) == "x11"
+        @test found !== nothing
+        @test found.subsystem == SDL._SDL_SYSWM_X11
+        @test found.handle != C_NULL
+    end
+
+    # Only a window of Cocoa gets the mark, and only there does the backend answer
+    # the questions of AppKit. The tooltip shows as before.
+    @test SDL._refuse_key_focus!(resource.win) === nothing
+    @test isempty(SDL._REPLACED_KEY_WINDOW_METHODS) == !Sys.isapple()
+    SDL._show_painted_window!(backend, resource, tooltip)
+    @test SDL._is_native_window_shown(resource)
+    SDL._close_native_window!(resource)
+
+    quit_backend!(backend)
+
+end
+
 @testset "each backend repaints with its own switches" begin
     # Two backends in one process: one repaints the whole window at each frame,
     # the other only what changed. A frame in which nothing changed adds a damage

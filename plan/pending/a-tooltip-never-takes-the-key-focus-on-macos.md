@@ -1,7 +1,9 @@
 # A tooltip never takes the key focus on macOS
 
-> **Status (2026-10-21): planned.** The owner asked for this plan on 2026-10-21,
-> after a test on macOS confirmed the cause. Nothing is built yet.
+> **Status (2026-10-21): step 2 done, on the branch `tooltip-never-key` in the
+> worktree `projectured-julia-tooltip-never-key`, not on main.** The owner asked
+> for this plan on 2026-10-21, after a test on macOS confirmed the cause, and
+> asked for the implementation the same day. Step 3 needs a Mac.
 
 ## The fault
 
@@ -78,17 +80,37 @@ The mechanism is the Objective-C runtime, through `ccall`, as
 - **The `NSWindow`.** `SDL_GetWindowWMInfo` fills an `SDL_SysWMinfo`. The binding
   has no type for it, so the backend passes a buffer of 72 bytes with the version
   of the linked SDL in its first 3 bytes. On Cocoa the subsystem at byte 4 is
-  `SDL_SYSWM_COCOA` (4), and the `NSWindow` pointer is at byte 8.
-- **The class.** Once a process, `objc_allocateClassPair` makes a subclass of the
-  class of that window. `class_addMethod` gives it `canBecomeKeyWindow` and
-  `canBecomeMainWindow`, each an `@cfunction` that answers `NO`, and
-  `objc_registerClassPair` registers it.
-- **The window.** `object_setClass` puts the subclass on the `NSWindow`.
+  `SDL_SYSWM_COCOA` (4), and the `NSWindow` pointer is at byte 8
+  (`_find_native_window_handle`).
+- **The answer.** Once a process, `class_replaceMethod` puts one `@cfunction`,
+  `_answer_key_window_question`, in place of `canBecomeKeyWindow` and
+  `canBecomeMainWindow` on the class `SDLWindow`. It answers `NO` for a marked
+  window, and for any other window it calls the method of SDL that it replaced
+  (`_install_key_window_answer!`).
+- **The mark.** `objc_setAssociatedObject` puts a mark on the `NSWindow`, with
+  the address of a selector as its key and its value, and with
+  `OBJC_ASSOCIATION_ASSIGN` (`_refuse_key_focus!`). The mark goes away with the
+  window.
 
-The call goes in `_open_native_window!`, after `SDL_CreateWindow`, when
-`Sys.isapple()` and the style is `:tooltip`. The reconciler opens a tooltip
-hidden and shows it later in `_show_painted_window!`, so the class changes before
-AppKit shows the window.
+`_open_native_window!` calls `_refuse_key_focus!` after `SDL_CreateWindow` when
+`_can_take_key_focus(style)` is false, which is for `:tooltip` only. Off Cocoa
+the subsystem is not `SDL_SYSWM_COCOA`, so nothing happens. The reconciler opens
+a tooltip hidden and shows it later in `_show_painted_window!`, so the mark is
+there before AppKit shows the window.
+
+**Decision in step 2: no subclass on the window.** The plan first put a subclass
+on each tooltip window with `object_setClass`. SDL observes the `visible` key of
+each window (`SDL_cocoawindow.m:525`), and for that observation AppKit already
+gave each window a class of its own. A second change of the class removes that
+class, and SDL loses its events for a window that shows or hides. A replaced
+method on `SDLWindow` and a mark on the window leave the class of the window as
+it is.
+
+**Decision in step 2: the record of the replaced methods belongs to a process.**
+`_REPLACED_KEY_WINDOW_METHODS` is filled at run time. A precompile workload that
+opens a tooltip on macOS would put a filled record into the package image, and
+the next process would then replace nothing. `__init__` empties it, as it resets
+the probes of the machine.
 
 ## Steps
 
@@ -96,12 +118,18 @@ The work is done in a worktree, on a branch. It lands on main only after step 3
 passes and the owner approves.
 
 1. ✅ Write this plan.
-2. ⬜ **Make the tooltip window of macOS one that can not become key.** The
+2. ✅ **Make the tooltip window of macOS one that can not become key.** The
    Objective-C helpers stand beside `_macos_drop_activation_policy_to_accessory!`,
    and `_open_native_window!` calls them. On Linux, a case in
    `NativeWindowTest.jl` checks the rule that names the styles that never take
    the key focus, and that a tooltip window opens there as before.
    `test_native_window()` and then `test_sdl()` must pass.
+   **Result:** the new case passes 8 of 8. On X11 it also proves the offsets of
+   `SDL_SysWMinfo`: the subsystem is X11 and the first handle is set.
+   `test_native_window()` passes. `test_sdl()` passes 1014, and
+   `test_tree_render` fails 2 and errors 1 at `TreeRenderTest.jl:43-55`; main at
+   c092f2aff, the base of the branch, fails there in the same way, so the fault
+   comes from main.
 3. ⬜ **Check on a Mac** with the script of the tester, click-through off:
    - on the main monitor, 5 of 5 clicks after a tooltip arrive;
    - when the tooltip opens, window 1 gets no `FOCUS_LOST` and no `LEAVE`;

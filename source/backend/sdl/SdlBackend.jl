@@ -18,9 +18,12 @@ function _set_x11_locale_directory!()
     nothing
 end
 
-# Each process probes its own machine, and Xlib finds its locale data.
+# Each process probes its own machine, and Xlib finds its locale data. The
+# methods of AppKit that the backend replaces belong to one process too, so a
+# package image keeps none of them.
 function __init__()
     _reset_machine_probes!()
+    empty!(_REPLACED_KEY_WINDOW_METHODS)
     _set_x11_locale_directory!()
     nothing
 end
@@ -599,8 +602,9 @@ _get_held_mouse_buttons(bstate::UInt32) =
 # ever on top and neither flag set said what its comment said.
 const _WINDOW_FLAGS_DEFAULT  = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
 # A tooltip belongs to the window under it: it stays above, it is not a task of
-# its own, and `SDL_WINDOW_TOOLTIP` is what tells the window manager to treat it
-# as one and leave the keyboard where it is.
+# its own, and `SDL_WINDOW_TOOLTIP` is what tells the window manager of X11 to
+# treat it as one and leave the keyboard where it is. SDL on Cocoa reads none of
+# these flags, and `_refuse_key_focus!` keeps the keyboard there.
 const _WINDOW_FLAGS_TOOLTIP  = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS |
                                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR |
                                SDL_WINDOW_TOOLTIP | SDL_WINDOW_ALLOW_HIGHDPI
@@ -620,6 +624,10 @@ function _window_flags(style::Symbol)
     style === :floating && return _WINDOW_FLAGS_FLOATING
     return _WINDOW_FLAGS_DEFAULT
 end
+
+# Whether a window of `style` can take the key focus. A tooltip takes no input of
+# its own: its keys come through the window under it, and a press closes it.
+_can_take_key_focus(style::Symbol) = style !== :tooltip
 
 # The same flags, with the window held back until it holds a frame. A window
 # that is shown before it is painted holds an undefined back buffer, and the
@@ -642,6 +650,7 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
         Int32(max(_to_device(w.width, unit_ratio), 1)),
         Int32(max(_to_device(w.height, unit_ratio), 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
+    _can_take_key_focus(w.style) || _refuse_key_focus!(win)
 
     # Linear filtering so the supersampled target downsamples smoothly.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")
@@ -4063,6 +4072,101 @@ function _macos_drop_activation_policy_to_accessory!()
     sel_set_activation_policy = ccall((:sel_registerName, _LIBOBJC), Ptr{Cvoid}, (Cstring,), "setActivationPolicy:")
     ccall((:objc_msgSend, _LIBOBJC), Cuchar, (Ptr{Cvoid}, Ptr{Cvoid}, Clong),
           shared_application, sel_set_activation_policy, _NS_ACTIVATION_POLICY_ACCESSORY)
+    nothing
+end
+
+# ── A window that never takes the key focus ─────────────────────────────
+#
+# SDL on Cocoa makes each window that it shows the key window, and its class
+# `SDLWindow` answers YES when AppKit asks whether a window can become the key or
+# the main window. A tooltip that takes the key focus takes it from the window
+# under it: SDL then reports a leave of that window, and AppKit uses the next
+# click on it only to make it key again.
+#
+# So the backend answers the two questions itself, on the class `SDLWindow`, once
+# a process: NO for a window that carries the mark below, and the answer of SDL
+# for every other window. The mark is an associated object of the window, so it
+# goes away with the window. The class of a window stays as it is: SDL observes the
+# `visible` key of each window, and that observation already gave each window a
+# class of its own.
+
+# The subsystems of `SDL_SysWMinfo` that the backend reads, and the size of the
+# struct: the version in 3 bytes and the subsystem, then a union of 64 bytes. The
+# binding has no type for it, so the backend reads it by offset.
+const _SDL_SYSWM_X11 = 2
+const _SDL_SYSWM_COCOA = 4
+const _SDL_SYSWMINFO_SIZE = 72
+
+# The windowing subsystem of `win`, and the first handle of the union: the
+# `NSWindow` on Cocoa, the `Display` on X11. `nothing` when SDL gives no
+# information.
+function _find_native_window_handle(win::Ptr{SDL_Window})
+    buffer = zeros(UInt8, _SDL_SYSWMINFO_SIZE)
+    version = Ref{SDL_version}()
+    SDL_GetVersion(version)
+    buffer[1], buffer[2], buffer[3] = version[].major, version[].minor, version[].patch
+    answered, subsystem, handle = GC.@preserve buffer begin
+        (@ccall(LibSDL2.libsdl2.SDL_GetWindowWMInfo(win::Ptr{SDL_Window},
+                                                    pointer(buffer)::Ptr{UInt8})::Cint),
+         unsafe_load(Ptr{Cint}(pointer(buffer, 5))),
+         unsafe_load(Ptr{Ptr{Cvoid}}(pointer(buffer, 9))))
+    end
+    answered == 0 ? nothing : (subsystem = Int(subsystem), handle = handle)
+end
+
+# The name of the selector whose address is the mark, both its key and its value.
+const _NEVER_KEY_WINDOW_MARK = "projecturedNeverKeyWindow"
+
+# The methods of `SDLWindow` that the answer replaced, by their selectors: empty
+# until the answer is in place.
+const _REPLACED_KEY_WINDOW_METHODS = Dict{Ptr{Cvoid},Ptr{Cvoid}}()
+
+_get_selector(name::AbstractString) =
+    ccall((:sel_registerName, _LIBOBJC), Ptr{Cvoid}, (Cstring,), name)
+
+# The answer to `canBecomeKeyWindow` and `canBecomeMainWindow` of an `SDLWindow`:
+# NO for a marked window, and the answer of SDL for any other. AppKit asks on the
+# main thread. `BOOL` is one byte on arm64 and on x86_64.
+function _answer_key_window_question(window::Ptr{Cvoid}, selector::Ptr{Cvoid})::UInt8
+    mark = _get_selector(_NEVER_KEY_WINDOW_MARK)
+    ccall((:objc_getAssociatedObject, _LIBOBJC), Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}),
+          window, mark) == C_NULL || return 0x00
+    original = get(_REPLACED_KEY_WINDOW_METHODS, selector, C_NULL)
+    original == C_NULL && return 0x01
+    ccall(original, UInt8, (Ptr{Cvoid}, Ptr{Cvoid}), window, selector)
+end
+
+# Put the answer above in place of the two methods of `SDLWindow`, once a process.
+# Answers whether it is in place.
+function _install_key_window_answer!()
+    isempty(_REPLACED_KEY_WINDOW_METHODS) || return true
+    class = ccall((:objc_getClass, _LIBOBJC), Ptr{Cvoid}, (Cstring,), "SDLWindow")
+    class == C_NULL && return false
+    answer = @cfunction(_answer_key_window_question, UInt8, (Ptr{Cvoid}, Ptr{Cvoid}))
+    for name in ("canBecomeKeyWindow", "canBecomeMainWindow")
+        selector = _get_selector(name)
+        method = ccall((:class_getInstanceMethod, _LIBOBJC), Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}),
+                       class, selector)
+        types = ccall((:method_getTypeEncoding, _LIBOBJC), Ptr{Cchar}, (Ptr{Cvoid},), method)
+        _REPLACED_KEY_WINDOW_METHODS[selector] =
+            ccall((:class_replaceMethod, _LIBOBJC), Ptr{Cvoid},
+                  (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cchar}), class, selector, answer, types)
+    end
+    true
+end
+
+# Mark the window `win` so that it never takes the key focus: SDL shows it in
+# front, and the key focus stays in the window that has it. A window that is not
+# a window of Cocoa needs no mark, and gets none.
+function _refuse_key_focus!(win::Ptr{SDL_Window})
+    found = _find_native_window_handle(win)
+    (found === nothing || found.subsystem != _SDL_SYSWM_COCOA || found.handle == C_NULL) &&
+        return nothing
+    _install_key_window_answer!() || return nothing
+    mark = _get_selector(_NEVER_KEY_WINDOW_MARK)
+    # OBJC_ASSOCIATION_ASSIGN (0): the value is the mark itself, and it is not retained.
+    ccall((:objc_setAssociatedObject, _LIBOBJC), Cvoid,
+          (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Csize_t), found.handle, mark, mark, 0)
     nothing
 end
 
