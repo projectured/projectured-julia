@@ -485,9 +485,13 @@ See also `move_pivot_field!`, `make_pivot_table`.
 """
 function find_pivot_value end
 
+# @optional: the column key is a coordinate of the cell, as the row key is, and a pivot with no
+# column dimension reads its value with the empty key.
 find_pivot_value(pivot::ReferencedDocument, row_key, column_key = (); measure::Integer = 1) =
     find_pivot_value(get_document(pivot), row_key, column_key; measure)
 
+# @optional: the column key is a coordinate of the cell, as the row key is, and a pivot with no
+# column dimension reads its value with the empty key.
 function find_pivot_value(pivot::PivotTable, row_key, column_key = (); measure::Integer = 1)
     row_key = _check_pivot_key(row_key, pivot.row_dimensions, "row")
     column_key = _check_pivot_key(column_key, pivot.column_dimensions, "column")

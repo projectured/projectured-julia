@@ -376,6 +376,7 @@ function _post_at_group_end!(editor, group, operation)
     nothing
 end
 
+# @optional: which follows the document, as what a rerun command names next.
 """
     rerun_task_group_document!(doc, which = :failed; editor = find_evaluation_editor()) -> doc
 
