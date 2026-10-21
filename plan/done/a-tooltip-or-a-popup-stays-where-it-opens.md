@@ -3,8 +3,8 @@
 > **Status (2026-10-21): done, on main and pushed.** The owner asked for these
 > three fixes on 2026-10-21, after an investigation the same day, and deferred a
 > fourth fault (the black first tooltip on macOS). The owner landed and pushed
-> the branch `tooltip-stays` the same day, checked the assistant tooltip on Linux
-> by hand, and closed the plan without the check on a Mac.
+> the branch `tooltip-stays` the same day and checked the assistant tooltip on
+> Linux by hand. A tester checked the fixes on a Mac the same day, and they work.
 
 ## The faults
 
@@ -130,11 +130,8 @@ owner approves.
    keys move in a dropdown, and a tooltip on the monitor above shows there. Check
    the assistant tooltip on Linux by hand.
    **Result:** on Linux the owner checked by hand that the tooltip of an
-   assistant button stays. The check on a Mac was not done: the owner closed the
-   plan on the expectation that it passes. The point that only a Mac can show is
-   whether AppKit sends pointer moves to a popup window that can not become key,
-   so the item under the pointer lights; a report of a menu on macOS whose item
-   does not light starts there.
+   assistant button stays. On a Mac a tester checked the fixes on main and
+   reported that they work.
 7. ✅ Write the results into this plan, and move it to `plan/done/`.
 
 ## Not in this plan
