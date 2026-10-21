@@ -100,6 +100,28 @@ function test_widget_transform_pane()
         @test _written(op).a ≈ 1.1
     end
 
+    # The shape of a dashboard: a pane in a card, and the card in a scroll pane
+    # that is shorter than the card. The card gives the wheel to the slot under
+    # the pointer.
+    _card_page() = WidgetScrollPane(WidgetCard(; title = WidgetLabel("plot"), content = _doc());
+                                    size = Point2D(240, 120))
+
+    @testset "Ctrl and the wheel zoom a pane in a card, and do not scroll the page" begin
+        proj  = _proj()
+        iomap = print_document(proj, _card_page())
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0))
+        @test _written(op) isa AffineTransform
+        @test _written(op).a ≈ 1.1
+    end
+
+    @testset "a turn that no slot of a card uses scrolls the page" begin
+        proj  = _proj()
+        iomap = print_document(proj, _card_page())
+        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 12, ModifierKeys(); time = 0.0))
+        @test _written(op) isa Point2D
+        @test Int(_written(op).y[]) > 0
+    end
+
     @testset "successive zooms accumulate" begin
         doc   = _doc()
         proj  = _proj()

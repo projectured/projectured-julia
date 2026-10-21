@@ -7744,7 +7744,9 @@ end
 # widget nested in a card (a button, a row of a list) still sees the pointer
 # motion and the raw press-down/release that drive its light and its `pressed`
 # feedback. A dwell goes to the slot under the point, as a click does, and folds
-# nothing. The scroll wheel is still the card's own concern to decline (nothing).
+# nothing. A turn of the wheel goes to the slot under the point too, so a chart in
+# a card zooms; a turn that the slot does not use is left to the pane around the
+# card, which scrolls.
 #
 # A coordless keyboard event has no coordinate to hit-test, so it routes into the
 # card's CONTENT selection-directed: forwarded only when the card's `selection`
@@ -7769,7 +7771,8 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
                                                                    time = evt.time) :
                                                          MouseUp(evt.button, x, y, evt.modifiers;
                                                                  time = evt.time))
-    evt isa MouseScroll && return nothing
+    evt isa MouseScroll &&
+        return _card_route(w, entries, evt, (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
     getfield(w, :selection)[] === nothing && return nothing
     for entry in entries
         entry === nothing && continue
