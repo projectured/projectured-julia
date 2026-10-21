@@ -33,7 +33,9 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
    - [ ] `exports.jl`: `CellModule.jl:48` (sealed 🔒, needs the owner's permission).
      [x] `FileChangeModule.jl:35`, `BuilderModule.jl:35`.
    - [x] `style.jl`: `Application.jl:472`, `FilePageToWidget.jl:72`, `TextDocument.jl:438`.
-2. [ ] `test_sdl()` passes: the scroll paint of a window, and the tree render.
+2. [x] `test_sdl()` passes: the scroll paint of a window, and the tree render.
+   1071 of 1071 with the offscreen driver, with the renderer that SDL picks and
+   with `SDL_RENDER_DRIVER=software` (894491609, c3587ae83).
 3. [ ] `test_video()` passes: `json_build_live`, and the zoom of a take.
 4. [ ] `test_platform()` passes: the search of the explorer filter.
 5. [ ] `test_integration()` passes:
@@ -62,6 +64,21 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
   a text block, keep their values with a `# @style:` marker: the first is text
   for the agent and draws nothing; the second is the same colour that
   `make_hinted_text` marks so.
+- The scroll test of a window failed only on the software renderer. On this
+  machine the offscreen driver still gets the `opengl` renderer through EGL; the
+  CI runner has no GL and gets `software`. A text texture inherits the linear
+  filter of the hint that `_open_native_window!` sets, and the software renderer
+  draws a scaled texture that a clip cuts from the cut part of its source, so a
+  rectangle of a partial paint that cuts a text gave other pixels than a full
+  paint, with a scroll or without one. On the software renderer a text texture
+  now samples nearest. The test runs with both renderers, so a local run sees
+  what CI sees.
+- The tree render test found no row because the `listing` of a folder, a
+  background cell since a535e62c9, stayed provisional when
+  `read_filesystem_folder!` read the disk past it. A provisional value computes
+  again for each reader, so the rows of the tree were new at each read.
+  `read_filesystem_folder!` now reads through the listing with
+  `wait_for_cell!(listing; editor = nothing)`.
 - The fix of `CellModule.jl:48` moves `is_cell_provisional` into the first
   export statement, after `is_cell_valid`, because `CellInterface.jl` declares
   it. The file is sealed.
