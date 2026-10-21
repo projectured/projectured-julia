@@ -61,7 +61,7 @@ export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
 export ScreenDocument, WindowDocument
 export find_part_place, write_part_picture, write_window_picture
-export show_window_layers, make_window_layer_bindings
+export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings
 
 

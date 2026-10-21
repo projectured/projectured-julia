@@ -36,6 +36,23 @@ _write_window_state(state, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(state, field, value))
 
 """
+    WINDOW_LAYER_MORE_KEY
+
+The key that shows one more layer of a window that shows layers: F2.
+[`make_window_layer_bindings`](@ref) binds it, and a window that names it to a
+person reads it here, so the name and the binding are the same key.
+"""
+const WINDOW_LAYER_MORE_KEY = KeyDownPattern(:f2; modifiers = Symbol[])
+
+"""
+    WINDOW_LAYER_FEWER_KEY
+
+The key that shows one fewer layer of a window that shows layers: Shift+F2. See
+[`WINDOW_LAYER_MORE_KEY`](@ref).
+"""
+const WINDOW_LAYER_FEWER_KEY = KeyDownPattern(:f2; modifiers = [:shift])
+
+"""
     make_window_layer_bindings(make_content; domain) -> Vector{GestureBinding}
 
 The two keys of a window that shows the first layers of what a wrapper
@@ -46,13 +63,13 @@ window is open. `domain` names the wrapper in the gesture help.
 """
 make_window_layer_bindings(make_content::Function; domain::AbstractString) =
     GestureBinding[
-        GestureBinding(KeyDownPattern(:f2; modifiers = Symbol[]),
+        GestureBinding(WINDOW_LAYER_MORE_KEY,
                        (state, gesture) ->
                            show_window_layers(state, state.shown + 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,
                        description = "Show what the next part around says",
                        domain = String(domain)),
-        GestureBinding(KeyDownPattern(:f2; modifiers = [:shift]),
+        GestureBinding(WINDOW_LAYER_FEWER_KEY,
                        (state, gesture) ->
                            show_window_layers(state, state.shown - 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,

@@ -162,9 +162,26 @@ Each tooltip follows these rules. They go to
 
 The steps are fixed. Each step is one commit.
 
-1. [ ] **The frame.** `TooltipContentToVerticalLayout` draws the frame, the
+1. [x] **The frame.** `TooltipContentToVerticalLayout` draws the frame, the
    layer titles and the F2 line. `TooltipTheme` gets `padding` and
    `border_width`. Test: `test_tooltip_window()`.
+
+   Done. As built:
+   - The frame is a `WidgetComposite` with a border, padding and a
+     `WidgetStyle` of the theme colors. The projection answers a
+     `VerticalLayout` of one block, the frame, so its exported name and its
+     output type stay, and `ProjecturedPlatform` takes no minor step.
+   - `TooltipTheme` got `font`, `surface`, `line`, `line_width` (not
+     `border_width`, after `WidgetTheme`), `padding`, `gap` and `layer_text`.
+     The natural projection takes the scaled `TooltipTheme` of the appearance.
+   - A layer title is the title in `text_faint`, 0.9 of the size. It is not
+     in capitals: a text has no letter spacing, and a type name such as
+     `JuliaDocstring` in capitals is hard to read.
+   - The keys of the last line come from `WINDOW_LAYER_MORE_KEY` and
+     `WINDOW_LAYER_FEWER_KEY`, two constants of the screen slice that
+     `make_window_layer_bindings` binds: "F2 shows 1 more", "Shift+F2 shows
+     one fewer", or both.
+   - Test: `test_tooltip_window()` 51 of 51, `test_platform_layering()` 7 of 7.
 2. [ ] **The note.** `TooltipNote` in the tooltip slice, and its projection in
    the natural slice. An example in `example/platform/`. Test: a new
    `test_tooltip_note()`, and `test_example` of the example.

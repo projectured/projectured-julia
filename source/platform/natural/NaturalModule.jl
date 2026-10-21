@@ -66,6 +66,8 @@ using ..ProjectionModule
 using ..StyleModule
 using ..TextModule
 using ..TooltipModule
+using ..ScreenModule
+using ..GestureModule
 using ..WidgetModule
 using ..ReferenceModule
 

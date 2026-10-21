@@ -120,6 +120,7 @@ function NaturalToGraphics(; measure::TextMeasure,
                            appearance::Appearance = Appearance())
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
+    tooltip_theme = get_scaled_theme!(appearance, TooltipTheme)
     w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme)
     text_theme = get_scaled_theme!(appearance, TextTheme)
     # Prose: a text document, at the prose spacing of the text theme.
@@ -198,8 +199,8 @@ function NaturalToGraphics(; measure::TextMeasure,
                                                                             name = :collection_gap)),
                                                  stack()),
             # A tooltip window: a column of what the parts say, each in its own
-            # domain.
-            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = widget_theme),
+            # domain, in a frame.
+            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = tooltip_theme),
                                                  stack()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package
