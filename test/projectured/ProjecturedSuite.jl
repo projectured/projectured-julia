@@ -171,6 +171,7 @@ include("editor/ConversationSerializationTest.jl")
 include("editor/AssistantMvpTest.jl")
 # After the file above: it uses the scripted rounds that the file above makes.
 include("editor/AssistantStreamTest.jl")
+include("performance/WindowFrameGuardTest.jl")
 include("editor/MessageLogFeedTest.jl")
 include("editor/FrameStatisticsFeedTest.jl")
 include("editor/AssistantDuplicateTest.jl")
@@ -598,6 +599,7 @@ function test_integration()
     test_conversation_editor()
     test_assistant_mvp()
     test_assistant_stream()
+    test_window_frame_guards()
     test_assistant_duplicate()
     test_message_log_feed()
     test_frame_statistics_feed()
@@ -684,7 +686,7 @@ export test_click_roundtrip, test_click_roundtrips, test_text_navigation_invaria
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
-export test_assistant_mvp, test_assistant_stream, make_assistant_mvp_setup, make_assistant_mvp_projection
+export test_assistant_mvp, test_assistant_stream, test_window_frame_guards, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
 export test_application, test_file_workloads, test_scroll_work, test_pointed_part, test_history_sweep, test_file_watch_window, test_insertion_in_tab,

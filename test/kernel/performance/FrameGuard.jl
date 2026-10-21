@@ -18,7 +18,7 @@ using ProjecturedKernel.PerformanceModule: get_frame_count, collect_recent_frame
 """
     FrameScene(name; sizes, make_editor, give_input!, is_burst = false,
                is_input_done = editor -> true, waits_for_deadline = false,
-               count_work = nothing)
+               count_work = nothing, release_editor = editor -> nothing)
 
 A part of the editor that a frame guard drives at each of `sizes`.
 
@@ -35,6 +35,8 @@ A part of the editor that a frame guard drives at each of `sizes`.
   feed of the editor is due, as the loop waits for a deadline.
 - `count_work(editor)` answers a count of the work of the part that the part keeps,
   such as the rows that a print built, or `nothing`.
+- `release_editor(editor)` runs after the frames of a size, such as the quit of a
+  backend that opened a window.
 """
 struct FrameScene
     name::String
@@ -45,14 +47,16 @@ struct FrameScene
     is_input_done::Function
     waits_for_deadline::Bool
     count_work::Union{Function,Nothing}
+    release_editor::Function
 end
 
 FrameScene(name::AbstractString; sizes::AbstractVector{<:Integer}, make_editor::Function,
            give_input!::Function, is_burst::Bool = false,
            is_input_done::Function = editor -> true, waits_for_deadline::Bool = false,
-           count_work::Union{Function,Nothing} = nothing) =
+           count_work::Union{Function,Nothing} = nothing,
+           release_editor::Function = editor -> nothing) =
     FrameScene(String(name), collect(Int, sizes), make_editor, give_input!, is_burst,
-               is_input_done, waits_for_deadline, count_work)
+               is_input_done, waits_for_deadline, count_work, release_editor)
 
 """
     FrameWork
@@ -177,6 +181,7 @@ function _measure_frame_work_at(scene::FrameScene, size::Int, warm_frames, frame
     finally
         remove_cell_writer!(current_task())
         editor.loop_task = previous_loop_task
+        scene.release_editor(editor)
     end
 end
 

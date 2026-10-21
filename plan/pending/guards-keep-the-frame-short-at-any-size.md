@@ -1,7 +1,7 @@
 # Guards keep the frame short at any size
 
-Status: PENDING, 2026-10-21. Steps 1 to 4 are done; step 1 is on `main`. No decision
-is open: D1 is decided, in [The decision](#the-decision).
+Status: PENDING, 2026-10-21. Steps 1 to 4 are done, and step 5 for the text documents;
+step 1 is on `main`. No decision is open: D1 is decided, in [The decision](#the-decision).
 
 ## The ask
 
@@ -584,6 +584,57 @@ on `main` before the owner approves. A guard that fails on `main` gets
   `test_formula()`: 229 pass and 1 broken, the new one. `test_kernel_frame_guards()`
   and `test_frame_guard()` again after the changes of the harness: 13 pass and 2
   broken, and 16 pass.
+
+### Step 5, the text documents
+
+Done for a Julia file, a JSON file and a Markdown file; the data frame, the
+Explorer, the chart, the tabs, the assistant transcript and the MCP log view are
+open.
+
+- **The guards**, `test_window_frame_guards()` in
+  `test/projectured/performance/WindowFrameGuardTest.jl`, in the umbrella suite:
+  the application window on an `SdlBackend` with `SDL_VIDEODRIVER=offscreen`, one
+  generated file in a tab, and real SDL events: an idle frame, a typed character
+  (`SDL_TEXTINPUT`), a caret move by a line (Down and Up), a step of the wheel, a
+  click on a line and a move of the pointer. One editor serves the six inputs of a
+  size. A click through SDL and frames until the recognizer gives it put the caret
+  on the document first. A scene of each document opens a new copy of the file in a
+  running window with `OpenFileOperation`. The suite takes about 4 minutes: 17
+  pass and 14 broken.
+- **The frames grow with the document.** Measured 2026-10-21 in the lane, the
+  minimum of 5 frames after 3 frames of warm up, from the small size to the large:
+
+  | Input | Julia, 100 → 1_000 lines | JSON, 100 → 1_000 objects | Markdown, 100 → 3_000 paragraphs |
+  |---|---|---|---|
+  | an idle frame | 0.04 ms, flat | 0.04 ms, flat | 0.03 ms, flat |
+  | a typed character | 9.0 → 102.5 ms | 106.5 → 1261 ms | 2.6 → 459.6 ms |
+  | a caret move by a line | 26.6 → 347.6 ms | 19.7 → 212.4 ms | 0.24 → 0.26 ms, flat |
+  | a step of the wheel | 0.04 → 0.06 ms | 0.04 → 0.07 ms | 0.03 → 0.06 ms |
+  | a click on a line | 23.1 → 257.0 ms | 64.1 → 754.7 ms | 3.2 → 91.7 ms |
+  | a move of the pointer | 1.8 → 11.6 ms | 98.7 → 1092 ms | 1.3 → 33.0 ms |
+  | the open of the file | 85 → 842 ms | 106 → 964 ms | 37 → 3044 ms |
+
+  The bytes grow with the times: a caret move in the Julia file of 1_000 lines
+  allocates 199 MB, a move of the pointer over the JSON file of 1_000 objects 448 MB.
+  Most of the time is in the print and the paint, and the rest in the read; a move
+  of the pointer changes only what lies under the pointer, and still prints work
+  that grows with the document.
+- **Larger files, measured by a probe** (`/var/tmp/frame-guards/input_probe2.jl`),
+  20 to 40 frames after the warm up: in a Julia file of 10_000 lines a typed
+  character takes 4.1 s, a caret move 11.0 s, a click 7.2 s and a move of the
+  pointer 333 ms; in a JSON file of 3_000 objects a typed character takes 8.3 s and
+  a move of the pointer 8.9 s. To open the window with a Julia file of 10_000 lines
+  takes 15 s, of 30_000 lines 64 s, and of 100_000 lines more than 14 minutes; with a
+  JSON file of 10_000 objects 16 s; with a Markdown file of 10_000 paragraphs 49 s.
+- **The wheel scrolls nothing in these scenes**, and a typed character in the Julia
+  file makes no operation: the reader declines it, and takes 100 ms at 1_000 lines
+  to decline it. A caret move in the Markdown file makes an operation in 1 frame of
+  20. The guards measure these frames as they are.
+- **Decision: small sizes and few frames.** A gesture in a large file takes
+  seconds, so the sizes are 100 and 1_000 (Markdown 100 and 3_000, so that its move
+  of the pointer, which grows by 26 times, stands clear of the bound), and a window
+  scene runs 3 frames of warm up and 5 measured frames. A guard of a growing scene
+  asserts its time ratio with `@test_broken`.
 
 ### The cause of the slow frames in the Assistant pane
 
