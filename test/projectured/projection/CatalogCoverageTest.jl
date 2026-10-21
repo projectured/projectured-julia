@@ -107,15 +107,14 @@ _coverage_name(T) = string(ProjecturedAll.DocumentModule.get_document_schema_nam
 # line are the span or the part itself, which is exactly what makes them worth
 # having — `TextStringToString` and its siblings print a span directly — so they
 # are rendered by their own printer in the catalog and skipped here rather than
-# being called a defect. The file chooser has no row of the natural renderer: the
-# dialog that asks for a file draws it with its own projection. Neither has the
-# document of an appearance, which the editor draws around a window: the natural
-# renderer falls back to the view of an object, which stops at a slot with nothing
-# in it in a `Memory` of the appearance, and which, past that slot, would walk the
-# whole graph of the appearance.
+# being called a defect. The document of an appearance, which the editor draws
+# around a window, has no row of the natural renderer either: the natural renderer
+# falls back to the view of an object, which stops at a slot with nothing in it in
+# a `Memory` of the appearance, and which, past that slot, would walk the whole
+# graph of the appearance.
 const _NO_NATURAL_RENDER = Set{String}([
     "text/bare_string", "text/bare_line", "text/bare_spacing", "text/bare_graphics",
-    "text/gutter", "filesystem/chooser", "appearance/document",
+    "text/gutter", "appearance/document",
 ])
 
 """

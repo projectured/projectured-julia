@@ -16,3 +16,6 @@ function make_workspace_folder_document_example(; root = filesystem_example_root
     folder
 end
 make_workspace_document_example() = Workspace([make_workspace_folder_document_example()])
+
+# The explorer of that workspace, with the folder open.
+make_workspace_explorer_document_example() = WorkspaceExplorer(make_workspace_document_example())

@@ -342,6 +342,13 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:workplan, "step", make_work_plan_step_document_example),
     AtomicDocument(:systemprocess, "tree", make_system_process_tree_document_example),
     AtomicDocument(:systemprocess, "process", make_system_process_document_example),
+    # The explorer of a section, the section, a search below its root, and a
+    # dashboard of cards; and the log of the background work of a session.
+    AtomicDocument(:explorer, "explorer",  make_explorer_document_example),
+    AtomicDocument(:explorer, "section",   make_explorer_section_document_example),
+    AtomicDocument(:explorer, "search",    make_explorer_search_document_example),
+    AtomicDocument(:explorer, "dashboard", make_dashboard_document_example),
+    AtomicDocument(:backgroundwork, "log", make_background_work_log_document_example),
     # The page of a file that is not on disk.
     AtomicDocument(:fileformat, "page", make_file_page_document_example),
     # A roster of a collection, and a terminal that has not started its program.

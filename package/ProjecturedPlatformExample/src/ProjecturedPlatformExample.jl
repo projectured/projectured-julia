@@ -85,6 +85,8 @@ include("../../../example/platform/NavigatorDocumentExample.jl")
 include("../../../example/platform/TreeDocumentExample.jl")
 include("../../../example/platform/WorkPlanDocumentExample.jl")
 include("../../../example/platform/SystemProcessDocumentExample.jl")
+include("../../../example/platform/ExplorerDocumentExample.jl")
+include("../../../example/platform/BackgroundWorkDocumentExample.jl")
 include("../../../example/platform/FaultDocumentExample.jl")
 include("../../../example/platform/ProjectionDocumentExample.jl")
 include("../../../example/platform/MessageLogDocumentExample.jl")
@@ -276,6 +278,9 @@ export widget_toolbar_item_example
 export widget_tooltip_example, widget_transform_pane_example, widget_tree_example
 export word_wrapping_example, write_example_pdf
 export OutlineItem, make_document_tree_document_example, document_tree_example
+export make_explorer_document_example, make_explorer_section_document_example,
+       make_explorer_search_document_example, make_dashboard_document_example
+export make_background_work_log_document_example
 export make_work_plan_document_example, make_work_plan_step_document_example, work_plan_example
 export make_system_process_tree_document_example, make_system_process_document_example,
        system_process_tree_example
@@ -328,7 +333,8 @@ export make_filesystem_document_example, make_filesystem_file_document_example, 
 export make_filesystem_chooser_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_files_document_example, make_files_projection_example
-export make_workspace_folder_document_example, make_workspace_document_example
+export make_workspace_folder_document_example, make_workspace_document_example,
+       make_workspace_explorer_document_example
 end # module FileSystemExamples
 
 for _part in (FileSystemExamples,)

@@ -487,6 +487,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:sql, "table_expression", make_sql_table_expression_document_example),
     AtomicDocument(:workspace, "folder",    make_workspace_folder_document_example),
     AtomicDocument(:workspace, "workspace", make_workspace_document_example),
+    AtomicDocument(:workspace, "explorer",  make_workspace_explorer_document_example),
     AtomicDocument(:gesture, "map", make_gesture_map_document_example),
     AtomicDocument(:database, "instance", make_database_instance_document_example),
     # Two base-tier documents whose only example lives here, because the wrapper
