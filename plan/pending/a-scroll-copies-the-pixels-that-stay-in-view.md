@@ -314,8 +314,8 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
      panes of step 1. For each scroll frame, take the time of the frame, the walk
      (`_walk_window_change!`), the paint (`_paint_dirty_rects!`), the copy to the
      window, and the present. Write the numbers in [As built](#as-built).
-   - In a real window, read the target after each scroll frame, and compare it
-     with a full paint of the same frame.
+   - [x] In a real window, read the target after each scroll frame, and compare
+     it with a full paint of the same frame. Done; see [As built](#as-built).
    - [x] In [sdl.md](../../documentation/package/backend/sdl/sdl.md), describe the
      move in the paragraph of the partial paint, in the present tense. Add a
      design decision that says why the walk proves a move by the guard and not by
@@ -335,6 +335,9 @@ Do the work in the worktree `projectured-julia-scroll-copy`, on the branch
 - An outline of the copied box under `debug_dirty`.
 - The canvas of 4003 elements with no layout in the view of a Julia source,
   which each rectangle visits whole.
+- The grid of the table of a data frame, which stays where it is while the
+  cells scroll, so a scroll of a table paints the whole table (see
+  [As built](#as-built)).
 - Three scenes of the random test of the review, seeds 38, 292 and 416, whose
   partial paint differs from a full paint on `main` too, with no move.
 - A list of nodes in a pane that scrolls by pixels: the render draws it from its
@@ -419,4 +422,29 @@ The results, in the test lane, with no time taken:
   `json_build_live` 2, the pointer test 2 and the zoom test 1, as on `main`, and
   the take whose window cannot paint 1. That take also failed on `main` at
   `f593feb4a` at the same time, and passed there an hour before.
+
+### Step 5: the live check, 2026-10-21
+
+The owner let three real SDL windows of 1600 × 1000 pixels open on the screen,
+with `partial_render` on, at the density 1 and the supersample 2. Each window
+took 30 wheel notches, pushed into the pending inputs of the backend. After each
+frame, a script read the kept target, painted the same frame in full, and read
+the target again.
+
+| Window | Frames compared | Frames that differ | Boxes copied |
+| --- | --- | --- | --- |
+| A Julia source in a file tab of the application window | 60 | 0 | 56 |
+| The Files pane over a folder of 500 entries | 60 | 0 | 30 |
+| A data frame of 1000 rows | 60 | 0 | 0 |
+
+The data frame copied no box, although its four viewports move in each notch.
+`_make_part_region` puts the grid of the cells, a rule of 1 pixel at each row
+and at each column, in a viewport with the same box as the pane of the cells.
+That viewport keeps its origin while the cells move by 48 pixels. So each rule
+is a graphic from outside the moved content (rule 3), and gives two rectangles,
+at its place and at the place where the copy moves it: about 150 in a notch. Above
+32 rectangles the paint merges them into one, which covers the boxes, so it
+copies nothing and paints the whole table. The pixels are right. A merge of the
+rectangles at each edge into one band did not lower the count, and the change
+does not keep it.
 
