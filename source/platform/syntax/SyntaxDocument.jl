@@ -538,17 +538,26 @@ is_syntax_collapsible(::SyntaxNode)  = true
 const _CLOSING_DELIMITER_FIELDS = ("close", "closing_delimiter")
 
 """
-    is_on_closing_delimiter(selection) -> Bool
+    is_on_closing_delimiter(selection; from = 0) -> Bool
 
 Whether `selection`, the selection that a document holds, is a caret on the closing
 delimiter that the projection of that document to syntax printed, such as the `}`
-of an object. A container rule that leaves a key to its parent there asks this.
+of an object, at the offset `from` of the text of the delimiter or after it. A
+selection of the whole delimiter is on it. A container rule that leaves a key to
+its parent there asks this.
+
+A delimiter that starts with a break, such as `"\\n}"`, gives the length of the
+break as `from`. The caret before the break stands at the end of the line of the
+last child, so it is not on the `}`.
 """
-function is_on_closing_delimiter(selection)
+function is_on_closing_delimiter(selection; from::Integer = 0)
     is_introduced_reference(selection) || return false
     output = strip_reference_types(selection.head.output_path)
-    return output isa ConcreteReference && output.head isa FieldReferenceStep &&
-           output.head.name in _CLOSING_DELIMITER_FIELDS
+    (output isa ConcreteReference && output.head isa FieldReferenceStep &&
+     output.head.name in _CLOSING_DELIMITER_FIELDS) || return false
+    caret = output.tail
+    (caret isa ConcreteReference && caret.head isa ARangeReferenceStep) || return true
+    return caret.head.start >= from
 end
 
 # Canonical keyword constructor: `children` leads positionally. Its only job is to

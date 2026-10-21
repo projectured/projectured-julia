@@ -243,6 +243,37 @@ end
     @test selof(new_entry) isa ConcreteReference   # cursor in the key
 end
 
+@testset "a , before the closing break is the container's, on the } the parent's" begin
+    chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
+                               RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = FontFileMeasure()))
+    press!(document, key) = begin
+        op = read_intent(chain, print_document(chain, document), key)
+        op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
+        op
+    end
+    right = KeyDown(:right, ModifierKeys(); time = 0.0)
+    # `{"a": {"b": "x"}}` with the caret at `"x│"`, and Right pressed `n` times.
+    function make_document(n)
+        root = JsonObject("a" => JsonObject("b" => JsonString("x")))
+        set_selection!(root, @reference(root, entries[1].value.entries[1].value.value{1}))
+        foreach(_ -> press!(root, right), 1:n)
+        (root, root.entries[1].value)
+    end
+    # One Right leaves the string for the end of its line, before the break that
+    # starts the closing delimiter of the nested object: still its content.
+    root, nested = make_document(1)
+    @test is_on_closing_delimiter(selof(nested))
+    @test !is_on_closing_delimiter(selof(nested); from = 1)
+    @test press!(root, KeyPress(','; time = 0.0)) isa CompoundOperation
+    @test (length(root.entries), length(nested.entries)) == (1, 2)
+    # Four stand on the nested `}`, after the break: the root adds the entry.
+    root, nested = make_document(4)
+    @test is_on_closing_delimiter(selof(nested); from = 1)
+    @test press!(root, KeyPress(','; time = 0.0)) isa CompoundOperation
+    @test (length(root.entries), length(nested.entries)) == (2, 1)
+end
+
 @testset "Tab moves from an entry key to its value" begin
     obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, @reference(obj, entries[1].key{0}), KeyPress('\t'; time = 0.0))

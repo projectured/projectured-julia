@@ -125,9 +125,12 @@ end
 
 # A `,` on the closing bracket or brace of a container is the parent's: the caret
 # has left the container's content, so the container declines and its parent answers.
+# The closing delimiter starts with its break (`"\n]"`, `"\n}"`), so a caret before the
+# break stands at the end of the line of the last value, and the `,` there is the
+# container's.
 @gestures JsonArray begin
     KeyPress(',') => "Insert a new element" =>
-        is_on_closing_delimiter(get_selection(doc)) ? nothing :
+        is_on_closing_delimiter(get_selection(doc); from = 1) ? nothing :
         append_insertion_operation(doc, :elements, JsonInsertion)
 end
 
@@ -138,7 +141,7 @@ _json_entry_sort_key(entry) = entry isa JsonObjectEntry ? (0, entry.key) : (1, "
 
 @gestures JsonObject begin
     KeyPress(',') => "Insert a new entry" =>
-        is_on_closing_delimiter(get_selection(doc)) ? nothing :
+        is_on_closing_delimiter(get_selection(doc); from = 1) ? nothing :
         append_insertion_operation(doc, :entries, JsonObjectEntry)
     KeyPress('\t') => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
