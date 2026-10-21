@@ -173,6 +173,7 @@ include("editor/MessageLogFeedTest.jl")
 include("editor/FrameStatisticsFeedTest.jl")
 include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
+include("editor/PointedPartTest.jl")
 include("editor/HistorySweepTest.jl")
 include("editor/FileWatchWindowTest.jl")
 include("editor/InsertionInTabTest.jl")
@@ -593,6 +594,7 @@ function test_integration()
     test_message_log_feed()
     test_frame_statistics_feed()
     test_application()
+    test_pointed_part()
     test_insertion_in_tab()
     test_tool_views()
     test_selection_inspector()
@@ -675,7 +677,7 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, test_assistant_stream, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
-export test_application, test_history_sweep, test_file_watch_window, test_insertion_in_tab,
+export test_application, test_pointed_part, test_history_sweep, test_file_watch_window, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
        test_value_viewer, test_referenced_document_editor, test_assistant_verbs,

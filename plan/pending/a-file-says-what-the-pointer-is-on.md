@@ -80,9 +80,28 @@ The steps are fixed. Each step is one commit. projectured-julia lands first.
    - Test: `test_tooltip_note()` 40 (a container finds the part under the
      pointer, cut at the text of a label, and else its selected part),
      `test_platform_layering()`, `test_platform_slice_edges()`.
-2. [ ] **JSON and YAML.** `JsonFile` and `YamlFile` say: the path of the part
+2. [x] **JSON and YAML.** `JsonFile` and `YamlFile` say: the path of the part
    (`users[3].name`), its type, and its length, its value or its count of
    entries. Test: the JSON and YAML suites.
+
+   Done. As built:
+   - `JsonFile` and `YamlFile` splice a tooltip binding, "Show the path of the
+     part", into their `@gestures` table. The note: the file name as the title;
+     the facts Path, Type (String, Number, Boolean, Null, Object or Mapping,
+     Array or Sequence; an entry says the type of its value), and Length, Value,
+     Entries or Elements.
+   - The path counts the elements of an array from 1, as the editor does, and
+     writes a key that is not a plain name in brackets: `["my key"]`. The path
+     of the root is "the root".
+   - The owner of a part is the nearest node of the domain above it in the walk,
+     because the list of the elements of an array is a document of its own
+     between the array and the element.
+   - Test: `test_json_file_note()` and `test_yaml_file_note()` (a mouse target in
+     a string, a key in brackets, a number, an array, and the selection with no
+     pointer), and `test_pointed_part()` in the umbrella package: "a.json" open
+     as the application opens it, a move and a dwell on "Alice" answer the note
+     with "Path: users[1].name". `test_json()` 245, `test_yaml()` 64 and 2
+     broken, as before.
 3. [ ] **XML.** `XmlFile` says for an element: its path (`/root/a[2]/b`), the
    namespace of its prefix from the `xmlns` of the elements on the path, and its
    attributes and children. Test: the XML suite.
