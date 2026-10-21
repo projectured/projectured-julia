@@ -102,7 +102,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "mcplog" => ["collection", "domain", "layout", "natural", "primitive", "projection", "roster",
                  "serialization", "shell", "style", "widget"],
     "task" => ["collection", "domain", "focus", "graphics", "layout", "natural", "navigator", "pane", "primitive",
-               "projection", "roster", "serialization", "style", "systemprocess", "tree", "widget"],
+               "projection", "roster", "serialization", "style", "systemprocess", "tooltip", "tree", "widget"],
     "statistics" => ["collection", "domain", "layout", "natural", "projection", "roster",
                      "serialization", "style", "widget"],
     "undo" => ["collection", "fileformat", "graphics", "natural", "projection", "settings", "style",

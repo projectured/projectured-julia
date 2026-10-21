@@ -119,6 +119,18 @@ end
     @test isempty(find_bound_keys(Navigator, "a command that no key reaches"))
 end
 
+@testset "a condition of a decoration is a fact: its glyph, its words and its count" begin
+    texts = _tn_texts(TooltipNote(; facts = Any[DocumentCondition(:failed; count = 3), DocumentCondition(:waiting)]))
+    failed, count = _tn_place(texts, "failed"), _tn_place(texts, "3")
+    glyph = _tn_place(texts, string(find_icon_character(:x)))
+    @test glyph[1] < failed[1] < count[1]
+    @test glyph[2] <= failed[2] && failed[2] == count[2]
+    # A look with no glyph has a dot, on the next row.
+    waiting = _tn_place(texts, "waits for you")
+    @test waiting[2] > failed[2]
+    @test any(place -> place[1] == string(find_icon_character(:dot)) && place[2] < waiting[1], texts)
+end
+
 @testset "a piece that is a document stands as it is" begin
     texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
     @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]

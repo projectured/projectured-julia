@@ -85,7 +85,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
-export make_decoration_icon, make_decoration_badges
+export make_decoration_icon, make_decoration_badges, make_decoration_note, make_fault_report_note
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,

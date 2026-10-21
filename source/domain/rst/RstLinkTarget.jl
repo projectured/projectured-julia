@@ -25,7 +25,8 @@ const _RST_REFERENCE_BINDINGS = GestureBinding[
     _make_reference_binding([:ctrl], :here, "Follow the reference"),
     _make_reference_binding([:ctrl, :shift], :new_tab, "Open the reference in a new tab"),
     make_tooltip_binding(reference -> isempty(_get_reference_target(reference)) ? nothing :
-                                      PrimitiveString(_get_reference_target(reference));
+                                      TooltipNote(; title = "Reference",
+                                                  facts = ["Target" => _get_reference_target(reference)]);
                          description = "Show the target of the reference")]
 
 @gestures RstReference begin

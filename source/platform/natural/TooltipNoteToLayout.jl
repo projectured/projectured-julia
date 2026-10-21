@@ -5,7 +5,9 @@
 
 A [`TooltipNote`](@ref) as a column that the natural projection draws: the title,
 in bold, with the key caps after it, then the text, the facts as a grid of names
-and values, and the hint, with a separator between them. A warning and an error
+and values, and the hint. The title and the text stand close, and a larger gap
+stands between the parts, because a line between them would stop short of the
+widest part. A warning and an error
 draw a mark of their color before the title. A piece that is a document
 re-enters the natural projection in its own domain, and a string breaks its lines
 at the edge of the window. A note is read, never edited, so the column maps no
@@ -19,6 +21,7 @@ or not, or of the default theme.
 # shows at the next tooltip.
 struct TooltipNoteToVerticalLayout <: Projection
     gap::Any
+    section_gap::Any
     title_text::Any
     body_text::Any
     muted_text::Any
@@ -34,33 +37,34 @@ struct TooltipNoteToVerticalLayout <: Projection
     fact_row_gap::Any
     warning_mark::Any
     error_mark::Any
+    success_mark::Any
+    info_mark::Any
+    accent_mark::Any
+    quiet_mark::Any
 end
 
 function TooltipNoteToVerticalLayout(; theme = nothing)
     get_style(name) = get_tooltip_style(theme, name)
-    TooltipNoteToVerticalLayout(get_style(:gap), get_style(:title_text), get_style(:body_text),
+    TooltipNoteToVerticalLayout(get_style(:gap), get_style(:section_gap), get_style(:title_text), get_style(:body_text),
                                 get_style(:muted_text), get_style(:value_text), get_style(:key_text),
                                 get_style(:key_fill), get_style(:key_line), get_style(:key_padding),
                                 get_style(:key_gap), get_style(:line_width), get_style(:head_gap),
                                 get_style(:fact_gap), get_style(:fact_row_gap), get_style(:warning_mark),
-                                get_style(:error_mark))
+                                get_style(:error_mark), get_style(:success_mark), get_style(:info_mark),
+                                get_style(:accent_mark), get_style(:quiet_mark))
 end
 
 function print_document(p::TooltipNoteToVerticalLayout, recursion, note::TooltipNote, ctx)
     sections = Any[]
     opening = Any[part for part in (_make_note_head(p, note), _make_note_prose(note.text, unwrap_cell(p.body_text)))
                   if part !== nothing]
-    isempty(opening) || push!(sections, opening)
+    isempty(opening) || push!(sections, length(opening) == 1 ? only(opening) :
+                                        VerticalLayout(opening; gap = unwrap_cell(p.gap)))
     facts = _make_note_facts(p, note.facts)
-    facts === nothing || push!(sections, Any[facts])
+    facts === nothing || push!(sections, facts)
     hint = _make_note_prose(note.hint, unwrap_cell(p.muted_text))
-    hint === nothing || push!(sections, Any[hint])
-    children = Any[]
-    for (index, section) in enumerate(sections)
-        index > 1 && push!(children, WidgetSeparator())
-        append!(children, section)
-    end
-    SimpleIoMap(p, note, VerticalLayout(children; gap = unwrap_cell(p.gap)))
+    hint === nothing || push!(sections, hint)
+    SimpleIoMap(p, note, VerticalLayout(sections; gap = unwrap_cell(p.section_gap)))
 end
 
 # The first line of a note: the mark of its tone, its title and its key caps, or
@@ -129,14 +133,39 @@ _make_note_prose(text::AbstractString, style) = isempty(text) ? nothing :
     TextBlock(TextDocument[TextLine(TextString(String(line), style)) for line in split(text, "\n")])
 _make_note_prose(document, style) = document
 
-# The facts as a grid: the name of each in the quiet text, and its value in the
-# text of a value, or as the document that it is; nothing for no fact.
+# The facts as a grid of two columns; nothing for no fact.
 function _make_note_facts(p::TooltipNoteToVerticalLayout, facts)
     isempty(facts) && return nothing
     cells = Any[]
-    for (name, value) in facts
-        push!(cells, WidgetLabel(string(name); text_style = unwrap_cell(p.muted_text)))
-        push!(cells, value isa Document ? value : WidgetLabel(string(value); text_style = unwrap_cell(p.value_text)))
+    for fact in facts
+        append!(cells, _make_fact_cells(p, fact))
     end
     GridLayout(cells, 2; horizontal_gap = unwrap_cell(p.fact_gap), vertical_gap = unwrap_cell(p.fact_row_gap))
 end
+
+# A fact as its two cells: the name in the quiet text, and the value in the text
+# of a value, or as the document that it is.
+_make_fact_cells(p::TooltipNoteToVerticalLayout, fact::Pair) =
+    Any[WidgetLabel(string(fact.first); text_style = unwrap_cell(p.muted_text)),
+        fact.second isa Document ? fact.second :
+                                   WidgetLabel(string(fact.second); text_style = unwrap_cell(p.value_text))]
+
+# A condition of a decoration as a fact: the glyph of its look in the color of its
+# role, a dot for a look with no glyph, its words, and its count when it has one.
+function _make_fact_cells(p::TooltipNoteToVerticalLayout, condition::DocumentCondition)
+    look = get_condition_look(Val(condition.name))
+    glyph = something(find_icon_character(something(look.glyph, :dot)), find_icon_character(:dot))
+    role = something(condition.role, Some(look.role))
+    mark = WidgetLabel(string(glyph); text_style = unwrap_cell(_get_role_mark(p, role)))
+    words = WidgetLabel(look.words; text_style = unwrap_cell(p.body_text))
+    count = WidgetLabel(condition.count === nothing ? "" : string(condition.count);
+                        text_style = unwrap_cell(p.value_text))
+    Any[HorizontalLayout(Any[mark, words]; gap = unwrap_cell(p.gap), vertical_align = :center), count]
+end
+
+# The text of the mark of a role: one of `:error`, `:warning`, `:success`,
+# `:info` and `:accent`, or another for a quiet mark.
+_get_role_mark(p::TooltipNoteToVerticalLayout, role) =
+    role === :error ? p.error_mark : role === :warning ? p.warning_mark :
+    role === :success ? p.success_mark : role === :info ? p.info_mark :
+    role === :accent ? p.accent_mark : p.quiet_mark

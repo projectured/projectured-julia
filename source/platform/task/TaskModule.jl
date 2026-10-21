@@ -38,6 +38,7 @@ using ..RosterModule
 using ..StyleModule
 using ..SystemProcessModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!, is_walk_opaque

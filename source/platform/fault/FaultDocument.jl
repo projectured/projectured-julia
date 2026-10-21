@@ -3,11 +3,11 @@
 # projection failed.
 
 # What a mark says about itself when the pointer rests on it: the whole fault,
-# as text, which is a document every host draws. The one line a mark draws is cut
-# where the mark ends, and a message is the part worth reading. A right click
+# as a note. The one line a mark draws is cut where the mark ends, and a message
+# is the part worth reading. A right click
 # opens its menu, which tries the part again, when the report came from a barrier.
 get_document_gesture_bindings_own(::Type{FaultReport}) = GestureBinding[
-    make_tooltip_binding(report -> TextString(format_fault_report_message(report));
+    make_tooltip_binding(make_fault_report_note;
                          description = "Show the fault"),
     make_context_menu_binding(_make_fault_report_menu;
                               description = "Show the menu of the fault")]

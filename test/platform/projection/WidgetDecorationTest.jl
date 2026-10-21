@@ -154,10 +154,25 @@ function test_document_decoration()
         title = make_pane_tab_title(node, "busy")
         @test title.icon isa WidgetIcon && title.icon_role === :warning
         @test length(title.badges) == 1 && title.badges[1].content == "2/4"
-        @test title.tooltip == "waits for you: 2\nrunning"
+        # The tooltip is a note: each condition that has words, as a fact.
+        @test [(condition.name, condition.count) for condition in title.tooltip.facts] ==
+              [(:waiting, 2), (:running, nothing)]
         # A plain document gives a tab with no icon, as before.
         plain = make_pane_tab_title(PrimitiveString("plain"), "plain")
         @test plain.icon === nothing && plain.icon_role === nothing && isempty(plain.badges) && plain.tooltip === nothing
+    end
+
+    @testset "a decoration says its conditions and its tooltip as a note" begin
+        busy = _decorated(DocumentCondition(:read_only), DocumentCondition(:failed; count = 3); tooltip = "a fact")
+        note = make_decoration_note(busy)
+        @test [condition.name for condition in note.facts] == [:failed, :read_only]
+        @test note.text == "a fact"
+        @test make_decoration_note(_decorated()) === nothing
+        # A note of the decoration keeps its own pieces, after the conditions.
+        given = TooltipNote(; title = "smoke test", text = "Ran the tests.", facts = ["Finished" => "3 of 3"])
+        merged = make_decoration_note(_decorated(DocumentCondition(:done); tooltip = given))
+        @test (merged.title, merged.text) == ("smoke test", "Ran the tests.")
+        @test merged.facts[1] isa DocumentCondition && merged.facts[2] == ("Finished" => "3 of 3")
     end
 end
 end

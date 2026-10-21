@@ -35,8 +35,10 @@ change of the appearance shows at the next tooltip.
     line_width::LineWidth = LineWidth(1)
     "The space between the line and what the window says."
     padding::Spacing = Spacing(Inset(8, 8, 12, 12))
-    "The gap between two parts of what the window says."
+    "The gap between two layers that the window shows, and between the title and the text of a note."
     gap::Spacing = Spacing(6)
+    "The gap between the parts of a note: its title and text, its facts, and its hint."
+    section_gap::Spacing = Spacing(10)
     "The title of a layer of a part around, and the line that names the keys of the layers."
     layer_text::ThemeText = TextRole(:text_faint; relative_size = 0.9)
     "The title of a note: the name of the part."
@@ -67,4 +69,12 @@ change of the appearance shows at the next tooltip.
     warning_mark::ThemeText = TextRole(:warning_text; family = "Lucide")
     "The mark before the title of a note with the tone of an error: a glyph of the icon font."
     error_mark::ThemeText = TextRole(:error_text; family = "Lucide")
+    "The mark of a condition with the role of a success: a glyph of the icon font."
+    success_mark::ThemeText = TextRole(:success_text; family = "Lucide")
+    "The mark of a condition with the role of an information: a glyph of the icon font."
+    info_mark::ThemeText = TextRole(:info_text; family = "Lucide")
+    "The mark of a condition with the role of the accent, such as work that goes on: a glyph of the icon font."
+    accent_mark::ThemeText = TextRole(:accent_text; family = "Lucide")
+    "The mark of a condition with no role: a glyph of the icon font."
+    quiet_mark::ThemeText = TextRole(:text_muted; family = "Lucide")
 end

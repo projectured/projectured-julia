@@ -12520,9 +12520,9 @@ function _read_wtree_row_dwell(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeT
     row = _wtree_row_at(iomap.geometry, g.y - content_y)
     row === nothing && return nothing
     node = _find_wtree_node(iomap.geometry, iomap.input, row.path)
-    tooltip = _tree_tooltip(node)
-    (tooltip === nothing || isempty(tooltip)) && return nothing
-    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), TooltipNote(; text = String(tooltip)))],
+    tooltip = _as_tooltip_document(_tree_tooltip(node))
+    tooltip === nothing && return nothing
+    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), tooltip)],
                                 EmptyReference(), (g.x, g.y))
     reroot_operation(ReplaceViewStateOperation(open), Tuple(get_reference_steps(_wtree_path_ref(row.path))))
 end

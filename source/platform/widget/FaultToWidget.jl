@@ -24,6 +24,19 @@ function print_document(p::FaultToWidget, recursion, report::FaultReport,
     # `tooltip`.
     alert = WidgetAlert(Cell(@computation String(report.origin));
                         description = Cell(@computation report.message), icon = :warning, variant = :destructive, width = p.width,
-                        tooltip = format_fault_report_message(report))
+                        tooltip = make_fault_report_note(report))
     SimpleIoMap(p, report, alert)
 end
+
+"""
+    make_fault_report_note(report) -> TooltipNote
+
+What a fault says when the pointer rests on its mark or its alert: the part that
+failed as the title, in the tone of an error; what it said as the text; where it
+was caught as a fact; and, when a barrier made the report, that a right click
+tries the part again.
+"""
+make_fault_report_note(report::FaultReport) =
+    TooltipNote(; title = String(report.origin), tone = :error, text = String(report.message),
+                facts = ["Caught in" => "the " * String(report.site)],
+                hint = report.retry === nothing ? nothing : "A right click offers Try again.")

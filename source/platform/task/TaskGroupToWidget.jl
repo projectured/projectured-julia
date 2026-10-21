@@ -681,7 +681,7 @@ function get_document_decoration(doc::TaskGroupDocument)
                 DocumentCondition(role === :error ? :failed : :unexpected; role)
     counts = DocumentCount[DocumentCount(badge.content; role = badge.role) for badge in _make_tab_badges(group, state)]
     DocumentDecoration(; icon = _get_tab_icon(state), conditions = [condition], counts,
-                       tooltip = _format_tab_tooltip(doc, group), work_item = true)
+                       tooltip = _make_tab_note(doc, group), work_item = true)
 end
 
 # What the tab of a group is in: not started, running, cancelled, all as
@@ -733,23 +733,21 @@ function _make_tab_badges(group, state)
     badges
 end
 
-# The summary card in short: what the group is, how far it is, what it found,
-# and the time.
-function _format_tab_tooltip(doc::TaskGroupDocument, group)
+# The summary card in short, as a note: the title of the group and what it does,
+# then how far it is, what it found and the time, as facts.
+function _make_tab_note(doc::TaskGroupDocument, group)
     s = get_task_group_document_summary(doc)
     running = getfield(doc, :status)[] in (:running, :stopping)
     heading = running ? format_task_group_description(group) : format_task_group_close_description(group)
-    lines = String[string(getfield(doc, :title)[], " (", getfield(doc, :identifier)[], ")"),
-                   string(heading, ": ", s.finished, " of ", s.total, " finished, ", s.running,
-                          " running, ", group.jobs, " at a time")]
-    isempty(s.summary) || push!(lines, s.summary)
-    times = String[]
-    group.start_time === nothing ||
-        push!(times, "Started " * Libc.strftime("%H:%M:%S", group.start_time))
-    s.elapsed === nothing || push!(times, _format_duration(s.elapsed) * " elapsed")
-    s.remaining === nothing || push!(times, "about " * _format_duration(s.remaining) * " left")
-    isempty(times) || push!(lines, join(times, " · "))
-    join(lines, "\n")
+    facts = Pair{String,String}["Identifier" => getfield(doc, :identifier)[],
+                                "Finished" => string(s.finished, " of ", s.total)]
+    s.running > 0 && push!(facts, "Running" => string(s.running))
+    push!(facts, "At a time" => string(group.jobs))
+    isempty(s.summary) || push!(facts, "Result" => s.summary)
+    group.start_time === nothing || push!(facts, "Started" => Libc.strftime("%H:%M:%S", group.start_time))
+    s.elapsed === nothing || push!(facts, "Elapsed" => _format_duration(s.elapsed))
+    s.remaining === nothing || push!(facts, "Left" => "about " * _format_duration(s.remaining))
+    TooltipNote(; title = getfield(doc, :title)[], text = heading, facts)
 end
 
 # ── The node of a tree ───────────────────────────────────────────────────────

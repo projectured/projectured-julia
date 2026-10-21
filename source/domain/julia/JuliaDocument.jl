@@ -709,22 +709,24 @@ end
 # node ABOVE it that holds the function as its subject, and the docstring adds its
 # own layer when the tooltip goes out from the function.
 get_document_gesture_bindings_own(::Type{JuliaFunction}) = GestureBinding[
-    make_tooltip_binding(function_ -> _julia_tooltip_text(compute_julia_signature(function_));
-                         description = "Show the signature")]
+    make_tooltip_binding(_make_julia_function_note; description = "Show the signature")]
 
 # A documented definition answers both, which is the whole point of a
 # documentation tooltip: what to pass, and what it is for.
 get_document_gesture_bindings_own(::Type{JuliaDocstring}) = GestureBinding[
-    make_tooltip_binding(docstring -> _julia_tooltip_text(_julia_documentation_text(docstring));
-                         description = "Show the documentation")]
+    make_tooltip_binding(_make_julia_docstring_note; description = "Show the documentation")]
 
-_julia_documentation_text(docstring::JuliaDocstring) =
-    docstring.subject isa JuliaFunction ?
-        compute_julia_signature(docstring.subject) * "\n\n" * docstring.text :
-        docstring.text
+# The note of a function: its name, and its signature as a fact, in the text of a
+# value.
+_make_julia_function_note(function_::JuliaFunction) =
+    TooltipNote(; title = _julia_signature_name(function_.name),
+                facts = ["Signature" => compute_julia_signature(function_)])
 
-# A tooltip is a document, and this slice reaches the text one. A line of the
-# answer becomes a line of the text, so a blank line between the signature and the
-# prose stays a blank line.
-_julia_tooltip_text(text::AbstractString) =
-    TextBlock(TextDocument[TextLine(TextString(line)) for line in split(text, "\n")])
+# The note of a docstring: the note of the function that it documents, with the
+# prose of the docstring as its text; for another subject, the prose alone.
+function _make_julia_docstring_note(docstring::JuliaDocstring)
+    subject = docstring.subject
+    subject isa JuliaFunction || return TooltipNote(; text = docstring.text)
+    TooltipNote(; title = _julia_signature_name(subject.name),
+                facts = ["Signature" => compute_julia_signature(subject)], text = docstring.text)
+end

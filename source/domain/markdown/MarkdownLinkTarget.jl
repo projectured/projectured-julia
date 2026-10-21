@@ -22,7 +22,7 @@ _make_link_binding(modifiers::Vector{Symbol}, place::Symbol, description::String
 const _MARKDOWN_LINK_BINDINGS = GestureBinding[
     _make_link_binding([:ctrl], :here, "Follow the link"),
     _make_link_binding([:ctrl, :shift], :new_tab, "Open the link in a new tab"),
-    make_tooltip_binding(link -> isempty(link.url) ? nothing : PrimitiveString(link.url);
+    make_tooltip_binding(link -> isempty(link.url) ? nothing : TooltipNote(; title = "Link", facts = ["Target" => link.url]);
                          description = "Show the target of the link")]
 
 @gestures MarkdownLink begin

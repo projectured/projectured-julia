@@ -108,7 +108,7 @@ function test_markdown_link_gestures()
         link = only(child for child in root.elements[2].content if child isa MarkdownLink)
         opened = get_wrapped_operation(read_gesture(link, MouseDwell(0, 0; time = 0.0)))
         (_, content) = only(opened.layers)
-        @test content isa PrimitiveString && content.value == "#install-it"
+        @test content isa TooltipNote && content.facts == ["Target" => "#install-it"]
     end
 end
 end

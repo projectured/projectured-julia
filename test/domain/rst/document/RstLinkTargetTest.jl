@@ -124,7 +124,7 @@ function test_rst_link_gestures()
         reference = only(child for child in paragraph.content if child isa RstReference)
         opened = get_wrapped_operation(read_gesture(reference, MouseDwell(0, 0; time = 0.0)))
         (_, content) = only(opened.layers)
-        @test content isa PrimitiveString && content.value == "queueing"
+        @test content isa TooltipNote && content.facts == ["Target" => "queueing"]
     end
 end
 end

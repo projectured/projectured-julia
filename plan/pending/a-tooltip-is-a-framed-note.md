@@ -174,10 +174,10 @@ The steps are fixed. Each step is one commit.
    - `TooltipTheme` got `font`, `surface`, `line`, `line_width` (not
      `border_width`, after `WidgetTheme`), `padding`, `gap` and `layer_text`.
      The natural projection takes the scaled `TooltipTheme` of the appearance.
-   - Between two layers stands no line. In an SDL picture, a `WidgetSeparator`
-     there drew only as wide as the first layer, not the whole column, so the
-     title of each layer marks where it starts, with the gap of the column
-     above it.
+   - Between two layers stands no line. A `WidgetSeparator` draws a rule of
+     its own length, 200 pixels by default, so in an SDL picture it stopped
+     short of a wider layer. The title of each layer marks where it starts,
+     with the gap of the column above it.
    - A layer title is the title in `text_faint`, 0.9 of the size. It is not
      in capitals: a text has no letter spacing, and a type name such as
      `JuliaDocstring` in capitals is hard to read.
@@ -193,7 +193,8 @@ The steps are fixed. Each step is one commit.
    Done. As built:
    - `TooltipNoteToVerticalLayout` draws a column: the head (the mark, the
      title and the key caps), the text, the facts, the hint, with a
-     `WidgetSeparator` between the parts. A string text and a string hint are
+     `WidgetSeparator` between the parts. (Step 5 replaced the separators with
+     `section_gap`, for the reason in step 1.) A string text and a string hint are
      a `TextBlock`, so they break at the edge of the window. A fact value
      that is a document stands as it is.
    - The key caps stand after the title with `head_gap`, not at the right
@@ -278,12 +279,47 @@ The steps are fixed. Each step is one commit.
      `test_tooltip_note()` 25, `test_workflow()` 199, `test_data_frame_sort()`
      17, `test_data_frame_refresh()` 16, `test_data_frame_filter()` 106,
      `test_data_frame_cells()` 173: all pass.
-5. [ ] **Structured answers.** A decoration answers a note with a condition row
+5. [x] **Structured answers.** A decoration answers a note with a condition row
    for each condition. A task group answers facts. A fault answers the tone
    `:error`. A Markdown link and an RST reference answer a fact and a hint. A
    Julia function answers its signature in Ubuntu Mono with the colors of the
    syntax roles. Test: `test_julia_tooltip()`, `test_tooltip_window()`, the
    decoration and task tests.
+
+   Done. As built:
+   - A fact of a note can be a `DocumentCondition`: the natural projection
+     draws the glyph of its look (a dot for a look with none) in the color of
+     its role, its words, and its count. `TooltipTheme` got `success_mark`,
+     `info_mark`, `accent_mark` and `quiet_mark` beside the two of step 2.
+   - `collect_decoration_conditions(decoration)` (domain slice) gives the
+     conditions that have words, in their order; `format_decoration_words`
+     uses it too.
+   - `make_decoration_note(decoration)` (widget slice) answers the conditions as
+     facts, then the tooltip of the decoration: a string as the text, or a
+     note whose pieces follow the conditions. A tree row and a pane tab
+     (`make_pane_tab_title`) say it.
+   - A task group puts a note in its decoration: its title, what it does as
+     the text, and the facts Identifier, Finished, Running, At a time, Result,
+     Started, Elapsed and Left. The task slice uses the tooltip slice now.
+   - A fault answers `make_fault_report_note`: the origin as the title, the
+     tone `:error`, the message, "Caught in" as a fact, and the hint "A right
+     click offers Try again." when a barrier made the report.
+   - A Markdown link and an RST reference answer their target as a fact, with
+     no hint: the click that follows a link differs between the source and the
+     rendered view, so one hint would be wrong in one of them.
+   - A Julia function answers its name and its signature as a fact, which the
+     value text draws in Ubuntu Mono; a docstring adds its prose as the text.
+     The colors of the syntax roles are not in the note: a fact is one text.
+   - A `WidgetSeparator` draws 200 pixels by default, so in a wide note a line
+     stopped short. The parts of a note stand apart by `section_gap` (10)
+     instead, and the title and the text by `gap` (6).
+   - Test: `test_tooltip_note()` 29, `test_document_decoration()` 54,
+     `test_widget_tree()` 103, `test_fault_catching()` 53,
+     `test_julia_tooltip()` 13, `test_tooltip_window()` 51,
+     `test_markdown_link_target()` 11, `test_rst_link_target()` 9,
+     `test_explorer()` 240, `test_task_group()` 76, `test_task_views()` 70,
+     `test_pane_rename()` 38, `test_platform_layering()`,
+     `test_platform_slice_edges()`: all pass.
 6. [ ] **omnet-julia.** The transport buttons, the speed slider and the menu bar
    of the simulation answer a note. The decoration notes come from step 5. Test:
    the test of the simulation embed toolbar.

@@ -76,7 +76,7 @@ function make_pane_tab_title(document, name::AbstractString)
     PaneTabTitle(name; icon = () -> make_decoration_icon(decoration()),
                  icon_role = () -> find_decoration_tint(decoration()),
                  badges = () -> WidgetBadge[part for part in make_decoration_badges(decoration()) if part isa WidgetBadge],
-                 tooltip = () -> (words = format_decoration_words(decoration()); isempty(words) ? nothing : words))
+                 tooltip = () -> make_decoration_note(decoration()))
 end
 
 # ── PaneTab ────────────────────────────────────────────────────────────────
