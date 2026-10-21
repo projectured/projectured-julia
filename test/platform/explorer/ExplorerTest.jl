@@ -663,12 +663,26 @@ function test_explorer()
             (opened, layer[2])
         end
         labels(menu) = [string(item.action.label) for item in menu.elements if item isa WidgetMenuItem]
-        # An entry that is no section: open it and remove it.
+        # An entry that is no section: open it, remove it, and move it; the first
+        # entry moves only later.
         (_, menu) = row_menu("alpha")
-        @test labels(menu) == ["Open in a new tab", "Remove from explorer"]
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Move the entry later"]
         # A section: rename it, and add to it.
         (_, menu) = row_menu("Inner")
-        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Rename", "New section", "Add…"]
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Move the entry earlier",
+                               "Move the entry later", "Rename", "New section", "Add…"]
+        # A verb that acts at the row gets the same commands, with no caret in the
+        # title and no menu of the kinds, and with the keys that run them.
+        inner_steps = (FieldReferenceStep("tree"), FieldReferenceStep("root"), FieldReferenceStep("entries"),
+                       ElementReferenceStep(2))
+        rows = collect_part_commands(explorer, inner_steps)
+        @test [row.description for row in rows] ==
+              ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
+               "New section"]
+        @test [row.gesture for row in rows][2:4] ==
+              [describe_gesture_pattern(only(find_bound_keys(Explorer, name)))
+               for name in ("Remove from explorer", "Move the entry earlier", "Move the entry later")]
+        @test isempty(collect_part_commands(explorer, (FieldReferenceStep("filter"),)))
         # A long list of children opens as a page.
         (opened, menu) = row_menu("long")
         @test "Open as a list" in labels(menu)

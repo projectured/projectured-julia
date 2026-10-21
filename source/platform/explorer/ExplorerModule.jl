@@ -21,6 +21,7 @@ using ..EditorModule
 using ..EventModule
 using ..FocusModule
 using ..GestureBindingModule
+using ..GestureHelpModule
 using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
@@ -44,6 +45,7 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title, has_document_duplicate, copy_document, is_walk_opaque
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
                        get_insertion_aliases, make_insertion_document, get_document_decoration
+import ..GestureHelpModule: collect_part_commands
 import ..NavigatorModule: find_navigator_address
 import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation, is_self_contained_operation
 import ..SerializationModule: pred_arguments, make_pred_document

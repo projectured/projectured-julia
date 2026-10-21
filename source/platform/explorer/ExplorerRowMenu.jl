@@ -15,47 +15,80 @@ function _make_row_menu_operation(explorer::Explorer, gesture)
     path = gesture isa MouseClick ? get_mouse_target(explorer) : get_selection(explorer)
     steps = _find_shown_node_steps(explorer, path)
     steps === nothing && return nothing
+    document = try_evaluate_reference(getfield(explorer, :tree)[].root, _make_steps(steps...), nothing)
+    document === nothing && return nothing
+    items = Any[WidgetMenuItem(command.name; command.operation,
+                               tooltip = isempty(command.keys) ? command.text :
+                                         TooltipNote(; command.keys, command.text))
+                for command in _collect_row_commands(explorer, steps)]
+    commands = _make_command_items(document, (FieldReferenceStep("tree"), FieldReferenceStep("root"), steps...))
+    isempty(commands) || push!(items, WidgetSeparator(), commands...)
+    point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
+    ReplaceViewStateOperation(OpenContextMenuOperation(
+        Tuple{String,Document,Int}[(format_tree_node_label(document), WidgetMenu(items), 0)],
+        annotate_reference_types(explorer, EmptyReference()), point))
+end
+
+# The commands of the explorer for the row of the node at `steps` from the root
+# section, in the order of the menu of the row: each a name, its operation relative
+# to `explorer`, the keys that run it, and the text of its tooltip. With `selects`,
+# as for a person, the selection and the page follow an edit: a new or a moved
+# entry is selected with its page, and a removal selects its section. The list then
+# also has Rename, which puts the caret in the title, and Add…, which opens the
+# menu of the kinds. Without `selects`, as for a verb of an assistant, no edit moves
+# the selection or the page, and the list has neither of the two.
+function _collect_row_commands(explorer::Explorer, steps; selects::Bool = true)
     tree = getfield(explorer, :tree)[]
     navigator = getfield(explorer, :navigator)[]
     address = _make_steps(steps...)
     document = try_evaluate_reference(tree.root, address, nothing)
-    document === nothing && return nothing
-    node_steps = (FieldReferenceStep("tree"), FieldReferenceStep("root"), steps...)
-    node = _make_steps(node_steps...)
+    commands = NamedTuple[]
+    document === nothing && return commands
+    add!(name, operation, text) = push!(commands, (; name, operation, keys = find_bound_keys(Explorer, name), text))
+    node = _make_steps(FieldReferenceStep("tree"), FieldReferenceStep("root"), steps...)
     place = _find_entry_place(tree.root, steps)
-    items = Any[WidgetMenuItem("Open in a new tab"; operation = OpenPageOperation(navigator.content, address, :new_tab))]
-    if place !== nothing && place.is_entry && place.index !== nothing
-        push!(items, WidgetMenuItem("Remove from explorer"; operation = _make_remove_entry_operation(explorer, node),
-                                     tooltip = TooltipNote(; keys = find_bound_keys(Explorer, "Remove from explorer"),
-                                                           text = "Take the entry out of the explorer; its document stays as it is.")))
-    elseif place !== nothing && !place.is_entry
-        push!(items, WidgetMenuItem("Add to explorer"; operation = AddExplorerEntryOperation(document),
-                                     tooltip = "Keep this document as an entry of the explorer."))
+    is_entry = place !== nothing && place.is_entry
+    add!("Open in a new tab", OpenPageOperation(navigator.content, address, :new_tab), nothing)
+    if is_entry && place.index !== nothing
+        add!("Remove from explorer", _make_remove_entry_operation(explorer, node; selects),
+             "Take the entry out of the explorer; its document stays as it is.")
+        place.index > 1 &&
+            add!("Move the entry earlier", _make_move_entry_operation(explorer, node, -1; selects),
+                 "Move the entry one place up in its section.")
+        place.index < length(place.section.entries) &&
+            add!("Move the entry later", _make_move_entry_operation(explorer, node, 1; selects),
+                 "Move the entry one place down in its section.")
+    elseif place !== nothing && !is_entry
+        add!("Add to explorer", AddExplorerEntryOperation(document), "Keep this document as an entry of the explorer.")
     end
-    _has_title_field(document) && place !== nothing && place.is_entry &&
-        push!(items, WidgetMenuItem("Rename"; operation = _make_rename_operation(explorer, node),
-                                     tooltip = TooltipNote(; keys = find_bound_keys(Explorer, "Rename"),
-                                                           text = "Edit the title of the entry.")))
-    if document isa ExplorerSection && place !== nothing && place.is_entry
-        push!(items, WidgetMenuItem("New section"; operation = _make_new_section_operation(explorer, node),
-                             tooltip = "Add an empty section at the end of this section."),
-              WidgetMenuItem("Add…"; operation = _make_add_menu_operation(explorer, place, nothing),
-                             tooltip = "Choose the kind of document to add at the end of this section."))
+    selects && is_entry && _has_title_field(document) &&
+        add!("Rename", _make_rename_operation(explorer, node), "Edit the title of the entry.")
+    if document isa ExplorerSection && is_entry
+        add!("New section", _make_new_section_operation(explorer, node; selects),
+             "Add an empty section at the end of this section.")
+        selects && add!("Add…", _make_add_menu_operation(explorer, place, nothing),
+                        "Choose the kind of document to add at the end of this section.")
     end
     list = _find_long_children_steps(document)
     if list !== nothing
         # The navigator beside the tree shows the list, as a press on a row shows a
         # page.
         visit = make_navigator_open_operation(navigator, concat_references(address, list))
-        visit === nothing || push!(items, WidgetMenuItem("Open as a list"; operation = _get_visit_writes(visit),
-                                       tooltip = "Show the children of this row as a page, for a row with many children."))
+        visit === nothing || add!("Open as a list", _get_visit_writes(visit),
+                                  "Show the children of this row as a page, for a row with many children.")
     end
-    commands = _make_command_items(document, node_steps)
-    isempty(commands) || push!(items, WidgetSeparator(), commands...)
-    point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
-    ReplaceViewStateOperation(OpenContextMenuOperation(
-        Tuple{String,Document,Int}[(format_tree_node_label(document), WidgetMenu(items), 0)],
-        annotate_reference_types(explorer, EmptyReference()), point))
+    commands
+end
+
+# The commands of the row of the node at `steps` from `explorer`, for a verb that
+# acts at the node, such as `run_command!` of an assistant: the commands of its
+# menu that move neither the selection nor the page of the person.
+function collect_part_commands(explorer::Explorer, steps)
+    node_steps = _find_shown_node_steps(explorer, _make_steps(steps...))
+    node_steps === nothing && return GestureRow[]
+    GestureRow[GestureRow(join(describe_gesture_pattern.(command.keys), ", "), command.name, "explorer",
+                          command.operation)
+               for command in _collect_row_commands(explorer, node_steps; selects = false)]
 end
 
 # The path from `document` to its collection of children that is a lazy list, or

@@ -111,23 +111,25 @@ function _make_add_menu_operation(explorer::Explorer, place, gesture)
 end
 
 # A new section after the selected entry, as the item "Section" of Insert adds.
-function _make_new_section_operation(explorer::Explorer, selection)
+# With `selects`, its node is selected with its page; without, neither moves.
+function _make_new_section_operation(explorer::Explorer, selection; selects::Bool = true)
     place = _find_selected_place(explorer, selection)
     place === nothing && return nothing
     (section, steps, index) = _get_new_entry_place(place)
     AddExplorerEntryOperation(make_insertion_document(ExplorerSection); section, index,
-                              navigator = getfield(explorer, :navigator)[],
-                              selection = _make_entry_node_path(steps, index))
+                              navigator = selects ? getfield(explorer, :navigator)[] : nothing,
+                              selection = selects ? _make_entry_node_path(steps, index) : nothing)
 end
 
-# Delete: the selected entry leaves its section, and the node of the section is
-# selected with its page. The document stays as it is. A node below an entry is no
-# entry, and the root section is none.
-function _make_remove_entry_operation(explorer::Explorer, selection)
+# Delete: the selected entry leaves its section, and with `selects` the node of the
+# section is selected with its page. The document stays as it is. A node below an
+# entry is no entry, and the root section is none.
+function _make_remove_entry_operation(explorer::Explorer, selection; selects::Bool = true)
     place = _find_selected_place(explorer, selection)
     (place === nothing || !place.is_entry || place.index === nothing) && return nothing
-    CompoundOperation(Any[make_delete_elements_operation(_ENTRIES, place.index; root = place.section),
-                          _make_show_section_operations(explorer, place.steps)...])
+    remove = make_delete_elements_operation(_ENTRIES, place.index; root = place.section)
+    selects || return remove
+    CompoundOperation(Any[remove, _make_show_section_operations(explorer, place.steps)...])
 end
 
 # The selection of the node of the section at `steps` from the root section, and
@@ -141,9 +143,9 @@ function _make_show_section_operations(explorer::Explorer, steps)
 end
 
 # Ctrl+Shift+Up and Ctrl+Shift+Down: the selected entry moves one place earlier or
-# later in its section, and stays selected with its page. At an end of its section
-# it stays, and so does the selection.
-function _make_move_entry_operation(explorer::Explorer, selection, offset::Int)
+# later in its section, and with `selects` it stays selected with its page. At an
+# end of its section it stays, and so does the selection.
+function _make_move_entry_operation(explorer::Explorer, selection, offset::Int; selects::Bool = true)
     place = _find_selected_place(explorer, selection)
     (place === nothing || !place.is_entry || place.index === nothing) && return nothing
     target = place.index + offset
@@ -152,8 +154,8 @@ function _make_move_entry_operation(explorer::Explorer, selection, offset::Int)
     CompoundOperation(Any[
         make_delete_elements_operation(_ENTRIES, place.index; root = place.section),
         AddExplorerEntryOperation(entry; section = place.section, index = target,
-                                  navigator = getfield(explorer, :navigator)[],
-                                  selection = _make_entry_node_path(place.steps, target))])
+                                  navigator = selects ? getfield(explorer, :navigator)[] : nothing,
+                                  selection = selects ? _make_entry_node_path(place.steps, target) : nothing)])
 end
 
 # Whether the page of `document` has a field of its title.

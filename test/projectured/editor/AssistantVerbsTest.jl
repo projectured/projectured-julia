@@ -164,6 +164,32 @@ function test_assistant_verbs()
         @test length(content.entries) == count
     end
 
+    @testset "change: the commands of a row of the explorer, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        title_at(k) = format_tree_node_label(get_document(content.entries[k]))
+        k = findfirst(==("Dashboards"), [title_at(index) for index in 1:length(content.entries)])
+        selected = get_selection(editor.document)
+        described = split(string(describe_commands(content.entries[k]; editor)), '\n')
+        @test [first(split(line, ": ")) for line in described] ==
+              ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
+               "New section"]
+        @test run_command!(content.entries[k], "Move the entry later"; editor) isa Text
+        run_frame!(editor)
+        @test title_at(k + 1) == "Dashboards"
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test title_at(k) == "Dashboards"
+        count = length(content.entries)
+        _run_assistant_code(editor, "run_command!(find_explorer_content().entries[$k], \"Remove from explorer\")")
+        run_frame!(editor)
+        @test length(content.entries) == count - 1
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test title_at(k) == "Dashboards" && length(content.entries) == count
+    end
+
     @testset "tell: a part opens as a page in a new tab with a navigator" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))

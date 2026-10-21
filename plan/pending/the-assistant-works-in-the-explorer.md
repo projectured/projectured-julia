@@ -114,7 +114,7 @@ without the approval of the owner.
    `undo` takes it back; the selection of the person does not move. If the
    readers do not carry the insert to the root, record the cause in "As built"
    and stop for a decision.
-2. [ ] **The commands of a row.** `collect_part_commands`, the walk in
+2. [x] **The commands of a row.** `collect_part_commands`, the walk in
    `_collect_part_rows`, the root of a holder in `run_command!`,
    `_make_row_items`, and the method for `Explorer`. Tests: in
    `AssistantVerbsTest.jl`, `describe_commands` on a section lists "Rename",
@@ -159,3 +159,29 @@ without the approval of the owner.
   `find_explorer_content` in place of `get_session_explorer_content`. Tests:
   `test_assistant_verbs()` 62 pass; `test_referenced_document_editor()` 109 pass
   and 2 fail, the 2 known failures of main at lines 369 and 381.
+- **Step 2.** `collect_part_commands(holder, steps)` is in
+  `PartCommands.jl`. `_collect_part_commands` walks the documents on the path
+  of the part from the root; each command keeps the place of the document that
+  gave it, and `run_command!` roots the operation at that place. A command whose
+  words a nearer row has is left out, so the nearest wins. The explorer slice now
+  uses the gesture help slice, and the edge `explorer → gesturehelp` is in
+  `PLATFORM_SLICE_EDGES`.
+  `_collect_row_commands(explorer, steps; selects)` builds the menu of a row and
+  the commands of a row. Each command has a name, an operation, its keys from
+  `find_bound_keys` and the text of its tooltip, so the tooltips of the menu stay
+  as main has them. The builders of a removal, a move and a new section take
+  `selects`. Without it, a removal is only the delete, and a move and a new
+  section add with no navigator and no selection.
+  A change from the model: the commands of a row for a verb leave out "Rename"
+  and "Add…". Rename only puts the caret in the title, and Add… only opens the
+  menu of the kinds; both are for the person. The assistant renames with
+  `replace_referenced_value!(entry, :title, text)` and adds with
+  `insert_elements!`. A move is offered only where the entry can move, so the
+  first entry has no "Move the entry earlier". The keys show in `describe_commands`,
+  such as "Remove from explorer: Delete".
+  A limit that stays: a path of the navigator does not follow an insert or a
+  delete before it, so after a removal by the assistant the page of a later entry
+  can show the entry after it. The person's Delete visits the section page for
+  this reason. `plan/pending/an-insert-moves-the-paths-after-it.md` is the general
+  fix. Tests: `test_assistant_verbs()` 70 pass, `test_explorer()` 249 pass,
+  `test_platform_layering()` 7 pass.

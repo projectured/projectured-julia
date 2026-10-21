@@ -49,7 +49,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
-export describe_commands, run_command!
+export describe_commands, run_command!, collect_part_commands
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
