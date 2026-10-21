@@ -54,7 +54,15 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
    - `ReferencedDocumentEditorTest.jl:369`, `:381`
    - `MouseClickTest.jl:304` formula_report
 6. [ ] The check: each job that failed runs its CI command in its own environment
-   with the offscreen driver, and passes.
+   with the offscreen driver, and passes. Each run has `--code-coverage=@.`,
+   `-t 2` and a memory cap, as CI has.
+   - [x] `test_sdl()`: 1071 pass.
+   - [x] `test_video()`: 79 pass.
+   - [x] `test_platform()`: 166512 pass, 7 broken (CI had 7 broken).
+   - [x] The guards: all pass except the export of the sealed `CellModule.jl`.
+   - [ ] `test_integration()`: the first run reached the kernel tests and the
+     OOM killer stopped it at a cap of 10 GB after 46 minutes. It runs again at
+     16 GB, the memory of the CI runner.
 
 ## Decisions and facts
 
