@@ -91,10 +91,10 @@ end
     help = make_window_help_menu(; gesture_help = true, command_palette = true)
     @test _labels(help.submenu) == ["Gestures", "Command palette", "Documents", "Projections", "About"]
     # The key reaches the wrapper itself, so the item carries none, and its
-    # tooltip names the key.
-    for (item, key) in zip(collect(help.submenu.elements)[1:2], ("(F1)", "(Ctrl+Shift+P)"))
+    # tooltip names the key that the wrapper binds.
+    for (item, key) in zip(collect(help.submenu.elements)[1:2], (HELP_GESTURE, COMMAND_PALETTE_GESTURE))
         @test item.action.shortcut === nothing
-        @test endswith(item.tooltip, key)
+        @test item.tooltip.keys == Any[key]
     end
     bar = make_window_menu_bar(; gesture_help = true, command_palette = true)
     @test _labels(_submenu(bar, "Help"))[1:2] == ["Gestures", "Command palette"]
@@ -262,8 +262,11 @@ end
     @test [item.action.icon for item in bar.elements] ==
           [:folder_tree, :folder, :chat, :terminal, :scroll_text, :keyboard, :warning, :chart, :chart_line, :crosshair,
            :palette, :settings]
-    # The tooltip names the tool first, because the picture does not.
-    @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
+    # The tooltip names the tool as its title, because the picture does not, and
+    # its text does not say the name again.
+    note(item) = only(get_wrapped_operation(read_gesture(item, MouseDwell(0, 0; time = 0.0))).layers)[2]
+    @test all(item -> note(item).title == item.action.label &&
+                      !startswith(note(item).text, item.action.label), bar.elements)
     # What the band draws is pictures and no word.
     texts = Any[]
     walk(canvas) = for element in canvas.elements
