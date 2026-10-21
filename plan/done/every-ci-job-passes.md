@@ -1,9 +1,8 @@
 # Every CI job passes
 
-Status: IN PROGRESS on the branch `ci-green`, worktree
+Status: DONE on the branch `ci-green`, worktree
 `../projectured-julia-ci-green`, base `main` 5ecc0c0e4. Every job that failed
-passes locally as CI runs it, except the export guard at the sealed
-`CellModule.jl:48`, which waits for the owner. Not landed, not pushed.
+passes locally as CI runs it, and every guard passes. Not landed, not pushed.
 
 ## The ask
 
@@ -28,12 +27,11 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
 
 ## Steps
 
-1. [ ] The static guards pass. Done except `CellModule.jl:48`
-   (daa936f68, c47a05319, 8ae34c944).
+1. [x] The static guards pass (daa936f68, c47a05319, 8ae34c944, dec5d9352).
    - [x] `arguments.jl`: `PivotCrossTable.jl:488`, `:491` (`find_pivot_value`),
      `TaskGroupDocument.jl:379` (`rerun_task_group_document!`).
-   - [ ] `exports.jl`: `CellModule.jl:48` (sealed 🔒, needs the owner's permission).
-     [x] `FileChangeModule.jl:35`, `BuilderModule.jl:35`.
+   - [x] `exports.jl`: `CellModule.jl:48` (sealed 🔒; the owner gave permission
+     for this file on 2026-10-22), `FileChangeModule.jl:35`, `BuilderModule.jl:35`.
    - [x] `style.jl`: `Application.jl:472`, `FilePageToWidget.jl:72`, `TextDocument.jl:438`.
 2. [x] `test_sdl()` passes: the scroll paint of a window, and the tree render.
    1071 of 1071 with the offscreen driver, with the renderer that SDL picks and
@@ -55,13 +53,13 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
    - `EvaluatorDuplicateTest.jl:36`, `:40`, `:48`
    - `ReferencedDocumentEditorTest.jl:369`, `:381`
    - `MouseClickTest.jl:304` formula_report
-6. [ ] The check: each job that failed runs its CI command in its own environment
+6. [x] The check: each job that failed runs its CI command in its own environment
    with the offscreen driver, and passes. Each run has `--code-coverage=@.`,
    `-t 2` and a memory cap, as CI has.
    - [x] `test_sdl()`: 1071 pass.
    - [x] `test_video()`: 79 pass.
    - [x] `test_platform()`: 166512 pass, 7 broken (CI had 7 broken).
-   - [x] The guards: all pass except the export of the sealed `CellModule.jl`.
+   - [x] The guards: all six pass. `test_cell()`: 314 pass.
    - [x] `test_integration()`: 1891786 pass, 2803 broken (CI had 2803 broken),
      in 64 minutes. The first run reached the kernel tests and the OOM killer
      stopped it at a cap of 10 GB after 46 minutes; the second run had 16 GB,
@@ -152,6 +150,8 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
     as `ExampleSweeps.jl:275` does (3b4bc0404). This is a skip, not a fix.
 - The fix of `CellModule.jl:48` moves `is_cell_provisional` into the first
   export statement, after `is_cell_valid`, because `CellInterface.jl` declares
-  it. The file is sealed.
+  it. Then the guard asked for one statement for the names of `ReactiveCell.jl`,
+  so `is_computation_running` and `mark_computation_provisional!` join it, in
+  the order of their definitions. The set of exported names is the same.
 
 ## Not in this plan
