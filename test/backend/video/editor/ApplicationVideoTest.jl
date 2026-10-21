@@ -189,11 +189,11 @@ end
 end
 @testset "at a zoom the frame shows the window larger, and a click lands where the frame shows" begin
     width, height = 480, 360
-    # The Evaluator button of the toolbar is at (42, 43) in the window, so a
-    # frame at a zoom of 1.5 shows it at (63, 65).
+    # The Evaluator button of the toolbar, the third after Explorer and Files, is
+    # at (68, 43) in the window, so a frame at a zoom of 1.5 shows it at (102, 65).
     takes = map((1.0, 1.5)) do zoom
         opened = Ref(false)
-        timeline = Any[(event = MouseClick(:left, 63, 65, 1, ModifierKeys(); time = 0.0), hold = 0.6),
+        timeline = Any[(event = MouseClick(:left, 102, 65, 1, ModifierKeys(); time = 0.0), hold = 0.6),
                        (await = editor -> (opened[] = ProjecturedPlatform.find_pane("Evaluator"; editor) !== nothing;
                                            true), hold = 1.0)]
         filename = tempname() * ".mp4"
