@@ -36,7 +36,9 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
 2. [x] `test_sdl()` passes: the scroll paint of a window, and the tree render.
    1071 of 1071 with the offscreen driver, with the renderer that SDL picks and
    with `SDL_RENDER_DRIVER=software` (894491609, c3587ae83).
-3. [ ] `test_video()` passes: `json_build_live`, and the zoom of a take.
+3. [x] `test_video()` passes: `json_build_live`, and the zoom of a take.
+   79 of 79, with ffmpeg, without ffmpeg, and on one thread with coverage
+   (74ad7c321, c4b6173a7, 6d2c7a70f, 7e09b1da7).
 4. [ ] `test_platform()` passes: the search of the explorer filter.
 5. [ ] `test_integration()` passes:
    - `CatalogCoverageTest.jl:138`, `:228`
@@ -79,6 +81,21 @@ The documentation guard passes. Its list of lines "for a person to read" is advi
   again for each reader, so the rows of the tree were new at each read.
   `read_filesystem_folder!` now reads through the listing with
   `wait_for_cell!(listing; editor = nothing)`.
+- `json_build_live` found a fault of the editor. Since 713b4621d the closing
+  delimiter of a JSON container is `"\n}"`, and a caret at the end of the line of
+  the last value is at the offset 0 of it, before the break. The `,` rule took
+  that caret as one on the `}` and declined, so the `,` did nothing.
+  `is_on_closing_delimiter` takes `from`, and the `,` rules of `JsonObject` and
+  `JsonArray` give 1 (74ad7c321). `test_json_construct()` failed the same way;
+  no suite calls it.
+- The zoom take and the pointer take were stale: since 16f9dfea4 an Explorer
+  button stands before Files, so the clicks and the point moved. The frame
+  checks of the video tests use the binaries of `FFMPEG_jll` and no longer skip
+  when `ffmpeg` is not on the `PATH`, so CI runs about 15 more checks.
+- The take with a paint that fails runs in video time, so the frames with the
+  fault mark are the same in each run. The path where the editor stops its
+  writes after 8 failed paints has no test now: a document fault no longer stops
+  the paint, and a test of that path needs a fault in the backend.
 - Five umbrella failures were stale tests; the code works as designed:
   - `EvaluatorDuplicateTest`: the parser keeps a comment since 948779e3a, so the
     form that keeps its string is now `y = 2x + 1` (97f060e2f).
