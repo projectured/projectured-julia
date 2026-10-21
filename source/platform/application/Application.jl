@@ -453,7 +453,9 @@ const EDITOR_SYSTEM =
     "`search_documents` finds a document in the window when no tab names it. " *
     "`find_explorer_content()` answers the root section of the explorer, whose " *
     "entries are the documents that the person keeps there, and " *
-    "`format_tree_node_label(entry)` says the label of an entry. " *
+    "`format_tree_node_label(entry)` says the label of an entry, such as Files, " *
+    "Tasks or Dashboards: `[format_tree_node_label(entry) for entry in " *
+    "find_explorer_content().entries]` lists them. " *
     "Example: `part_1 = find_selected_part(); println(print_natural_text(part_1))`.\n\n" *
     "TELL the person with a document in a tab: `open_pane!(document; title, " *
     "target, side)` puts it in a tab, beside or under another tab. WidgetModule " *
