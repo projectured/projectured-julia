@@ -1,0 +1,14 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedProcessExample.make_process_break_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_continue_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_decision_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_edge_label_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_foreach_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_insertion_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_model_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_return_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_sequence_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_step_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_terminal_document_example)}
+Tuple{typeof(ProjecturedProcessExample.make_process_while_document_example)}

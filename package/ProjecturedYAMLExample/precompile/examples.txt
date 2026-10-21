@@ -1,0 +1,10 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedYAMLExample.make_yaml_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedYAMLExample.make_yaml_projection_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_bool_document_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_mapping_document_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_null_document_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_number_document_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_sequence_document_example)}
+Tuple{typeof(ProjecturedYAMLExample.make_yaml_string_document_example)}

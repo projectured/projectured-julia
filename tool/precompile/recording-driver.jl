@@ -14,6 +14,8 @@ using ProjecturedREPL
 using ProjecturedAll
 using ProjecturedExample
 using ProjecturedSDL: SdlBackend
+using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_think,
+    make_scripted_say, make_scripted_run
 
 using ProjecturedAll.EditorModule: Editor, run_evaluate_stage!, run_print_stage!
 using ProjecturedAll.BackendModule: initialize_backend!, quit_backend!, configure_devices!
@@ -99,4 +101,46 @@ end
 println("driver: drove ", driven, " examples, ", refused, " refused")
 
 quit_backend!(backend)
+
+# A turn of the assistant in the window of the application, in the real loop of
+# the editor, as a person starts one: a scripted model streams a thought, a text
+# and a call of the code tool, and after its result a second text with Markdown and
+# a block of code. So the recording holds the stream of an answer: the queue of the
+# turn, the append of each delta, the parse at the end of a block, and a tool call
+# in a code unit with held frames.
+function drive_assistant_turn!()
+    llm = ScriptedLlm([
+        make_scripted_turn(make_scripted_think("I add two numbers."; delay = 0.01),
+                           make_scripted_say("The sum of one and one\nis simple."; delay = 0.01),
+                           make_scripted_run("1 + 1"); stop_reason = "tool_use"),
+        make_scripted_turn(make_scripted_say("It is **2**.\n\n```julia\n1 + 1\n```\n"; delay = 0.01))])
+    assistant = make_application_assistant(:anthropic; llm)
+    settings = make_settings()
+    root = mktempdir()
+    document = make_application_document(String[]; root, assistant, settings)
+    editor = build_editor(document, make_application_projection(); backend = SdlBackend(), settings,
+                          window = (; title = "ProjecturEd", width = WIDTH, height = HEIGHT,
+                                    opened_window_projections = make_opened_window_projections()),
+                          fault_policy = FaultPolicy(),
+                          make_application_wrappers(; root, assistant, document)...)
+    start_application!(editor)
+    assistant.input.value = "Add one and one."
+    post_operation!(editor, SubmitProseOperation(assistant))
+    # The loop runs on this task; a task of its own ends it when the turn ends.
+    ender = @async try
+        timedwait(() -> assistant.status === :streaming, 30.0; pollint = 0.01)
+        timedwait(() -> assistant.status !== :streaming, 60.0; pollint = 0.01)
+    finally
+        post_operation!(editor, QuitEditorOperation())
+    end
+    run_editor!(editor)
+    wait(ender)
+    println("driver: the turn of the assistant ended, status ", assistant.status)
+end
+
+try
+    drive_assistant_turn!()
+catch err
+    println("driver: the turn of the assistant refused — ", first(split(sprint(showerror, err), "\n")))
+end
 println("driver: done")

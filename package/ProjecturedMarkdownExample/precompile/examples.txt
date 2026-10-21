@@ -1,0 +1,22 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedMarkdownExample.make_markdown_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedMarkdownExample.make_markdown_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedMarkdownExample.make_markdown_rendered_projection_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_code_block_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_code_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_emphasis_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_heading_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_image_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_insertion_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_link_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_list_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_list_item_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_paragraph_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_quote_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_root_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_strong_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_table_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_table_row_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_text_document_example)}
+Tuple{typeof(ProjecturedMarkdownExample.make_markdown_thematic_break_document_example)}
