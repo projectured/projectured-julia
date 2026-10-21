@@ -1,7 +1,8 @@
 # A scroll copies the pixels that stay in view
 
-Status: PENDING, 2026-10-21. Not started. The way of the change is my
-recommendation, and it is open.
+Status: LANDED on `main` on 2026-10-21 with the owner's approval: steps 1 to 4,
+the guide and the live check of step 5. The timing of step 5 is open, until the
+owner says that the machine is idle; then the plan moves to `plan/done/`.
 
 ## The ask
 
