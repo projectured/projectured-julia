@@ -4,13 +4,13 @@
     TooltipNoteToVerticalLayout(; theme = nothing)
 
 A [`TooltipNote`](@ref) as a column that the natural projection draws: the title,
-in bold, with the key caps after it, then the text, the facts as a grid of names
-and values, and the hint. The title and the text stand close, and a larger gap
+in bold, with the key caps after it, then the code, the text, the facts as a grid
+of names and values, and the hint. The title and the text stand close, and a larger gap
 stands between the parts, because a line between them would stop short of the
 widest part. A warning and an error
 draw a mark of their color before the title. A piece that is a document
-re-enters the natural projection in its own domain, and a string breaks its lines
-at the edge of the window. A note is read, never edited, so the column maps no
+re-enters the natural projection in its own domain, and the string of a code, a
+text or a hint breaks its lines at the edge of the window. A note is read, never edited, so the column maps no
 reference of its own.
 
 The texts, the colors and the gaps are those of `theme`, a `TooltipTheme` scaled
@@ -56,7 +56,8 @@ end
 
 function print_document(p::TooltipNoteToVerticalLayout, recursion, note::TooltipNote, ctx)
     sections = Any[]
-    opening = Any[part for part in (_make_note_head(p, note), _make_note_prose(note.text, unwrap_cell(p.body_text)))
+    opening = Any[part for part in (_make_note_head(p, note), _make_note_prose(note.code, unwrap_cell(p.value_text)),
+                                    _make_note_prose(note.text, unwrap_cell(p.body_text)))
                   if part !== nothing]
     isempty(opening) || push!(sections, length(opening) == 1 ? only(opening) :
                                         VerticalLayout(opening; gap = unwrap_cell(p.gap)))
@@ -119,19 +120,22 @@ function _make_key_cap(p::TooltipNoteToVerticalLayout, name::AbstractString)
 end
 
 # The names of the keys of a text such as "Ctrl+Shift+P": a plus between two
-# names splits them, and a plus at the end is the name of the key "+".
+# names splits them, and a plus at the end is the name of the key "+". An empty
+# name names no key.
 function _split_key_names(text::AbstractString)
     text == "+" && return ["+"]
     endswith(text, "++") && return vcat(_split_key_names(chop(text; tail = 2)), "+")
-    String.(split(text, "+"))
+    String[name for name in split(text, "+") if !isempty(name)]
 end
 
 # A string as lines of text in `style`, which break at the edge of the window; a
-# document as it is; nothing for `nothing` and for an empty string.
+# document as it is; another value as its string; nothing for `nothing` and for
+# an empty string.
 _make_note_prose(::Nothing, style) = nothing
 _make_note_prose(text::AbstractString, style) = isempty(text) ? nothing :
     TextBlock(TextDocument[TextLine(TextString(String(line), style)) for line in split(text, "\n")])
-_make_note_prose(document, style) = document
+_make_note_prose(document::Document, style) = document
+_make_note_prose(value, style) = _make_note_prose(string(value), style)
 
 # The facts as a grid of two columns; nothing for no fact.
 function _make_note_facts(p::TooltipNoteToVerticalLayout, facts)
@@ -144,7 +148,8 @@ function _make_note_facts(p::TooltipNoteToVerticalLayout, facts)
 end
 
 # A fact as its two cells: the name in the quiet text, and the value in the text
-# of a value, or as the document that it is.
+# of a value, or as the document that it is. A pair of two values is a fact too.
+_make_fact_cells(p::TooltipNoteToVerticalLayout, fact::Tuple{Any,Any}) = _make_fact_cells(p, fact[1] => fact[2])
 _make_fact_cells(p::TooltipNoteToVerticalLayout, fact::Pair) =
     Any[WidgetLabel(string(fact.first); text_style = unwrap_cell(p.muted_text)),
         fact.second isa Document ? fact.second :

@@ -20,7 +20,7 @@ _function() = parse_julia("function add(a::Int, b)::Int\n    a + b\nend")
     note = _read_julia_tooltip(first(found))
     @test note isa TooltipNote
     @test note.title == "add"
-    @test note.facts == ["Signature" => "add(a::Int, b)::Int"]
+    @test note.code == "add(a::Int, b)::Int"
 end
 
 @testset "a documented function answers the prose as well" begin
@@ -31,7 +31,7 @@ end
     # The name and the signature, because a caller reads what to pass before
     # why, and the prose as the text.
     @test note.title == "add"
-    @test note.facts == ["Signature" => "add(a, b)"]
+    @test note.code == "add(a, b)"
     @test occursin("Add two numbers.", note.text)
 end
 

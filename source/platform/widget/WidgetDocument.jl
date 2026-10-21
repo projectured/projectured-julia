@@ -3669,7 +3669,7 @@ function _make_action_note(action::Action, tooltip; shows_label::Bool)
     text = tooltip === nothing || isempty(tooltip) ? nothing : String(tooltip)
     text === nothing && shows_label && return nothing
     label = action.label
-    title = label isa AbstractString && !isempty(label) ? String(label) : nothing
+    title = !(label isa AbstractString) ? label : isempty(label) ? nothing : String(label)
     keys = action.shortcut === nothing ? Any[] : Any[action.shortcut]
     title === nothing && text === nothing && isempty(keys) && return nothing
     TooltipNote(; title, keys, text)

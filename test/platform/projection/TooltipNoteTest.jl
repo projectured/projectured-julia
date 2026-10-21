@@ -131,6 +131,24 @@ end
     @test any(place -> place[1] == string(find_icon_character(:dot)) && place[2] < waiting[1], texts)
 end
 
+@testset "a code stands after the title, before the text, and breaks at the edge" begin
+    code = join(("argument_$(index)::Int" for index in 1:20), ", ")
+    texts = _tn_texts(TooltipNote(; title = "add", code = code, text = "Add them."))
+    lines = [place for place in texts if startswith(place[1], "argument")]
+    @test length(unique(place[3] for place in lines)) > 1
+    @test _tn_place(texts, "add")[2] < minimum(place[3] for place in lines)
+    @test maximum(place[3] for place in lines) < _tn_place(texts, "Add them.")[2]
+    @test all(place -> place[2] + length(place[1]) * 10 <= 560, lines)
+end
+
+@testset "a value that is no string and no document says its string" begin
+    @test [place[1] for place in _tn_texts(TooltipNote(; text = 42))] == ["42"]
+    texts = _tn_texts(TooltipNote(; facts = Any[("Rows", 12480)]))
+    @test _tn_place(texts, "Rows")[2] == _tn_place(texts, "12480")[2]
+    # A plus at the end of a key text that names no key draws no empty cap.
+    @test [place[1] for place in _tn_texts(TooltipNote(; keys = ["Ctrl+"]))] == ["Ctrl"]
+end
+
 @testset "a piece that is a document stands as it is" begin
     texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
     @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]

@@ -2,16 +2,19 @@
 # each piece, so that one drawing gives every tooltip the same look.
 
 """
-    TooltipNote(; title = nothing, keys = Any[], text = nothing, facts = Pair[],
-                  hint = nothing, tone = :plain)
+    TooltipNote(; title = nothing, keys = Any[], code = nothing, text = nothing,
+                  facts = Pair[], hint = nothing, tone = :plain)
 
 What a part says about itself when the pointer rests on it, by the meaning of
 each piece. An author writes what the part is; the natural projection draws every
 note the same way, with the texts and the colors of the [`TooltipTheme`](@ref).
 
-- `title`: the name of the part, as a person sees it. It is not a sentence.
+- `title`: the name of the part, as a person sees it. It is not a sentence. A
+  string, or any document.
 - `keys`: the keys that do what the part does: each a `GesturePattern`, drawn
   as key caps after the title, or a string such as `"Ctrl+click"`.
+- `code`: a line of code, such as the signature of a function: a string, in the
+  text of a value, which breaks at the edge of the window.
 - `text`: what the part does, or what it shows: a string, or any document, such
   as a page of prose or a table.
 - `facts`: what the part does not show, each a `name => value` pair: a path, a
@@ -30,6 +33,7 @@ Each piece that is `nothing` or empty draws nothing.
 @document struct TooltipNote
     title::Any = nothing
     keys::Any = Any[]
+    code::Any = nothing
     text::Any = nothing
     facts::Any = Pair[]
     hint::Any = nothing

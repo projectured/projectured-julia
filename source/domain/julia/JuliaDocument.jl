@@ -716,17 +716,16 @@ get_document_gesture_bindings_own(::Type{JuliaFunction}) = GestureBinding[
 get_document_gesture_bindings_own(::Type{JuliaDocstring}) = GestureBinding[
     make_tooltip_binding(_make_julia_docstring_note; description = "Show the documentation")]
 
-# The note of a function: its name, and its signature as a fact, in the text of a
-# value.
+# The note of a function: its name, and its signature as code, which breaks at the
+# edge of the window.
 _make_julia_function_note(function_::JuliaFunction) =
-    TooltipNote(; title = _julia_signature_name(function_.name),
-                facts = ["Signature" => compute_julia_signature(function_)])
+    TooltipNote(; title = _julia_signature_name(function_.name), code = compute_julia_signature(function_))
 
 # The note of a docstring: the note of the function that it documents, with the
 # prose of the docstring as its text; for another subject, the prose alone.
 function _make_julia_docstring_note(docstring::JuliaDocstring)
     subject = docstring.subject
     subject isa JuliaFunction || return TooltipNote(; text = docstring.text)
-    TooltipNote(; title = _julia_signature_name(subject.name),
-                facts = ["Signature" => compute_julia_signature(subject)], text = docstring.text)
+    TooltipNote(; title = _julia_signature_name(subject.name), code = compute_julia_signature(subject),
+                text = docstring.text)
 end
