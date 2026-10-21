@@ -39,13 +39,12 @@ using Base.ScopedValues: ScopedValue, with
 using ..FaultModule
 using ..PerformanceModule
 
-export AbstractCell, is_cell_valid, invalidate_cell!, unwrap_cell, get_cell_value_type,
-       make_similar_cell, is_computed_cell, get_cell_computation, has_dependent_cells,
-       record_cell_fault!
+export AbstractCell, is_cell_valid, is_cell_provisional, invalidate_cell!, unwrap_cell,
+       get_cell_value_type, make_similar_cell, is_computed_cell, get_cell_computation,
+       has_dependent_cells, record_cell_fault!
 export Computation, @computation
 export ReactiveCell, Cell, run_without_cell_tracking, CellCycleException, set_cell_value!,
-       set_cell_computation!
-export is_cell_provisional, mark_computation_provisional!, is_computation_running
+       set_cell_computation!, is_computation_running, mark_computation_provisional!
 export ForeignCellWriteException, add_cell_writer!, remove_cell_writer!,
        take_foreign_cell_writes!
 export run_in_cell_fault_scope, RecordedCellFaultException, get_cell_fault_scope,
