@@ -1,15 +1,21 @@
 """
 `ReferencedDocument` and `DocumentLocator` over a test-local tree of toy documents:
-a referenced document acts like its document, and every document or collection it
-answers holds the reference to its place.
+a referenced document acts like its document, every document or collection it
+answers holds the reference to its place, and a document that is given one keeps
+its document.
 """
 
 using Test
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.DocumentModule: @document, Document
+using ProjecturedKernel.DocumentModule: @document, Document, get_document
 
 @document struct ReferencedLeaf
     name::String
+end
+
+# A document with a field of any value, which its constructor and a write fill.
+@document struct ReferencedHolder
+    content::Any
 end
 
 @document struct ReferencedBranch
@@ -138,6 +144,22 @@ function test_referenced_document()
         @test root.children[3] isa ReferencedBranch
         deleteat!(tree.children, 3)
         @test length(root.children) == 2
+    end
+
+    @testset "a document keeps the document of a referenced value, from its constructor and from a write" begin
+        root = _make_referenced_tree()
+        first_child = ReferencedDocument(root, EmptyReference()).children[1]
+        holder = ReferencedHolder(first_child, nothing)
+        @test holder.content === root.children[1]
+        holder.content = ReferencedDocument(root, EmptyReference())
+        @test holder.content === root
+        holder.content = 42
+        @test holder.content == 42
+        @test ReferencedHolder("plain", nothing).content == "plain"
+        # A list field takes the elements of the vector that a referenced read answers.
+        branch = ReferencedBranch("copy", ReferencedDocument(root, EmptyReference()).children, nothing)
+        @test !(branch.children isa ReferencedDocument) && length(branch.children) == 2
+        @test branch.children[1] === root.children[1]
     end
 
     @testset "the display says what and where" begin

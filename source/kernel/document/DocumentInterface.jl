@@ -127,6 +127,27 @@ than added to.
 function get_document_title end
 
 """
+    get_document(x) -> document
+
+The document that `x` stands for: for a referenced document, the document that
+it references, as it was when a read found it; for any other value, the value
+itself. So code that unwraps works on a referenced document and on a plain one
+alike. A document keeps `get_document` of each value that its constructor or a
+write of a field gives it, so a document never holds a referenced document.
+
+Use it to get the document itself, to check its type or to hand it to a
+function that has no method for a referenced document.
+
+# Example
+
+    tab_1 = find_pane("items.json")
+    items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
+
+See also `get_reference` and `get_edited_document`.
+"""
+function get_document end
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are

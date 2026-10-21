@@ -44,27 +44,9 @@ struct ReferencedDocument{T}
     reference::Reference
 end
 
-"""
-    get_document(x) -> T
-
-The document that `x` references, as it was when it was found. Given any value
-that is not a referenced document, it answers that value, so code that unwraps
-works on a referenced document and on a plain one alike.
-
-Use it to get the document itself, to check its type or to hand it to a
-function that has no method for a referenced document.
-
-# Example
-
-    tab_1 = find_pane("items.json")
-    items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
-
-See also `get_reference` and `get_edited_document`.
-"""
-function get_document end
-
+# The document of a referenced document; the document layer answers any other
+# value as it is.
 get_document(x::ReferencedDocument) = getfield(x, :document)
-get_document(x) = x
 
 """
     get_reference(x::ReferencedDocument) -> Reference
@@ -89,10 +71,6 @@ get_reference(x::ReferencedDocument) = getfield(x, :reference)
 # Any other value is a leaf and is answered as it is.
 _is_referenced_value(value) =
     value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple
-
-# What a write stores: the document of a referenced document, so the tree never
-# holds a referenced document.
-_get_stored_value(value) = value isa ReferencedDocument ? get_document(value) : value
 
 # `value` as a referenced document one `step` below the document of `x`. The step
 # records the type of the node it stands on, and the reference ends on the type of
@@ -132,8 +110,11 @@ function Base.getproperty(x::ReferencedDocument, name::Symbol)
     _make_stepped_value(x, FieldReferenceStep(String(name)), value)
 end
 
+# A write through a referenced document stores the document of its value, so the
+# tree never holds a referenced document, also in a collection that is no
+# document of `@document`.
 Base.setproperty!(x::ReferencedDocument, name::Symbol, value) =
-    setproperty!(get_document(x), name, _get_stored_value(value))
+    setproperty!(get_document(x), name, get_document(value))
 
 Base.propertynames(x::ReferencedDocument, private::Bool = false) =
     propertynames(get_document(x), private)
@@ -147,12 +128,12 @@ Base.keys(x::ReferencedDocument) = keys(get_document(x))
 Base.haskey(x::ReferencedDocument, key) = haskey(get_document(x), key)
 
 Base.setindex!(x::ReferencedDocument, value, key) =
-    setindex!(get_document(x), _get_stored_value(value), key)
+    setindex!(get_document(x), get_document(value), key)
 
 Base.push!(x::ReferencedDocument, values...) =
-    (push!(get_document(x), map(_get_stored_value, values)...); x)
+    (push!(get_document(x), map(get_document, values)...); x)
 Base.insert!(x::ReferencedDocument, index::Integer, value) =
-    (insert!(get_document(x), index, _get_stored_value(value)); x)
+    (insert!(get_document(x), index, get_document(value)); x)
 Base.deleteat!(x::ReferencedDocument, index) = (deleteat!(get_document(x), index); x)
 
 # The step from a collection to the value at `key`: the entry of a dictionary, for

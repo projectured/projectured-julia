@@ -2,7 +2,8 @@
 # unless it overrides them: the two walk-steering traits (`is_element_collection`
 # / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
 # for the three sync policy hooks, the defaults of the `CopyPolicy` hooks and of
-# `has_document_duplicate`, and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
+# `has_document_duplicate`, the value that stands for itself, and the
+# depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
 # collection type — a document opts into a shape by overriding one, and the walk
 # reads the shape off the trait, so it sits below every collection it descends.
 
@@ -11,6 +12,9 @@ is_walk_opaque(value) = false
 is_collection_field_type(::Val) = false
 # No substitution: a declared type is what the cell layout holds, unchanged.
 get_cell_layout_field_type(::Val) = nothing
+# A value is its own document; the reference layer adds the method of a
+# referenced document.
+get_document(x) = x
 
 """
     HiddenElements(source, from, to)

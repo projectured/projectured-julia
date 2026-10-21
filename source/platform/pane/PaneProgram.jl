@@ -100,10 +100,12 @@ make_pane_api() = Any[
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
     # `find_pane` answers a referenced document, and `get_edited_document` reaches
-    # the document a tab shows through it.
-    ReferenceModule => (Symbol("@reference"), :ReferencedDocument, :get_document,
+    # the document a tab shows through it; `get_document` answers the document of
+    # a referenced document.
+    ReferenceModule => (Symbol("@reference"), :ReferencedDocument,
                         :get_reference, :DocumentLocator, :find_referenced_document,
                         :get_edited_document, :get_parent),
+    DocumentModule  => (:get_document,),
 ]
 
 """
@@ -632,7 +634,7 @@ function replace_referenced_value!(part::ReferencedDocument, field::Union{Symbol
         hasproperty(document, name) ||
             throw(ArgumentError("A " * string(nameof(typeof(document))) * " has no field :" * string(name) *
                                 ". Its fields: " * join((":" * string(n) for n in propertynames(document)), ", ") * "."))
-        stored = value isa ReferencedDocument ? get_document(value) : value
+        stored = get_document(value)
         reference = extend_reference(strip_reference_types(get_reference(part)), FieldReferenceStep(String(name)))
         operation = find_rooted_operation(editor, reference,
             relative -> ReplaceReferencedValueOperation(nothing, relative, stored);

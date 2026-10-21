@@ -185,7 +185,10 @@ end
 The auto-wrapping inner constructor — the **only** inner constructor. Raw values
 wrap in `ReactiveCell{Any}` (the untyped `Cell`), so the bare name keeps
 the untyped-cell semantics; cells of any kind pass through as-is, which is how the
-kind constructors and `copy_document` build every other kind.
+kind constructors and `copy_document` build every other kind. A raw value is
+stored as its [`get_document`](@ref), so a document never holds a referenced
+document; the call resolves when the constructor compiles for the types of its
+arguments.
 
 `new{…}` needs the cell types as parameters, and computing them via `typeof` is a
 runtime `apply_type` per construction (~2.5× build cost, measured on the JSON
@@ -205,10 +208,12 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     kinds     = get_cell_struct_field_kinds(plan; default = default)
     vts       = get_cell_struct_value_types(plan)
     def_types = Any[build_cell_struct_field_type(kinds[i], vts[i]) for i in 1:n]
-    # A plain vector for a reactive list field becomes the list of the field.
+    # A raw value is stored as its document, and a plain vector for a reactive list
+    # field becomes the list of the field.
     list_types = _cell_value_types(plan)
+    stored(i) = :($(get_document)($(arg_names[i])))
     raw_value(i) = kinds[i] === ReactiveCell && _is_list_field_type(list_types[i]) ?
-        :($(_wrap_list_value)($(list_types[i]), $(arg_names[i]))) : arg_names[i]
+        :($(_wrap_list_value)($(list_types[i]), $(stored(i)))) : stored(i)
     raw_wrap(i) = :($(def_types[i])($(raw_value(i))))
     rc_any   = fill(_REACTIVE_ANY, n)
     # A parameter binds from the argument that `find_cell_struct_parameter_slots`
@@ -297,6 +302,9 @@ reference while it is live and `nothing` once it is dormant. The read of every
 other field answers what the cell holds and makes no call for the selection.
 That call dispatches at run time, because a field of the reactive kind holds
 `Any`, and the test of the name is one comparison of two symbols.
+
+A write stores the [`get_document`](@ref) of its value, as the constructor does,
+so a document never holds a referenced document.
 """
 _emit_accessors(plan) = (
     :(Base.getproperty(obj::$(plan.name), name::Symbol) =
@@ -305,7 +313,7 @@ _emit_accessors(plan) = (
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
         (getfield(obj, name)[] =
              $(_check_declared_write)(obj, name,
-                 $(_wrap_list_write)(obj, name, $(_refuse_cell_value)(obj, name, val))))),
+                 $(_wrap_list_write)(obj, name, $(_refuse_cell_value)(obj, name, $(get_document)(val)))))),
 )
 
 # The value of a write `document.f = v`. A field holds a value, and a cell is not

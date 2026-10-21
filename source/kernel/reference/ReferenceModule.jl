@@ -93,7 +93,7 @@ using ..DocumentModule
 using ..FaultModule
 
 # Imported to extend: a referenced document is read by these as its document.
-import ..DocumentModule: search_documents, get_wrapped_document
+import ..DocumentModule: search_documents, get_wrapped_document, get_document
 
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
@@ -123,7 +123,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        parse_reference_path, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one
-       ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document,
+       ReferencedDocument, get_reference, DocumentLocator, find_referenced_document,
        get_edited_document, get_parent
 
 include("ReferenceInterface.jl")
