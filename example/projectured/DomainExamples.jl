@@ -21,6 +21,11 @@ const book_example           = Example("book",           make_book_document_exam
 const workflow_example       = Example("workflow",       make_workflow_document_example,       make_workflow_projection_example)
 const workflow_journal_example = Example("workflow_journal", make_workflow_journal_document_example, make_workflow_projection_example)
 const research_example       = Example("research",       make_research_study_document_example, make_research_projection_example)
+# The studies at the stages of the work before the end; `research` is the concluded one.
+const research_framed_example    = Example("research_framed",    make_research_framed_study_document_example,    make_research_projection_example)
+const research_grounded_example  = Example("research_grounded",  make_research_grounded_study_document_example,  make_research_projection_example)
+const research_planned_example   = Example("research_planned",   make_research_planned_study_document_example,   make_research_projection_example)
+const research_contested_example = Example("research_contested", make_research_contested_study_document_example, make_research_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
 const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const rst_example            = Example("rst",            make_rst_document_example,            make_rst_projection_example)
@@ -172,6 +177,10 @@ const domain_examples = Example[
     book_example,
     workflow_example,
     workflow_journal_example,
+    research_framed_example,
+    research_grounded_example,
+    research_planned_example,
+    research_contested_example,
     research_example,
     markdown_example,
     markdown_rendered_example,

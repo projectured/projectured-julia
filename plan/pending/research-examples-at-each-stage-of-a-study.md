@@ -43,9 +43,10 @@ Rules that each example keeps, so it is a study that the editor could have made:
    numbers of each study agree: the current of the soil sensor gives 30 and 9
    days on 220 mAh, the shares 81 % and 19 % give a fairness index of 0.72, and
    the guard band is one frame of 1538 bytes at 1 Gb/s.
-2. [ ] The examples `research_framed`, `research_grounded`, `research_planned`
+2. [x] The examples `research_framed`, `research_grounded`, `research_planned`
    and `research_contested` in `DomainExamples.jl` and the registry, and in the
    list of widget views that the navigation sweep skips.
+   Done: they stand before `research` in both lists, in the order of the stages.
 3. [ ] A test that each stage example keeps the rules of section 2, in
    `ResearchDocumentTest.jl`; `test_printer`, `test_reader` and `test_repl` of
    the four examples.
