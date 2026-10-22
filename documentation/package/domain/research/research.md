@@ -103,7 +103,7 @@ evaluate_operation(nothing, make_add_research_item_operation(study, evidence))
 describe_study(study)
 ```
 
-- Examples: `research_example`, and the atoms of each type and of the map.
+- Examples: a study at each stage of the work, each on another subject. `research_framed` holds only questions, `research_grounded` sources and competing hypotheses, `research_planned` an approved experiment that has not run, `research_contested` evidence for and against a hypothesis with no decision yet, and `research` the concluded study with its decisions and its answer. The atoms of each type and of the map are examples too.
 - Test: `test_research()` runs the layering guard, the documents, the edits, the outline, the map, the roster, the explorer and the verbs. `test_research_combinations()` of the umbrella holds items in a report, a workflow element and a window.
 
 ## Limits

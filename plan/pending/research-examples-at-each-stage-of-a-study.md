@@ -1,6 +1,6 @@
 # Research examples at each stage of a study
 
-Status: in progress on the branch `research-nothing`.
+Status: done on the branch `research-nothing` (2026-10-22).
 
 ## 1. The request
 
@@ -53,5 +53,8 @@ Rules that each example keeps, so it is a study that the editor could have made:
    Done: `_find_research_study_faults` answers the faults as texts, and the five
    studies have none. `test_research()` 310 of 310; the printer, reader and REPL
    tests of the five research examples 173 424 of 173 424.
-4. [ ] Pictures of the four outlines, and the guide of the domain names the
+4. [x] Pictures of the four outlines, and the guide of the domain names the
    examples.
+   Done: the four outlines render offscreen, each with its links, statuses,
+   attachments and the formula sheet of the planned study computed. The guide
+   names the five examples under Usage.
