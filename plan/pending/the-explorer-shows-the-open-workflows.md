@@ -172,6 +172,30 @@ before the owner approves.
   - `test_explorer()`: 257 of 257 pass. The naming guard passes.
   - The guides `tree.md`, `explorer.md` and `application.md` name the trait.
     `explorer.md` lists the limit of a restored content file.
+- **Step 2 stopped before code, 2026-10-22.** Open item 2 fails by design. The
+  history of a file is an `UndoBuffer` between its `FilePage` and its document,
+  and it records only the operations that pass its own reader
+  (`UndoBufferToAny.jl`). A navigator page prints only the document at its
+  address, and `navigator.md` lists the limit: a history inside the content of a
+  navigator does not record an edit on a page below the root. With the tree
+  children of the list as the workflows, a press on a workflow shows a page
+  below the history of its file. The edit applies, but the file shows no unsaved
+  edits, and undo in the file does not take it back. The proposal to the owner:
+  the tree children of the list are the file pages that hold a workflow, as in
+  "Open files", and one rule of the file format slice gives a file page the tree
+  children of the document that it shows.
+- **Decisions and facts for step 2.**
+  - The list holds the open file list of its editor in a field, and its source
+    reads that field. A source that finds the list through the evaluation editor,
+    as `_SessionTasks` does, caches an empty answer when a read outside the loop
+    computes it first. So the first content makes the document of a kind inside
+    `run_with_evaluation_editor(…, editor)`, and `WorkflowList()` reads
+    `get_session_open_file_list()` there.
+  - The page of the list does not keep its arrangement when the last entry goes.
+    `keep_held_arrangement` does that, but it is on the branch `open-files-roster`
+    (commit `dd4c70bd6`), not on `main`. The page calls it after that branch lands.
+  - The suite `test_workflow()` does not run `test_workflow_journal_to_widget()`:
+    line 29 of `WorkflowSuite.jl` is a tuple, not a call. Step 2 fixes the line.
 - **For step 2.** `WorkflowList()` is the maker of the first content, so the
   `@document` of the list must not generate a constructor with no arguments.
   Give its fields no defaults, as `AssistantList` does. Another session works
