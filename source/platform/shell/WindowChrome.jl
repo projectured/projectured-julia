@@ -29,7 +29,9 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
     make_window_file_menu() -> WidgetMenuItem
 
 The File menu: the name on the bar, and the menu that opens below it. Its
-commands open a tab in the focused group and close the focused tab.
+commands open a tab in the focused group and close the focused tab. After a
+separator, **Exit** (Ctrl+Q) quits the editor, as the close button of the window
+does.
 """
 make_window_file_menu() =
     WidgetMenuItem("File"; submenu = WidgetMenu(Any[
@@ -37,6 +39,10 @@ make_window_file_menu() =
                             shortcut = Shortcut(:t; ctrl = true)),
         make_window_command("Close tab", _close_tab!;
                             shortcut = Shortcut(:w; ctrl = true)),
+        WidgetSeparator(),
+        make_window_command("Exit", editor -> evaluate_operation(editor, QuitEditorOperation());
+                            shortcut = Shortcut(:q; ctrl = true),
+                            tooltip = "Close the window and quit."),
     ]))
 
 """

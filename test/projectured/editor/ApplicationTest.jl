@@ -1016,11 +1016,12 @@ function test_application()
                 drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
                 (fx, fy) = only((x, y) for (text, x, y) in drawn if text == "File")
                 (vx, vy) = only((x, y) for (text, x, y) in drawn if text == "View")
-                labels(menu) = [string(item.action.label) for item in menu.elements]
+                labels(menu) = [string(item.action.label) for item in menu.elements
+                                if item isa WidgetMenuItem]
                 view = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "View")
                 fire(MouseClick(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
-                @test labels(scene.windows[2].content) == ["New tab", "Close tab"]
+                @test labels(scene.windows[2].content) == ["New tab", "Close tab", "Exit"]
                 # The press goes down first, and closes the menu of File.
                 fire(MouseDown(:left, vx + 2, vy + 2; time = 0.0))
                 @test length(scene.windows) == 1
@@ -1040,7 +1041,7 @@ function test_application()
                 # The popup window draws the commands of the menu, in its own frame.
                 shown = print_document(composed, scene)
                 items = _app_drawn_at(get_iomap_output(shown).windows[2].content)
-                @test [text for (text, _, _) in items] == ["New tab", "Close tab"]
+                @test [text for (text, _, _) in items] == ["New tab", "Close tab", "Exit"]
                 # A press on a command in the popup window runs it and closes the popup.
                 (nx, ny) = only((x, y) for (text, x, y) in items if text == "New tab")
                 before = _app_count_tabs(_app_window(document))

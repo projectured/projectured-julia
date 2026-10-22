@@ -59,7 +59,7 @@ owner approves.
    `test/platform/shell/EscapeQuittingTest.jl` tests the projection and the
    wrapper, and the console test wraps its projection. Run the kernel editor
    tests, the shell tests, the safe mode test and the console test. Commit.
-2. [ ] **File > Exit.** The item, and the tests that list the File menu:
+2. [x] **File > Exit.** Done; see [As built](#as-built). The item, and the tests that list the File menu:
    `WindowShellTest.jl` and `ApplicationTest.jl`. Run them. Commit.
 3. [ ] **The guides.** Every guide that says that Escape quits: `editor.md`,
    `operation.md`, `devices-and-backends.md`, `screen.md`, `shell.md`,

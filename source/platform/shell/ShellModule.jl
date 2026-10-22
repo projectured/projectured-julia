@@ -61,6 +61,7 @@ using ..SettingsManagingModule
 using ..SettingsModule
 using ..SyntaxModule
 using ..TextModule
+using ..OperationModule: QuitEditorOperation
 
 # Imported to extend: this module adds a method to each of these.
 import ..EditorModule: wrap_editor!, get_wrapper_layers

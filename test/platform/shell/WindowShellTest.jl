@@ -42,9 +42,11 @@ end
 function test_window_shell()
 @testset "the window shell" begin
 
-_labels(menu) = [String(string(item.action.label)) for item in menu.elements]
+# The items of `menu`, and not its separators.
+_items(menu) = [item for item in menu.elements if item isa WidgetMenuItem]
+_labels(menu) = [String(string(item.action.label)) for item in _items(menu)]
 _submenu(menu, name) = begin
-    found = [item for item in menu.elements if string(item.action.label) == name]
+    found = [item for item in _items(menu) if string(item.action.label) == name]
     isempty(found) ? nothing : first(found).submenu
 end
 
@@ -69,7 +71,8 @@ end
 @testset "the bar holds one menu of each make function, in order" begin
     file, view, help = make_window_file_menu(), make_window_view_menu(), make_window_help_menu()
     @test string(file.action.label) == "File"
-    @test _labels(file.submenu) == ["New tab", "Close tab"]
+    @test _labels(file.submenu) == ["New tab", "Close tab", "Exit"]
+    @test file.submenu.elements[3] isa WidgetSeparator
     @test string(view.action.label) == "View"
     @test _labels(view.submenu) ==
           ["Split vertically", "Split horizontally", "Gesture log", "Appearance", "Settings"]
@@ -463,6 +466,20 @@ end
     plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[])
     @test get_wrapped_document(plain.document).windows[1].content isa PaneTree
+end
+
+@testset "Ctrl+Q reaches Exit, and Exit quits the editor" begin
+    editor = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                          backend = HeadlessBackend(),
+                          devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse()],
+                          shell = true)
+    run_frame!(editor)
+    window = get_wrapped_document(editor.document).windows[1].id
+    push_event!(editor.backend, WindowInput(window, KeyDown(:q, ModifierKeys(ctrl = true); time = 0.0)))
+    @test EditorModule.run_read_stage!(editor)
+    @test editor.operation isa InvokeActionOperation
+    @test string(editor.operation.action.label) == "Exit"
+    @test_throws QuitEditorException EditorModule.run_evaluate_stage!(editor)
 end
 
 @testset "the shell is a document, and the wrapper puts the window inside it" begin
