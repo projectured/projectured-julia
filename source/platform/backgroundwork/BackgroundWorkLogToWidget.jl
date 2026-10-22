@@ -82,30 +82,9 @@ end
 function read_intent(p::BackgroundWorkLogToWidget, recursion, change::Intent, iomap::SimpleIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     answer isa Intent || return answer
-    operation = _keep_log_arrangement(iomap.input, answer.operation)
+    operation = keep_held_arrangement(answer.operation, getfield(iomap.input, :table)[], _TABLE_STEP)
     operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
 end
-
-function _keep_log_arrangement(log::BackgroundWorkLog, operation::CompoundOperation)
-    parts = Any[_keep_log_arrangement(log, part) for part in operation.operations]
-    all(k -> parts[k] === operation.operations[k], eachindex(parts)) ? operation : CompoundOperation(parts)
-end
-
-function _keep_log_arrangement(log::BackgroundWorkLog, operation::WrappingOperation)
-    inner = get_wrapped_operation(operation)
-    kept = _keep_log_arrangement(log, inner)
-    kept === inner ? operation : rewrap_operation(operation, kept)
-end
-
-function _keep_log_arrangement(log::BackgroundWorkLog, operation::ReplaceReferencedValueOperation)
-    table = getfield(log, :table)[]
-    (operation.document === nothing && operation.value === table.document &&
-     get_reference_steps(strip_reference_types(operation.reference)) == [_TABLE_STEP]) || return operation
-    ReplaceReferencedValueOperation(table, extend_reference(EmptyReference(), FieldReferenceStep("entries"),
-                                                            RangeReferenceStep(0, length(table.entries))), Any[])
-end
-
-_keep_log_arrangement(log::BackgroundWorkLog, operation) = operation
 
 # The log draws as its page inside any document that a renderer draws; the table
 # comes back through the recursion of the renderer.

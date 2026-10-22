@@ -39,7 +39,8 @@ import ..DomainModule: get_document_decoration
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
        is_quick_text_condition, ArrangementSort, ArrangementSortKey, ArrangementFind,
        ArrangementGroup, ArrangementAggregate, ArrangementFirst, ArrangementGroupRow
-export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
+export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit,
+       keep_held_arrangement
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, find_arrangement_key_value, compute_filter_rows,

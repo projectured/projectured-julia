@@ -88,12 +88,22 @@ question whether to write this as a plan, the owner answered: "yes".
    `Document`, so it also has the facet `type`. The facets of `TextFile` are now
    `name`, `folder`, `has_edits`, `state` and `type`. `test_roster_facets()`:
    30 of 30 pass.
-2. [ ] **One rule for a held arrangement.** Move `_keep_log_arrangement` to the
+2. [x] **One rule for a held arrangement.** Move `_keep_log_arrangement` to the
    arrangement slice as one function that takes the holder, the field and the
    answer. Give it a name that follows
    [naming-rules.md](../../documentation/rule/naming-rules.md). The log page
    calls it. Test: `test_background_work()` of the platform passes with no
    change.
+   **Done 2026-10-22.** The function is
+   `keep_held_arrangement(operation, arrangement, step)` in `Arranging.jl`,
+   beside `_take_away_when_empty`, whose answer it reverses. It takes the
+   arrangement and its field step, not the holder, because the rule reads
+   nothing else of the holder. The name is a plain verb: it answers the
+   operation that keeps the arrangement. `test_background_work()` does not
+   press "Show all", so a new case in `test_arrangement_menu()` tests the rule:
+   a compound, an edit at another field, and an edit of the arrangement itself.
+   `test_background_work()`: 19 of 19 pass. `test_arrangement_menu()`: 32 of 32
+   pass.
 3. [ ] **The list holds its table, and the table is its page.** Add the field
    `table`, the maker, `OpenFileListToWidget`, its row in the natural-graphics
    table and the edge `arrangement`. Test: a new testset in
