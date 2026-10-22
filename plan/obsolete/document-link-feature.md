@@ -1,6 +1,14 @@
 # DocumentLink Feature Implementation Plan
 
-> **Status (2026-08-12): NOT STARTED.** No `DocumentLink*` or `DocumentLocator*`
+> **Status (2026-10-22): OBSOLETE.** The owner closed this plan on 2026-10-22.
+> It designs a global registry of annotation edges between documents, not a
+> link that a person clicks. A global registry also breaks the rule that no
+> state is global: the registries of a session belong to the editor. The plan
+> depends on the abstract `DocumentLocator` of
+> [document-locator.md](document-locator.md), which is closed too. A link that a
+> person clicks is the plan `a-link-looks-like-a-link.md`.
+
+> **Status before (2026-08-12): NOT STARTED.** No `DocumentLink*` or `DocumentLocator*`
 > symbol exists anywhere under `package/` — grep for `DocumentLink` matches only
 > this plan file, and `DocumentLocator` appears only in plan files plus an
 > unrelated comment naming the *pattern* in

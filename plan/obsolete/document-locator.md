@@ -1,6 +1,15 @@
 # Document Locator
 
-> **Status (2026-08-12): NOT STARTED.** No `DocumentLocator` abstract type,
+> **Status (2026-10-22): OBSOLETE.** The owner closed this plan on 2026-10-22.
+> The kernel has a `DocumentLocator(start, reference)` in
+> `source/kernel/reference/ReferencedDocument.jl`: one concrete struct, which
+> `find_referenced_document` reads again from its start at each call. This plan
+> designs an abstract type with one subtype for each mode of address, for a
+> document graph and for annotation bindings that do not exist. A link that a
+> person clicks keeps its target in the kernel `DocumentLocator`: see the plan
+> `a-link-looks-like-a-link.md`.
+
+> **Status before (2026-08-12): NOT STARTED.** No `DocumentLocator` abstract type,
 > `DocumentLocatorPath`, `locator_equal`, or `is_whole_document` exists anywhere
 > in source. No `DocumentLocator.jl` file exists under any `package/`. The only
 > mention of "DocumentLocator" in source is a passing comment naming the
