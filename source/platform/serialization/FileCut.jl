@@ -102,34 +102,74 @@ make_marker_text(body::AbstractString) = _MARKER_OPEN * String(body) * _MARKER_C
 # walks its content through nodes of its own domain and stops at anything else:
 # a node of another domain is that domain's to own, a file document is a cut, a
 # node already owned stays with its first owner.
+#
+# A node is written at its owner path and named by a marker at every other place,
+# so the owner path must be a place that the node itself fits. An element of a
+# typed list, such as a formula of a formula sheet, fits there and a marker does
+# not; so a node that a file holds in such a slot is owned at that slot, wherever
+# the walk met it first. A second walk owns a node at its first place when the
+# file holds its typed slot nowhere.
 function _assign_owners(project::FileProject)
     owner = IdDict{Any,Tuple{Any,Reference}}()
     for file in project.files
         content = get_file_content(file)
-        if is_own_content(file)
-            # The file node is the root of its own tree, so it is what the file
-            # writes rather than a cut: claim it here, and walk what it holds.
-            haskey(owner, content) || (owner[content] = (file, EmptyReference()))
-            for (steps, child) in _child_slots(content)
-                is_written_in_file(file, content, _slot_field(steps)) || continue
-                _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...))
+        fixed = IdDict{Any,Bool}()
+        _collect_fixed_nodes!(fixed, file, content, IdDict{Any,Bool}())
+        for kept in (fixed, IdDict{Any,Bool}())
+            if is_own_content(file)
+                # The file node is the root of its own tree, so it is what the file
+                # writes rather than a cut: claim it here, and walk what it holds.
+                haskey(owner, content) || (owner[content] = (file, EmptyReference()))
+                for (steps, child) in _child_slots(content)
+                    is_written_in_file(file, content, _slot_field(steps)) || continue
+                    _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...),
+                               kept, _is_fixed_slot(file, content, steps))
+                end
+            else
+                _own_walk!(owner, file, content, EmptyReference(), kept, false)
             end
-        else
-            _own_walk!(owner, file, content, EmptyReference())
         end
     end
     owner
 end
 
-function _own_walk!(owner, file, node, path::Reference)
+# `kept` holds the nodes that wait for their typed slot; `at_fixed` says whether
+# `path` is such a slot.
+function _own_walk!(owner, file, node, path::Reference, kept, at_fixed::Bool)
     node isa Document || return
     is_file_document(node) && return
     is_file_domain_node(file, node) || return
     haskey(owner, node) && return
+    !at_fixed && haskey(kept, node) && return
     owner[node] = (file, path)
     for (steps, child) in _child_slots(node)
         is_written_in_file(file, node, _slot_field(steps)) || continue
-        _own_walk!(owner, file, child, extend_reference(path, steps...))
+        _own_walk!(owner, file, child, extend_reference(path, steps...), kept,
+                   _is_fixed_slot(file, node, steps))
+    end
+end
+
+# Whether the slot of `node` at `steps` holds an element of a list whose declared
+# element type a reference leaf of `file` is not.
+function _is_fixed_slot(file, node, steps::Tuple)
+    length(steps) == 2 || return false
+    raw = getfield(node, _slot_field(steps))
+    value = raw isa AbstractCell ? raw[] : raw
+    element_type = find_declared_element_type(value)
+    element_type === nothing && return false
+    !(typeof(make_reference_leaf(file, "file(\"x\")")) <: element_type)
+end
+
+# Every node of the file's domain that `node` reaches and that a typed slot holds.
+function _collect_fixed_nodes!(fixed, file, node, visited)
+    node isa Document || return
+    is_file_document(node) && return
+    haskey(visited, node) && return
+    visited[node] = true
+    for (steps, child) in _child_slots(node)
+        is_written_in_file(file, node, _slot_field(steps)) || continue
+        _is_fixed_slot(file, node, steps) && (fixed[child] = true)
+        _collect_fixed_nodes!(fixed, file, child, visited)
     end
 end
 
@@ -162,8 +202,8 @@ end
 
 # The five rules, for the copy of `file`. `strict` is the single-file save: a cut
 # into another file is an error, because no other file is there to refer into. A
-# node that the file reaches a second time is named by a marker into the file
-# itself, in both saves.
+# node of the file is written at its owner path, and every other place names it by
+# a marker into the file itself, in both saves.
 function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
     node isa Document || return node
     if is_file_document(node)
@@ -178,11 +218,14 @@ function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::
         return _cut_leaf(file, path, strict, _reference_marker(owner_file, owner_path),
                          "holds a " * string(nameof(typeof(node))) * " that " *
                          repr(get_filename(owner_file)) * " writes")
-    haskey(visited, node) &&
+    (haskey(visited, node) || !_is_same_path(path, owner_path)) &&
         return make_reference_leaf(file, _reference_marker(file, owner_path))
     visited[node] = true
     _rebuild(owner, file, node, path, visited, strict)
 end
+
+_is_same_path(a::Reference, b::Reference) =
+    collect(get_reference_steps(a)) == collect(get_reference_steps(b))
 
 # A reference leaf in the file's notation, or — in the strict mode — the error
 # that says why the file cannot be saved alone.
@@ -307,9 +350,11 @@ end
 Write one file with no other file around it, so no reference into another file
 can be written: the content must be of the file's domain, with no foreign node,
 or the save logs why and returns `false`. A node that the content holds at two
-places, and a cycle, are written once, at the first place, and each other place
-holds a marker into the file itself, which [`load_file`](@ref) splices back. A
-marker that is a plain leaf of the domain is a plain leaf, and saves as one.
+places, and a cycle, are written once, and each other place holds a marker into
+the file itself, which [`load_file`](@ref) splices back. The node is written at
+the first place, or at the place of a typed list that a marker does not fit,
+such as the formulas of a formula sheet. A marker that is a plain leaf of the
+domain is a plain leaf, and saves as one.
 """
 save_file!(file, base_dir::AbstractString) = save_file_text!(file, base_dir) !== nothing
 

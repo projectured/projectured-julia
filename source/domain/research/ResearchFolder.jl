@@ -1,9 +1,10 @@
 # Fragment of `ResearchModule` — a study as a folder: the study in `study.pred`,
-# which owns every item and every document that a `.pred` file writes; the report
-# in `study.md`; and each node of a format with a file of its own, such as a
-# Markdown statement, a math prediction or a JSON data set, in a file of that
-# format, named by the id of its item and its field. The save cuts the graph into
-# the files, and the load splices it back.
+# which owns every item and every document that an item reaches; the report in
+# `study.md`; each node of a format with a file of its own, such as a Markdown
+# statement, a math prediction or a JSON data set, in a file of that format, named
+# by the id of its item and its field; and each other block of the report in a
+# `.pred` file of its own. The save cuts the graph into the files, and the load
+# splices it back.
 
 "The file that holds the study itself."
 const RESEARCH_STUDY_FILE_NAME = "study.pred"
@@ -14,12 +15,14 @@ const RESEARCH_REPORT_FILE_NAME = "study.md"
 """
     collect_study_blocks(study) -> Vector{Pair{String, Any}}
 
-Every document of `study` that a file of another format than `.pred` must write,
-each once, with the name of its file: a node of a format, such as a Markdown
-paragraph, a math expression or a JSON object, that a field of an item holds at
-any depth, as `"h1-statement.md" => paragraph`, and a file document, such as a
-NED or INI file, under its own name. The report is not among them: it has a file
-of its own name, and it writes the blocks of its own format.
+Every document of `study` that a file of its own writes, each once, with the
+name of its file: a node of a format, such as a Markdown paragraph, a math
+expression or a JSON object, that a field of an item holds at any depth, as
+`"h1-statement-1.md" => paragraph`; a file document, such as a NED or INI file,
+under its own name; and a block of the report that no item reaches and that is
+neither Markdown nor an item, such as a table, in a `.pred` file, as
+`"report-3.pred" => table`. The report itself is not among them: it has a file of
+its own name, and it writes the blocks of its own format.
 """
 function collect_study_blocks(study::ResearchStudy)
     blocks = Pair{String, Any}[]
@@ -63,8 +66,14 @@ function collect_study_blocks(study::ResearchStudy)
         end
     end
     if study.report isa MarkdownRoot
-        for element in study.report.elements
-            is_file_document(element) && add!("report", element)
+        for (index, element) in enumerate(study.report.elements)
+            if is_file_document(element)
+                add!("report", element)
+            elseif element isa Document && !haskey(seen, element) && !(element isa ResearchItem) &&
+                   find_file_extension(element) === nothing
+                seen[element] = true
+                push!(blocks, "report-" * string(index) * ".pred" => element)
+            end
         end
     end
     blocks
@@ -75,6 +84,7 @@ end
 # page of its own, so the load gives back the block and not a page.
 function _make_block_file(name::AbstractString, block)
     is_file_document(block) && return block
+    endswith(name, ".pred") && return PredFile(name, block)
     block isa MarkdownDocument && !(block isa MarkdownRoot) &&
         return MarkdownFile(name, MarkdownRoot(elements = Any[block]))
     get_file_document_type(name)(name, block)
@@ -84,8 +94,8 @@ end
     save_study_folder!(study, directory) -> String
 
 Write `study` as a folder: the study as `study.pred`, which owns every item and
-every document that a `.pred` file writes; the report as `study.md`; and each
-block of `collect_study_blocks` in a file of its format. A document that the study
+every document that an item reaches; the report as `study.md`; and each block of
+`collect_study_blocks` in a file of its format. A document that the study
 holds at two places, such as an item that a link and a list hold, is written once,
 and each other place holds a marker. Nothing is written unless every file can be
 cut and printed; two blocks with one file name are refused. Answer the folder.

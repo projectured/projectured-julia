@@ -5,6 +5,7 @@ using ProjecturedXML.XmlModule
 using ProjecturedAll.MarkdownModule
 using ProjecturedAll.RstModule
 using ProjecturedAll.JuliaModule
+using ProjecturedAll.FormulaModule: FormulaFormula, FormulaEnvironment
 using ProjecturedKernel.DocumentModule: @document
 using ProjecturedKernel.CellModule: ImmutableCell
 
@@ -55,6 +56,12 @@ end
 "A document with a collection of cells, written as the list of what they hold."
 @document struct TestBag
     items::CellVector = CellVector()
+end
+
+"A document whose first field can hold any node, and whose second holds a list of its own."
+@document struct TestNoteAndList
+    note::Any = nothing
+    list::Any = nothing
 end
 
 "A document with no field default, so the macro gives it no keyword constructor."
@@ -556,6 +563,21 @@ function test_file_project()
             sleep(0.01)
             @test save_file!(PredFile("bag.pred", bag), d) === true
             @test mtime(joinpath(d, "bag.pred")) == stamp
+        end
+
+        @testset "a node that a typed list holds is written in the list, and a marker elsewhere" begin
+            # The walk meets the formula first in `note`, which a marker fits; the
+            # formulas of a sheet are a typed list, which only a formula fits.
+            formula = FormulaFormula("a", parse_julia("1"))
+            sheet = FormulaEnvironment([formula])
+            d = mktempdir()
+            @test save_file!(PredFile("note.pred", TestNoteAndList(note = formula, list = sheet)), d) === true
+            text = read(joinpath(d, "note.pred"), String)
+            @test count("FormulaFormula(", text) == 1
+            @test occursin("note = node(file(\"note.pred\"), \"list.formulas[1]\")", text)
+            back = get_file_content(load_file(d, "note.pred"))
+            @test back.list.formulas[1] isa FormulaFormula
+            @test back.note === back.list.formulas[1]
         end
 
         @testset "a .pred saved alone writes a cycle, and the load closes it" begin

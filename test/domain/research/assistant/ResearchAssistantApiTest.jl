@@ -167,6 +167,23 @@ function test_research_assistant_api()
             end
         end
 
+        @testset "a block of the report that no item holds has a file of its own" begin
+            directory = mktempdir()
+            try
+                study = make_research_study_document_example()
+                note = ResearchExpectation(result_selection = PrimitiveString("a block"), upper = 1)
+                add_study_prose!(study, "A block follows."; editor = nothing)
+                embed_in_study!(study, note, study.evidence[1]; editor = nothing)
+                save_study_folder!(study, directory)
+                @test Set(readdir(directory)) == Set(["study.pred", "study.md", "report-2.pred"])
+                loaded = load_study_folder(directory)
+                @test loaded.report.elements[2] isa ResearchExpectation
+                @test loaded.report.elements[3] === loaded.evidence[1]
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "a node of a text format goes into a file of its format" begin
             directory = mktempdir()
             try

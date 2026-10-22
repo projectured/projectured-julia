@@ -994,6 +994,17 @@ A review of the diff of steps 1 to 9 found eleven faults; each fix has a test.
 - Private helpers carry verbs that say what they do (`_format_plain_text`,
   `_make_linked_add_buttons`, `_make_study_item_part`).
 
+The study by hand of step 10 then found a fault of the save itself: the
+prediction of H1 holds the formula `L_q`, which the sheet of an analysis holds in
+a typed list (`CellVector{FormulaFormula}`). The save wrote a node at the first
+place that its walk met, the hypothesis, and gave the typed list a marker, which
+its type refuses. The save now owns a node that a typed list holds at that list,
+when a marker of the file does not fit the list, and writes a node in full only at
+its owner path (`FileCut.jl`); `test_file_project()` saves a formula that a field
+meets before its sheet. A block of the report that no item reaches, such as a run
+card, goes into a `.pred` file of its own, `report-N.pred`: `study.pred` comes
+first and owns the items, so such a file can not take them.
+
 Left as they are: the slot helpers of the outline repeat those of the workflow
 outline, because the two domains do not depend on each other; an id comes back
 after a delete of the item with the highest number of its kind (a limit in
