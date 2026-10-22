@@ -1,8 +1,8 @@
 # Any ACP agent gets the instructions and a sign-in
 
-> **Status (2026-10-22): steps 1 and 2 done.** Branch `acp-neutral`, worktree
-> `projectured-julia-acp-neutral`. The owner said yes to the new mechanism of
-> step 2 (Q1). Step 3 waits for the owner.
+> **Status (2026-10-22): steps 1 and 2 done and on main.** The owner said yes
+> to the new mechanism of step 2 (Q1) and to the landing. Step 3 waits for the
+> owner: it needs Node.js on this machine.
 
 ## Goal
 
