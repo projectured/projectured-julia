@@ -111,6 +111,29 @@ end
         strip_reference_types(@reference(graph, vertices[2].content))))
 end
 
+@testset "the graph of the example fits a window, with each vertex at its natural size" begin
+    # A content that fills the room it gets, such as the table of the example,
+    # takes no room from the window: it has the size that it has with no room.
+    graph = make_graph_document_example()
+    alone = _gvd_find_drawing(print_document(make_graph_projection_example(measure = _gvd_measure()), graph))
+    sizes = [box[3:4] for box in alone.drawn_boxes]
+    editor, backend, _ = _gvd_editor(graph)
+    drawing = _gvd_find_drawing(editor.iomap)
+    @test [box[3:4] for box in drawing.drawn_boxes] == sizes
+    @test all(box -> box[1] + box[3] <= 900 && box[2] + box[4] <= 700, drawing.drawn_boxes)
+
+    # The pointer, Tab and a click map points and paths back through the pane, and
+    # none of them makes a fault.
+    for (k, (x, y)) in enumerate(((5, 5), (60, 40), (300, 200), (450, 300), (700, 500)))
+        _gvd_send!(editor, backend, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 1.0 + k / 10))
+    end
+    _gvd_send!(editor, backend, KeyDown(:tab, ModifierKeys(); time = 2.0))
+    box = drawing.drawn_boxes[2]
+    _gvd_down!(editor, backend, box[1] + 5, box[2] + 5, 3.0)
+    _gvd_up!(editor, backend, box[1] + 5, box[2] + 5, 3.05)
+    @test isempty(get_fault_records(get_fault_store(editor)))
+end
+
 @testset "a vertex maps forward to its box through the pane" begin
     graph = _gsp_make_graph()
     projection = _gsp_make_projection()

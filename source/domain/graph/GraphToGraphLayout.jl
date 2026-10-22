@@ -63,6 +63,14 @@ GraphGraphToGraphLayout(engine::GraphLayoutEngine = make_deferred_layout_engine(
                                 (Int(extent[1]), Int(extent[2])),
                             Int(border), constraints)
 
+# The context of a part of a graph that the graph prints through its recursion:
+# the content of a vertex or the label of an edge. It offers no room on either
+# axis, so the part takes the size that it needs. A part that fills the room it
+# gets, such as a table, would otherwise take all the room that the host offers
+# the graph, and push the other vertices out of the view.
+_make_graph_part_context(ctx, document, steps...) =
+    with_exact_size(make_child_context(ctx, document, steps...); width = nothing, height = nothing)
+
 _canvas_wh(im) = begin
     o = im === nothing ? nothing : im.output
     o isa GraphicsCanvas ? (Int(o.w), Int(o.h)) : (60, 30)
@@ -80,7 +88,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v = graph.vertices[i]
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
-                push!(ims, print_child(recursion, content, make_child_context(ctx, graph, (@reference_step vertices), (@reference_step [i]), (@reference_step content))))
+                push!(ims, print_child(recursion, content, _make_graph_part_context(ctx, graph, (@reference_step vertices), (@reference_step [i]), (@reference_step content))))
             else
                 push!(ims, nothing)
             end

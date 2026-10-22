@@ -48,8 +48,16 @@ function print_document(p::GraphGraphToWidgetScrollPane, recursion, graph::Graph
 end
 
 # anything... ↔ content.anything...
+#
+# A reference can come without its node types, for example the path that the pane
+# builds back from a point. The graph is the document on each side, so the stage
+# gives a reference its types from the graph before it builds a typed one.
 function map_reference_forward(::GraphGraphToWidgetScrollPane, iomap, reference)
     reference === nothing && return nothing
+    reference = _type_graph_reference(iomap.input, reference)
+    # A path that the graph can not type goes on as the pane takes it, untyped.
+    is_fully_typed_reference(reference) ||
+        return ConcreteReference(FieldReferenceStep("content"), strip_reference_types(reference))
     @reference_case reference begin
         ∅ => @reference ::WidgetScrollPane
         rest... => (@reference ::WidgetScrollPane.content::GraphGraph.^(rest))
@@ -58,12 +66,20 @@ end
 
 function map_reference_backward(::GraphGraphToWidgetScrollPane, iomap, reference)
     reference === nothing && return nothing
-    @reference_case reference begin
-        ∅ => @reference ::GraphGraph
-        ::WidgetScrollPane.content.rest... => (@reference ^(rest))
-        __ => nothing
-    end
+    path = strip_reference_types(reference)
+    path isa EmptyReference && return @reference ::GraphGraph
+    path isa ConcreteReference || return nothing
+    (path.head isa FieldReferenceStep && path.head.name == "content") || return nothing
+    reference isa ConcreteReference && is_fully_typed_reference(reference.tail) && return reference.tail
+    _type_graph_reference(iomap.input, path.tail)
 end
+
+# `reference`, a path in `graph`, with the node types that `graph` gives it. A step
+# that the graph can not type, such as a step into the output of a content, stays
+# untyped.
+_type_graph_reference(graph, reference) =
+    is_fully_typed_reference(reference) ? reference :
+    annotate_reference_types(graph, strip_reference_types(reference))
 
 """
     make_scrolling_graph_projection(stages = GraphToGraphics(); measure,

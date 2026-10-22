@@ -172,6 +172,31 @@ approves. Test with the narrowest test functions of each package.
 - The hosts in omnet-julia build their own chains and stay as they are.
 - The pane does not keep its scroll position when the graph view is printed
   again, as the zoom does not.
-- The graph passes the size that its host offers on to the content of each
-  vertex, so a table in a vertex fills the whole view. This was so before the
-  pane too.
+
+## Follow-up after the landing
+
+The owner ran `run_example(graph_example)` on `main` `cc74df596`, 2026-10-22: "the
+whole example, including the layout and the scroll is completely broken". Two
+faults of this plan, fixed on the branch `graph-fit`:
+
+- **A vertex took the room of the graph.** The pane gives its content an exact
+  size, and the graph passed it on to the content of each vertex. So the table
+  of the example took the whole window, its box was larger than the window, and
+  the engine put the other vertices about 1400 px to the right, with the edges
+  outside the view. Step 3 saw the table fill the window, gave the drag tests
+  another graph, and wrote the size down as an open item; that hid the fault.
+  Now each part of a graph, the content of a vertex and the label of an edge,
+  gets no room (`_make_graph_part_context`) and takes the size that it needs.
+- **The way back from the pane threw.** The pane builds a path back from a point
+  without node types, and `@reference ^(rest)` of `GraphGraphToWidgetScrollPane`
+  refused it, as a fault of `FocusCyclingProjection`. The stage now gives a path
+  the types of the graph (`annotate_reference_types`), keeps the types that a
+  path has, and drops no path.
+- A test set in `GraphScrollPaneTest.jl` shows the graph of the example in a
+  window of 900 × 700 px: each box has the size that it has with no room, each
+  box is inside the window, and moves of the pointer, Tab and a click make no
+  fault. It fails on the old source and passes on the fix. The drag tests use
+  the graph of the example again.
+- A thick line that is almost vertical has jagged edges in the SDL backend and,
+  in a window, looks like two thin lines. One stroke draws it. This is a fault
+  of the anti-aliasing of the backend, not of this plan.

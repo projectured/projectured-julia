@@ -8,21 +8,9 @@ _gvd_measure() = FixedMeasure(10, 18, 6, 0)
 
 _gvd_force(value) = value isa AbstractCell ? _gvd_force(value[]) : value
 
-# Three vertices whose contents take their natural size, joined by directed
-# edges. The table of the graph of the example takes the whole size that a window
-# offers, which puts the other vertices of that graph outside the window.
-function _gvd_make_graph()
-    object = GraphVertex(JsonObject("id" => JsonNumber(42), "active" => JsonBool(true)))
-    name = GraphVertex(JsonString("auth"))
-    element = GraphVertex(XmlElement("node", [XmlAttribute("kind", "service")],
-                                     [XmlElement("name", [XmlText("auth")])]))
-    GraphGraph([object, name, element],
-               [GraphEdge(object, name; directed = true), GraphEdge(name, element; directed = true)])
-end
-
 # A graph in the window `W` of a drag tracking screen, and the editor that shows
-# it: the graph of `_gvd_make_graph`, unless the caller gives one and its projection.
-function _gvd_editor(graph = _gvd_make_graph();
+# it: the graph of the example, unless the caller gives one and its projection.
+function _gvd_editor(graph = make_graph_document_example();
                      projection = make_graph_projection_example(measure = _gvd_measure()))
     scene = make_window_scene(graph, "W"; width = 900, height = 700)
     opened = make_opened_window_projections(; measure = _gvd_measure())
