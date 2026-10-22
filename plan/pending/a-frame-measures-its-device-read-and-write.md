@@ -64,7 +64,7 @@ counters of the device seam.
 Do the work in this worktree. Commit each step. Do not land on `main` before the
 owner approves.
 
-1. [ ] **The measurement.** `_FrameStages` in `Editor.jl`, a timer of a device
+1. [x] **The measurement.** Done; see [As built](#as-built). `_FrameStages` in `Editor.jl`, a timer of a device
    half in `Feeds.jl`, its two calls in `FaultBarriers.jl` and
    `ReadEvaluatePrint.jl`, the record in `record_frame_performance!`, and the
    docstrings. Tests in `test/kernel/editor/FeedsTest.jl`: a probe backend whose
@@ -85,3 +85,19 @@ owner approves.
 - A split of the counts that `@count_performance` adds, and of the times that
   `@measure_performance_time` adds.
 - The line that `_log_performance_counters!` logs.
+
+## As built
+
+- **Step 1.** `_time_device_half(body, editor, half)` in `Feeds.jl` times one
+  call of a device half, as `_time_frame_stage` times a stage, and adds the cell
+  counts that the call added. `_read_from_devices_guarded` calls it inside the
+  `:device` barrier, so the time of a fault record does not count;
+  `_write_output_to_devices!` calls it inside its `try`, around the binding of
+  `_PAINTING_EDITOR`. The counts come from `get_performance_counters()`, two
+  copies of the store for each call, only when the counters are compiled in; in
+  a default build `_get_cell_counts()` answers a constant tuple of zeros. The
+  record pushes the eight counts before the keys of the scope, so a key of the
+  scope with the same name keeps the value of the frame, as the rule of the
+  record says. With the counters off, the tests of the frame performance, the
+  feeds, the fault barriers and the held frames pass: 156 of 156. The naming,
+  style, argument and documentation guards pass.

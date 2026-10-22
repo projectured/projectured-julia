@@ -7,9 +7,10 @@
 # wakes the editor through the callback the editor attached at registration.
 #
 # The file also tests the frame performance that `record_frame_performance!` of
-# `editor/Feeds.jl` records: the frame time, the time of each stage, of the held
-# frames, of the collections and of the compiles, the allocated bytes, and, when
-# the counters are compiled in, every counter of the frame with its unit.
+# `editor/Feeds.jl` records: the frame time, the time of each stage and of each
+# device half, of the held frames, of the collections and of the compiles, the
+# allocated bytes, and, when the counters are compiled in, the cell counts of
+# each device half and every counter of the frame with its unit.
 
 using Test
 using ProjecturedKernel.ProjectionModule
@@ -19,6 +20,9 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
 using ProjecturedKernel.FeedModule
 using ProjecturedKernel.PerformanceModule
+using ProjecturedKernel.CellModule: Cell, @computation
+import ProjecturedKernel.BackendModule
+import ProjecturedKernel.BackendModule: Backend
 import ProjecturedKernel.FeedModule: drain_changes!, compute_wake_deadline,
                                      attach_wake_callback!
 import ProjecturedKernel.EditorModule
@@ -201,9 +205,32 @@ end
 
 _get_frame_total(store, name) = compute_frame_measurement_summary(store, name).total
 
-const _FRAME_RECORD_TIMES = (:frame_time, :feed_time, :read_time, :evaluate_time,
-                             :print_time, :report_time, :held_time,
-                             :garbage_collection_time, :compile_time)
+const _FRAME_RECORD_TIMES = (:frame_time, :feed_time, :read_time, :device_read_time,
+                             :evaluate_time, :print_time, :device_write_time,
+                             :report_time, :held_time, :garbage_collection_time,
+                             :compile_time)
+
+# A backend whose read from the devices and whose write to them run work of their
+# own, so a frame spends a known time, or known cell operations, in each device
+# half. Its read gives no input.
+struct DeviceHalfProbeBackend <: Backend
+    read_work::Function
+    write_work::Function
+end
+BackendModule.take_from_devices!(backend::DeviceHalfProbeBackend, devices) =
+    (backend.read_work(); nothing)
+BackendModule.write_to_devices!(backend::DeviceHalfProbeBackend, devices, output) =
+    (backend.write_work(); nothing)
+
+# The store of an editor that ran one measured frame over a `DeviceHalfProbeBackend`.
+function _measure_device_half_frame(; read_work = () -> nothing,
+                                    write_work = () -> nothing)
+    editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                    backend = DeviceHalfProbeBackend(read_work, write_work),
+                    devices = Device[])
+    EditorModule.run_measured_frame!(editor, 0.0)
+    editor.frame_measurements
+end
 
 function test_editor_frame_performance()
 @testset "the frame performance of the editor" begin
@@ -223,6 +250,28 @@ function test_editor_frame_performance()
         @test _get_frame_total(store, :feed_time) >= 0.045
         @test _get_frame_total(store, :read_time) < 0.045
         @test _get_frame_total(store, :print_time) < 0.045
+    end
+
+    @testset "the time of the read from the devices is in the device read time, a part of the read time" begin
+        store = _measure_device_half_frame(read_work = () -> sleep(0.05))
+        @test _get_frame_total(store, :device_read_time) >= 0.045
+        @test _get_frame_total(store, :device_read_time) <=
+              _get_frame_total(store, :read_time)
+        @test _get_frame_total(store, :device_write_time) < 0.045
+    end
+
+    @testset "the time of the write to the devices is in the device write time, a part of the print time" begin
+        store = _measure_device_half_frame(write_work = () -> sleep(0.05))
+        @test _get_frame_total(store, :device_write_time) >= 0.045
+        @test _get_frame_total(store, :device_write_time) <=
+              _get_frame_total(store, :print_time)
+        @test _get_frame_total(store, :device_read_time) < 0.045
+    end
+
+    @testset "a device half has cell counts only when the counters are compiled in" begin
+        names = get_frame_measurement_names(_measure_device_half_frame())
+        @test (:device_read_reads in names) == PERFORMANCE_COUNTERS_ENABLED
+        @test (:device_write_computes in names) == PERFORMANCE_COUNTERS_ENABLED
     end
 
     @testset "a collection in a frame is in its garbage collection time" begin
@@ -301,6 +350,22 @@ function test_editor_frame_performance()
             store = editor.frame_measurements
             @test compute_frame_measurement_summary(store, :probe_time).unit === :second
             @test compute_frame_measurement_summary(store, :reads).unit === :count
+        end
+
+        @testset "the cell counts of each device half are in the record of the frame" begin
+            source = Cell(1)
+            derived = Cell(@computation source[] + 1)
+            store = _measure_device_half_frame(read_work = () -> (source[] = 2),
+                                               write_work = () -> derived[])
+            @test compute_frame_measurement_summary(store, :device_write_reads).unit ===
+                  :count
+            @test _get_frame_total(store, :device_read_writes) >= 1
+            @test _get_frame_total(store, :device_read_computes) == 0
+            @test _get_frame_total(store, :device_write_computes) >= 1
+            @test _get_frame_total(store, :device_write_reads) >= 1
+            @test _get_frame_total(store, :device_write_writes) == 0
+            @test _get_frame_total(store, :device_write_reads) <=
+                  _get_frame_total(store, :reads)
         end
     end
 end

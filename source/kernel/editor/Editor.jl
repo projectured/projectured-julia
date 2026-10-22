@@ -94,7 +94,8 @@ Holds the state for a read-eval-print loop:
   - `has_loop_ended` — the loop of [`run_editor!`](@ref) ran and ended. An editor
                    runs its loop once (internal).
   - `frame_stages` — the stages of the frame that runs: the slowest stage with
-                   its work, the sum of each stage, and the time that the frame
+                   its work, the sum of each stage and of each device half, the
+                   cell counts of each device half, and the time that the frame
                    spent in held frames. A frame that is slow anyway is reported
                    with them, and each frame records them (internal).
   - `session_documents` — the documents of the session of this editor that a
@@ -103,8 +104,9 @@ Holds the state for a read-eval-print loop:
                    No other editor shows them, so no document has two owners.
 """
 # The stages of the frame that runs: its slowest stage with its work, the sum of
-# each stage without its held frames, the time that the frame spent in the held
-# frames of code units, and the counters of the process when the frame started.
+# each stage and of each device half without its held frames, the time that the
+# frame spent in the held frames of code units, the cell counts of each device
+# half, and the counters of the process when the frame started.
 mutable struct _FrameStages
     seconds::Float64
     stage::Symbol
@@ -115,6 +117,14 @@ mutable struct _FrameStages
     evaluate_seconds::Float64
     print_seconds::Float64
     report_seconds::Float64
+    # A device half is a part of its stage: the read of the backend is in the read
+    # stage, and the write is in the print stage.
+    device_read_seconds::Float64
+    device_write_seconds::Float64
+    # The reads, computations, invalidations and writes of cells that each device
+    # half added to the counters; zero while the counters are compiled out.
+    device_read_counts::NTuple{4,Int}
+    device_write_counts::NTuple{4,Int}
     started_bytes::Int64
     started_collection_ns::UInt64
     started_compile_ns::UInt64
@@ -123,6 +133,7 @@ mutable struct _FrameStages
 end
 
 _FrameStages() = _FrameStages(0.0, :none, nothing, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, (0, 0, 0, 0), (0, 0, 0, 0),
                               Base.gc_bytes(), Base.gc_time_ns(),
                               first(Base.cumulative_compile_time_ns()),
                               Base.Experimental.task_running_time_ns(current_task()))

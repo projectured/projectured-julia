@@ -199,11 +199,14 @@ end
 # the fault counts as a fault of the device, and the device barrier bounds it.
 function _write_output_to_devices!(editor::Editor)
     try
-        with(_PAINTING_EDITOR => editor) do
-            # Through `invokelatest`, as every call of the backend protocol: a
-            # backend package adds methods, which would invalidate a resolved call.
-            Base.invokelatest(write_to_devices!, editor.backend, editor.devices,
-                              editor.iomap.output)
+        _time_device_half(editor, :device_write) do
+            with(_PAINTING_EDITOR => editor) do
+                # Through `invokelatest`, as every call of the backend protocol: a
+                # backend package adds methods, which would invalidate a resolved
+                # call.
+                Base.invokelatest(write_to_devices!, editor.backend, editor.devices,
+                                  editor.iomap.output)
+            end
         end
     catch exception
         (exception isa RecordedCellFaultException && !isempty(editor.noted_barriers)) ||

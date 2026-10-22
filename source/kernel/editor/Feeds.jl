@@ -69,6 +69,11 @@ seconds. In every build, the frame records:
 - `:frame_time`, the time of the whole frame, with its held frames;
 - `:feed_time`, `:read_time`, `:evaluate_time`, `:print_time` and `:report_time`,
   the sum of each stage without its held frames; `:print_time` holds the paint;
+- `:device_read_time` and `:device_write_time`, the sum of the reads from the
+  devices of the backend and of the writes to them, without held frames. Each is
+  a part of its stage: `:read_time` holds the device read, and `:print_time` the
+  device write, with the printer computations that run while the backend reads
+  the output;
 - `:held_time`, the time of the held frames of code units;
 - `:garbage_collection_time` and `:compile_time`, the time that the garbage
   collector and the compiler took in the process;
@@ -76,9 +81,11 @@ seconds. In every build, the frame records:
   the process keeps the running time of its tasks (`--task-metrics=yes`);
 - `:allocated_bytes`, a count: the bytes that the process allocated.
 
-When the counters are compiled in, it records every performance count and time
-too. It runs at the end of each frame of [`run_measured_frame!`](@ref), inside
-the counter scope, so the counters of this frame are still bound.
+When the counters are compiled in, it also records the reads, computations,
+invalidations and writes of cells in each device half, `:device_read_reads` to
+`:device_write_writes`, and every performance count and time. It runs at the end
+of each frame of [`run_measured_frame!`](@ref), inside the counter scope, so the
+counters of this frame are still bound.
 """
 function record_frame_performance!(editor::Editor, frame_seconds::Float64)
     stages = editor.frame_stages
@@ -86,8 +93,10 @@ function record_frame_performance!(editor::Editor, frame_seconds::Float64)
         :frame_time => frame_seconds,
         :feed_time => stages.feed_seconds,
         :read_time => stages.read_seconds,
+        :device_read_time => stages.device_read_seconds,
         :evaluate_time => stages.evaluate_seconds,
         :print_time => stages.print_seconds,
+        :device_write_time => stages.device_write_seconds,
         :report_time => stages.report_seconds,
         :held_time => stages.held_seconds,
         :garbage_collection_time => (Base.gc_time_ns() - stages.started_collection_ns) / 1e9,
@@ -100,6 +109,12 @@ function record_frame_performance!(editor::Editor, frame_seconds::Float64)
     end
     counts = Pair{Symbol, Float64}[:allocated_bytes => Float64(Base.gc_bytes() - stages.started_bytes)]
     if PERFORMANCE_COUNTERS_ENABLED
+        for (name, count) in zip(_DEVICE_READ_COUNT_NAMES, stages.device_read_counts)
+            push!(counts, name => Float64(count))
+        end
+        for (name, count) in zip(_DEVICE_WRITE_COUNT_NAMES, stages.device_write_counts)
+            push!(counts, name => Float64(count))
+        end
         # Every key, in name order, so a new counter reaches the store with no
         # change here. A key that the frame records already keeps the value of the
         # frame.
@@ -184,6 +199,45 @@ function _add_stage_seconds!(stages::_FrameStages, stage::Symbol, seconds::Float
         stages.report_seconds += seconds
     end
     nothing
+end
+
+# The cell counts of the counters, in the order of the counts of a device half in
+# `_FrameStages`, and the names of the counts of each half in the record of a frame.
+const _CELL_COUNT_NAMES = (:reads, :computes, :invalidations, :writes)
+const _DEVICE_READ_COUNT_NAMES =
+    map(name -> Symbol(:device_read_, name), _CELL_COUNT_NAMES)
+const _DEVICE_WRITE_COUNT_NAMES =
+    map(name -> Symbol(:device_write_, name), _CELL_COUNT_NAMES)
+
+# The cell counts of the counter scope now; zero while the counters are compiled out.
+function _get_cell_counts()
+    PERFORMANCE_COUNTERS_ENABLED || return (0, 0, 0, 0)
+    counts = get_performance_counters().counts
+    map(name -> get(counts, name, 0), _CELL_COUNT_NAMES)
+end
+
+# Time `body` as the device half `half` of the frame, `:device_read` or
+# `:device_write`, and answer its value: add its time, without the held frames
+# inside it, to the half, and the cell counts that it added. A device half is a
+# part of its stage, so it is never the slowest stage of a slow frame.
+function _time_device_half(body, editor::Editor, half::Symbol)
+    stages = editor.frame_stages
+    held = stages.held_seconds
+    counts = _get_cell_counts()
+    started = time_ns()
+    try
+        body()
+    finally
+        seconds = (time_ns() - started) / 1e9 - (stages.held_seconds - held)
+        added = _get_cell_counts() .- counts
+        if half === :device_read
+            stages.device_read_seconds += seconds
+            stages.device_read_counts = stages.device_read_counts .+ added
+        elseif half === :device_write
+            stages.device_write_seconds += seconds
+            stages.device_write_counts = stages.device_write_counts .+ added
+        end
+    end
 end
 
 # A new record of the stages for the frame that starts, with the counters of the
