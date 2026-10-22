@@ -106,6 +106,32 @@ function test_explorer()
         @test _nav_is(first(runs[2]), _explorer_path(FieldReferenceStep("children"), ElementReferenceStep(2)))
     end
 
+    @testset "a tree of the help opens in the explorer, and a press on a group shows its page" begin
+        list = DocumentTypeList()
+        explorer = Explorer(ExplorerSection("Explorer", Any[list]))
+        navigator = explorer.navigator
+        editor, backend = _nav_editor(explorer)
+        evaluate_operation(editor, AcquireDocumentOperation(explorer))
+        run_frame!(editor)
+        # The visit holds the page, and its acquire builds the groups.
+        _nav_press!(editor, backend, _explorer_click(backend, "Documents"))
+        @test get_navigator_page(navigator) === list
+        @test !isempty(list.children)
+        @test _nav_has_text(backend, "Platform")
+        chevron = _explorer_open_chevron(backend, "Documents")
+        @test chevron !== nothing
+        _nav_press!(editor, backend, chevron)
+        @test _explorer_has_tree_text(backend, "Platform")
+        _nav_press!(editor, backend, _explorer_click(backend, "Platform"))
+        platform = only(group for group in list.children if group.name == "Platform")
+        @test get_navigator_page(navigator) === platform
+        k = findfirst(group -> group === platform, collect(list.children))
+        @test _nav_is(navigator.address, concat_references(_explorer_entry_path(1),
+                                                           _explorer_path(FieldReferenceStep("children"),
+                                                                          ElementReferenceStep(k))))
+        @test _nav_has_text(backend, "Widget")
+    end
+
     @testset "a section says where it holds a document, also inside a section" begin
         content = _explorer_make()
         alpha, inner = content.entries[1], content.entries[2]

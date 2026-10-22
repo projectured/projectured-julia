@@ -91,9 +91,11 @@ make_window_view_menu(; recorded = RECORDED_TOOLS) =
                           command_palette = false) -> WidgetMenuItem
 
 The Help menu: the name on the bar, and the menu that opens below it. Its
-commands open a tab with every document type that an empty tab can make, a tab
-with every projection, and the page about the program. Each reaches the tab
-that already shows one, and opens one only when there is none.
+commands open a tab with the tree of every document type that an empty tab can
+make, a tab with the tree of every projection, and the page about the program.
+A tree opens in a navigator, which shows one group or one type at a time, with
+Back, Forward, Parent and the address. Each command reaches the tab that already
+shows its document, and opens one only when there is none.
 
 `about` makes the page of the program that the window runs, from the editor.
 The default page describes ProjecturEd; a window of another program gives its
@@ -126,12 +128,12 @@ make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false, command_
                            ())...,
         make_window_command("Documents",
                             editor -> _reach_tool!(editor, DocumentTypeList,
-                                                   _make_scrolling_tool(DocumentTypeList));
-                            tooltip = "Every document type that an empty tab can make."),
+                                                   _make_navigating_tool(DocumentTypeList));
+                            tooltip = "Every document type that an empty tab can make, by package and by slice."),
         make_window_command("Projections",
                             editor -> _reach_tool!(editor, ProjectionList,
-                                                   _make_scrolling_tool(ProjectionList));
-                            tooltip = "Every projection: the views of a document, and the projections that combine them."),
+                                                   _make_navigating_tool(ProjectionList));
+                            tooltip = "Every projection, by package and by slice: the views of a document, and the projections that combine them."),
         make_window_command("About", editor -> _reach_tool!(editor, AboutPage, about);
                             tooltip = "What this program is, and its version."),
     ]))
@@ -309,11 +311,13 @@ _find_tool_settings(editor) = something(find_editor_settings(; editor), make_set
 
 # A list of the Help menu is longer than a pane, and a tab page gets no scroll of
 # its own, so the list opens inside a scroll pane.
-_make_scrolling_tool(type::Type) = _ -> WidgetScrollPane(make_insertion_document(type))
+# A tool that a person goes through one part at a time, such as a tree of the
+# help, opens in a navigator.
+_make_navigating_tool(type::Type) = _ -> Navigator(make_insertion_document(type))
 
-# What a tool tab shows: the content of the scroll pane that a scrolling tool
-# opens in, else the document itself.
-_get_tool_document(document) = document isa WidgetScrollPane ? document.content : document
+# What a tool tab shows: the content of the navigator that a tool opens in, else
+# the document itself.
+_get_tool_document(document) = document isa Navigator ? document.content : document
 
 # The pane slice's own edits, in the pane tree that holds the focus. A menu
 # command is a second way to the one implementation. It runs while the editor
@@ -399,11 +403,8 @@ function _reach_tool!(editor, type::Type, make)
     tree_reference, tree = found
     tool = _find_tool_tab(tree, type)
     if tool === nothing
-        document = make(editor)
-        shown = _get_tool_document(document)
-        # A tool in a scroll pane is titled by what it shows, not by the pane.
-        title = shown === document ? nothing : get_document_title(shown)
-        post_pane_operation!(editor, make_open_pane_operation(document; title = title, editor))
+        # A tab is titled by what it shows, and a navigator by its page.
+        post_pane_operation!(editor, make_open_pane_operation(make(editor); editor))
     else
         group, index = tool
         _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),

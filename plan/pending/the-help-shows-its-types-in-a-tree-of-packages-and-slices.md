@@ -244,7 +244,12 @@ two trees".
    - In a `Navigator`, a double click on the row Widget opens its page, and Back
      returns.
    - The page of an entry shows the whole docstring, and it scrolls.
-4. [ ] **The menu opens a navigator.** Change the two items of the Help menu.
+4. [x] **The menu opens a navigator.** Done. The shell gets the edge
+   `navigator`; `_make_navigating_tool` takes the place of
+   `_make_scrolling_tool`, which no tool uses now, and a navigator tab takes no
+   name, so it is called by its page. `test_window_shell()` passes, 145 of 145,
+   `test_explorer()` 257 of 257, `test_help()` 75 of 75. The shell test saves a
+   navigator on a group and loads it: the page comes back after the build. Change the two items of the Help menu.
    Test: the help cases of `test_window_shell()`, and in `test_explorer()` a
    press on Documents › JSON that shows its page.
 5. [ ] **The guides and a live check.** Update help.md (the tree, the pages, the

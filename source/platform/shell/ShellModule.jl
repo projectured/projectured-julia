@@ -45,6 +45,7 @@ using ..GraphicsModule
 using ..GestureHelpModule
 using ..GestureLogModule
 using ..HelpModule
+using ..NavigatorModule
 using ..StyleModule
 using ..ToolModule
 using ..TooltipModule

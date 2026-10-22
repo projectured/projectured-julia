@@ -112,10 +112,10 @@ end
     # A host gives the page of its own program.
     page = AboutPage(; name = "Host", version = "2.0")
     help = make_window_help_menu(; about = _ -> page)
-    # A list is longer than a pane, so it opens inside a scroll pane; the page
-    # about the program is short and opens bare.
+    # A tree opens in a navigator, which shows one group or one type at a time;
+    # the page about the program is short and opens bare.
     shown(tab) = (document = get_wrapped_document(tab.content);
-                  document isa WidgetScrollPane ? document.content : document)
+                  document isa Navigator ? document.content : document)
     holding(type) = [shown(tab) for tab in group.tabs if shown(tab) isa type]
     for (item, type) in zip(help.submenu.elements, [DocumentTypeList, ProjectionList, AboutPage])
         evaluate_operation(editor, InvokeActionOperation(item.action))
@@ -128,22 +128,23 @@ end
     @test only(holding(AboutPage)) === page
     @test length(group.tabs) == 4
     tab(type) = only(tab for tab in group.tabs if shown(tab) isa type)
-    @test get_wrapped_document(tab(DocumentTypeList).content) isa WidgetScrollPane
-    @test get_wrapped_document(tab(ProjectionList).content) isa WidgetScrollPane
+    @test get_wrapped_document(tab(DocumentTypeList).content) isa Navigator
+    @test get_wrapped_document(tab(ProjectionList).content) isa Navigator
     @test get_wrapped_document(tab(AboutPage).content) === page
-    # The tab is titled by the list, not by the scroll pane.
+    # The tab of a navigator is titled by its page, here the root of the tree.
     @test get_pane_tab_title_string(tab(DocumentTypeList)) == "Documents"
     @test get_pane_tab_title_string(tab(ProjectionList)) == "Projections"
-    # A saved window keeps the list in its scroll pane, and where it was
-    # scrolled.
-    pane = get_wrapped_document(tab(DocumentTypeList).content)
-    pane.scroll_position.y[] = 40
-    text = print_pred_text(pane)
+    # A saved window keeps the tree and the address of the page as a path, and the
+    # acquire after the load builds the groups that the path reaches.
+    navigator = get_wrapped_document(tab(DocumentTypeList).content)
+    update_help_groups!(navigator.content)
+    navigator.address = extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(2))
+    text = print_pred_text(navigator)
     again = parse_pred_text(text)
-    @test again isa WidgetScrollPane
-    @test again.content isa DocumentTypeList
-    @test occursin("scroll_position = Point2D(x = 0, y = 40),", text)
-    @test (again.scroll_position.x[], again.scroll_position.y[]) == (0, 40)
+    @test again isa Navigator && again.content isa DocumentTypeList
+    @test isempty(again.content.children)
+    update_help_groups!(again.content)
+    @test get_navigator_page(again) === again.content.children[2]
 end
 
 @testset "the shell prints what it holds with the step of its field" begin
