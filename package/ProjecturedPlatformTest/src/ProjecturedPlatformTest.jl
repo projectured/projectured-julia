@@ -464,10 +464,19 @@ using ProjecturedPlatform.SerializationModule: pred_arguments
 using ProjecturedPlatform.SyntaxModule: SyntaxToText
 using ProjecturedPlatform.TextModule: TextToString
 using ProjecturedPlatform.TreeModule
+using ProjecturedPlatform.LayoutModule
+using ProjecturedPlatform.WidgetModule
+using ProjecturedPlatform.NavigatorModule
+using ProjecturedKernel.EditorModule: run_frame!
+using ProjecturedKernel.OperationModule: evaluate_operation
+using ProjecturedKernel.GestureModule: MouseClick
+using ProjecturedKernel.EventModule: ModifierKeys
 using ProjecturedPlatform.HelpModule
+# The editor of a navigator test, and the clicks on what its frame draws.
+using ..ProjecturedPlatformTest: _nav_editor, _nav_click, _nav_press!, _nav_has_text, _NAV_BACK, _NAV_PARENT
 
 include("../../../test/platform/help/HelpTreeTest.jl")
-include("../../../test/platform/help/HelpListToSyntaxTest.jl")
+include("../../../test/platform/help/HelpPageTest.jl")
 include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
 include("../../../test/platform/help/HelpSuite.jl")
 end # module HelpTests

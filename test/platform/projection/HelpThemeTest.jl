@@ -60,14 +60,17 @@ end
     @test unwrap_cell(scaled.style).palette_radius == 12
 end
 
-@testset "HelpListToSyntax reads HelpTheme" begin
+@testset "HelpGroupToWidget and HelpEntryToWidget read HelpTheme" begin
     defaults = make_scaled_theme(HelpTheme())
-    plain = make_help_list_projection()
+    theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme)
+    plain = make_help_group_projection()
     @test !hasfield(typeof(plain), :theme)
-    scaled = make_help_list_projection(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
-    _check_theme_roles(plain, scaled, defaults,
-                       [(:heading, :heading_text), (:name, :name_text), (:detail, :detail_text),
-                        (:description, :description_text), (:muted, :muted_text)])
+    _check_theme_roles(plain, make_help_group_projection(; theme), defaults, [(:line, :heading_text)])
+    plain = make_help_entry_projection()
+    @test !hasfield(typeof(plain), :theme)
+    _check_theme_roles(plain, make_help_entry_projection(; theme), defaults,
+                       [(:name, :name_text), (:detail, :detail_text), (:description, :description_text),
+                        (:muted, :muted_text)])
 end
 
 @testset "AboutPageToSyntax reads HelpTheme" begin
@@ -114,7 +117,7 @@ end
 end
 
 @testset "a document of the Help menu and of an inspector follows the font scale" begin
-    for document in (AboutPage(), DocumentTypeList(), ReferenceInspector())
+    for document in (AboutPage(), update_help_groups!(DocumentTypeList()), ReferenceInspector())
         plain = draw_font_sizes(document, Appearance())
         @test !isempty(plain)
         @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)

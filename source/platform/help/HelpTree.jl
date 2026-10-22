@@ -44,23 +44,36 @@ function update_help_groups!(list::_HelpList)
     for package in _sort_help_packages(collect(keys(packages)))
         modules = packages[package]
         title = _get_help_package_title(package)
-        children = if length(modules) == 1
-            _build_help_entries(only(values(modules)), old_entries; typed)
+        entry_columns = typed ? _HELP_DOCUMENT_COLUMNS : _HELP_PROJECTION_COLUMNS
+        children, columns = if length(modules) == 1
+            (_build_help_entries(only(values(modules)), old_entries; typed), entry_columns)
         else
-            Any[_update_help_group!(old_groups, string(title, "/", _get_help_module_title(m)),
-                                    _get_help_module_title(m), compute_docstring_summary(m),
-                                    _build_help_entries(modules[m], old_entries; typed))
-                for m in _sort_help_modules(collect(keys(modules)))]
+            (Any[_update_help_group!(old_groups, string(title, "/", _get_help_module_title(m)),
+                                     _get_help_module_title(m), compute_docstring_summary(m),
+                                     _build_help_entries(modules[m], old_entries; typed), entry_columns)
+                 for m in _sort_help_modules(collect(keys(modules)))], _HELP_GROUP_COLUMNS)
         end
         description = compute_docstring_summary(package)
         isempty(description) && length(modules) == 1 &&
             (description = compute_docstring_summary(only(keys(modules))))
-        push!(groups, _update_help_group!(old_groups, title, title, description, children))
+        push!(groups, _update_help_group!(old_groups, title, title, description, children, columns))
     end
     _write_help_children!(list, groups)
+    getfield(list, :table)[] === nothing && (list.table = _make_help_table(list, _HELP_GROUP_COLUMNS))
     list.world = Base.get_world_counter()
     list
 end
+
+# The columns of the table of a page: a group, a document type or a projection.
+const _HELP_GROUP_COLUMNS = ["name", "count", "description"]
+const _HELP_DOCUMENT_COLUMNS = ["name", "typed", "description"]
+const _HELP_PROJECTION_COLUMNS = ["name", "description"]
+
+# The roster of the children of `holder`, which its page draws: a double click on
+# a row opens the page of the row.
+_make_help_table(holder, columns) =
+    link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("children")));
+                        columns, title = get_document_title(holder)), holder)
 
 # The groups of a list by their path of names, such as "Platform/Widget", and the
 # entries by their type.
@@ -81,11 +94,15 @@ function _index_help_nodes(list::_HelpList)
 end
 
 # The group at `place`, with the fields of a new build: the one a build before
-# made, or a new one.
-function _update_help_group!(old_groups, place, name, description, children)
+# made, or a new one, whose table has `columns`.
+function _update_help_group!(old_groups, place, name, description, children, columns)
     count = sum((child isa HelpGroup ? child.count : 1 for child in children); init = 0)
     group = get(old_groups, place, nothing)
-    group === nothing && return HelpGroup(name, count, description, CellVector(Any[children...]))
+    if group === nothing
+        group = HelpGroup(name, count, description, CellVector(Any[children...]), nothing)
+        group.table = _make_help_table(group, columns)
+        return group
+    end
     group.count == count || (group.count = count)
     group.description == description || (group.description = description)
     _write_help_children!(group, children)

@@ -144,13 +144,30 @@ group, `:file` for a document type, `:lambda` for a projection.
   - a projection: name, summary.
 
   A double click on a row opens the page of its node in the nearest navigator.
-  The roster answers this already. The arrangement gives a filter and a sort.
   The page is a `make_graphics_projection` method, as the page of the log is.
+  Facts found in step 3:
+  - The roster answers the double click with the path of the row,
+    `table.rows[r].item`, so the address would run through the table. The page
+    maps that open to the place of the node, `children[k]`, in its `read_intent`,
+    as the data frame view maps a double click on the number of a row.
+  - The table is a plain `Roster` and no `ArrangementDocument`: the first filter
+    of a person wraps it through `make_first_arrangement`, as at any table, so the
+    page needs no rule that keeps an arrangement.
+  - A tree that no acquire built has no table, and its page shows the line
+    alone.
 - **The page of an entry** shows the name, the package and the module, the names
   to type for a document type, and then the whole docstring as its raw text, or
   "no description". The page has a scroll pane of its own, because a navigator
   puts none around a page.
-- `HelpListToSyntax` goes. The page of a root takes its place.
+- `HelpListToSyntax` goes. The page of a root takes its place. The exports
+  `compute_help_entries` and `make_help_list_projection` go, and
+  `make_help_group_projection` and `make_help_entry_projection` come. The
+  platform takes the minor step 0.2.0 at its next release already (R36), so the
+  removal waits for no other step.
+- Every field of `HelpTheme` keeps a use, because a removed theme field breaks
+  a user: `heading_text` draws the line over a table, `name_text` the name of a
+  type on its page, and `detail_text`, `description_text` and `muted_text` the
+  rest of that page.
 
 ### Where the tree shows
 
@@ -216,7 +233,12 @@ two trees".
      `groups[2].groups[k].entries[j]` both ways.
    - A second build keeps the objects of the groups and the entries.
    - `DocumentTypeList()` walks nothing, and a save writes its type name only.
-3. [ ] **The pages.** Add the page of a root and a group, and the page of an
+3. [x] **The pages.** Done, in
+   [HelpGroupToWidget.jl](../../source/platform/help/HelpGroupToWidget.jl) and
+   [HelpEntryToWidget.jl](../../source/platform/help/HelpEntryToWidget.jl).
+   `test_help()` passes, 75 of 75, and `test_help_themes()` 108 of 108. The test
+   in a navigator acquires the navigator with `AcquireDocumentOperation`, as a
+   tab does, because an editor with no tab acquires nothing. Add the page of a root and a group, and the page of an
    entry. Remove `HelpListToSyntax`. Test:
    - The page of Platform under Documents has 33 rows.
    - In a `Navigator`, a double click on the row Widget opens its page, and Back
