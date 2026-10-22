@@ -95,7 +95,7 @@ is displayed in the table (e.g. mean | minimum| maximum | total vs show: [time â
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The record.** In `Feeds.jl`, `Editor.jl` and `EditorLoop.jl`: the
+1. [x] **The record.** Done; see [As built](#as-built). In `Feeds.jl`, `Editor.jl` and `EditorLoop.jl`: the
    stages keep their cell counts beside their times, the record gives each part
    its time and its counts as `<part>_<measure>`, with `reader` and `print` as
    their stage less `input` and `paint`, and the exported table of parts and
@@ -121,3 +121,18 @@ on `main` before the owner approves.
 - The slow frame report, which names its slowest stage as it does now.
 - The `[perf]` line of `_log_performance_counters!`.
 - A split of the keys that `@count_performance` adds beyond the six cell counts.
+
+## As built
+
+- **Step 1.** `_FrameStages` holds one time and one tuple of six cell counts for
+  each measured part, `_MEASURED_FRAME_PARTS`: the five stages, `:input` and
+  `:paint`. `_measure_frame_part` measures a part, with the time of held frames
+  taken out, and `_time_frame_stage` measures a stage through it and keeps the
+  slowest. `_compute_frame_part_measures` gives the reader as the read stage less
+  the input, and the print as the print stage less the paint, never below zero,
+  because a playback runs a read or a print outside its stage. The editor
+  exports `FRAME_PARTS`, `FRAME_PART_MEASURES` and
+  `get_frame_part_measurement_name`, which reads a table made from the two. The
+  six cell keys of the scope are recorded only as `frame_cell_â€¦`; every other key
+  keeps its name. The editor tests pass: 197 of 197 without the counters, 212 of
+  212 with them. The naming, style, argument and export guards pass.

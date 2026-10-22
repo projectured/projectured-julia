@@ -199,7 +199,7 @@ end
 # the fault counts as a fault of the device, and the device barrier bounds it.
 function _write_output_to_devices!(editor::Editor)
     try
-        _time_device_half(editor, :device_write) do
+        _measure_frame_part(editor, :paint) do
             with(_PAINTING_EDITOR => editor) do
                 # Through `invokelatest`, as every call of the backend protocol: a
                 # backend package adds methods, which would invalidate a resolved

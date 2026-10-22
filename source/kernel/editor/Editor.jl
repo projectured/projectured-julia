@@ -94,37 +94,38 @@ Holds the state for a read-eval-print loop:
   - `has_loop_ended` — the loop of [`run_editor!`](@ref) ran and ended. An editor
                    runs its loop once (internal).
   - `frame_stages` — the stages of the frame that runs: the slowest stage with
-                   its work, the sum of each stage and of each device half, the
-                   cell counts of each device half, and the time that the frame
-                   spent in held frames. A frame that is slow anyway is reported
+                   its work, the time and the cell counts of each part that the
+                   loop measures, and the time that the frame spent in held
+                   frames. A frame that is slow anyway is reported
                    with them, and each frame records them (internal).
   - `session_documents` — the documents of the session of this editor that a
                    slice keeps for it, by their type, such as its message log;
                    [`get_session_document!`](@ref) makes each one the first time.
                    No other editor shows them, so no document has two owners.
 """
-# The stages of the frame that runs: its slowest stage with its work, the sum of
-# each stage and of each device half without its held frames, the time that the
-# frame spent in the held frames of code units, the cell counts of each device
-# half, and the counters of the process when the frame started.
+# The parts of a frame that the loop measures: the five stages, and the read of
+# the input and the paint, which are parts of the read stage and of the print
+# stage. The record of a frame gives the reader and the print as their stage less
+# that part.
+const _MEASURED_FRAME_PARTS = (:feed, :report, :read, :input, :evaluate, :print, :paint)
+
+# The cell counts of the counters, in the order of the cell measures of a part.
+const _CELL_COUNT_KEYS = (:reads, :checks, :computes, :stops, :invalidations, :writes)
+
+# The stages of the frame that runs: its slowest stage with its work, the time and
+# the cell counts of each measured part without its held frames, the time that the
+# frame spent in the held frames of code units, and the counters of the process
+# when the frame started.
 mutable struct _FrameStages
     seconds::Float64
     stage::Symbol
     work::Any
     held_seconds::Float64
-    feed_seconds::Float64
-    read_seconds::Float64
-    evaluate_seconds::Float64
-    print_seconds::Float64
-    report_seconds::Float64
-    # A device half is a part of its stage: the read of the backend is in the read
-    # stage, and the write is in the print stage.
-    device_read_seconds::Float64
-    device_write_seconds::Float64
-    # The reads, computations, invalidations and writes of cells that each device
-    # half added to the counters; zero while the counters are compiled out.
-    device_read_counts::NTuple{4,Int}
-    device_write_counts::NTuple{4,Int}
+    # One entry for each part of `_MEASURED_FRAME_PARTS`. The counts are those of
+    # `_CELL_COUNT_KEYS` that the part added, and zero while the counters are
+    # compiled out.
+    part_seconds::NTuple{length(_MEASURED_FRAME_PARTS),Float64}
+    part_counts::NTuple{length(_MEASURED_FRAME_PARTS),NTuple{length(_CELL_COUNT_KEYS),Int}}
     started_bytes::Int64
     started_collection_ns::UInt64
     started_compile_ns::UInt64
@@ -132,8 +133,10 @@ mutable struct _FrameStages
     started_running_ns::Union{UInt64,Nothing}
 end
 
-_FrameStages() = _FrameStages(0.0, :none, nothing, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                              0.0, 0.0, (0, 0, 0, 0), (0, 0, 0, 0),
+_FrameStages() = _FrameStages(0.0, :none, nothing, 0.0,
+                              map(_ -> 0.0, _MEASURED_FRAME_PARTS),
+                              map(_ -> map(_ -> 0, _CELL_COUNT_KEYS),
+                                  _MEASURED_FRAME_PARTS),
                               Base.gc_bytes(), Base.gc_time_ns(),
                               first(Base.cumulative_compile_time_ns()),
                               Base.Experimental.task_running_time_ns(current_task()))

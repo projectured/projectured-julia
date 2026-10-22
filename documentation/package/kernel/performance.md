@@ -115,7 +115,7 @@ The layer has no interface file: it declares no seam that a layer above answers.
 
 - The cell engine counts its reads, computations, invalidations and writes, in `ReactiveCell.jl`.
 - The editor runs each frame in a scope of its own, in `run_measured_frame!` of `EditorLoop.jl`. With the counters, it logs the counts of each frame that applied an operation.
-- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the frame time, the time of each stage and of the device read and the device write in it, of the held frames, of the garbage collector and of the compiler, and the allocated bytes, in every build; the [editor guide](editor.md#performance-counters) lists the names. With the counters, it also records the four cell counts of the device read and of the device write, every count, and every time in seconds.
+- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the time of each part of a frame (`FRAME_PARTS`), of the held frames, of the garbage collector and of the compiler, and the allocated bytes, in every build; the [editor guide](editor.md#performance-counters) lists the parts and the names. With the counters, it also records the six cell counts of each part, and every other count and time of the scope, the times in seconds.
 - The statistics view of the platform draws the store; see the [statistics guide of the platform](../platform/statistics/statistics.md).
 - Code that waits for the first frame, such as the check of a release, polls `get_frame_count`.
 

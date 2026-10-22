@@ -14,7 +14,7 @@ The module lives in eleven fragments that share this namespace:
 - [`Inbox.jl`](Inbox.jl) — `post_operation!`, `wake_editor!`,
   `drain_operations!`, and the calls that another task runs on the editor task.
 - [`Feeds.jl`](Feeds.jl) — `InboxFeed`, the timeout of the wait, the frame
-  measurements, and `drain_feeds!`.
+  measurements and the parts of a frame, and `drain_feeds!`.
 - [`ReadEvaluatePrint.jl`](ReadEvaluatePrint.jl) — the three stages of a frame,
   `run_read_stage!`, `run_evaluate_stage!` and `run_print_stage!`, and
   `read_rooted_operation`.
@@ -67,7 +67,8 @@ export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation,
        is_editor_in_safe_mode, make_safe_mode_projection, enter_safe_mode!,
        leave_safe_mode!,
        report_frame_faults!, record_paint_fault!,
-       InboxFeed, wake_editor!, drain_feeds!, run_code_unit!, find_code_unit_thread_notice,
+       InboxFeed, wake_editor!, drain_feeds!, FRAME_PARTS, FRAME_PART_MEASURES,
+       get_frame_part_measurement_name, run_code_unit!, find_code_unit_thread_notice,
        get_backend_name, get_backend_output, collect_backend_types, DEFAULT_BACKEND,
        make_default_backend,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,

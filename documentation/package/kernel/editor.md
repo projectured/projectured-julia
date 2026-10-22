@@ -721,17 +721,24 @@ recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
 The loop also records every frame in `editor.frame_measurements`, in every
-build. `record_frame_performance!` records:
+build. `record_frame_performance!` records the time of each part of a frame.
+`FRAME_PARTS` names the parts in the order of the loop, and they do not overlap:
 
-- `:frame_time`, the time of the whole frame, with its held frames;
-- `:feed_time`, `:read_time`, `:evaluate_time`, `:print_time` and `:report_time`,
-  the sum of each stage without its held frames; `:print_time` holds the paint
-  and a retry of a part that failed;
-- `:device_read_time` and `:device_write_time`, the sum of the calls of
-  `take_from_devices!` and of `write_to_devices!`, without held frames. Each is a
-  part of its stage: `:read_time` holds the device read, and `:print_time` holds
-  the device write. The print is lazy, so the device write also holds the
-  printer computations that run while the backend reads the output;
+| Part | What runs in it |
+| --- | --- |
+| `:feed` | `drain_feeds!`: the changes that other tasks stored |
+| `:report` | the report of the faults of the last frame |
+| `:input` | `take_from_devices!`: the events of the backend |
+| `:reader` | the rest of the read stage: the reader of the projection |
+| `:evaluate` | the operations |
+| `:print` | the rest of the print stage: `print_document`, and a retry of a part that failed |
+| `:paint` | `write_to_devices!`: the backend reads the output, so the lazy printer computations run here |
+| `:frame` | the whole frame, which holds the seven parts and the small work between them |
+
+`get_frame_part_measurement_name(part, measure)` gives the name of a measure of a
+part, such as `:reader_time`. `:frame_time` holds the held frames, and the time
+of a part does not. The record also holds:
+
 - `:held_time`, the time of the held frames of code units;
 - `:garbage_collection_time` and `:compile_time`, the time that the garbage
   collector and the compiler took in the process during the frame;
@@ -741,16 +748,17 @@ build. `record_frame_performance!` records:
   frame.
 
 The values of the garbage collector, the compiler and the allocations are of
-the whole process, so the work of other threads counts too. When the counters
-are compiled in, the record holds them as well; the
-[performance guide](performance.md) says how. It then also holds the reads,
-computations, invalidations and writes of cells in each device half, from
-`:device_read_reads` to `:device_write_writes`, so a frame shows how much of its
-cell work ran while the backend read the output. The store keeps the
-last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
-(open a tab and type `statistics`) and their times as a chart (type
-`frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
-writes the frames as CSV.
+the whole process, so the work of other threads counts too. The
+[performance guide](performance.md) says how to compile the counters in. With
+them, the record also holds the six cell counts of `FRAME_PART_MEASURES` for each
+part, such as
+`:paint_cell_computes` or `:frame_cell_reads`, and every other count and time
+of the scope under its own name. So a frame shows which part did its cell work.
+The store keeps the last 1000 frames. The `FrameStatisticsFeed` shows their
+summaries as a table (open a tab and type `statistics`) and their times as a
+chart (type `frame times`).
+`write_frame_measurements!("frames.csv", editor.frame_measurements)` writes the
+frames as CSV.
 
 ## The background cell
 
