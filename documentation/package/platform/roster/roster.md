@@ -73,7 +73,8 @@ A facet is a value of an item that the slice of its type computes. A slice decla
 | Type | Facets |
 | --- | --- |
 | `Document` | `type`: the name of the type of the document that a person sees, through the layers that wrap it |
-| `FileDocument` | `name`, `folder`, and `has_edits`: whether the history of the file has a step that the file does not hold |
+| `FileDocument` | `name`, `folder`, `has_edits`: whether the history of the file has a step that the file does not hold, and `state`: the words of its conditions, such as "unsaved edits" or "read only" |
+| `FilePage` | `name`, `folder` and `has_edits` of its file, and `state`: the words of the conditions of the page, which also says "changed on disk" and the conflict ([fileformat.md](../fileformat/fileformat.md)) |
 | `Assistant` | `title`, `turn`, `tokens`, `plan` (the completed steps over all the steps of its first plan with steps, such as `3/7`), `subagents` and `background_tasks` (how many run) |
 | `AgentWork` | `tokens` |
 | `SystemProcess` | `load`, `elapsed` |

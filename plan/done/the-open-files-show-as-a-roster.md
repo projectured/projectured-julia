@@ -1,6 +1,7 @@
 # The open files show as a roster
 
-Status: PENDING, 2026-10-22. No branch and no worktree yet.
+Status: DONE, 2026-10-22, on the branch `open-files-roster`, in the worktree
+`projectured-julia-open-files-roster`. Not landed on `main`.
 
 ## The ask
 
@@ -138,13 +139,35 @@ question whether to write this as a plan, the owner answered: "yes".
    - `test_platform_layering()`: 7 of 7 for each of the three packages.
      `test_explorer()`: 263 of 263 pass. `test_roster()`: 46 of 46 pass. No
      name of the step is in omnet-julia.
-4. [ ] **The guides and a live check.** Update
+4. [x] **The guides and a live check.** Update
    [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md)
    (the list and its page) and
    [roster.md](../../documentation/package/platform/roster/roster.md) (the rows
    of `FileDocument` and `FilePage` in the table of facets). Open two files in a
    live window, edit one, and take a picture of the page of "Open files". Move
    this plan to `plan/done/`.
+   **Done 2026-10-22.** The guides:
+   - `fileformat.md` has a section "The open files": the list, its table, its
+     page, the kept arrangement and a table of the facets of a file and of a
+     page. Its "How it fits" names the edges to the tree, roster and arrangement
+     slices and the three natural rows of the slice.
+   - `roster.md` has the facet `state` of `FileDocument` and a row for
+     `FilePage`.
+   - There is no guide of the arrangement slice, so `fileformat.md` and
+     `backgroundwork.md` describe `keep_held_arrangement` where their pages use
+     it.
+   - `explorer.md` lists the new testset.
+
+   The live check: a script in the scratchpad built the application window as
+   `run_application` builds it, with two text files, with `SdlBackend` on the
+   display `:0`. It called `start_application!` with no MCP and no assistant. It
+   pushed a step into the history of `notes.txt` with `push_undo_entry!`, and
+   not a key press, because the check is about the page and not about an edit.
+   A pushed SDL click on "Open files" in the tree showed the page. The window
+   drew "2 open files · 1 unsaved", the headers `name`, `folder` and `state`,
+   both files, and "unsaved edits" in the row of `notes.txt`. It drew no
+   `OpenFileList`. `write_window_picture` wrote the picture; the node in the
+   tree shows its pill "1 unsaved".
 
 ## Not in this plan
 
@@ -155,6 +178,5 @@ question whether to write this as a plan, the owner answered: "yes".
 
 ## Open items
 
-- The name of the function of step 2.
 - Whether a click on the name of a row must open the file, as a link does in
   the Tasks pane. A roster opens a page on a double click only.

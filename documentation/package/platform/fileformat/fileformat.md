@@ -1,8 +1,8 @@
 # File format
 
-> **Kind:** design · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md)
+> **Kind:** design · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md), [roster.md](../roster/roster.md)
 
-The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, and how a tab saves and reloads its file.
+The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, how a tab saves and reloads its file, and how the open files of an editor show as a table.
 
 ## How it works
 
@@ -76,15 +76,34 @@ The page holds the state of its file against the disk. `file_hash` is the hash o
 
 The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver, file_hash, content)`, which this slice declares. A page with the same hash does nothing. A file that a person does not edit, or with no edits (`has_unsaved_edits` false), loads the new document. Any other file keeps its content, and the page shows the band. A file document with no page loads a file that a person does not edit. For any other file it logs a warning, because it can not tell its own save from a change.
 
+### The open files
+
+`OpenFileList` holds the files that an editor holds open. Its field `files` holds one item for each file: the `FilePage` that a tab or a page shows, or the file document when no page holds it. `get_session_open_file_list(; editor)` gives the one list of a session. `find_open_file_document(path; editor)` finds the item of a path, so an open of a file that the list holds reaches that document. The acquire of a page or a file adds it (`add_open_file!`), and the release of its last holder takes it away (`remove_open_file!`). The explorer shows the list as the entry "Open files", with a count of the files that have unsaved edits.
+
+The field `table` holds the table of the files: an `ArrangementDocument` with no entry, around a `Roster` of `CollectionItems` at `files`, with the columns `name`, `folder` and `state`. The list of a session has it. A list that `OpenFileList()` makes has `nothing`. `OpenFileListToWidget` draws the page of the list: a line such as "2 open files · 1 unsaved", or "No file is open.", and under it the table. A person filters and sorts the table in its bar, and a double click on a row opens the page of its file.
+
+The removal of the last entry of an arrangement normally puts the roster in the place of the arrangement. The page keeps the arrangement with no entry instead, through `keep_held_arrangement` of the arrangement slice, so the next filter of the table has an arrangement to go to.
+
+A file and the page of a file have the facets that a roster of files shows, filters and sorts by:
+
+| Facet | `FileDocument` | `FilePage` |
+| --- | --- | --- |
+| `name` | the name of the file, without its folder | the name of its file |
+| `folder` | the folder of the file, as its file name gives it | the folder of its file |
+| `has_edits` | whether the history of the file has a step that the file does not hold | the same, of its file |
+| `state` | the words of its conditions, such as "unsaved edits" or "read only" | the words of the conditions of the page, which also says "changed on disk" and the conflict |
+
+A page with no file answers `nothing` for `name`, `folder` and `has_edits`. The words of `state` are the `words` of the `ConditionLook` of each condition, in the order that a tooltip says them, with commas between them. A file with no condition has an empty `state`.
+
 ### The tool set
 
 `make_file_api()` lists the file verbs that a language model can call: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 
-The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) adds `make_file_api()` to its tool set.
+The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) adds `make_file_api()` to its tool set.
 
-It registers one natural row: `register_natural_graphics!(:fileformat, …)` with `FileDocument => FileToContent()`. Every file type then draws as its content in a tab. [natural.md](../natural/natural.md) describes the table.
+It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FilePage` with `FilePageToWidget`; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
 
 ## Design decisions
 
@@ -105,7 +124,7 @@ tab  = make_file_tab("example.json", UndoBuffer)
 ```
 
 - Examples: no example of its own. The [application slice](../application/application.md) opens its files with `make_file_tab_content`.
-- Tests: no `test/fileformat/` folder exists. `test_file_tab()` in `test/projectured/projection/FileTabTest.jl` covers `FileToContent`, `test/projectured/editor/ApplicationTest.jl` covers the tool set, and `test/projectured/serializer/SerializationTest.jl` covers the binary format, the natural round trip of each domain and the export guard.
+- Tests: no `test/fileformat/` folder exists. `test_file_tab()` in `test/projectured/projection/FileTabTest.jl` covers `FileToContent`, `test/projectured/editor/ApplicationTest.jl` covers the tool set, and `test/projectured/serializer/SerializationTest.jl` covers the binary format, the natural round trip of each domain and the export guard. `test_roster_facets()` covers the facets of a file and of a page, and `test_explorer()` covers the open files and their page.
 
 ## Limits
 
