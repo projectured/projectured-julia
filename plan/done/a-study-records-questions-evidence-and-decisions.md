@@ -4,8 +4,9 @@
 > day after the answers of the owner: a study combines with the domains that
 > exist (§6), the author is only person or assistant (D1), an item holds the items
 > that it links to (§4.4), the study of omnet-julia merges into this domain (D3,
-> §8), and the domain is named Research (D4). Every decision is made. No step is
-> started. ·
+> §8), and the domain is named Research (D4). Every decision is made. **Done
+> 2026-10-22**: steps 1 to 9 and 12 on branch `research` of projectured-julia,
+> steps 10 to 12 on branch `research` of omnet-julia; neither branch is landed. ·
 > **Stands on:** [workflow.md](../../documentation/package/domain/workflow/workflow.md),
 > [a-workflow-records-steps-decisions-and-dates.md](../done/a-workflow-records-steps-decisions-and-dates.md),
 > [domain-anatomy.md](../../documentation/design/domain-anatomy.md),
@@ -941,7 +942,7 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   says; a document holds a pivot in such a pane. With this step `test_file_project()`
   (153 pass, 1 broken as on main), `test_workflow()` (199), `test_workflow_file()`
   (24) and `test_package_graph()` (417) pass.
-- [ ] **10. omnet-julia: the study of the IDE is a study of this domain.** §8.2:
+- [x] **10. omnet-julia: the study of the IDE is a study of this domain.** §8.2:
   `StudyVerbs.jl` keeps the verbs of the window and of the files of a simulation
   over the documents of this domain; `place_study_blocks!` walks the new study;
   the four packages of the old study go, with their places in the environments,
@@ -949,16 +950,51 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   `test_study_runs()` and `test_assistant_study_by_hand()` pass on the new
   documents, and the study by hand ends with `H1` accepted on evidence from a
   check against the real `opp_run`.
-- [ ] **11. omnet-julia: the guide, the system text, the rehearsal and the
+  **Done (2026-10-22, omnet-julia c2b55155).** The four packages of the old study,
+  `source/study/` and `test/study/` go; `OmnetIde` depends on `ProjecturedResearch`.
+  `get_study()` answers the study of the pane "Study" as a part of the window, so the
+  verbs of the domain write through its history; the pane "Report" beside it shows
+  the report. `place_study_blocks!` walks the design, the method and the content of
+  each item and the blocks of the report. In a scratch environment with every
+  package of projectured-julia from its branch: `test_study_verbs()` 55,
+  `test_study_runs()` 10, `test_assistant_study_by_hand()` 31 (to the save, and a
+  second window that opens the folder to the same graph),
+  `test_mini_project_round_trip()` 20. Found:
+  - The save wrote a formula of a sheet at the hypothesis that names it; the
+    serialization fix of §10 (review) answers it, and a file whose format writes no
+    reference, such as a NED file, keeps its nodes at their first place.
+  - `IdeClosureTest.jl` loads only when projectured-julia has the package on main,
+    because the `[sources]` path names the main checkout.
+  - The arc test asserted two pane groups, which fails on main too; it asserts the
+    two tabs of the study now. Its wait read `task.status`, which no task has; it
+    reads the status of the task document.
+  - Decided in the step: `check_expectations!()` answers `supports H1: …` or
+    `opposes H1: …`; the arc holds the mean queue length against the formula `L_q`,
+    because the blocking is no single recorded value.
+- [x] **11. omnet-julia: the guide, the system text, the rehearsal and the
   recording script.** The study sections of `assistant-guide.md` write the verbs
   of §7.1 and §8.2; `STUDY_GUIDE_SECTIONS`, `STUDY_TURNS` and
   `tool/assistant/study_rehearsal.jl` follow them. Test:
   `test_study_recording_script()`, and `test_assistant_study()`, which skips
   without a local model.
-- [ ] **12. The design documents.** `documentation/package/domain/research/research.md`;
+  **Done (2026-10-22, omnet-julia 781abcbb).** Two headings of the guide that
+  `STUDY_GUIDE_SECTIONS` reads change with it: "a hypothesis with an expectation,
+  and its check" and "evidence, an answer, and the folder". The recording script,
+  the rehearsal, the warm-up steps and the search corpora write the new verbs.
+  `test_study_recording_script()`: 17 pass. `test_assistant_study()` ran, because
+  a local model is there; turn 1 passed its 90 s bound while the model searched,
+  so the arc stopped (0 pass, 1 fail); it is not compared with main. The rankings
+  of the search corpora are not measured again.
+- [x] **12. The design documents.** `documentation/package/domain/research/research.md`;
   the change of serialization.md for step 1; the rows of domain-inventory.md; in
   omnet-julia, `documentation/package/study/study.md` says what the IDE adds to a
   study of this domain; the plan to `plan/done/`.
+  **Done (2026-10-22).** projectured-julia: `research.md`, the rows of
+  domain-inventory.md and the registry reader in serialization.md; the documentation
+  check passes. omnet-julia (61729908): the reference of the study, area 8 of the
+  vocabulary, the anatomy of the study page and the layout of the repository, and a
+  sentence of the guide. Before the landing: projectured-julia lands first, because
+  the `[sources]` of omnet-julia name its main checkout.
 
 ### The review of the branch (2026-10-22)
 

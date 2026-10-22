@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
 
-This document lists the nineteen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
+This document lists the twenty packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
 
 ## The domain documents
 
@@ -17,6 +17,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | reStructuredText | [rst.md](../package/domain/rst/rst.md) |
 | Book | [book.md](../package/domain/book/book.md) |
 | Workflow | [workflow.md](../package/domain/workflow/workflow.md) |
+| Research | [research.md](../package/domain/research/research.md) |
 | Math notation | [math.md](../package/domain/math/math.md) |
 | Julia code | [julia.md](../package/domain/julia/julia.md) |
 | Formula | [formula.md](../package/domain/formula/formula.md) |
@@ -45,7 +46,7 @@ Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `packa
 
 ## The dependency table
 
-Fourteen domains depend on no other domain. Five build on one layer of domains.
+Fourteen domains depend on no other domain. Five build on one layer of domains, and one, Research, builds on Formula, which builds on Julia and Math.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -68,8 +69,9 @@ Fourteen domains depend on no other domain. Five build on one layer of domains.
 | `ProjecturedFSM` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
 | `ProjecturedPivot` | `source/domain/pivot/` | Chart |
+| `ProjecturedResearch` | `source/domain/research/` | Formula, Graph, Markdown, Math |
 
-Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. A cell of a pivot holds a chart. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
+Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. A cell of a pivot holds a chart. A study holds a formula sheet as the method of an analysis, its map is a graph, and its report is a Markdown page. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
 
 ## What is NOT a domain package
 
