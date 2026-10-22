@@ -113,8 +113,9 @@ function _assign_owners(project::FileProject)
     owner = IdDict{Any,Tuple{Any,Reference}}()
     for file in project.files
         content = get_file_content(file)
+        leaf_type = _find_reference_leaf_type(file)
         fixed = IdDict{Any,Bool}()
-        _collect_fixed_nodes!(fixed, file, content, IdDict{Any,Bool}())
+        leaf_type === nothing || _collect_fixed_nodes!(fixed, file, leaf_type, content, IdDict{Any,Bool}())
         for kept in (fixed, IdDict{Any,Bool}())
             if is_own_content(file)
                 # The file node is the root of its own tree, so it is what the file
@@ -123,10 +124,10 @@ function _assign_owners(project::FileProject)
                 for (steps, child) in _child_slots(content)
                     is_written_in_file(file, content, _slot_field(steps)) || continue
                     _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...),
-                               kept, _is_fixed_slot(file, content, steps))
+                               kept, leaf_type, _is_fixed_slot(leaf_type, content, steps))
                 end
             else
-                _own_walk!(owner, file, content, EmptyReference(), kept, false)
+                _own_walk!(owner, file, content, EmptyReference(), kept, leaf_type, false)
             end
         end
     end
@@ -135,7 +136,7 @@ end
 
 # `kept` holds the nodes that wait for their typed slot; `at_fixed` says whether
 # `path` is such a slot.
-function _own_walk!(owner, file, node, path::Reference, kept, at_fixed::Bool)
+function _own_walk!(owner, file, node, path::Reference, kept, leaf_type, at_fixed::Bool)
     node isa Document || return
     is_file_document(node) && return
     is_file_domain_node(file, node) || return
@@ -144,32 +145,43 @@ function _own_walk!(owner, file, node, path::Reference, kept, at_fixed::Bool)
     owner[node] = (file, path)
     for (steps, child) in _child_slots(node)
         is_written_in_file(file, node, _slot_field(steps)) || continue
-        _own_walk!(owner, file, child, extend_reference(path, steps...), kept,
-                   _is_fixed_slot(file, node, steps))
+        _own_walk!(owner, file, child, extend_reference(path, steps...), kept, leaf_type,
+                   _is_fixed_slot(leaf_type, node, steps))
+    end
+end
+
+# The type of the reference leaf of `file`, or `nothing` for a file that writes no
+# reference, such as a file whose format has no place for one.
+function _find_reference_leaf_type(file)
+    try
+        typeof(make_reference_leaf(file, "file(\"x\")"))
+    catch
+        nothing
     end
 end
 
 # Whether the slot of `node` at `steps` holds an element of a list whose declared
-# element type a reference leaf of `file` is not.
-function _is_fixed_slot(file, node, steps::Tuple)
+# element type the reference leaf type `leaf_type` is not.
+function _is_fixed_slot(leaf_type, node, steps::Tuple)
+    leaf_type === nothing && return false
     length(steps) == 2 || return false
     raw = getfield(node, _slot_field(steps))
     value = raw isa AbstractCell ? raw[] : raw
     element_type = find_declared_element_type(value)
     element_type === nothing && return false
-    !(typeof(make_reference_leaf(file, "file(\"x\")")) <: element_type)
+    !(leaf_type <: element_type)
 end
 
 # Every node of the file's domain that `node` reaches and that a typed slot holds.
-function _collect_fixed_nodes!(fixed, file, node, visited)
+function _collect_fixed_nodes!(fixed, file, leaf_type, node, visited)
     node isa Document || return
     is_file_document(node) && return
     haskey(visited, node) && return
     visited[node] = true
     for (steps, child) in _child_slots(node)
         is_written_in_file(file, node, _slot_field(steps)) || continue
-        _is_fixed_slot(file, node, steps) && (fixed[child] = true)
-        _collect_fixed_nodes!(fixed, file, child, visited)
+        _is_fixed_slot(leaf_type, node, steps) && (fixed[child] = true)
+        _collect_fixed_nodes!(fixed, file, leaf_type, child, visited)
     end
 end
 
