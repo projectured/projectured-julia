@@ -872,9 +872,16 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   `ResearchMapToGraph` is a plain struct: `@projection` on a struct with no field
   gives an expression that a docstring can not document. The atom `map` joins the
   catalog. The test is `test_research_map_to_graph()`, 16 pass.
-- [ ] **6. The timeline.** §5.3. Test: a roster of `StudyItems` sorted by time
+- [x] **6. The timeline.** §5.3. Test: a roster of `StudyItems` sorted by time
   gives the rows of §4.6 in order, a filter on the author keeps the rows of the
   assistant, and a new item shows as a new row.
+  **Done (2026-10-22).** `ResearchRoster.jl`: the source `StudyItems(study)`, and
+  the facets `kind` and `text` of an item. The column `text` replaces `statement`
+  of §5.3, because an experiment has a title and a source a citation. The `time` is
+  a UTC text in ISO form, so it sorts as a text and needs no method of
+  `get_arrangement_value`. `ItemsWithin(CollectionItems(…), ResearchItem)` gives
+  each item of a study once, an item that a link holds too. `test_research_roster()`:
+  11 pass.
 - [ ] **7. The explorer.** §5.4. Test: a study entry shows its items with their
   ids and statuses, the "+" of a section offers a study, and a study opens in a
   tab.

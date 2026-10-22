@@ -30,6 +30,8 @@ using ..GraphModule
 import ..DocumentModule: get_document_title
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
+import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
+                       get_item_facets, compute_item_facet
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
        ResearchHypothesis, ResearchEvidence, ResearchDecision, ResearchAnswer, ResearchExperiment,
@@ -44,12 +46,14 @@ export ResearchItemToWidget, ResearchStudyToWidget, ResearchToWidgetIoMap, make_
        make_research_graphics_entries, describe_research_link, describe_research_expectation
 export ResearchMap, ResearchMapToGraph, ResearchMapPartToWidget, ResearchMapToGraphIoMap,
        make_research_map_projection
+export StudyItems
 
 include("ResearchDocument.jl")
 include("ResearchEdits.jl")
 include("ResearchTheme.jl")
 include("ResearchToWidget.jl")
 include("ResearchMapToGraph.jl")
+include("ResearchRoster.jl")
 
 function __init__()
     # The rows that let the renderer draw a study as its outline, and an item of
