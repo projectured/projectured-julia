@@ -78,10 +78,9 @@ The owner added three things the same day:
   strict mode, in which every marker is an error. So a node that one file holds
   twice, or a cycle, is refused: the tests "a shared subtree is rejected: a single
   file cannot refer to itself" and "a cycle is rejected the same way" of
-  `FileProjectTest.jl` assert it. `load_file` reads one file and keeps each of its
-  markers as a leaf. The tab of a `.pred` file saves through `save_file!`
-  (`_write_registered_file`, `DocumentFile.jl`). So a study with links, saved from
-  its tab, fails today. Step 1 removes this limit.
+  `FileProjectTest.jl` assert it. The tab of a `.pred` file saves through
+  `save_file!` (`_write_registered_file`, `DocumentFile.jl`). So a study with
+  links, saved from its tab, fails today. Step 1 removes this limit.
 - **The work plan names its steps by id.** A `WorkPlanStep` has an `id`, which a
   person reads in the view.
 - No type in either repository is named for a hypothesis, a source, a citation,
@@ -767,7 +766,7 @@ Every decision is made.
 Each step is a commit in a worktree of projectured-julia, and steps 10 and 11 are
 commits in a worktree of omnet-julia. Each step names its narrowest test.
 
-- [ ] **1. A file that is saved alone writes a graph.** In the serialization
+- [x] **1. A file that is saved alone writes a graph.** In the serialization
   slice of the platform: `save_file!` writes a node that its file holds at two
   places, and a cycle, as a marker into the file itself, as `save_project!` does;
   it still refuses a node that another file owns. `load_file` splices the markers
@@ -776,6 +775,15 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   subtree is rejected" and "a cycle is rejected" become tests that the file saves
   and loads to the same graph, in JSON and in `.pred`; a node of another file is
   still refused.
+  **Done (2026-10-22, branch `research`).** `load_file` already loads its file as
+  a project of one file, so it splices a marker that names the file itself; it
+  needed no change. The save needed one: in `_cut_copy` (`FileCut.jl`), a node met
+  a second time is a marker into the file itself in both saves, and only a cut
+  into another file stays an error of the strict save. The docstrings of
+  `save_file!` and `load_file` and serialization.md say so. `test_file_project()`:
+  153 pass, 1 broken (the marker that main has too); the two refusal tests are now
+  round trips in JSON, and two new tests save a shared document and a cycle in a
+  `.pred` file alone, load them, and save again with no change of the file.
 - [ ] **2. The package triad and the documents.** `ProjecturedResearch`,
   `…Example` and `…Test`; the types of §4.2 and §4.2.1; the edges to
   `ProjecturedGraph` and `ProjecturedFormula`; the

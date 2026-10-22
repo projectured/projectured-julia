@@ -160,8 +160,10 @@ end
 
 # ── The cut ──────────────────────────────────────────────────────────────────
 
-# The five rules, for the copy of `file`. `strict` is the single-file save: every
-# cut is an error, because there is no context to refer into.
+# The five rules, for the copy of `file`. `strict` is the single-file save: a cut
+# into another file is an error, because no other file is there to refer into. A
+# node that the file reaches a second time is named by a marker into the file
+# itself, in both saves.
 function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
     node isa Document || return node
     if is_file_document(node)
@@ -177,9 +179,7 @@ function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::
                          "holds a " * string(nameof(typeof(node))) * " that " *
                          repr(get_filename(owner_file)) * " writes")
     haskey(visited, node) &&
-        return _cut_leaf(file, path, strict, _reference_marker(file, owner_path),
-                         "holds the same " * string(nameof(typeof(node))) * " twice, at " *
-                         print_path_text(owner_path) * " and at " * print_path_text(path))
+        return make_reference_leaf(file, _reference_marker(file, owner_path))
     visited[node] = true
     _rebuild(owner, file, node, path, visited, strict)
 end
@@ -304,10 +304,12 @@ end
 """
     save_file!(file, base_dir) -> Bool
 
-Write one file with no context, so no reference can be written: the content
-must be a tree of the file's domain, with no foreign node, no shared subtree
-and no cycle, or the save logs why and returns `false`. A marker that is a plain
-leaf of the domain is a plain leaf, and saves as one.
+Write one file with no other file around it, so no reference into another file
+can be written: the content must be of the file's domain, with no foreign node,
+or the save logs why and returns `false`. A node that the content holds at two
+places, and a cycle, are written once, at the first place, and each other place
+holds a marker into the file itself, which [`load_file`](@ref) splices back. A
+marker that is a plain leaf of the domain is a plain leaf, and saves as one.
 """
 save_file!(file, base_dir::AbstractString) = save_file_text!(file, base_dir) !== nothing
 

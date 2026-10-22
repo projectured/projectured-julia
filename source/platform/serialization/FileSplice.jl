@@ -106,8 +106,10 @@ end
 """
     load_file(base_dir, filename) -> file document
 
-One file, parsed. A marker in it stays a leaf, because there is nothing in the
-set to splice it to.
+One file, parsed and spliced as a set of one file. A marker that names the file
+itself gets the node that it names, so a node that the file holds at two places
+is one object, and a cycle is a cycle. A marker that names another file stays a
+leaf, because there is nothing in the set to splice it to.
 """
 load_file(base_dir::AbstractString, filename::AbstractString) =
     load_project(base_dir, [filename]).files[1]
