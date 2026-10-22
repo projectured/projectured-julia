@@ -389,14 +389,14 @@ function test_explorer()
         frame!()
         @test list.table === table && isempty(table.entries)
         @test _nav_has_text(backend, "b.txt") && !_nav_has_text(backend, "Show all")
-        # A path of a row names the place of its file in the list.
-        files_at(j) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("files"),
-                                                                   ElementReferenceStep(j))))
-        last_two(reference) = (steps = get_reference_steps(strip_reference_types(reference)); steps[(end - 1):end])
-        # A press on a label of a row selects the file at its place in the list.
+        steps_of(parts...) = collect(get_reference_steps(extend_reference(EmptyReference(), parts...)))
+        files_at(j) = steps_of(FieldReferenceStep("files"), ElementReferenceStep(j))
+        last_steps(reference, n) = (steps = get_reference_steps(strip_reference_types(reference)); steps[(end - n + 1):end])
+        # A press on a label of a row selects the row, which the table shows.
         _nav_press!(editor, backend, _explorer_click(backend, "unsaved edits"; side = :page))
         frame!()
-        @test last_two(editor.document.selection) == files_at(1)
+        @test last_steps(editor.document.selection, 3) ==
+              steps_of(FieldReferenceStep("rows"), ElementReferenceStep(1), FieldReferenceStep("item"))
         # The name of a file is a link: one press opens the page of the file, at
         # its place in the list, also while a filter shows it as the first row.
         filter = ProjecturedPlatform.ArrangementModule._make_filter(("state" => ==(""),))
@@ -407,7 +407,7 @@ function test_explorer()
         _nav_press!(editor, backend, _explorer_click(backend, "b.txt"; side = :page))
         frame!()
         @test get_navigator_page(explorer.navigator) === page
-        @test last_two(explorer.navigator.address) == files_at(2)
+        @test last_steps(explorer.navigator.address, 2) == files_at(2)
         @test _nav_count(backend, "Open files") == 2 && !_nav_has_text(backend, "rows[")
         @test find_open_file_document(joinpath(root, "b.txt"); editor) === page
         # A row goes when the editor lets its file go.

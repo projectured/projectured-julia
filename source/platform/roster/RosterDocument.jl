@@ -304,14 +304,14 @@ the `Roster` alone, and the link of the roster is `holder`. `nothing` when the r
 has no place, and for any other path, such as a cell of a facet or an entry of the
 arrangement.
 
-A page that shows such a roster as its table maps a path back with it, so the
-open of a row and the selection of a row name the place of the item.
+A page that shows such a roster as its table opens the item of a row at that
+place ([`retarget_held_row_open`](@ref)).
 
 # Example
 
     find_held_item_path(list, FieldReferenceStep("table"), path)   # files[2]
 
-See also `find_held_row_path` and `get_roster_item_place`.
+See also `get_roster_item_place`.
 """
 function find_held_item_path(holder, step::FieldReferenceStep, path)
     roster, prefix = _find_held_roster(holder, step)
@@ -327,35 +327,40 @@ function find_held_item_path(holder, step::FieldReferenceStep, path)
 end
 
 """
-    find_held_row_path(holder, step, path) -> Reference or nothing
+    retarget_held_row_open(operation, holder, step) -> operation
 
-The inverse of [`find_held_item_path`](@ref): for a path at the place of an item
-in `holder`, such as `files[2].<rest>`, the path of the row that shows that item
-in the roster that `holder` keeps in its field `step`, such as
-`table.document.rows[k].item.<rest>`. The place is the reference of the
-`CollectionItems` source of the roster and an index. `nothing` when no row shows
-the item, and for any other path.
+`operation`, with each open of a page that names an item through a row of the
+roster that `holder` keeps in its field `step` retargeted to the place of the item
+([`find_held_item_path`](@ref)). A page that shows the roster as its table calls
+it in its reader, so the link of a row and a double click on a row open the item
+with the address of its place, such as `files[2]`, and not of the arrangement,
+the roster and the row. The selection of a row stays the path of the row, which
+the table shows.
 
-See also `find_roster_row`.
+# Example
+
+    retarget_held_row_open(answer.operation, list, FieldReferenceStep("table"))
 """
-function find_held_row_path(holder, step::FieldReferenceStep, path)
-    roster, prefix = _find_held_roster(holder, step)
-    (roster === nothing || !(path isa ConcreteReference)) && return nothing
-    source = roster.source
-    (source isa CollectionItems && source.collection isa Reference) || return nothing
-    at = get_reference_steps(strip_reference_types(source.collection))
-    steps = get_reference_steps(strip_reference_types(path))
-    n = length(at)
-    (length(steps) > n && all(steps[i] == at[i] for i in 1:n) && _is_index_step(steps[n + 1])) || return nothing
-    collection = try_evaluate_reference(holder, source.collection, nothing)
-    j = steps[n + 1].start + 1
-    (collection !== nothing && 1 <= j <= length(collection)) || return nothing
-    k = find_roster_row(roster, collection[j])
-    k === nothing && return nothing
-    concat_references(extend_reference(EmptyReference(), prefix..., FieldReferenceStep("rows"), ElementReferenceStep(k),
-                                       FieldReferenceStep("item")),
-                      _drop_reference_steps(path, n + 1))
+function retarget_held_row_open end
+
+function retarget_held_row_open(operation::CompoundOperation, holder, step::FieldReferenceStep)
+    parts = Any[retarget_held_row_open(part, holder, step) for part in operation.operations]
+    all(k -> parts[k] === operation.operations[k], eachindex(parts)) ? operation : CompoundOperation(parts)
 end
+
+function retarget_held_row_open(operation::WrappingOperation, holder, step::FieldReferenceStep)
+    inner = get_wrapped_operation(operation)
+    retargeted = retarget_held_row_open(inner, holder, step)
+    retargeted === inner ? operation : rewrap_operation(operation, retargeted)
+end
+
+function retarget_held_row_open(operation::OpenPageOperation, holder, step::FieldReferenceStep)
+    operation.document === nothing || return operation
+    place = find_held_item_path(holder, step, operation.reference)
+    place === nothing ? operation : retarget_operation(operation, place)
+end
+
+retarget_held_row_open(operation, holder, ::FieldReferenceStep) = operation
 
 # The roster that `holder` keeps in its field `step`, alone or in an arrangement,
 # with its link at `holder`, and the steps from `holder` to it; `(nothing, ())`

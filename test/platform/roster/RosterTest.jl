@@ -107,7 +107,7 @@ function test_roster()
         @test get_roster_item_place(plain, 1) === nothing && find_roster_row(plain, runs[2]) == 2
     end
 
-    @testset "a holder of a table of its own items maps a row to the place of its item, and back" begin
+    @testset "a holder of a table of its own items opens the item of a row at its place" begin
         holder = _RosterHolder(make_runs(), nothing)
         roster = link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("runs")));
                                      columns = ["id"]), holder)
@@ -122,18 +122,26 @@ function test_roster()
         status = FieldReferenceStep("status")
         @test same(find_held_item_path(holder, table, row_at(2)), item_at(2))
         @test same(find_held_item_path(holder, table, row_at(3, status)), item_at(3, status))
-        @test same(find_held_row_path(holder, table, item_at(2, status)), row_at(2, status))
-        # A path that reaches no item through a row, and an item that no row
-        # shows, map to nothing.
+        # A path that reaches no item through a row maps to nothing.
         @test find_held_item_path(holder, table, path(table, FieldReferenceStep("entries"))) === nothing
         @test find_held_item_path(holder, table, path(table, FieldReferenceStep("document"), FieldReferenceStep("rows"),
                                                       ElementReferenceStep(1), FieldReferenceStep("values"))) === nothing
-        @test find_held_row_path(holder, table, item_at(9)) === nothing
         @test find_held_item_path(holder, FieldReferenceStep("runs"), row_at(1)) === nothing
-        # An item that goes out before an item: the place and the row follow.
+        # The open of a row in a compound, as a double click answers it, opens the
+        # item at its place, and the selection of the row stays.
+        select = ReplaceSelectionOperation(row_at(2))
+        retargeted = retarget_held_row_open(CompoundOperation(Any[select, OpenPageOperation(nothing, row_at(2))]),
+                                            holder, table)
+        @test retargeted.operations[1] === select
+        @test retargeted.operations[2] isa OpenPageOperation && same(retargeted.operations[2].reference, item_at(2))
+        # An open that names its own document, and an open of another path, stay.
+        own = OpenPageOperation(holder, row_at(2))
+        @test retarget_held_row_open(own, holder, table) === own
+        other = OpenPageOperation(nothing, path(table, FieldReferenceStep("entries")))
+        @test retarget_held_row_open(other, holder, table) === other
+        # An item that goes out before an item: the place follows.
         deleteat!(holder.runs, 1)
         @test same(find_held_item_path(holder, table, row_at(1)), item_at(1))
-        @test same(find_held_row_path(holder, table, item_at(2)), row_at(2))
     end
 
     @testset "a key: a facet, a path of fields, and within" begin
