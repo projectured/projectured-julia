@@ -18,6 +18,7 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
     get_child_iomaps, read_child_by_route
+import ..GestureBindingModule: get_document_gesture_bindings_own
 
 export GraphDocument
 export GraphLayoutDocument

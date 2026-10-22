@@ -64,6 +64,10 @@ reads it, so a move of the pointer repaints and does not run the engine.
 `NamedTuple` `(scale, shift)`. The drawing draws the centre `c` of each box at
 `scale .* c .+ shift`, and the box keeps its size and its content. Only the
 drawing reads it, so a zoom repaints and does not run the engine.
+
+`edge_shape` is the shape of the edges, as view state: `nothing` keeps the shape
+that the keyword of the drawing gives, and `:straight` or `:curved` overrides
+it. The menu of the graph writes it.
 """
 @document struct GraphLayout <: GraphLayoutDocument
     vertex_layouts::CellVector = CellVector()
@@ -77,7 +81,22 @@ drawing reads it, so a zoom repaints and does not run the engine.
     graph::Any = nothing
     drag::Any = nothing
     zoom::Any = nothing
+    edge_shape::Any = nothing
 end
+
+# The menu of a graph, on a right click: the shape of its edges. The menu does not
+# know the shape that the keyword of the drawing gives, so it offers both.
+function _make_graph_layout_menu(layout::GraphLayout)
+    WidgetMenu(Any[WidgetMenuItem(label; operation = _write_edge_shape(layout, shape))
+                   for (label, shape) in (("Straight edges", :straight), ("Curved edges", :curved))])
+end
+
+_write_edge_shape(layout::GraphLayout, shape::Symbol) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(layout, "edge_shape", shape))
+
+get_document_gesture_bindings_own(::Type{GraphLayout}) =
+    GestureBinding[make_context_menu_binding(_make_graph_layout_menu;
+                                             description = "Show the menu of the graph")]
 
 """
 Per-vertex/edge policy wrapper. `kind` is one of `GRAPH_CONSTRAINT_KINDS`, and

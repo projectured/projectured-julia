@@ -154,7 +154,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         Cell(@computation graph.highlight_vertex),
         Cell(@computation graph.highlight_edge),
         Cell(@computation placed[][3]),
-        Cell(graph), Cell(nothing), Cell(nothing),
+        Cell(graph), Cell(nothing), Cell(nothing), Cell(nothing),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
         end),

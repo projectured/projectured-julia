@@ -324,6 +324,10 @@ _make_edge_element(edge_shape::Symbol, drawn_edge; color, width, end_arrow, arro
 
 const _EDGE_SHAPES = (:straight, :curved)
 
+# The shape of the edges: the one that the menu of the graph chose, else the
+# keyword of the drawing.
+_get_edge_shape(p, layout::GraphLayout) = something(layout.edge_shape, p.edge_shape)
+
 """
     GraphLayoutToGraphicsCanvas(; theme = nothing, edge_shape = :straight)
 
@@ -416,7 +420,8 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     drawn_edges = Cell(@computation begin
         lit_vertex = lit[] == 0 ? nothing : getfield(layout.vertex_layouts[lit[]], :vertex)[]
         _compute_drawn_edges(layout, drawn_boxes[], drawing_map[], started_drag[],
-                             _collect_joined_vertices(layout, lit_vertex), style, p.edge_shape)
+                             _collect_joined_vertices(layout, lit_vertex), style,
+                             _get_edge_shape(p, layout))
     end)
 
     # The drawing, and where each vertex's box ended up in it. The two are built
@@ -444,6 +449,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         # the route midpoint.
         labels = edge_label_iomaps[]
         edges = drawn_edges[]
+        edge_shape = _get_edge_shape(p, layout)
         for i in 1:length(layout.edge_layouts)
             drawn_edge = edges[i]
             drawn_edge === nothing && continue
@@ -451,18 +457,18 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             # An edge that is not visible joins its vertices and draws nothing.
             e isa GraphEdge && !e.visible && continue
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, _make_edge_element(p.edge_shape, drawn_edge; color = style.edge,
+            push!(result, _make_edge_element(edge_shape, drawn_edge; color = style.edge,
                 width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
             # An edge of the vertex under the pointer is lit over its own line.
             if lit_vertex !== nothing && e isa GraphEdge && (e.source === lit_vertex || e.target === lit_vertex)
-                push!(result, _make_edge_element(p.edge_shape, drawn_edge;
+                push!(result, _make_edge_element(edge_shape, drawn_edge;
                     color = style.light_edge, width = style.highlight_width,
                     end_arrow = directed, arrow_size = style.arrow_size))
             end
             # The highlighted edge is re-stroked over its own line, keeping the
             # arrowhead it already drew.
             if highlight_edge !== nothing && e === highlight_edge
-                push!(result, _make_edge_element(p.edge_shape, drawn_edge;
+                push!(result, _make_edge_element(edge_shape, drawn_edge;
                     color = style.highlight, width = style.highlight_width,
                     end_arrow = directed, arrow_size = style.arrow_size))
             end

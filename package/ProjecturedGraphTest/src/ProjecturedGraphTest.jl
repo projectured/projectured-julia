@@ -51,6 +51,7 @@ include("../../../test/domain/graph/projection/GraphThemeTest.jl")
 include("../../../test/domain/graph/projection/GraphVertexDragTest.jl")
 include("../../../test/domain/graph/projection/GraphLayoutZoomTest.jl")
 include("../../../test/domain/graph/projection/GraphScrollPaneTest.jl")
+include("../../../test/domain/graph/projection/GraphContextMenuTest.jl")
 
 include("../../../test/domain/graph/GraphSuite.jl")
 
