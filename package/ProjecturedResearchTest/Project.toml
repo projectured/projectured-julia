@@ -1,0 +1,29 @@
+name = "ProjecturedResearchTest"
+uuid = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
+version = "0.1.0"
+authors = []
+
+# The Research tier of the test-package DAG. Cross-domain suites live in
+# ProjecturedTest, which is where a fixture that names several domains belongs.
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedResearch = "226d5d21-7a82-49ae-88d7-994b1059b66b"
+ProjecturedResearchExample = "bab7c980-c37e-4728-8721-418e90de58f8"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedResearch = {path = "../ProjecturedResearch"}
+ProjecturedResearchExample = {path = "../ProjecturedResearchExample"}

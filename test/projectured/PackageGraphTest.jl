@@ -38,6 +38,7 @@ const DOMAIN_EDGES = Dict(
     "ProjecturedProcess"       => ["ProjecturedGraph", "ProjecturedJulia"],
     "ProjecturedPivot"         => ["ProjecturedChart"],
     "ProjecturedWorkflow"      => String[],
+    "ProjecturedResearch"      => ["ProjecturedFormula", "ProjecturedGraph", "ProjecturedMarkdown"],
 )
 
 # The kernel is the one package every other package may reach. Below the

@@ -26,6 +26,7 @@ ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 ProjecturedRST = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedResearch = "226d5d21-7a82-49ae-88d7-994b1059b66b"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
 ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
@@ -51,6 +52,7 @@ ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPivot = {path = "../ProjecturedPivot"}
 ProjecturedProcess = {path = "../ProjecturedProcess"}
 ProjecturedRST = {path = "../ProjecturedRST"}
+ProjecturedResearch = {path = "../ProjecturedResearch"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}
 ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
 ProjecturedWorkflow = {path = "../ProjecturedWorkflow"}

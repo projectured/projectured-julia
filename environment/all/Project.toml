@@ -91,6 +91,9 @@ ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSDLExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedSDLTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedResearch = "226d5d21-7a82-49ae-88d7-994b1059b66b"
+ProjecturedResearchExample = "bab7c980-c37e-4728-8721-418e90de58f8"
+ProjecturedResearchTest = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSQLTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
@@ -209,6 +212,9 @@ ProjecturedRSTTest = {path = "../../package/ProjecturedRSTTest"}
 ProjecturedSDL = {path = "../../package/ProjecturedSDL"}
 ProjecturedSDLExample = {path = "../../package/ProjecturedSDLExample"}
 ProjecturedSDLTest = {path = "../../package/ProjecturedSDLTest"}
+ProjecturedResearch = {path = "../../package/ProjecturedResearch"}
+ProjecturedResearchExample = {path = "../../package/ProjecturedResearchExample"}
+ProjecturedResearchTest = {path = "../../package/ProjecturedResearchTest"}
 ProjecturedSQL = {path = "../../package/ProjecturedSQL"}
 ProjecturedSQLExample = {path = "../../package/ProjecturedSQLExample"}
 ProjecturedSQLTest = {path = "../../package/ProjecturedSQLTest"}

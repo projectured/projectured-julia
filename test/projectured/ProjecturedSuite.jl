@@ -24,6 +24,7 @@ using ProjecturedMarkdownTest
 using ProjecturedRSTTest
 using ProjecturedBookTest
 using ProjecturedWorkflowTest
+using ProjecturedResearchTest
 using ProjecturedMathTest
 using ProjecturedJuliaTest
 using ProjecturedSQLTest
@@ -39,7 +40,7 @@ using ProjecturedPivotTest
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedWorkflowTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDBCatalogTest, ProjecturedFormulaTest, ProjecturedFSMTest, ProjecturedGraphTest, ProjecturedJSONTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedPivotTest, ProjecturedRSTTest, ProjecturedSequenceChartTest, ProjecturedSQLTest, ProjecturedXMLTest, ProjecturedYAMLTest)
+for _src in (ProjecturedBookTest, ProjecturedWorkflowTest, ProjecturedResearchTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDBCatalogTest, ProjecturedFormulaTest, ProjecturedFSMTest, ProjecturedGraphTest, ProjecturedJSONTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedPivotTest, ProjecturedRSTTest, ProjecturedSequenceChartTest, ProjecturedSQLTest, ProjecturedXMLTest, ProjecturedYAMLTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
@@ -482,6 +483,7 @@ function test_all()
     test_rst()
     test_book()
     test_workflow()
+    test_research()
     test_math()
     test_julia()
     test_sql()

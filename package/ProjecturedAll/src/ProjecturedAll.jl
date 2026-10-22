@@ -38,6 +38,7 @@ import ProjecturedFSM
 import ProjecturedProcess
 import ProjecturedPivot
 import ProjecturedWorkflow
+import ProjecturedResearch
 
 include("../../../source/all/ProjecturedAll.jl")
 

@@ -282,7 +282,7 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
     "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
     "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
-    "ProjecturedWorkflow"]
+    "ProjecturedWorkflow", "ProjecturedResearch"]
 
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
@@ -599,6 +599,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedRST" =>
         (summary = "reStructuredText as a tree of documents, with a parser and two presentations.",
          document = "documentation/package/domain/rst/rst.md"),
+    "ProjecturedResearch" =>
+        (summary = "The record of a study: questions, sources, hypotheses, experiments, analyses, results, evidence, decisions and answers, each with who made it and when.",
+         document = "documentation/package/domain/research/research.md"),
     "ProjecturedSDL" =>
         (summary = "Shows the editor in native windows with SDL2, and writes images of a view.",
          document = "documentation/package/backend/sdl/sdl.md"),

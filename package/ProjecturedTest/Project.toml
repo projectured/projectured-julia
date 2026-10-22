@@ -44,6 +44,7 @@ ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
 ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSDLTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedResearchTest = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
 ProjecturedSQLTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
@@ -96,6 +97,7 @@ ProjecturedPivotTest = {path = "../ProjecturedPivotTest"}
 ProjecturedProcessTest = {path = "../ProjecturedProcessTest"}
 ProjecturedRSTTest = {path = "../ProjecturedRSTTest"}
 ProjecturedSDLTest = {path = "../ProjecturedSDLTest"}
+ProjecturedResearchTest = {path = "../ProjecturedResearchTest"}
 ProjecturedSQLTest = {path = "../ProjecturedSQLTest"}
 ProjecturedSequenceChartTest = {path = "../ProjecturedSequenceChartTest"}
 ProjecturedTulipTest = {path = "../ProjecturedTulipTest"}

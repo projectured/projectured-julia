@@ -224,8 +224,9 @@ The sources warn against five mistakes. The model of §4 avoids each one:
 
 The domain is `ProjecturedResearch`, in `source/domain/research/` (D4). It
 depends on the kernel, the platform, `Dates`, the Graph domain (for the map of
-§5.2) and the Formula domain (for the reference of an expectation, §4.2.1), and on
-no other domain. It declares its root by hand, `abstract type
+§5.2), the Formula domain (for the reference of an expectation, §4.2.1) and the
+Markdown domain (for the report, whose verbs make Markdown blocks), and on no
+other domain. It declares its root by hand, `abstract type
 ResearchDocument`, as Workflow does, because its main view is a widget view. The
 nine kinds of item have the abstract type `ResearchItem <: ResearchDocument`,
 so a roster, a link and a method can name every item at once.
@@ -261,8 +262,9 @@ The fields of each kind:
 - **A content field** (`prediction`, `design`, `method`, `content`) is `::Any`
   and holds a document of any domain, as the content of a workflow card does.
 - **A link** holds the item itself. A field of one link holds an item or
-  `nothing`. A field of many links is a `Vector{ResearchItem}`, which the
-  reactive layout holds as a `CellVector{ResearchItem}`. The words `basis` and
+  `nothing`. A field of many links is a `CellVector` of items, with no declared
+  element type: the load of a file reads a marker into the list before it splices
+  the item, and a list typed `ResearchItem` would refuse the marker. The words `basis` and
   `uses` are different on purpose: `basis` is what a claim rests on, and `uses` is
   what an activity reads.
 
@@ -784,7 +786,7 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   153 pass, 1 broken (the marker that main has too); the two refusal tests are now
   round trips in JSON, and two new tests save a shared document and a cycle in a
   `.pred` file alone, load them, and save again with no change of the file.
-- [ ] **2. The package triad and the documents.** `ProjecturedResearch`,
+- [x] **2. The package triad and the documents.** `ProjecturedResearch`,
   `…Example` and `…Test`; the types of §4.2 and §4.2.1; the edges to
   `ProjecturedGraph` and `ProjecturedFormula`; the
   lists of the full set that domain-inventory.md names, and the four places that
@@ -793,6 +795,21 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   the example of §4.6 saves alone and in a project with a Markdown summary in a
   file of its own, and loads with `e1.supports[1] === h1`; the layering guard and
   the naming guard.
+  **Done (2026-10-22).** `ResearchDocument.jl` holds the eleven types, the kinds
+  (`RESEARCH_KINDS`: the field, the type, the letter and the name of each kind), the
+  UTC time (`get_research_time`, `format_research_time`, `find_research_time`) and
+  `collect_study_items`. What was decided and found:
+  - A list of links is an untyped `CellVector`, as §4.2 now says.
+  - The package also depends on `ProjecturedMarkdown`, for the report (step 8), so
+    `DOMAIN_EDGES` names Formula, Graph and Markdown.
+  - In the example, K is the capacity of the queue beside the packet in service,
+    so the blocking is (1 - ρ) ρ^(K+1) / (1 - ρ^(K+2)): 0.91 % at K = 13, as the
+    evidence says.
+  - The registration found no place beyond the ten of the guide and the workflow
+    plan. The atoms of the catalog wait for step 3's commit of the example
+    registry, which needs the projection of step 4.
+  - The study saves alone and in a project; the second save of the same study
+    writes no byte. `test_research_document()`: 45 pass. The naming guard passes.
 - [ ] **3. The builders and the status.** Insert an item with its id, author and
   time; delete an item, refused when another item holds it; record a decision,
   which inserts it and writes the statuses in one `CompoundOperation`. A builder
