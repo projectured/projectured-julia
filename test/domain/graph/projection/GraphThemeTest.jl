@@ -21,11 +21,12 @@ function test_graph_theme()
     plain = draw(nothing)
     ring, box = plain.rects[1], plain.rects[2]
     # The box is the vertex and the padding of 8 on each side; the ring is 3
-    # outside it and 3 wide.
-    @test (box.x, box.y, box.w, box.h) == (2, 2, 96, 46)
+    # outside it and 3 wide. The drawing moves the layout right and down by the
+    # padding and the ring, 14.
+    @test (box.x, box.y, box.w, box.h) == (16, 16, 96, 46)
     @test box.border_width == 2
     @test is_color_equal(box.color, get_theme_value(GraphTheme(), :node_fill))
-    @test (ring.x, ring.w) == (-4, 108)
+    @test (ring.x, ring.w) == (10, 108)
     @test is_color_equal(ring.color, get_theme_value(GraphTheme(), :highlight))
     @test plain.lines[1].width == 2
     @test plain.lines[1].arrow_size == 10
@@ -38,15 +39,16 @@ function test_graph_theme()
                                          control_scale = 1.5), GraphTheme)
     scaled = draw(theme)
     ring, box = scaled.rects[1], scaled.rects[2]
-    @test (box.x, box.y, box.w, box.h) == (-6, -6, 112, 62)
+    # Scaled, the margin is 16 + 6 + 6.
+    @test (box.x, box.y, box.w, box.h) == (22, 22, 112, 62)
     @test box.border_width == 4
-    @test (ring.x, ring.w) == (-6 - 12, 112 + 24)
+    @test (ring.x, ring.w) == (22 - 12, 112 + 24)
     @test scaled.lines[1].width == 4
     @test scaled.lines[1].arrow_size == 15
-    # The extent reaches the ring of the lower box: its bottom, 130, and the
-    # padding, the gap and the width of the ring.
-    @test Int(plain.canvas.h[]) == 130 + 8 + 3 + 3
-    @test Int(scaled.canvas.h[]) == 130 + 16 + 6 + 6
+    # The extent reaches the ring of the lower box: its bottom, 130, moved by the
+    # margin, and the padding, the gap and the width of the ring.
+    @test Int(plain.canvas.h[]) == 14 + 130 + 8 + 3 + 3
+    @test Int(scaled.canvas.h[]) == 28 + 130 + 16 + 6 + 6
 end
 
 @testset "a theme color reaches the drawing" begin

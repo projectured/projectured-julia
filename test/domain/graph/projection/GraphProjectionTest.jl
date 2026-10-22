@@ -378,13 +378,13 @@ end
     g = make_graph_document_example()
     proj = make_graph_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     iomap = print_document(proj, g)
-    layout = iomap.child_iomap.step_iomaps[1][].output
+    drawing = _gvd_find_drawing(iomap)
     _steps(reference) = collect(get_reference_steps(strip_reference_types(reference)))
     _content(i) = _steps(@reference(g, vertices[i].content))
 
     for i in 1:length(g.vertices)
-        vl = layout.vertex_layouts[i]
-        middle = PointReferenceStep(Int(vl.x) + Int(vl.w) ÷ 2, Int(vl.y) + Int(vl.h) ÷ 2)
+        box = drawing.drawn_boxes[i]
+        middle = PointReferenceStep(box[1] + box[3] ÷ 2, box[2] + box[4] ÷ 2)
         back = map_reference_backward(proj, iomap, middle)
         @test back !== nothing
         back === nothing && continue
@@ -394,8 +394,8 @@ end
     end
     # The corner of the second box is on the opening brace of its content, a part that
     # the object printed: the object's own introduced step names it, at the object.
-    vl = layout.vertex_layouts[2]
-    corner = map_reference_backward(proj, iomap, PointReferenceStep(Int(vl.x) + 3, Int(vl.y) + 3))
+    box = drawing.drawn_boxes[2]
+    corner = map_reference_backward(proj, iomap, PointReferenceStep(box[1] + 3, box[2] + 3))
     corner_steps = _steps(corner)
     @test corner_steps[1:length(_content(2))] == _content(2)
     brace = corner_steps[length(_content(2)) + 1]
@@ -475,13 +475,16 @@ end
     layout = drawing.input
     style = unwrap_cell(drawing.projection.style)
     source, target = _gpt_get_node_rect(drawing, 1), _gpt_get_node_rect(drawing, 2)
-    @test Int(target.x) == Int(layout.vertex_layouts[2].x) - style.node_padding
+    # The drawing moves the layout right and down by its margin: the padding and
+    # the ring.
+    margin = style.node_padding + style.highlight_gap + style.highlight_width
+    @test Int(target.x) == Int(layout.vertex_layouts[2].x) + margin - style.node_padding
 
     # The grid puts the two boxes side by side, so the edge is level. It leaves the
     # right side of the painted source box, and its arrowhead touches the left side
     # of the painted target box.
     first_layout = layout.vertex_layouts[1]
-    y = round(Int, Int(first_layout.y) + Int(first_layout.h) / 2)
+    y = round(Int, Int(first_layout.y) + margin + Int(first_layout.h) / 2)
     edge = only(_gpt_collect_lines(drawing))
     @test edge.end_arrow
     @test collect(edge.points) == [(Int(source.x) + Int(source.w), y), (Int(target.x), y)]
@@ -498,7 +501,7 @@ end
     getfield(layout, :drag)[] = (vertex = v2, index = 2, origin = (0, 0), offset = (0, 120),
                                  started = true)
     dragged = _gpt_get_node_rect(drawing, 2)
-    @test Int(dragged.y) == Int(layout.vertex_layouts[2].y) + 120 - style.node_padding
+    @test Int(dragged.y) == Int(layout.vertex_layouts[2].y) + margin + 120 - style.node_padding
     points = collect(only(_gpt_collect_lines(drawing)).points)
     @test _gpt_is_on_rim(source, first(points))
     @test _gpt_is_on_rim(dragged, last(points))
@@ -512,11 +515,15 @@ end
                                                           VertexLayout(b, 300, 200, 80, 30)]),
                            edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 25), (340, 215)])]))
     projection = GraphLayoutToGraphicsCanvas()
-    pad = unwrap_cell(projection.style).node_padding
+    style = unwrap_cell(projection.style)
+    pad = style.node_padding
     content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
     canvas = print_document(projection, content, layout, _gctx()).output
     lines() = filter(e -> e isa GraphicsPolyline, collect(canvas.elements))
-    @test collect(only(lines()).points) == [(10 + 80 + pad, 25), (340, 25), (340, 200 - pad)]
+    # The drawing moves the layout and the bend right and down by its margin.
+    margin = pad + style.highlight_gap + style.highlight_width
+    @test collect(only(lines()).points) ==
+          map(point -> point .+ margin, [(10 + 80 + pad, 25), (340, 25), (340, 200 - pad)])
 
     # Two boxes that overlap leave no part of the line outside both, so the
     # drawing draws no line.
@@ -566,11 +573,14 @@ end
                             _gctx()).output
     curve = only(filter(e -> e isa GraphicsSpline, collect(canvas.elements)))
     points = collect(curve.points)
-    # Two spans: the ends of step one and the bend, with two control points each.
-    @test points[[1, 4, 7]] == [(98, 25), (340, 25), (340, 192)]
+    # Two spans: the ends of step one and the bend, with two control points each,
+    # moved by the margin of the drawing.
+    style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
+    margin = style.node_padding + style.highlight_gap + style.highlight_width
+    @test points[[1, 4, 7]] == map(point -> point .+ margin, [(98, 25), (340, 25), (340, 192)])
     # It leaves the right side to the right, and enters the top side downward.
-    @test points[2][2] == 25 && points[2][1] > 98
-    @test points[6][1] == 340 && points[6][2] < 192
+    @test points[2][2] == 25 + margin && points[2][1] > 98 + margin
+    @test points[6][1] == 340 + margin && points[6][2] < 192 + margin
 
     # The label sits on the curve, at the middle of its length.
     path = tessellate_spline(points, :bezier, Int(curve.segments))

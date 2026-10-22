@@ -76,6 +76,12 @@ end
 
 _gvd_corners(layout) = [(Int(vl.x), Int(vl.y)) for vl in layout.vertex_layouts]
 
+# The box `(x, y, w, h)` of the content of vertex `i` where the drawing draws it,
+# and the margin by which the drawing moves the layout right and down.
+_gvd_drawn_box(drawing, i) = drawing.drawn_boxes[i]
+_gvd_margin(drawing) = (style = unwrap_cell(drawing.projection.style);
+                        style.node_padding + style.highlight_gap + style.highlight_width)
+
 # The operations in an answer, with each compound opened.
 _gvd_operations(operation) = operation isa CompoundOperation ?
     reduce(vcat, (_gvd_operations(member) for member in operation.operations); init = Any[]) :
@@ -85,8 +91,8 @@ _gvd_operations(operation) = operation isa CompoundOperation ?
 # part of its content, such as the edge of a column of a table, found by reading
 # presses at the drawing and applying none; or `nothing`.
 function _gvd_find_content_drag_point(drawing, i)
-    vl = drawing.input.vertex_layouts[i]
-    for y in Int(vl.y):2:(Int(vl.y) + 40), x in Int(vl.x):(Int(vl.x) + Int(vl.w) - 1)
+    bx, by, bw, _ = _gvd_drawn_box(drawing, i)
+    for y in by:2:(by + 40), x in bx:(bx + bw - 1)
         answer = read_intent(drawing.projection, drawing, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
         any(op -> op isa StartDragOperation &&
                   !isempty(get_reference_steps(strip_reference_types(op.path))),
@@ -113,10 +119,11 @@ function test_graph_vertex_drag()
     @test origin !== nothing
     before = _gvd_corners(layout)
     pad = unwrap_cell(drawing.projection.style).node_padding
+    margin = _gvd_margin(drawing)
 
     # A press on the frame of the second box, beside its content.
-    vl = layout.vertex_layouts[2]
-    x, y = origin[1] + Int(vl.x) - pad + 1, origin[2] + Int(vl.y) + 2
+    box = _gvd_drawn_box(drawing, 2)
+    x, y = origin[1] + box[1] - pad + 1, origin[2] + box[2] + 2
     _gvd_down!(editor, backend, x, y, 1.0)
     @test layout.drag !== nothing && !layout.drag.started
     _gvd_held!(editor, backend, x + 30, y + 20, 1.1)
@@ -128,7 +135,7 @@ function test_graph_vertex_drag()
     # The moves change the drawing only: the box is drawn at the moved corner,
     # and the layout and the graph keep what they had.
     rect = _gvd_force(drawing.output.elements)[drawing.node_elements[2]]
-    @test (Int(rect.x), Int(rect.y)) == (before[2][1] + 60 - pad, before[2][2] + 40 - pad)
+    @test (Int(rect.x), Int(rect.y)) == (before[2][1] + margin + 60 - pad, before[2][2] + margin + 40 - pad)
     @test _gvd_corners(layout) == before
     @test isempty(graph.constraints)
 
@@ -149,8 +156,8 @@ end
     layout = drawing.input
     origin = _gvd_place_of(editor, drawing.output)
     before = _gvd_corners(layout)
-    vl = layout.vertex_layouts[2]
-    x, y = origin[1] + Int(vl.x) + Int(vl.w) ÷ 2, origin[2] + Int(vl.y) + Int(vl.h) ÷ 2
+    box = _gvd_drawn_box(drawing, 2)
+    x, y = origin[1] + box[1] + box[3] ÷ 2, origin[2] + box[2] + box[4] ÷ 2
     _gvd_down!(editor, backend, x, y, 1.0)
     _gvd_held!(editor, backend, x + 10, y, 1.1)
     _gvd_held!(editor, backend, x + 40, y + 10, 1.2)
@@ -164,8 +171,8 @@ end
     layout = drawing.input
     origin = _gvd_place_of(editor, drawing.output)
     before = _gvd_corners(layout)
-    vl = layout.vertex_layouts[2]
-    x, y = origin[1] + Int(vl.x) + Int(vl.w) ÷ 2, origin[2] + Int(vl.y) + Int(vl.h) ÷ 2
+    box = _gvd_drawn_box(drawing, 2)
+    x, y = origin[1] + box[1] + box[3] ÷ 2, origin[2] + box[2] + box[4] ÷ 2
     _gvd_down!(editor, backend, x, y, 1.0)
     _gvd_up!(editor, backend, x, y, 1.05)
     @test layout.drag === nothing
@@ -184,8 +191,9 @@ end
     origin = _gvd_place_of(editor, drawing.output)
     before = _gvd_corners(layout)
     pad = unwrap_cell(drawing.projection.style).node_padding
-    vl = layout.vertex_layouts[1]
-    x, y = origin[1] + Int(vl.x) - pad + 1, origin[2] + Int(vl.y) + 2
+    margin = _gvd_margin(drawing)
+    box = _gvd_drawn_box(drawing, 1)
+    x, y = origin[1] + box[1] - pad + 1, origin[2] + box[2] + 2
     _gvd_down!(editor, backend, x, y, 1.0)
     _gvd_held!(editor, backend, x + 50, y + 50, 1.1)
     _gvd_held!(editor, backend, x + 80, y + 70, 1.2)
@@ -195,7 +203,7 @@ end
     @test isempty(graph.constraints)
     @test _gvd_corners(layout) == before
     rect = _gvd_force(drawing.output.elements)[drawing.node_elements[1]]
-    @test (Int(rect.x), Int(rect.y)) == (before[1][1] - pad, before[1][2] - pad)
+    @test (Int(rect.x), Int(rect.y)) == (before[1][1] + margin - pad, before[1][2] + margin - pad)
 end
 
 @testset "the inverse of a drop puts the vertex back" begin
@@ -208,8 +216,9 @@ end
     pad = unwrap_cell(drawing.projection.style).node_padding
     editor = _GraphVertexDragTestEditor(graph)
     apply!(operation) = operation === nothing || evaluate_operation(editor, operation)
-    vl = layout.vertex_layouts[3]
-    x, y = Int(vl.x) - pad + 1, Int(vl.y) + 2
+    margin = _gvd_margin(drawing)
+    box = _gvd_drawn_box(drawing, 3)
+    x, y = box[1] - pad + 1, box[2] + 2
     apply!(read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0)))
     apply!(read_intent(projection, iomap,
                        MouseMove(x + 70, y, MouseButtons(:left), ModifierKeys(); time = 0.0)))
@@ -230,7 +239,7 @@ end
     # drawn where the layout places it.
     @test layout.drag === nothing
     rect = _gvd_force(drawing.output.elements)[drawing.node_elements[3]]
-    @test (Int(rect.x), Int(rect.y)) == before[3] .- (pad, pad)
+    @test (Int(rect.x), Int(rect.y)) == before[3] .+ (margin - pad, margin - pad)
 end
 
 @testset "a drag that a part of a content starts reaches that part" begin
@@ -273,8 +282,8 @@ end
     editor = _GraphVertexDragTestEditor(graph)
     apply!(operation) = operation === nothing || evaluate_operation(editor, operation)
     read!(event) = apply!(read_intent(projection, iomap, event))
-    vl = layout.vertex_layouts[2]
-    x, y = Int(vl.x) - pad + 1, Int(vl.y) + 2
+    box = _gvd_drawn_box(drawing, 2)
+    x, y = box[1] - pad + 1, box[2] + 2
     left = MouseButtons(:left)
 
     # A release of the right button keeps the press of the left one.
@@ -306,10 +315,11 @@ end
     iomap = print_document(projection, graph)
     drawing = _gvd_find_drawing(iomap)
     layout = drawing.input
-    first_box, second_box = layout.vertex_layouts[1], layout.vertex_layouts[2]
-    x, y = 30, 12
-    @test Int(first_box.x) <= x < Int(first_box.x) + Int(first_box.w)
-    @test Int(first_box.y) <= y < Int(first_box.y) + Int(first_box.h)
+    # The point is on the content of both boxes, where the drawing draws them.
+    first_box = _gvd_drawn_box(drawing, 1)
+    x, y = (30, 12) .+ _gvd_margin(drawing)
+    @test first_box[1] <= x < first_box[1] + first_box[3]
+    @test first_box[2] <= y < first_box[2] + first_box[4]
     editor = _GraphVertexDragTestEditor(graph)
     operation = read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
     evaluate_operation(editor, operation)

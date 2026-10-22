@@ -34,6 +34,8 @@ export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 export GraphTheme, ScaledGraphTheme
 export GraphLayoutToGraphicsCanvas, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap
+export GraphGraphToWidgetScrollPane, GraphGraphToWidgetScrollPaneIoMap,
+       make_scrolling_graph_projection
 export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexLayout, EdgeLayout
 
 
@@ -45,5 +47,6 @@ include("GraphLayoutChoice.jl")
 include("GraphToGraphLayout.jl")
 include("GraphTheme.jl")
 include("GraphLayoutToGraphics.jl")
+include("GraphToWidgetScrollPane.jl")
 
 end # module

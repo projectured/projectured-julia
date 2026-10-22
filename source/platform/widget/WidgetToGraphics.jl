@@ -5948,13 +5948,15 @@ map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference) =
 
 function _map_viewport_content_forward(iomap, reference)
     reference isa Reference || return nothing
-    reference = strip_reference_types(reference)
-    reference isa ConcreteReference || return _map_self_forward(reference)
-    head = reference.head
+    stripped = strip_reference_types(reference)
+    stripped isa ConcreteReference || return _map_self_forward(stripped)
+    head = stripped.head
     (head isa FieldReferenceStep && head.name == "content") || return nothing
     children = something(get_child_iomaps(iomap), Any[])
     isempty(children) && return nothing
     child = first(children)
+    # The content gets the tail with the node types that the caller gave, so a
+    # stage of the content that builds a typed reference from it can.
     inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
     inner === nothing && return nothing
     parts = _get_pane_parts(iomap)

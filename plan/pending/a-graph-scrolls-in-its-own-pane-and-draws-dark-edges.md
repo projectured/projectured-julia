@@ -104,6 +104,31 @@ approves. Test with the narrowest test functions of each package.
    - Ctrl and the wheel zoom the layout through the pane;
    - a click on the content of a vertex selects in that content, and a vertex
      maps forward to its box.
+
+   **Done.** Three facts were not known when the plan was written:
+   - **The pane prints its scroll bars through its recursion too.** So the
+     recursion that the pane gets is a dispatch: `GraphGraph` to the stages and
+     `WidgetScrollBar` to `WidgetScrollBarToGraphicsCanvas`.
+   - **The pane stripped the node types.** `_map_viewport_content_forward` gave
+     its content the tail of a reference without types, and the graph stage,
+     which builds a typed `@reference` from it, threw. The kernel says that a
+     reference is never surfaced untyped. So the function, which the scroll pane
+     and the transform pane share, now gives the content the tail with the types
+     that the caller gave. This is a change of the platform. The platform suite
+     and the data frame suite check it.
+   - **The frame of a box at the top-left was drawn outside the canvas.** An
+     engine places a box at the corner (0, 0), and the drawing painted its
+     padding and its ring at -8 and -14 px. No host clipped it before; the pane
+     clips at 0 and cut the frame. The drawing now moves the layout right and
+     down by its margin, the padding and the ring (`_compute_drawing_map`), and
+     a dragged box stops at the margin. Each drawn place moves by 14 px, so the
+     drag, projection and theme tests read the drawn boxes
+     (`drawing.drawn_boxes`) where they read layout corners before.
+   - The tests of the pane use three cards in one column
+     (`GridEmbedding(columns = 1, rank_sep = 120)`): the graph of the example is
+     wider than the window of 900 px, and the pane refuses a point outside its
+     view.
+   - The graph suite and the FSM and process diagram tests pass (597).
 3. **The hosts.** The natural row of `GraphGraph` and
    `make_graph_projection_example` use `make_scrolling_graph_projection`. The
    drag tests and the zoom tests then run through the pane. Update the test

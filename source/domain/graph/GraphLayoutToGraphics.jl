@@ -104,14 +104,14 @@ end
 
 # The route of an edge as the drawing draws it: from the centre of `source_box`,
 # through the bends of `route`, to the centre of `target_box`, cut at the two rims.
-# The zoom map `zoom_map` moves each bend. A `straight` edge has no bends, as the
-# edge of a dragged vertex.
-function _make_drawn_route(route, source_box, target_box, source_rim, target_rim, zoom_map;
+# The drawing map `drawing_map` moves each bend. A `straight` edge has no bends, as
+# the edge of a dragged vertex.
+function _make_drawn_route(route, source_box, target_box, source_rim, target_rim, drawing_map;
                            straight::Bool)
     points = Tuple{Float64,Float64}[_get_box_centre(source_box)]
     if !straight
         for k in 2:(length(route) - 1)
-            push!(points, _apply_zoom_map(zoom_map, route[k]))
+            push!(points, _apply_zoom_map(drawing_map, route[k]))
         end
     end
     push!(points, _get_box_centre(target_box))
@@ -183,18 +183,34 @@ function _compute_next_zoom(layout::GraphLayout, notches::Integer)
      shift = old_top_left .- _find_zoomed_top_left(layout, (scale = scale, shift = (0.0, 0.0))))
 end
 
+# The margin that the drawing keeps on the left and on the top: the padding of a
+# box and the ring of a highlight, which the drawing paints outside the box that
+# the engine places. So a box at the corner (0, 0) of the layout is painted
+# inside the canvas, and a host that clips the canvas cuts no frame.
+_get_drawing_margin(style) = style.node_padding + style.highlight_gap + style.highlight_width
+
+# The map from the layout to the drawing: the zoom, moved right and down by the
+# margin, with the margin itself.
+function _compute_drawing_map(layout::GraphLayout, style)
+    zoom_map = _compute_zoom_map(layout)
+    margin = _get_drawing_margin(style)
+    (scale = zoom_map.scale, shift = zoom_map.shift .+ margin, margin = margin)
+end
+
 # The box of the content of each vertex in the drawing, by its index in
-# `vertex_layouts`: where the zoom map `zoom_map` draws it, and the dragged vertex
-# where the pointer took it. An entry that is no `VertexLayout` has `nothing`.
-function _compute_drawn_boxes(layout::GraphLayout, zoom_map, drag)
+# `vertex_layouts`: where the drawing map `drawing_map` draws it, and the dragged
+# vertex where the pointer took it. An entry that is no `VertexLayout` has
+# `nothing`.
+function _compute_drawn_boxes(layout::GraphLayout, drawing_map, drag)
     boxes = Union{Nothing,NTuple{4,Int}}[]
     for (i, vertex_layout) in enumerate(layout.vertex_layouts)
         if !(vertex_layout isa VertexLayout)
             push!(boxes, nothing)
             continue
         end
-        corner = round.(Int, _get_zoomed_corner(zoom_map, vertex_layout))
-        x, y = drag !== nothing && i == drag.index ? _get_dragged_corner(corner, drag.offset) : corner
+        corner = round.(Int, _get_zoomed_corner(drawing_map, vertex_layout))
+        x, y = drag !== nothing && i == drag.index ?
+               _get_dragged_corner(corner, drag.offset, drawing_map.margin) : corner
         push!(boxes, (x, y, Int(vertex_layout.w), Int(vertex_layout.h)))
     end
     boxes
@@ -259,7 +275,7 @@ end
 # has the same points in both. A curved edge has the points of a chain of Bézier
 # curves, which leaves each box at a right angle to the side that it crosses.
 # An edge ends at the ring of a vertex in `joined`, which the drawing lights.
-function _compute_drawn_edges(layout::GraphLayout, boxes, zoom_map, drag, joined, style,
+function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, joined, style,
                               edge_shape::Symbol)
     highlight_vertex = layout.highlight_vertex
     index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
@@ -279,7 +295,7 @@ function _compute_drawn_edges(layout::GraphLayout, boxes, zoom_map, drag, joined
         route = !(edge_layout isa EdgeLayout) ? nothing :
                 !boxed ? Tuple{Int,Int}[(Int(point[1]), Int(point[2])) for point in edge_layout.route] :
                 _make_drawn_route(edge_layout.route, boxes[source], boxes[target],
-                                  rim(source), rim(target), zoom_map;
+                                  rim(source), rim(target), drawing_map;
                                   straight = drag !== nothing && drag.index in (source, target))
         if route === nothing || length(route) < 2
             push!(edges, nothing)
@@ -390,16 +406,16 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # inside one vertex draws nothing again.
     lit = Cell(@computation _find_lit_vertex(layout))
 
-    # The map of the zoom of the layout.
-    zoom_map = Cell(@computation _compute_zoom_map(layout))
+    # The map from the layout to the drawing: the zoom and the margin.
+    drawing_map = Cell(@computation _compute_drawing_map(layout, style))
 
     # The box of the content of each vertex, where the drawing draws it.
-    drawn_boxes = Cell(@computation _compute_drawn_boxes(layout, zoom_map[], started_drag[]))
+    drawn_boxes = Cell(@computation _compute_drawn_boxes(layout, drawing_map[], started_drag[]))
 
     # Each edge, where the drawing draws it.
     drawn_edges = Cell(@computation begin
         lit_vertex = lit[] == 0 ? nothing : getfield(layout.vertex_layouts[lit[]], :vertex)[]
-        _compute_drawn_edges(layout, drawn_boxes[], zoom_map[], started_drag[],
+        _compute_drawn_edges(layout, drawn_boxes[], drawing_map[], started_drag[],
                              _collect_joined_vertices(layout, lit_vertex), style, p.edge_shape)
     end)
 
@@ -900,7 +916,8 @@ function _read_vertex_drag(iomap::GraphLayoutToGraphicsCanvasIoMap, drag, event)
                                    make_screen_pointer_shape_operation(nothing))
     event isa DragCancel && return clear
     dropped = merge(drag, (offset = (event.x - ox, event.y - oy),))
-    join_move_answers(_make_vertex_drop_operation(layout, dropped), clear)
+    join_move_answers(_make_vertex_drop_operation(layout, dropped,
+                                                  unwrap_cell(iomap.projection.style)), clear)
 end
 
 # The drop of the dragged vertex, as one edit of the constraints of the graph.
@@ -909,7 +926,7 @@ end
 # pin gets a start at its corner, so the next layout begins from what the person
 # saw. The constraints hold corners of the layout, so the pin is the corner where
 # the pointer took the box, through the inverse of the zoom.
-function _make_vertex_drop_operation(layout::GraphLayout, drag)
+function _make_vertex_drop_operation(layout::GraphLayout, drag, style)
     graph = layout.graph
     graph isa GraphGraph || return nothing
     _find_started_drag(layout) === nothing && return nothing
@@ -923,14 +940,14 @@ function _make_vertex_drop_operation(layout::GraphLayout, drag)
         end
         push!(constraints, constraint)
     end
-    zoom_map = _compute_zoom_map(layout)
+    drawing_map = _compute_drawing_map(layout, style)
     for (i, vertex_layout) in enumerate(layout.vertex_layouts)
         vertex_layout isa VertexLayout || continue
         if i == drag.index
-            corner = _get_dragged_corner(round.(Int, _get_zoomed_corner(zoom_map, vertex_layout)),
-                                         drag.offset)
+            corner = _get_dragged_corner(round.(Int, _get_zoomed_corner(drawing_map, vertex_layout)),
+                                         drag.offset, drawing_map.margin)
             push!(constraints, GraphConstraint(drag.vertex, :pin,
-                                               _get_layout_corner(zoom_map, vertex_layout, corner)))
+                                               _get_layout_corner(drawing_map, vertex_layout, corner)))
         elseif !(objectid(vertex_layout.vertex) in pinned)
             push!(constraints, GraphConstraint(vertex_layout.vertex, :start,
                                                (Int(vertex_layout.x), Int(vertex_layout.y))))
@@ -951,8 +968,10 @@ function _find_started_drag(layout::GraphLayout)
 end
 
 # The corner of a dragged box: the corner where the drawing draws it, moved by
-# `offset`, and never left of or above the drawing, where nothing is painted.
-_get_dragged_corner(corner, offset) = (max(0, corner[1] + offset[1]), max(0, corner[2] + offset[2]))
+# `offset`, and never nearer to the left or the top of the drawing than the
+# margin, so its frame stays painted.
+_get_dragged_corner(corner, offset, margin) =
+    (max(margin, corner[1] + offset[1]), max(margin, corner[2] + offset[2]))
 
 function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     hit = _find_vertex_at(iomap, g.x, g.y)
