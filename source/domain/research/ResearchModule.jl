@@ -32,6 +32,8 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 import ..SerializationModule: pred_arguments
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet
+import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
+import ..DomainModule: get_document_decoration, get_insertion_aliases, make_insertion_document
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
        ResearchHypothesis, ResearchEvidence, ResearchDecision, ResearchAnswer, ResearchExperiment,
@@ -54,6 +56,7 @@ include("ResearchTheme.jl")
 include("ResearchToWidget.jl")
 include("ResearchMapToGraph.jl")
 include("ResearchRoster.jl")
+include("ResearchExplorer.jl")
 
 function __init__()
     # The rows that let the renderer draw a study as its outline, and an item of

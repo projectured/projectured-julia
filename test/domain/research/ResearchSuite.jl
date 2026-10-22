@@ -28,8 +28,10 @@ function test_research()
         test_research_to_widget()
         test_research_map_to_graph()
         test_research_roster()
+        test_research_explorer()
     end
 end
 
 export test_research, test_research_layering, test_research_document, test_research_edits,
-       test_research_to_widget, test_research_map_to_graph, test_research_roster
+       test_research_to_widget, test_research_map_to_graph, test_research_roster,
+       test_research_explorer

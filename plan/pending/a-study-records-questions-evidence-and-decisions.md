@@ -882,9 +882,15 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   `get_arrangement_value`. `ItemsWithin(CollectionItems(…), ResearchItem)` gives
   each item of a study once, an item that a link holds too. `test_research_roster()`:
   11 pass.
-- [ ] **7. The explorer.** §5.4. Test: a study entry shows its items with their
+- [x] **7. The explorer.** §5.4. Test: a study entry shows its items with their
   ids and statuses, the "+" of a section offers a study, and a study opens in a
   tab.
+  **Done (2026-10-22).** `ResearchExplorer.jl`: the children of a study are the
+  items of its nine lists (`get_tree_children_steps`); the label is the id and the
+  text; the decoration is the glyph of the kind, the status as a count and the
+  author as the detail. `"study"` is the alias of the insertion, so the `+` of a
+  section offers a new study. `test_research_explorer()` passes; step 9 opens a
+  study in a tab of a window.
 - [ ] **8. The verbs, the check, the report, the folder and the sentence.** §7.1,
   §4.2.1. Test: `test_research_assistant_api()`: the offered names, a search that
   finds a verb, and code run by `execute_julia_code!` that adds a question, a
