@@ -434,6 +434,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:workflow, "decision", make_workflow_decision_document_example),
     AtomicDocument(:workflow, "workflow", make_workflow_document_example),
     AtomicDocument(:workflow, "journal",  make_workflow_journal_document_example),
+    AtomicDocument(:workflow, "list",     make_workflow_list_document_example),
     AtomicDocument(:research, "question",    make_research_question_document_example),
     AtomicDocument(:research, "source",      make_research_source_document_example),
     AtomicDocument(:research, "hypothesis",  make_research_hypothesis_document_example),

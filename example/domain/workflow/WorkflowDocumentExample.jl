@@ -212,3 +212,12 @@ is folded again, as a new outline shows it: the count of the entries of a node
 stands after its title.
 """
 make_workflow_elements_document_example() = _make_csv_workflow(:elements)
+
+"""
+    make_workflow_list_document_example() -> WorkflowList
+
+A list of the open workflows with no editor: its file list is empty, so the page
+draws the line that says that no workflow is open and a table with no row, the
+same on every machine.
+"""
+make_workflow_list_document_example() = WorkflowList()

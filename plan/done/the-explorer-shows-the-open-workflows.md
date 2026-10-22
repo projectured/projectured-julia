@@ -298,3 +298,13 @@ before the owner approves.
   - Three frames of the run took 1.6 to 3.1 s, each at the first draw of a new
     page in a fresh process; not measured further.
   - The address bar shows the three layers of the file (see Limits).
+- **After the landing, 2026-10-22.** The plan landed on `main`; after a rewrite of
+  `main` its last commit is `75887a8eb`. `test_document_tree`, `test_explorer` and
+  `test_workflow` on the landed commit: 634 of 634.
+  `test_catalog_coverage()` names a type that has a printer and no atom, so
+  `WorkflowList` needed one: `make_workflow_list_document_example()`, a list with
+  no editor, and `AtomicDocument(:workflow, "list", …)`. With it the coverage, the
+  natural render of every atom and the round trip of every atom pass for the
+  workflow types. The coverage still names `OpenFileList`, whose page came with
+  `56d233ff1` of the open files roster and has no atom.
+
