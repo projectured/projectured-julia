@@ -142,6 +142,8 @@ A link is the part of a domain or of a view that answers `OpenPageOperation(docu
 - With a `target`, the path form names the link, and `target` is the text of what it names, as its domain writes it: `#install`, `guide.md`, an rst name.
 - `place` is `:here`, the default, or `:new_tab`, as Ctrl+click does in a browser.
 
+A view draws a link as a `WidgetLink` of the widget slice ([widget.md](../widget/widget.md)): a text in the link color, with a line under it while the pointer is on it. A click and Return answer the open with `:here`, and Ctrl and a click and a middle click with `:new_tab`. Its target is a `DocumentLocator(document, reference)`, which gives the form with its own root, or a `Reference` from the link, which gives the path form.
+
 `OpenPageOperation` is a type of the widget slice (`source/platform/widget/OpenPageOperation.jl`), so the slices below the navigator, such as the roster, the tree and the work plan, can answer it. Its evaluation, for an open that no navigator takes, is in this slice (`NavigatorPageOpen.jl`), with `find_navigator_target` and `find_navigator_address`. A double click on a row of a roster and a double click or Return on a node of a tree answer `OpenPageOperation(nothing, <path of the item>)`; see [roster.md](../roster/roster.md) and [tree.md](../tree/tree.md). A scroll pane around the part keeps the open: its reader re-roots it ([widget.md](../widget/widget.md)).
 
 The operation registers with `operation_reference`, `retarget_operation` and `is_self_contained_operation`, so no reader of another slice names it. The nearest navigator around the part takes an open with `:here`. A path under its content becomes the address. An object that is the content, or a document on the address, becomes the path from the content. An object that the content holds at a path that its domain answers, `find_navigator_address(content, document)`, opens at that path, with its address, its parent and its siblings there; the default answers `nothing`. Any other object becomes the content of a new visit, with no parent: the navigator does not search its content, because a search walks every value of the content. With `:new_tab`, the navigator passes up an open rooted at its content.
@@ -190,7 +192,7 @@ open_pane!(navigator)                                 # a tab with a navigator
 evaluate_operation(editor, make_navigator_open_operation(navigator, @reference(document, entries[2])))
 ```
 
-A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` to its own press, and `OpenPageOperation(nothing, EmptyReference(), :new_tab)` to Ctrl+press.
+A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` to its own press, and `OpenPageOperation(nothing, EmptyReference(), :new_tab)` to Ctrl+press. A view that shows a link to a part draws `WidgetLink(text, DocumentLocator(document, reference))`, which answers both.
 
 An assistant opens a page with two verbs. `open_page!(part)` opens the part in a new tab with a navigator of its own, through an open that no navigator takes. `open_explorer_page!(part)` of the explorer slice shows the part in the navigator of the explorer, beside the tree, and opens the rows above it ([explorer.md](../explorer/explorer.md#what-an-assistant-calls)). Neither moves the selection of the person.
 

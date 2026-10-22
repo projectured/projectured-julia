@@ -87,6 +87,7 @@ every page, also where the page uses the same key.
 | click on **Names**, **Path** or **Types** in the bar | show the address as the next of the three views; Shift + click shows the one before |
 | Ctrl + click on a link in a markdown or rst source view | follow the link; Ctrl + Shift + click opens it in a new tab |
 | click on a link in a rendered markdown or rst page | follow the link; Ctrl + click opens it in a new tab |
+| click on a link of a page, such as a name in the first column of a table or a title in the Tasks pane | open its page here; Ctrl + click or a middle click opens it in a new tab; Return on a link that has the focus opens it here |
 | Ctrl + L, or click on the path in the path view | edit the path in place; Tab takes the hint of a field name, Enter opens the path, Escape ends the edit |
 | right click on a part of a page | **Open as a page** or **Open in a new tab** |
 | double click on the number of a row of a data frame | open the row as a page: a form of its columns |

@@ -114,7 +114,7 @@ The result holds these values:
 - whether the limit or the depth stopped the walk;
 - the time from the start to a final result.
 
-`ExplorerSearchToWidget` draws the page. It shows the title ("Find "smoke" below Files"), the line, and a table of the matches with their places. The line reads, for example, "waiting for 3 nodes · 12 matches", "12 matches · 0.4 s", "stopped at 100 matches", "not below a depth of 10" or "stopped". A match is a link. A press opens its page here (`OpenPageOperation(root, address)`). Ctrl+press opens it in a new tab.
+`ExplorerSearchToWidget` draws the page. It shows the title ("Find "smoke" below Files"), the line, and a table of the matches with their places. The line reads, for example, "waiting for 3 nodes · 12 matches", "12 matches · 0.4 s", "stopped at 100 matches", "not below a depth of 10" or "stopped". A match is a link, a `WidgetLink`. A press opens its page here (`OpenPageOperation(root, address)`). Ctrl+press or a middle press opens it in a new tab.
 
 The search is a work item of the task list ([task.md](../task/task.md)). Its decoration reads its result, so its row in the Tasks pane, the node of the tasks in the tree, or its page keeps it going. While none shows, it waits. Stop keeps its matches and reads nothing more. Close leaves a closed row.
 

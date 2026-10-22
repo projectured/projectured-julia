@@ -15,7 +15,7 @@ The widget slice of `ProjecturedPlatform` holds the documents of a user interfac
 | Kind | Types |
 | --- | --- |
 | Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgressBar`, `WidgetProgressRing`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
-| Controls | `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
+| Controls | `WidgetButton`, `WidgetLink`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
 | Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
 | Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetTabLabel`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
 | Data | `WidgetTable`, `WidgetList`, `WidgetTree` |
@@ -96,6 +96,7 @@ Each widget also compares the point with its own canvas in `_outside_widget`: th
 **The part under the pointer lights**, from the mouse target that [mouse-target.md](../../kernel/mouse-target.md) describes. Each widget draws its light from its own mouse target, as it draws the selection ring from its selection, and no reader writes a state for it:
 
 - `WidgetButton`, `WidgetMenuItem` and `WidgetToolbarItem` light while their mouse target is set, that is while the pointer is on them or on a part inside them, and while they are enabled.
+- `WidgetLink` draws a line under its text while its mouse target is set. The line is a rect whose size reads the mouse target in cells of its own, so a move onto a link draws only the line. A page that makes links passes each of them its part of the mouse target ([mouse-target.md](../../kernel/mouse-target.md#the-innermost-part)).
 - `WidgetList`, `WidgetTable` (both IO maps) and `WidgetTree` light the row that their mouse target names. A point on a row maps to the row, for example `items[2]`, which is no document, so the list is the deepest part and holds the row in its own mouse target. A column header of a table lights its column.
 - A light never changes the layout: it draws a layer over the surface or the row ([`PAR-LIGHT-KEEPS-LAYOUT`](../../../rule/architecture-invariants.md#par-light-keeps-layout)).
 
@@ -148,6 +149,7 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | Widget | A press | A key |
 | --- | --- | --- |
 | `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
+| `WidgetLink` | a left press opens its target here; Ctrl and a left press, or a middle press, open it in a new tab | Return opens it here |
 | `WidgetCheckbox`, `WidgetSwitch` | a left press on the mark or on its label flips the value | Return, Space |
 | `WidgetToggle` | a left press flips `pressed` | Return, Space |
 | `WidgetToggleGroup` | a left press on a segment selects it; with `look = :step`, the group shows the selected option alone, and a left press selects the next option, with Shift the one before, around the ends | none; with `look = :step`, Return and Space select the next option |
@@ -201,7 +203,11 @@ Two more operations are fragments of the widget slice, `OpenPageOperation.jl` an
 | `OpenPageOperation(document, reference[, place]; target)` | a press on a link, such as the first cell of a row of a roster, a double click on a row of a roster, a double click or Return on a node of a tree; the navigator takes it and the editor evaluates it, as [navigator.md](../navigator/navigator.md) says |
 | `OpenFileOperation(path; wrap, file_wrap)` | a link to a file, a row of the Files pane, the button that opens the output of a background task; the file-system slice evaluates it, as [filesystem.md](../filesystem/filesystem.md) says |
 
-A link is a `WidgetButton` with the gestures of `make_open_page_gestures(document, reference; domain)`: a click answers `OpenPageOperation(document, reference, :here)`, and Ctrl and a click answer the same open with `:new_tab`. `domain` names the slice of the link in a listing of the bindings. The page of a section, the page of a folder, the Tasks pane and the first cell of a row of a roster make their links with it, so every link of the platform opens on one click.
+**A link** is a `WidgetLink(content, target; icon)`: a text that names what it opens, as a link in a browser does. Its text has the link color of the theme (`link`, the color role `:link`), with no frame, so it is as tall as a label, and a line shows under it while the pointer is on it. The text breaks at the edge of the range that the parent gives, as the text of a label does, and each line has its own line under it. `target` is a `DocumentLocator(document, reference)`, the part at `reference` from `document`, or a `Reference`, a path from the link itself, so `EmptyReference()` opens the part that the link shows and each reader on the way up maps the path. A click and Return answer `OpenPageOperation(document, reference, :here)`, and Ctrl and a click and a middle click answer the same open with `:new_tab`. The page of a section and of its search, the page of a folder, the Tasks pane, the first cell of a row of a roster, the page of a step and the page of the work of an agent make their links with it, so every link of the platform looks the same and opens on one click.
+
+A link keeps its target as an address: a walk of the documents stops at a `DocumentLocator` (`is_walk_opaque`), so a document that holds a link is not a parent of its target.
+
+A button whose label is a command that opens a page, such as "Open stdout" and "Open the task page", is a `WidgetButton` with the gestures of `make_open_page_gestures(document, reference; domain)`, which are the gestures of a link. `domain` names the slice of the button in a listing of the bindings.
 
 These name their subject and not a place. `is_self_contained_operation` is `true` for them, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
 
@@ -296,6 +302,7 @@ A widget puts a `GraphicsPointerShape` where a press on it does something, so th
 | `WidgetTable` | the band of each column edge of the header row | `double_arrow_horizontal` |
 | `WidgetText`, `WidgetTextarea` | the box, while it takes edits | `ibeam` |
 | `WidgetButton` | the box, while it acts | `pointing_hand` |
+| `WidgetLink` | the box | `pointing_hand` |
 | A tab of `WidgetTabbedPane`, and its close, duplicate and new-tab buttons | the header of the tab, or the button | `pointing_hand`, or `open_hand` on a tab of a pane that drags its tabs (`draggable`) |
 
 **A region and the reader of the same part read one band function.** `_get_splitter_band(next_position, thickness)` is the band of a divider that the region and `_splitter_band_hit` both read, and `_get_column_edge_band(edge, bw)` is the band of a column edge that the region and `_find_table_column_edge_at` both read, so the band that shows the shape and the band that answers the press can not drift apart.

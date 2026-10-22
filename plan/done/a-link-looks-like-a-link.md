@@ -1,6 +1,7 @@
 # A link looks like a link
 
-Status: PENDING, 2026-10-22. Not started.
+Status: DONE, 2026-10-22, on the branch `widget-link`, in the worktree
+`projectured-julia-widget-link`. Not landed on `main`.
 
 ## The ask
 
@@ -337,7 +338,7 @@ sealed.
      were read), `test_explorer()` 273 of 273, `test_document_tree()` 130 of
      130, `test_navigator_gestures()` 26 of 26, `test_roster()` 63 of 63,
      `test_background_work()` 21 of 21, `test_research()` 240 of 240.
-5. [ ] **The guides and a live check.** Update `widget.md` (the link and the
+5. [x] **The guides and a live check.** Update `widget.md` (the link and the
    open gestures), `roster.md`, `explorer.md`, `navigator.md` ("The open of a
    page"), `research.md`, `reference.md` (a walk stops at an address) and
    `keyboard-and-mouse-guide.md`. In a live SDL window, take pictures of the
@@ -345,6 +346,36 @@ sealed.
    a row of labels, the link colour at rest, the underline under the pointer,
    and the link colour in a selected row. Then click a link, Ctrl and click a
    link, and middle click a link. Move this plan to `plan/done/`.
+   **Done 2026-10-22.** The guides: `widget.md`, `roster.md`, `explorer.md`,
+   `navigator.md`, `research.md`, `reference.md`, `mouse-target.md` (a new
+   section "The innermost part" and the decision of the owner) and
+   `keyboard-and-mouse-guide.md`.
+
+   The live check used a script in the scratchpad, built as the script of the
+   plan of the open files: the application window with two text files, with
+   `SdlBackend` on the display `:0`, and pushed SDL events. What it showed:
+   - On the page "Open files", the names draw in the link colour with no frame,
+     and the rows are 27 px apart, as rows of labels.
+   - In a selected row the link keeps its colour, and it reads well on the band
+     of the selection.
+   - The first run showed no line under the pointer, on the page of a section
+     and in the roster. That is how step 4 came in. After step 4, the pointer on
+     `todo.txt` in the roster draws the line under it and lights the row, and
+     the pointer on the title "Open files" of a card of the section page draws
+     the line under it. The mouse target of the roster ends at
+     `.rows[2].item‹RosterRowsToWidget: [1]›`.
+   - A click on `todo.txt` opens its page in the same tab (5 tabs before and
+     after, and "buy milk" shows). Ctrl and a click open a new tab (3 to 4), and
+     a middle click opens a new tab (4 to 5). A Ctrl and a click sent through SDL
+     needs a key down of Ctrl first, because a mouse event takes its modifiers
+     from the last key event.
+   - The page of a folder was not taken in the live window: the tree of Files
+     shows the workspace, and the folder needs a double click there. The case of
+     `test_explorer()` checks the line under a name of a folder page.
+   - The new tab of Ctrl and a click, and of a middle click, opens in front of
+     the tab of the link. A browser opens it behind. The open behaved so before
+     this plan.
+   The naming guard passes.
 
 ## Not in this plan
 

@@ -459,7 +459,9 @@ is replaced. That function
 answers a `ReferencedDocument`, or `nothing` when the reference no longer reaches
 a node, so a `ReferencedDocument` found before an edit is brought up to date
 after it: `find_referenced_document(DocumentLocator(start, get_reference(old)))`
-reads the same place again.
+reads the same place again. A locator names a document and holds none, so a walk
+of the documents stops at it (`is_walk_opaque`): a document that keeps a
+locator, such as a link, is not a parent of the document that the locator names.
 
 `get_edited_document(x)` follows a chain of layers down to the document a person
 edits: a tab wraps what it shows, a file wraps the document read from it, a

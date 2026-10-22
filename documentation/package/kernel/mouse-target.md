@@ -69,6 +69,13 @@ A row of a list, a table or a tree is not a document, so the pointer never reach
 
 A widget container that a view builds for a domain, such as a tree of files, reads the forward-mapped mouse target the same way a native container reads its own: through `get_mouse_target` of the widget document it holds, to find the child the pointer was on last. [The forward map](#the-forward-map) computes that field.
 
+### The innermost part
+
+The mouse target names the innermost part under the pointer. A container never keeps the path for itself when a part inside it is under the pointer: a table lights its row from the first steps of a path that goes on into a cell, and the cell gets the rest.
+
+- **A part that a view draws.** A view names a part of its output that has no input, such as a link on a page, by an introduced path, as the default backward map does. A page that draws widgets passes each of them its part of the mouse target, with `follow_output_mouse_target!` or `set_output_tree_path_computations!`, also a widget that it computes after it prints, such as a card for each entry of a section. So the link lights.
+- **A part that a view draws for a document.** A view whose backward map names a document for a part of it, such as a roster, which names the item of a row for a cell of text so that a press selects the item, answers the part under the pointer with the document and, below it, the part as an introduced step: `rows[2].item‹[1]›`, as a bracket that a view draws for an element is `.elements[2]‹.open{0}›`. So the document stays the innermost document under the pointer, whose menu a right click shows, and the part reads its own place from the mouse target of its row.
+
 ### An edit keeps the mouse target right
 
 An edit that writes into a slot, through `ReplaceReferencedValueOperation` (an insert, a delete, a replace of an element, and so an undo and a redo too), moves the mouse target paths that pass through that slot along with it: a path into an element after a splice moves by the change in length, a path whose slot is gone becomes the empty path at the parent, and the documents above the slot on the path of the operation get the same tail.
@@ -102,6 +109,7 @@ The graphics slice of `ProjecturedPlatform` holds the container routing that eve
 - **The operation shares its shape with the selection.** `ReplaceMouseTargetOperation` and `ReplaceSelectionOperation` are both a [`ReplacePathOperation`](operation.md): a container that puts its own step before the answer of a child, and a projection that maps an answer backward, handle both in one method, so a reader that only maps a path needs no mouse-target-specific code.
 - **No dormant state.** Unlike the selection, the mouse target is never kept for a part that is not shown, because the pointer can not rest on a part that is not drawn.
 - **A path answer and a value answer go back differently.** `ReplaceMouseTargetOperation` is mapped backward on the way up, as any path is; an answer that carries its own document, such as a write of `pressed`, is not re-targeted and acts directly on the document it names, a widget that a view made included.
+- **The mouse target goes to the innermost part.** The owner set it as a principle on 2026-10-22: no container keeps the part under the pointer for itself, also a table whose large cell holds parts of its own. A container still lights what it holds from the first steps of the path. See [plan/done/a-link-looks-like-a-link.md](../../../plan/done/a-link-looks-like-a-link.md).
 - **A route is decided only to return an operation from one named place.** A move, like a click and a dwell, travels by position and by the chain that each document holds; code fixes a route in advance only for the rare case where an operation must come back from one specific document, such as a command run from the palette.
 
 See [plan/done/a-document-knows-the-part-under-the-pointer.md](../../../plan/done/a-document-knows-the-part-under-the-pointer.md) for the design record.
