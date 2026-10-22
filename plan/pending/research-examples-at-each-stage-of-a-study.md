@@ -47,8 +47,11 @@ Rules that each example keeps, so it is a study that the editor could have made:
    and `research_contested` in `DomainExamples.jl` and the registry, and in the
    list of widget views that the navigation sweep skips.
    Done: they stand before `research` in both lists, in the order of the stages.
-3. [ ] A test that each stage example keeps the rules of section 2, in
+3. [x] A test that each stage example keeps the rules of section 2, in
    `ResearchDocumentTest.jl`; `test_printer`, `test_reader` and `test_repl` of
    the four examples.
+   Done: `_find_research_study_faults` answers the faults as texts, and the five
+   studies have none. `test_research()` 310 of 310; the printer, reader and REPL
+   tests of the five research examples 173 424 of 173 424.
 4. [ ] Pictures of the four outlines, and the guide of the domain names the
    examples.

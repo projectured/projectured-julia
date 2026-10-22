@@ -1,9 +1,44 @@
+# The faults of `study` against what the editor makes, as texts: an id out of the
+# order of its kind, a link to an item outside the study, a status that the last
+# decision about the item does not give, a time that is no time, an item of a kind
+# made before the one before it, and a decision made before an item that it names.
+function _find_research_study_faults(study)
+    faults = String[]
+    items = collect_study_items(study)
+    title = get_document_title(study)
+    for kind in RESEARCH_KINDS
+        listed = collect(getproperty(study, kind.field))
+        for (index, item) in enumerate(listed)
+            item.id == kind.letter * string(index) || push!(faults, title * ": " * item.id * " is not " * kind.letter * string(index))
+            index > 1 && item.time < listed[index - 1].time && push!(faults, title * ": " * item.id * " is older than the item before it")
+        end
+    end
+    for item in items
+        find_research_time(item.time) === nothing && push!(faults, title * ": " * item.id * " has no time")
+        for (name, linked) in collect_research_links(item)
+            any(other -> other === linked, items) || push!(faults, title * ": " * item.id * "." * string(name) * " is outside the study")
+        end
+        has_research_status(item) || continue
+        status = :open
+        for decision in study.decisions
+            any(named -> named === item, collect(decision.accepts)) && (status = :accepted)
+            any(named -> named === item, collect(decision.rejects)) && (status = :rejected)
+        end
+        item.status === status || push!(faults, title * ": " * item.id * " is " * string(item.status) * ", the decisions say " * string(status))
+    end
+    for decision in study.decisions, named in vcat(collect(decision.accepts), collect(decision.rejects))
+        named.time < decision.time || push!(faults, title * ": " * decision.id * " is older than " * named.id)
+    end
+    faults
+end
+
 """
     test_research_document()
 
 The documents of a study: what a new item holds, the links of the example study,
-which hold the items themselves, the time of an item, and the save of a study,
-alone and in a project with a Markdown file, which gives back the same graph.
+which hold the items themselves, the time of an item, the studies of the examples
+at each stage of the work, and the save of a study, alone and in a project with a
+Markdown file, which gives back the same graph.
 """
 function test_research_document()
     @testset "ResearchDocument" begin
@@ -55,6 +90,17 @@ function test_research_document()
             @test find_research_time("not a time") === nothing
             @test endswith(get_research_time(), "Z")
             @test find_research_time(get_research_time()) isa Dates.DateTime
+        end
+
+        @testset "each stage example is a study that the editor could have made" begin
+            studies = (make_research_framed_study_document_example(), make_research_grounded_study_document_example(),
+                       make_research_planned_study_document_example(), make_research_contested_study_document_example(),
+                       make_research_study_document_example())
+            for study in studies
+                @test isempty(_find_research_study_faults(study))
+            end
+            @test [length(collect_study_items(study)) for study in studies] == [3, 8, 8, 12, 10]
+            @test isempty(studies[1].decisions) && isempty(studies[4].answers)
         end
 
         @testset "a study saved alone writes each item once, and loads to the same graph" begin
