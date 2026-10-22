@@ -12,13 +12,22 @@ function _collect_help_label_texts(node, found = String[])
         _collect_help_label_texts(node.content, found)
     elseif node isa VerticalLayout || node isa GridLayout
         foreach(child -> _collect_help_label_texts(child, found), node.children)
+    elseif node isa CellVector || node isa AbstractVector
+        foreach(child -> _collect_help_label_texts(child, found), node)
     end
     found
 end
 
 _help_double(click) = MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0)
 
-_get_help_columns(holder) = collect(String, holder.table.columns)
+# The table of the page of `holder`, its headers, the first cell of each row, and
+# the width policy of each column.
+function _draw_help_table(holder)
+    table = print_document(make_help_group_projection(), nothing, holder, nothing).output.children[2]
+    (table, _collect_help_label_texts(table.column_headers),
+     [first(_collect_help_label_texts(row)) for row in table.cells],
+     [column.policy for column in table.columns])
+end
 
 # A double click on the first text `text` that the frame draws.
 function _open_help_row!(editor, backend, text)
@@ -31,34 +40,47 @@ end
 function test_help_pages()
 @testset "the pages of the help" begin
 
-@testset "the page of a tree is a line over the table of its groups" begin
+@testset "the page of a tree is a line over a table of its groups, which fits its content" begin
     list = update_help_groups!(DocumentTypeList())
     output = print_document(make_help_group_projection(), nothing, list, nothing).output
     @test output isa GridLayout
     count = sum(group -> group.count, list.children)
     @test startswith(only(_collect_help_label_texts(output.children[1])), "$count document types in ")
-    @test output.children[2] === list.table
-    @test _get_help_columns(list) == ["name", "count", "description"]
-    @test [row.item for row in list.table.rows] == collect(list.children)
+    (table, headers, names, policies) = _draw_help_table(list)
+    @test table isa WidgetTable
+    @test headers == ["name", "types", "description"]
+    @test names == [group.name for group in list.children]
+    # The name and the count are as wide as their widest cell, and the
+    # description takes the rest.
+    @test policies == [Content, Content, Fill]
     platform = _find_help_child(list, "Platform")
-    @test [row.item for row in platform.table.rows] == collect(platform.children)
-    @test _get_help_columns(_find_help_child(platform, "Widget")) == ["name", "typed", "description"]
+    (_, headers, names, policies) = _draw_help_table(_find_help_child(platform, "Widget"))
+    @test headers == ["name", "names to type", "description"]
+    @test names == [entry.name for entry in _find_help_child(platform, "Widget").children]
+    @test policies == [Content, Content, Fill]
     projections = update_help_groups!(ProjectionList())
-    @test _get_help_columns(_find_help_child(_find_help_child(projections, "Platform"), "Widget")) ==
-          ["name", "description"]
-    # A tree that no acquire built has no table, and its page shows the line alone.
+    (_, headers, _, policies) = _draw_help_table(_find_help_child(_find_help_child(projections, "Platform"), "Widget"))
+    @test headers == ["name", "description"]
+    @test policies == [Content, Fill]
+    # A tree that no acquire built has no group, and its page shows the line alone.
     @test length(print_document(make_help_group_projection(), nothing, DocumentTypeList(), nothing).output.children) == 1
 end
 
-@testset "the open of a row opens the node at its place in the tree" begin
+@testset "a node maps to its row, and the row back to the node" begin
     list = update_help_groups!(DocumentTypeList())
+    p = make_help_group_projection()
+    iomap = print_document(p, nothing, list, nothing)
     k = findfirst(group -> group.name == "Platform", collect(list.children))
-    row = _help_tree_path(FieldReferenceStep("table"), FieldReferenceStep("rows"), ElementReferenceStep(k),
-                          FieldReferenceStep("item"), FieldReferenceStep("name"))
-    @test _help_tree_steps(HelpModule._find_help_node_path(list, row)) ==
-          _help_tree_steps(_help_tree_path(FieldReferenceStep("children"), ElementReferenceStep(k),
-                                           FieldReferenceStep("name")))
-    @test HelpModule._find_help_node_path(list, _help_tree_path(FieldReferenceStep("children"))) === nothing
+    node = _help_tree_path(FieldReferenceStep("children"), ElementReferenceStep(k))
+    row = _help_tree_path(FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("rows"),
+                          RangeReferenceStep(k - 1, k))
+    @test _help_tree_steps(map_reference_forward(p, iomap, node)) == _help_tree_steps(row)
+    @test _help_tree_steps(map_reference_forward(p, iomap, extend_reference(node, FieldReferenceStep("name")))) ==
+          _help_tree_steps(row)
+    @test _help_tree_steps(map_reference_backward(p, iomap, row)) == _help_tree_steps(node)
+    # A press on the line leaves the selection where it is.
+    @test map_reference_backward(p, iomap, _help_tree_path(FieldReferenceStep("children"), RangeReferenceStep(0, 1))) ===
+          nothing
 end
 
 @testset "the page of a type shows its name, its module, the names to type and its whole docstring" begin

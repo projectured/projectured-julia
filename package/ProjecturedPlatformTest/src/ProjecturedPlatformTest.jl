@@ -464,6 +464,7 @@ using ProjecturedPlatform.SerializationModule: pred_arguments
 using ProjecturedPlatform.SyntaxModule: SyntaxToText
 using ProjecturedPlatform.TextModule: TextToString
 using ProjecturedPlatform.TreeModule
+using ProjecturedPlatform.CollectionModule
 using ProjecturedPlatform.LayoutModule
 using ProjecturedPlatform.WidgetModule
 using ProjecturedPlatform.NavigatorModule

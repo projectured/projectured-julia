@@ -248,6 +248,9 @@ function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
         push!(found, (String(_app_value(node.text)), x, y))
     elseif hasproperty(node, :elements)
         foreach(element -> _app_drawn_at(element, x, y, found), _app_value(node.elements))
+    elseif node isa GraphicsViewport
+        # A viewport shows its content moved by its offset, as a scrolled pane does.
+        _app_drawn_at(node.content, x + round(Int, node.transform.e), y + round(Int, node.transform.f), found)
     elseif hasproperty(node, :content)
         _app_drawn_at(node.content, x, y, found)
     end

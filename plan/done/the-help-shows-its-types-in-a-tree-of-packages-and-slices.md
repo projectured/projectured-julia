@@ -1,6 +1,6 @@
 # The help shows its types in a tree of packages and slices
 
-Status: IN PROGRESS, 2026-10-22. The owner answered Q1 (two trees) and asked for
+Status: DONE, 2026-10-22, on the branch `help-tree`, not landed. The owner answered Q1 (two trees) and asked for
 the implementation. Branch `help-tree`, worktree
 `/home/projectured/workspace/projectured-julia-help-tree`, off main `ec6fc6a66`.
 
@@ -155,6 +155,8 @@ group, `:file` for a document type, `:lambda` for a projection.
     page needs no rule that keeps an arrangement.
   - A tree that no acquire built has no table, and its page shows the line
     alone.
+
+  Step 6 replaces the roster with a table that the page builds eagerly.
 - **The page of an entry** shows the name, the package and the module, the names
   to type for a document type, and then the whole docstring as its raw text, or
   "no description". The page has a scroll pane of its own, because a navigator
@@ -253,7 +255,7 @@ two trees".
    navigator on a group and loads it: the page comes back after the build. Change the two items of the Help menu.
    Test: the help cases of `test_window_shell()`, and in `test_explorer()` a
    press on Documents › JSON that shows its page.
-5. [ ] **The guides and a live check.** The guides are done: help.md is new,
+5. [x] **The guides and a live check.** The guides are done: help.md is new,
    tree.md has a row for the help, shell.md says that a tree opens in a
    navigator, and the index of documentation/package names the trees.
    `test_application()` passes, 391 passed and 2 broken, against 386 and 2 on
@@ -272,6 +274,31 @@ two trees".
    Widget › WidgetLabel, then Back and Parent, and take a picture. Run
    `Pkg.precompile` and the help tests of omnet-julia. Move this plan to
    `plan/done/`.
+
+6. [x] **The page builds its table eagerly.** Added after the live check of step
+   5. The owner, 2026-10-22, on the pictures: "the column widths should be
+   better for the content, no?", then "why the roster? what about the projection
+   which creates the table from the help documents? why not fit the content for
+   the first two column and fill for the description?", then "I'm not even
+   sure, why it's a roster? this could be done eagerly, no? it's a finite and
+   constant list", and "yes" to the eager table.
+   - `HelpGroupToWidget` builds a `WidgetTable` with every row: the name and the
+     middle column take `Content`, the description `Fill`. The headers are
+     "name", "types" or "names to type", and "description".
+   - The maps lead `children[k]` to the row `k` and back, so a press selects
+     the node, and Ctrl+Return and "Open as a page" open it at its place. A
+     double press adds `OpenPageOperation(nothing, children[k])`, and a
+     Ctrl+press opens the page in a new tab.
+   - The `table` fields of the three documents, the roster, the remap of the
+     open of a row and the edge `roster` go.
+   - The helper `_app_drawn_at` of the application test adds the offset of a
+     viewport, because the table scrolls its cells in one.
+   Tests: `test_help()` 80 of 80, `test_help_themes()` 108 of 108,
+   `test_window_shell()` 145 of 145, `test_explorer()` 257 of 257;
+   `test_platform_layering()` shows only the baseline of main.
+   `test_application()` 391 passed and 2 broken. The live check passes every
+   step again, and its pictures show the name and the count as wide as their
+   content, and the description in the rest of the width.
 
 ## Not in this plan
 

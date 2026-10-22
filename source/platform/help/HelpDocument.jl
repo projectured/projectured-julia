@@ -10,14 +10,11 @@ The tree of every document type that an empty tab can make: the types that
 package, and by module in a package of many modules. `children` holds the
 [`HelpGroup`](@ref)s of the packages. A new list holds none: its acquire builds
 them, and builds them again after a change of the loaded program
-([`update_help_groups!`](@ref)). `world` is the world counter at the last build,
-and `table` the roster of the groups, which the page draws; the first build makes
-it.
+([`update_help_groups!`](@ref)). `world` is the world counter at the last build.
 """
 @document struct DocumentTypeList
     children::CellVector = CellVector()
     world::UInt = UInt(0)
-    table::Any = nothing
 end
 
 """
@@ -30,25 +27,22 @@ grouped as in a [`DocumentTypeList`](@ref).
 @document struct ProjectionList
     children::CellVector = CellVector()
     world::UInt = UInt(0)
-    table::Any = nothing
 end
 
 """
-    HelpGroup(name, count, description, children, table)
+    HelpGroup(name, count, description, children)
 
 A package or a module in a tree of the help: `name` is the name of the package
 without `Projectured`, or the name of the module without `Module`; `count` is
 the count of the types below it; `description` is the first paragraph of the
 docstring of the package or the module. `children` holds the groups of the
-modules of a package, or the [`HelpEntry`](@ref)s of its types, and `table` the
-roster of the children, which the page draws.
+modules of a package, or the [`HelpEntry`](@ref)s of its types.
 """
 @document struct HelpGroup
     name::String
     count::Int
     description::String
     children::CellVector
-    table::Any
 end
 
 """

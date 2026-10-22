@@ -22,6 +22,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
@@ -30,7 +31,6 @@ using ..OperationModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
-using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule

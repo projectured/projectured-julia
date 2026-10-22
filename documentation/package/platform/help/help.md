@@ -1,6 +1,6 @@
 # Help
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain.md](../domain/domain.md), [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [roster.md](../roster/roster.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain.md](../domain/domain.md), [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [widget.md](../widget/widget.md)
 
 The help slice of `ProjecturedPlatform` holds what the Help menu of a window opens: the tree of every document type, the tree of every projection, and the page that says what the program is. This document says how a tree groups the types by package and by module, why a tree stores its groups and builds them at its acquire, and what the page of a group and of a type shows.
 
@@ -12,11 +12,11 @@ The help slice has five document types:
 
 - **`DocumentTypeList`** is the tree of every document type that an empty tab can make.
 - **`ProjectionList`** is the tree of every concrete projection: the views a window draws a document with, and the projections that combine other projections.
-- **`HelpGroup(name, count, description, children, table)`** is a package or a module in a tree.
+- **`HelpGroup(name, count, description, children)`** is a package or a module in a tree.
 - **`HelpEntry(name, type, typed, description, text)`** is one type in a tree.
 - **`AboutPage`** holds `name`, `summary`, `version` and `homepage`. It says what a program is.
 
-A tree holds `children`, its groups, `world`, the world counter at its last build, and `table`, the roster that its page draws. A new tree holds no group, and its constructor walks nothing.
+A tree holds `children`, its groups, and `world`, the world counter at its last build. A new tree holds no group, and its constructor walks nothing.
 
 ### The shape of a tree
 
@@ -64,24 +64,24 @@ The decoration gives an icon and a detail. A tree has `:circle_help`, a group `:
 
 ### The page of a tree and of a group
 
-`HelpGroupToWidget` draws a tree or a group as a `GridLayout` of one column: a line, and under it the table of the children, which fills the rest of the height.
+`HelpGroupToWidget` draws a tree or a group as a `GridLayout` of one column: a line, and under it a `WidgetTable` with one row for each child, which fills the rest of the height and scrolls there.
 
 ```
-children[1]       the line
-children[2]       the table: table.<rest>
+children[1]                the line
+children[2].rows[k]        the row of the node children[k]
 ```
 
 The line of a tree says how many types and packages the tree holds, such as "268 document types in 21 packages. Type one of the names in an empty tab to make a document of that type." The line of a group is its description, or "No description.".
 
-The table is a `Roster` of `CollectionItems` of `children`, linked to the node. The build makes it with the node. The header of a column shows its key, so the field names are the column names:
+The page builds the table with every row at once. A page holds at most about 60 rows, and the list of a page changes only at a build, so the table measures each cell. The name and the middle column take `Content`, so each is as wide as its widest cell, and the description takes `Fill`, the rest of the width, cut at its edge:
 
 | Node | Columns |
 | --- | --- |
-| a tree, or a group of groups | name, count, description |
-| a group of document types | name, typed, description |
+| a tree, or a group of groups | name, types, description |
+| a group of document types | name, names to type, description |
 | a group of projections | name, description |
 
-A double click on a row opens the page of its node in the nearest navigator. The roster answers the double click with the path of the row, `table.rows[r].item`. The `read_intent` of the page maps that open to the place of the node in the tree, `children[k]`. So the address names the node, and Parent comes back to this page. The table is a plain roster: the first filter of a person wraps it in an arrangement (`make_first_arrangement`), as at any table.
+The maps lead the node `children[k]`, and any path inside it, to the row `k` of the table, and the row back to the node. So a press on a row selects its node, the selection of a node shows on its row, and Up and Down move from node to node. A double press on a row also answers `OpenPageOperation(nothing, children[k])`, so the nearest navigator opens the page of the node at its place in the tree, and Parent comes back to this page. A Ctrl+press opens the page in a new tab. Ctrl+Return and "Open as a page" read the selected node, so they open it at its place too.
 
 ### The page of a type
 
@@ -104,7 +104,7 @@ The page is read only.
 
 ## How it fits
 
-The help slice uses the collection, domain, layout, natural, projection, roster, serialization, style, syntax, text, tooltip, tree and widget slices, and the kernel. The tool layer of the kernel gives `compute_docstring_summary` and `find_docstring_text`.
+The help slice uses the collection, domain, layout, natural, projection, serialization, style, syntax, text, tooltip, tree and widget slices, and the kernel. The tool layer of the kernel gives `compute_docstring_summary` and `find_docstring_text`.
 
 A tree and a group draw through `make_graphics_projection` of their type, chained to `GridLayoutToGraphicsCanvas`, and an entry draws chained to `VerticalLayoutToGraphicsCanvas`. The `__init__` of the slice registers `AboutPageToSyntax` for the page about the program with `register_natural_syntax!(:help, …)`.
 
@@ -118,7 +118,7 @@ The first content of the explorer of a window has a section "Help" with the two 
 - **A tree stores its groups, and its acquire builds them.** The loaded modules are external mutable state, so a computation must not walk them (`PAR-PURE-THUNK`). A tree follows the model of a folder, which stores what it read, and whose acquire reads. The walk constructs a document of each candidate type to test it, so it runs on the task of the editor, and no background cell does it.
 - **The constructor of a tree walks nothing.** `insertable(T)` calls `T()` while it walks the candidates that `get_insertion_candidates` enumerates, and `DocumentTypeList` is itself a candidate. A constructor that walked the candidates would call the enumeration that calls it.
 - **The groups are packages and modules, by the names that the loaded program holds.** No table in the code says which package is a domain, a backend or an adapter, so the tree has no level of kinds.
-- **The page maps the open of a row to the place of its node.** The roster opens the item of a row by its path through the table. The page owns the table, so it maps the path, as the view of a data frame maps a double click on the number of a row.
+- **The page builds its table eagerly, and the name and the middle column fit their content.** The owner chose it on 2026-10-22: "it's a finite and constant list". The option not chosen is a `Roster` of the children. A roster builds only the rows in view of a tab, so it measures no cell and gives each column an equal share of the width. It also needs the table in a field of each document, and it opens a row by its path through the table. The cost of the choice: a person can not filter or sort the table of a page.
 - **The description is the raw text of the docstring, read through `Base.Docs.meta`.** It keeps the inline Markdown marks as they are written, and needs no dependency on the `Markdown` standard library.
 - **`_get_typed_names` takes its type behind `@nospecialize`, so Julia compiles one method for it and not one for each type.** A closure that holds the type compiles once for each document type, and that costs about 10 seconds on the first build.
 - **`AboutPage` is a document of the host program, and `about` is a function of the editor.** The default page names ProjecturEd. A host that runs its own program gives its own name, summary and home page.
@@ -143,7 +143,7 @@ make_window_help_menu(; about = editor -> AboutPage(name = "My editor",
 
 - **The first build of a session can hold the window for 3 to 5 seconds.** The first `get_insertion_candidates(Document)` of a session walks every loaded module, on the task of the editor. An empty tab and the add menu of the explorer pay the same cost once.
 - **A tree that no acquire built is empty.** A print with no editor, or a card that shows a tree that no tab holds, shows no group and no table. A script calls `update_help_groups!`.
-- **Ctrl+Return and "Open as a page" on a row open the page at its path through the table.** Only a double click is mapped to the place of the node. The navigator slice loads after the help slice, so the help slice can not answer `find_navigator_address`.
+- **The table of a page has no filter and no sort.** The filter of the explorer keeps the rows of the tree that it read.
 - **Many projections have no docstring.** About 380 of the projections show "No description." on their page.
 - **The page of a type shows the docstring as its raw Markdown,** one line of the page for each line of the text, with the marks as they are written.
 - **No link joins a document type and the projections that draw it.**
