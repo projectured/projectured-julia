@@ -40,6 +40,7 @@ for _src in _SOURCES
 end
 
 include("../../../example/domain/research/ResearchDocumentExample.jl")
+include("../../../example/domain/research/ResearchStageExample.jl")
 
 export make_research_question_document_example, make_research_source_document_example,
        make_research_expectation_document_example, make_research_hypothesis_document_example,
@@ -47,6 +48,8 @@ export make_research_question_document_example, make_research_source_document_ex
        make_research_result_document_example, make_research_evidence_document_example,
        make_research_decision_document_example, make_research_answer_document_example,
        make_research_study_document_example, make_research_projection_example,
-       make_research_map_document_example
+       make_research_map_document_example, make_research_framed_study_document_example,
+       make_research_grounded_study_document_example, make_research_planned_study_document_example,
+       make_research_contested_study_document_example
 
 end # module ProjecturedResearchExample

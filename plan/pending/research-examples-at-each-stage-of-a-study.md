@@ -35,9 +35,14 @@ Rules that each example keeps, so it is a study that the editor could have made:
 
 ## 3. The steps
 
-1. [ ] The four builders `make_research_<stage>_study_document_example()` in
+1. [x] The four builders `make_research_<stage>_study_document_example()` in
    `example/domain/research/ResearchStageExample.jl`, exported by
    `ProjecturedResearchExample`.
+   Done: a source whose address is not sure has no link; the links that stand are
+   the arXiv entry of the fairness index and the DOIs of X-MAC and CUBIC. The
+   numbers of each study agree: the current of the soil sensor gives 30 and 9
+   days on 220 mAh, the shares 81 % and 19 % give a fairness index of 0.72, and
+   the guard band is one frame of 1538 bytes at 1 Gb/s.
 2. [ ] The examples `research_framed`, `research_grounded`, `research_planned`
    and `research_contested` in `DomainExamples.jl` and the registry, and in the
    list of widget views that the navigation sweep skips.
