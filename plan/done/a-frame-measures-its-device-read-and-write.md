@@ -1,7 +1,7 @@
 # A frame measures its device read and its device write
 
-Status: in progress, on the branch `device-times`, in the worktree
-`projectured-julia-device-times`.
+Status: DONE, 2026-10-22, on the branch `device-times`, in the worktree
+`projectured-julia-device-times`. Not landed on `main`.
 
 ## The ask
 
@@ -74,7 +74,7 @@ owner approves.
 2. [x] **With the counters compiled in.** Done; see [As built](#as-built). Run the same tests in a scratch
    environment with `performance_counters = true`. Commit a fix if one is
    necessary.
-3. [ ] **A live check and the guides.** An editor on the SDL backend, offscreen,
+3. [x] **A live check and the guides.** Done; see [As built](#as-built). An editor on the SDL backend, offscreen,
    runs frames of an example; the plan gets the two times beside `:read_time`
    and `:print_time`. The guides `editor.md` and `performance.md` name the new
    measurements. The plan moves to `plan/done/`. Commit.
@@ -108,3 +108,28 @@ owner approves.
   `--project=package/ProjecturedKernelTest`. With `PERFORMANCE_COUNTERS_ENABLED`
   `true`, the tests of step 1 and `test_performance_counter()` pass: 192 of 192.
   A frame over the probe backend records the two times and the eight counts.
+- **Step 3.** The live check opens the JSON example in a session of the platform
+  (`DisplayModule._start_session`), on an `SdlBackend` with
+  `SDL_VIDEODRIVER=offscreen`, in `environment/all`. Each of 300 calls of
+  `run_on_editor_task!` changes the first string, and each makes one frame that
+  prints and paints. The 252 frames after the first 50 calls, by their median:
+
+  | Name | Counters off | Counters on |
+  | --- | --- | --- |
+  | `:frame_time` | 2.924 ms | 2.851 ms |
+  | `:read_time` | 0.129 ms | 0.114 ms |
+  | `:device_read_time` | 0.041 ms | 0.049 ms |
+  | `:print_time` | 1.309 ms | 1.291 ms |
+  | `:device_write_time` | 1.306 ms | 1.288 ms |
+  | `:computes` / `:device_write_computes` | | 54 / 54 |
+  | `:reads` / `:device_write_reads` | | 4686 / 3409 |
+  | `:device_read_reads` | | 576 |
+
+  The device write holds almost the whole print stage, and every computation of
+  the frame runs in it: the print is lazy, so the printer computations run while
+  the backend reads the output. The device read of SDL reads 576 cells in each
+  frame although no event arrives; this plan does not look for the cause. The
+  script must define its closures before the loop of the editor starts: a
+  closure of a top-level loop is too new for the world of the task of the loop.
+  The guides `editor.md` and `performance.md` name the two times and the eight
+  counts.

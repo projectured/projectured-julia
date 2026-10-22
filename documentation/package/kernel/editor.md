@@ -727,6 +727,11 @@ build. `record_frame_performance!` records:
 - `:feed_time`, `:read_time`, `:evaluate_time`, `:print_time` and `:report_time`,
   the sum of each stage without its held frames; `:print_time` holds the paint
   and a retry of a part that failed;
+- `:device_read_time` and `:device_write_time`, the sum of the calls of
+  `take_from_devices!` and of `write_to_devices!`, without held frames. Each is a
+  part of its stage: `:read_time` holds the device read, and `:print_time` holds
+  the device write. The print is lazy, so the device write also holds the
+  printer computations that run while the backend reads the output;
 - `:held_time`, the time of the held frames of code units;
 - `:garbage_collection_time` and `:compile_time`, the time that the garbage
   collector and the compiler took in the process during the frame;
@@ -738,7 +743,10 @@ build. `record_frame_performance!` records:
 The values of the garbage collector, the compiler and the allocations are of
 the whole process, so the work of other threads counts too. When the counters
 are compiled in, the record holds them as well; the
-[performance guide](performance.md) says how. The store keeps the
+[performance guide](performance.md) says how. It then also holds the reads,
+computations, invalidations and writes of cells in each device half, from
+`:device_read_reads` to `:device_write_writes`, so a frame shows how much of its
+cell work ran while the backend read the output. The store keeps the
 last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
 (open a tab and type `statistics`) and their times as a chart (type
 `frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
