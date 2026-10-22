@@ -293,6 +293,88 @@ See also `get_roster_item_place`.
 """
 find_roster_row(roster::Roster, item) = get(roster.index.rows, item, nothing)
 
+"""
+    find_held_item_path(holder, step, path) -> Reference or nothing
+
+The place in `holder` of the item that `path` reaches through a row of the roster
+that `holder` keeps in its field `step`, with the rest of `path` after it: for
+`table.document.rows[k].item.<rest>`, the place of the item of row `k`, such as
+`files[2].<rest>`. The field holds an `ArrangementDocument` around a `Roster`, or
+the `Roster` alone, and the link of the roster is `holder`. `nothing` when the row
+has no place, and for any other path, such as a cell of a facet or an entry of the
+arrangement.
+
+A page that shows such a roster as its table maps a path back with it, so the
+open of a row and the selection of a row name the place of the item.
+
+# Example
+
+    find_held_item_path(list, FieldReferenceStep("table"), path)   # files[2]
+
+See also `find_held_row_path` and `get_roster_item_place`.
+"""
+function find_held_item_path(holder, step::FieldReferenceStep, path)
+    roster, prefix = _find_held_roster(holder, step)
+    (roster === nothing || !(path isa ConcreteReference)) && return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    n = length(prefix)
+    (length(steps) >= n + 3 && all(steps[i] == prefix[i] for i in 1:n) &&
+     steps[n + 1] == FieldReferenceStep("rows") && _is_index_step(steps[n + 2]) &&
+     steps[n + 3] == FieldReferenceStep("item")) || return nothing
+    place = get_roster_item_place(roster, steps[n + 2].start + 1)
+    place === nothing && return nothing
+    concat_references(place, _drop_reference_steps(path, n + 3))
+end
+
+"""
+    find_held_row_path(holder, step, path) -> Reference or nothing
+
+The inverse of [`find_held_item_path`](@ref): for a path at the place of an item
+in `holder`, such as `files[2].<rest>`, the path of the row that shows that item
+in the roster that `holder` keeps in its field `step`, such as
+`table.document.rows[k].item.<rest>`. The place is the reference of the
+`CollectionItems` source of the roster and an index. `nothing` when no row shows
+the item, and for any other path.
+
+See also `find_roster_row`.
+"""
+function find_held_row_path(holder, step::FieldReferenceStep, path)
+    roster, prefix = _find_held_roster(holder, step)
+    (roster === nothing || !(path isa ConcreteReference)) && return nothing
+    source = roster.source
+    (source isa CollectionItems && source.collection isa Reference) || return nothing
+    at = get_reference_steps(strip_reference_types(source.collection))
+    steps = get_reference_steps(strip_reference_types(path))
+    n = length(at)
+    (length(steps) > n && all(steps[i] == at[i] for i in 1:n) && _is_index_step(steps[n + 1])) || return nothing
+    collection = try_evaluate_reference(holder, source.collection, nothing)
+    j = steps[n + 1].start + 1
+    (collection !== nothing && 1 <= j <= length(collection)) || return nothing
+    k = find_roster_row(roster, collection[j])
+    k === nothing && return nothing
+    concat_references(extend_reference(EmptyReference(), prefix..., FieldReferenceStep("rows"), ElementReferenceStep(k),
+                                       FieldReferenceStep("item")),
+                      _drop_reference_steps(path, n + 1))
+end
+
+# The roster that `holder` keeps in its field `step`, alone or in an arrangement,
+# with its link at `holder`, and the steps from `holder` to it; `(nothing, ())`
+# for a field that holds no such roster.
+function _find_held_roster(holder, step::FieldReferenceStep)
+    table = try_evaluate_reference(holder, ConcreteReference(step, EmptyReference()), nothing)
+    roster, prefix = table isa ArrangementDocument ? (table.document, (step, FieldReferenceStep("document"))) :
+                                                     (table, (step,))
+    (roster isa Roster && roster.link === holder) ? (roster, prefix) : (nothing, ())
+end
+
+# `path` after its first `n` steps, with the types that it holds.
+function _drop_reference_steps(path, n::Int)
+    for _ in 1:n
+        path = get_reference_tail(path)
+    end
+    path
+end
+
 get_document_title(roster::Roster) = roster.title
 
 # The rows are the items of other places, which a walk of the documents reaches

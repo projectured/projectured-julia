@@ -1,8 +1,10 @@
 # Fragment of `BackgroundWorkModule` — the page of the log of the background
 # work: a line that counts the works, and under it the table of the log, which the
-# grid prints through the recursion, so a path in it is a path of the log.
+# grid prints through the recursion, so a path in it is a path of the log. A path to
+# a record through its row is the place of the record in the log.
 #
-#     table.<rest>    children[2].<rest>
+#     table.<rest>                           children[2].<rest>
+#     rows[j].<rest>    table.document.rows[k].item.<rest>    (k: the row of record j)
 
 """
     BackgroundWorkLogToWidget(; gap)
@@ -55,10 +57,12 @@ function _find_path_below(path, steps)
     path
 end
 
-# `table.<rest>` ↔ the table in the grid.
+# `table.<rest>` ↔ the table in the grid, and `rows[j].<rest>` ↔ the row of that
+# record in the table.
 function map_reference_forward(::BackgroundWorkLogToWidget, iomap::SimpleIoMap, reference)
     output = iomap.output
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    reference = something(find_held_row_path(iomap.input, _TABLE_STEP, reference), reference)
     rest = _find_path_below(reference, (_TABLE_STEP,))
     rest === nothing && return nothing
     is_fully_typed_reference(rest) ||
@@ -68,11 +72,14 @@ function map_reference_forward(::BackgroundWorkLogToWidget, iomap::SimpleIoMap, 
 end
 
 # A path into the line names nothing, so a press on it leaves the selection where
-# it is; a path into the grid itself names the whole log.
+# it is; a path to a record through its row names the place of the record in the
+# log; a path into the grid itself names the whole log.
 function map_reference_backward(::BackgroundWorkLogToWidget, iomap::SimpleIoMap, reference)
     _find_path_below(reference, _LINE_STEPS) === nothing || return nothing
     rest = _find_path_below(reference, _TABLE_PLACE_STEPS)
-    rest === nothing ? EmptyReference() : ConcreteReference(_TABLE_STEP, rest)
+    rest === nothing && return EmptyReference()
+    table = ConcreteReference(_TABLE_STEP, rest)
+    something(find_held_item_path(iomap.input, _TABLE_STEP, table), table)
 end
 
 # The generic bridge maps the answer of the grid back. The removal of the last

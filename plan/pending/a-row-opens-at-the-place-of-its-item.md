@@ -115,7 +115,7 @@ and the roster keeps it, the owner answered: "yes".
    - `test_roster()`: 53 of 53 pass, 7 of them new. `test_roster_sources()`:
      19 of 19. `test_roster_table()`: 28 of 28. `test_roster_facets()`: 30 of
      30.
-2. [ ] **The pages map through the places.** Add `find_held_item_path` and
+2. [x] **The pages map through the places.** Add `find_held_item_path` and
    `find_held_row_path`, and change the two maps of `OpenFileListToWidget` and
    of `BackgroundWorkLogToWidget`. Test: in the testset of the open files in
    `test_explorer()`, after one click on a name the address of the navigator is
@@ -124,6 +124,27 @@ and the roster keeps it, the owner answered: "yes".
    `test_background_work()`, a double click on a row opens its record at
    `rows[j]` of the log. Then run `test_roster_table()`,
    `test_navigator_gestures()` and `test_document_tree()`.
+   **Done 2026-10-22.** What the step found and decided:
+   - The two rules are in `RosterDocument.jl`, after `find_roster_row`.
+     `_find_held_roster(holder, step)` reads the field and answers the roster,
+     alone or in an arrangement, only when its link is the holder.
+     `_drop_reference_steps` keeps the types of the rest of a path, as the maps
+     of a page keep them.
+   - The backward map of each page builds the path of the table as before and
+     then answers `find_held_item_path` of it, or the path of the table. The
+     forward map first answers `find_held_row_path` of the path, or the path,
+     and then maps the path of the table as before. So the answer of "Show
+     all", which names `table` alone, keeps its path, and
+     `keep_held_arrangement` still finds it.
+   - The test of the open files presses a label of a row, which selects
+     `files[1]`, and then filters the table to the file `b.txt` alone, so its row
+     is the first that the table shows. One click on its name opens it at
+     `files[2]`, and the window draws "Open files" twice, in the tree and in the
+     address, and no `rows[`.
+   - Pass: `test_roster()` 62 of 62 (9 new), `test_explorer()` 267 of 267 (4
+     new), `test_background_work()` 21 of 21 (2 new), `test_roster_table()` 28
+     of 28, `test_navigator_gestures()` 26 of 26, `test_document_tree()` 130 of
+     130.
 3. [ ] **The guides and a live check.** Update
    [roster.md](../../documentation/package/platform/roster/roster.md) (the
    place of an item, the index, the rule of a held roster),

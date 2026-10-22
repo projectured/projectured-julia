@@ -1,8 +1,10 @@
 # Fragment of `FileFormatModule` — the page of the open files of an editor: a line
 # that counts the files, and under it the table of the files, which the grid prints
-# through the recursion, so a path in it is a path of the list.
+# through the recursion, so a path in it is a path of the list. A path to a file
+# through its row is the place of the file in the list.
 #
-#     table.<rest>    children[2].<rest>
+#     table.<rest>                            children[2].<rest>
+#     files[j].<rest>    table.document.rows[k].item.<rest>    (k: the row of file j)
 
 """
     OpenFileListToWidget(; gap)
@@ -40,10 +42,12 @@ function print_document(p::OpenFileListToWidget, recursion, list::OpenFileList, 
     iomap
 end
 
-# `table.<rest>` ↔ the table in the grid.
+# `table.<rest>` ↔ the table in the grid, and `files[j].<rest>` ↔ the row of that
+# file in the table.
 function map_reference_forward(::OpenFileListToWidget, iomap::SimpleIoMap, reference)
     output = iomap.output
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    reference = something(find_held_row_path(iomap.input, _OPEN_FILE_TABLE_STEP, reference), reference)
     (reference isa ConcreteReference && get_reference_head(reference) == _OPEN_FILE_TABLE_STEP) || return nothing
     rest = get_reference_tail(reference)
     is_fully_typed_reference(rest) ||
@@ -52,16 +56,18 @@ function map_reference_forward(::OpenFileListToWidget, iomap::SimpleIoMap, refer
                       rest)
 end
 
-# A path into the table takes the step of the table; a path into the line names
-# nothing, so a press on it leaves the selection where it is; a path to the grid
-# itself names the whole list.
+# A path into the table takes the step of the table, and a path to a file through
+# its row names the place of the file in the list, so the open of a row shows the
+# address of the file; a path into the line names nothing, so a press on it leaves
+# the selection where it is; a path to the grid itself names the whole list.
 function map_reference_backward(::OpenFileListToWidget, iomap::SimpleIoMap, reference)
     steps = get_reference_steps(strip_reference_types(reference))
     isempty(steps) && return EmptyReference()
     (length(steps) >= 2 && steps[1] == _FILE_PAGE_SECOND_STEPS[1] && steps[2] == _FILE_PAGE_SECOND_STEPS[2]) ||
         return nothing
-    concat_references(ConcreteReference(_OPEN_FILE_TABLE_STEP, EmptyReference()),
-                      get_reference_tail(get_reference_tail(reference)))
+    table = concat_references(ConcreteReference(_OPEN_FILE_TABLE_STEP, EmptyReference()),
+                              get_reference_tail(get_reference_tail(reference)))
+    something(find_held_item_path(iomap.input, _OPEN_FILE_TABLE_STEP, table), table)
 end
 
 # The generic bridge maps the answer of the grid back. The page keeps the

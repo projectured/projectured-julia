@@ -1,7 +1,8 @@
 # The log of the background work: the feed of an editor copies the records of its
 # store into the log of its session while a view shows the log, newest first; a
-# row runs until its work ends, and says its failure; the page counts the works,
-# and the row of the log in a tree runs while a work runs. A folder that an
+# row runs until its work ends, and says its failure; the page counts the works, a
+# double click on a row opens its record at its place in the log, and the row of
+# the log in a tree runs while a work runs. A folder that an
 # explorer opens leaves a row. A log that no view shows is not filled.
 
 # A source that doubles each input, held at `gate` until a value is put into it.
@@ -61,6 +62,14 @@ function test_background_work()
         @test get_navigator_page(explorer.navigator) === log
         @test _wait_for_background_work(() -> _nav_has_text(backend, "2 works · 1 failed"), editor)
         @test _nav_has_text(backend, "times two") && _nav_has_text(backend, "a broken read")
+        # A double click on a row opens its record at its place in the log.
+        click = _explorer_click(backend, "times two"; side = :page)
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        @test _wait_for_background_work(() -> get_navigator_page(explorer.navigator) === held, editor)
+        address = get_reference_steps(strip_reference_types(explorer.navigator.address))
+        @test address[(end - 1):end] ==
+              collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("rows"),
+                                                           ElementReferenceStep(2))))
     end
 
     @testset "a folder that an explorer opens leaves a row, and a log that no view shows stays empty" begin

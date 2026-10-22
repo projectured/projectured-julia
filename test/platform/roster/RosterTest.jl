@@ -25,6 +25,12 @@ ProjecturedPlatform.DomainModule.get_document_decoration(run::_RosterRun) =
     DocumentDecoration(; conditions = run.status == "failed" ? [DocumentCondition(:failed)] : DocumentCondition[])
 RosterModule.compute_item_facet(run::_RosterRun, ::Val{:slow}) = run.delay > 0.3
 
+# A holder of runs and of a table of them, as a page keeps its table.
+@document struct _RosterHolder
+    runs::CellVector
+    table::Any
+end
+
 # A record that declares a facet with the name of one of its fields.
 @document struct _RosterClash
     status::String
@@ -99,6 +105,35 @@ function test_roster()
         runs = make_runs()
         plain = link_roster!(Roster(CollectionItems(runs); columns = ["id"]), runs)
         @test get_roster_item_place(plain, 1) === nothing && find_roster_row(plain, runs[2]) == 2
+    end
+
+    @testset "a holder of a table of its own items maps a row to the place of its item, and back" begin
+        holder = _RosterHolder(make_runs(), nothing)
+        roster = link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("runs")));
+                                     columns = ["id"]), holder)
+        holder.table = ArrangementDocument(roster, ArrangementEntry[])
+        table = FieldReferenceStep("table")
+        path(steps...) = extend_reference(EmptyReference(), steps...)
+        row_at(k, rest...) = path(table, FieldReferenceStep("document"), FieldReferenceStep("rows"), ElementReferenceStep(k),
+                                  FieldReferenceStep("item"), rest...)
+        item_at(j, rest...) = path(FieldReferenceStep("runs"), ElementReferenceStep(j), rest...)
+        same(found, expected) = found !== nothing &&
+            collect(get_reference_steps(strip_reference_types(found))) == collect(get_reference_steps(expected))
+        status = FieldReferenceStep("status")
+        @test same(find_held_item_path(holder, table, row_at(2)), item_at(2))
+        @test same(find_held_item_path(holder, table, row_at(3, status)), item_at(3, status))
+        @test same(find_held_row_path(holder, table, item_at(2, status)), row_at(2, status))
+        # A path that reaches no item through a row, and an item that no row
+        # shows, map to nothing.
+        @test find_held_item_path(holder, table, path(table, FieldReferenceStep("entries"))) === nothing
+        @test find_held_item_path(holder, table, path(table, FieldReferenceStep("document"), FieldReferenceStep("rows"),
+                                                      ElementReferenceStep(1), FieldReferenceStep("values"))) === nothing
+        @test find_held_row_path(holder, table, item_at(9)) === nothing
+        @test find_held_item_path(holder, FieldReferenceStep("runs"), row_at(1)) === nothing
+        # An item that goes out before an item: the place and the row follow.
+        deleteat!(holder.runs, 1)
+        @test same(find_held_item_path(holder, table, row_at(1)), item_at(1))
+        @test same(find_held_row_path(holder, table, item_at(2)), row_at(2))
     end
 
     @testset "a key: a facet, a path of fields, and within" begin

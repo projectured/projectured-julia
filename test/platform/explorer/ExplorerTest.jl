@@ -389,10 +389,26 @@ function test_explorer()
         frame!()
         @test list.table === table && isempty(table.entries)
         @test _nav_has_text(backend, "b.txt") && !_nav_has_text(backend, "Show all")
-        # The name of a file is a link: one press opens the page of the file.
+        # A path of a row names the place of its file in the list.
+        files_at(j) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("files"),
+                                                                   ElementReferenceStep(j))))
+        last_two(reference) = (steps = get_reference_steps(strip_reference_types(reference)); steps[(end - 1):end])
+        # A press on a label of a row selects the file at its place in the list.
+        _nav_press!(editor, backend, _explorer_click(backend, "unsaved edits"; side = :page))
+        frame!()
+        @test last_two(editor.document.selection) == files_at(1)
+        # The name of a file is a link: one press opens the page of the file, at
+        # its place in the list, also while a filter shows it as the first row.
+        filter = ProjecturedPlatform.ArrangementModule._make_filter(("state" => ==(""),))
+        evaluate_operation(editor, make_arrangement_change_edit(
+            table, ArrangeCollectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("rows")), filter)))
+        frame!()
+        @test !_nav_has_text(backend, "a.txt")
         _nav_press!(editor, backend, _explorer_click(backend, "b.txt"; side = :page))
         frame!()
         @test get_navigator_page(explorer.navigator) === page
+        @test last_two(explorer.navigator.address) == files_at(2)
+        @test _nav_count(backend, "Open files") == 2 && !_nav_has_text(backend, "rows[")
         @test find_open_file_document(joinpath(root, "b.txt"); editor) === page
         # A row goes when the editor lets its file go.
         remove_open_file!(editor, file)
