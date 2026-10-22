@@ -1,7 +1,8 @@
 # A graph scrolls in its own pane and draws dark edges
 
-Status: IN PROGRESS, 2026-10-22. The owner approved the decisions below and
-asked for the implementation on 2026-10-22.
+Status: DONE, 2026-10-22, on the branch `graph-edges`. Not landed on `main`.
+The owner approved the decisions below and asked for the implementation on
+2026-10-22.
 
 This plan continues
 [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md),
@@ -159,6 +160,11 @@ approves. Test with the narrowest test functions of each package.
    background in [graph.md](../../documentation/package/domain/graph/graph.md).
    Move this plan to `plan/done/`.
 
+   **Done.** `graph.md` has the section "The scroll pane", the margin of the
+   drawing under "The edges", the colors of the theme, two design decisions and
+   three limits. The data frame suite passes (628), and the naming guard
+   passes.
+
 ## Open items
 
 - The map of a study (branch `research`) builds its own chain. It can use
@@ -166,3 +172,6 @@ approves. Test with the narrowest test functions of each package.
 - The hosts in omnet-julia build their own chains and stay as they are.
 - The pane does not keep its scroll position when the graph view is printed
   again, as the zoom does not.
+- The graph passes the size that its host offers on to the content of each
+  vertex, so a table in a vertex fills the whole view. This was so before the
+  pane too.

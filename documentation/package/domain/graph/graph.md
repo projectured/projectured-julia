@@ -38,9 +38,24 @@ The size of the output canvas is a computed cell over the drawing: the right and
 
 `GraphToGraphics(engine = make_deferred_layout_engine(); extent, border, constraints, theme, edge_shape)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
 
+### The scroll pane
+
+A graph view holds itself in a `WidgetScrollPane`, so a large graph scrolls where it is made, not in the tab or the card that shows it. `make_scrolling_graph_projection(stages; measure, widget_theme)` makes this view from a chain such as `GraphToGraphics()`:
+
+```julia
+make_scrolling_graph_projection(GraphToGraphics(); measure)
+```
+
+- The stage `GraphGraphToWidgetScrollPane` puts the graph, by identity, in a pane. The pane takes the room that its host offers and shows a bar only while the graph is larger than its view, so a small graph looks as it does without a pane.
+- The pane prints the graph and its scroll bars through its recursion. In the natural renderer that recursion would send the graph back to the row of the graph, which would make a pane again. So the projection nests a dispatch under the pane: the graph goes to the graph stages, a scroll bar to its printer, and only the content of a vertex goes on to the outer recursion.
+- The pane gives Ctrl and the wheel to the graph first and never scrolls on Ctrl, so the zoom of the layout works in the pane. A plain turn that the graph does not take scrolls the pane.
+- The natural row of `GraphGraph` and `make_graph_projection_example` use it. `GraphToGraphics` stays the plain chain, so a host that embeds a graph in a widget of its own decides for itself.
+
+**A graph is transparent.** The drawing paints only lines, labels and boxes, and the pane of a graph paints no fill (`WidgetStyle(; content_color = color_transparent)`). The host paints the background: a tab page, a card or a window.
+
 ### The edges
 
-The drawing paints a box larger than the box that the engine places: the padding of the theme, and the ring of a highlighted vertex. So the drawing, not the engine, decides where an edge ends:
+The drawing paints a box larger than the box that the engine places: the padding of the theme, and the ring of a highlighted vertex. So the drawing moves the whole layout right and down by this margin, and a box at the corner (0, 0) of the layout has its frame inside the canvas, where a host that clips does not cut it. And the drawing, not the engine, decides where an edge ends:
 
 1. The line starts at the centre of the drawn box of the source, passes through the bends of the route, and ends at the centre of the drawn box of the target. The two end points of the route are not drawn. So a route that ends on the border of a box (`GridEmbedding`, `FruchtermanReingoldLayout`) and a route that ends at its centre (`AdaptagramsLayout`) draw the same way.
 2. The drawing cuts the line where it leaves the painted rectangle of the source and where it enters the painted rectangle of the target. So the arrowhead touches the box, or the ring of a highlighted vertex. The cut ignores the rounded corner, so the gap at a corner is at most 2 px.
@@ -129,7 +144,7 @@ In both, the content of a vertex is the domain node itself, held by identity. So
 
 ### The theme
 
-`GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; the color, the width and the gap of the ring of a highlight; and the colors of the light of the vertex under the pointer. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows under the name of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme`, scaled or not, and holds all values as one `NamedTuple` and no theme, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
+`GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; the color, the width and the gap of the ring of a highlight; and the colors of the light of the vertex under the pointer. The line and the arrowhead of an edge take the role `text_muted`, almost black, and the border of a box takes `border_strong`, the line of a card. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows under the name of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme`, scaled or not, and holds all values as one `NamedTuple` and no theme, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
 
 ### The tooltip of a part
 
@@ -139,7 +154,7 @@ A graph says, for a vertex under the pointer, its edges out and in, and its labe
 
 `ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
 
-The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `DeferredLayout`, so a tab draws a graph as a diagram. The package registers no natural domain row: a graph has no text form, no parser and no file type.
+The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `DeferredLayout`, in a scroll pane of their own, so a tab draws a graph as a diagram that scrolls when it is large. The package registers no natural domain row: a graph has no text form, no parser and no file type.
 
 ## Design decisions
 
@@ -152,6 +167,8 @@ The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:
 - **A highlight goes around the layout cell.** A running state machine moves its marker many times a second, and a force-directed layout for each move costs too much. See [plan/done/state-machine-domain.md](../../../../plan/done/state-machine-domain.md).
 - **The native engine is a separate package.** Its native dependency stays out of every other package. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md).
 - **The drawing cuts an edge, not the engine.** Only the drawing knows the padding and the ring that it paints around a box. One rule then serves each engine, a dragged box and a zoom. See [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../../../../plan/done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md).
+- **A graph scrolls where it is made.** A tab page gets no scroll pane, so the graph view holds its own. The pane shows a bar only while the graph is larger than its view, so no rule for small and large graphs is needed. See [a-graph-scrolls-in-its-own-pane-and-draws-dark-edges.md](../../../../plan/done/a-graph-scrolls-in-its-own-pane-and-draws-dark-edges.md).
+- **A graph is transparent, and its host paints the background.** A background on the graph would also hide a fault of a pane that does not clip. See [a-graph-scrolls-in-its-own-pane-and-draws-dark-edges.md](../../../../plan/done/a-graph-scrolls-in-its-own-pane-and-draws-dark-edges.md).
 - **The zoom keeps a scale and a shift.** A shift that the drawing computed from the positions at each print moved the whole drawing at a drop of the vertex at the top-left corner. See [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../../../../plan/done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md).
 
 ## Usage
@@ -165,7 +182,7 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/domain/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()`, `test_graph_vertex_drag()` and `test_graph_layout_zoom()`.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()`, `test_graph_vertex_drag()`, `test_graph_layout_zoom()` and `test_graph_scroll_pane()`.
 
 ## Limits
 
@@ -173,7 +190,9 @@ run_example(graph, projection; name = "graph")
 - A graph that a view makes keeps the places of a drop only while the view lives: the diagram of a state machine, a process diagram, the topology of a network simulation. The pins go on that graph, and a reprint makes a new graph. After a reprint, undo of such a drop has no visible result.
 - During a drag, the edges of the dragged vertex lose the bends of their routes. An engine that routes around boxes routes them again at the drop.
 - No command removes the pins and the starts; undo is the way back.
-- A zoom keeps the top-left corner, not the point under the pointer: a graph can not scroll the pane around it. A graph in a host with no scroll pane, such as the window scene of the tests, does not scroll when a zoom makes it larger than the window.
+- A zoom keeps the top-left corner, not the point under the pointer: the graph does not scroll its pane to the pointer. A graph that a host draws with `GraphToGraphics` alone, outside a scroll pane, does not scroll when a zoom makes it larger than its room.
+- The graph passes the size that its host offers on to the content of each vertex. A content that fills the room it gets, such as a table, then fills the whole view, and the other vertices go outside it.
+- The pane of a graph does not keep its scroll position when the graph view is printed again, as the zoom does not.
 - A zoom under 1 can make boxes overlap, and can move a bend of a routed edge into a box. The zoom lives in `GraphLayout`, so a reprint of the graph starts at no zoom.
 - A layout corner is an integer, so at a zoom a dropped vertex is drawn at most `scale / 2` px from the place of the release.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
