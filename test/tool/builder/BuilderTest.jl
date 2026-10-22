@@ -480,6 +480,19 @@ function test_build_executable()
             @test !occursin("import $A_PACKAGE", source)
         end
 
+        @testset "a build writes the preferences of the last build no more" begin
+            project = mktempdir()
+            write_preferences([make_baked_preference("ProjecturedKernel",
+                                                     "performance_counters", true),
+                               make_baked_preference(A_PACKAGE, "probe", 1)], project)
+            path = write_preferences([make_baked_preference(A_PACKAGE, "other", 2)], project)
+            @test ProjecturedBuilder.BuilderModule.TOML.parsefile(path) ==
+                  Dict(A_PACKAGE => Dict("other" => 2))
+            # A build with no preference leaves no file.
+            write_preferences(Preference[], project)
+            @test !isfile(path)
+        end
+
         @testset "a level nobody defined is refused before anything is written" begin
             context = _test_context()
             @test_throws ErrorException _generated_source(context; name = "wrong", usage = nothing,

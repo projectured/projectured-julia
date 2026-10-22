@@ -76,12 +76,13 @@ path.
 
 Preferences are read from the **active** project, so this writes into the one
 that gets compiled — the package the build wrote, not the package that holds the
-code. Every build writes every key it names: a build that wrote only what
-changed would leave the last build's answer for the rest, and that answer would
-be compiled into this binary.
+code. Every build writes the whole file, with every key it names and no other: a
+key or a package that only the last build named would be that build's answer,
+and that answer would be compiled into this binary.
 """
 function write_preferences(preferences, project::AbstractString)
     toml = joinpath(project, "LocalPreferences.toml")
+    rm(toml; force = true)
     by_package = Dict{String,Vector{Pair{String,Any}}}()
     for preference in _preferences(preferences)
         push!(get!(by_package, preference.package, Pair{String,Any}[]),
