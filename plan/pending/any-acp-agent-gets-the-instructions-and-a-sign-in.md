@@ -78,7 +78,9 @@ official ACP".
   - `_start_agent_task` holds the one way to run an agent task, for the start
     and for the sign-in.
 - [ ] **3. A live check with `codex-acp`.** It needs Node.js 22 or newer on
-  this machine and a ChatGPT sign-in; the owner decides.
+  this machine and a ChatGPT sign-in; the owner decides. The check follows the
+  Codex paragraph of `documentation/guide/assistant-guide.md` (5c858db27),
+  which nobody ran yet, and corrects it where the real run differs.
 
 ## Questions
 
