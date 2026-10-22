@@ -62,11 +62,3 @@ The journal of the workflow of `make_workflow_document_example`: every entry of
 its tree as a table.
 """
 make_workflow_journal_document_example() = WorkflowJournal(workflow = make_workflow_document_example())
-
-"""
-    make_workflow_catalog_document_example() -> WorkflowCatalog
-
-A catalog with no folder: the view draws its button and a row that says that no
-workflow is there, so it is the same on every machine.
-"""
-make_workflow_catalog_document_example() = WorkflowCatalog()

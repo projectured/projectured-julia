@@ -156,21 +156,6 @@ See also `collect_workflow_entries`, `WorkflowEntry`.
     kind::Symbol = :all
 end
 
-"""
-The workflows of a folder as a document of its own: a view that lists the `.pred`
-files of `folder` that hold a workflow.
-
-- `folder` — the path of the folder.
-- `version` — a count that a press on "Read again" raises, so the view reads the
-  folder again.
-"""
-@document struct WorkflowCatalog <: WorkflowDocument
-    folder::String = ""
-    version::Int = 0
-end
-
-# The name of a tab that shows a node of a workflow, its journal or a catalog: the
-# text that names the node, or the folder.
 # Which nodes an outline shows folded is state of the view, not a thing the
 # workflow says: the file and a search leave it out.
 get_view_state_fields(::Type{<:Union{WorkflowStep, WorkflowDecision, WorkflowOption}}) = (:collapsed, :journal_shown)
@@ -181,11 +166,12 @@ get_insertion_aliases(::Type{WorkflowStep}) = ["workflow"]
 make_insertion_document(::Type{WorkflowStep}) = WorkflowStep(title = PrimitiveString("New workflow"))
 is_explorer_entry_type(::Type{WorkflowStep}) = true
 
+# The name of a tab that shows a node of a workflow or its journal: the text that
+# names the node.
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =
     get_workflow_node_title(node).value
 get_document_title(journal::WorkflowJournal) =
     journal.workflow === nothing ? "Journal" : "Journal of " * get_document_title(journal.workflow)
-get_document_title(catalog::WorkflowCatalog) = "Workflows in " * basename(catalog.folder)
 
 # ── The values of the fields ─────────────────────────────────────────────
 

@@ -9,9 +9,9 @@ the documents of any domain that the work needs, as its elements.
 The domain includes:
 - **The tree**: `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`
 - **The record**: `WorkflowEntry`
-- **The views**: `WorkflowJournal`, the entries of a whole tree as a table,
-  `WorkflowCatalog`, the workflows of a folder, and `WorkflowList`, the workflows
-  of the open files of an editor, which the explorer holds
+- **The views**: `WorkflowJournal`, the entries of a whole tree as a table, and
+  `WorkflowList`, the workflows of the open files of an editor, which the
+  explorer holds
 """
 module WorkflowModule
 
@@ -29,10 +29,9 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..RosterModule: get_item_facets, compute_item_facet, collect_roster_parts, collect_roster_items,
                        get_roster_item_type
 import ..TreeModule: get_tree_children_steps, is_explorer_entry_type, is_session_explorer_entry_type
-import ..OperationModule: evaluate_operation, make_inverse_operation, is_self_contained_operation
 
 export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry,
-       WorkflowJournal, WorkflowCatalog, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
+       WorkflowJournal, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
        WORKFLOW_ENTRY_KINDS, WORKFLOW_ENTRY_AUTHORS, format_workflow_time, get_workflow_time,
        find_workflow_time, get_workflow_states, is_workflow_node, get_workflow_node_title,
        get_workflow_node_children
@@ -47,7 +46,6 @@ export WorkflowTheme, ScaledWorkflowTheme
 export WorkflowNodeToWidget, WorkflowEntryToWidget, make_workflow_projections,
        make_workflow_graphics_entries, WorkflowToWidgetIoMap
 export WorkflowJournalToWidget
-export WorkflowCatalogToWidget, collect_workflow_files, create_workflow_file!, CreateWorkflowFileOperation
 export WorkflowList, get_session_workflow_list, WorkflowListToWidget
 
 include("WorkflowDocument.jl")
@@ -57,7 +55,6 @@ include("WorkflowToWidget.jl")
 include("WorkflowJournalToWidget.jl")
 include("WorkflowList.jl")
 include("WorkflowListToWidget.jl")
-include("WorkflowCatalogToWidget.jl")
 
 function __init__()
     # The rows that let the renderer draw a workflow, and a node or an entry of one

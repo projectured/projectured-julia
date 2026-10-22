@@ -17,7 +17,6 @@ A workflow is an AND/OR tree. A step holds its sub-steps, and all of them belong
 | `WorkflowOption` | `title`, `state` (`:open`, `:chosen`, `:rejected`, `:parked`), `reason`, `children`, `journal`, `elements`, `collapsed` |
 | `WorkflowEntry` | `time`, `author` (`:person`, `:assistant`), `kind` (`:comment`, `:decision`, `:state`, `:link`), `text`, `source` |
 | `WorkflowJournal` | `workflow`, `kind`: a view of the entries of a whole tree |
-| `WorkflowCatalog` | `folder`, `version`: a view of the workflows of a folder |
 | `WorkflowList` | `file_list`, `files`, `table`: the workflows of the open files of an editor |
 
 The exploration tree is the decisions and their options. A rejected option keeps its children and its reason, as the record of a branch that was tried. Many steps can be `:active` at the same time. A loop is no node: a repeat is a new entry or a copy of a step.
@@ -56,12 +55,6 @@ One computation builds the output of the tree and the places of its documents, a
 ### The journal
 
 `WorkflowJournal(workflow, kind)` is a second view of a workflow: a document that holds it, as the data frame view holds a frame. `WorkflowJournalToWidget` draws a choice of the kind above a timeline of every entry of the tree, the newest first: a group for each local day, and a row of the outline kit for each entry, with the avatar of the author and the time beside the text, and the node and the kind under it. The choice `:decision` gives the log of the decisions. The timeline is read only.
-
-### The catalog
-
-`WorkflowCatalog(folder, version)` lists the workflows of a folder. `WorkflowCatalogToWidget` draws a button that reads the folder again and a table with one row for each `.pred` file of the folder whose document is a `WorkflowStep`, the one with the latest entry first: the goal, the progress as a bar of the share of the steps done with the count beside it ("1 of 3"), the state of the root, the active steps, the time of the last entry, the count of the open decisions and the name of the file. A press on the goal answers `OpenFileOperation` of the file, so the workflow opens in a tab of its own; many workflows are open at the same time, and no operation switches between them. `collect_workflow_files(folder)` gives the same list as `path => workflow`.
-
-The view reads the folder when it is built. A press on "Read again" raises `version`, and the view reads the folder again. A press on "New workflow" answers `CreateWorkflowFileOperation`, which writes a new workflow, `workflow.pred` or the next free `workflow-N.pred`, into the folder with `create_workflow_file!`, reads the folder again and opens the file in a tab. A new workflow also comes from the explorer: `WorkflowStep` is an entry of a section with the alias "workflow", and a new one has the goal "New workflow".
 
 ### The list of the open workflows
 
@@ -124,12 +117,12 @@ evaluate_operation(nothing, make_workflow_state_operation(workflow.children[1], 
 ```
 
 - Examples: `workflow_example` and `workflow_journal_example`, from `make_workflow_document_example()`, `make_workflow_journal_document_example()` and `make_workflow_projection_example()`.
-- Test: `test_workflow()` runs the layering guard, the documents, the edits, the outline, the journal, the catalog, the list of the open workflows, the walk-through, the API of the assistant and the link to a conversation. `test_workflow_file()` of the umbrella saves a workflow with markers into a Markdown page and a JSON file, and alone with a JSON and a Markdown element written inline.
+- Test: `test_workflow()` runs the layering guard, the documents, the edits, the outline, the journal, the list of the open workflows, the walk-through, the API of the assistant and the link to a conversation. `test_workflow_file()` of the umbrella saves a workflow with markers into a Markdown page and a JSON file, and alone with a JSON and a Markdown element written inline.
 
 ## Limits
 
 - The journal has the choice of a kind and no general filter, sort or find.
-- The catalog reads the folder only when it is built or when "Read again" is pressed, and it lists the files directly in the folder.
+- The list holds a workflow only while its file is open. A new workflow comes from the explorer: `WorkflowStep` is an entry of a section with the alias "workflow", and a new one has the goal "New workflow".
 - A double click on a row of the table of the list opens the page of the workflow below the history of its file, so the history of the file does not record an edit there. A press on the file in the tree shows the page of the file.
 - The table of the list does not keep its arrangement when its last entry goes, so the next filter starts a new one.
 - A verb takes its node as an argument: the `workflow` of an assistant is not the node that a verb acts on when a call names none, because a verb does not know which assistant calls it.

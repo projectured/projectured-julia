@@ -45,9 +45,9 @@ end
 
 The projections of a workflow, `node` and `entry` of the outline and `journal` of
 the timeline of its entries, with the values of the `OutlineTheme`
-`outline_theme`, and `catalog` of the workflows of a folder and `list` of the
-workflows of the open files, with the styles of `theme`, a `WorkflowTheme`. Each
-theme is scaled or not, or the default for `nothing`. Each projection makes
+`outline_theme`, and `list` of the workflows of the open files, with the styles
+of `theme`, a `WorkflowTheme`. Each theme is scaled or not, or the default for
+`nothing`. Each projection makes
 widgets; a renderer chains it with a layout to graphics, as
 `make_workflow_graphics_entries` does.
 """
@@ -57,9 +57,8 @@ function make_workflow_projections(; theme = nothing, outline_theme = nothing)
     node = WorkflowNodeToWidget(; outline)
     entry = WorkflowEntryToWidget(; outline)
     journal = WorkflowJournalToWidget(; outline)
-    catalog = WorkflowCatalogToWidget(; muted_text = get_style(:muted_text), gap = get_style(:gap))
     list = WorkflowListToWidget(; gap = get_style(:gap))
-    (; node, entry, journal, catalog, list)
+    (; node, entry, journal, list)
 end
 
 """
@@ -78,7 +77,6 @@ function make_workflow_graphics_entries(; measure, appearance)
     Pair{Type,Any}[WorkflowStep => node, WorkflowDecision => node, WorkflowOption => node,
                    WorkflowEntry => ChainingProjection(projections.entry, VerticalLayoutToGraphicsCanvas()),
                    WorkflowJournal => ChainingProjection(projections.journal, VerticalLayoutToGraphicsCanvas()),
-                   WorkflowCatalog => ChainingProjection(projections.catalog, VerticalLayoutToGraphicsCanvas()),
                    WorkflowList => ChainingProjection(projections.list, GridLayoutToGraphicsCanvas())]
 end
 
