@@ -457,12 +457,16 @@ using ProjecturedKernelTest: check_layering, get_package_source_root
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
 using ProjecturedPlatform.DomainModule
 using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection, RecursiveProjection
+using ProjecturedPlatform.SerializationModule: pred_arguments
 using ProjecturedPlatform.SyntaxModule: SyntaxToText
 using ProjecturedPlatform.TextModule: TextToString
+using ProjecturedPlatform.TreeModule
 using ProjecturedPlatform.HelpModule
 
+include("../../../test/platform/help/HelpTreeTest.jl")
 include("../../../test/platform/help/HelpListToSyntaxTest.jl")
 include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
 include("../../../test/platform/help/HelpSuite.jl")

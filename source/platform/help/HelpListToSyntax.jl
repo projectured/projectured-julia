@@ -59,14 +59,6 @@ function _make_help_entries(types; typed::Bool)
     entries[sortperm([lowercase(entry.name) * " " * entry.package for entry in entries])]
 end
 
-# The names a person types into an empty tab to make a `T`, without the name of
-# the type itself: the words of the name, and the aliases. `T` is not
-# specialized on, so one method serves every type of the list.
-function _get_typed_names(@nospecialize(T::Type))
-    own = String(nameof(T))
-    filter(!=(own), get_insertion_names(T))
-end
-
 _get_list_heading(::DocumentTypeList, count) =
     "$count document types. Type one of the names in an empty tab to make a document of that type."
 _get_list_heading(::ProjectionList, count) =
