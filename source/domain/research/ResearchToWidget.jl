@@ -267,9 +267,11 @@ _get_name_field(::Union{ResearchExperiment, ResearchAnalysis, ResearchResult}) =
 _get_name_field(::ResearchSource) = (:citation, "Citation")
 _get_name_field(::ResearchItem) = (:statement, "Statement")
 
-# The other texts of an item, each with the word before it, in the order of the card.
-const _RESEARCH_TEXT_ROWS = ((:criterion, "answered by"), (:purpose, "decides"), (:summary, "says"),
-                             (:reason, "because"), (:caveats, "but"))
+# The other texts of an item, each with the word before it and the name that its
+# empty field shows, in the order of the card.
+const _RESEARCH_TEXT_ROWS = ((:criterion, "answered by", "Criterion"), (:purpose, "decides", "Purpose"),
+                             (:summary, "says", "Summary"), (:reason, "because", "Reason"),
+                             (:caveats, "but", "Caveats"))
 
 # The document of an item that the card shows under its texts.
 const _RESEARCH_CONTENT_FIELDS = (:prediction, :design, :method, :content)
@@ -348,11 +350,11 @@ function _build_item_view(p::ResearchItemToWidget, item::ResearchItem)
     push!(containers, (header, header_place))
     push!(rows, header)
 
-    for (field, word) in _RESEARCH_TEXT_ROWS
+    for (field, word, placeholder) in _RESEARCH_TEXT_ROWS
         hasfield(typeof(item), field) || continue
         place = next_place()
         text_place = vcat(place, _get_child_steps(2))
-        text = _make_text_part!(slots, containers, item, field, word, text_place)
+        text = _make_text_part!(slots, containers, item, field, placeholder, text_place)
         row = HorizontalLayout(Any[WidgetLabel(word; text_style = p.muted_text), text];
                                gap = p.gap, vertical_align = :center)
         push!(containers, (row, place))

@@ -15,7 +15,7 @@ function test_research_map_to_graph()
             @test graph isa GraphGraph
             @test [vertex.content.id for vertex in graph.vertices] ==
                   ["Q1", "S1", "H1", "X1", "N1", "R1", "E1", "D1", "D2", "A1"]
-            @test length(graph.edges) == 16
+            @test length(graph.edges) == 15
             words = Dict{String, String}()
             for edge in graph.edges
                 words[edge.source.content.id * ">" * edge.target.content.id] = edge.label.value
@@ -25,6 +25,7 @@ function test_research_map_to_graph()
             @test words["A1>Q1"] == "answers"
             @test words["R1>X1"] == "from"
             @test words["D2>S1"] == "accepts"
+            @test words["D2>E1"] == "accepts, rests on"
             @test all(edge.directed for edge in graph.edges)
         end
 
@@ -38,7 +39,7 @@ function test_research_map_to_graph()
             evaluate_operation(nothing, make_add_research_item_operation(study, evidence))
             graph = iomap.output
             @test length(graph.vertices) == 11
-            @test length(graph.edges) == 18
+            @test length(graph.edges) == 17
             @test any(edge -> edge.source.content === evidence && edge.label.value == "opposes", graph.edges)
         end
 
@@ -53,6 +54,13 @@ function test_research_map_to_graph()
             @test string(strip_reference_types(forward)) == ".vertices[3].content.statement"
             backward = map_reference_backward(projection, iomap, forward)
             @test string(strip_reference_types(backward)) == ".study.hypotheses[1].statement"
+        end
+
+        @testset "the projection of the map draws the example to graphics" begin
+            research_map = ResearchMap(study = make_research_study_document_example())
+            projection = make_research_map_projection(; measure = FixedMeasure(10, 18, 6, 0))
+            iomap = print_document(projection, nothing, research_map, PrinterContext())
+            @test iomap.output isa GraphicsCanvas
         end
 
         @testset "an editor draws the map of the example" begin

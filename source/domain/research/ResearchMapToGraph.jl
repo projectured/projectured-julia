@@ -29,8 +29,8 @@ get_document_title(research_map::ResearchMap) =
 
 Make the `GraphGraph` of the study of a `ResearchMap`: a vertex whose content is
 each item of the lists of the study, in the order of `collect_study_items`, and a
-directed edge for each link of an item to an item of the study, from the item to
-the linked item, with the word of the link as its label.
+directed edge from an item to each item of the study that it links to, labelled
+with the words of its links to that item, such as "accepts, rests on".
 """
 struct ResearchMapToGraph <: Projection end
 
@@ -78,11 +78,18 @@ function _build_research_graph(study)
     end
     edges = Any[]
     for item in collect_study_items(study)
+        # Two links to one item are one edge, so their labels do not overlap.
+        words = IdDict{Any, Vector{String}}()
+        targets = Any[]
         for (name, linked) in collect_research_links(item)
-            target = get(vertex_of, linked, nothing)
-            target === nothing && continue
-            push!(edges, GraphEdge(vertex_of[item], target; directed = true,
-                                   label = PrimitiveString(_get_link_word(item, Val(name)))))
+            haskey(vertex_of, linked) || continue
+            haskey(words, linked) || (push!(targets, linked); words[linked] = String[])
+            word = _get_link_word(item, Val(name))
+            word in words[linked] || push!(words[linked], word)
+        end
+        for linked in targets
+            push!(edges, GraphEdge(vertex_of[item], vertex_of[linked]; directed = true,
+                                   label = PrimitiveString(join(words[linked], ", "))))
         end
     end
     (output = GraphGraph(vertices = vertices, edges = edges), slots = slots)
@@ -128,14 +135,19 @@ end
 
 The projection that draws a `ResearchMap`: `ResearchMapToGraph`, then the stages
 of the Graph domain with the layout `engine`, which draw each vertex and each edge
-label through `ResearchMapPartToWidget` with the styles of `theme`.
+label through `ResearchMapPartToWidget` with the styles of `theme`. The widgets of a
+part draw through the layout and widget projections, so a part needs no other row
+of the renderer.
 """
 function make_research_map_projection(; measure, theme = nothing, engine = make_deferred_layout_engine())
     get_style(name) = get_research_style(theme, name)
+    widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
     part = ChainingProjection(ResearchMapPartToWidget(; heading_text = get_style(:heading_text),
                                                        muted_text = get_style(:muted_text),
                                                        gap = get_style(:gap)),
-                              VerticalLayoutToGraphicsCanvas())
+                              widgets)
     ChainingProjection(ResearchMapToGraph(),
                        NestingProjection(ChainingProjection(GraphGraphToGraphLayout(engine),
                                                             GraphLayoutToGraphicsCanvas());

@@ -872,6 +872,13 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   `ResearchMapToGraph` is a plain struct: `@projection` on a struct with no field
   gives an expression that a docstring can not document. The atom `map` joins the
   catalog. The test is `test_research_map_to_graph()`, 16 pass.
+  Found when the editor drew the map to a picture (2026-10-22): a vertex label drew
+  its widgets through the label view itself, which has no method for a widget, and
+  the fault barrier of the editor hid the error from the test. The label chain now
+  ends in the layout and widget projections, the test prints the whole map
+  projection with no editor, and two links between one pair of items are one edge
+  with both words, so their labels do not overlap. An empty text field of a card
+  shows the name of its field, not the word before it.
 - [x] **6. The timeline.** §5.3. Test: a roster of `StudyItems` sorted by time
   gives the rows of §4.6 in order, a filter on the author keeps the rows of the
   assistant, and a new item shows as a new row.
