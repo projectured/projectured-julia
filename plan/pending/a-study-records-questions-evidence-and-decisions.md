@@ -806,16 +806,33 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
     so the blocking is (1 - ρ) ρ^(K+1) / (1 - ρ^(K+2)): 0.91 % at K = 13, as the
     evidence says.
   - The registration found no place beyond the ten of the guide and the workflow
-    plan. The atoms of the catalog wait for step 3's commit of the example
-    registry, which needs the projection of step 4.
+    plan. The atoms of the catalog come with the example registry in step 4,
+    which needs the projection of that step.
   - The study saves alone and in a project; the second save of the same study
     writes no byte. `test_research_document()`: 45 pass. The naming guard passes.
-- [ ] **3. The builders and the status.** Insert an item with its id, author and
+- [x] **3. The builders and the status.** Insert an item with its id, author and
   time; delete an item, refused when another item holds it; record a decision,
   which inserts it and writes the statuses in one `CompoundOperation`. A builder
   takes `author` and `time`, so a test fixes both. Test: `test_research_edits()`:
   each builder and its undo through an `UndoBuffer`, a refused delete, and a
   decision that supersedes another.
+  **Done (2026-10-22).** `ResearchEdits.jl`: `make_research_id`,
+  `make_research_item`, `make_add_research_item_operation`,
+  `make_delete_research_item_operation`, `make_record_decision_operation`, and the
+  readers `find_study_item`, `collect_research_links` and
+  `collect_research_item_holders`. What was decided:
+  - `make_research_item` takes a link as an item or as its id and holds the item,
+    so the buttons of the outline and the verbs of step 8 share one place that
+    finds an id. An id that the study does not hold, a field that the kind does not
+    have, and an author that is not `:person` or `:assistant` are an
+    `ArgumentError`.
+  - A delete is refused when another item links to the item or the report holds
+    it; the message names the holders, such as "H1 is held by X1, N1, E1, D2".
+  - A decision names only items of the study that have a status, and never one
+    item both to accept and to reject.
+  - `find_study_item(study, id)` answers the item itself; step 8 adds the method
+    for a `ReferencedDocument`.
+  `test_research_edits()`: 36 pass.
 - [ ] **4. The card and the outline.** §5.1. Test:
   `test_research_study_to_widget()` through a headless editor that keeps its IO
   map, the printer, reader and REPL drivers on `research_example`, a press on

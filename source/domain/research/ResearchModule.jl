@@ -31,7 +31,11 @@ export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, Research
        ResearchAnalysis, ResearchResult, ResearchExpectation, RESEARCH_KINDS, RESEARCH_STATUSES,
        RESEARCH_AUTHORS, get_research_kind, has_research_status, collect_study_items,
        format_research_time, get_research_time, find_research_time, get_research_item_text
+export find_study_item, collect_research_links, make_research_id, make_research_item,
+       make_add_research_item_operation, collect_research_item_holders,
+       make_delete_research_item_operation, make_record_decision_operation
 
 include("ResearchDocument.jl")
+include("ResearchEdits.jl")
 
 end # module

@@ -24,7 +24,8 @@ function test_research()
     @testset "ProjecturedResearch" begin
         test_research_layering()
         test_research_document()
+        test_research_edits()
     end
 end
 
-export test_research, test_research_layering, test_research_document
+export test_research, test_research_layering, test_research_document, test_research_edits

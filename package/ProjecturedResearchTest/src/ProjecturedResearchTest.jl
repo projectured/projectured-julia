@@ -42,6 +42,7 @@ end
 
 
 include("../../../test/domain/research/document/ResearchDocumentTest.jl")
+include("../../../test/domain/research/document/ResearchEditsTest.jl")
 
 include("../../../test/domain/research/ResearchSuite.jl")
 
