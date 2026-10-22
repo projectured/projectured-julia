@@ -7,6 +7,14 @@
 # edge's optional `label` recursed to a canvas and centred on the route midpoint.
 # Edges are drawn first, nodes on top.
 #
+# The drawing paints a box larger than the box that the engine places: the padding
+# and, for the highlighted vertex, the ring. So the drawing, not the engine, cuts
+# each edge at the rim of what it paints. An edge runs from the centre of its
+# source box, through the bends of its route, to the centre of its target box,
+# and is cut where it leaves the one and where it enters the other. One rule
+# serves a route that ends on the border of a box, a route that ends at its
+# centre, and a dragged box.
+#
 # Selection: a path `vertex_layouts[i].vertex.content.…` routes into the i-th
 # node's content sub-pipeline (tutorial School A — peel the steps this projection
 # owns and delegate the tail through the stored child IO maps). The
@@ -42,6 +50,89 @@ function _route_midpoint(route)
         acc += s
     end
     (Int(route[n][1]), Int(route[n][2]))
+end
+
+_get_box_centre(box) = (box[1] + box[3] / 2, box[2] + box[4] / 2)
+
+# The rectangle that the drawing paints for the box of the content of a vertex:
+# the box with its padding, and with the ring when the vertex has the highlight
+# or the light.
+function _get_drawn_rim(box, style, highlighted::Bool)
+    x, y, w, h = box
+    g = style.node_padding + (highlighted ? style.highlight_gap + style.highlight_width : 0)
+    (x - g, y - g, w + 2g, h + 2g)
+end
+
+# Whether the point `(x, y)` is inside the rectangle `rim`. A point on the rim is
+# outside.
+_is_inside_rim(rim, x, y) = rim[1] < x < rim[1] + rim[3] && rim[2] < y < rim[2] + rim[4]
+
+# The fraction of the way from `p` to `q` where a segment that starts inside `rim`
+# leaves it.
+function _compute_rim_exit(rim, p, q)
+    t = 1.0
+    dx = q[1] - p[1]
+    dy = q[2] - p[2]
+    dx > 0 && (t = min(t, (rim[1] + rim[3] - p[1]) / dx))
+    dx < 0 && (t = min(t, (rim[1] - p[1]) / dx))
+    dy > 0 && (t = min(t, (rim[2] + rim[4] - p[2]) / dy))
+    dy < 0 && (t = min(t, (rim[2] - p[2]) / dy))
+    clamp(t, 0.0, 1.0)
+end
+
+_get_point_between(p, q, t) = (p[1] + t * (q[1] - p[1]), p[2] + t * (q[2] - p[2]))
+
+# The part of the polyline `points` that is outside both rims: it starts where the
+# polyline leaves `source_rim` and ends where it enters `target_rim`. `nothing`
+# when no part is outside both, because the two boxes overlap.
+function _clip_route(points, source_rim, target_rim)
+    n = length(points)
+    n < 2 && return nothing
+    first = findfirst(k -> !_is_inside_rim(source_rim, points[k + 1]...), 1:(n - 1))
+    last = findlast(k -> !_is_inside_rim(target_rim, points[k]...), 1:(n - 1))
+    (first === nothing || last === nothing || first > last) && return nothing
+    p, q = points[first], points[first + 1]
+    start = _is_inside_rim(source_rim, p...) ? _compute_rim_exit(source_rim, p, q) : 0.0
+    r, s = points[last], points[last + 1]
+    finish = _is_inside_rim(target_rim, s...) ? 1.0 - _compute_rim_exit(target_rim, s, r) : 1.0
+    first == last && start >= finish && return nothing
+    clipped = Tuple{Float64,Float64}[_get_point_between(p, q, start)]
+    append!(clipped, points[(first + 1):last])
+    push!(clipped, _get_point_between(r, s, finish))
+    Tuple{Int,Int}[(round(Int, point[1]), round(Int, point[2])) for point in clipped]
+end
+
+# The route of an edge as the drawing draws it: from the centre of `source_box`,
+# through the bends of `route`, to the centre of `target_box`, cut at the two rims.
+# A `straight` edge has no bends, as the edge of a dragged vertex.
+function _make_drawn_route(route, source_box, target_box, source_rim, target_rim;
+                           straight::Bool)
+    points = Tuple{Float64,Float64}[_get_box_centre(source_box)]
+    if !straight
+        for k in 2:(length(route) - 1)
+            push!(points, (Float64(route[k][1]), Float64(route[k][2])))
+        end
+    end
+    push!(points, _get_box_centre(target_box))
+    _clip_route(points, source_rim, target_rim)
+end
+
+# The box of the content of each vertex in the drawing, by its index in
+# `vertex_layouts`: where the layout places it, and the dragged vertex where the
+# pointer took it. An entry that is no `VertexLayout` has `nothing`.
+function _compute_drawn_boxes(layout::GraphLayout, drag)
+    boxes = Union{Nothing,NTuple{4,Int}}[]
+    for (i, vertex_layout) in enumerate(layout.vertex_layouts)
+        if !(vertex_layout isa VertexLayout)
+            push!(boxes, nothing)
+            continue
+        end
+        x, y = drag !== nothing && i == drag.index ?
+               _get_dragged_corner(vertex_layout, drag.offset) :
+               (Int(vertex_layout.x), Int(vertex_layout.y))
+        push!(boxes, (x, y, Int(vertex_layout.w), Int(vertex_layout.h)))
+    end
+    boxes
 end
 
 """
@@ -116,6 +207,9 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # inside one vertex draws nothing again.
     lit = Cell(@computation _find_lit_vertex(layout))
 
+    # The box of the content of each vertex, where the drawing draws it.
+    drawn_boxes = Cell(@computation _compute_drawn_boxes(layout, started_drag[]))
+
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
@@ -133,7 +227,14 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         # The drag of a vertex moves that vertex and the edges at it, and the
         # layout stays as it is until the drop.
         drag = started_drag[]
-        boxes = drag === nothing ? nothing : _collect_dragged_boxes(layout, drag)
+        boxes = drawn_boxes[]
+        index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
+                                  for (i, vertex_layout) in enumerate(layout.vertex_layouts)
+                                  if vertex_layout isa VertexLayout)
+        rim(i) = _get_drawn_rim(boxes[i], style,
+                                (highlight_vertex !== nothing &&
+                                 getfield(layout.vertex_layouts[i], :vertex)[] === highlight_vertex) ||
+                                getfield(layout.vertex_layouts[i], :vertex)[] in joined)
         # Where each vertex's node box lands in `result` — the reference target
         # for "beside node i", which is what an annotation anchors to.
         node_at = Union{Int,Nothing}[nothing for _ in 1:length(layout.vertex_layouts)]
@@ -145,9 +246,14 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             el isa EdgeLayout || continue
             route = el.route
             e = getfield(el, :edge)[]
-            if boxes !== nothing && e isa GraphEdge &&
-               (e.source === drag.vertex || e.target === drag.vertex)
-                route = something(_make_dragged_route(e, boxes), route)
+            source = e isa GraphEdge ? get(index_of, objectid(e.source), 0) : 0
+            target = e isa GraphEdge ? get(index_of, objectid(e.target), 0) : 0
+            # An edge whose ends have no box is drawn along its route as it is.
+            if source != 0 && target != 0
+                route = _make_drawn_route(route, boxes[source], boxes[target], rim(source), rim(target);
+                                          straight = drag !== nothing &&
+                                                     drag.index in (source, target))
+                route === nothing && continue
             end
             length(route) < 2 && continue
             # An edge that is not visible joins its vertices and draws nothing.
@@ -186,8 +292,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         for i in order
             vl = layout.vertex_layouts[i]
             vl isa VertexLayout || continue
-            x, y, w, h = Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h)
-            drag !== nothing && i == drag.index && ((x, y) = _get_dragged_corner(vl, drag.offset))
+            x, y, w, h = boxes[i]
             pad = style.node_padding
             bx, by = x - pad, y - pad
             bw, bh = w + 2*pad, h + 2*pad
@@ -242,19 +347,12 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         right = bottom = 0
         # The node BOX is the vertex inflated by its padding on every side, and a
         # highlight ring sits outside that — both are painted, so both count.
-        margin = style.node_padding + style.highlight_gap + style.highlight_width
-        for vertex_layout in layout.vertex_layouts
-            vertex_layout isa VertexLayout || continue
-            right  = max(right,  Int(vertex_layout.x) + Int(vertex_layout.w) + margin)
-            bottom = max(bottom, Int(vertex_layout.y) + Int(vertex_layout.h) + margin)
-        end
         # A dragged box is painted where the pointer took it.
-        drag = started_drag[]
-        if drag !== nothing
-            vertex_layout = layout.vertex_layouts[drag.index]
-            x, y = _get_dragged_corner(vertex_layout, drag.offset)
-            right  = max(right,  x + Int(vertex_layout.w) + margin)
-            bottom = max(bottom, y + Int(vertex_layout.h) + margin)
+        margin = style.node_padding + style.highlight_gap + style.highlight_width
+        for box in drawn_boxes[]
+            box === nothing && continue
+            right  = max(right,  box[1] + box[3] + margin)
+            bottom = max(bottom, box[2] + box[4] + margin)
         end
         # A route may bow outside every box it connects, and an edge label sits
         # on the route, so the waypoints count too.
@@ -653,27 +751,6 @@ end
 # never left of or above the drawing, where nothing is painted.
 _get_dragged_corner(vertex_layout::VertexLayout, offset) =
     (max(0, Int(vertex_layout.x) + offset[1]), max(0, Int(vertex_layout.y) + offset[2]))
-
-# The box of each vertex, by its identity, with the vertex of `drag` at its
-# dragged corner.
-function _collect_dragged_boxes(layout::GraphLayout, drag)
-    boxes = Dict{UInt,NTuple{4,Int}}()
-    for (i, vertex_layout) in enumerate(layout.vertex_layouts)
-        vertex_layout isa VertexLayout || continue
-        x, y = i == drag.index ? _get_dragged_corner(vertex_layout, drag.offset) :
-                                 (Int(vertex_layout.x), Int(vertex_layout.y))
-        boxes[objectid(vertex_layout.vertex)] = (x, y, Int(vertex_layout.w), Int(vertex_layout.h))
-    end
-    boxes
-end
-
-# The route of `edge` between the boxes of its two ends in `boxes`, or `nothing`
-# when an end has no box.
-function _make_dragged_route(edge::GraphEdge, boxes)
-    source = get(boxes, objectid(edge.source), nothing)
-    target = get(boxes, objectid(edge.target), nothing)
-    (source === nothing || target === nothing) ? nothing : _make_straight_route(source, target)
-end
 
 function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     hit = _find_vertex_at(iomap, g.x, g.y)

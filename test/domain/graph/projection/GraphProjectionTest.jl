@@ -467,4 +467,83 @@ end
     @test Int(canvas.w[]) >= 4000
 end
 
+@testset "an edge ends at the rim of the box that the drawing paints" begin
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    graph = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed = true)])
+    drawing = _gpt_draw_with_grid(graph)
+    layout = drawing.input
+    style = unwrap_cell(drawing.projection.style)
+    source, target = _gpt_get_node_rect(drawing, 1), _gpt_get_node_rect(drawing, 2)
+    @test Int(target.x) == Int(layout.vertex_layouts[2].x) - style.node_padding
+
+    # The grid puts the two boxes side by side, so the edge is level. It leaves the
+    # right side of the painted source box, and its arrowhead touches the left side
+    # of the painted target box.
+    first_layout = layout.vertex_layouts[1]
+    y = round(Int, Int(first_layout.y) + Int(first_layout.h) / 2)
+    edge = only(_gpt_collect_lines(drawing))
+    @test edge.end_arrow
+    @test collect(edge.points) == [(Int(source.x) + Int(source.w), y), (Int(target.x), y)]
+
+    # The ring of a highlighted vertex is painted around its box, so the arrowhead
+    # stops at the ring.
+    getfield(graph, :highlight_vertex)[] = v2
+    ring = style.highlight_gap + style.highlight_width
+    @test last(collect(only(_gpt_collect_lines(drawing)).points)) == (Int(target.x) - ring, y)
+    getfield(graph, :highlight_vertex)[] = nothing
+
+    # The edge of a dragged vertex ends at the rim of the box where the pointer
+    # took it, on the line between the two centres.
+    getfield(layout, :drag)[] = (vertex = v2, index = 2, origin = (0, 0), offset = (0, 120),
+                                 started = true)
+    dragged = _gpt_get_node_rect(drawing, 2)
+    @test Int(dragged.y) == Int(layout.vertex_layouts[2].y) + 120 - style.node_padding
+    points = collect(only(_gpt_collect_lines(drawing)).points)
+    @test _gpt_is_on_rim(source, first(points))
+    @test _gpt_is_on_rim(dragged, last(points))
+end
+
+@testset "a route between the centres of two boxes is cut at their painted rims" begin
+    # The shape of a route of libavoid: from centre to centre, with a bend.
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 25), (340, 215)])]))
+    projection = GraphLayoutToGraphicsCanvas()
+    pad = unwrap_cell(projection.style).node_padding
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    canvas = print_document(projection, content, layout, _gctx()).output
+    lines() = filter(e -> e isa GraphicsPolyline, collect(canvas.elements))
+    @test collect(only(lines()).points) == [(10 + 80 + pad, 25), (340, 25), (340, 200 - pad)]
+
+    # Two boxes that overlap leave no part of the line outside both, so the
+    # drawing draws no line.
+    getfield(layout.vertex_layouts[2], :x)[] = 30
+    getfield(layout.vertex_layouts[2], :y)[] = 20
+    getfield(layout.edge_layouts[1], :route)[] = [(50, 25), (70, 35)]
+    @test isempty(lines())
+end
+
 end # test_graph_projection
+
+# The drawing of `graph` by the grid engine, as its IO map.
+function _gpt_draw_with_grid(graph)
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    projection = NestingProjection(ChainingProjection(GraphGraphToGraphLayout(GridEmbedding()),
+                                                      GraphLayoutToGraphicsCanvas());
+                                   recursion = content)
+    print_document(projection, graph).child_iomap.step_iomaps[2][]
+end
+
+_gpt_get_node_rect(drawing, i) = collect(drawing.output.elements)[drawing.node_elements[i]]
+
+_gpt_collect_lines(drawing) = filter(e -> e isa GraphicsPolyline, collect(drawing.output.elements))
+
+# Whether `point` lies on the rim of the rectangle `rect`.
+function _gpt_is_on_rim(rect, point)
+    x, y, w, h = Int(rect.x), Int(rect.y), Int(rect.w), Int(rect.h)
+    px, py = point
+    (px in (x, x + w) && y <= py <= y + h) || (py in (y, y + h) && x <= px <= x + w)
+end

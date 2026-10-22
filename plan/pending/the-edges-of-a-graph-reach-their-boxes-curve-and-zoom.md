@@ -1,6 +1,8 @@
 # The edges of a graph reach their boxes, can curve, and the layout zooms
 
-Status: PENDING, 2026-10-22. Not started. Not approved.
+Status: IN PROGRESS, 2026-10-22, on the branch `graph-edges`, in the worktree
+`projectured-julia-graph-edges`. The owner approved the plan on 2026-10-22, with
+the keyword only for curves: no switch in the window.
 
 ## The ask
 
@@ -45,7 +47,7 @@ The facts at `main` `06af45419`. Find each function by its name.
 
 ## The decision
 
-These are my recommendations. The owner did not approve them yet.
+These were my recommendations. The owner approved them on 2026-10-22.
 
 - **An edge ends at the rim of what the drawing paints for its vertex.** The
   drawing cuts each end of a route, not the engine. First it sets the first
@@ -106,6 +108,17 @@ narrower test functions in `test/domain/graph/projection/`.
    grid engine, a highlighted target, a dragged vertex, and a hand-made
    `GraphLayout` with a centre-to-centre route of three points. The last case
    stands for an Adaptagrams route, because the shim is not built here.
+
+   **Done.** The facts of the implementation:
+   - `_compute_drawn_boxes` gives the box of each vertex in the drawing, with
+     the drag. The cell `drawn` and the cell `extent` read it.
+   - Each edge starts at the centre of its drawn box, so the edges of a dragged
+     vertex need no route of their own. `_collect_dragged_boxes` and
+     `_make_dragged_route` are gone.
+   - An edge whose ends have no box in the layout is drawn along its route, as
+     before.
+   - `test_graph_projection` passes (293), and the drag, theme, FSM diagram and
+     process diagram tests pass.
 2. **A curve is an option.** Add `edge_shape` and `_make_curve_points`. Tests
    assert that each edge is a `GraphicsSpline` of kind `:bezier`, that its ends
    are the cut points of step 1, and that each end tangent is at a right angle
