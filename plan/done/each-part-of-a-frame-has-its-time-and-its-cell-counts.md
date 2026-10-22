@@ -1,7 +1,7 @@
 # Each part of a frame has its time and its cell counts
 
-Status: in progress, 2026-10-22, on the branch `frame-parts`, in the worktree
-`projectured-julia-frame-parts`.
+Status: DONE, 2026-10-22, on the branch `frame-parts`, in the worktree
+`projectured-julia-frame-parts`. Not landed on `main`.
 
 ## The ask
 
@@ -112,7 +112,7 @@ on `main` before the owner approves.
    each part in loop order and the summary choice changes its numbers; the
    process table holds every other name; the frame choice changes the columns,
    and a new frame still prints only its own row. The statistics guide. Commit.
-3. [ ] **A live check.** An SDL window on the offscreen driver shows the page,
+3. [x] **A live check.** Done; see [As built](#as-built). An SDL window on the offscreen driver shows the page,
    without and with the counters; a picture of each goes into the plan with the
    numbers. The plan moves to `plan/done/`. Commit.
 
@@ -156,3 +156,27 @@ on `main` before the owner approves.
   a count of a part and a measurement of no part; `test_tool_themes()` and
   `test_tool_views()` 132 of 132; `test_natural_renders_every_atom()` 2 of 2.
   The guards pass.
+- **Step 3.** The JSON example in a session of the platform on an `SdlBackend`
+  with `SDL_VIDEODRIVER=offscreen`, in `environment/all`; 300 calls of
+  `run_on_editor_task!` each change one string, and each makes a frame. After the
+  session, its frames fill a `FrameStatistics`, which `write_image` draws with
+  `NaturalToGraphics` at 1300 × 1050. Both pictures show the three tables and the
+  two choices as the model says. The means of the 252 frames after the first 50
+  calls:
+
+  | Part | Time, counters off | Time, counters on | Reads | Computes | Invalidations | Writes |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | feed | 0.051 ms | 0.072 ms | 577.7 | 0.0 | 120.5 | 1.0 |
+  | report | 0.002 ms | 0.002 ms | 0.0 | 0.0 | 0.0 | 0.0 |
+  | input | 0.027 ms | 0.052 ms | 576.0 | 0.0 | 0.0 | 0.0 |
+  | reader | 0.092 ms | 0.098 ms | 160.0 | 0.0 | 0.0 | 0.0 |
+  | evaluate | 0.050 ms | 0.059 ms | 104.1 | 0.0 | 0.0 | 0.0 |
+  | print | 0.003 ms | 0.003 ms | 0.0 | 0.0 | 0.0 | 0.0 |
+  | paint | 1.303 ms | 1.507 ms | 3400.8 | 53.8 | 0.0 | 0.0 |
+  | frame | 2.890 ms | 3.094 ms | 4818.6 | 53.8 | 120.5 | 2.0 |
+
+  The whole frame is about 1.4 ms longer than its parts: each call runs as a
+  code unit, and `frame_time` holds its held frames, which the parts do not. The
+  feed applies the posted call, so it holds the write of the string and its 120
+  invalidations. The input of SDL reads 576 cells in each frame with no event,
+  which no plan looks into yet.
