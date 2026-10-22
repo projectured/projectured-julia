@@ -145,4 +145,4 @@ click, and the page of a folder opens a file on one click on its name.
   the arrangement, the roster and the row, and not the place where the page
   holds the item, such as `files[2]` of the open files.
   **Answered 2026-10-22.** The owner asked for a plan:
-  [a-row-opens-at-the-place-of-its-item.md](../pending/a-row-opens-at-the-place-of-its-item.md).
+  [a-row-opens-at-the-place-of-its-item.md](a-row-opens-at-the-place-of-its-item.md).

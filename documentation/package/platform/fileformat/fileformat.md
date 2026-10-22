@@ -84,6 +84,8 @@ The field `table` holds the table of the files: an `ArrangementDocument` with no
 
 The removal of the last entry of an arrangement normally puts the roster in the place of the arrangement. The page keeps the arrangement with no entry instead, through `keep_held_arrangement` of the arrangement slice, so the next filter of the table has an arrangement to go to.
 
+The reader of the page opens the file of a row at its place in the list, `files[j]`, through `retarget_held_row_open` of the roster slice ([roster.md](../roster/roster.md)). So a click on the name of a file opens it with the address "Explorer › Open files › todo.txt", and Parent goes back to the list. A selected row stays selected at the path of the row, which the table shows.
+
 A file and the page of a file have the facets that a roster of files shows, filters and sorts by:
 
 | Facet | `FileDocument` | `FilePage` |
