@@ -127,7 +127,7 @@ approves.
    Run `test_text()`, `test/platform/projection/TextToGraphicsTest.jl`, the selection
    and printer locality tests (`test_selection_locality`, `test_value_locality`), and
    the window guards. The overlay guard of step 1 passes. Commit.
-3. [ ] **The reader with the same structure.** The read guard of step 1 passes. Run
+3. [x] **The reader with the same structure.** The read guard of step 1 passes. Run
    the tests of step 2, `test_position_navigations()` for the text examples, and the
    click and type-in tests (`test_click_roundtrips`, `test_typeins`). Commit.
 4. [ ] **The colour of a span reaches only the text that draws it.** The layout of a
@@ -269,4 +269,93 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
   | JSON: a move of the pointer | 2307 ms | 49 ms |
   | Markdown, 3_000 paragraphs: a typed character | 438 ms | 445 ms |
   | The open of a Julia file of 1_000 lines | 853 ms | 698 ms |
+
+### Step 3: the reader with the same structure
+
+- **Where the read stage went.** Profiles of the steady frames after step 2
+  (`/var/tmp/text-gestures/profile_probe.jl`, a tree and a flat profile of each
+  gesture at the large size) showed one cause in each read: a lookup of a flat
+  place that reads every line.
+  - A caret move: `get_flat_cursor_coordinate` in `read_intent` of `TextToGraphics`.
+  - A typed character: the lowering of the edit, `_read_lowered_gesture`, through
+    `_flat_to_span`, `_flat_to_span_nearest` and `_make_image_edit`. Each called
+    `get_flat_base` for each span before the place, and each of those read every
+    line, so the lowering was quadratic. The gesture table of the text domain
+    itself was cheap.
+  - A click and a move of the pointer: `_hit_segment` over every segment, then
+    `get_flat_base`.
+  - In the Julia file, also the run table of `TextFolding` (see below).
+- **An index of the lines in the text domain.** The flat lookups of
+  `TextDocument.jl` take an optional last argument, an index of the flat offsets
+  where the lines start: `_find_flat_line(index, flat)` and
+  `_get_flat_line_start(index, i)`. The default index is `get_flat_offsets(text)`,
+  which a lookup searches by halves, so each lookup that had a loop over every span
+  with a scan of every line in it is now one pass and one line. `_TextPlaces` is the
+  other index, in log2 of the count of lines. A span of another line never holds a
+  flat offset, so each lookup reads the line of the offset only:
+  `_flat_to_span`, `_find_flat_image_place`, `_find_flat_place`,
+  `_flat_span_range_start`, `_flat_span_range_end`, `get_flat_base`,
+  `_text_flat_span`, `get_flat_cursor_coordinate`, `_text_flat_selection`.
+  `_flat_to_span_nearest` reads the lines from the nearest line before the offset
+  that has a run to the nearest one after it. `_find_image_range` reads the lines of
+  its range. `_is_line_edit` compares the lines of the two ends, and reads the
+  characters of one line only when both ends are in it. The lowering passes its
+  index down. `_collect_image_paths` had no caller left, and went.
+- **A decision.** The gesture table of a document passes only the document and its
+  selection to an action, so the index can not reach the actions of `@gestures
+  TextBlock` without a new channel. The table is not where the time went, so it
+  stays as it is. `TextToGraphics` hands its places only to the lowering, a plain
+  function.
+- **TextToGraphics.** The IO map has a field `places`. The overlay, the key reader
+  (Up, Down, Home, End, with and without Shift), the click map and the forward map
+  use the lookups of the domain with the places. The key reader reads the segments
+  of the line of the caret and of the next line with a segment (`_find_next_row`).
+  The click map reads the lines from the nearest line with a segment above the point
+  to the nearest one below it (`_find_caret_at_point`). The forward map reads the
+  lines of its range, and finds the node of a segment in the canvas of its own line.
+  `_compute_span_bases`, which made a table of every span, had no caller left, and
+  went; its explanation of the two spaces is on `_TextPlaces`. `char_to_coord`
+  stays for the pointer shapes of spans and for the click on a rasterized canvas.
+- **The bytes** with `FixedMeasure(10, 15, 5, 0)`, 100 → 10_000 lines:
+
+  | Gesture | Before | After |
+  |---|---|---|
+  | The key Down | 0.47 → 49.7 MB | 12.9 → 13.0 kB |
+  | A typed character | — | 7.8 → 7.9 kB |
+  | A click | — | 8.2 → 8.3 kB |
+
+  The guard of step 1 now measures all four gestures, and all are `@test`.
+- **Tests.** `test_text_to_graphics()`, `test_text()` and `test_inline_image_caret()`:
+  545 pass, 2 broken (the colour test of step 4). The 34 text parts of
+  `test_platform()`: the same counts as on `frame-guards`. `test_click_roundtrips()`
+  and `test_typeins()`: 5199 pass, 20 broken. `test_position_navigations()`: 9030
+  pass, 5 broken.
+- **The window guards**: 27 pass, 9 broken, after five markers came off. The
+  minimum frame at the large size:
+
+  | Gesture | `frame-guards` | Step 2 | Step 3 |
+  |---|---|---|---|
+  | Julia, 1_000 lines: a typed character | 554 ms | 104 ms | 0.2 ms |
+  | Julia: a caret move by a line | 382 ms | 116 ms | 36 ms |
+  | Julia: a click on a line | 331 ms | 48 ms | 41 ms |
+  | Julia: a move of the pointer | 12 ms | 13 ms | 9.9 ms |
+  | JSON, 1_000 objects: a typed character | 1984 ms | 488 ms | 2.2 ms |
+  | JSON: a caret move by a line | 255 ms | 228 ms | 0.2 ms |
+  | JSON: a click on a line | 1156 ms | 16 ms | 2.0 ms |
+  | JSON: a move of the pointer | 2307 ms | 49 ms | 2.0 ms |
+
+- **Found, not in this step.**
+  - **The folding maps every selection through a table of every line.**
+    `TextFolding` builds `_make_fold_runs` over each kept line at each forward map
+    (the cell of the selection of its output, computed again at each caret move)
+    and at each backward map, and `_find_clicked_fold` reads `get_flat_offsets` of
+    its output. That is most of the caret move and the click in the Julia file. The
+    other text stages that map flat runs (`WordWrapping`, `TextLineNumbering`,
+    `FilteredTextToText`, `HighlightedTextToText`) are not measured yet.
+  - **The caret scene of the JSON file stops after two keys.** On `frame-guards`
+    and on this branch alike, the first Down and the first Up give a
+    `ReplaceSelectionOperation`, the third key a `ReplaceMouseTargetOperation`, and
+    each key after it no operation (`/var/tmp/text-gestures/caret_check.jl`). The
+    second key puts the caret on the open bracket of the array. So the JSON caret
+    guard measures a key that does nothing after its warm up.
 

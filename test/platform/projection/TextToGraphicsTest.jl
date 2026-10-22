@@ -16,10 +16,10 @@ _ttg_get_caret(iomap) = unwrap_cell(unwrap_cell(getfield(iomap.output, :elements
 # The place and the size of `caret`, read as the renderer reads them.
 _ttg_read_caret(caret) = (Int(caret.x), Int(caret.y), Int(caret.w), Int(caret.h))
 
-# The bytes that two gestures cost in a text of `size` lines: the caret after a
-# move from the third line to the fourth, and the read of the key Down on the
-# fourth line. Each gesture runs three times before it is measured, so the
-# measure counts no compilation.
+# The bytes that four gestures cost in a text of `size` lines: the caret after a
+# move from the third line to the fourth, and the read of the key Down, of a typed
+# character and of a click on the fourth line. Each gesture runs three times before
+# it is measured, so the measure counts no compilation.
 function _ttg_measure_gesture_bytes(size::Int)
     block = _ttg_make_long_text(size)
     projection = TextToGraphics(measure = FixedMeasure(10, 15, 5, 0))
@@ -28,15 +28,21 @@ function _ttg_measure_gesture_bytes(size::Int)
     third, fourth = (TextModule.make_flat_caret_reference(TextModule.get_flat_base(block, Int[line, 1]) + 2)
                      for line in (3, 4))
     down = KeyDown(:down, ModifierKeys(); time = 0.0)
+    typed = KeyPress('x', ModifierKeys(); time = 0.0)
+    click = MouseClick(:left, 25, 65; time = 0.0)
     for place in (third, fourth, third)
         set_selection!(block, place)
         _ttg_read_caret(caret)
         read_intent(projection, iomap, down)
+        read_intent(projection, iomap, typed)
+        read_intent(projection, iomap, click)
     end
     set_selection!(block, fourth)
     caret_bytes = @allocated _ttg_read_caret(caret)
     key_bytes = @allocated read_intent(projection, iomap, down)
-    (caret = caret_bytes, key = key_bytes)
+    type_bytes = @allocated read_intent(projection, iomap, typed)
+    click_bytes = @allocated read_intent(projection, iomap, click)
+    (caret = caret_bytes, key = key_bytes, type = type_bytes, click = click_bytes)
 end
 
 # Whether `large` bytes are flat against `small` bytes, as the frame guards bound
@@ -764,14 +770,16 @@ click = read_intent(p, iomap, MouseClick(:left, 41, 20; time = 0.0))
 
 end # @testset "TextToGraphics starts a row at each soft break of a line"
 
-# A gesture costs the lines that it touches: a caret move and the key Down cost the
-# same bytes in a text of 100 lines and in a text of 10_000 lines.
+# A gesture costs the lines that it touches: a caret move, the key Down, a typed
+# character and a click cost the same bytes in a text of 100 lines and in a text of
+# 10_000 lines.
 @testset "TextToGraphics costs a gesture the lines that it touches" begin
     small = _ttg_measure_gesture_bytes(100)
     large = _ttg_measure_gesture_bytes(10_000)
     @test _ttg_is_flat(small.caret, large.caret)
-    # @broken: the reader of a key finds the caret from the flat offsets of every line and the line below from the segments of every line; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
-    @test_broken _ttg_is_flat(small.key, large.key)
+    @test _ttg_is_flat(small.key, large.key)
+    @test _ttg_is_flat(small.type, large.type)
+    @test _ttg_is_flat(small.click, large.click)
 end
 
 # A move of the pointer lights the delimiters around the part under it in a new

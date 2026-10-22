@@ -59,6 +59,7 @@ emitted text segment with character range, pixel position, font, and text.
     lines::Cell             # Cell{Vector} — the line groups (`_line_groups`)
     line_cells::Any         # L -> the cells of line group L (`layout`, `y`, `h`), or `nothing`
     space::NTuple{4, Int}   # the space around the text, `(left, top, right, bottom)`
+    places::Any             # the places of the lines (`_TextPlaces`), or `nothing`
 end
 
 # The baseline of the first line of the text, for a row that aligns its children
@@ -129,370 +130,6 @@ end
 # of the text: the pen position where the character after it starts.
 _get_caret_x(measure::TextMeasure, text::AbstractString, font::StyleFont, position::Int) =
     round(Int, compute_caret_offsets(measure, text, font)[position + 1])
-
-# A text reference maps to the most specific reference of what draws it. A caret,
-# and a range that one segment holds, map to that segment's text node followed by
-# the characters in it: `…elements[k].text{a:b}`, where a caret is a range of no
-# width. A range that covers several segments maps to the smallest node that
-# holds all of its rows (the canvas of its line, or the stack of lines) followed
-# by a `RegionReferenceStep`: the box of its rows, as its highlight draws them.
-# The reference is a range of the caret space (a caret or a range of characters)
-# or of the box space (a whole node), as `_highlight_char_range` reads them. The
-# text node of a segment is found in the canvas of its line by its place and its
-# text, because a line puts a fill before some texts, so the table of segments is
-# not in step with the elements of a line.
-function map_reference_forward(p::TextToGraphics, iomap, reference)
-    iomap isa TextToGraphicsIoMap || return nothing
-    reference isa Reference || return nothing
-    reference = strip_reference_types(reference)
-    reference isa EmptyReference && return EmptyReference()
-    iomap.input.elements isa ListNode && return _map_list_lines_forward(p, iomap, reference)
-    range = _find_text_forward_range(iomap.input, reference)
-    range === nothing && return nothing
-    start, stop, space = range
-    box_bases, caret_bases = _compute_span_bases(iomap.input)
-    bases = space === :caret ? caret_bases : box_bases
-    for segment in unwrap_cell(iomap.char_to_coord)
-        isempty(segment.text) && continue
-        base = get(bases, segment.span_path, nothing)
-        base === nothing && continue
-        if start == stop
-            (segment.char_start <= start - base <= segment.char_end) || continue
-            a = b = start - base
-        else
-            a = max(start, base + segment.char_start) - base
-            b = min(stop, base + segment.char_end) - base
-            (a < b && !_hl_piece_blank(segment, a, b)) || continue
-        end
-        start == stop || (base + segment.char_start <= start && stop <= base + segment.char_end) ||
-            return _map_text_region(p, iomap, bases, start, stop)
-        node = _find_segment_node(iomap, segment)
-        node === nothing && return nothing
-        return concat_references(node,
-            ConcreteReference(FieldReferenceStep("text"),
-                ConcreteReference(RangeReferenceStep(a - segment.char_start, b - segment.char_start,
-                                                     a == b ? :forward : get_range_direction(reference)),
-                                  EmptyReference())))
-    end
-    nothing
-end
-
-# The region of the rows of the range `start:stop` (see `_compute_span_rows`),
-# after the smallest node that holds them: the canvas of their line, when one line
-# holds all of them, and else the stack of lines. The rows are in the frame of the
-# stack; a line starts where the one after it ends.
-function _map_text_region(p::TextToGraphics, iomap::TextToGraphicsIoMap, bases, start::Int, stop::Int)
-    rows = _compute_span_rows(unwrap_cell(iomap.char_to_coord), bases, start, stop, p)
-    isempty(rows) && return nothing
-    left = minimum(row[1] for row in rows)
-    top = minimum(row[2] for row in rows)
-    right = maximum(row[1] + row[3] for row in rows)
-    bottom = maximum(row[2] + row[4] for row in rows)
-    stack = ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
-                                                                                 EmptyReference()))
-    top_elements = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
-    lines = length(top_elements) >= 2 ? unwrap_cell(getfield(unwrap_cell(top_elements[2]), :elements)) : nothing
-    if lines isa CellVector
-        starts = Int[Int(unwrap_cell(getfield(unwrap_cell(lines[k]), :y))) for k in 1:length(lines)]
-        line = findlast(y -> y <= top, starts)
-        if line !== nothing && (line == length(starts) || bottom <= starts[line + 1])
-            line_top = starts[line]
-            return concat_references(stack,
-                ConcreteReference(FieldReferenceStep("elements"),
-                    ConcreteReference(RangeReferenceStep(line - 1, line),
-                        ConcreteReference(RegionReferenceStep(left, top - line_top, right - left, bottom - top),
-                                          EmptyReference()))))
-        end
-    end
-    concat_references(stack, ConcreteReference(RegionReferenceStep(left, top, right - left, bottom - top),
-                                               EmptyReference()))
-end
-
-# The range of a text reference, `(start, stop, space)`: a caret or a range of
-# characters in the caret space, or a whole node in the box space.
-function _find_text_forward_range(text::TextBlock, reference)
-    if reference isa ConcreteReference && reference.head isa TextSpanReferenceStep &&
-       reference.tail isa EmptyReference
-        return (reference.head.start, reference.head.stop, :box)
-    end
-    flat = _text_flat_selection(text, reference)
-    flat === nothing ? nothing : (flat[1], flat[2], :caret)
-end
-
-# The reference of the text node that draws `segment`: the canvas of each line
-# is in the stack of lines, the second element of the text's canvas, and the node
-# is the text of the segment at its place in that line.
-function _find_segment_node(iomap::TextToGraphicsIoMap, segment::SegmentCoordinate)
-    top = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
-    length(top) >= 2 || return nothing
-    stack = unwrap_cell(top[2])
-    stack isa GraphicsCanvas || return nothing
-    lines = unwrap_cell(getfield(stack, :elements))
-    lines isa CellVector || return nothing
-    for line_index in 1:length(lines)
-        line = unwrap_cell(lines[line_index])
-        line isa GraphicsCanvas || continue
-        top_of_line = segment.y - Int(unwrap_cell(getfield(line, :y)))
-        elements = unwrap_cell(getfield(line, :elements))
-        for k in 1:length(elements)
-            node = unwrap_cell(elements[k])
-            node isa GraphicsText || continue
-            Int(unwrap_cell(getfield(node, :x))) == segment.x || continue
-            String(unwrap_cell(getfield(node, :text))) == segment.text || continue
-            (top_of_line <= Int(unwrap_cell(getfield(node, :y))) < top_of_line + segment.height) || continue
-            return ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
-                ConcreteReference(FieldReferenceStep("elements"),
-                    ConcreteReference(RangeReferenceStep(line_index - 1, line_index),
-                        ConcreteReference(FieldReferenceStep("elements"),
-                            ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))))))
-        end
-    end
-    nothing
-end
-
-# A point of the canvas maps to the caret nearest to it: the segment on the band
-# of the point's line, or of the nearest line, and the character boundary nearest
-# to its x. The path of an element and a point inside it, which the graphics leaf
-# answers for a click on a rasterized canvas, maps to the caret in that element.
-# The reader of a click and the reader of that path read this map.
-function map_reference_backward(p::TextToGraphics, iomap, reference)
-    iomap isa TextToGraphicsIoMap || return nothing
-    point = find_reference_point(reference)
-    # The coordinates of the segments are in the frame of the stack of lines, which
-    # stands inside the space around the text.
-    left, top, _, _ = iomap.space
-    point === nothing || return _find_caret_at_point(p, iomap, point.x - left, point.y - top)
-    _find_caret_at_element_point(p, iomap, reference)
-end
-
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
-# KeyPress producer: the character-insert mapping is geometry-free, so it lives
-# on the Text domain (`read_gesture(::TextBlock, ::KeyPress)` in `TextModule`).
-# Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
-# against `.elements[i].content[range]`) flows back through the chain unchanged.
-# Text-domain gesture, with any flat edit op lowered to the structural single-span
-# form over the input block (== the outermost text stage's output), so the existing
-# `ReplaceStringRangeOperation` chain carries it up. A declined (cross-span) edit
-# lowers to `nothing`, so the caller lets the gesture propagate.
-_gesture_op(iomap::TextToGraphicsIoMap, evt) = _read_lowered_gesture(iomap.input, evt)
-
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
-    return _gesture_op(iomap, evt)
-end
-
-# The flat caret at `char` in the span at `span_path`, or `nothing` when the span
-# has no flat base. The graphics layer resolves clicks and line motion to a
-# `(span, char)` hit; this converts it to the canonical flat selection
-# (`get_flat_base + char`).
-function _find_flat_caret(text::TextBlock, span_path::SpanPath, char::Int)
-    base = get_flat_base(text, span_path)
-    base === nothing ? nothing : make_flat_caret_reference(base + char)
-end
-
-# A `ReplaceSelectionOperation` selecting that caret, or `nothing`.
-function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
-    caret = _find_flat_caret(text, span_path, char)
-    caret === nothing ? nothing : ReplaceSelectionOperation(caret)
-end
-
-# What a selection cell holds, past the live/dormant wrapper, and whether it is
-# the live one. Only the painters need this: everything else reads the property,
-# which answers a live path or `nothing`.
-_get_stored_path(value) = value
-_get_stored_path(value::SelectionDocument) = value.primary
-_is_live_selection(value) = true
-_is_live_selection(value::SelectionDocument) = value.live
-
-# Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
-# step above us). A single click is the caret at its point, as the press before it
-# put it; with Shift, the moving end of the selection goes to the point, as the
-# press moved it. A double click selects the word at the point, and a triple click
-# the line. Whole-element promotion (Alt+click) is decided in SyntaxToText, where
-# the tree is in hand.
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
-    evt.button === :left || return nothing
-    evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)
-    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift && !evt.modifiers.alt)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
-end
-
-# A left press with no Alt and no Ctrl: the caret at the point, or with Shift the
-# moving end of the selection there, and the text takes the pointer for a drag, so
-# each move of the drag goes to the text wherever the pointer is. The drag names
-# the text as a whole, which each projection above maps back to its input.
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseDown)
-    evt.button === :left || return nothing
-    (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
-    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift)
-    path === nothing && return nothing
-    CompoundOperation(Any[ReplaceSelectionOperation(path), StartDragOperation(EmptyReference(), nothing)])
-end
-
-# A move and the end of a drag that a press on the text started: the moving end of
-# the selection goes to the character nearest to the point, on the nearest line,
-# and the anchor stays where the press put it.
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Union{DragMove,DragEnd})
-    path = _find_pointer_selection(p, iomap, evt.x, evt.y, true)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
-end
-
-# The selection that a pointer at `(x, y)` makes: the caret there, or with `extend`
-# the range from the anchor of the selection to the caret there.
-function _find_pointer_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int,
-                                 extend::Bool)
-    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
-    caret === nothing && return nothing
-    extend || return caret
-    point = get_flat_caret(iomap.input, caret)
-    ends = _find_text_selection_ends(iomap.input, iomap.input.selection)
-    (point === nothing || ends === nothing) ? caret : _make_flat_selection_reference(ends.anchor, point)
-end
-
-# The word (`count == 2`) or the line (`count >= 3`) at the point, as a selection.
-function _make_unit_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int, count::Int)
-    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
-    caret === nothing && return nothing
-    point = get_flat_caret(iomap.input, caret)
-    point === nothing && return ReplaceSelectionOperation(caret)
-    range = count == 2 ? _find_flat_word_range(iomap.input, point) : _find_flat_line_range(iomap.input, point)
-    range === nothing && return ReplaceSelectionOperation(caret)
-    ReplaceSelectionOperation(make_flat_range_reference(range...))
-end
-
-# The caret at `(x, y)`: the segment that owns the point, and the character
-# offset within it.
-function _find_caret_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
-    coord_map = iomap.char_to_coord
-    isempty(coord_map) && return nothing
-    sc = _hit_segment(coord_map, x, y)
-    sc === nothing && return nothing
-    _find_flat_caret(iomap.input, sc.span_path, _char_position_at_x(sc, x, p.measure))
-end
-
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
-    evt isa KeyDown || return nothing
-
-    # Geometry-INDEPENDENT gestures (character cursor left/right, Ctrl+Home/End,
-    # Backspace/Delete, the Ctrl+. fold recognition, and the tree-gesture decline
-    # rules) live on the Text domain. Delegate to `read_gesture`, which reads
-    # only the span structure and the flat-character selection — no layout.
-    op = _gesture_op(iomap, evt)
-    op === nothing || return op
-
-    # `read_gesture` returned nothing: either it *declined* a tree gesture
-    # (Alt+arrow, plain arrow while structural) so an outer syntax layer can own
-    # it, or it is a key this layer must resolve with pixel geometry (plain
-    # up/down, plain Home/End). Re-apply the decline guards so the geometry arms
-    # below never mis-handle a declined tree gesture as line motion. The `KeyDown`
-    # of Tab and Return is declined too: those keys give their meaning by their
-    # `KeyPress`. (`Ctrl+.` is already consumed by `read_gesture`, so it cannot
-    # reach here.)
-    declined = @gesture_case evt begin
-        when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
-        when(KeyDown(k), k in (:up, :down, :left, :right) &&
-                         is_structural_selection(iomap.input.selection)) => :decline
-        when(KeyDown(k), k === :tab || k === :return) => :decline
-    end
-    declined === nothing || return nothing
-
-    styled = iomap.input
-    # A block whose elements are a lazy list is drawn line by line and keeps no
-    # geometry of the whole, so no key moves along its lines. The list can be
-    # endless, so it is not walked either.
-    styled.elements isa ListNode && return nothing
-    _has_caret_span(styled) || return nothing
-
-    # Shift moves the moving end of the selection and keeps its anchor, as the
-    # geometry-free Shift keys of the text domain do. Without Shift, the key moves
-    # from the moving end and the selection becomes a caret there.
-    extend = evt.modifiers.shift && !evt.modifiers.ctrl
-    ends = extend ? _find_text_selection_ends(styled, styled.selection) : nothing
-    extend && ends === nothing && return nothing
-    current = get_flat_cursor_coordinate(styled)
-    current === nothing && return nothing
-
-    target = @gesture_case evt begin
-        when(KeyDown(k), k === :home || k === :end) => begin
-            coord_map = iomap.char_to_coord
-            isempty(coord_map) && return nothing
-            found = _find_caret_coordinate(styled, coord_map, current)
-            found === nothing && return nothing
-            current_y = found.coordinate.y
-            line_segs = filter(sc -> sc.y == current_y, coord_map)
-            sc = k === :home ? line_segs[1] : line_segs[end]
-            new_char = k === :home ? sc.char_start : sc.char_end
-            (sc.span_path, new_char)
-        end
-        when(KeyDown(k), k === :up || k === :down) => begin
-            coord_map = iomap.char_to_coord
-            isempty(coord_map) && return nothing
-            found = _find_caret_coordinate(styled, coord_map, current)
-            found === nothing && return nothing
-            cur_sc   = found.coordinate
-            cursor_x = _seg_cursor_x(cur_sc, found.char, p.measure)
-            current_y = cur_sc.y
-            target_segs = if k === :up
-                ys = [sc.y for sc in coord_map if sc.y < current_y]
-                isempty(ys) ? SegmentCoordinate[] : filter(sc -> sc.y == maximum(ys), coord_map)
-            else
-                ys = [sc.y for sc in coord_map if sc.y > current_y]
-                isempty(ys) ? SegmentCoordinate[] : filter(sc -> sc.y == minimum(ys), coord_map)
-            end
-            isempty(target_segs) && return nothing
-            best_sc   = target_segs[1]
-            best_pos  = best_sc.char_start
-            best_dist = typemax(Int)
-            for sc in target_segs
-                pos  = _char_position_at_x(sc, cursor_x, p.measure)
-                xpos = _seg_cursor_x(sc, pos, p.measure)
-                d    = abs(xpos - cursor_x)
-                if d < best_dist
-                    best_dist = d
-                    best_pos  = pos
-                    best_sc   = sc
-                end
-            end
-            (best_sc.span_path, best_pos)
-        end
-    end
-    target === nothing && return nothing
-    extend || return _flat_hit_op(styled, target...)
-    base = get_flat_base(styled, target[1])
-    base === nothing && return nothing
-    return ReplaceSelectionOperation(_make_flat_selection_reference(ends.anchor, base + target[2]))
-    # A KeyDown this layer neither edits nor resolves with geometry (e.g. Return,
-    # Escape, Insert while a text caret exists) is declined, NOT passed on as a raw
-    # gesture: a reader must yield an Operation or `nothing`, never an event. Putting
-    # the gesture in the operation slot marks the change "already produced" and stops
-    # the enclosing chain from re-offering it to the domain — which is why committing
-    # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
-    # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
-    return nothing
-end
-
-# The coordinate of `coord_map` that holds the caret `current`, a `(span, char)`,
-# and the character of the caret in it. A caret on an empty span of a line that
-# draws a glyph has no coordinate of its span, because the glyphs give the places
-# of that line: it takes the coordinate that holds its flat offset.
-function _find_caret_coordinate(styled::TextBlock, coord_map, current)
-    index = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
-    index === nothing || return (coordinate = coord_map[index], char = current.char)
-    _, bases = _compute_span_bases(styled)
-    base = get(bases, current.span, nothing)
-    base === nothing && return nothing
-    flat = base + current.char
-    for sc in coord_map
-        sc_base = get(bases, sc.span_path, nothing)
-        sc_base === nothing && continue
-        sc_base + sc.char_start <= flat <= sc_base + sc.char_end &&
-            return (coordinate = sc, char = flat - sc_base)
-    end
-    nothing
-end
 
 # ── The places of the lines ────────────────────────────────────────────
 
@@ -569,16 +206,75 @@ function _find_place_at(blocks::_PlaceBlocks{T}, offset, count::Int) where {T}
     (count, start - _get_block_total(blocks, count, 1))
 end
 
-# The lines of a printed text and the sums that place a flat offset on them: the
-# groups (`_line_groups`), the `TextLine` of each group, the cells of each place,
-# and the flat lengths of the places in the caret space and in the box space (see
-# `_compute_span_bases`), each with the break after the place.
+# The lines of a printed text and the sums that place a point and a flat offset on
+# them: the groups (`_line_groups`), the `TextLine` of each group, the cells of each
+# place, the line distances, and the flat lengths of the places, each with the
+# break after the place, in the two spaces that a range is expressed in.
+#   • The caret space of the text domain (`get_flat_offsets`), in which a
+#     `TextRangeReferenceStep` is expressed, counts a `TextSpacing` as 1.
+#   • The box space, in which a `TextSpanReferenceStep` box is expressed, counts it
+#     as 0.
+# Both count a character and an inline image as 1, and the implicit break and the
+# indentation of a `TextLine`, because the projection that emits the line counts
+# both. The places are an index of the lines for the flat lookups of the text domain
+# (`_find_flat_line`), in the caret space.
 struct _TextPlaces
     lines::Cell
     group_lines::Cell
     get_line_cells::Function
+    distances::_PlaceBlocks{Float64}
     caret_lengths::_PlaceBlocks{Int}
     box_lengths::_PlaceBlocks{Int}
+end
+
+_find_flat_line(places::_TextPlaces, flat::Int) =
+    flat < 0 ? nothing : _find_place_at(places.caret_lengths, flat, length(places.lines[]))
+
+_get_flat_line_start(places::_TextPlaces, i::Int) = _get_prefix_total(places.caret_lengths, i)
+
+# The segments of the line at place `L`, with the span paths of the block, at the
+# place of the line below `top`.
+function _get_line_segments(places::_TextPlaces, L::Int, top::Int = 0)
+    cells = places.get_line_cells(L)
+    index = places.group_lines[][L] === nothing ? nothing : places.lines[][L].line
+    y = top + Int(cells.y[])
+    SegmentCoordinate[SegmentCoordinate(index === nothing ? segment.span_path : Int[index, segment.span_path[2]],
+                                        segment.char_start, segment.char_end, segment.x, segment.y + y,
+                                        segment.font, segment.text, segment.width, segment.height)
+                      for segment in cells.layout[].coord_map]
+end
+
+# The nearest line from place `from` in the direction `step` whose layout places a
+# segment, or the last place in that direction when none does.
+function _find_segment_line(places::_TextPlaces, from::Int, step::Int)
+    count = length(places.lines[])
+    L = from
+    while 1 <= L <= count
+        isempty(places.get_line_cells(L).layout[].coord_map) || return L
+        L += step
+    end
+    step < 0 ? 1 : count
+end
+
+# The segments of the lines from place `first_line` to place `last_line`, and the
+# flat base of each of their spans by `measure_span`, the flat length of a span,
+# from `base`, where the first of the lines starts, at the place of the lines below
+# `top`.
+function _collect_range_segments(places::_TextPlaces, first_line::Int, last_line::Int, base::Int,
+                                 measure_span, top::Int)
+    coordinates = SegmentCoordinate[]
+    bases = Dict{SpanPath,Int}()
+    for L in first_line:last_line
+        append!(coordinates, _get_line_segments(places, L, top))
+        group = places.lines[][L]
+        position = base + group.indentation::Int
+        for (path, span) in group.spans
+            bases[path::SpanPath] = position
+            position += measure_span(span)
+        end
+        base = position + 1
+    end
+    coordinates, bases
 end
 
 # The flat length of `group` in the caret space and in the box space: its
@@ -592,61 +288,373 @@ function _compute_flat_lengths(group)
     (caret = caret, box = box)
 end
 
-# The group that the cells of place `L` lay out: the group of its line alone, with
-# its spans named `[1, j]`, or the group at the place.
-function _get_place_group(places::_TextPlaces, L::Int)
-    line = places.group_lines[][L]
-    line === nothing ? places.lines[][L] : _make_line_group(line::TextLine)
-end
-
-# The span of `group` and the character that the flat offset `flat` names, when
-# the group starts at the flat offset `base`, by the rule of `_find_flat_place`:
-# the first text run that holds the offset, so a boundary is the end of the
-# earlier run, and else the first inline image beside it. `nothing` on a gap.
-function _find_group_flat_place(group, base::Int, flat::Int)
-    position = base + group.indentation::Int
-    for (path, span) in group.spans
-        span_length = get_flat_length(span)
-        span isa TextString && position <= flat <= position + span_length && return (span = path, char = flat - position)
-        position += span_length
-    end
-    position = base + group.indentation::Int
-    for (path, span) in group.spans
-        span isa TextGraphics && position <= flat <= position + 1 && return (span = path, char = flat - position)
-        position += get_flat_length(span)
+# A text reference maps to the most specific reference of what draws it. A caret,
+# and a range that one segment holds, map to that segment's text node followed by
+# the characters in it: `…elements[k].text{a:b}`, where a caret is a range of no
+# width. A range that covers several segments maps to the smallest node that
+# holds all of its rows (the canvas of its line, or the stack of lines) followed
+# by a `RegionReferenceStep`: the box of its rows, as its highlight draws them.
+# The reference is a range of the caret space (a caret or a range of characters)
+# or of the box space (a whole node), as `_highlight_char_range` reads them. The
+# text node of a segment is found in the canvas of its line by its place and its
+# text, because a line puts a fill before some texts, so the table of segments is
+# not in step with the elements of a line.
+function map_reference_forward(p::TextToGraphics, iomap, reference)
+    iomap isa TextToGraphicsIoMap || return nothing
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
+    iomap.input.elements isa ListNode && return _map_list_lines_forward(p, iomap, reference)
+    places = iomap.places
+    range = _find_text_forward_range(iomap.input, reference, places)
+    range === nothing && return nothing
+    start, stop, space = range
+    coordinates, bases = _collect_flat_range_segments(places, range, 0)
+    for segment in coordinates
+        isempty(segment.text) && continue
+        base = get(bases, segment.span_path, nothing)
+        base === nothing && continue
+        if start == stop
+            (segment.char_start <= start - base <= segment.char_end) || continue
+            a = b = start - base
+        else
+            a = max(start, base + segment.char_start) - base
+            b = min(stop, base + segment.char_end) - base
+            (a < b && !_hl_piece_blank(segment, a, b)) || continue
+        end
+        start == stop || (base + segment.char_start <= start && stop <= base + segment.char_end) ||
+            return _map_text_region(p, places, coordinates, bases, start, stop)
+        node = _find_segment_node(iomap, segment)
+        node === nothing && return nothing
+        return concat_references(node,
+            ConcreteReference(FieldReferenceStep("text"),
+                ConcreteReference(RangeReferenceStep(a - segment.char_start, b - segment.char_start,
+                                                     a == b ? :forward : get_range_direction(reference)),
+                                  EmptyReference())))
     end
     nothing
 end
 
-# The flat offset in the caret space where the span at `path` of `text` starts, as
-# `get_flat_base` finds it, or `nothing` when the path does not land on a span.
-function _find_span_flat_base(places::_TextPlaces, text::TextBlock, path::SpanPath)
-    length(path) == 2 || return nothing
-    i, j = path
-    (1 <= i <= length(text.elements)) || return nothing
-    line = text.elements[i]
-    line isa TextLine || return nothing
-    spans = line.elements
-    (1 <= j <= length(spans)) || return nothing
-    base = _get_prefix_total(places.caret_lengths, i) + line.indentation
-    for k in 1:(j - 1)
-        base += get_flat_length(spans[k])
+# The region of the rows of the range `start:stop` (see `_compute_span_rows`) in
+# `coordinates`, the segments of the lines of the range with the flat `bases` of
+# their spans, after the smallest node that holds them: the canvas of their line,
+# when one line holds all of them, and else the stack of lines. The rows are in the
+# frame of the stack; a line starts where the one after it ends. The line of the
+# rows is the last line of the range that starts at or above their top.
+function _map_text_region(p::TextToGraphics, places::_TextPlaces, coordinates, bases, start::Int, stop::Int)
+    rows = _compute_span_rows(coordinates, bases, start, stop, p)
+    isempty(rows) && return nothing
+    left = minimum(row[1] for row in rows)
+    top = minimum(row[2] for row in rows)
+    right = maximum(row[1] + row[3] for row in rows)
+    bottom = maximum(row[2] + row[4] for row in rows)
+    stack = ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
+                                                                                 EmptyReference()))
+    count = length(places.lines[])
+    get_top(L) = Int(places.get_line_cells(L).y[])
+    lines = unique(segment.span_path[1] for segment in coordinates)
+    line = findlast(L -> get_top(L) <= top, lines)
+    if line !== nothing
+        line = lines[line]
+        if line == count || bottom <= get_top(line + 1)
+            line_top = get_top(line)
+            return concat_references(stack,
+                ConcreteReference(FieldReferenceStep("elements"),
+                    ConcreteReference(RangeReferenceStep(line - 1, line),
+                        ConcreteReference(RegionReferenceStep(left, top - line_top, right - left, bottom - top),
+                                          EmptyReference()))))
+        end
     end
-    base
+    concat_references(stack, ConcreteReference(RegionReferenceStep(left, top, right - left, bottom - top),
+                                               EmptyReference()))
 end
 
-# The flat selection `(start, stop)` of `selection` over `text`, as
-# `_text_flat_selection` finds it, with the flat base of a span from the places.
-function _find_flat_selection(places::_TextPlaces, text::TextBlock, selection)
-    sel = strip_reference_types(selection)
-    if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
-        return (sel.head.start, sel.head.stop)
+# The range of a text reference, `(start, stop, space)`: a caret or a range of
+# characters in the caret space, or a whole node in the box space.
+function _find_text_forward_range(text::TextBlock, reference, places::_TextPlaces)
+    if reference isa ConcreteReference && reference.head isa TextSpanReferenceStep &&
+       reference.tail isa EmptyReference
+        return (reference.head.start, reference.head.stop, :box)
     end
-    range = _text_selection_range(text, selection)
-    range === nothing && return nothing
-    path, a, b = range
-    base = _find_span_flat_base(places, text, path)
-    base === nothing ? nothing : (base + a, base + b)
+    flat = _text_flat_selection(text, reference, places)
+    flat === nothing ? nothing : (flat[1], flat[2], :caret)
+end
+
+# The reference of the text node that draws `segment`: the canvas of each line
+# is in the stack of lines, the second element of the text's canvas, and the node
+# is the text of the segment at its place in the canvas of its line, the line that
+# its span path names.
+function _find_segment_node(iomap::TextToGraphicsIoMap, segment::SegmentCoordinate)
+    top = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
+    length(top) >= 2 || return nothing
+    stack = unwrap_cell(top[2])
+    stack isa GraphicsCanvas || return nothing
+    lines = unwrap_cell(getfield(stack, :elements))
+    lines isa CellVector || return nothing
+    line_index = segment.span_path[1]
+    if 1 <= line_index <= length(lines)
+        line = unwrap_cell(lines[line_index])
+        line isa GraphicsCanvas || return nothing
+        top_of_line = segment.y - Int(unwrap_cell(getfield(line, :y)))
+        elements = unwrap_cell(getfield(line, :elements))
+        for k in 1:length(elements)
+            node = unwrap_cell(elements[k])
+            node isa GraphicsText || continue
+            Int(unwrap_cell(getfield(node, :x))) == segment.x || continue
+            String(unwrap_cell(getfield(node, :text))) == segment.text || continue
+            (top_of_line <= Int(unwrap_cell(getfield(node, :y))) < top_of_line + segment.height) || continue
+            return ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
+                ConcreteReference(FieldReferenceStep("elements"),
+                    ConcreteReference(RangeReferenceStep(line_index - 1, line_index),
+                        ConcreteReference(FieldReferenceStep("elements"),
+                            ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))))))
+        end
+    end
+    nothing
+end
+
+# A point of the canvas maps to the caret nearest to it: the segment on the band
+# of the point's line, or of the nearest line, and the character boundary nearest
+# to its x. The path of an element and a point inside it, which the graphics leaf
+# answers for a click on a rasterized canvas, maps to the caret in that element.
+# The reader of a click and the reader of that path read this map.
+function map_reference_backward(p::TextToGraphics, iomap, reference)
+    iomap isa TextToGraphicsIoMap || return nothing
+    point = find_reference_point(reference)
+    # The coordinates of the segments are in the frame of the stack of lines, which
+    # stands inside the space around the text.
+    left, top, _, _ = iomap.space
+    point === nothing || return _find_caret_at_point(p, iomap, point.x - left, point.y - top)
+    _find_caret_at_element_point(p, iomap, reference)
+end
+
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplacePathOperation)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : make_path_operation(op, path)
+end
+
+# KeyPress producer: the character-insert mapping is geometry-free, so it lives
+# on the Text domain (`read_gesture(::TextBlock, ::KeyPress)` in `TextModule`).
+# Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
+# against `.elements[i].content[range]`) flows back through the chain unchanged.
+# Text-domain gesture, with any flat edit op lowered to the structural single-span
+# form over the input block (== the outermost text stage's output), so the existing
+# `ReplaceStringRangeOperation` chain carries it up. A declined (cross-span) edit
+# lowers to `nothing`, so the caller lets the gesture propagate.
+_gesture_op(iomap::TextToGraphicsIoMap, evt) = _read_lowered_gesture(iomap.input, evt, iomap.places)
+
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
+    return _gesture_op(iomap, evt)
+end
+
+# The flat caret at `char` in the span at `span_path`, or `nothing` when the span
+# has no flat base. The graphics layer resolves clicks and line motion to a
+# `(span, char)` hit; this converts it to the canonical flat selection
+# (`get_flat_base + char`), with the line index `line_index` (see `_find_flat_line`).
+function _find_flat_caret(text::TextBlock, span_path::SpanPath, char::Int, line_index = get_flat_offsets(text))
+    base = get_flat_base(text, span_path, line_index)
+    base === nothing ? nothing : make_flat_caret_reference(base + char)
+end
+
+# A `ReplaceSelectionOperation` selecting that caret, or `nothing`.
+function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int, line_index = get_flat_offsets(text))
+    caret = _find_flat_caret(text, span_path, char, line_index)
+    caret === nothing ? nothing : ReplaceSelectionOperation(caret)
+end
+
+# What a selection cell holds, past the live/dormant wrapper, and whether it is
+# the live one. Only the painters need this: everything else reads the property,
+# which answers a live path or `nothing`.
+_get_stored_path(value) = value
+_get_stored_path(value::SelectionDocument) = value.primary
+_is_live_selection(value) = true
+_is_live_selection(value::SelectionDocument) = value.live
+
+# Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
+# step above us). A single click is the caret at its point, as the press before it
+# put it; with Shift, the moving end of the selection goes to the point, as the
+# press moved it. A double click selects the word at the point, and a triple click
+# the line. Whole-element promotion (Alt+click) is decided in SyntaxToText, where
+# the tree is in hand.
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
+    evt.button === :left || return nothing
+    evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift && !evt.modifiers.alt)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# A left press with no Alt and no Ctrl: the caret at the point, or with Shift the
+# moving end of the selection there, and the text takes the pointer for a drag, so
+# each move of the drag goes to the text wherever the pointer is. The drag names
+# the text as a whole, which each projection above maps back to its input.
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseDown)
+    evt.button === :left || return nothing
+    (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift)
+    path === nothing && return nothing
+    CompoundOperation(Any[ReplaceSelectionOperation(path), StartDragOperation(EmptyReference(), nothing)])
+end
+
+# A move and the end of a drag that a press on the text started: the moving end of
+# the selection goes to the character nearest to the point, on the nearest line,
+# and the anchor stays where the press put it.
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Union{DragMove,DragEnd})
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, true)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# The selection that a pointer at `(x, y)` makes: the caret there, or with `extend`
+# the range from the anchor of the selection to the caret there.
+function _find_pointer_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int,
+                                 extend::Bool)
+    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+    caret === nothing && return nothing
+    extend || return caret
+    point = get_flat_caret(iomap.input, caret)
+    ends = _find_text_selection_ends(iomap.input, iomap.input.selection, iomap.places)
+    (point === nothing || ends === nothing) ? caret : _make_flat_selection_reference(ends.anchor, point)
+end
+
+# The word (`count == 2`) or the line (`count >= 3`) at the point, as a selection.
+function _make_unit_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int, count::Int)
+    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+    caret === nothing && return nothing
+    point = get_flat_caret(iomap.input, caret)
+    point === nothing && return ReplaceSelectionOperation(caret)
+    range = count == 2 ? _find_flat_word_range(iomap.input, point) : _find_flat_line_range(iomap.input, point)
+    range === nothing && return ReplaceSelectionOperation(caret)
+    ReplaceSelectionOperation(make_flat_range_reference(range...))
+end
+
+# The caret at `(x, y)`: the segment that owns the point, and the character
+# offset within it. The segment is on the line of the point, or on the nearest line
+# above or below it that places a segment, so only the lines from the one above to
+# the one below are read. A line is found by its real offset, which rounds to the
+# place of its canvas, so the lines next to it are read too.
+function _find_caret_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
+    places = iomap.places
+    places === nothing && return nothing
+    L = first(_find_place_at(places.distances, Float64(y), length(places.lines[])))
+    coordinates = SegmentCoordinate[]
+    for line in _find_segment_line(places, L - 1, -1):_find_segment_line(places, L + 1, 1)
+        append!(coordinates, _get_line_segments(places, line))
+    end
+    isempty(coordinates) && return nothing
+    sc = _hit_segment(coordinates, x, y)
+    sc === nothing && return nothing
+    _find_flat_caret(iomap.input, sc.span_path, _char_position_at_x(sc, x, p.measure), places)
+end
+
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
+    evt isa KeyDown || return nothing
+
+    # Geometry-INDEPENDENT gestures (character cursor left/right, Ctrl+Home/End,
+    # Backspace/Delete, the Ctrl+. fold recognition, and the tree-gesture decline
+    # rules) live on the Text domain. Delegate to `read_gesture`, which reads
+    # only the span structure and the flat-character selection — no layout.
+    op = _gesture_op(iomap, evt)
+    op === nothing || return op
+
+    # `read_gesture` returned nothing: either it *declined* a tree gesture
+    # (Alt+arrow, plain arrow while structural) so an outer syntax layer can own
+    # it, or it is a key this layer must resolve with pixel geometry (plain
+    # up/down, plain Home/End). Re-apply the decline guards so the geometry arms
+    # below never mis-handle a declined tree gesture as line motion. The `KeyDown`
+    # of Tab and Return is declined too: those keys give their meaning by their
+    # `KeyPress`. (`Ctrl+.` is already consumed by `read_gesture`, so it cannot
+    # reach here.)
+    declined = @gesture_case evt begin
+        when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
+        when(KeyDown(k), k in (:up, :down, :left, :right) &&
+                         is_structural_selection(iomap.input.selection)) => :decline
+        when(KeyDown(k), k === :tab || k === :return) => :decline
+    end
+    declined === nothing || return nothing
+
+    styled = iomap.input
+    # A block whose elements are a lazy list is drawn line by line and keeps no
+    # geometry of the whole, so no key moves along its lines. The list can be
+    # endless, so it is not walked either.
+    styled.elements isa ListNode && return nothing
+    _has_caret_span(styled) || return nothing
+
+    # Shift moves the moving end of the selection and keeps its anchor, as the
+    # geometry-free Shift keys of the text domain do. Without Shift, the key moves
+    # from the moving end and the selection becomes a caret there. The caret and its
+    # line are found by the places of the lines, and the keys read only the line of
+    # the caret and the line next to its row.
+    places = iomap.places
+    extend = evt.modifiers.shift && !evt.modifiers.ctrl
+    ends = extend ? _find_text_selection_ends(styled, styled.selection, places) : nothing
+    extend && ends === nothing && return nothing
+    current = get_flat_cursor_coordinate(styled, styled.selection, places)
+    current === nothing && return nothing
+    segments = _get_line_segments(places, current.span[1])
+    found = _find_caret_coordinate(styled, segments, current, places)
+    found === nothing && return nothing
+    cur_sc = found.coordinate
+
+    target = @gesture_case evt begin
+        when(KeyDown(k), k === :home || k === :end) => begin
+            line_segs = filter(sc -> sc.y == cur_sc.y, segments)
+            sc = k === :home ? line_segs[1] : line_segs[end]
+            new_char = k === :home ? sc.char_start : sc.char_end
+            (sc.span_path, new_char)
+        end
+        when(KeyDown(k), k === :up || k === :down) => begin
+            cursor_x = _seg_cursor_x(cur_sc, found.char, p.measure)
+            target_segs = _find_next_row(places, current.span[1], segments, cur_sc.y, k === :up ? -1 : 1)
+            isempty(target_segs) && return nothing
+            best_sc   = target_segs[1]
+            best_pos  = best_sc.char_start
+            best_dist = typemax(Int)
+            for sc in target_segs
+                pos  = _char_position_at_x(sc, cursor_x, p.measure)
+                xpos = _seg_cursor_x(sc, pos, p.measure)
+                d    = abs(xpos - cursor_x)
+                if d < best_dist
+                    best_dist = d
+                    best_pos  = pos
+                    best_sc   = sc
+                end
+            end
+            (best_sc.span_path, best_pos)
+        end
+    end
+    target === nothing && return nothing
+    extend || return _flat_hit_op(styled, target..., places)
+    base = get_flat_base(styled, target[1], places)
+    base === nothing && return nothing
+    return ReplaceSelectionOperation(_make_flat_selection_reference(ends.anchor, base + target[2]))
+    # A KeyDown this layer neither edits nor resolves with geometry (e.g. Return,
+    # Escape, Insert while a text caret exists) is declined, NOT passed on as a raw
+    # gesture: a reader must yield an Operation or `nothing`, never an event. Putting
+    # the gesture in the operation slot marks the change "already produced" and stops
+    # the enclosing chain from re-offering it to the domain — which is why committing
+    # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
+    # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
+    return nothing
+end
+
+# The coordinate of `coord_map`, the segments of the line of the caret, that holds
+# the caret `current`, a `(span, char)`, and the character of the caret in it. A
+# caret on an empty span of a line that draws a glyph has no coordinate of its
+# span, because the glyphs give the places of that line: it takes the coordinate
+# that holds its flat offset. `line_index` gives the flat base of a span (see
+# `_find_flat_line`).
+function _find_caret_coordinate(styled::TextBlock, coord_map, current, line_index = get_flat_offsets(styled))
+    index = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+    index === nothing || return (coordinate = coord_map[index], char = current.char)
+    base = get_flat_base(styled, current.span, line_index)
+    base === nothing && return nothing
+    flat = base + current.char
+    for sc in coord_map
+        sc_base = get_flat_base(styled, sc.span_path, line_index)
+        sc_base === nothing && continue
+        sc_base + sc.char_start <= flat <= sc_base + sc.char_end &&
+            return (coordinate = sc, char = flat - sc_base)
+    end
+    nothing
 end
 
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
@@ -776,7 +784,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
                             Cell(@computation _compute_flat_lengths(lines_cell[][L])))
         end
     end
-    text_places = _TextPlaces(lines_cell, group_lines, get_line_cells, caret_lengths, box_lengths)
+    text_places = _TextPlaces(lines_cell, group_lines, get_line_cells, distances, caret_lengths, box_lengths)
 
     # The caret/highlight stay a single selection-driven `overlay`, laid out in
     # absolute coordinates over the whole stack, so a pure caret move still
@@ -933,7 +941,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline + space_top
     end))
     TextToGraphicsIoMap(p, styled, canvas, spacing, char_to_coord, highlight_offset, first_baseline,
-                        lines_cell, get_line_cells, space)
+                        lines_cell, get_line_cells, space, text_places)
 end
 
 # The pointer regions of the spans of `text` that name a shape: one over each
@@ -1233,56 +1241,28 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
     nothing
 end
 
-# Two tables map a span's `SpanPath` to the flat offset it starts at, one for each
-# space a range is expressed in. Both count a character and an inline image as 1,
-# and the implicit break and the indentation of a `TextLine` (the rule of
-# `get_flat_offsets`), because the projection that emits the line counts both.
-#   • The caret space of the text domain (`get_flat_offsets`), in which a
-#     `TextRangeReferenceStep` is expressed, also counts a `TextSpacing` as 1.
-#   • The box space, in which a `TextSpanReferenceStep` box is expressed, counts
-#     it as 0.
-# The flat base of each span of `styled`, in the box space and in the caret space
-# (see `_highlight_char_range`): where the span's first character is counted.
-function _compute_span_bases(styled::TextBlock)
-    box_offsets = Dict{SpanPath,Int}()
-    caret_offsets = Dict{SpanPath,Int}()
-    box = 0
-    caret = 0
-    for group in _line_groups(styled)
-        group.break_before && (box += 1; caret += 1)
-        box += group.indentation
-        caret += group.indentation
-        for (path, span) in group.spans
-            box_offsets[path::SpanPath] = box
-            caret_offsets[path::SpanPath] = caret
-            box += _box_flat_length(span)
-            caret += get_flat_length(span)
-        end
-    end
-    (box_offsets, caret_offsets)
-end
-
 # Locate the caret and the selection highlight in the same absolute coordinates
 # the line sub-canvases render into, from the lines that the selection touches.
 function _layout_overlay(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell,
                          places::_TextPlaces)
-    count = length(places.lines[])
-    (cursor = _compute_overlay_caret(p, spacing, styled, sel, block_font, places, count),
-     highlight = _compute_overlay_highlight(p, sel, places, count))
+    (cursor = _compute_overlay_caret(p, spacing, styled, sel, block_font, places),
+     highlight = _compute_overlay_highlight(p, sel, places))
 end
 
 # The caret `(x, y, h)` of a caret selection, or `nothing`: the line that holds its
 # flat offset, laid out again with the caret by the very layout the line runs, at
-# the place of the line.
+# the place of the line. The layout of a line names its spans `[1, j]`. The caret
+# of a range stands at its moving end.
 function _compute_overlay_caret(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel,
-                                block_font::Cell, places::_TextPlaces, count::Int)
-    flat = _find_flat_selection(places, styled, sel)
-    (flat === nothing || flat[1] != flat[2]) && return nothing
-    L, base = _find_place_at(places.caret_lengths, flat[1], count)
-    group = _get_place_group(places, L)
-    caret = _find_group_flat_place(group, base, flat[1])
-    caret === nothing && return nothing
-    cursor = _layout_group(p, spacing, group, 0, caret, false, block_font).cursor
+                                block_font::Cell, places::_TextPlaces)
+    ends = _find_text_selection_ends(styled, sel, places)
+    ends === nothing && return nothing
+    place = _find_flat_place(styled, ends.moving, places)
+    place === nothing && return nothing
+    path, char = place
+    L = path[1]
+    group = _make_line_group(styled.elements[L]::TextLine)
+    cursor = _layout_group(p, spacing, group, 0, (span = Int[1, path[2]], char = char), false, block_font).cursor
     cursor === nothing && return nothing
     top = p.start_y + Int(places.get_line_cells(L).y[])
     (cursor[1], cursor[2] + top, cursor[3])
@@ -1290,48 +1270,28 @@ end
 
 # The rows of the highlight of `sel` (see `_compute_span_rows`), from the segments
 # of the lines that its range touches and the flat base of each of their spans.
-function _compute_overlay_highlight(p::TextToGraphics, sel, places::_TextPlaces, count::Int)
+function _compute_overlay_highlight(p::TextToGraphics, sel, places::_TextPlaces)
     range = _highlight_char_range(sel)
     range === nothing && return NTuple{4,Int}[]
+    coordinates, bases = _collect_flat_range_segments(places, range, p.start_y)
+    _compute_span_rows(coordinates, bases, range[1], range[2], p)
+end
+
+# The segments of the lines that the flat range `(start, stop, space)` touches, and
+# the flat base of each of their spans in the space of the range, at the place of
+# the lines below `top`.
+function _collect_flat_range_segments(places::_TextPlaces, range, top::Int)
     start, stop, space = range
     lengths = space === :caret ? places.caret_lengths : places.box_lengths
     measure_span = space === :caret ? get_flat_length : _box_flat_length
+    count = length(places.lines[])
     first_line, base = _find_place_at(lengths, start, count)
     last_line = first(_find_place_at(lengths, stop, count))
-    coordinates = SegmentCoordinate[]
-    bases = Dict{SpanPath,Int}()
-    for L in first_line:last_line
-        base = _collect_line_segments!(coordinates, bases, p, places, L, base, measure_span)
-    end
-    _compute_span_rows(coordinates, bases, start, stop, p)
-end
-
-# Push the segments of the line at place `L` onto `coordinates`, at the place of
-# the line and with the span paths of the block, and the flat base of each of its
-# spans onto `bases`, from `base`, the flat offset where the line starts, and the
-# flat length of each span, `measure_span`. Answers where the next line starts.
-function _collect_line_segments!(coordinates::Vector{SegmentCoordinate}, bases::Dict{SpanPath,Int},
-                                 p::TextToGraphics, places::_TextPlaces, L::Int, base::Int, measure_span)
-    cells = places.get_line_cells(L)
-    group = places.lines[][L]
-    top = p.start_y + Int(cells.y[])
-    is_line = places.group_lines[][L] !== nothing
-    for segment in cells.layout[].coord_map
-        path = is_line ? Int[group.line, segment.span_path[2]] : segment.span_path
-        push!(coordinates, SegmentCoordinate(path, segment.char_start, segment.char_end, segment.x,
-                                             segment.y + top, segment.font, segment.text, segment.width,
-                                             segment.height))
-    end
-    position = base + group.indentation::Int
-    for (path, span) in group.spans
-        bases[path::SpanPath] = position
-        position += measure_span(span)
-    end
-    position + 1
+    _collect_range_segments(places, first_line, last_line, base, measure_span, top)
 end
 
 # The flat character length a span contributes to the box space (see
-# `_layout_overlay`): an image occupies exactly one column, matching how
+# `_TextPlaces`): an image occupies exactly one column, matching how
 # `SyntaxToText` counts one for an embedded graphic.
 _box_flat_length(span::TextString) = length(span.content::AbstractString)
 _box_flat_length(::TextGraphics) = 1
@@ -1477,7 +1437,7 @@ function _print_listnode(p::TextToGraphics, spacing::LineSpacing, styled::TextBl
     output_head = _build_line_node(p, spacing, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, spacing, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
-                        Cell(NamedTuple[]), nothing, (0, 0, 0, 0))
+                        Cell(NamedTuple[]), nothing, (0, 0, 0, 0), nothing)
 end
 
 # ── A lazy list of lines ──────────────────────────────────────────────────────
@@ -1695,6 +1655,24 @@ function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::Text
     sc.char_start + best_k
 end
 
+# The segments of the row next to the row at `y` of the line at place `L`, whose
+# segments are `segments`, in the direction `step`: the row above or below it in
+# the same line, or else the last row above or the first row below in the nearest
+# line that places a segment. Empty when there is none.
+function _find_next_row(places::_TextPlaces, L::Int, segments::Vector{SegmentCoordinate}, y::Int, step::Int)
+    count = length(places.lines[])
+    while true
+        ys = Int[sc.y for sc in segments if step < 0 ? sc.y < y : sc.y > y]
+        if !isempty(ys)
+            row = step < 0 ? maximum(ys) : minimum(ys)
+            return filter(sc -> sc.y == row, segments)
+        end
+        L += step
+        1 <= L <= count || return SegmentCoordinate[]
+        segments = _get_line_segments(places, L)
+    end
+end
+
 # The caret that a path of the graphics leaf names: an element
 # (`ElementReferenceStep(segment_i)`, 1-based) and a pixel offset inside it
 # (`PointReferenceStep(rx, ry)`), as `GraphicsCanvasToGraphicsImage` maps a point.
@@ -1720,7 +1698,9 @@ function _find_caret_at_element_point(p::TextToGraphics, iomap::TextToGraphicsIo
     h2 isa PointReferenceStep || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    _find_flat_caret(iomap.input, seg.span_path, char_pos)
+    places = iomap.places
+    places === nothing ? _find_flat_caret(iomap.input, seg.span_path, char_pos) :
+                         _find_flat_caret(iomap.input, seg.span_path, char_pos, places)
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the
@@ -1779,7 +1759,7 @@ end
     _highlight_char_range(sel) -> (start, stop, space) or nothing
 
 Extract the flat character range to highlight from the TextBlock's selection,
-and the space its offsets are in (see `_layout_overlay`). Recognized shapes:
+and the space its offsets are in (see `_TextPlaces`). Recognized shapes:
 - `EmptyReference` (∅) → the full extent, in the box space.
 - `ConcreteReference(TextRangeReferenceStep(s, e), ∅)` with `s != e` → `(s, e)`,
   in the caret space.

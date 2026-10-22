@@ -302,8 +302,22 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 
 # Whether a flat edit of `block` is an edit of its lines: the replacement holds a
 # `'\n'` or the range covers a break.
-function _is_line_edit(block::TextBlock, start::Int, stop::Int, replacement::AbstractString)
-    occursin('\n', replacement) || (start < stop && any(==('\n'), view(_flat_chars(block), (start + 1):stop)))
+# A range covers a break when its ends are in two lines; in one line, a run of the
+# line can hold a `'\n'`, so the characters of that line are read.
+function _is_line_edit(block::TextBlock, start::Int, stop::Int, replacement::AbstractString,
+                       line_index = get_flat_offsets(block))
+    occursin('\n', replacement) && return true
+    start < stop || return false
+    first_found = _find_flat_line(line_index, start)
+    last_found = _find_flat_line(line_index, stop)
+    (first_found === nothing || last_found === nothing) &&
+        return any(==('\n'), view(_flat_chars(block), (start + 1):stop))
+    first_found[1] == last_found[1] || return true
+    i, line_start = first_found
+    characters = i <= length(block.elements) ? _push_flat_chars!(Char[], block.elements[i]) : Char[]
+    stop - line_start <= length(characters) ||
+        return any(==('\n'), view(_flat_chars(block), (start + 1):stop))
+    any(==('\n'), view(characters, (start - line_start + 1):(stop - line_start)))
 end
 
 
@@ -954,7 +968,10 @@ get_flat_string(text::ReferencedDocument) = get_flat_string(get_document(text))
 # the stored path in, because the property answers `nothing` for a dormant
 # selection by design.
 _text_flat_selection(text::TextBlock) = _text_flat_selection(text, text.selection)
-function _text_flat_selection(text::TextBlock, selection)
+_text_flat_selection(text::TextBlock, selection) = _text_flat_selection(text, selection, nothing)
+# `line_index` gives where the line of a structural caret starts (see
+# `_find_flat_line`); with `nothing`, the offsets of the block do.
+function _text_flat_selection(text::TextBlock, selection, line_index)
     sel = strip_reference_types(selection)
     if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return (sel.head.start, sel.head.stop)
@@ -974,7 +991,7 @@ function _text_flat_selection(text::TextBlock, selection)
     rng = _text_selection_range(text, selection)
     rng === nothing && return nothing
     path, a, b = rng
-    base = get_flat_base(text, path)
+    base = line_index === nothing ? get_flat_base(text, path) : get_flat_base(text, path, line_index)
     base === nothing ? nothing : (base + a, base + b)
 end
 
@@ -1045,21 +1062,22 @@ get_flat_range(block::TextBlock, ref) = _text_flat_selection(block, ref)
 get_flat_cursor_coordinate(text::TextBlock) = get_flat_cursor_coordinate(text, text.selection)
 # The span and the character a flat offset lands on, in the shape of
 # `get_flat_cursor_coordinate`, or `nothing` on a break or gap.
-function _text_flat_span(text::TextBlock, flat::Int)
-    loc = _find_flat_place(text, flat)
+function _text_flat_span(text::TextBlock, flat::Int, line_index = get_flat_offsets(text))
+    loc = _find_flat_place(text, flat, line_index)
     loc === nothing ? nothing : (span = loc[1], char = loc[2])
 end
 
-function get_flat_cursor_coordinate(text::TextBlock, selection)
-    ends = _find_text_selection_ends(text, selection)
-    ends === nothing ? nothing : _text_flat_span(text, ends.moving)
+function get_flat_cursor_coordinate(text::TextBlock, selection, line_index = get_flat_offsets(text))
+    ends = _find_text_selection_ends(text, selection, line_index)
+    ends === nothing ? nothing : _text_flat_span(text, ends.moving, line_index)
 end
 
 # The two ends of the flat text selection: the `anchor` that stays and the end that
 # moves, which the direction of the selection names. A caret is both. `nothing`
-# where `_text_flat_selection` has no flat selection.
-function _find_text_selection_ends(text::TextBlock, selection)
-    pair = _text_flat_selection(text, selection)
+# where `_text_flat_selection` has no flat selection. `line_index` gives the flat
+# base of a structural caret (see `_find_flat_line`).
+function _find_text_selection_ends(text::TextBlock, selection, line_index = nothing)
+    pair = _text_flat_selection(text, selection, line_index)
     pair === nothing && return nothing
     get_range_direction(strip_reference_types(selection)) === :backward ?
         (anchor = pair[2], moving = pair[1]) : (anchor = pair[1], moving = pair[2])
@@ -1150,18 +1168,6 @@ function _text_span_infos(text::TextBlock)
         end
     end
     infos
-end
-
-# The path of every inline image, in document order.
-function _collect_image_paths(text::TextBlock)
-    paths = SpanPath[]
-    for (i, line) in enumerate(text.elements)
-        line isa TextLine || continue
-        for (j, span) in enumerate(line.elements)
-            span isa TextGraphics && push!(paths, Int[i, j])
-        end
-    end
-    paths
 end
 
 # Insert (replace the selected flat range with) `str` at the text cursor. Produces
@@ -1509,6 +1515,37 @@ function get_flat_offsets(text::TextBlock)
     offsets
 end
 
+# An index of the flat offsets where the elements of a block start: the offsets
+# themselves (`get_flat_offsets`), which a lookup searches by halves, or the places
+# that a printer keeps of the lines that it lays out, such as those of
+# `TextToGraphics`, which a lookup reads in log2 of the count of lines. A lookup of
+# a flat place that takes an index reads only the line of the place.
+#
+# `_find_flat_line(index, flat)` answers `(i, start)`: the last element `i` that
+# starts at or before `flat`, and the flat offset `start` where it starts, or
+# `nothing` before the first element. `_get_flat_line_start(index, i)` answers
+# where element `i` starts.
+function _find_flat_line(offsets::Vector{Int}, flat::Int)
+    i = searchsortedlast(offsets, flat)
+    i < 1 ? nothing : (i, offsets[i])
+end
+
+_get_flat_line_start(offsets::Vector{Int}, i::Int) = offsets[i]
+
+# The `TextLine` that holds the flat offset `flat` by `line_index`, as
+# `(i, line, start)`: its index, the line, and the flat offset where its first span
+# starts, past its indentation. `nothing` before the first element, or when the
+# element there is no line.
+function _find_flat_text_line(text::TextBlock, flat::Int, line_index)
+    found = _find_flat_line(line_index, flat)
+    found === nothing && return nothing
+    i, start = found
+    i <= length(text.elements) || return nothing
+    line = text.elements[i]
+    line isa TextLine || return nothing
+    (i, line, start + line.indentation)
+end
+
 """
     get_flat_selection(text::TextBlock) -> (start, stop, is_cursor) or nothing
 
@@ -1543,19 +1580,17 @@ function get_flat_selection(text::TextBlock)
 end
 
 # The flat offset the span at `path` starts at, or nothing when the path does not
-# land on a span.
-function get_flat_base(text::TextBlock, path::SpanPath)
+# land on a span. `line_index` gives where its line starts (see `_find_flat_line`).
+function get_flat_base(text::TextBlock, path::SpanPath, line_index = get_flat_offsets(text))
     length(path) == 2 || return nothing
-    offsets = get_flat_offsets(text)
     i = path[1]
-    (1 <= i <= length(offsets)) || return nothing
-    base = offsets[i]
+    (1 <= i <= length(text.elements)) || return nothing
     line = text.elements[i]
     line isa TextLine || return nothing
     spans = line.elements
     j = path[2]
     (1 <= j <= length(spans)) || return nothing
-    base += line.indentation      # the leading spaces the renderers emit
+    base = _get_flat_line_start(line_index, i) + line.indentation   # the leading spaces the renderers emit
     for k in 1:(j - 1)
         base += get_flat_length(spans[k])
     end
@@ -1684,12 +1719,16 @@ end
 # `(span_path, local_char)` of the `TextString` span it falls in, or `nothing`
 # when it lands on a break / spacing / indentation gap (no editable span), beside
 # an inline image with no text run on that side, or out of range. Boundary offsets
-# resolve to the earlier span's end.
-function _flat_to_span(text::TextBlock, flat::Int)
-    for (span_path, len) in _text_span_infos(text)
-        base = get_flat_base(text, span_path)
-        base === nothing && continue
-        base <= flat <= base + len && return (span_path, flat - base)
+# resolve to the earlier span's end. A span of another line never holds the
+# offset, so only the line of the offset is read.
+function _flat_to_span(text::TextBlock, flat::Int, line_index = get_flat_offsets(text))
+    found = _find_flat_text_line(text, flat, line_index)
+    found === nothing && return nothing
+    i, line, position = found
+    for (j, span) in enumerate(line.elements)
+        span_length = get_flat_length(span)
+        span isa TextString && position <= flat <= position + span_length && return (Int[i, j], flat - position)
+        position += span_length
     end
     nothing
 end
@@ -1697,11 +1736,13 @@ end
 # The inline image that a flat offset touches, as `(span_path, char)`: char 0 is
 # the caret before the image and char 1 the caret after it. Between two images,
 # the caret after the earlier one. `nothing` when no image touches the offset.
-function _find_flat_image_place(text::TextBlock, flat::Int)
-    for path in _collect_image_paths(text)
-        base = get_flat_base(text, path)
-        base === nothing && continue
-        base <= flat <= base + 1 && return (path, flat - base)
+function _find_flat_image_place(text::TextBlock, flat::Int, line_index = get_flat_offsets(text))
+    found = _find_flat_text_line(text, flat, line_index)
+    found === nothing && return nothing
+    i, line, position = found
+    for (j, span) in enumerate(line.elements)
+        span isa TextGraphics && position <= flat <= position + 1 && return (Int[i, j], flat - position)
+        position += get_flat_length(span)
     end
     nothing
 end
@@ -1709,8 +1750,9 @@ end
 # The place of a flat offset, as `(span_path, char)`: the text run that holds it
 # (`_flat_to_span`), else the inline image beside it (`_find_flat_image_place`).
 # `nothing` on a break or a gap that no run and no image touches.
-_find_flat_place(text::TextBlock, flat::Int) =
-    something(_flat_to_span(text, flat), _find_flat_image_place(text, flat), Some(nothing))
+_find_flat_place(text::TextBlock, flat::Int, line_index = get_flat_offsets(text)) =
+    something(_flat_to_span(text, flat, line_index), _find_flat_image_place(text, flat, line_index),
+              Some(nothing))
 
 # Standalone-TextBlock application. For a projected document the op is lowered
 # upstream and never arrives here. v1 handles the in-span case (caret or range
@@ -1728,20 +1770,21 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
         return
     end
     block isa TextBlock || return
-    if _is_line_edit(block, start, stop, op.replacement)
+    offsets = get_flat_offsets(block)
+    if _is_line_edit(block, start, stop, op.replacement, offsets)
         newpos = _splice_lines!(block, start, stop, op.replacement)
         steps = get_reference_steps(strip_reference_types(op.reference))
         clear_selection!(document)
         set_selection!(document, Reference(steps[1:end-1]..., TextRangeReferenceStep(newpos, newpos)))
         return
     end
-    image_edit = _make_image_edit(block, start, stop, op.replacement)
+    image_edit = _make_image_edit(block, start, stop, op.replacement, offsets)
     if image_edit !== nothing
         evaluate_operation(editor, reroot_operation(image_edit, Tuple(get_reference_steps(block_path))))
         return
     end
-    a = _flat_to_span(block, start)
-    b = _flat_to_span(block, stop)
+    a = _flat_to_span(block, start, offsets)
+    b = _flat_to_span(block, stop, offsets)
     (a === nothing || b === nothing || a[1] != b[1]) && return   # off-span / cross-span: v1 decline
     span = _span_at(block, a[1])
     span.content = splice_string(span.content::AbstractString, a[2], b[2], op.replacement)
@@ -1770,11 +1813,14 @@ retarget_operation(op::ReplaceTextRangeOperation, reference::Reference) =
 # offset (equal to a span's end) belongs to the NEXT span it enters, not the one it
 # just left — so a range whose start sits on the open-delimiter|value seam stays inside
 # the value rather than straddling it. `nothing` when the offset falls in a break/gap.
-function _flat_span_range_start(block::TextBlock, flat::Int)
-    for (path, len) in _text_span_infos(block)
-        base = get_flat_base(block, path)
-        base === nothing && continue
-        base <= flat < base + len && return (path, flat - base)
+function _flat_span_range_start(block::TextBlock, flat::Int, line_index = get_flat_offsets(block))
+    found = _find_flat_text_line(block, flat, line_index)
+    found === nothing && return nothing
+    i, line, position = found
+    for (j, span) in enumerate(line.elements)
+        span_length = get_flat_length(span)
+        span isa TextString && position <= flat < position + span_length && return (Int[i, j], flat - position)
+        position += span_length
     end
     nothing
 end
@@ -1782,32 +1828,62 @@ end
 # The `TextString` span a non-empty range's END closes, as its full span path: a
 # boundary offset (equal to a span's start) belongs to the PREVIOUS span it ends, so a
 # range ending on the value|close-delimiter seam stays inside the value. `nothing` in a gap.
-function _flat_span_range_end(block::TextBlock, flat::Int)
-    for (path, len) in _text_span_infos(block)
-        base = get_flat_base(block, path)
-        base === nothing && continue
-        base < flat <= base + len && return (path, flat - base)
+function _flat_span_range_end(block::TextBlock, flat::Int, line_index = get_flat_offsets(block))
+    found = _find_flat_text_line(block, flat, line_index)
+    found === nothing && return nothing
+    i, line, position = found
+    for (j, span) in enumerate(line.elements)
+        span_length = get_flat_length(span)
+        span isa TextString && position < flat <= position + span_length && return (Int[i, j], flat - position)
+        position += span_length
     end
     nothing
 end
 
 # The `(span_path, char)` a flat offset resolves to, clamping a break/gap offset to the
-# nearest `TextString` span. The path is `[line, run]`.
-function _flat_to_span_nearest(block::TextBlock, flat::Int)
-    exact = _flat_to_span(block, flat)
+# nearest `TextString` span, the first of them in document order at the same
+# distance. The path is `[line, run]`. The nearest span is in the line of the
+# offset, in the nearest line before it that has a run, or in the nearest line after
+# it that has one, so only the lines between those two are read.
+function _flat_to_span_nearest(block::TextBlock, flat::Int, line_index = get_flat_offsets(block))
+    exact = _flat_to_span(block, flat, line_index)
     exact === nothing || return exact
+    count = length(block.elements)
+    count == 0 && return nothing
+    found = _find_flat_line(line_index, flat)
+    at = found === nothing ? 1 : min(found[1], count)
     best = nothing
     bestd = typemax(Int)
-    for (path, len) in _text_span_infos(block)
-        base = get_flat_base(block, path)
-        base === nothing && continue
-        d = flat < base ? base - flat : (flat > base + len ? flat - (base + len) : 0)
-        if d < bestd
-            bestd = d
-            best = (path, clamp(flat - base, 0, len))
+    for i in _find_text_run_line(block, at - 1, -1):_find_text_run_line(block, at + 1, 1)
+        line = block.elements[i]
+        line isa TextLine || continue
+        base = _get_flat_line_start(line_index, i) + line.indentation
+        for (j, span) in enumerate(line.elements)
+            span_length = get_flat_length(span)
+            if span isa TextString
+                d = flat < base ? base - flat : (flat > base + span_length ? flat - (base + span_length) : 0)
+                if d < bestd
+                    bestd = d
+                    best = (Int[i, j], clamp(flat - base, 0, span_length))
+                end
+            end
+            base += span_length
         end
     end
     best
+end
+
+# The nearest line from element `from` in the direction `step` that holds a text
+# run, or the last element in that direction when none does.
+function _find_text_run_line(block::TextBlock, from::Int, step::Int)
+    count = length(block.elements)
+    i = from
+    while 1 <= i <= count
+        line = block.elements[i]
+        line isa TextLine && any(span -> span isa TextString, line.elements) && return i
+        i += step
+    end
+    step < 0 ? 1 : count
 end
 
 # A key read with the gesture table of `block`, a flat edit lowered to the
@@ -1822,40 +1898,48 @@ end
 # An edit of the lines of a block of lines stays flat: one whose replacement holds a
 # `'\n'`, or whose range covers a break. Each stage maps its flat offsets, and the
 # stage that owns the text splits or joins its lines.
-function _read_lowered_gesture(block::TextBlock, evt)
+#
+# `line_index` gives where each line starts (see `_find_flat_line`): a stage that
+# keeps the places of its lines hands them in, so the lowering reads only the lines
+# of the edit. With `nothing`, the offsets of the block do.
+function _read_lowered_gesture(block::TextBlock, evt, line_index = nothing)
     block.elements isa ListNode && return nothing
     op = read_gesture(block, evt)
-    op isa ReplaceTextRangeOperation ? _lower_unless_line_edit(block, op) : op
+    op isa ReplaceTextRangeOperation || return op
+    _lower_unless_line_edit(block, op, line_index === nothing ? get_flat_offsets(block) : line_index)
 end
 
 # A flat edit lowered to the run it falls in, or kept flat when it is an edit of
 # the lines of `block`.
-function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation)
+function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation,
+                                 line_index = get_flat_offsets(block))
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
-     _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement)) && return op
-    _lower_text_range(block, op)
+     _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement, line_index)) && return op
+    _lower_text_range(block, op, line_index)
 end
 
-function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
+function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation, line_index = get_flat_offsets(block))
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) || return nothing
     s, e = r.head.start, r.head.stop
-    image_edit = _make_image_edit(block, s, e, op.replacement)
+    image_edit = _make_image_edit(block, s, e, op.replacement, line_index)
     image_edit === nothing || return image_edit
     if s == e
         # Zero-width (an insertion): keep the plain resolution — a caret on a delimiter|value
         # seam lands on the delimiter's end, which the domain's `read_intent` (SyntaxToText's
         # prefer-content redirect) steers into the value. Range-snapping the two ends apart
         # here would instead split them across spans and decline.
-        a = _flat_to_span_nearest(block, s); b = a
+        a = _flat_to_span_nearest(block, s, line_index); b = a
     else
         # A real range snaps each end toward the interior of the span it touches, so a
         # delete/replace that brushes a delimiter seam stays within one span instead of
         # declining as cross-span. A genuinely multi-span range still resolves to two
         # different spans and declines (v1 leaves multi-span edits to a later pass).
-        a = something(_flat_span_range_start(block, s), _flat_to_span_nearest(block, s), Some(nothing))
-        b = something(_flat_span_range_end(block, e),   _flat_to_span_nearest(block, e), Some(nothing))
+        a = something(_flat_span_range_start(block, s, line_index), _flat_to_span_nearest(block, s, line_index),
+                      Some(nothing))
+        b = something(_flat_span_range_end(block, e, line_index), _flat_to_span_nearest(block, e, line_index),
+                      Some(nothing))
     end
     # `a[1]` / `b[1]` are now span paths `[i, j]`; a range that stays within one
     # span has equal paths. `_text_replace_path` builds the nested
@@ -1883,12 +1967,13 @@ end
 
 # The element write for the flat edit `s..e ← replacement` of `text`, rooted at
 # `text`, or `nothing` when the edit is not one beside an image.
-function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::AbstractString)
+function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::AbstractString,
+                          line_index = get_flat_offsets(text))
     caret = make_flat_caret_reference(s + length(replacement))
     if s == e
         isempty(replacement) && return nothing
-        _flat_to_span(text, s) === nothing || return nothing
-        place = _find_flat_image_place(text, s)
+        _flat_to_span(text, s, line_index) === nothing || return nothing
+        place = _find_flat_image_place(text, s, line_index)
         place === nothing && return nothing
         path, char = place
         run = _make_styled_run(replacement, _find_style_span(text, path))
@@ -1896,7 +1981,7 @@ function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::Abstract
                                               path[end] + char,
                                               Any[run]; selection = caret)
     end
-    paths = _find_image_range(text, s, e)
+    paths = _find_image_range(text, s, e, line_index)
     paths === nothing && return nothing
     container = _get_container_reference(paths[1])
     element = paths[1][end]
@@ -1914,12 +1999,22 @@ function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::Abstract
 end
 
 # The images that fill the flat range `s..e` exactly, as the paths of consecutive
-# siblings of one container; `nothing` when anything else is in the range.
-function _find_image_range(text::TextBlock, s::Int, e::Int)
+# siblings of one container; `nothing` when anything else is in the range. Only the
+# lines from the one of `s` to the one of `e - 1` hold an image of the range.
+function _find_image_range(text::TextBlock, s::Int, e::Int, line_index = get_flat_offsets(text))
     paths = SpanPath[]
-    for path in _collect_image_paths(text)
-        base = get_flat_base(text, path)
-        (base !== nothing && s <= base < e) && push!(paths, path)
+    first_found = _find_flat_line(line_index, s)
+    last_found = _find_flat_line(line_index, e - 1)
+    first_line = first_found === nothing ? 1 : first_found[1]
+    last_line = last_found === nothing ? 0 : min(last_found[1], length(text.elements))
+    for i in first_line:last_line
+        line = text.elements[i]
+        line isa TextLine || continue
+        base = _get_flat_line_start(line_index, i) + line.indentation
+        for (j, span) in enumerate(line.elements)
+            span isa TextGraphics && s <= base < e && push!(paths, Int[i, j])
+            base += get_flat_length(span)
+        end
     end
     length(paths) == e - s || return nothing
     for (k, path) in enumerate(paths)

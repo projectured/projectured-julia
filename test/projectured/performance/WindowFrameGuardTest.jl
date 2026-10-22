@@ -280,10 +280,8 @@ const _WINDOW_GUARD_DOCUMENTS = (
 # The inputs of the documents whose frames grow with the document, by the names of
 # the document and of the input; see step 5 of the guards plan.
 const _WINDOW_GUARD_GROWING = Set{Tuple{String,String}}([
-    ("a Julia file", "a key that types a character"), ("a Julia file", "a caret move by a line"),
-    ("a Julia file", "a click on a line"), ("a Julia file", "a move of the pointer over the document"),
-    ("a JSON file", "a key that types a character"), ("a JSON file", "a caret move by a line"),
-    ("a JSON file", "a click on a line"), ("a JSON file", "a move of the pointer over the document"),
+    ("a Julia file", "a caret move by a line"), ("a Julia file", "a click on a line"),
+    ("a Julia file", "a move of the pointer over the document"),
     ("a Markdown file", "a key that types a character"), ("a Markdown file", "a click on a line"),
     ("a Markdown file", "a move of the pointer over the document")])
 
