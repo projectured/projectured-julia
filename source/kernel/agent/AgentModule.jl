@@ -26,8 +26,9 @@ Eight fragments share this namespace:
   `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`,
   `cancel_agent_prompt!`, `cancel_agent_subagent!`,
   `stop_agent_background_task!`, `close_agent_session!`,
-  `stop_agent_connection!`, `has_agent_sign_out`, `sign_out_agent!`,
-  `has_agent_steering` and `steer_agent_prompt!`, each a body-less generic.
+  `stop_agent_connection!`, `sign_in_agent!`, `has_agent_sign_out`,
+  `sign_out_agent!`, `has_agent_steering` and `steer_agent_prompt!`, each a
+  body-less generic.
 - [`AgentConnectionDefaults.jl`](AgentConnectionDefaults.jl) — the fallback
   behaviours for that contract.
 - [`AgentConnectionEvent.jl`](AgentConnectionEvent.jl) — the events an external
@@ -75,8 +76,8 @@ export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!,
        set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, cancel_agent_subagent!,
        stop_agent_background_task!, close_agent_session!,
-       stop_agent_connection!, get_agent_connection_names, has_agent_sign_out, sign_out_agent!,
-       has_agent_steering, steer_agent_prompt!
+       stop_agent_connection!, get_agent_connection_names, sign_in_agent!, has_agent_sign_out,
+       sign_out_agent!, has_agent_steering, steer_agent_prompt!
 export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
        AgentPermissionOption, AgentPermissionRequest, AgentQuestionField, AgentQuestionRequest,
        AgentOptionValue, AgentOption, AgentOptionsUpdate, AgentUsageUpdate,

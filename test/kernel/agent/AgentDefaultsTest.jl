@@ -61,7 +61,8 @@ function test_agent_defaults()
         @test update.title === nothing && update.input === nothing && update.output === nothing
     end
 
-    @testset "a connection that does not say how to sign out can not" begin
+    @testset "a connection that does not say how to sign in or out can not" begin
+        @test !sign_in_agent!(make_agent_connection(:toy), "login")
         @test !has_agent_sign_out(make_agent_connection(:toy))
         @test !sign_out_agent!(make_agent_connection(:toy))
     end

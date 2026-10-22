@@ -195,6 +195,62 @@ function test_external_agent_turn()
                                       collect(last(collect(a.conversation.turns)).parts)), 10.0; pollint = 0.01) === :ok
         end
 
+        @testset "an agent that runs its own sign-in signs in from the request" begin
+            browser = AgentSignInMethod("chat-gpt", "ChatGPT", "Use ChatGPT to authenticate", nothing)
+            # The start of the agent waits for the test, as a sign-in in the
+            # browser waits for the person.
+            gate = Channel{Nothing}(1)
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
+                                                 is_signed_in = false, sign_in_methods = [browser])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            request = only(part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                           if part.content isa ConversationSignInRequest)
+            @test only(request.methods).command === nothing
+            # The method asks the agent and opens no terminal.
+            is_starting = Threads.Atomic{Bool}(false)
+            connection.on_start = connection -> (is_starting[] = true; take!(gate))
+            request.start((document = a,), "chat-gpt")
+            @test request.is_signing_in && request.terminal === nothing
+            @test request.state == "The agent runs the sign-in, such as in the browser. Finish it there."
+            @test timedwait(() -> is_starting[], 10.0; pollint = 0.01) === :ok
+            connection.on_start = nothing
+            # A message meanwhile waits for the sign-in, where its start would end
+            # the agent that runs the sign-in, and runs after it.
+            _submit_to_agent!(a, "Hello again"; wait = false)
+            sleep(0.2)
+            @test isempty(connection.sessions) && isempty(connection.prompts)
+            put!(gate, nothing)
+            @test timedwait(() -> length(connection.prompts) == 1, 10.0; pollint = 0.01) === :ok
+            _wait_for_idle(a)
+            @test connection.agent_sign_ins == ["chat-gpt"]
+            @test request.state == "Signed in." && !request.is_signing_in
+            @test length(connection.sessions) == 1
+            # A method that the agent does not run says so, and starts nothing.
+            push!(request.methods, AgentSignInMethod("other", "Other", "", nothing))
+            request.start((document = a,), "other")
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test request.state == "The agent can not run this sign-in."
+            @test connection.agent_sign_ins == ["chat-gpt", "other"]
+            @test length(connection.sessions) == 1
+            # A window that stops the agent ends the sign-in, which then starts nothing.
+            is_starting[] = false
+            connection.on_start = connection -> (is_starting[] = true; take!(gate))
+            request.start((document = a,), "chat-gpt")
+            @test timedwait(() -> is_starting[], 10.0; pollint = 0.01) === :ok
+            connection.on_start = nothing
+            stop_external_agent!(a)
+            put!(gate, nothing)
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test request.state == "The sign-in was stopped."
+            @test connection.agent_sign_ins == ["chat-gpt", "other"]
+            @test a.agent_session === nothing && length(connection.sessions) == 1
+            # With no agent, the sign-in makes one, and here says why it can not.
+            request.start((document = a,), "chat-gpt")
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test startswith(request.state, "The sign-in failed: The backend :acp needs the package ProjecturedACP.")
+        end
+
         @testset "a question of the agent is a form, and its values go back" begin
             fields = [AgentQuestionField("question_1", "Colour", "Which colour?", :choice,
                                          [AgentOptionValue("Red", "Red", "warm"), AgentOptionValue("Blue", "Blue", "")], true),

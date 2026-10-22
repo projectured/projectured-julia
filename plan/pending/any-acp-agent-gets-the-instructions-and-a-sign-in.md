@@ -1,8 +1,8 @@
 # Any ACP agent gets the instructions and a sign-in
 
-> **Status (2026-10-22): step 1 done.** Branch `acp-neutral`, worktree
-> `projectured-julia-acp-neutral`. Step 2 adds a new mechanism and waits for the
-> word of the owner (Q1).
+> **Status (2026-10-22): steps 1 and 2 done.** Branch `acp-neutral`, worktree
+> `projectured-julia-acp-neutral`. The owner said yes to the new mechanism of
+> step 2 (Q1). Step 3 waits for the owner.
 
 ## Goal
 
@@ -51,7 +51,7 @@ official ACP".
   not change. Tests on the fake agent: new and resume, with and without the
   capability. Guide: `acp.md`. Done: `_add_system_prompt!` in
   `AcpConnection.jl`; `test_acp()` 310/310, main 301/301.
-- [ ] **2. A sign-in that the agent runs** (new mechanism, Q1). The kernel:
+- [x] **2. A sign-in that the agent runs** (new mechanism, Q1). The kernel:
   `AgentSignInMethod.command` becomes `Union{Cmd,Nothing}`, where `nothing`
   means that the agent runs the sign-in itself; a new generic
   `sign_in_agent!(connection, method_id) -> Bool` beside `sign_out_agent!`,
@@ -61,13 +61,29 @@ official ACP".
   it went; a sign-in that worked starts the agent again, as a terminal sign-in
   does. The scripted agent of the kernel example gets such a method. Tests:
   adapter, turn, card. Guides: `agent.md`, `acp.md`, `assistant.md`.
+  Done; decisions made in the implementation and after a review:
+  - The sign-in holds the start lock of the session for its whole wait. The
+    sign-in error stopped the agent, so the sign-in starts it; a turn or a
+    start that comes meanwhile waits for the sign-in, because its own start
+    would end the process that runs the sign-in. "Try again" stays enabled and
+    waits in the same way.
+  - The wait has a bound of five minutes, and a request with no answer in that
+    time is withdrawn with `$/cancel_request`. A window that stops the agent,
+    at the close of its tab, ends the sign-in at once; there is no stop button
+    of its own.
+  - An agent that started after a stop of the window stops again, and a
+    sign-in that ends after that stop starts nothing.
+  - An assistant whose agent stopped with its tab, such as after an undo of
+    the close, makes a new session for the sign-in.
+  - `_start_agent_task` holds the one way to run an agent task, for the start
+    and for the sign-in.
 - [ ] **3. A live check with `codex-acp`.** It needs Node.js 22 or newer on
   this machine and a ChatGPT sign-in; the owner decides.
 
 ## Questions
 
-- **Q1.** Step 2 adds a generic to the agent seam of the kernel and lets the
-  command of a sign-in method be `nothing`. The alternative with no new
+- **Q1 (answered yes by the owner, 2026-10-22).** Step 2 adds a generic to the
+  agent seam of the kernel and lets the command of a sign-in method be `nothing`. The alternative with no new
   mechanism is a message only: the card says to sign in outside the editor,
   such as with `codex login`. Recommendation: the generic, because the sign-in
   of the default type of ACP then works with every agent.

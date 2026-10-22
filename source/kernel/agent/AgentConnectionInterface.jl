@@ -162,6 +162,17 @@ not started answers `false`.
 function has_agent_sign_out end
 
 """
+    sign_in_agent!(connection, method_id) -> Bool
+
+Ask the agent of `connection` to run its own sign-in of the method `method_id`,
+an [`AgentSignInMethod`](@ref) with no `command`, such as a sign-in in the
+browser, and wait until it ends. Answers `true` when the agent signed in, and
+`false`, doing nothing, when the agent has no such method. Throws when the
+sign-in did not complete. The connection must be started.
+"""
+function sign_in_agent! end
+
+"""
     sign_out_agent!(connection) -> Bool
 
 Sign the agent of `connection` out. It forgets the sign-in of the person, and

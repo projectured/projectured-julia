@@ -373,7 +373,8 @@ _make_mcp_server(server) = ACP.McpServerHttp(
 
 # What the agent said about its sign-in: its title, the ways that this editor can
 # run, and a sentence for a person. The person signs in with the flow of the
-# agent, in a terminal; this editor shows no sign-in form of its own.
+# agent, in a terminal or in the flow that the agent runs itself, such as in the
+# browser; this editor shows no sign-in form of its own.
 function _make_sign_in_exception(connection::AcpConnection)
     methods = AgentSignInMethod[]
     for method in connection.auth_methods
@@ -388,20 +389,24 @@ function _get_agent_title(connection::AcpConnection)
     string(get(info, "title", get(info, "name", "The agent")))
 end
 
-# A method of the type `terminal` as a command: the invocation of the agent with
-# the `args` and the `env` of the method. A method of another type, `nothing`.
+# A method as this editor runs it. A method of the type `terminal` is a command:
+# the invocation of the agent with the `args` and the `env` of the method. A
+# method of the type `agent`, the default type of ACP, has no command: the agent
+# runs it itself at `sign_in_agent!`. A method of another type, `nothing`.
 function _make_sign_in_method(connection::AcpConnection, method)
     json = ACP.get_json(method)
-    get(json, "type", nothing) == "terminal" || return nothing
+    type = get(json, "type", "agent")
+    description = get(json, "description", nothing)
+    make_method(command) = AgentSignInMethod(string(get(json, "id", "")), string(get(json, "name", get(json, "id", ""))),
+                                             description isa AbstractString ? String(description) : "", command)
+    type == "agent" && return make_method(nothing)
+    type == "terminal" || return nothing
     arguments = get(json, "args", Any[])
     environment = get(json, "env", Dict{String,Any}())
     arguments isa AbstractVector && environment isa AbstractDict || return nothing
     command = _make_agent_invocation(connection, String[string(argument) for argument in arguments],
                                      Dict{String,String}(string(key) => string(value) for (key, value) in environment))
-    command === nothing && return nothing
-    description = get(json, "description", nothing)
-    AgentSignInMethod(string(get(json, "id", "")), string(get(json, "name", get(json, "id", ""))),
-                      description isa AbstractString ? String(description) : "", command)
+    command === nothing ? nothing : make_method(command)
 end
 
 # The command of the agent with `arguments` added and `environment` over its
@@ -575,6 +580,29 @@ function steer_agent_prompt!(connection::AcpConnection, session_id::AbstractStri
     end
     result isa AbstractDict && get(result, "outcome", nothing) in ("injected", "startedNewTurn")
 end
+
+# A sign-in of the type `agent` runs in the agent, such as in the browser of the
+# person, so its answer waits as long as the person takes, up to five minutes. A
+# request that gets no answer in that time is withdrawn, so the agent stops its
+# sign-in too.
+function sign_in_agent!(connection::AcpConnection, method_id::AbstractString)
+    _has_agent_sign_in_method(connection, method_id) || return false
+    request = ACP.start_request!(_get_started_transport(connection),
+                                 ACP.AuthenticateRequest(method_id = String(method_id)))
+    try
+        ACP.wait_for_answer(request; timeout = 300)
+    catch
+        ACP.cancel_request!(request)
+        rethrow()
+    end
+    true
+end
+
+# Whether the agent names `method_id` among its sign-in methods of the type `agent`.
+_has_agent_sign_in_method(connection::AcpConnection, method_id::AbstractString) =
+    any(method -> (json = ACP.get_json(method);
+                   get(json, "id", nothing) == method_id && get(json, "type", "agent") == "agent"),
+        connection.auth_methods)
 
 function has_agent_sign_out(connection::AcpConnection)
     connection.transport === nothing && return false

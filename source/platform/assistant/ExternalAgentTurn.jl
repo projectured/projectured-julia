@@ -363,9 +363,7 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
             end
         end
     end
-    # The start of an agent runs the agent of this process too, so with a running
-    # loop it runs on a thread of the default pool, as a turn does.
-    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, start()) : @async(start()))
+    _start_agent_task(start, editor)
     nothing
 end
 
@@ -436,7 +434,8 @@ function _add_agent_sign_in_request!(a::Assistant, exception::AgentSignInExcepti
     nothing
 end
 
-# Run the sign-in of the method `method_id` in a terminal. When it ends with the
+# Run the sign-in of the method `method_id`: in a terminal for a method with a
+# command, else in the agent. When the program in the terminal ends with the
 # status 0, the agent starts again; the line of the request says how it went. A
 # sign-in that a person stopped did not sign in, whatever its status: a program
 # such as `claude auth login` ends with 0 at Ctrl+C.
@@ -444,7 +443,9 @@ function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignIn
                                method_id::AbstractString)
     index = findfirst(method -> method.id == method_id, request.methods)
     index === nothing && return nothing
-    terminal = TerminalDocument(request.methods[index].command; on_exit = (editor, status) -> begin
+    command = request.methods[index].command
+    command === nothing && return _start_agent_own_sign_in!(editor, a, request, method_id)
+    terminal = TerminalDocument(command; on_exit = (editor, status) -> begin
         request.is_signing_in = false
         is_stopped = is_terminal_stopped(terminal)
         request.state = is_stopped ? "The sign-in was stopped." :
@@ -458,6 +459,58 @@ function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignIn
     terminal.status === :failed && (request.is_signing_in = false; request.state = "The sign-in could not start.")
     nothing
 end
+
+# Ask the agent to run its own sign-in of the method `method_id`, such as in the
+# browser. The wait for the person runs on a task, so the editor does not wait.
+# A sign-in that worked starts the agent again, as a terminal sign-in does. An
+# assistant whose agent stopped with its tab makes a new session for it.
+function _start_agent_own_sign_in!(editor, a::Assistant, request::ConversationSignInRequest,
+                                   method_id::AbstractString)
+    request.is_signing_in = true
+    request.state = "The agent runs the sign-in, such as in the browser. Finish it there."
+    _start_agent_task(editor) do
+        session = nothing
+        is_signed_in, state = try
+            session = _make_external_agent_session!(editor, a)
+            _run_agent_own_sign_in!(session, method_id)
+        catch exception
+            (false, session isa ExternalAgentSession && session.is_stopped ? "The sign-in was stopped." :
+                    "The sign-in failed: " * sprint(showerror, exception))
+        end
+        run_on_editor_task!(editor; wait = false) do
+            request.is_signing_in = false
+            request.state = state
+            is_signed_in && evaluate_operation(editor, StartExternalAgentOperation(a))
+        end
+    end
+    nothing
+end
+
+# The sign-in of the agent, under the start lock of the session: the error that
+# asked for the sign-in stopped the agent, so the sign-in starts it, and a turn
+# or a start that comes meanwhile waits for the sign-in, where its start would
+# end the process that runs it. A window that stopped the agent ends the
+# sign-in, and an agent that started after that stop stops again. Answers
+# whether the agent signed in, and the line of the request.
+function _run_agent_own_sign_in!(session::ExternalAgentSession, method_id::AbstractString)
+    lock(session.start_lock) do
+        session.is_stopped && return (false, "The sign-in was stopped.")
+        Base.invokelatest(start_agent_connection!, session.connection)
+        if session.is_stopped
+            Base.invokelatest(stop_agent_connection!, session.connection)
+            return (false, "The sign-in was stopped.")
+        end
+        is_signed_in = Base.invokelatest(sign_in_agent!, session.connection, method_id)
+        session.is_stopped && return (false, "The sign-in was stopped.")
+        is_signed_in ? (true, "Signed in.") : (false, "The agent can not run this sign-in.")
+    end
+end
+
+# Run `work` on a task of its own. The start of an agent runs the agent of this
+# process too, so with a running loop the task runs on a thread of the default
+# pool.
+_start_agent_task(work::Function, editor) =
+    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, work()) : @async(work()))
 
 # The sign-ins that run in the conversation of `a` end with it.
 function _release_agent_sign_ins!(editor, a::Assistant)

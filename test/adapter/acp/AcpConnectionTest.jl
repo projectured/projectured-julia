@@ -383,6 +383,40 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "an agent runs its own sign-in when the client asks for it" begin
+            # A method with no type has the type `agent`, as the methods of
+            # `codex-acp` have; a method of another type is not offered.
+            methods = [Dict("id" => "chat-gpt", "name" => "ChatGPT", "description" => "Use ChatGPT to authenticate"),
+                       Dict("id" => "browser", "name" => "Browser", "type" => "agent"),
+                       Dict("id" => "variable", "name" => "Variable", "type" => "env_var", "vars" => Any[])]
+            completes = Ref(true)
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("authMethods" => methods)),
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required")),
+                "authenticate" => (agent, params) -> completes[] ? Dict() :
+                    throw(ProtocolException(-32000, "Sign-in did not complete"))))
+            connection = make_fake_connection(agent)
+            failure = try
+                open_agent_session!(connection)
+            catch exception
+                exception
+            end
+            @test [(method.id, method.name, method.description) for method in failure.methods] ==
+                  [("chat-gpt", "ChatGPT", "Use ChatGPT to authenticate"), ("browser", "Browser", "")]
+            @test all(method -> method.command === nothing, failure.methods)
+            # The client asks the agent, which answers when the person signed in.
+            @test sign_in_agent!(connection, "chat-gpt")
+            @test only(get_received(agent, "authenticate"))["params"] == Dict{String,Any}("methodId" => "chat-gpt")
+            # A sign-in that did not complete throws. A method that the agent does
+            # not run itself gets no request.
+            completes[] = false
+            @test_throws ProtocolException sign_in_agent!(connection, "browser")
+            @test !sign_in_agent!(connection, "variable")
+            @test !sign_in_agent!(connection, "unknown")
+            @test length(get_received(agent, "authenticate")) == 2
+            stop_agent_connection!(connection)
+        end
+
         @testset "an agent signs out when it says that it can" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("agentCapabilities" => Dict(

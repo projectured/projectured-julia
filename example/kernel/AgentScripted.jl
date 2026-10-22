@@ -31,7 +31,10 @@ subagent_id`, and `background_task_stops` each `stop_agent_background_task!` as
 The first `failing_opens` sessions fail to open with a plain error. While
 `is_signed_in` is `false`, an open and a prompt throw an `AgentSignInException`
 with `sign_in_methods`; a test sets it to `true` for a sign-in that worked. A
-connection that `can_sign_out` signs out when asked, and is then not signed in.
+method of `sign_in_methods` with no `command` is a sign-in that the agent runs
+itself: `sign_in_agent!` with its id signs the connection in and answers
+`true`, and `agent_sign_ins` records each call. A connection that
+`can_sign_out` signs out when asked, and is then not signed in.
 A connection that `can_steer` takes a prompt into the turn that runs, and
 `steered` records each one; it takes none while no prompt runs.
 `on_start`, when given, gets the connection at each start, for a start that
@@ -55,6 +58,7 @@ mutable struct ScriptedAgentConnection
     can_resume::Bool
     is_signed_in::Bool
     sign_in_methods::Vector{AgentSignInMethod}
+    agent_sign_ins::Vector{String}
     can_sign_out::Bool
     can_steer::Bool
     steered::Vector{Vector{Any}}
@@ -70,7 +74,7 @@ ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_st
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
                             collect(AgentOption, options), Pair{String,String}[], can_resume,
-                            is_signed_in, collect(AgentSignInMethod, sign_in_methods), can_sign_out,
+                            is_signed_in, collect(AgentSignInMethod, sign_in_methods), String[], can_sign_out,
                             can_steer, Vector{Any}[], false, Pair{String,String}[], Pair{String,String}[])
 
 # What a scripted agent that is not signed in throws.
@@ -173,6 +177,14 @@ end
 
 AgentModule.close_agent_session!(connection::ScriptedAgentConnection, session_id::AbstractString) = nothing
 AgentModule.stop_agent_connection!(connection::ScriptedAgentConnection) = nothing
+
+function AgentModule.sign_in_agent!(connection::ScriptedAgentConnection, method_id::AbstractString)
+    push!(connection.agent_sign_ins, String(method_id))
+    any(method -> method.id == method_id && method.command === nothing, connection.sign_in_methods) ||
+        return false
+    connection.is_signed_in = true
+    true
+end
 
 AgentModule.has_agent_sign_out(connection::ScriptedAgentConnection) = connection.can_sign_out && connection.is_started
 

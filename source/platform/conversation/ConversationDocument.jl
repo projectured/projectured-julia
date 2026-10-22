@@ -142,14 +142,16 @@ end
 
 A part that says that an external agent needs a sign-in. `message` says how to
 sign in, in words for a person. `methods` are the ways to sign in that this
-editor can run, each an `AgentSignInMethod` with the command of a sign-in in a
-terminal. The card shows a button for each method and a button that tries again.
+editor can run, each an `AgentSignInMethod`: the command of a sign-in in a
+terminal, or no command for a sign-in that the agent runs itself. The card shows
+a button for each method and a button that tries again.
 
 `start` and `retry` are live functions and no data: `start(editor, method_id)`
 runs the sign-in of a method, and `retry(editor)` starts the agent again.
-`terminal` is the document in which the sign-in runs, `nothing` before one
-started; the card shows it below its buttons, and it is the live field of the
-part: a person types in it inside a transcript that is otherwise read.
+`terminal` is the document in which a sign-in in a terminal runs, `nothing`
+before one started; the card shows it below its buttons, and it is the live
+field of the part: a person types in it inside a transcript that is otherwise
+read.
 `is_signing_in` says that a sign-in runs, and `state` says how the last one
 went, in words for a person; the assistant writes both.
 

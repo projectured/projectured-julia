@@ -389,16 +389,17 @@ end
 """
     AgentSignInMethod(id, name, description, command)
 
-A way to sign in to an external agent: the agent runs its own sign-in in a
-terminal. `command` is the program of the sign-in, with its arguments, its
-environment and its folder. A person answers it in a terminal, and it ends with
-the status 0 when the sign-in worked.
+A way to sign in to an external agent. `command` is the program of a sign-in in
+a terminal, with its arguments, its environment and its folder: a person answers
+it in a terminal, and it ends with the status 0 when the sign-in worked. A
+`command` of `nothing` is a sign-in that the agent runs itself, such as in the
+browser, when [`sign_in_agent!`](@ref) asks for it.
 """
 struct AgentSignInMethod
     id::String
     name::String
     description::String
-    command::Cmd
+    command::Union{Cmd,Nothing}
 end
 
 """
