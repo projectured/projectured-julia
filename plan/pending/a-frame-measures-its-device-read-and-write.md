@@ -71,7 +71,7 @@ owner approves.
    read and whose write take a known time, and with the counters, read a
    computed cell. Run `test_editor_frame_performance()`, `test_editor_feeds()`
    and the tests of the fault barriers. Commit.
-2. [ ] **With the counters compiled in.** Run the same tests in a scratch
+2. [x] **With the counters compiled in.** Done; see [As built](#as-built). Run the same tests in a scratch
    environment with `performance_counters = true`. Commit a fix if one is
    necessary.
 3. [ ] **A live check and the guides.** An editor on the SDL backend, offscreen,
@@ -101,3 +101,10 @@ owner approves.
   record says. With the counters off, the tests of the frame performance, the
   feeds, the fault barriers and the held frames pass: 156 of 156. The naming,
   style, argument and documentation guards pass.
+- **Step 2.** No fix was necessary. The scratch environment holds a
+  `Project.toml` that lists `ProjecturedKernel` in `[deps]` and a
+  `LocalPreferences.toml` with `performance_counters = true`; it goes after the
+  test environment in `JULIA_LOAD_PATH="@:<scratch>:@stdlib"`, with
+  `--project=package/ProjecturedKernelTest`. With `PERFORMANCE_COUNTERS_ENABLED`
+  `true`, the tests of step 1 and `test_performance_counter()` pass: 192 of 192.
+  A frame over the probe backend records the two times and the eight counts.
