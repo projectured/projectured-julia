@@ -1,7 +1,7 @@
-# A roster gathers the items of a source into rows: the rows of a collection, a
-# value cell for each column, a facet and a path as keys, the parts of the items
-# inside other items, a filter and a sort of the rows, and the table that shows
-# them.
+# A roster gathers the items of a source into rows: the rows of a collection, the
+# place of each item and the row of an item, a value cell for each column, a facet
+# and a path as keys, the parts of the items inside other items, a filter and a
+# sort of the rows, and the table that shows them.
 
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedPlatform.CollectionModule: CellVector
@@ -74,6 +74,31 @@ function test_roster()
         deleteat!(runs, 1)
         @test [row.values[1] for row in rows] == [2, 3, 4]
         @test rows[1] === second_row
+    end
+
+    @testset "the place of each item, as its source gave it, and the row of an item" begin
+        study = _RosterStudy("queue", make_runs())
+        roster = link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("runs")));
+                                     columns = ["id"]), study)
+        place(k) = (found = get_roster_item_place(roster, k);
+                    found === nothing ? nothing : collect(get_reference_steps(found)))
+        at(j) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("runs"),
+                                                             ElementReferenceStep(j))))
+        @test [place(k) for k in 1:3] == [at(1), at(2), at(3)]
+        third = study.runs[3]
+        row = roster.rows[3]
+        @test find_roster_row(roster, third) == 3
+        # An item that goes out before an item gives that item its new place, and
+        # the row of that item stays.
+        deleteat!(study.runs, 1)
+        @test roster.rows[2] === row
+        @test place(2) == at(2) && find_roster_row(roster, third) == 2
+        @test place(3) === nothing
+        @test find_roster_row(roster, _RosterRun(9, "done", 0.1)) === nothing
+        # A collection given as itself has no place in the link.
+        runs = make_runs()
+        plain = link_roster!(Roster(CollectionItems(runs); columns = ["id"]), runs)
+        @test get_roster_item_place(plain, 1) === nothing && find_roster_row(plain, runs[2]) == 2
     end
 
     @testset "a key: a facet, a path of fields, and within" begin

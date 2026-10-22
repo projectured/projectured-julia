@@ -89,7 +89,7 @@ and the roster keeps it, the owner answered: "yes".
 
 ## Steps
 
-1. [ ] **The source gives the place, and the roster keeps it.** Add `place` to
+1. [x] **The source gives the place, and the roster keeps it.** Add `place` to
    `RosterItem`, the places of `CollectionItems`, the field `index` of
    `Roster`, `get_roster_item_place` and `find_roster_row`. Test: new cases in
    `test_roster()`. A roster of `CollectionItems` at a reference answers the
@@ -98,6 +98,23 @@ and the roster keeps it, the owner answered: "yes".
    `nothing`. `find_roster_row` finds the row of an item and answers `nothing`
    for an item that no row shows. Then run `test_roster_sources()` and
    `test_roster_table()`.
+   **Done 2026-10-22.** What the step found and decided:
+   - `RosterItem(item, within = nothing)` makes an item with `place = nothing`,
+     so the seven sources that make an item, here and in the tests, stay as
+     they are. omnet-julia makes no `RosterItem`.
+   - `CollectionItems` of a reference gives
+     `extend_reference(<reference>, ElementReferenceStep(j))` for the item at
+     `j`. A collection given as itself gives no place, and a reference that
+     reaches nothing gives no item, as before.
+   - The field `index` of `Roster` comes after `link`, before the field
+     `mouse_target` that `@document` adds. Its computation,
+     `_compute_roster_index`, reads `rows` first, so the rows compute before it,
+     and then the cell of the items of each part in the memo of the rows, which
+     the rows computation already filled. `RosterIndex` holds the two `IdDict`s.
+     An item that two parts give keeps the place of the first part.
+   - `test_roster()`: 53 of 53 pass, 7 of them new. `test_roster_sources()`:
+     19 of 19. `test_roster_table()`: 28 of 28. `test_roster_facets()`: 30 of
+     30.
 2. [ ] **The pages map through the places.** Add `find_held_item_path` and
    `find_held_row_path`, and change the two maps of `OpenFileListToWidget` and
    of `BackgroundWorkLogToWidget`. Test: in the testset of the open files in

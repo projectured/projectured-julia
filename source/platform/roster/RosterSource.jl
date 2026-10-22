@@ -29,11 +29,16 @@ collect_roster_parts(source::CollectionItems, link) = Any[source]
 # A source is data, so a file that keeps a roster writes its source.
 is_pred_constructible(::Type{CollectionItems}) = true
 
+# Each item of a collection at a reference has its place there: the reference and
+# its index, which the walk of the collection knows. A collection given as itself
+# has no place in the link.
 function collect_roster_items(source::CollectionItems, link, part)
-    collection = source.collection isa Reference ?
-        try_evaluate_reference(link, source.collection, nothing) : source.collection
+    reference = source.collection
+    collection = reference isa Reference ? try_evaluate_reference(link, reference, nothing) : reference
     collection === nothing && return RosterItem[]
-    RosterItem[RosterItem(item) for item in collection]
+    reference isa Reference || return RosterItem[RosterItem(item) for item in collection]
+    RosterItem[RosterItem(item, nothing, extend_reference(reference, ElementReferenceStep(j)))
+               for (j, item) in enumerate(collection)]
 end
 
 """

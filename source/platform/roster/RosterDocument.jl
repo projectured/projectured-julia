@@ -2,18 +2,21 @@
 # rows, the value of a column of a row, and the key of a row in an arrangement.
 
 """
-    RosterItem(item, within = nothing)
+    RosterItem(item, within = nothing, place = nothing)
 
-One item that a source of a roster gives, and the item of an outer source that
-holds it, or `nothing`. `ItemsWithin` gives the file of each call it gathers, so a
-row of a call can show its file.
+One item that a source of a roster gives, the item of an outer source that holds
+it, or `nothing`, and its place: the path of the item from the link of the
+roster, or `nothing`. `ItemsWithin` gives the file of each call it gathers, so a
+row of a call can show its file. `CollectionItems` of a reference gives the place
+of each item in the collection, which it knows while it gathers them.
 """
 struct RosterItem
     item::Any
     within::Any
+    place::Any
 end
 
-RosterItem(item) = RosterItem(item, nothing)
+RosterItem(item, within = nothing) = RosterItem(item, within, nothing)
 
 """
     RosterRow
@@ -196,6 +199,11 @@ such as the tabs of the window; `nothing` until the window links it
 ([`link_roster!`](@ref)), and a roster with no link has no rows. No document holds
 the editor, and the link is no editor.
 
+`index` is a `RosterIndex`, computed from the rows and from the items that the
+parts gathered: the place that the source gave for each item, and the index of
+the row of each item. It computes again after the rows do, when a reader reads
+it ([`get_roster_item_place`](@ref), [`find_roster_row`](@ref)).
+
 A filter, a sort, a group and the first items of an arrangement act on `rows` as
 on any collection.
 
@@ -213,17 +221,77 @@ See also `show_roster!` and `describe_roster_sources`.
     title::String
     rows::Any
     link::Any
+    index::Any
 end
 
 function Roster(source; columns = String[], title::AbstractString = "Roster")
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
-                    Cell(nothing), Cell(nothing))
+                    Cell(nothing), Cell(nothing), Cell(nothing))
     rows = CellVector{RosterRow}()
     memo = _RosterMemo(nothing, nothing, nothing, IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))
     roster.rows = rows
+    set_cell_computation!(getfield(roster, :index), () -> _compute_roster_index(roster, memo))
     roster
 end
+
+"""
+    RosterIndex(places, rows)
+
+What a roster knows of each of its items, by the identity of the item: `places`
+holds the place that the source gave, the path of the item from the link of the
+roster, and `rows` holds the index of the row of the item in `rows` of the roster.
+An item with no place has no entry in `places`.
+"""
+struct RosterIndex
+    places::IdDict{Any,Any}
+    rows::IdDict{Any,Int}
+end
+
+# The index of the rows and of the places that the parts gave, after the rows
+# computed: it reads the rows, and then the items that each part gathered for them.
+function _compute_roster_index(roster::Roster, memo)
+    rows = IdDict{Any,Int}()
+    for (k, row) in enumerate(roster.rows)
+        rows[row.item] = k
+    end
+    places = IdDict{Any,Any}()
+    for items in values(memo.parts), entry in items[]
+        (entry.place === nothing || haskey(places, entry.item)) || (places[entry.item] = entry.place)
+    end
+    RosterIndex(places, rows)
+end
+
+"""
+    get_roster_item_place(roster, k) -> Reference or nothing
+
+The place of the item of the row `k` of `roster`: the path of the item from the
+link of the roster, as its source gave it while it gathered the item. `nothing`
+when the source gives no place, or when `roster` has no row `k`. It reads the
+index of the roster and searches nothing.
+
+# Example
+
+    get_roster_item_place(Roster(CollectionItems(@reference(files))), 2)   # files[2]
+
+See also `find_roster_row` and `RosterItem`.
+"""
+function get_roster_item_place(roster::Roster, k::Integer)
+    rows = roster.rows
+    1 <= k <= length(rows) || return nothing
+    get(roster.index.places, rows[k].item, nothing)
+end
+
+"""
+    find_roster_row(roster, item) -> Int or nothing
+
+The index of the row of `item` in `rows` of `roster`, by the identity of the
+item, or `nothing` when no row shows it. It reads the index of the roster and
+searches nothing.
+
+See also `get_roster_item_place`.
+"""
+find_roster_row(roster::Roster, item) = get(roster.index.rows, item, nothing)
 
 get_document_title(roster::Roster) = roster.title
 
