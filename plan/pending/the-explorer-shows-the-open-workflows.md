@@ -1,0 +1,151 @@
+# The explorer shows the open workflows
+
+Status: IN PROGRESS, 2026-10-22, on the branch `workflow-explorer`, in the worktree
+`projectured-julia-workflow-explorer`. Not landed on `main`.
+
+## The ask
+
+The owner, 2026-10-22: "should we add the workflow domain to the explorer so both
+the user and the assistant can keep track of workflows?"
+
+The answers to the questions that followed:
+
+- "check what a roster is, that may help show the workflows" and "workflows
+  should be present in the explorer if the package is loaded".
+- To "can I add this new generic trait, which the first content of the explorer
+  reads?": "yes".
+- To the question of the folder that holds the workflow files: "I don't think we
+  should limit where workflow files can be", and "we may simply use a pred file
+  from the files and show in the workflow by the roster when it gets opened, no?"
+- To "can the new list replace `WorkflowCatalog`, so that I remove the catalog
+  and `collect_workflow_files`?": "agreed".
+
+## The problem
+
+1. **The explorer has no entry for workflows.** A `.pred` workflow file shows in
+   Files as a leaf. An open workflow tab that "Add to explorer" adds is a leaf
+   too. The workflow domain has no method of `get_tree_children_steps` and no
+   method of `is_explorer_entry_type`.
+2. **A loaded domain can not add an entry to the first content.**
+   `make_editor_explorer_content` (`source/platform/application/ApplicationExplorer.jl`)
+   builds the first content from a fixed list, and the platform names no domain.
+3. **The assistant does not see the workflows.** `find_explorer_content()` shows
+   Files, Tasks and Dashboards, and no workflow. Q2 of
+   `plan/done/a-workflow-records-steps-decisions-and-dates.md` asks how the model
+   learns that a workflow exists.
+4. **The catalog reads the disk in a computation.** `WorkflowCatalog` lists the
+   workflows of one folder. `collect_workflow_files` reads that folder inside
+   the computation of the view. The view builds its table by hand, with no
+   filter, sort or find.
+
+## The model
+
+- **One new trait in the tree slice.** `is_session_explorer_entry_type(type) -> Bool`,
+  beside `is_explorer_entry_type` in `TreeInterface.jl`. The default in
+  `TreeDefaults.jl` is `false`. A type that answers `true` has a constructor
+  with no arguments. `make_editor_explorer_content` puts
+  `get_session_document!(type, editor, type)` after the lists of the session,
+  for each insertion candidate of `Document` that answers `true`. This is the
+  same way that the `+` list reads `is_explorer_entry_type`. The session getter
+  of the kind makes the same call, so the two give the same document. The
+  explorer slice gets no code.
+- **The workflow list.** `WorkflowList` is a session document of each editor, as
+  `AssistantList` is. `get_session_workflow_list(; editor)` answers it with
+  `get_session_document!(WorkflowList, editor, WorkflowList)`.
+  - Its insertion alias is `workflows`. `make_insertion_document` gives the
+    session list. `is_explorer_entry_type` and `is_session_explorer_entry_type`
+    answer `true`.
+  - `pred_arguments` is empty, and `make_pred_document` gives the session list.
+    So a saved explorer keeps that it holds the list, and not the rows.
+- **The items are the open files whose document is a workflow.** The workflow
+  domain adds a roster source, as `_SessionTasks` gives the tasks
+  (`source/platform/task/TaskGroupList.jl`).
+  - The parts of the source are the files of `get_session_open_file_list(; editor)`.
+  - The item of a part is the document of the file, when it is a `WorkflowStep`.
+    The file document is the `within` of the row, so `within.name` and
+    `within.folder` name the file.
+  - A file is in the open file list while a tab or an explorer page shows it.
+    So a workflow from any folder is in the list while it is open.
+  - The source reads no disk.
+  - `register_roster_source!(:workflows, …)` gives the source to
+    `StoreRecords(:workflows)` and to `describe_roster_sources()`.
+  - `ItemsWithin` is not used, because it finds a type at any depth. Each
+    sub-step would then be a row.
+- **The facets of a workflow.** `get_item_facets(::Type{WorkflowStep})` declares
+  three facets, which `compute_item_facet` gives:
+  - `active`: the titles of the active steps of the tree.
+  - `last_entry`: the time of the latest entry of the tree.
+  - `open_decisions`: the count of the decisions that have no chosen option.
+- **The page of the list.** The list holds an `ArrangementDocument` of a
+  `Roster` of the source, linked to the list, as `BackgroundWorkLog` does. The
+  columns are `title`, `state`, `active`, `last_entry`, `open_decisions` and
+  `within.name`, which are the columns of the catalog. The arrangement slice
+  gives the filter, the sort, the group and the find. A double click on a row
+  opens the workflow as a page.
+- **The tree.**
+  - The list has its workflows as children: a computed `CellVector` of the
+    items of the source.
+  - A `WorkflowStep` and a `WorkflowOption` have their `children`, and a
+    `WorkflowDecision` has its `options`. The journal and the cards are not
+    nodes of the tree.
+  - The label is the title, from `get_document_title`.
+  - `get_document_decoration` gives each node its state in the colour of its
+    role, as the outline draws its badge. The list shows the count of its rows.
+- **The assistant.** `WORKFLOW_ASSISTANT_API` adds `WorkflowList` and
+  `get_session_workflow_list`. The assistant sees the entry in
+  `find_explorer_content()`, reads the rows with the verbs of the roster and
+  the arrangement, and shows a workflow with `open_explorer_page!`.
+- **The catalog goes.** `WorkflowCatalog`, `WorkflowCatalogToWidget`,
+  `collect_workflow_files`, their test and their part of `workflow.md` are
+  removed. `ProjecturedWorkflow` moves from 0.1.0 to 0.2.0, because an export
+  is removed.
+
+## Steps
+
+Do the work in a worktree of its own. Commit each step. Do not land on `main`
+before the owner approves.
+
+1. [ ] **The trait and the first content.** `is_session_explorer_entry_type` in
+   the tree slice, and its use in `make_editor_explorer_content`. A test in
+   `test/platform/explorer/ExplorerTest.jl`: a probe kind that answers `true`
+   is in the first content after the lists of the session, once for each
+   editor, and the asserts on the entries 2 to 4 keep. Run `test_explorer()`.
+   Update `tree.md`, `explorer.md` and `application.md`. Commit.
+2. [ ] **The workflow list.** `WorkflowList`, its source, the facets, the tree
+   methods, the decorations and the API. A test in `ProjecturedWorkflowTest`:
+   - an editor with two open `.pred` files, one a workflow and one not, gives
+     one row with the file in `within`;
+   - a release of the file takes the row away;
+   - the first content holds the list;
+   - the tree shows the steps, the decisions and the options;
+   - the facets give their values;
+   - an edit on the page of a row gives the file unsaved edits, and a save
+     writes it.
+   Run `test_workflow()`. Commit.
+3. [ ] **The catalog goes.** Remove the catalog, its test and its exports. Set the
+   version to 0.2.0. Update `workflow.md`. In omnet-julia, remove the 16 lines
+   of `asset/precompile/PrecompileStatements.jl` that name the catalog, and run
+   `CampaignExplorerTest` and `CampaignLoopTest`. They read the explorer
+   entries by their index. Commit in each repository.
+4. [ ] **A live check.** In a window, open a `.pred` workflow from Files. The
+   Workflows entry shows it with its steps, and the page shows its row. Close
+   the file, and the row goes. The assistant finds the list through
+   `find_explorer_content()`. Move the plan to `plan/done/`. Commit.
+
+## Limits
+
+- A saved explorer file replaces the first content. A window that restores a
+  file saved before the package was loaded has no Workflows entry. The person
+  adds it with `+`.
+- A package that loads after the window started adds no entry to that window.
+- A workflow that is closed is not in the list. "Add to explorer" on its file
+  keeps it at hand.
+
+## Open items
+
+- The workflow of an assistant that is not in a file of its own is not in the
+  list. No verb sets `Assistant.workflow`; only its constructor takes it.
+- The step 2 test finds whether an edit on the page of a row reaches the
+  history of its file. If it does not, the step stops and the plan records it.
+- The three lists of the platform (open files, tasks, assistants) stay in the
+  fixed list of `make_editor_explorer_content` and do not use the trait.
