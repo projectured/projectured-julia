@@ -7,6 +7,9 @@
 # `:assistant`, and lets the readers of the editor carry it from the study to the
 # root, so the history of the tab that shows the study records it, as it records
 # an edit of the person. A study that no view shows takes the operation directly.
+# A verb that adds an item answers it as a part of the window, a
+# `ReferencedDocument`, when it was given the study as one, and as the item
+# itself otherwise; a link takes either.
 
 """
 The names that the research domain offers to the model of an assistant: the
@@ -44,17 +47,17 @@ function _add_research_item!(study, type, editor, description; fields...)
         _evaluate_research_operation!(editor, study, get_research_kind(item).field,
                                       make_add_research_item_operation(document, item),
                                       description * " " * item.id)
-        _get_study_item(study, item)
+        _make_study_item_part(study, item)
     end
 end
 
 # `item` of `study`, as a `ReferencedDocument` when `study` is one.
-function _get_study_item(study::ReferencedDocument, item::ResearchItem)
+function _make_study_item_part(study::ReferencedDocument, item::ResearchItem)
     field = get_research_kind(item).field
     index = findfirst(element -> element === item, collect(getproperty(get_document(study), field)))
     index === nothing ? item : getproperty(study, field)[index]
 end
-_get_study_item(study, item) = item
+_make_study_item_part(study, item) = item
 
 # ── A study ──────────────────────────────────────────────────────────────
 
@@ -62,8 +65,8 @@ _get_study_item(study, item) = item
     start_study!(title; question = nothing, editor = get_evaluation_editor()) -> ReferencedDocument
 
 Make a new study with `title`, and with the question `question` when one is given;
-open it in a tab and add it to the explorer. Answer the study, as it stands in
-the window. The study and its question say that you made them.
+open it in a tab and add it to the explorer. Answer the study as the part of the
+window that the tab shows, which every other verb takes. The study and its question say that you made them.
 
 Use it to begin the record of a piece of work by the scientific approach: a
 question to answer, and later its sources, hypotheses, experiments, results,
@@ -86,13 +89,13 @@ function start_study!(title; question = nothing, editor = get_evaluation_editor(
                                                       statement = question))
         end
         evaluate_operation(editor, AddExplorerEntryOperation(study))
-        open_pane!(study; editor)
+        get_edited_document(open_pane!(study; editor))
     end
 end
 
 """
     add_question!(study, statement; criterion = "", purpose = "", parent = nothing,
-                  editor = get_evaluation_editor()) -> ResearchQuestion
+                  editor = get_evaluation_editor()) -> the new item
 
 Add a question to `study`: what the study must find out, what would answer it
 (`criterion`), and what the answer decides (`purpose`). `parent` is a wider
@@ -117,7 +120,7 @@ add_question!(study, statement; criterion = "", purpose = "", parent = nothing,
 
 """
     add_source!(study, citation; link = "", summary = "", editor = get_evaluation_editor())
-        -> ResearchSource
+        -> the new item
 
 Add a source to `study`: an item of the literature, a standard or a data set.
 `citation` says who wrote it, when, and its title; `link` is a DOI, a URL or a
@@ -140,7 +143,7 @@ add_source!(study, citation; link::AbstractString = "", summary = "", editor = g
 
 """
     add_hypothesis!(study, statement; question = nothing, prediction = nothing, basis = Any[],
-                    editor = get_evaluation_editor()) -> ResearchHypothesis
+                    editor = get_evaluation_editor()) -> the new item
 
 Add a hypothesis to `study`: a claim that a test can refute. `question` is the
 question that it answers, `prediction` what a test must observe if it holds (prose,
@@ -166,7 +169,7 @@ add_hypothesis!(study, statement; question = nothing, prediction = nothing, basi
 
 """
     add_experiment!(study, title; design = nothing, tests = Any[], uses = Any[],
-                    editor = get_evaluation_editor()) -> ResearchExperiment
+                    editor = get_evaluation_editor()) -> the new item
 
 Add an experiment to `study`: a plan that makes new data. `design` is the plan, a
 document of any domain, such as prose, a run selection or a configuration; `tests`
@@ -190,7 +193,7 @@ add_experiment!(study, title; design = nothing, tests = Any[], uses = Any[],
 
 """
     add_analysis!(study, title; method = nothing, tests = Any[], uses = Any[],
-                  editor = get_evaluation_editor()) -> ResearchAnalysis
+                  editor = get_evaluation_editor()) -> the new item
 
 Add an analysis to `study`: a plan that makes a result from data that exist.
 `method` is Julia code, a SQL query, a pivot, a formula sheet or any document.
@@ -214,7 +217,7 @@ add_analysis!(study, title; method = nothing, tests = Any[], uses = Any[],
 
 """
     add_result!(study, title, content; origin = nothing, editor = get_evaluation_editor())
-        -> ResearchResult
+        -> the new item
 
 Add a result to `study`: the data `content` (a table, a plot, a number, any
 document), which `origin` made, an experiment, an analysis or a source, or its id.
@@ -235,7 +238,7 @@ add_result!(study, title, content; origin = nothing, editor = get_evaluation_edi
 
 """
     add_evidence!(study, statement; basis = Any[], supports = Any[], opposes = Any[],
-                  editor = get_evaluation_editor()) -> ResearchEvidence
+                  editor = get_evaluation_editor()) -> the new item
 
 Add evidence to `study`: an observation, stated apart from what it means, of the
 results and sources of `basis`, and the claims that it `supports` and `opposes`.
@@ -259,7 +262,7 @@ add_evidence!(study, statement; basis = Any[], supports = Any[], opposes = Any[]
 
 """
     add_answer!(study, statement; question = nothing, caveats = "", basis = Any[],
-                editor = get_evaluation_editor()) -> ResearchAnswer
+                editor = get_evaluation_editor()) -> the new item
 
 Add an answer to `study`: the answer to `question`, where it does not hold
 (`caveats`), and the items that it rests on. Answer the answer item.
@@ -282,7 +285,7 @@ add_answer!(study, statement; question = nothing, caveats = "", basis = Any[],
 
 """
     record_decision!(study, statement; accepts = Any[], rejects = Any[], basis = Any[],
-                     reason = "", editor = get_evaluation_editor()) -> ResearchDecision
+                     reason = "", editor = get_evaluation_editor()) -> the new item
 
 Record a decision in `study`: what was decided and why, the items that it accepts
 and rejects, and the items that it rests on. The status of each accepted item
@@ -311,7 +314,7 @@ function record_decision!(study, statement; accepts = Any[], rejects = Any[], ba
         _evaluate_research_operation!(editor, study, :decisions,
                                       make_record_decision_operation(document, decision),
                                       "Record the decision " * decision.id)
-        _get_study_item(study, decision)
+        _make_study_item_part(study, decision)
     end
 end
 
@@ -337,13 +340,11 @@ function get_expectation_bounds(expectation::ResearchExpectation)
     value isa Real ||
         throw(ArgumentError("The reference " * repr(reference.name) * " answers " * repr(value) *
                             " and not a number."))
-    (value * (1 - tolerance), value * (1 + tolerance))
+    minmax(value * (1 - tolerance), value * (1 + tolerance))
 end
 
 # The evidence of one check: what the read gave, against the bounds, for `hypothesis`.
-function _make_check_evidence(study, hypothesis, values)
-    expectation = hypothesis.prediction
-    lower, upper = get_expectation_bounds(expectation)
+function _make_check_evidence(study, hypothesis, values, (lower, upper))
     bounds = "[" * (lower === nothing ? "-∞" : string(lower)) * ", " *
              (upper === nothing ? "∞" : string(upper)) * "]"
     if isempty(values)
@@ -363,7 +364,7 @@ function _make_check_evidence(study, hypothesis, values)
 end
 
 """
-    check_predictions!(study, read; editor = find_evaluation_editor()) -> Vector
+    check_predictions!(study, read; editor = get_evaluation_editor()) -> Vector
 
 Check each hypothesis of `study` whose prediction is a `ResearchExpectation`:
 `read(selection)` answers the values that the expectation names, as numbers, and
@@ -382,19 +383,25 @@ See also `ResearchExpectation`, `add_hypothesis!`, `record_decision!`.
 """
 function check_predictions! end
 
-function check_predictions!(study, read; editor = find_evaluation_editor())
+function check_predictions!(study, read; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "check_predictions!") do
         document = get_document(study)
-        added = Any[]
+        # Every expectation is read and bounded before any evidence is added, so an
+        # expectation that can not be checked leaves the study as it was.
+        checks = Any[]
         for hypothesis in collect(document.hypotheses)
             hypothesis.prediction isa ResearchExpectation || continue
             selection = hypothesis.prediction.result_selection
             values = selection === nothing ? Float64[] : Float64[Float64(v) for v in read(selection)]
-            evidence = _make_check_evidence(document, hypothesis, values)
+            push!(checks, (hypothesis, values, get_expectation_bounds(hypothesis.prediction)))
+        end
+        added = Any[]
+        for (hypothesis, values, bounds) in checks
+            evidence = _make_check_evidence(document, hypothesis, values, bounds)
             _evaluate_research_operation!(editor, study, :evidence,
                                           make_add_research_item_operation(document, evidence),
                                           "Check " * hypothesis.id)
-            push!(added, _get_study_item(study, evidence))
+            push!(added, _make_study_item_part(study, evidence))
         end
         added
     end
@@ -486,7 +493,7 @@ embed_in_study!(study, documents...; editor = get_evaluation_editor()) =
 # ── The formula sheet ────────────────────────────────────────────────────
 
 """
-    add_study_formula!(study, name, text; editor = find_evaluation_editor()) -> FormulaFormula
+    add_study_formula!(study, name, text; editor = get_evaluation_editor()) -> FormulaFormula
 
 Add a named formula, written in math notation, to the sheet of the analysis of
 `study` whose method is a formula sheet. A study with no such analysis gets one,
@@ -504,7 +511,7 @@ See also `ResearchExpectation`, `check_predictions!`.
 function add_study_formula! end
 
 function add_study_formula!(study, name::AbstractString, text::AbstractString;
-                            editor = find_evaluation_editor())
+                            editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_study_formula!") do
         document = get_document(study)
         analysis = findfirst(item -> item.method isa FormulaEnvironment, collect(document.analyses))
@@ -520,8 +527,10 @@ function add_study_formula!(study, name::AbstractString, text::AbstractString;
             document.analyses[analysis].method
         end
         formula = FormulaFormula(String(name), parse_math(String(text)))
-        evaluate_operation(editor, make_insert_elements_operation(
-            Reference(FieldReferenceStep("formulas")), length(sheet.formulas) + 1, Any[formula]; root = sheet))
+        _evaluate_research_operation!(editor, study, :analyses,
+            make_insert_elements_operation(Reference(FieldReferenceStep("formulas")),
+                                           length(sheet.formulas) + 1, Any[formula]; root = sheet),
+            "Add the formula " * repr(String(name)))
         wire_result!(formula, sheet)
         # The sheet shows the value of the new formula once it computes: on the
         # formula task of the editor while its loop runs, and at once with no loop.
@@ -534,7 +543,7 @@ end
 
 function find_study_item(study::ReferencedDocument, id::AbstractString)
     item = find_study_item(get_document(study), id)
-    item === nothing ? nothing : _get_study_item(study, item)
+    item === nothing ? nothing : _make_study_item_part(study, item)
 end
 
 """
@@ -555,11 +564,11 @@ function describe_study end
 
 function describe_study(study)
     document = get_document(study)
-    lines = String[_get_plain_text(document.title)]
+    lines = String[_format_plain_text(document.title)]
     for item in collect_study_items(document)
         status = has_research_status(item) ? " [" * string(item.status) * "]" : ""
         links = [describe_research_link(item, name, linked) for (name, linked) in collect_research_links(item)]
-        push!(lines, item.id * status * " " * _get_plain_text(get_research_item_text(item)) *
+        push!(lines, item.id * status * " " * _format_plain_text(get_research_item_text(item)) *
                      (isempty(links) ? "" : " (" * join(links, "; ") * ")") *
                      " — " * string(item.author) * ", " * item.time)
     end

@@ -960,6 +960,45 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   omnet-julia, `documentation/package/study/study.md` says what the IDE adds to a
   study of this domain; the plan to `plan/done/`.
 
+### The review of the branch (2026-10-22)
+
+A review of the diff of steps 1 to 9 found eleven faults; each fix has a test.
+`test_research()` 229 pass, `test_research_combinations()` 19, `test_file_project()`
+153 with 1 broken as on main, `test_workflow_file()` 24.
+
+- `start_study!` answered the tab and not the study; it answers the study as the
+  part of the window that the tab shows.
+- A link given as a part that a verb answered (a `ReferencedDocument`) was refused;
+  a link takes it.
+- The folder: a `.pred` file of its own for each design or result owned the items
+  that it reached, so `study.pred` held only markers, and a node of a text format,
+  such as a Markdown statement or a math prediction, was an orphan. Now `study.pred`
+  comes first and owns every item and every document that a `.pred` file writes;
+  each node of a text format outside the report goes into a file of its format,
+  named like `h2-statement-1.md`; a file document keeps its name; two files of one
+  name are refused. The serialization slice gives `find_file_extension(document)`
+  for it. This changes §8.1: a run card and a result view stay in `study.pred`.
+- The holders of an item: a document of a field that holds the item, such as a
+  design, is a holder too, and the walk of the report does not enter an item, so
+  the report is not a holder of what its items link to.
+- `add_study_formula!` wrote the formula outside the history; it goes through it.
+  `check_predictions!` and `add_study_formula!` take the editor of the evaluation
+  by default, as every other verb does.
+- The bounds of a negative reference were inverted; `check_predictions!` reads and
+  bounds every expectation before it adds evidence, so a fault changes nothing.
+- A place inside a folded card mapped into its first line; it maps to the item.
+- A delete takes the id of the item out of the folded cards.
+- `make_research_item` refuses `id` and `status`, which come from the study and
+  from a decision.
+- The local time of an item uses the offset of its own date.
+- Private helpers carry verbs that say what they do (`_format_plain_text`,
+  `_make_linked_add_buttons`, `_make_study_item_part`).
+
+Left as they are: the slot helpers of the outline repeat those of the workflow
+outline, because the two domains do not depend on each other; an id comes back
+after a delete of the item with the highest number of its kind (a limit in
+research.md).
+
 ## 11. Not in this plan
 
 A structured design of experiments; a weight of evidence; comments on an item;

@@ -5,8 +5,8 @@
 """
     StudyItems(study)
 
-The source of a roster of the items of `study`: the items of its lists, each once,
-in the order of `collect_study_items`. The row of an item holds the study as
+The source of a roster of the items of `study`: the items of its lists, in the
+order of `collect_study_items`. A link does not give its item again. The row of an item holds the study as
 `within`. Beside its fields, an item has the facets `kind`, the name of its kind,
 and `text`, its statement, title or citation as a text. The `time` of an item is a
 UTC text that sorts in the order of time.
@@ -37,4 +37,4 @@ get_item_facets(::Type{ResearchItem}) =
      "text" => "the statement, the title or the citation of the item, as a text"]
 
 compute_item_facet(item::ResearchItem, ::Val{:kind}) = get_research_kind(item).name
-compute_item_facet(item::ResearchItem, ::Val{:text}) = _get_plain_text(get_research_item_text(item))
+compute_item_facet(item::ResearchItem, ::Val{:text}) = _format_plain_text(get_research_item_text(item))

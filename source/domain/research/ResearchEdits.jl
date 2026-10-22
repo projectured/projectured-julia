@@ -80,8 +80,10 @@ end
 A new item of `type` for `study`: the next id of its kind, the author, the time,
 and the `fields`. A text field given as a string becomes a `PrimitiveString`. A
 link given as an id, such as `supports = ["H1"]`, holds the item of the study that
-has the id; an id that the study does not hold throws an `ArgumentError`. The item
-is not yet in the study: `make_add_research_item_operation` puts it there.
+has the id; an id that the study does not hold throws an `ArgumentError`. The id
+comes from the study and the status from a decision, so neither is a field that a
+call gives. The item is not yet in the study: `make_add_research_item_operation`
+puts it there.
 """
 function make_research_item(study::ResearchStudy, type::Type{<:ResearchItem};
                             author::Symbol = :person, time::AbstractString = get_research_time(),
@@ -89,6 +91,9 @@ function make_research_item(study::ResearchStudy, type::Type{<:ResearchItem};
     _check_author(author)
     values = Pair{Symbol, Any}[]
     for (name, value) in fields
+        name in (:id, :status) &&
+            throw(ArgumentError("A new item takes its id from the study and its status from a " *
+                                "decision, so `" * string(name) * "` is not a field to give."))
         hasfield(type, name) ||
             throw(ArgumentError("A " * get_research_kind(type).name * " has no field `" *
                                 string(name) * "`."))
@@ -105,6 +110,7 @@ function _make_field_value(study, name::Symbol, value)
 end
 
 _find_linked_item(study, item::ResearchItem) = item
+_find_linked_item(study, item::ReferencedDocument) = _find_linked_item(study, get_document(item))
 function _find_linked_item(study, id::AbstractString)
     item = find_study_item(study, id)
     item === nothing && throw(ArgumentError("The study holds no item " * repr(String(id)) * "."))
@@ -132,24 +138,43 @@ end
 """
     collect_research_item_holders(study, item) -> Vector
 
-The items of `study` that link to `item`, and the report of the study when it
-holds `item`.
+The items of `study` that hold `item`, by a link or inside a document of a field,
+such as the design of an experiment, and the report of the study when it holds
+`item`. The search does not enter another item, so an item that the report holds
+does not make the report a holder of the items that it links to.
 """
 function collect_research_item_holders(study::ResearchStudy, item::ResearchItem)
     holders = Any[]
     for other in collect_study_items(study)
         other === item && continue
-        any(link -> last(link) === item, collect_research_links(other)) && push!(holders, other)
+        _holds_item(other, item) && push!(holders, other)
     end
     study.report !== nothing && _holds_document(study.report, item, IdDict{Any, Bool}()) &&
         push!(holders, study.report)
     holders
 end
 
-# Whether the tree under `node` holds `target` itself, at any depth.
+# Whether a field of `holder` holds `item`, as a link or inside the document of
+# a field.
+function _holds_item(holder::ResearchItem, item::ResearchItem)
+    visited = IdDict{Any, Bool}(holder => true)
+    for name in fieldnames(typeof(holder))
+        is_view_state_field(name) && continue
+        raw = getfield(holder, name)
+        _holds_document(raw isa AbstractCell ? raw[] : raw, item, visited) && return true
+    end
+    false
+end
+
+# Whether the tree under `node` holds `target` itself, at any depth. The walk does
+# not enter an item other than `target`.
 function _holds_document(node, target, visited::IdDict)
     node === target && return true
+    if is_element_collection(node) || node isa AbstractVector
+        return any(element -> _holds_document(element, target, visited), node)
+    end
     node isa Document || return false
+    node isa ResearchItem && return false
     haskey(visited, node) && return false
     visited[node] = true
     for name in fieldnames(typeof(node))
@@ -168,9 +193,11 @@ end
 """
     make_delete_research_item_operation(study, item) -> Operation
 
-Remove `item` from the list of its kind in `study`. An item that another item
-links to, or that the report holds, is not removed: the call throws an
-`ArgumentError` that names the items that hold it.
+Remove `item` from the list of its kind in `study`, and its id from the folded
+cards of the outline. An item that another item holds, or that the report holds,
+is not removed: the call throws an `ArgumentError` that names the items that hold
+it. The next item of the kind can take the id again when the item had the highest
+number of its kind.
 """
 function make_delete_research_item_operation(study::ResearchStudy, item::ResearchItem)
     holders = collect_research_item_holders(study, item)
@@ -182,7 +209,10 @@ function make_delete_research_item_operation(study::ResearchStudy, item::Researc
     index = findfirst(element -> element === item, collect(getproperty(study, field)))
     index === nothing &&
         throw(ArgumentError("The study holds no item " * repr(item.id) * " in its " * string(field) * "."))
-    make_delete_elements_operation(Reference(FieldReferenceStep(String(field))), index; root = study)
+    delete = make_delete_elements_operation(Reference(FieldReferenceStep(String(field))), index; root = study)
+    item.id in study.folded || return delete
+    folded = String[id for id in study.folded if id != item.id]
+    CompoundOperation(Any[delete, ReplaceViewStateOperation(ReplaceReferencedValueOperation(study, "folded", folded))])
 end
 
 """

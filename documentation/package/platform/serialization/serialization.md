@@ -90,7 +90,7 @@ emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 
 `parse_marker_text` returns `nothing` for a string that is not a marker, so an ordinary string stays a string. Each format spells a reference with its own opaque unit: a JSON string, an XML `pred:ref` element, a Markdown fence, an RST directive. A file whose node is itself the content returns `true` from `is_own_content`, defines `get_file_content(f) = f` and builds itself in `make_file`.
 
-`register_file_document_type!(extension, T)` connects an extension to a file type, and `get_file_document_type(path)` finds it, without regard to case.
+`register_file_document_type!(extension, T)` connects an extension to a file type, and `get_file_document_type(path)` finds it, without regard to case. `find_file_extension(document)` answers the extension of the file type whose domain holds a node, such as `".json"` for a JSON object, or `nothing` for a node that only a `.pred` file writes.
 
 ### The `.pred` format
 

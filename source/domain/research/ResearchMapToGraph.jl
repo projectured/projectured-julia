@@ -124,7 +124,7 @@ function _build_map_part_view(p::ResearchMapPartToWidget, item::ResearchItem)
         set_cell_computation!(getfield(badge, :role), () -> _get_status_badge_role(item.status))
         push!(items, badge)
     end
-    push!(items, WidgetLabel(() -> _get_plain_text(get_research_item_text(item))))
+    push!(items, WidgetLabel(() -> _format_plain_text(get_research_item_text(item))))
     card = WidgetCard(; content = HorizontalLayout(items; gap = p.gap, vertical_align = :center))
     (output = VerticalLayout(Any[card]), slots = Any[])
 end

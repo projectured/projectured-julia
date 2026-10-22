@@ -73,6 +73,25 @@ function test_research_combinations()
             end
         end
 
+        @testset "a study folder keeps an item that a workflow design holds in the study file" begin
+            directory = mktempdir()
+            try
+                study = make_research_study_document_example()
+                experiment = study.experiments[1]
+                experiment.design = WorkflowStep(title = PrimitiveString("Run the sweep"),
+                    cards = [WorkflowCard(title = PrimitiveString("The plan"), content = experiment)])
+                save_study_folder!(study, directory)
+                @test readdir(directory) == ["study.pred"]
+                text = read(joinpath(directory, "study.pred"), String)
+                @test count("ResearchExperiment(", text) == 1
+                @test occursin("content = node(file(\"study.pred\"), \"experiments[1]\")", text)
+                loaded = load_study_folder(directory)
+                @test loaded.experiments[1].design.cards[1].content === loaded.experiments[1]
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "a result holds a pivot in its pane, which its card draws" begin
             # A pivot scrolls its own rows, so a document holds it in a pane that
             # offers it a height, as the examples of the pivot domain do.
@@ -93,10 +112,10 @@ function test_research_combinations()
                 answer = _run_assistant_code(editor, """
                     study_1 = start_study!("The buffer of the access router";
                                            question = "Which queue capacity is enough?")
-                    add_hypothesis!(get_edited_document(study_1), "Thirteen."; question = "Q1")
-                    nothing
+                    add_hypothesis!(study_1, "Thirteen."; question = "Q1")
+                    print(describe_study(study_1))
                     """)
-                @test answer == "Done."
+                @test occursin("H1 [open] Thirteen. (addresses Q1", answer)
                 run_frame!(editor)
                 entries = find_explorer_content(; editor).entries
                 studies = [get_document(entry) for entry in entries if get_document(entry) isa ResearchStudy]

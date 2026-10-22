@@ -466,13 +466,13 @@ function find_research_time(text::AbstractString)
     end
 end
 
-# The time of an item as a person reads it: the local time, to the minute. A text
-# that is not a time stays as it is.
+# The time of an item as a person reads it: the local time of that moment, to the
+# minute, with the offset of the time zone on that date. A text that is not a time
+# stays as it is.
 function _format_local_time(text::AbstractString)
     time = find_research_time(text)
     time === nothing && return String(text)
-    offset = Dates.now() - Dates.now(Dates.UTC)
-    Dates.format(time + Dates.Minute(round(Int, Dates.value(offset) / 60_000)), "yyyy-mm-dd HH:MM")
+    Libc.strftime("%Y-%m-%d %H:%M", Libc.TmStruct(Dates.datetime2unix(time)))
 end
 
 # ── The texts ────────────────────────────────────────────────────────────
@@ -487,13 +487,13 @@ get_research_item_text(item::Union{ResearchExperiment, ResearchAnalysis, Researc
 get_research_item_text(item::ResearchSource) = item.citation
 get_research_item_text(item::ResearchItem) = item.statement
 
-_get_plain_text(text::AbstractString) = String(text)
-_get_plain_text(text::PrimitiveString) = something(text.value, "")
+_format_plain_text(text::AbstractString) = String(text)
+_format_plain_text(text::PrimitiveString) = something(text.value, "")
 # A document of another domain, such as a Markdown paragraph, as its own text, when
 # its domain has a text form.
-_get_plain_text(text::Document) =
+_format_plain_text(text::Document) =
     make_natural_projection(text, :string) === nothing ? "" : print_natural_text(text)
-_get_plain_text(text) = ""
+_format_plain_text(text) = ""
 
 _make_text(text::AbstractString) = PrimitiveString(String(text))
 _make_text(text::Document) = text
@@ -502,4 +502,4 @@ _make_text(text) = PrimitiveString(string(text))
 
 # The name of a tab that shows a study: its title.
 get_document_title(study::ResearchStudy) =
-    (text = _get_plain_text(study.title); isempty(text) ? "Study" : text)
+    (text = _format_plain_text(study.title); isempty(text) ? "Study" : text)

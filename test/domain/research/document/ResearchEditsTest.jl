@@ -116,6 +116,35 @@ function test_research_edits()
             @test_throws ArgumentError make_record_decision_operation(study, outside)
         end
 
+        @testset "an id and a status are not fields that a call gives" begin
+            study = make_research_study_document_example()
+            @test_throws ArgumentError make_research_item(study, ResearchHypothesis; status = :accepted)
+            @test_throws ArgumentError make_research_item(study, ResearchHypothesis; id = "H1")
+        end
+
+        @testset "a holder is an item that holds the item anywhere, and the report only itself" begin
+            study = make_research_study_document_example()
+            study.experiments[1].design = study.results[1]
+            error = try
+                make_delete_research_item_operation(study, study.results[1]); nothing
+            catch caught
+                caught
+            end
+            @test error isa ArgumentError && occursin("R1 is held by X1", error.msg)
+            embed_in_study!(study, study.evidence[1]; editor = nothing)
+            holders = collect_research_item_holders(study, study.hypotheses[1])
+            @test [holder.id for holder in holders] == ["X1", "N1", "E1", "D2"]
+            @test collect_research_item_holders(study, study.evidence[1])[end] === study.report
+        end
+
+        @testset "a delete takes the id of the item out of the folded cards" begin
+            study = make_research_study_document_example()
+            study.folded = ["Q1", "A1"]
+            evaluate_operation(nothing, make_delete_research_item_operation(study, study.answers[1]))
+            @test study.folded == ["Q1"]
+            @test length(study.answers) == 0
+        end
+
         @testset "the links of an item, in the order of its fields" begin
             study = make_research_study_document_example()
             links = collect_research_links(study.decisions[2])

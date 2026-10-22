@@ -180,6 +180,24 @@ function get_file_document_type(path::AbstractString)
 end
 
 """
+    find_file_extension(document) -> Union{String, Nothing}
+
+The extension of the registered file type whose domain holds `document`, such as
+`".json"` for a JSON object, or `nothing` when no format but `.pred` writes it.
+Of two extensions of one type, such as `".md"` and `".markdown"`, it answers the
+shorter one.
+
+Use it to name a file for a node that a file of its own format must write.
+"""
+function find_file_extension(document)
+    for extension in sort!(collect(keys(_FILE_DOCUMENT_TYPES)); by = e -> (length(e), e))
+        domain = get_file_domain(_FILE_DOCUMENT_TYPES[extension])
+        domain !== Document && document isa domain && return extension
+    end
+    nothing
+end
+
+"""
     has_file_document_type(path::AbstractString) -> Bool
 
 Whether a format claimed the extension of `path`, so that

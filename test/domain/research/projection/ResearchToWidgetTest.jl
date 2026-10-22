@@ -130,6 +130,21 @@ function test_research_to_widget()
             @test !occursin("folded", print_pred_text(study))
         end
 
+        @testset "a place inside a folded card is the item itself" begin
+            study = _make_small_research_study()
+            study.folded = ["H1"]
+            projection = ResearchStudyToWidget()
+            iomap = print_document(projection, nothing, study, nothing)
+            whole = Reference(FieldReferenceStep("hypotheses"), RangeReferenceStep(0, 1))
+            forward = map_reference_forward(projection, iomap,
+                Reference(FieldReferenceStep("hypotheses"), RangeReferenceStep(0, 1), FieldReferenceStep("statement")))
+            @test string(strip_reference_types(forward)) ==
+                  string(strip_reference_types(map_reference_forward(projection, iomap, whole)))
+            inside = extend_reference(strip_reference_types(forward), FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                                      FieldReferenceStep("child"), FieldReferenceStep("content"))
+            @test string(strip_reference_types(map_reference_backward(projection, iomap, inside))) == ".hypotheses[1]"
+        end
+
         @testset "a statement that is a Markdown paragraph draws through its own view" begin
             hypothesis = ResearchHypothesis(id = "H1", time = "2026-10-22T07:02:00Z",
                                             statement = parse_markdown("A *capacity* of 13.\n").elements[1])

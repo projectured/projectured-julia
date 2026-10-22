@@ -97,12 +97,19 @@ end
 # of that document from the input, `output` its path from the output. A slot of a
 # collection has a `suffix`: the steps from the place of an element in the output
 # to the element itself, inside the row that wraps it; a slot of a single
-# document has none (`nothing`).
+# document has none (`nothing`). `whole` holds the 1-based indices of the
+# elements that the row shows as one line, such as a folded card: a place inside
+# one of them is the element itself.
 struct _ResearchSlot
     input::Vector{Any}
     output::Vector{Any}
     suffix::Union{Nothing, Vector{Any}}
+    whole::Vector{Int}
 end
+
+_ResearchSlot(input, output, suffix) = _ResearchSlot(input, output, suffix, Int[])
+
+_is_whole_element(slot, step) = step.stop in slot.whole
 
 @iomap struct ResearchToWidgetIoMap
     projection::Any
@@ -140,6 +147,7 @@ function _map_research_forward(slots, reference)
         # An element of a list, or a place inside it, is the element in its row,
         # not the row with its buttons.
         if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1])
+            _is_whole_element(slot, rest[1]) && return _make_reference(vcat(slot.output, Any[rest[1]]))
             return _make_reference(vcat(slot.output, Any[rest[1]], slot.suffix, rest[2:end]))
         end
         return _make_reference(vcat(slot.output, rest))
@@ -155,6 +163,7 @@ function _map_research_backward(slots, reference)
         _has_prefix(steps, slot.output) || continue
         rest = steps[(length(slot.output) + 1):end]
         if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1]) && length(rest) > 1
+            _is_whole_element(slot, rest[1]) && return _make_reference(vcat(slot.input, Any[rest[1]]))
             inner = rest[2:end]
             # A press on the row of an element and not on the element itself, such
             # as a button beside it, is a part that the view drew.
@@ -293,7 +302,7 @@ the link, the id of the linked item and its text, as in
 """
 describe_research_link(item::ResearchItem, name::Symbol, linked) =
     _get_link_word(item, Val(name)) * " " *
-    (linked isa ResearchItem ? linked.id * " " * _get_plain_text(get_research_item_text(linked)) :
+    (linked isa ResearchItem ? linked.id * " " * _format_plain_text(get_research_item_text(linked)) :
                                string(nameof(typeof(linked))))
 
 """
@@ -317,7 +326,7 @@ function describe_research_expectation(expectation::ResearchExpectation)
     end
     selection = expectation.result_selection
     what = selection === nothing ? "nothing yet" :
-           selection isa Document ? _get_plain_text(selection) : string(selection)
+           selection isa Document ? _format_plain_text(selection) : string(selection)
     "expects a value " * bounds * " of " * (isempty(what) ? string(nameof(typeof(selection))) : what)
 end
 
@@ -429,27 +438,27 @@ function _make_fold_operation(study, item)
 end
 
 # The buttons that add an item linked to `item`.
-_get_linked_add_buttons(study, item::ResearchQuestion) = Any[
+_make_linked_add_buttons(study, item::ResearchQuestion) = Any[
     _make_research_button("+ hypothesis", "Add a hypothesis for " * item.id,
         () -> _make_add_operation(study, ResearchHypothesis, :question => item)),
     _make_research_button("+ answer", "Add an answer to " * item.id,
         () -> _make_add_operation(study, ResearchAnswer, :question => item)),
 ]
-_get_linked_add_buttons(study, item::ResearchHypothesis) = Any[
+_make_linked_add_buttons(study, item::ResearchHypothesis) = Any[
     _make_research_button("+ experiment", "Add an experiment that tests " * item.id,
         () -> _make_add_operation(study, ResearchExperiment, :tests => Any[item])),
     _make_research_button("+ evidence", "Add evidence that supports " * item.id,
         () -> _make_add_operation(study, ResearchEvidence, :supports => Any[item])),
 ]
-_get_linked_add_buttons(study, item::Union{ResearchExperiment, ResearchAnalysis}) = Any[
+_make_linked_add_buttons(study, item::Union{ResearchExperiment, ResearchAnalysis}) = Any[
     _make_research_button("+ result", "Add a result of " * item.id,
         () -> _make_add_operation(study, ResearchResult, :origin => item)),
 ]
-_get_linked_add_buttons(study, item::Union{ResearchResult, ResearchSource}) = Any[
+_make_linked_add_buttons(study, item::Union{ResearchResult, ResearchSource}) = Any[
     _make_research_button("+ evidence", "Add evidence from " * item.id,
         () -> _make_add_operation(study, ResearchEvidence, :basis => Any[item])),
 ]
-_get_linked_add_buttons(study, ::ResearchItem) = Any[]
+_make_linked_add_buttons(study, ::ResearchItem) = Any[]
 
 # The row of the outline that holds the card of `item`: the fold, the card or its
 # first line, and the buttons that need the study.
@@ -457,7 +466,7 @@ function _make_item_row(p::ResearchStudyToWidget, study, item, folded::Bool)
     fold = _make_research_button(folded ? "▸" : "▾", folded ? "Unfold" : "Fold",
                                  () -> _make_fold_operation(study, item))
     shown = folded ?
-        WidgetLabel(() -> item.id * " " * _get_plain_text(get_research_item_text(item))) : item
+        WidgetLabel(() -> item.id * " " * _format_plain_text(get_research_item_text(item))) : item
     buttons = Any[]
     if has_research_status(item)
         push!(buttons, _make_research_button("Accept", "Accept " * item.id,
@@ -465,7 +474,7 @@ function _make_item_row(p::ResearchStudyToWidget, study, item, folded::Bool)
         push!(buttons, _make_research_button("Reject", "Reject " * item.id,
                                              () -> _make_decide_operation(study, item, :rejected)))
     end
-    append!(buttons, _get_linked_add_buttons(study, item))
+    append!(buttons, _make_linked_add_buttons(study, item))
     HorizontalLayout(Any[fold, LayoutConstraint(shown; width = Fill),
                          VerticalLayout(buttons; gap = p.gap)];
                      gap = p.gap, vertical_align = :top)
@@ -496,8 +505,9 @@ function _build_study_view(p::ResearchStudyToWidget, study::ResearchStudy)
         box = VerticalLayout(item_rows; gap = p.gap, child_width = Fill)
         # The card of an item is the second child of its row, inside a constraint.
         suffix = vcat(_get_child_steps(2), Any[_make_field_step("child")])
+        whole = Int[index for (index, item) in enumerate(items) if item.id in folded]
         push!(slots, _ResearchSlot(Any[_make_field_step(kind.field)],
-                                   vcat(place, Any[_make_field_step("children")]), suffix))
+                                   vcat(place, Any[_make_field_step("children")]), suffix, whole))
         push!(containers, (box, place))
         for (index, row) in enumerate(item_rows)
             row_place = vcat(place, _get_child_steps(index))

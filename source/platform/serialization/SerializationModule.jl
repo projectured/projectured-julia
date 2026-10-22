@@ -42,6 +42,7 @@ export FileDocument, is_file_document,
        get_pred_type, is_pred_constructible,
        parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text, load_file, parse_file_content,
+       find_file_extension,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text, is_own_content, make_file, is_editable_file_type, read_file_content,
        is_written_in_file

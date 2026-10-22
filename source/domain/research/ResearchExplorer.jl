@@ -7,7 +7,7 @@ get_tree_children_steps(::ResearchStudy) =
 
 format_tree_node_label(study::ResearchStudy) = get_document_title(study)
 format_tree_node_label(item::ResearchItem) =
-    item.id * " " * _get_plain_text(get_research_item_text(item))
+    item.id * " " * _format_plain_text(get_research_item_text(item))
 
 # The glyph of each kind of item, from the table of the icons.
 const _RESEARCH_ICONS = Dict(:questions => :circle_help, :sources => :scroll_text,
