@@ -28,7 +28,7 @@ not; with no theme it holds the plain values of the default theme.
     "The space between the content of a node and its box."
     node_padding::Spacing = Spacing(8)
     "The line of an edge and its arrowhead."
-    edge::ThemeColor = ColorRole(:border_strong)
+    edge::ThemeColor = ColorRole(:text_muted)
     "The width of the line of an edge."
     edge_width::LineWidth = LineWidth(2)
     "The length of the arrowhead of a directed edge."

@@ -29,6 +29,10 @@ function test_graph_theme()
     @test is_color_equal(ring.color, get_theme_value(GraphTheme(), :highlight))
     @test plain.lines[1].width == 2
     @test plain.lines[1].arrow_size == 10
+    # The line and the arrowhead of an edge are almost black, the color of a
+    # quiet text. The border of a box is the strong line of a card.
+    @test is_color_equal(plain.lines[1].color, resolve_theme_color(ColorRole(:text_muted), Appearance()))
+    @test is_color_equal(box.border_color, resolve_theme_color(ColorRole(:border_strong), Appearance()))
 
     theme = get_scaled_theme!(Appearance(spacing_scale = 2.0, line_scale = 2.0,
                                          control_scale = 1.5), GraphTheme)

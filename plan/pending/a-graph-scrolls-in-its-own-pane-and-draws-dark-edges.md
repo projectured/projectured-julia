@@ -1,7 +1,7 @@
 # A graph scrolls in its own pane and draws dark edges
 
-Status: PENDING, 2026-10-22. Not started. The owner approved the decisions
-below on 2026-10-22. The owner did not yet ask for the implementation.
+Status: IN PROGRESS, 2026-10-22. The owner approved the decisions below and
+asked for the implementation on 2026-10-22.
 
 This plan continues
 [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md),
@@ -88,6 +88,10 @@ approves. Test with the narrowest test functions of each package.
    and the arrowhead of an edge take the color of the role `text_muted`, and
    that the box border keeps `border_strong`. Draw a picture of the graph of
    seven cards to check.
+
+   **Done.** The test resolves each role with `resolve_theme_color(role,
+   Appearance())`. The theme and projection tests pass (324). The picture shows
+   dark edges and the lighter borders of the boxes.
 2. **The stage and the function.** Add `GraphToWidgetScrollPane.jl` with
    `GraphGraphToWidgetScrollPane` and `make_scrolling_graph_projection`. The
    stage maps `rest...` of the graph to `content.rest...` of the pane, and back.
