@@ -16,6 +16,10 @@
 
 One value the build compiles into the image, for `package` to read back with
 `@load_preference(key)`.
+
+Julia reads a preference only for a package that the project lists, so a build
+makes `package` a dependency of the package that it writes when the build does
+not name it.
 """
 struct Preference
     package::String
@@ -50,6 +54,19 @@ make_exposed_preferences(package::AbstractString, key::AbstractString, value;
 # A caller may hand over a single preference or a vector of them; both flatten.
 _preferences(x::Preference) = [x]
 _preferences(x::AbstractVector) = reduce(vcat, (_preferences(e) for e in x); init = Preference[])
+
+# The packages that read `preferences` and that `named` does not hold, once each,
+# in the order of the preferences. The written package `app_module` reads its own
+# preferences, so it is never one of them.
+function _collect_preference_readers(preferences, named, app_module::AbstractString)
+    readers = String[]
+    for preference in _preferences(preferences)
+        package = preference.package
+        (package in named || package == app_module || package in readers) && continue
+        push!(readers, package)
+    end
+    readers
+end
 
 """
     write_preferences(preferences, project) -> String

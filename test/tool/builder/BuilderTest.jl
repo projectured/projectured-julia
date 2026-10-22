@@ -447,6 +447,39 @@ function test_build_executable()
             @test arguments == ["x"]
         end
 
+        @testset "a baked preference reaches a package that the build does not name" begin
+            TOML = ProjecturedBuilder.BuilderModule.TOML
+            # The project, the generated module and the folder of a package that a
+            # build writes, in a context of its own.
+            function write_reader_package(preferences)
+                project = build_executable(_test_context(); name = "reader",
+                                           packages = [A_PACKAGE], main = :(begin
+                                               0
+                                           end), preferences, compile = false)
+                module_file = only(filter(f -> endswith(f, ".jl"),
+                                          readdir(joinpath(project, "src"))))
+                (TOML.parsefile(joinpath(project, "Project.toml")),
+                 read(joinpath(project, "src", module_file), String), project)
+            end
+            kernel = get_package_uuid(get_package_directory(_test_context(),
+                                                            "ProjecturedKernel"))
+            project_toml, source, project = write_reader_package(
+                [make_baked_preference("ProjecturedKernel", "performance_counters", true)])
+            @test project_toml["deps"]["ProjecturedKernel"] == kernel
+            @test haskey(project_toml["sources"], "ProjecturedKernel")
+            # Julia finds the reader of a preference by this name, or reads nothing.
+            @test Base.get_uuid_name(project_toml, Base.UUID(kernel)) == "ProjecturedKernel"
+            @test occursin("import ProjecturedKernel", source)
+            written = TOML.parsefile(joinpath(project, "LocalPreferences.toml"))
+            @test written["ProjecturedKernel"]["performance_counters"] == true
+
+            # A preference of a package that the build names adds nothing.
+            project_toml, source, _ = write_reader_package(
+                [make_baked_preference(A_PACKAGE, "probe", 1)])
+            @test Set(keys(project_toml["deps"])) == Set(["PrecompileTools", A_PACKAGE])
+            @test !occursin("import $A_PACKAGE", source)
+        end
+
         @testset "a level nobody defined is refused before anything is written" begin
             context = _test_context()
             @test_throws ErrorException _generated_source(context; name = "wrong", usage = nothing,

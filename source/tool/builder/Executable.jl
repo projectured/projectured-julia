@@ -174,7 +174,9 @@ output directory.
 - `workload` — an `Expr` compiled ahead of time, or `nothing` for a build that
   compiles nothing beyond what loading touches.
 - `preferences` — what the image carries, from [`make_baked_preference`](@ref)
-  and [`make_exposed_preferences`](@ref).
+  and [`make_exposed_preferences`](@ref). Julia reads a preference only for a
+  package that the project lists, so the package of each preference joins
+  `imports` when `packages` and `imports` do not name it.
 - `fonts` — bundle the text faces. A binary that draws needs them and a binary
   that draws nothing does not; see [`bundle_fonts!`](@ref) for why they cannot
   travel any other way.
@@ -260,6 +262,12 @@ function build_executable(context::BuildContext; name::AbstractString,
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
+    # The reader of each preference goes into the written package, or Julia does
+    # not read the preference and the image holds the default.
+    named = String[String(package) for package in (packages..., imports...)]
+    imports = String[String[String(package) for package in imports];
+                     _collect_preference_readers(preferences, named,
+                                                 get_app_module_name(name))]
 
     missing_sources = collect_missing_sources(context, vcat(collect(packages), collect(imports)))
     isempty(missing_sources) ||
