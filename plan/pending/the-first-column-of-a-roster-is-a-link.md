@@ -73,13 +73,39 @@ click, and the page of a folder opens a file on one click on its name.
    and the copy is gone. omnet-julia has a private `_make_section_link` of its
    own in its campaign slice, which is another function. `test_explorer()`:
    263 of 263 pass. `test_task_views()`: 70 of 70 pass.
-2. [ ] **The first cell of a row is a link.** Change `_make_row_cells`. Test:
+2. [x] **The first cell of a row is a link.** Change `_make_row_cells`. Test:
    new cases in `test_roster_table()`. A click on the link opens the item here,
    Ctrl and a click open it in a new tab, a press on another cell selects the
    item and opens nothing, and a first column that holds a document stays a
    document. In the testset of the open files in `test_explorer()`, one click on
    the name of a file opens the page of that file. Then run `test_roster()` and
    `test_background_work()`.
+   **Done 2026-10-22.** What the step found and decided:
+   - `_make_item_link(value)` in `RosterToGraphics.jl` makes the link: a
+     `WidgetButton` whose label is computed from the value, as the label of a
+     cell is, with `make_open_page_gestures(nothing, EmptyReference(); domain =
+     "roster")`. The path form works as planned: `map_reference_backward` of
+     `RosterRowsToWidget` maps the path of a cell that holds no document to
+     `rows[k].item`, so the answer of the link is
+     `OpenPageOperation(nothing, <path of rows[k].item>)`, the same path as the
+     answer of a double click.
+   - Three cases selected a row, or double clicked it, by a press on the first
+     column, which is now a link. Their rosters put another column first:
+     `["note", "id"]` and `["status", "id"]` in `RosterTableTest.jl`, and
+     `["type", "name"]` in the case of the double click in `TreeTest.jl`. So the
+     case with `note` first also tests that a first column that holds a
+     document stays a document.
+   - The case of the open files in `test_explorer()` opens the file by one press
+     on its name, in place of the double press.
+   - A right click on a link still opens the menu of the row:
+     `test_navigator_gestures()` passes with no change.
+   - Pass: `test_roster_table()` 28 of 28, `test_roster()` 46 of 46,
+     `test_document_tree()` 130 of 130, `test_navigator_gestures()` 26 of 26,
+     `test_explorer()` 263 of 263, `test_background_work()` 19 of 19,
+     `test_system_process()` 80 of 80, `test_work_plan()` 83 of 83,
+     `test_roster_program()` 21 of 21, `test_arrangement_group()` 24 of 24,
+     `test_julia_roster()` 2 of 2. The roster test of omnet-julia presses no
+     cell.
 3. [ ] **The guides and a live check.** Update
    [roster.md](../../documentation/package/platform/roster/roster.md) ("A page
    from a row") and the guide of the widget slice for the maker. In a live

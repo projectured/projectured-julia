@@ -5,8 +5,8 @@
 # the page moves it, Ctrl+press opens the page in a new tab, a
 # double press puts the keyboard in the page, a link on the page of a section
 # opens the page of its entry, and the page and the tree follow the entries. The
-# page of the open files is a table of the files. The editor is the one of
-# `NavigatorToWidgetTest.jl`.
+# page of the open files is a table of the files, whose names are links. The
+# editor is the one of `NavigatorToWidgetTest.jl`.
 
 @document struct _ExplorerNode
     name::String
@@ -389,9 +389,8 @@ function test_explorer()
         frame!()
         @test list.table === table && isempty(table.entries)
         @test _nav_has_text(backend, "b.txt") && !_nav_has_text(backend, "Show all")
-        # A double press on a row opens the page of its file.
-        click = _explorer_click(backend, "b.txt"; side = :page)
-        _nav_press!(editor, backend, click, _doctree_double(click))
+        # The name of a file is a link: one press opens the page of the file.
+        _nav_press!(editor, backend, _explorer_click(backend, "b.txt"; side = :page))
         frame!()
         @test get_navigator_page(explorer.navigator) === page
         @test find_open_file_document(joinpath(root, "b.txt"); editor) === page

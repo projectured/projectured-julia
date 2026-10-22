@@ -548,7 +548,8 @@ function test_document_tree()
 
     @testset "a double click on a row of a roster opens its item in a navigator, and Back returns" begin
         items = CellVector(Any[_doctree_node("first"), _doctree_node("second")])
-        roster = link_roster!(Roster(CollectionItems(items); columns = ["name"], title = "Nodes"), items)
+        # The first column is a link, so the double click is on the name, a label.
+        roster = link_roster!(Roster(CollectionItems(items); columns = ["type", "name"], title = "Nodes"), items)
         navigator = Navigator(roster)
         editor, backend = _nav_editor(navigator)
         click = _nav_click(backend, "second")

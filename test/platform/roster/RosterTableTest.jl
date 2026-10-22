@@ -1,6 +1,7 @@
 # The table of a roster in an editor: a press on a cell of a value selects the
 # item of its row, a cell of a document shows that document, where a key edits it
-# as one step of undo, a file keeps a roster with its source, its columns and its
+# as one step of undo, the first cell of a row is a link that opens its item, here
+# or in a new tab, a file keeps a roster with its source, its columns and its
 # title, and no row, and a long roster scrolls in its tab. In a tab the table is a
 # table of a list: a row that a filter keeps keeps its print, and a wheel far down
 # moves the head of the list while the selection stays on its row.
@@ -59,7 +60,9 @@ function test_roster_table()
 
     @testset "a press on a value selects the item of its row" begin
         notes = make_notes()
-        roster = link_roster!(Roster(CollectionItems(notes); columns = ["id", "note"], title = "Notes"), notes)
+        # The first column holds a document, so it shows that document and is no
+        # link; the id is a label.
+        roster = link_roster!(Roster(CollectionItems(notes); columns = ["note", "id"], title = "Notes"), notes)
         natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
         backend = HeadlessBackend()
         editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
@@ -92,6 +95,33 @@ function test_roster_table()
             # The row shows the new text, as the item holds it.
             @test notes[1].note.value in _arrangement_texts(backend)
         end
+    end
+
+    @testset "the first cell of a row is a link: a click opens its item, here or in a new tab" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:3])
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs"), runs)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false)
+        run_frame!(editor)
+        # The answer of a click on the drawn text `text`, after a move there.
+        function answer(text; ctrl = false)
+            (x, y) = _arrangement_place(backend, text)
+            _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0))
+            click = MouseClick(:left, x, y, 1, ModifierKeys(ctrl = ctrl); time = 0.0)
+            operation = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+            operation isa WrappingOperation ? get_wrapped_operation(operation) : operation
+        end
+        opened = answer("2")
+        @test opened isa OpenPageOperation && opened.document === nothing && opened.place === :here
+        steps = get_reference_steps(strip_reference_types(opened.reference))
+        @test steps[max(1, end - 2):end] == make_steps(FieldReferenceStep("rows"), ElementReferenceStep(2),
+                                                      FieldReferenceStep("item"))
+        @test answer("2"; ctrl = true).place === :new_tab
+        # A click on a cell after the first selects the item of its row, and opens
+        # nothing.
+        @test !(answer("done") isa OpenPageOperation)
     end
 
     @testset "a file keeps the source, the columns and the title of a roster" begin
@@ -182,7 +212,8 @@ function test_roster_table()
                               devices = Device[Keyboard(), Mouse(), Display()],
                               window = true, tabs = true, appearance = false, settings = false, undo = true)
         run_frame!(editor)
-        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs"),
+        # The first column is a link, so the press that selects a row is on its id.
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["status", "id"], title = "Runs"),
                               editor.document)
         open_pane!(roster; title = "Runs", editor)
         drain_operations!(editor)

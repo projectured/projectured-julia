@@ -197,22 +197,31 @@ function _collect_row_cells(rows, made::IdDict{Any,Any})
 end
 
 # The cells of one row: the document that a value is, or a label of the text of the
-# value. The table reads every cell of a row when it prints, so a cell that
-# computes again prints the whole table again. A value that is text when the row
-# is made gets a cell that holds its label, and only the text of the label reads
-# the value. A value that is a document gets a cell that follows it, so a new
-# document shows.
+# value, which in the first column is a link to the item of the row. The table
+# reads every cell of a row when it prints, so a cell that computes again prints
+# the whole table again. A value that is text when the row is made gets a cell
+# that holds its label, and only the text of the label reads the value. A value
+# that is a document gets a cell that follows it, so a new document shows.
 function _make_row_cells(row::RosterRow)
     values = row.values
     slots = Cell[]
     for c in 1:length(values)
         value = get_cell_at(values, c)
-        label = WidgetLabel(() -> format_roster_value(value[]))
+        label = c == 1 ? _make_item_link(value) : WidgetLabel(() -> format_roster_value(value[]))
         push!(slots, peek(value) isa Document ?
                          Cell(Computation(() -> (v = value[]; v isa Document ? v : label))) :
                          Cell(label))
     end
     CellVector(slots)
+end
+
+# The link of the first cell of a row, with the text of `value`: a click opens the
+# item of the row here, and Ctrl and a click in a new tab. The open names the part
+# itself, and the rows map the path of a cell that is no document to the item.
+function _make_item_link(value)
+    link = WidgetButton(""; gestures = make_open_page_gestures(nothing, EmptyReference(); domain = "roster"))
+    set_cell_computation!(link, () -> format_roster_value(value[]))
+    link
 end
 
 # The path of a column `c` of the row at `r`, as the roster holds it: below the item
