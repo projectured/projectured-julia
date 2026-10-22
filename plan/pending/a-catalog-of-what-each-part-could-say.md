@@ -1,8 +1,12 @@
 # A catalog of what each part could say
 
 Status: CATALOG, 2026-10-21. Wave 1 is implemented by
-[a-part-says-what-it-holds.md](a-part-says-what-it-holds.md) (see its "As built"
-notes for what each part says and what it left out). Waves 2 and 3 are open.
+[a-part-says-what-it-holds.md](../done/a-part-says-what-it-holds.md) (see its "As
+built" notes for what each part says and what it left out), and item 2 of "What
+stands in the way" by
+[a-file-says-what-the-pointer-is-on.md](../done/a-file-says-what-the-pointer-is-on.md).
+The rest of wave 2 and wave 3 are deferred. The user, 2026-10-22: "the rest of
+the waves are deferred for now".
 
 ## The ask
 
@@ -42,7 +46,7 @@ decision, not one per row.
    needs a disk read must come from a stored stamp, never from `filesize` or
    `mtime` in the decoration.
 2. **A binding of a document sees only the node.** Done by
-   [a-file-says-what-the-pointer-is-on.md](a-file-says-what-the-pointer-is-on.md):
+   [a-file-says-what-the-pointer-is-on.md](../done/a-file-says-what-the-pointer-is-on.md):
    the container says it from its own mouse target, with no new mechanism. `make_tooltip_binding`
    gets the document, not its path or its parent. A JSON path, an XML
    namespace, the degree of a graph vertex and the callee of a Julia call need
