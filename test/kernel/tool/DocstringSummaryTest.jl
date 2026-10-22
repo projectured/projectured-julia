@@ -59,6 +59,15 @@ The text of the constructor alone.
 """
 _SummaryConstructorOnly() = _SummaryConstructorOnly(0)
 
+"""
+    _SummaryModule
+
+The text of the module.
+
+The second paragraph of the module.
+"""
+module _SummaryModule end
+
 function test_docstring_summary()
 @testset "the description of a type is the first paragraph of its docstring" begin
     @test compute_docstring_summary(_SummaryTwoParagraphs) ==
@@ -76,6 +85,17 @@ function test_docstring_summary()
     @test compute_docstring_summary(FieldReferenceStep) == "References a named field of an object/record."
     # A type with parameters is found by its name.
     @test compute_docstring_summary(ImmutableCell) == "A box that holds one value and can never be written."
+    # A module: its own docstring, in the module that holds it.
+    @test compute_docstring_summary(_SummaryModule) == "The text of the module."
+    @test compute_docstring_summary(ProjecturedKernel.ToolModule) != ""
+    # The whole text keeps every paragraph and the signature, and a type with no
+    # docstring has none.
+    @test find_docstring_text(_SummaryTwoParagraphs) ==
+          "    _SummaryTwoParagraphs(x)\n\nThe first paragraph\nruns over two lines.\n\nThe second paragraph."
+    @test find_docstring_text(_SummaryNoDocstring) === nothing
+    @test find_docstring_text(_SummaryTypeAndConstructor) == "The text of the type."
+    @test endswith(find_docstring_text(_SummaryConstructorOnly), "The text of the constructor alone.")
+    @test endswith(find_docstring_text(_SummaryModule), "The second paragraph of the module.")
     # A view for a person drops the code marks.
     @test strip_code_marks("The keywords: `on`, `when` and `<:`.") == "The keywords: on, when and <:."
 end
