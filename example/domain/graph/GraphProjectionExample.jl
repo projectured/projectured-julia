@@ -6,11 +6,11 @@
 # Defaults to the engine that defers its choice to the time of the layout:
 # FruchtermanReingoldLayout, or an engine that a package registered. Pass an engine to swap it
 # (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
-# behind the same interface.
+# behind the same interface. `edge_shape = :curved` draws each edge as a curve.
 
 function make_graph_projection_example(; measure=FontFileMeasure(),
                                        engine=make_deferred_layout_engine(),
-                                       content=nothing)
+                                       content=nothing, edge_shape=:straight)
     # A vertex's content can be any domain. Dispatch on the root content type to a
     # complete per-domain pipeline to GraphicsCanvas: tables render directly via
     # TableToGraphics; Json/Xml go through Syntax → Text → Graphics. Each branch is
@@ -27,7 +27,7 @@ function make_graph_projection_example(; measure=FontFileMeasure(),
 
     graph_stages = ChainingProjection(
         GraphGraphToGraphLayout(engine),
-        GraphLayoutToGraphicsCanvas(),
+        GraphLayoutToGraphicsCanvas(; edge_shape),
     )
 
     NestingProjection(graph_stages; recursion=content)

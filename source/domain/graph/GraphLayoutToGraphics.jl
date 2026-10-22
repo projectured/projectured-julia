@@ -36,7 +36,7 @@
 function _route_midpoint(route)
     n = length(route)
     n == 0 && return (0, 0)
-    n == 1 && return (Int(route[1][1]), Int(route[1][2]))
+    n == 1 && return (round(Int, route[1][1]), round(Int, route[1][2]))
     seglen(i) = hypot(route[i+1][1] - route[i][1], route[i+1][2] - route[i][2])
     half = sum(seglen(i) for i in 1:n-1) / 2
     acc = 0.0
@@ -49,7 +49,7 @@ function _route_midpoint(route)
         end
         acc += s
     end
-    (Int(route[n][1]), Int(route[n][2]))
+    (round(Int, route[n][1]), round(Int, route[n][2]))
 end
 
 _get_box_centre(box) = (box[1] + box[3] / 2, box[2] + box[4] / 2)
@@ -135,19 +135,121 @@ function _compute_drawn_boxes(layout::GraphLayout, drag)
     boxes
 end
 
+# The samples of each span of a curved edge, for the backend and for the label.
+const _CURVE_SEGMENTS = 16
+
+function _get_unit_vector(v)
+    distance = hypot(v[1], v[2])
+    distance == 0 ? (0.0, 0.0) : (v[1] / distance, v[2] / distance)
+end
+
+# The outward direction of the side of `rim` that the point `p` is on.
+function _get_rim_normal(rim, p)
+    x, y, w, h = rim
+    distances = (abs(p[1] - x), abs(p[1] - (x + w)), abs(p[2] - y), abs(p[2] - (y + h)))
+    ((-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0))[argmin(distances)]
+end
+
+# The points of a chain of cubic Bézier curves through `points`, for a
+# `GraphicsSpline` of kind `:bezier`: each point, with two control points between
+# each two. The curve leaves the first point in the direction `start` and reaches
+# the last point in the direction `finish`, both unit vectors. At a bend it keeps
+# the direction from the point before to the point after, as a Catmull-Rom spline
+# does. A control point is half of its span from an end, and a third of its span
+# from a bend.
+function _compute_curve_points(points, start, finish)
+    n = length(points)
+    directions = Tuple{Float64,Float64}[start]
+    for k in 2:(n - 1)
+        push!(directions, _get_unit_vector(points[k + 1] .- points[k - 1]))
+    end
+    push!(directions, finish)
+    curve = Tuple{Int,Int}[points[1]]
+    for k in 1:(n - 1)
+        p, q = points[k], points[k + 1]
+        span = hypot(q[1] - p[1], q[2] - p[2])
+        leave = span * (k == 1 ? 1/2 : 1/3)
+        arrive = span * (k + 1 == n ? 1/2 : 1/3)
+        push!(curve, round.(Int, p .+ leave .* directions[k]),
+                     round.(Int, q .- arrive .* directions[k + 1]), q)
+    end
+    curve
+end
+
+# The edges as the drawing draws them, by their index in `edge_layouts`: for each
+# edge the points of its element, and the polyline that a backend strokes for
+# them, or `nothing` for an edge that the drawing does not draw. A straight edge
+# has the same points in both. A curved edge has the points of a chain of Bézier
+# curves, which leaves each box at a right angle to the side that it crosses.
+# An edge ends at the ring of a vertex in `joined`, which the drawing lights.
+function _compute_drawn_edges(layout::GraphLayout, boxes, drag, joined, style, edge_shape::Symbol)
+    highlight_vertex = layout.highlight_vertex
+    index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
+                              for (i, vertex_layout) in enumerate(layout.vertex_layouts)
+                              if vertex_layout isa VertexLayout)
+    rim(i) = _get_drawn_rim(boxes[i], style,
+                            (highlight_vertex !== nothing &&
+                             getfield(layout.vertex_layouts[i], :vertex)[] === highlight_vertex) ||
+                            getfield(layout.vertex_layouts[i], :vertex)[] in joined)
+    edges = Any[]
+    for edge_layout in layout.edge_layouts
+        edge = edge_layout isa EdgeLayout ? getfield(edge_layout, :edge)[] : nothing
+        source = edge isa GraphEdge ? get(index_of, objectid(edge.source), 0) : 0
+        target = edge isa GraphEdge ? get(index_of, objectid(edge.target), 0) : 0
+        boxed = source != 0 && target != 0
+        # An edge whose ends have no box is drawn along its route as it is.
+        route = !(edge_layout isa EdgeLayout) ? nothing :
+                !boxed ? Tuple{Int,Int}[(Int(point[1]), Int(point[2])) for point in edge_layout.route] :
+                _make_drawn_route(edge_layout.route, boxes[source], boxes[target],
+                                  rim(source), rim(target);
+                                  straight = drag !== nothing && drag.index in (source, target))
+        if route === nothing || length(route) < 2
+            push!(edges, nothing)
+        elseif edge_shape === :straight
+            push!(edges, (points = route, path = route))
+        else
+            start = boxed ? _get_rim_normal(rim(source), route[1]) :
+                            _get_unit_vector(route[2] .- route[1])
+            finish = boxed ? .-(_get_rim_normal(rim(target), route[end])) :
+                             _get_unit_vector(route[end] .- route[end - 1])
+            curve = _compute_curve_points(route, start, finish)
+            push!(edges, (points = curve, path = tessellate_spline(curve, :bezier, _CURVE_SEGMENTS)))
+        end
+    end
+    edges
+end
+
+# The element that draws an edge: a polyline, or a curve, through `points`.
+_make_edge_element(edge_shape::Symbol, points; color, width, end_arrow, arrow_size) =
+    edge_shape === :straight ?
+        GraphicsPolyline(points; color, width, end_arrow, arrow_size) :
+        GraphicsSpline(points; kind = :bezier, color, width, end_arrow, arrow_size,
+                       segments = _CURVE_SEGMENTS)
+
+const _EDGE_SHAPES = (:straight, :curved)
+
 """
-    GraphLayoutToGraphicsCanvas(; theme = nothing)
+    GraphLayoutToGraphicsCanvas(; theme = nothing, edge_shape = :straight)
 
 The drawing of a `GraphLayout`. `theme` is a [`GraphTheme`](@ref), scaled or not,
 or `nothing` for the default values; `style` holds every value of the theme as one
 `NamedTuple`, read once at each print with `unwrap_cell`.
+
+`edge_shape` is `:straight`, a line along the route of each edge, or `:curved`, a
+smooth curve through the route, which leaves each box at a right angle to the side
+that it crosses.
 """
 struct GraphLayoutToGraphicsCanvas <: Projection
     style::Any
+    edge_shape::Symbol
 end
 
-GraphLayoutToGraphicsCanvas(; theme = nothing) =
-    GraphLayoutToGraphicsCanvas(make_theme_values_field(GraphTheme, theme))
+function GraphLayoutToGraphicsCanvas(; theme = nothing, edge_shape::Symbol = :straight)
+    edge_shape in _EDGE_SHAPES || throw(ArgumentError(
+        "GraphLayoutToGraphicsCanvas: the edge_shape is :straight or :curved, " *
+        "got $(repr(edge_shape))."))
+    GraphLayoutToGraphicsCanvas(make_theme_values_field(GraphTheme, theme), edge_shape)
+end
 
 @iomap struct GraphLayoutToGraphicsCanvasIoMap
     projection::Any
@@ -210,6 +312,13 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # The box of the content of each vertex, where the drawing draws it.
     drawn_boxes = Cell(@computation _compute_drawn_boxes(layout, started_drag[]))
 
+    # Each edge, where the drawing draws it.
+    drawn_edges = Cell(@computation begin
+        lit_vertex = lit[] == 0 ? nothing : getfield(layout.vertex_layouts[lit[]], :vertex)[]
+        _compute_drawn_edges(layout, drawn_boxes[], started_drag[],
+                             _collect_joined_vertices(layout, lit_vertex), style, p.edge_shape)
+    end)
+
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
@@ -228,58 +337,41 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         # layout stays as it is until the drop.
         drag = started_drag[]
         boxes = drawn_boxes[]
-        index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
-                                  for (i, vertex_layout) in enumerate(layout.vertex_layouts)
-                                  if vertex_layout isa VertexLayout)
-        rim(i) = _get_drawn_rim(boxes[i], style,
-                                (highlight_vertex !== nothing &&
-                                 getfield(layout.vertex_layouts[i], :vertex)[] === highlight_vertex) ||
-                                getfield(layout.vertex_layouts[i], :vertex)[] in joined)
         # Where each vertex's node box lands in `result` — the reference target
         # for "beside node i", which is what an annotation anchors to.
         node_at = Union{Int,Nothing}[nothing for _ in 1:length(layout.vertex_layouts)]
         # Edges first (behind the nodes), each with its optional label centred on
         # the route midpoint.
         labels = edge_label_iomaps[]
+        edges = drawn_edges[]
         for i in 1:length(layout.edge_layouts)
-            el = layout.edge_layouts[i]
-            el isa EdgeLayout || continue
-            route = el.route
-            e = getfield(el, :edge)[]
-            source = e isa GraphEdge ? get(index_of, objectid(e.source), 0) : 0
-            target = e isa GraphEdge ? get(index_of, objectid(e.target), 0) : 0
-            # An edge whose ends have no box is drawn along its route as it is.
-            if source != 0 && target != 0
-                route = _make_drawn_route(route, boxes[source], boxes[target], rim(source), rim(target);
-                                          straight = drag !== nothing &&
-                                                     drag.index in (source, target))
-                route === nothing && continue
-            end
-            length(route) < 2 && continue
+            drawn_edge = edges[i]
+            drawn_edge === nothing && continue
+            e = getfield(layout.edge_layouts[i], :edge)[]
             # An edge that is not visible joins its vertices and draws nothing.
             e isa GraphEdge && !e.visible && continue
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, GraphicsPolyline(route; color = style.edge,
+            push!(result, _make_edge_element(p.edge_shape, drawn_edge.points; color = style.edge,
                 width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
             # An edge of the vertex under the pointer is lit over its own line.
             if lit_vertex !== nothing && e isa GraphEdge && (e.source === lit_vertex || e.target === lit_vertex)
-                push!(result, GraphicsPolyline(route; color = style.light_edge,
-                    width = style.highlight_width, end_arrow = directed,
-                    arrow_size = style.arrow_size))
+                push!(result, _make_edge_element(p.edge_shape, drawn_edge.points;
+                    color = style.light_edge, width = style.highlight_width,
+                    end_arrow = directed, arrow_size = style.arrow_size))
             end
             # The highlighted edge is re-stroked over its own line, keeping the
             # arrowhead it already drew.
             if highlight_edge !== nothing && e === highlight_edge
-                push!(result, GraphicsPolyline(route; color = style.highlight,
-                    width = style.highlight_width, end_arrow = directed,
-                    arrow_size = style.arrow_size))
+                push!(result, _make_edge_element(p.edge_shape, drawn_edge.points;
+                    color = style.highlight, width = style.highlight_width,
+                    end_arrow = directed, arrow_size = style.arrow_size))
             end
             lim = i <= length(labels) ? labels[i] : nothing
             if lim !== nothing
                 lo = lim.output
                 lw = lo isa GraphicsCanvas ? Int(lo.w) : 0
                 lh = lo isa GraphicsCanvas ? Int(lo.h) : 0
-                mx, my = _route_midpoint(route)
+                mx, my = _route_midpoint(drawn_edge.path)
                 push!(result, GraphicsCanvas(CellVector(Cell[Cell(lo)]);
                                              x = mx - lw ÷ 2, y = my - lh ÷ 2))
             end
@@ -355,12 +447,12 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             bottom = max(bottom, box[2] + box[4] + margin)
         end
         # A route may bow outside every box it connects, and an edge label sits
-        # on the route, so the waypoints count too.
-        for edge_layout in layout.edge_layouts
-            edge_layout isa EdgeLayout || continue
-            for point in edge_layout.route
-                right  = max(right,  Int(point[1]))
-                bottom = max(bottom, Int(point[2]))
+        # on the route, so the line of each edge counts too.
+        for drawn_edge in drawn_edges[]
+            drawn_edge === nothing && continue
+            for point in drawn_edge.path
+                right  = max(right,  ceil(Int, point[1]))
+                bottom = max(bottom, ceil(Int, point[2]))
             end
         end
         (right, bottom)
@@ -800,21 +892,22 @@ end
 # the rest is its chrome.
 """
     GraphToGraphics(engine = make_deferred_layout_engine(); extent = nothing,
-                    border = 0, constraints = nothing, theme = nothing) -> ChainingProjection
+                    border = 0, constraints = nothing, theme = nothing,
+                    edge_shape = :straight) -> ChainingProjection
 
 The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
 `TextToGraphics` step, like `TableToGraphics`: the chain of
 `GraphGraphToGraphLayout(engine; extent, border, constraints)` and
-`GraphLayoutToGraphicsCanvas(; theme)`. The stages have no recursion of their own, so
-the content of a vertex prints through the recursion that encloses the chain,
-for example a `NestingProjection`.
+`GraphLayoutToGraphicsCanvas(; theme, edge_shape)`. The stages have no recursion of
+their own, so the content of a vertex prints through the recursion that encloses the
+chain, for example a `NestingProjection`.
 """
 GraphToGraphics(engine::GraphLayoutEngine = make_deferred_layout_engine();
                 extent = nothing, border::Integer = 0, constraints = nothing,
-                theme = nothing) =
+                theme = nothing, edge_shape::Symbol = :straight) =
     ChainingProjection(GraphGraphToGraphLayout(engine; extent = extent, border = border,
                                                constraints = constraints),
-                       GraphLayoutToGraphicsCanvas(; theme))
+                       GraphLayoutToGraphicsCanvas(; theme, edge_shape))
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A graph is a diagram, not a syntax tree: it goes through its own two stages

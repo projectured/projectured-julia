@@ -124,6 +124,19 @@ narrower test functions in `test/domain/graph/projection/`.
    are the cut points of step 1, and that each end tangent is at a right angle
    to its side. The label sits on the curve. The default draws the same
    `GraphicsPolyline` as before, so the tests that exist do not change.
+
+   **Done.** The facts of the implementation:
+   - `_compute_drawn_edges` and the cell `drawn_edges` hold the geometry of
+     each edge: the points of its element and the polyline that a backend
+     strokes. A curve samples 16 points for each span (`_CURVE_SEGMENTS`).
+   - The cell `drawn` and the cell `extent` read `drawn_edges`. So the extent
+     counts the line that the drawing draws, not the points of the route. The
+     two ends of a route are not drawn any more, so the test of the extent got
+     a route with a bend at x 4000 in place of an end at x 4000.
+   - `make_graph_projection_example` takes `edge_shape` too.
+   - A picture of a graph of seven cards, drawn by the force-directed engine,
+     shows each arrowhead, with straight edges and with curved edges.
+   - `test_graph_projection` passes (307).
 3. **The layout zoom.** Add `GraphLayout.zoom`, the cell `drawn_boxes`,
    `_read_layout_zoom` and `_write_layout_zoom`. Tests assert these facts:
    - one notch writes a zoom of 1.15;

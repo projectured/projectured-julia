@@ -463,7 +463,7 @@ end
     @test Int(canvas.h[]) >= 930
 
     # A route that bows outside every box it connects still counts.
-    push!(layout.edge_layouts, EdgeLayout(edge, [(50, 40), (4000, 40)]))
+    push!(layout.edge_layouts, EdgeLayout(edge, [(50, 25), (4000, 25), (50, 915)]))
     @test Int(canvas.w[]) >= 4000
 end
 
@@ -524,6 +524,64 @@ end
     getfield(layout.vertex_layouts[2], :y)[] = 20
     getfield(layout.edge_layouts[1], :route)[] = [(50, 25), (70, 35)]
     @test isempty(lines())
+end
+
+@testset "a curved edge leaves each box at a right angle to its side" begin
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    draw(projection) = collect(print_document(projection, content, layout, _gctx()).output.elements)
+    straight = only(filter(e -> e isa GraphicsPolyline, draw(GraphLayoutToGraphicsCanvas())))
+    elements = draw(GraphLayoutToGraphicsCanvas(edge_shape = :curved))
+    @test !any(e -> e isa GraphicsPolyline, elements)
+    curve = only(filter(e -> e isa GraphicsSpline, elements))
+    @test curve.kind === :bezier
+    @test curve.end_arrow
+
+    # The curve has the ends of the straight edge: the line between the centres
+    # leaves the bottom side of the first box and enters the top side of the
+    # second. It leaves downward and arrives downward, so each control point is
+    # straight below or above its end.
+    points = collect(curve.points)
+    @test length(points) == 4
+    @test (points[1], points[4]) == Tuple(collect(straight.points))
+    @test points[2][1] == points[1][1] && points[2][2] > points[1][2]
+    @test points[3][1] == points[4][1] && points[3][2] < points[4][2]
+
+    @test_throws ArgumentError GraphLayoutToGraphicsCanvas(edge_shape = :wavy)
+    @test GraphToGraphics(edge_shape = :curved).projections[2].edge_shape === :curved
+end
+
+@testset "a curved edge passes through the bends of its route, with its label on it" begin
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    canvas = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout,
+                            _gctx()).output
+    curve = only(filter(e -> e isa GraphicsSpline, collect(canvas.elements)))
+    points = collect(curve.points)
+    # Two spans: the ends of step one and the bend, with two control points each.
+    @test points[[1, 4, 7]] == [(98, 25), (340, 25), (340, 192)]
+    # It leaves the right side to the right, and enters the top side downward.
+    @test points[2][2] == 25 && points[2][1] > 98
+    @test points[6][1] == 340 && points[6][2] < 192
+
+    # The label sits on the curve, at the middle of its length.
+    path = tessellate_spline(points, :bezier, 16)
+    label = first(filter(e -> e isa GraphicsCanvas, collect(canvas.elements)))
+    text = only(collect(label.elements))
+    @test is_point_near_polyline(path, Int(label.x) + Int(text.w) ÷ 2,
+                                 Int(label.y) + Int(text.h) ÷ 2, 2)
+
+    # The highlight strokes the same curve again.
+    getfield(layout, :highlight_edge)[] = edge
+    @test count(e -> e isa GraphicsSpline, collect(canvas.elements)) == 2
 end
 
 end # test_graph_projection
