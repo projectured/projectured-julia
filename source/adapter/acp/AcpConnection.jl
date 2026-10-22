@@ -226,16 +226,19 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
                              session_id::AbstractString = "", on_event = nothing,
                              events::Union{Nothing,AgentEventQueue} = nothing)
     transport = _get_started_transport(connection)
-    meta = _add_instructions(connection.session_meta, instructions)
+    has_system_prompt = _has_session_capability(connection, "systemPrompt")
+    meta = has_system_prompt ? connection.session_meta : _add_instructions(connection.session_meta, instructions)
     meta = isempty(meta) ? nothing : meta
+    system_prompt = has_system_prompt ? String(instructions) : ""
     servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
     lock(() -> connection.opening_count += 1, connection.turns_lock)
     try
         opened_id = nothing
         if !isempty(session_id) && _has_session_capability(connection, "resume")
             result = try
-                _send_session_request!(connection, transport, ACP.ResumeSessionRequest(
-                    session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta))
+                _send_session_request!(connection, transport, _add_system_prompt!(ACP.ResumeSessionRequest(
+                    session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta),
+                    system_prompt))
             catch exception
                 exception isa ACP.ProtocolException || rethrow()
                 @debug "The agent did not resume the session, so a new session opens." exception
@@ -248,8 +251,8 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
             end
         end
         if opened_id === nothing
-            result = _send_session_request!(connection, transport,
-                ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
+            result = _send_session_request!(connection, transport, _add_system_prompt!(
+                ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta), system_prompt))
             opened_id = result.session_id
             _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
                                     on_event)
@@ -325,10 +328,24 @@ function set_agent_option!(connection::AcpConnection, session_id::AbstractString
     nothing
 end
 
-# The `_meta` of a session with `instructions` in it. ACP has no field for the
-# system prompt of an agent, so the instructions go where the Claude agents of
-# ACP read an addition to it, `claudeCode.options.systemPrompt.append`, beside
-# the other options of the `_meta`. Another agent ignores that key.
+# A request that opens or resumes a session, with `instructions` in its field
+# `systemPrompt`, for an agent that advertises `sessionCapabilities.systemPrompt`:
+# one text block that the agent appends to its system prompt. The field is
+# unstable in the schema, and the request type has no property for it, so it
+# goes into the JSON of the request.
+function _add_system_prompt!(request, instructions::AbstractString)
+    isempty(instructions) && return request
+    ACP.get_json(request)["systemPrompt"] = Dict{String,Any}(
+        "mode" => "append",
+        "content" => Any[Dict{String,Any}("type" => "text", "text" => String(instructions))])
+    request
+end
+
+# The `_meta` of a session with `instructions` in it, for an agent that does not
+# advertise `sessionCapabilities.systemPrompt`. The instructions go where the
+# Claude agents of ACP read an addition to the system prompt,
+# `claudeCode.options.systemPrompt.append`, beside the other options of the
+# `_meta`. Another agent ignores that key.
 function _add_instructions(meta::Dict{String,Any}, instructions::AbstractString)
     isempty(instructions) && return meta
     merged = deepcopy(meta)

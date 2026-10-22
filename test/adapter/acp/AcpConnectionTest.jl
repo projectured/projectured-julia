@@ -124,7 +124,42 @@ function test_acp_connection()
             bare = _make_fake_agent()
             connection = make_fake_connection(bare)
             open_agent_session!(connection; instructions = "Host.")
-            @test only(get_received(bare, "session/new"))["params"]["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            params = only(get_received(bare, "session/new"))["params"]
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            # An agent that takes no system prompt gets no field for it.
+            @test !haskey(params, "systemPrompt")
+            stop_agent_connection!(connection)
+        end
+
+        @testset "an agent that takes a system prompt gets the instructions in its field, once" begin
+            capabilities = Dict("agentCapabilities" => Dict("sessionCapabilities" => Dict(
+                "resume" => Dict(), "systemPrompt" => Dict())))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, capabilities),
+                "session/resume" => (agent, params) -> Dict("configOptions" => FAKE_CONFIG_OPTIONS)))
+            connection = make_fake_connection(agent;
+                session_meta = """{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}""")
+            open_agent_session!(connection; instructions = "Host.")
+            open_agent_session!(connection; session_id = "session-9", instructions = "Host.")
+            prompt = Dict{String,Any}("mode" => "append",
+                                      "content" => Any[Dict{String,Any}("type" => "text", "text" => "Host.")])
+            for method in ("session/new", "session/resume")
+                params = only(get_received(agent, method))["params"]
+                @test params["systemPrompt"] == prompt
+                # The `_meta` keeps the options of the setting, without the instructions.
+                options = params["_meta"]["claudeCode"]["options"]
+                @test options["thinking"]["display"] == "summarized"
+                @test !haskey(options, "systemPrompt")
+            end
+            stop_agent_connection!(connection)
+            # A session with no instructions gets no field.
+            quiet = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, capabilities)))
+            connection = make_fake_connection(quiet)
+            open_agent_session!(connection)
+            params = only(get_received(quiet, "session/new"))["params"]
+            @test !haskey(params, "systemPrompt")
+            @test !haskey(params, "_meta")
             stop_agent_connection!(connection)
         end
 
