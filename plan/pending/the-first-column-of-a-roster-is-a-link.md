@@ -63,10 +63,16 @@ click, and the page of a folder opens a file on one click on its name.
 
 ## Steps
 
-1. [ ] **One maker of the gestures of a link.** Add `make_open_page_gestures`
+1. [x] **One maker of the gestures of a link.** Add `make_open_page_gestures`
    to the widget slice, beside `OpenPageOperation`, and make the page of a
    section, the page of a folder and the Tasks pane call it. Test:
    `test_explorer()` and `test_task_views()` pass with no change.
+   **Done 2026-10-22.** The maker is in `OpenPageOperation.jl`. The Tasks pane
+   called its copy, `_make_open_gestures`, from four places in
+   `TaskGroupToWidget.jl` and `TaskPagesToWidget.jl`; they call the maker now,
+   and the copy is gone. omnet-julia has a private `_make_section_link` of its
+   own in its campaign slice, which is another function. `test_explorer()`:
+   263 of 263 pass. `test_task_views()`: 70 of 70 pass.
 2. [ ] **The first cell of a row is a link.** Change `_make_row_cells`. Test:
    new cases in `test_roster_table()`. A click on the link opens the item here,
    Ctrl and a click open it in a new tab, a press on another cell selects the

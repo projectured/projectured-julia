@@ -64,7 +64,7 @@ end
 # A link: a button whose press opens the page at `reference` from `document` here,
 # and Ctrl+press in a new tab.
 _make_link_button(p, text, document, reference::Reference) =
-    WidgetButton(text; size = p.button_size, gestures = _make_open_gestures(document, reference))
+    WidgetButton(text; size = p.button_size, gestures = make_open_page_gestures(document, reference; domain = "task"))
 
 _make_steps(steps...) = foldr(ConcreteReference, steps; init = EmptyReference())
 _get_execution_steps(k::Int) = (FieldReferenceStep("executions"), RangeReferenceStep(k - 1, k))

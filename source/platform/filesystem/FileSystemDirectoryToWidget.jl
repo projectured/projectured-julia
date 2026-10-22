@@ -144,13 +144,8 @@ end
 function _build_folder_row(owner, directory::FileSystemDirectory, steps::Tuple, k::Int)
     entry = directory.elements[k]
     reference = extend_reference(EmptyReference(), steps..., FieldReferenceStep("elements"), ElementReferenceStep(k))
-    open(place) = (_, _) -> OpenPageOperation(owner, reference, place)
     link = WidgetButton(format_tree_node_label(entry); icon = get_document_decoration(entry).icon,
-                        gestures = GestureBinding[
-                            GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
-                                           description = "Open as a page", domain = "filesystem"),
-                            GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
-                                           description = "Open in a new tab", domain = "filesystem")])
+                        gestures = make_open_page_gestures(owner, reference; domain = "filesystem"))
     Any[link, WidgetLabel(_format_entry_kind(entry))]
 end
 

@@ -82,14 +82,8 @@ end
 
 # A link to the part at `reference` from `section`: a press opens its page here,
 # and Ctrl+press in a new tab.
-function _make_section_link(section::ExplorerSection, text::AbstractString, reference::Reference)
-    open(place) = (_, _) -> OpenPageOperation(section, reference, place)
-    WidgetButton(text; gestures = GestureBinding[
-        GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
-                       description = "Open as a page", domain = "explorer"),
-        GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
-                       description = "Open in a new tab", domain = "explorer")])
-end
+_make_section_link(section::ExplorerSection, text::AbstractString, reference::Reference) =
+    WidgetButton(text; gestures = make_open_page_gestures(section, reference; domain = "explorer"))
 
 # A section draws as its page inside any document that a renderer draws. The cards
 # come back through the recursion of the renderer.

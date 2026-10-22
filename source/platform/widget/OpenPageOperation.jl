@@ -58,3 +58,25 @@ function describe_operation(operation::OpenPageOperation)
     target === nothing && return operation.place === :new_tab ? "Open in a new tab" : "Open as a page"
     operation.place === :new_tab ? "Open $(target) in a new tab" : "Follow the link to $(target)"
 end
+
+"""
+    make_open_page_gestures(document, reference; domain) -> Vector{GestureBinding}
+
+The gestures of a link to the part at `reference` from `document`: a click opens
+its page here, and Ctrl and a click open it in a new tab, each with an
+[`OpenPageOperation`](@ref). With `document === nothing`, `reference` is a path
+from the part that answers, so `EmptyReference()` opens the part itself. `domain`
+names the slice of the link in a listing of the bindings. A link is a
+`WidgetButton` with these gestures.
+
+# Example
+
+    WidgetButton("notes.txt"; gestures = make_open_page_gestures(folder, reference; domain = "filesystem"))
+"""
+function make_open_page_gestures(document, reference::Reference; domain::AbstractString)
+    open(place) = (_, _) -> OpenPageOperation(document, reference, place)
+    GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
+                                  description = "Open as a page", domain),
+                   GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
+                                  description = "Open in a new tab", domain)]
+end

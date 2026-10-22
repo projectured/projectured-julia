@@ -302,18 +302,6 @@ function _compute_shown_indices(doc::TaskGroupDocument)
     collect(eachindex(documents))
 end
 
-# The gestures of a part that opens a page: a press opens it here, in the navigator
-# around the pane, and Ctrl+press opens it in a new tab. The open names `document`
-# and a path from it, so the navigator opens the page where its content holds it
-# (`find_navigator_address`).
-function _make_open_gestures(document, reference::Reference)
-    open(place) = (_, _) -> OpenPageOperation(document, reference, place)
-    GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
-                                  description = "Open as a page", domain = "task"),
-                   GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
-                                  description = "Open in a new tab", domain = "task")]
-end
-
 # The path from a group to the document of its task `index`.
 _make_task_reference(index::Int) = Reference(FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index))
 
@@ -554,7 +542,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         actions = Any[_make_task_action_button(p, label, action, task)
                       for (label, action) in get_task_actions(task)]
         page = WidgetButton("Open the task page"; size = p.button_size,
-                            gestures = _make_open_gestures(doc, _make_task_reference(index)))
+                            gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
         push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
         # The tree of the processes of the task while it runs, and the document
@@ -982,8 +970,9 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
     group = get_task_group(doc)
     # The title is a link to the page of the group.
     title = WidgetButton(getfield(doc, :title)[];
-                         gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
-                                                                        RangeReferenceStep(index - 1, index))))
+                         gestures = make_open_page_gestures(list, Reference(FieldReferenceStep("groups"),
+                                                                           RangeReferenceStep(index - 1, index));
+                                                            domain = "task"))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
     stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
                                       tooltip = "Stop the tasks that run and start no more.")
@@ -1010,8 +999,9 @@ end
 # the buttons that stop it and close its row.
 function _build_list_row(p, list::TaskGroupList, item, index::Int)
     title = WidgetButton(get_document_title(item);
-                         gestures = _make_open_gestures(list, Reference(FieldReferenceStep("groups"),
-                                                                        RangeReferenceStep(index - 1, index))))
+                         gestures = make_open_page_gestures(list, Reference(FieldReferenceStep("groups"),
+                                                                           RangeReferenceStep(index - 1, index));
+                                                            domain = "task"))
     is_going() = _is_work_item_running(item)
     stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going,
                                       tooltip = "Stop this work before it ends.")
