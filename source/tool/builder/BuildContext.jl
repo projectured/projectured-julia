@@ -104,6 +104,21 @@ function collect_missing_sources(context::BuildContext, packages)
     sort!(missing_sources)
 end
 
+# The packages of `context.package_roots` in the dependency tree of `packages`,
+# `packages` among them.
+function _collect_local_dependencies(context::BuildContext, packages)
+    seen = Set{String}()
+    pending = String[String(package) for package in packages]
+    while !isempty(pending)
+        name = pop!(pending)
+        (name in seen || !has_package_directory(context, name)) && continue
+        push!(seen, name)
+        project = TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
+        append!(pending, keys(get(project, "deps", Dict{String,Any}())))
+    end
+    seen
+end
+
 "The uuid a package answers to, read from its own `Project.toml`."
 get_package_uuid(directory::AbstractString) =
     TOML.parsefile(joinpath(directory, "Project.toml"))["uuid"]

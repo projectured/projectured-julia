@@ -480,6 +480,38 @@ function test_build_executable()
             @test !occursin("import $A_PACKAGE", source)
         end
 
+        @testset "the environment asks a build that holds the kernel for the performance counters" begin
+            TOML = ProjecturedBuilder.BuilderModule.TOML
+            # Whether the written package lists the kernel, and its preferences.
+            function read_build(packages; keywords...)
+                project = build_executable(_test_context(); name = "counters", packages,
+                                           main = :(begin
+                                               0
+                                           end), compile = false, keywords...)
+                path = joinpath(project, "LocalPreferences.toml")
+                (haskey(TOML.parsefile(joinpath(project, "Project.toml"))["deps"], "ProjecturedKernel"),
+                 isfile(path) ? TOML.parsefile(path) : Dict{String,Any}())
+            end
+            counters = Dict("ProjecturedKernel" => Dict("performance_counters" => true))
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "true") do
+                @test is_performance_counters_requested()
+                @test read_build(["ProjecturedKernel"]) == (true, counters)
+                # A binary that does not hold the kernel gets no counters, and no kernel.
+                @test read_build([A_PACKAGE]) == (false, Dict{String,Any}())
+                # The keyword says another.
+                @test read_build(["ProjecturedKernel"]; performance_counters = false) ==
+                      (true, Dict{String,Any}())
+            end
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => nothing) do
+                @test !is_performance_counters_requested()
+                @test read_build(["ProjecturedKernel"]) == (true, Dict{String,Any}())
+            end
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "yes") do
+                @test_throws ArgumentError is_performance_counters_requested()
+            end
+            @test occursin("PROJECTURED_PERFORMANCE_COUNTERS=true", format_build_usage(; fixed = ""))
+        end
+
         @testset "a build writes the preferences of the last build no more" begin
             project = mktempdir()
             write_preferences([make_baked_preference("ProjecturedKernel",

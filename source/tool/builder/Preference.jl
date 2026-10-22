@@ -51,6 +51,31 @@ make_exposed_preferences(package::AbstractString, key::AbstractString, value;
                           flag_key::AbstractString) =
     [make_baked_preference(package, key, value), make_baked_preference(package, flag_key, true)]
 
+"""
+    is_performance_counters_requested() -> Bool
+
+Whether the environment variable `PROJECTURED_PERFORMANCE_COUNTERS` asks a build
+for the performance counters of the editor: `true` or `false`, and `false` when it
+is not set or empty. Another value throws an `ArgumentError`, so a misspelt value
+does not build a binary with no counters in silence.
+
+Use it as the default of a keyword that a build passes on to
+[`build_executable`](@ref), so a script that builds, or that runs from source,
+takes the switch from its environment.
+
+# Example
+
+    withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "true") do
+        is_performance_counters_requested()     # true
+    end
+"""
+function is_performance_counters_requested()
+    value = get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "")
+    value in ("true", "false", "") ||
+        throw(ArgumentError("PROJECTURED_PERFORMANCE_COUNTERS is true or false, not $(repr(value))"))
+    value == "true"
+end
+
 # A caller may hand over a single preference or a vector of them; both flatten.
 _preferences(x::Preference) = [x]
 _preferences(x::AbstractVector) = reduce(vcat, (_preferences(e) for e in x); init = Preference[])

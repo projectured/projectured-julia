@@ -30,7 +30,8 @@ using Preferences: set_preferences!
 export BuildContext, get_package_directory, has_package_directory, collect_missing_sources,
        get_package_uuid, make_projectured_build_context
 export run_with_slow_output
-export Preference, make_baked_preference, make_exposed_preferences, write_preferences
+export Preference, make_baked_preference, make_exposed_preferences,
+       is_performance_counters_requested, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
 export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_if_changed
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,

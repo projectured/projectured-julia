@@ -107,6 +107,11 @@ function format_build_usage(; fixed::AbstractString = get_fixed_build_binary(),
     for (_, label, description) in BUILD_OPTIONS
         push!(lines, "  " * rpad(label, column - 2) * indent(description))
     end
+    append!(lines, ["", "Environment:", "",
+                    "  PROJECTURED_PERFORMANCE_COUNTERS=true",
+                    " "^column * indent("compile the performance counters of the editor\n" *
+                                        "in, so the frame statistics show the cell counts\n" *
+                                        "of each part of a frame; --build-info says it")])
     join(lines, "\n") * "\n"
 end
 

@@ -161,7 +161,8 @@ end
 
 """
     build_executable(context; name, packages, main, workload, preferences,
-                       fonts, assets, usage, log_level, imports, init, stand_ins,
+                       performance_counters, fonts, assets, usage, log_level, imports,
+                       init, stand_ins,
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
@@ -177,6 +178,13 @@ output directory.
   and [`make_exposed_preferences`](@ref). Julia reads a preference only for a
   package that the project lists, so the package of each preference joins
   `imports` when `packages` and `imports` do not name it.
+- `performance_counters` — compile the performance counters of the editor into
+  the image, with the preference `performance_counters` of `ProjecturedKernel`,
+  so the frame statistics of a window show the cell counts of each part of a
+  frame. A build of packages that do not hold the kernel ignores it. The default
+  is [`is_performance_counters_requested`](@ref), the environment variable
+  `PROJECTURED_PERFORMANCE_COUNTERS`, so a script that builds, or that runs from
+  source, takes the switch from its environment.
 - `fonts` — bundle the text faces. A binary that draws needs them and a binary
   that draws nothing does not; see [`bundle_fonts!`](@ref) for why they cannot
   travel any other way.
@@ -231,6 +239,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             main::Expr,
                             workload::Union{Expr,Nothing} = nothing,
                             preferences = Preference[],
+                            performance_counters::Bool = is_performance_counters_requested(),
                             fonts::Bool = false,
                             assets = Pair{String,String}[],
                             usage::Union{Usage,Nothing} = nothing,
@@ -262,6 +271,12 @@ function build_executable(context::BuildContext; name::AbstractString,
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
+    # The switch of the counters is a preference of the kernel, which reads it when
+    # it compiles. A binary that does not hold the kernel has no counters.
+    performance_counters &&
+        "ProjecturedKernel" in _collect_local_dependencies(context, (packages..., imports...)) &&
+        (preferences = Any[preferences,
+                           make_baked_preference("ProjecturedKernel", "performance_counters", true)])
     # The reader of each preference goes into the written package, or Julia does
     # not read the preference and the image holds the default.
     named = String[String(package) for package in (packages..., imports...)]
