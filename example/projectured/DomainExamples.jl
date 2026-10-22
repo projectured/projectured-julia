@@ -20,6 +20,16 @@ const natural_example        = Example("natural",        make_natural_document_e
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const workflow_example       = Example("workflow",       make_workflow_document_example,       make_workflow_projection_example)
 const workflow_journal_example = Example("workflow_journal", make_workflow_journal_document_example, make_workflow_projection_example)
+# One workflow in stages, from a goal alone to a full record with elements of other
+# domains: each stage adds one feature of the domain to the stage before it.
+const workflow_goal_example          = Example("workflow_goal",          make_workflow_goal_document_example,          make_workflow_projection_example)
+const workflow_steps_example         = Example("workflow_steps",         make_workflow_steps_document_example,         make_workflow_projection_example)
+const workflow_substeps_example      = Example("workflow_substeps",      make_workflow_substeps_document_example,      make_workflow_projection_example)
+const workflow_open_decision_example = Example("workflow_open_decision", make_workflow_open_decision_document_example, make_workflow_projection_example)
+const workflow_explored_example      = Example("workflow_explored",      make_workflow_explored_document_example,      make_workflow_projection_example)
+const workflow_recorded_example      = Example("workflow_recorded",      make_workflow_recorded_document_example,      make_workflow_projection_example)
+const workflow_elements_example      = Example("workflow_elements",      make_workflow_elements_document_example,      make_workflow_projection_example)
+const workflow_complete_example      = Example("workflow_complete",      make_workflow_complete_document_example,      make_workflow_projection_example)
 const research_example       = Example("research",       make_research_study_document_example, make_research_projection_example)
 # The studies at the stages of the work before the end; `research` is the concluded one.
 const research_framed_example    = Example("research_framed",    make_research_framed_study_document_example,    make_research_projection_example)
@@ -179,6 +189,14 @@ const domain_examples = Example[
     book_example,
     workflow_example,
     workflow_journal_example,
+    workflow_goal_example,
+    workflow_steps_example,
+    workflow_substeps_example,
+    workflow_open_decision_example,
+    workflow_explored_example,
+    workflow_recorded_example,
+    workflow_elements_example,
+    workflow_complete_example,
     research_framed_example,
     research_grounded_example,
     research_planned_example,

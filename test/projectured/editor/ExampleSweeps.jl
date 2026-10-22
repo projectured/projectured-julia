@@ -232,6 +232,9 @@ function test_position_navigations()
             # keyboard events to its children, so Ctrl+Home can't seed an initial
             # selection (same reason the bare widget examples above are skipped).
             endswith(example.name, "_widget") && continue
+            # Every workflow example: a card of widgets for each node, or the
+            # WidgetTable of a journal, for the widget-container reason as well.
+            startswith(example.name, "workflow") && continue
             # `table` / `math_table`: Stage 2 made coordless keyboard routing
             # selection-only (no default-child fallback), so Ctrl+Home can no
             # longer seed an initial selection from an unselected document — the
@@ -247,10 +250,6 @@ function test_position_navigations()
                              # `pivot` is a bar of widgets above a WidgetTable,
                              # here for the widget-container reason as well.
                              "pivot",
-                             # `workflow` is a card of widgets for each node, and
-                             # `workflow_journal` a WidgetTable, here for the
-                             # widget-container reason as well.
-                             "workflow", "workflow_journal",
                              # `research` and the studies at its stages are a card
                              # of widgets for each item, here for the
                              # widget-container reason as well.

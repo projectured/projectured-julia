@@ -72,6 +72,7 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "WorkflowCompleteDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "TableDocumentExample.jl"))
@@ -115,7 +116,10 @@ export run_value_viewer, make_value_viewer, make_value_viewer_feeds
 include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
 include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
 
-export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example, research_example,
+export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example,
+       workflow_goal_example, workflow_steps_example, workflow_substeps_example,
+       workflow_open_decision_example, workflow_explored_example, workflow_recorded_example,
+       workflow_elements_example, workflow_complete_example, research_example,
        research_framed_example, research_grounded_example, research_planned_example, research_contested_example
 export assistant_work_example
 export build_file_editor, clipboard_example, conversation_editor_example
@@ -171,6 +175,7 @@ export make_formula_insertion_document_example, make_formula_invoice_document_ex
 export make_formula_queue_document_example, make_formula_estimate_document_example
 export make_formula_grid_projection_example
 export make_formula_report_document_example, make_formula_report_projection_example
+export make_workflow_complete_document_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,

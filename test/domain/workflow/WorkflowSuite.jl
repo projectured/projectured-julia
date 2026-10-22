@@ -25,6 +25,7 @@ function test_workflow()
         test_workflow_layering()
         test_workflow_document()
         test_workflow_edits()
+        test_workflow_stage_examples()
         test_workflow_to_widget()
         test_workflow_journal_to_widget()
         test_workflow_list()
@@ -34,6 +35,7 @@ function test_workflow()
     end
 end
 
-export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits, test_workflow_to_widget,
+export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits,
+       test_workflow_stage_examples, test_workflow_to_widget,
        test_workflow_journal_to_widget, test_workflow_list, test_workflow_walkthrough,
        test_workflow_assistant_api, test_workflow_conversation

@@ -45,5 +45,9 @@ export make_workflow_step_document_example, make_workflow_decision_document_exam
        make_workflow_entry_document_example, make_workflow_element_document_example,
        make_workflow_document_example, make_workflow_projection_example,
        make_workflow_journal_document_example
+export make_workflow_goal_document_example, make_workflow_steps_document_example,
+       make_workflow_substeps_document_example, make_workflow_open_decision_document_example,
+       make_workflow_explored_document_example, make_workflow_recorded_document_example,
+       make_workflow_elements_document_example
 
 end # module ProjecturedWorkflowExample
