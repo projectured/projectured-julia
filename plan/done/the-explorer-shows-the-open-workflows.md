@@ -1,6 +1,6 @@
 # The explorer shows the open workflows
 
-Status: IN PROGRESS, 2026-10-22, on the branch `workflow-explorer`, in the worktree
+Status: DONE, 2026-10-22, on the branch `workflow-explorer`, in the worktree
 `projectured-julia-workflow-explorer`. Not landed on `main`.
 
 ## The ask
@@ -143,7 +143,7 @@ before the owner approves.
    explorer and its trees, with projectured-julia from this branch and from
    `main`, in a scratch environment. Commit. See [As built](#as-built): the
    version and the omnet-julia precompile file need no edit.
-4. [ ] **A live check.** In a window, open a `.pred` workflow from Files. The
+4. [x] **A live check.** Done; see [As built](#as-built). In a window, open a `.pred` workflow from Files. The
    Workflows entry shows it with its steps, and the page shows its row. Close
    the file, and the row goes. The assistant finds the list through
    `find_explorer_content()`. Move the plan to `plan/done/`. Commit.
@@ -156,6 +156,10 @@ before the owner approves.
 - A package that loads after the window started adds no entry to that window.
 - A workflow that is closed is not in the list. "Add to explorer" on its file
   keeps it at hand.
+- The address bar of the navigator shows each layer of a file as an item: the
+  page of a step reads "Explorer › Workflows › plan.pred › plan.pred ›
+  plan.pred › Ship the workflow list › Build". The tree hides the layers, and
+  the address does not.
 
 ## Open items
 
@@ -273,3 +277,24 @@ before the owner approves.
     `ProjecturedResearch` and `ProjecturedResearchExample`, which the branch
     lacks, so the branch environment took those two from `main`. A landing
     rebases the branch first.
+- **Step 4, 2026-10-22.** A real SDL window of `run_application`, with the state
+  and the configuration folders in the scratchpad, so the explorer file and the
+  settings of the user stay as they are. A second task drove it with the verbs
+  of the assistant (`find_explorer_content`, `open_explorer_page!`, `find_pane`,
+  `close_pane!`, `focus_pane!`), and `write_window_picture` took a picture after
+  each step.
+  - The first content lists "Files | Open files | Tasks | Assistants |
+    Workflows | Evaluators | …".
+  - The file opened from the command line, and again with `OpenFileOperation`,
+    not with a press on the row in Files.
+  - The page of the list shows "1 open workflow · 1 open decision" and one row:
+    the goal, `active`, the active steps, `2026-10-22 09:30`, `1`, `plan.pred`.
+    The tree row says "1 open".
+  - After `close_pane!` of the tab, the page says "No workflow is open. …", the
+    table has no row, and the tree row has no pill.
+  - After the file opened again, the row comes back. The page of the step
+    `Build` shows it, and the tree opens `Workflows › plan.pred` with `Survey`
+    (done, green), `Build` (active, blue) and `Where the rule goes` (open).
+  - Three frames of the run took 1.6 to 3.1 s, each at the first draw of a new
+    page in a fresh process; not measured further.
+  - The address bar shows the three layers of the file (see Limits).
