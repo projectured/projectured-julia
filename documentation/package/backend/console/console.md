@@ -63,7 +63,7 @@ The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 
 
 A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `take_from_devices!` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
 
-Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
+Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and `run_console_example` puts an `EscapeQuittingProjection` around its projection, so there an Escape that no reader handled quits.
 
 Every event is wrapped as `WindowInput(:console, event)`, because the console has no window. Home selects the root because the console has no mouse to make a first selection.
 

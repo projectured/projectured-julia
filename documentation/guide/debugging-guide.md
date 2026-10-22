@@ -518,7 +518,7 @@ example in a single `WindowDocument`/`ScreenDocument` (the scene `run_example`
 builds) and runs `play_live!(editor, timeline; window_id, initial_hold)`: each
 frame polls real input *and* fires the next scheduled timeline entry when its
 wall-clock time arrives, so the user watches the script run and can still
-interact (Escape / window-close quits). `hold` is the dwell after an entry in
+interact (the close button of the window quits, and so does Escape in an example window). `hold` is the dwell after an entry in
 both worlds — frame counts for the recorder, a delay for the live player.
 
 Predefined live examples live in `live_examples` (e.g. `json_typein_live`,

@@ -359,12 +359,15 @@ step until an `Operation` falls out at the document end.
 One gesture is recognized by the editor itself, *after* the pipeline has had
 its chance, so a projection that explicitly binds it still wins:
 
-- **Escape** closes the editor (`QuitEditorOperation`) — but only when no
-  reader claimed it. A reader that binds Escape (a dialog, an insertion, the
-  command palette) produces its own operation above and wins, so its Escape
-  never reaches this fallback. This is why a backend must deliver Escape as an
-  ordinary key rather than as a platform quit signal: a platform quit signal
-  gives no reader the chance to intercept it.
+- **Escape** does not quit the editor. A `WindowQuit` (the close button of a
+  window, Ctrl+C in the console) is the only input that gives
+  `QuitEditorOperation`. A bare Escape that no reader took leaves the safe mode
+  when the editor is in the safe mode; otherwise it is consumed like any other
+  input that no reader takes. A program that wants Escape to quit puts an
+  `EscapeQuittingProjection` of the platform around its projection; see
+  [screen.md](../platform/screen/screen.md). A reader that binds Escape (a
+  dialog, an insertion, the command palette) takes it first, which is why a
+  backend delivers Escape as an ordinary key.
 
 The zoom and the scales are not a gesture of the editor itself: `AdjustZoomOperation`
 and `AdjustScaleOperation`, and the keys that reach them, are bindings of the
@@ -610,7 +613,7 @@ gives it a title and a size.
 `play_live!` is a sibling entry point that runs the same read-eval-print loop
 but **fires a predefined timeline on a wall-clock schedule**, so a recorded
 session plays out on a real window while the user watches (and can still
-interact — real input is polled every frame, and Escape / window-close quits).
+interact — real input is polled every frame, and the close button of the window quits, as Escape does in an example window).
 
 ```julia
 play_live!(document, projection, timeline; backend,
@@ -906,7 +909,7 @@ the dependency-free `HeadlessBackend` from `ProjecturedKernelExample` — one
 place the loop can be exercised without any real backend package. It covers
 the printer/reader/REPL drivers and navigation (`PrinterTest.jl`,
 `ReaderTest.jl`, `ReplTest.jl`, `NavigationTest.jl`, `ConstructTest.jl`), the
-`Escape`-closes-unless-claimed rule (`EscapeQuitTest.jl`), the inbox
+rule that the editor quits on a `WindowQuit` and on no key (`WindowQuitTest.jl`), the inbox
 (`InboxTest.jl`), the wait between frames (`WaitTest.jl`), the feeds and the
 frame measurements (`FeedsTest.jl`), the fault barriers of the loop
 (`FaultBarriersTest.jl`), the edits through the readers (`DocumentEditsTest.jl`),

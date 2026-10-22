@@ -38,7 +38,7 @@ The part under the pointer is lit. In the text of a tree, such as a JSON documen
 | Ctrl + Delete | remove the selected part |
 | Insert | insert a new element beside the selected one |
 | Enter | finish the part you are typing |
-| Escape | leave what you are typing, or close the window |
+| Escape | leave what you are typing; in an example window of the REPL it also closes the window |
 | Ctrl + Z | take the last change back |
 | Ctrl + Y, Ctrl + Shift + Z | put it back |
 
@@ -62,6 +62,7 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | --- | --- |
 | Ctrl + T | a new tab |
 | Ctrl + W | close the focused tab |
+| Ctrl + Q | quit the program (File > Exit) |
 | Ctrl + Shift + D | duplicate the focused tab |
 | Ctrl + Page Down, Ctrl + Page Up | the next or the previous tab |
 | Ctrl + Tab, Ctrl + Shift + Tab | the next or the previous group of tabs |

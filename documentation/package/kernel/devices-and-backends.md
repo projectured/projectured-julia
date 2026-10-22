@@ -87,10 +87,10 @@ Escape is an ordinary `KeyDown(:escape, …)`, not a quit. A backend reports wha
 happened and attaches no meaning, so it must not turn one key into a quit before
 any reader has seen it. A dialog, an insertion and the command palette all bind
 Escape, and a quit the backend issues directly leaves no reader able to stop it.
-The editor loop quits on an unmodified
-Escape that the pipeline did not handle; `run_read_stage!` in
+The editor loop quits only on a `WindowQuit`; an Escape that no reader took does
+not quit it. `run_read_stage!` in
 [editor/ReadEvaluatePrint.jl](../../../source/kernel/editor/ReadEvaluatePrint.jl)
-recognises no other gesture itself.
+recognises no key itself except the Escape that leaves the safe mode.
 
 ## Backends
 

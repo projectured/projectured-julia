@@ -1,6 +1,6 @@
 # Escape quits only an example window
 
-Status: IN PROGRESS, on the branch `escape-quit`, in the worktree
+Status: DONE, 2026-10-22, on the branch `escape-quit`, in the worktree
 `projectured-julia-escape-quit`. Not landed on `main`.
 
 ## The ask
@@ -61,7 +61,7 @@ owner approves.
    tests, the shell tests, the safe mode test and the console test. Commit.
 2. [x] **File > Exit.** Done; see [As built](#as-built). The item, and the tests that list the File menu:
    `WindowShellTest.jl` and `ApplicationTest.jl`. Run them. Commit.
-3. [ ] **The guides.** Every guide that says that Escape quits: `editor.md`,
+3. [x] **The guides.** Done; see [As built](#as-built). Every guide that says that Escape quits: `editor.md`,
    `operation.md`, `devices-and-backends.md`, `screen.md`, `shell.md`,
    `console.md`, `keyboard-and-mouse-guide.md`, `setup-guide.md` and
    `debugging-guide.md`. The plan moves to `plan/done/`. Commit.
@@ -87,6 +87,12 @@ owner approves.
   shell window and reads the `InvokeActionOperation` of Exit. The shortcut walk
   of the shell skips a `WidgetSeparator`, and the label helpers of the tests skip
   it too.
+- **Step 3.** Eight guides change: `editor.md`, `operation.md`,
+  `devices-and-backends.md`, `screen.md` (a new section, "Quitting on Escape"),
+  `shell.md`, `console.md`, `keyboard-and-mouse-guide.md` (a row for Ctrl+Q)
+  and `debugging-guide.md`. `setup-guide.md` stays: its "Press Escape to close
+  the window" follows `run_example` and `run_value_viewer`, which quit on Escape.
+  The guides name only the ProjecturEd application, not the IDE.
 - **Tests.** In `environment/all`: `test_window_quit`, `test_escape_quitting`,
   `test_window_shell`, `test_context_menu_window`, `test_tracking_screen`,
   `test_fault_safe_mode`, `test_gesture_tracking`, `test_shell_completeness`,

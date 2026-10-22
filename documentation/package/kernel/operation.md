@@ -41,7 +41,7 @@ selection from Julia code.
 
 ### `QuitEditorOperation()`
 
-Produced when the user closes the window or presses Escape. Its evaluation
+Produced when the user closes the window, chooses File > Exit, or presses an Escape that an `EscapeQuittingProjection` answers. Its evaluation
 throws a `QuitEditorException`, which the `run_editor!` loop catches and uses to
 break out cleanly.
 

@@ -54,7 +54,7 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 ### The menu bar
 
-Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about, gesture_help, command_palette)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program. Gestures and Command palette come first, each only when its keyword is true.
+Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab ("New tab", Ctrl+T; "Close tab", Ctrl+W), a `WidgetSeparator`, and "Exit" (Ctrl+Q). Exit quits the editor, as the close button of the window does. The shell fires a menu shortcut before the focused widget sees the key, so Ctrl+Q works wherever the focus is. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about, gesture_help, command_palette)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program. Gestures and Command palette come first, each only when its keyword is true.
 
 `make_window_menu_bar(; extra, about, gesture_help, command_palette)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
 
