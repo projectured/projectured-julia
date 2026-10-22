@@ -920,11 +920,20 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
     guard needs `using` for a module whose names a file only calls.
   - The sentence of the domain says to record a decision only when the person asks.
   `test_research()`: 208 pass with steps 1 to 8.
-- [ ] **9. The combinations.** §6, in the umbrella test package, because its
+- [x] **9. The combinations.** §6, in the umbrella test package, because its
   fixtures name several domains. Test: `test_research_combinations()`: a Markdown
   report that holds `H1` saves a `pred-ref` fence, loads and draws the card; a
   workflow step whose card holds `X1`; an analysis whose method is a formula sheet
   and a result whose content is a pivot.
+  **Done (2026-10-22).** `test_research_combinations()` in `test_documents()` of the
+  umbrella, 15 pass: a report holds `H1` and saves a `pred-ref` fence; a workflow
+  card holds `X1` and the project gives back the same object; a result holds a
+  pivot; and code of the assistant of an application window starts a study that
+  the explorer and a tab show, with `Q1` and `H1` by the assistant. A pivot scrolls
+  its own rows, so it needs a pane that offers it a height, as the pivot domain
+  says; a document holds a pivot in such a pane. With this step `test_file_project()`
+  (153 pass, 1 broken as on main), `test_workflow()` (199), `test_workflow_file()`
+  (24) and `test_package_graph()` (417) pass.
 - [ ] **10. omnet-julia: the study of the IDE is a study of this domain.** §8.2:
   `StudyVerbs.jl` keeps the verbs of the window and of the files of a simulation
   over the documents of this domain; `place_study_blocks!` walks the new study;
