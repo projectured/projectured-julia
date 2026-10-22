@@ -148,3 +148,11 @@ function make_research_study_document_example()
         analyses = Any[n1], results = Any[r1], evidence = Any[e1], decisions = Any[d1, d2],
         answers = Any[a1], author = :person, time = _example_time(12))
 end
+
+"""
+    make_research_map_document_example() -> ResearchMap
+
+The map of the study of the buffer of a router: its items as the vertices of a
+graph, and its links as the edges.
+"""
+make_research_map_document_example() = ResearchMap(study = make_research_study_document_example())

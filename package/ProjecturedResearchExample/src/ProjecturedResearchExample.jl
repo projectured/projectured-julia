@@ -46,6 +46,7 @@ export make_research_question_document_example, make_research_source_document_ex
        make_research_experiment_document_example, make_research_analysis_document_example,
        make_research_result_document_example, make_research_evidence_document_example,
        make_research_decision_document_example, make_research_answer_document_example,
-       make_research_study_document_example, make_research_projection_example
+       make_research_study_document_example, make_research_projection_example,
+       make_research_map_document_example
 
 end # module ProjecturedResearchExample

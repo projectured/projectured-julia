@@ -14,6 +14,8 @@ The domain includes:
   `ResearchExperiment`, `ResearchAnalysis`, `ResearchResult`, `ResearchEvidence`,
   `ResearchDecision`, `ResearchAnswer`
 - **The prediction that a check tests**: `ResearchExpectation`
+- **The views**: the outline of a study and the card of an item, and
+  `ResearchMap`, the items of a study as a graph
 """
 module ResearchModule
 
@@ -22,6 +24,7 @@ import Dates
 using ..KernelModule
 using ..PlatformModule
 using ..FormulaModule
+using ..GraphModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
@@ -39,11 +42,14 @@ export find_study_item, collect_research_links, make_research_id, make_research_
 export ResearchTheme, ScaledResearchTheme
 export ResearchItemToWidget, ResearchStudyToWidget, ResearchToWidgetIoMap, make_research_projections,
        make_research_graphics_entries, describe_research_link, describe_research_expectation
+export ResearchMap, ResearchMapToGraph, ResearchMapPartToWidget, ResearchMapToGraphIoMap,
+       make_research_map_projection
 
 include("ResearchDocument.jl")
 include("ResearchEdits.jl")
 include("ResearchTheme.jl")
 include("ResearchToWidget.jl")
+include("ResearchMapToGraph.jl")
 
 function __init__()
     # The rows that let the renderer draw a study as its outline, and an item of

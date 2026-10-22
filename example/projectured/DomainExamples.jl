@@ -416,6 +416,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:research, "answer",      make_research_answer_document_example),
     AtomicDocument(:research, "expectation", make_research_expectation_document_example),
     AtomicDocument(:research, "study",       make_research_study_document_example),
+    AtomicDocument(:research, "map",         make_research_map_document_example),
     AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
     AtomicDocument(:filesystem, "directory", make_filesystem_directory_document_example),
     AtomicDocument(:filesystem, "chooser",   make_filesystem_chooser_document_example),

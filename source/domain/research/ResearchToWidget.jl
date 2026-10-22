@@ -75,8 +75,9 @@ end
 
 The rows of the renderer for the documents of a study: the outline of a study and
 the card of each kind of item, each chained with `VerticalLayoutToGraphicsCanvas`,
-so the widgets that it makes come back through the renderer. The styles are those
-of the `ResearchTheme` of `appearance`.
+so the widgets that it makes come back through the renderer, and the map of a
+study through `make_research_map_projection`. The styles are those of the
+`ResearchTheme` of `appearance`.
 """
 function make_research_graphics_entries(; measure, appearance)
     projections = make_research_projections(; theme = get_scaled_theme!(appearance, ResearchTheme))
@@ -85,6 +86,8 @@ function make_research_graphics_entries(; measure, appearance)
     for kind in RESEARCH_KINDS
         push!(entries, kind.type => item)
     end
+    push!(entries, ResearchMap => make_research_map_projection(; measure,
+                                      theme = get_scaled_theme!(appearance, ResearchTheme)))
     entries
 end
 

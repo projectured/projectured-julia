@@ -860,8 +860,18 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
     run them on the text examples only.
   - The test is `test_research_to_widget()`, not `test_research_study_to_widget()`,
     because it covers the card too.
-- [ ] **5. The map.** §5.2. Test: `test_research_study_to_graph()`: the vertices
+- [x] **5. The map.** §5.2. Test: `test_research_study_to_graph()`: the vertices
   and the labelled edges of the example, and an edge that follows a new link.
+  **Done (2026-10-22).** `ResearchMapToGraph.jl`. The map is a document of its
+  own, `ResearchMap(study)`, as the journal of a workflow is, because the renderer
+  has one row for each type and the row of a study is its outline.
+  `ResearchMapToGraph` makes the graph, `ResearchMapPartToWidget` draws each vertex
+  as the id, the status and the text and each edge label as a word, and the stages
+  of the Graph domain lay it out (`make_research_map_projection`). A place of an
+  item maps from `.study.hypotheses[1]` to `.vertices[3].content` and back.
+  `ResearchMapToGraph` is a plain struct: `@projection` on a struct with no field
+  gives an expression that a docstring can not document. The atom `map` joins the
+  catalog. The test is `test_research_map_to_graph()`, 16 pass.
 - [ ] **6. The timeline.** §5.3. Test: a roster of `StudyItems` sorted by time
   gives the rows of §4.6 in order, a filter on the author keeps the rows of the
   assistant, and a new item shows as a new row.
