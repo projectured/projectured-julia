@@ -80,10 +80,9 @@ function _make_entry_card(p::ExplorerSectionToWidget, section::ExplorerSection, 
     WidgetCard(; title, content = VerticalLayout(lines; child_width = Fill), tooltip)
 end
 
-# A link to the part at `reference` from `section`: a press opens its page here,
-# and Ctrl+press in a new tab.
+# A link to the part at `reference` from `section`.
 _make_section_link(section::ExplorerSection, text::AbstractString, reference::Reference) =
-    WidgetButton(text; gestures = make_open_page_gestures(section, reference; domain = "explorer"))
+    WidgetLink(text, DocumentLocator(section, reference))
 
 # A section draws as its page inside any document that a renderer draws. The cards
 # come back through the recursion of the renderer.

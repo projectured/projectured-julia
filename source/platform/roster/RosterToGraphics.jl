@@ -215,14 +215,9 @@ function _make_row_cells(row::RosterRow)
     CellVector(slots)
 end
 
-# The link of the first cell of a row, with the text of `value`: a click opens the
-# item of the row here, and Ctrl and a click in a new tab. The open names the part
-# itself, and the rows map the path of a cell that is no document to the item.
-function _make_item_link(value)
-    link = WidgetButton(""; gestures = make_open_page_gestures(nothing, EmptyReference(); domain = "roster"))
-    set_cell_computation!(link, () -> format_roster_value(value[]))
-    link
-end
+# The link of the first cell of a row, with the text of `value`. Its open names the
+# part itself, and the rows map the path of a cell that is no document to the item.
+_make_item_link(value) = WidgetLink(() -> format_roster_value(value[]), EmptyReference())
 
 # The path of a column `c` of the row at `r`, as the roster holds it: below the item
 # for a path of fields, below the outer item for a path after `within`, and the

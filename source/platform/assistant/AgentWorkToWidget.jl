@@ -150,12 +150,8 @@ end
 function _make_agent_work_link(work::AgentWork, field::AbstractString, index::Int, child)
     reference = extend_reference(EmptyReference(), FieldReferenceStep(field),
                                  ElementReferenceStep(index))
-    open = (_, _) -> OpenPageOperation(work, reference)
-    binding = GestureBinding(MouseClickPattern(:left), open;
-                             description = "Open the page of a part of the work",
-                             domain = "assistant")
-    link = WidgetButton(""; tooltip = "Open the page of this part of the work.", gestures = GestureBinding[binding])
-    set_cell_computation!(link, () -> _format_one_line(_join_label_and_detail(child)))
+    WidgetLink(() -> _format_one_line(_join_label_and_detail(child)), DocumentLocator(work, reference);
+               tooltip = "Open the page of this part of the work.")
 end
 
 # A press of Cancel: the assistant whose session runs the subagent asks its agent

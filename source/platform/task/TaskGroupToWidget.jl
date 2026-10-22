@@ -969,10 +969,8 @@ end
 function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
     group = get_task_group(doc)
     # The title is a link to the page of the group.
-    title = WidgetButton(getfield(doc, :title)[];
-                         gestures = make_open_page_gestures(list, Reference(FieldReferenceStep("groups"),
-                                                                           RangeReferenceStep(index - 1, index));
-                                                            domain = "task"))
+    title = WidgetLink(() -> getfield(doc, :title)[],
+                       DocumentLocator(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(index - 1, index))))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
     stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
                                       tooltip = "Stop the tasks that run and start no more.")
@@ -998,10 +996,8 @@ end
 # its kind, the word of its state and its line, as its decoration says them, and
 # the buttons that stop it and close its row.
 function _build_list_row(p, list::TaskGroupList, item, index::Int)
-    title = WidgetButton(get_document_title(item);
-                         gestures = make_open_page_gestures(list, Reference(FieldReferenceStep("groups"),
-                                                                           RangeReferenceStep(index - 1, index));
-                                                            domain = "task"))
+    title = WidgetLink(() -> get_document_title(item),
+                       DocumentLocator(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(index - 1, index))))
     is_going() = _is_work_item_running(item)
     stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going,
                                       tooltip = "Stop this work before it ends.")

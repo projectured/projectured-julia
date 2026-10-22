@@ -554,8 +554,10 @@ click opens the page here, in the nearest navigator around the link, or in a new
 tab when no navigator is around it. Ctrl and a click, or a middle click, open the
 page in a new tab. Return opens it here while the link has the focus.
 
-`content` is what a `WidgetLabel` takes: a string, a cell, or a function of no
-arguments for a text that follows a value. `target` says where the link leads:
+`content` is the text of the link: a string, a cell that holds one, or a function
+of no arguments for a text that follows a value. The text breaks at the edge of
+the range that the parent gives, as the text of a label does. `target` says
+where the link leads:
 
 - a `DocumentLocator(document, reference)`: the part at `reference` from
   `document`, which the link opens with `OpenPageOperation(document, reference,
@@ -565,7 +567,7 @@ arguments for a text that follows a value. `target` says where the link leads:
 
 `icon` names an icon that stands before the text. A link draws its text in the
 link color of the theme, with no frame, so it is as tall as a label. A line
-shows under the text while the pointer is on the link. A link keeps its target
+shows under each line of the text while the pointer is on the link. A link keeps its target
 as an address, so a walk of the documents does not go from the link into its
 target.
 

@@ -61,9 +61,12 @@ function _get_task_page_state(p, document::TaskDocument)
     (string(status), p.muted_color)
 end
 
-# A link: a button whose press opens the page at `reference` from `document` here,
-# and Ctrl+press in a new tab.
-_make_link_button(p, text, document, reference::Reference) =
+# A link that names the page at `reference` from `document`.
+_make_task_link(text, document, reference::Reference) = WidgetLink(text, DocumentLocator(document, reference))
+
+# A button whose label is a command that opens the page at `reference` from
+# `document`.
+_make_open_button(p, text, document, reference::Reference) =
     WidgetButton(text; size = p.button_size, gestures = make_open_page_gestures(document, reference; domain = "task"))
 
 _make_steps(steps...) = foldr(ConcreteReference, steps; init = EmptyReference())
@@ -74,7 +77,7 @@ function _build_stream_preview(p, document, steps, shadow, field::Symbol)
     name = field === :output ? "stdout" : "stderr"
     page = field === :output ? "stdout_page" : "stderr_page"
     count = WidgetLabel(() -> (n = getproperty(shadow, field).count; string(name, " · ", n, n == 1 ? " line" : " lines")))
-    link = _make_link_button(p, "Open " * name, document, _make_steps(steps..., FieldReferenceStep(page)))
+    link = _make_open_button(p, "Open " * name, document, _make_steps(steps..., FieldReferenceStep(page)))
     lines = VerticalLayout(Any[]; gap = 0, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () -> begin
         kept = collect_output_lines(getproperty(shadow, field))
@@ -91,7 +94,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
                   _make_live_label(() -> _get_task_page_state(p, document))]
     if place !== nothing
         (group, index) = place
-        push!(heading, _make_link_button(p, "in " * getfield(group, :title)[], group, EmptyReference()))
+        push!(heading, _make_task_link(() -> "in " * getfield(group, :title)[], group, EmptyReference()))
     end
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.inline_gap))
     push!(parts, _build_task_details(p, task, document))
@@ -119,7 +122,7 @@ end
 # fact, and the link (`get_task_links`). A kind with no links shows none.
 _build_task_links(p, task) =
     VerticalLayout(Any[HorizontalLayout(Any[_make_label(link.label, p.muted_color),
-                                            _make_link_button(p, link.text, link.document, link.reference)];
+                                            _make_task_link(link.text, link.document, link.reference)];
                                         vertical_align = :center, gap = p.inline_gap)
                        for link in get_task_links(task)]; gap = p.stack_gap, child_width = Fill)
 
@@ -149,7 +152,7 @@ function _build_task_page_actions(p, document::TaskDocument, task, place)
                             for (label, action) in get_task_actions(task))...]
     if place !== nothing && task isa TaskGroup
         inner = find_task_group_document(place[1], place[2])
-        inner === nothing || push!(buttons, _make_link_button(p, "Open the group", inner, EmptyReference()))
+        inner === nothing || push!(buttons, _make_open_button(p, "Open the group", inner, EmptyReference()))
     end
     HorizontalLayout(buttons; vertical_align = :center, gap = p.inline_gap)
 end
@@ -166,7 +169,7 @@ function _build_task_page_executions(p, document::TaskDocument)
             (text, result) = describe_task_execution(executions[k])
             color = result === nothing ? p.muted_color :
                     _get_role_color(p, get_result_role(get_result_codes(result), result.result))
-            push!(rows, HorizontalLayout(Any[_make_link_button(p, string(k), document, _make_steps(_get_execution_steps(k)...)),
+            push!(rows, HorizontalLayout(Any[_make_task_link(string(k), document, _make_steps(_get_execution_steps(k)...)),
                                             _make_label(text, color)];
                                          vertical_align = :center, gap = p.inline_gap))
         end

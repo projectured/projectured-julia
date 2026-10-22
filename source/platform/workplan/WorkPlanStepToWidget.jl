@@ -60,10 +60,7 @@ function _make_blocker_part(plan, id::AbstractString)
     path = plan === nothing ? nothing : _find_work_plan_step_path(plan.steps, id)
     path === nothing && return WidgetLabel(String(id))
     reference = extend_reference(EmptyReference(), path...)
-    WidgetButton("step " * id; tooltip = "Open the page of the step.",
-                 gestures = GestureBinding[
-                     GestureBinding(MouseClickPattern(:left), (_, _) -> OpenPageOperation(plan, reference);
-                                    description = "Open the page of the step", domain = "workplan")])
+    WidgetLink("step " * id, DocumentLocator(plan, reference); tooltip = "Open the page of the step.")
 end
 
 # A step names no part of its page: each part of the page is a part that the page

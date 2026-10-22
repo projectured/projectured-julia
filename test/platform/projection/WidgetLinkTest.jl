@@ -93,6 +93,20 @@ end
     @test Int(underline().w) == 0
 end
 
+@testset "a link breaks its text at the width it was offered, with a line under each line" begin
+    text = "H1 A queue capacity of thirteen is enough"
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(120)), height = Cell(Int32(600)))
+    link = WidgetLink(text, EmptyReference())
+    canvas = print_document(make_projection(), nothing, link, context).output
+    elements = collect_elements(canvas)
+    lines = [element for element in elements if element isa GraphicsText]
+    underlines = [element for element in elements if element isa GraphicsRect && is_color_equal(element.color, link_color)]
+    @test length(lines) > 1 && length(underlines) == length(lines)
+    @test all(line -> Int(line.x) + 10 * length(line.text) <= 120, lines)
+    @test join((line.text for line in lines), " ") == text
+    @test issorted([Int(line.y) for line in lines]) && allunique([Int(line.y) for line in lines])
+end
+
 @testset "a link is a stop of Tab, and the gesture help lists its opens" begin
     @test get_first_focusable_path(WidgetLink("notes.txt", EmptyReference())) isa EmptyReference
     bindings = collect_document_gesture_bindings(WidgetLink)

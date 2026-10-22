@@ -144,8 +144,8 @@ end
 function _build_folder_row(owner, directory::FileSystemDirectory, steps::Tuple, k::Int)
     entry = directory.elements[k]
     reference = extend_reference(EmptyReference(), steps..., FieldReferenceStep("elements"), ElementReferenceStep(k))
-    link = WidgetButton(format_tree_node_label(entry); icon = get_document_decoration(entry).icon,
-                        gestures = make_open_page_gestures(owner, reference; domain = "filesystem"))
+    link = WidgetLink(format_tree_node_label(entry), DocumentLocator(owner, reference);
+                      icon = get_document_decoration(entry).icon)
     Any[link, WidgetLabel(_format_entry_kind(entry))]
 end
 

@@ -2431,55 +2431,67 @@ end
 
 # ── WidgetLink ──────────────────────────────────────────────────────────────
 
-# The line of a link: its text, its style, and the sizes of the text, of the icon
-# and of the line that holds both. The text and the icon stand on the middle of
-# the line.
-function _measure_link_line(p::WidgetLinkToGraphicsCanvas, w::WidgetLink)
+# The lines of a link: its text broken where a label breaks it, at `bound` less
+# the icon, or at its line breaks only when `bound` is 0; the style; and the sizes
+# of the icon and of the lines. The icon and the first line stand on the middle
+# of the first row.
+function _measure_link_lines(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, bound::Int)
     text = string(w.content)
     style = _get_part_text(w, :link_text, p.link_text)
-    line = compute_line_box(p.measure, text, style.font)
-    icon_extent = icon_width(w.icon, scale_length(line.height, p.icon_size))
+    icon_extent = icon_width(w.icon, scale_length(compute_line_box(p.measure, text, style.font).height, p.icon_size))
     icon_gap = icon_extent > 0 ? p.label_gap : 0
-    height = max(icon_extent, line.height)
-    (; text, style, line, icon_extent, icon_gap, height,
-       text_top = (height - line.height) ÷ 2, width = icon_extent + icon_gap + line.width)
+    room = bound > 0 ? max(1, bound - icon_extent - icon_gap) : 0
+    texts = _text_lines(p.measure, style.font, text, room)
+    boxes = [compute_line_box(p.measure, line, style.font) for line in texts]
+    first_height = max(icon_extent, boxes[1].height)
+    (; style, texts, boxes, icon_extent, icon_gap, first_height,
+       height = first_height + sum(box.height for box in boxes[2:end]; init = 0),
+       text_top = (first_height - boxes[1].height) ÷ 2,
+       width = icon_extent + icon_gap + maximum(box.width for box in boxes))
 end
 
-# The baseline of the text of a link, from the top of the link.
+# The baseline of the first line of a link, from the top of the link. A break
+# moves no baseline of the first line, so the text is measured whole.
 function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap)
     w = iomap.input
     w.visible == false && return nothing
     _, content_y = _content_offset(p, w)
-    measured = _measure_link_line(p, w)
-    content_y + measured.text_top + measured.line.baseline
+    measured = _measure_link_lines(p, w, 0)
+    content_y + measured.text_top + measured.boxes[1].baseline
 end
 
-# A link draws as a label in the link color: its icon, its text, and no frame. A
-# line under the text and the hand pointer say that a press opens it.
+# A link draws as a label in the link color: its icon, its text, and no frame. Its
+# text breaks at the edge of the range that the parent gave, as the text of a
+# label does. A line under each line of the text and the hand pointer say that a
+# press opens it.
 function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        measured = _measure_link_line(p, w)
-        style = measured.style
         box = _get_box_insets(p, w)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
+        edge = ctx === nothing ? nothing : ctx.maximum_width
+        measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
+        style = measured.style
         outer_width = _resolve_width(ctx, 0, measured.width + inset_width)
         outer_height = _resolve_height(ctx, 0, measured.height + inset_height)
         elements = Any[]
         _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
                          outer_height - inset_height)
         if measured.icon_extent > 0
-            _push_icon!(elements, w.icon, content_x, content_y + (measured.height - measured.icon_extent) ÷ 2,
+            _push_icon!(elements, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
                         measured.icon_extent, style.color)
         end
         text_x = content_x + measured.icon_extent + measured.icon_gap
-        text_top = content_y + measured.text_top
-        _push_text!(elements, p.measure, style.font, measured.text, text_x, text_top, style.color)
+        top = content_y + measured.text_top
         thickness = max(1, p.underline_width)
-        underline_y = text_top + min(measured.line.baseline + thickness, measured.line.height - thickness)
-        _push_link_underline!(elements, w, text_x, underline_y, measured.line.width, thickness, style.color)
+        for (text, line) in zip(measured.texts, measured.boxes)
+            _push_text!(elements, p.measure, style.font, text, text_x, top, style.color)
+            _push_link_underline!(elements, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
+                                  line.width, thickness, style.color)
+            top += line.height
+        end
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
         push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :pointing_hand))
         (width = outer_width, height = outer_height, elements = elements)
