@@ -274,6 +274,26 @@ function test_explorer()
         @test _nav_is(explorer.tree.current, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
     end
 
+    @testset "a link shows its page and moves no selection, and a key then edits nothing that the page left" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        # The title of the section, on the page, holds the selection.
+        evaluate_operation(editor, ReplaceSelectionOperation(@reference(editor.document, navigator.content.title)))
+        run_frame!(editor)
+        before = string(strip_reference_types(get_selection(editor.document)))
+        @test occursin("title", before)
+        link = _explorer_click(backend, "beta"; side = :page)
+        _nav_press!(editor, backend, MouseDown(:left, link.x, link.y, ModifierKeys(); time = 1.0),
+                    MouseUp(:left, link.x, link.y, ModifierKeys(); time = 1.05),
+                    MouseClick(:left, link.x, link.y, 1, ModifierKeys(); time = 1.05))
+        @test get_navigator_page(explorer.navigator) === content.entries[2].entries[1]
+        @test string(strip_reference_types(get_selection(editor.document))) == before
+        # A key goes to no part that the page shows no more.
+        _nav_press!(editor, backend, KeyPress('x'; time = 2.0))
+        @test String(content.title) == "Explorer"
+    end
+
     @testset "the pointer on a link of the page of a section draws the line under it" begin
         explorer = Explorer(_explorer_make())
         editor, backend = _nav_editor(explorer)

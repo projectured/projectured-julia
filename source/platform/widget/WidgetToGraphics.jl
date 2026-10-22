@@ -2515,9 +2515,12 @@ map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) = nothing
 
 # A link answers the gestures of its type and of every widget: the opens of
 # `make_open_page_gestures` with its own target, and the tooltip. A key reaches it
-# while it has the focus.
+# while it has the focus. A link acts on the click, so it answers the press before
+# the click itself, as a button does, and the press selects nothing: no focus moves
+# to the link.
 function read_intent(::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
+    is_focusing_press(evt) && return DoNothingOperation()
     read_bound_gesture(iomap.input, evt)
 end
 

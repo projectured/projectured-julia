@@ -83,6 +83,8 @@ click(projection, iomap, button; ctrl = false, x = 5) =
     @test read_intent(projection, iomap, KeyPress('\n'; time = 0.0)).place === :here
     @test click(projection, iomap, :right) === nothing
     @test click(projection, iomap, :left; x = 500) === nothing
+    # The press before the click is the link's own, so it selects nothing.
+    @test read_intent(projection, iomap, MouseDown(:left, 5, 5, ModifierKeys(); time = 0.0)) isa DoNothingOperation
 end
 
 @testset "a link with a path opens the part that the path names from the link" begin

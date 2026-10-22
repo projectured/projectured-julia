@@ -438,6 +438,9 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
               DoNothingOperation())
 end
 
+# An open that the page answers, such as a click on a link, shows the page and
+# moves no selection: the selection stays where the person put it, as a click on a
+# link of a browser selects nothing.
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation, gesture)
     navigator = iomap.input
     operation.target === nothing || return _follow_navigator_target(navigator, operation)
@@ -450,10 +453,10 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOpe
         address = get_reference_tail(reference)
         operation.place === :here ||
             return OpenPageOperation(navigator.content, address, operation.place)
-        return something(make_navigator_open_operation(navigator, address), DoNothingOperation())
+        return something(make_navigator_open_operation(navigator, address; selects = false), DoNothingOperation())
     end
     operation.place === :here || return operation
-    something(make_navigator_open_operation(navigator, operation.document, operation.reference),
+    something(make_navigator_open_operation(navigator, operation.document, operation.reference; selects = false),
               DoNothingOperation())
 end
 
@@ -467,7 +470,7 @@ function _follow_navigator_target(navigator::Navigator, operation::OpenPageOpera
     found isa AbstractString && return OpenFileOperation(found; file_wrap = Navigator)
     found isa Reference || return DoNothingOperation()
     operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
-    something(make_navigator_open_operation(navigator, found), DoNothingOperation())
+    something(make_navigator_open_operation(navigator, found; selects = false), DoNothingOperation())
 end
 
 # A write of the address copy, such as the view that the control picks, is view

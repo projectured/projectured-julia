@@ -127,10 +127,12 @@ function test_open_page_operation()
         answer = read_rooted_operation(editor, @reference(navigator, content.children[2]),
                                        OpenPageOperation(nothing, EmptyReference()))
         @test !(answer isa OpenPageOperation)
+        before = navigator.selection
         evaluate_operation(editor, answer)
         run_frame!(editor)
         @test get_navigator_page(navigator) === shelf
-        @test _nav_is(navigator.selection, @reference(navigator, content.children[2]))
+        # The open shows the page and moves no selection.
+        @test navigator.selection == before
         @test _nav_has_texts(backend, "VerticalLayout", _NAV_CHOICES, "Shelf")
     end
 
@@ -158,9 +160,12 @@ function test_open_page_operation()
         run_frame!(editor)
         click = _nav_click(backend, "Open B")
         @test click !== nothing
+        before = string(strip_reference_types(get_selection(editor.document)))
         _nav_press!(editor, backend, click)
         @test get_navigator_page(navigator) === shelf.books[2]
         @test length(_nav_tabs(editor)) == 2
+        # The open shows the book and moves no selection.
+        @test string(strip_reference_types(get_selection(editor.document))) == before
     end
 
     @testset "an open that no navigator takes opens a navigator tab" begin

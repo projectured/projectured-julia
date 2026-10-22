@@ -377,6 +377,34 @@ sealed.
      this plan.
    The naming guard passes.
 
+## After the landing: an open shows the page and selects nothing
+
+The owner, 2026-10-22, after the landing: "when a link is clicked, the thing
+that it opens gets selected and marked with the blue box, it should not be
+selected, just shown". Done the same day on the branch `link-shows`:
+
+- A visit that an open of the page makes, such as a click on a link, a double
+  click on a row or "Open as a page" of the menu of a part, moves no selection:
+  `make_navigator_open_operation(...; selects = false)`, and the visit writes
+  its view state alone. The selection stays where the person put it, so the page
+  shows with no ring of a whole selection. Ctrl+Return, Back, Forward, Parent and
+  the items of the address still move the selection, so the keyboard stays on
+  the page.
+- A press on a link selects nothing: the link answers the press before the
+  click with `DoNothingOperation`, as a button answers it with its pressed
+  state, so the press gives it no focus. Tab still stops at a link.
+- A key goes where the selection points: a part that the page shows no more
+  takes no key. A case of `test_explorer()` puts the selection on the title of a
+  section, opens a link, types a key, and finds the title as it was.
+- Pass: `test_navigator()`, `test_explorer()` 294 of 294, `test_widget_link()`,
+  `test_roster()`, `test_roster_table()`, `test_document_tree()`,
+  `test_work_plan()`, `test_task_views()`, `test_task_pages()`,
+  `test_assistant_work()`, `test_agent_work()`, `test_background_work()`,
+  `test_research()`, `test_dataframes()` and `test_workflow()`. One case of
+  `test_navigator()` asserted that an open from the page selects the page; it
+  asserts now that the selection stays as it was. In a live SDL window the page
+  that a click on `todo.txt` opens has no blue ring.
+
 ## Not in this plan
 
 - An underline for a markdown link or an rst reference. The text layer draws

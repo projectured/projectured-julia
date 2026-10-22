@@ -120,28 +120,29 @@ function _find_part_address(navigator::Navigator, path)
 end
 
 """
-    make_navigator_open_operation(navigator, address; selection = address) -> Operation or nothing
+    make_navigator_open_operation(navigator, address; selection = address, selects = true) -> Operation or nothing
 
 The operation that opens the page at `address`, a path from the content of
 `navigator`, as a new visit: the current visit goes on the back list, and the
 forward list is cleared. The selection goes to `selection`, a path from the
 content, when it reaches a node inside the new page, and to the page itself
-otherwise. `nothing` when the page at `address` is the page that `navigator`
-shows.
+otherwise. With `selects = false` the visit shows the page and the selection
+stays where it is, as after a click on a link. `nothing` when the page at
+`address` is the page that `navigator` shows.
 """
 function make_navigator_open_operation(navigator::Navigator, address::Reference;
-                                       selection::Union{Reference, Nothing} = address)
+                                       selection::Union{Reference, Nothing} = address, selects::Bool = true)
     # The address records the types that its nodes have now, so a later edit that
     # puts another kind of part on its way cuts it there.
     address = annotate_reference_types(navigator.content, strip_reference_types(address))
     get_reference_steps(address) == get_reference_steps(get_navigator_page_address(navigator)) &&
         return nothing
     _make_visit_operation(navigator, NavigatorVisit(navigator.content, address, selection),
-                          vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[])
+                          vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[]; selects)
 end
 
 """
-    make_navigator_open_operation(navigator, document, reference) -> Operation or nothing
+    make_navigator_open_operation(navigator, document, reference; selects = true) -> Operation or nothing
 
 The operation that opens the node at `reference` from `document` as a new visit.
 When `document` is the content of `navigator`, or a document on the address of its
@@ -155,22 +156,23 @@ The navigator does not search its content for `document`: a search walks every
 value of the content, which can be a frame of ten million rows. Only the domain of
 the content knows where its parts are.
 """
-function make_navigator_open_operation(navigator::Navigator, document, reference::Reference)
+function make_navigator_open_operation(navigator::Navigator, document, reference::Reference; selects::Bool = true)
     content = navigator.content
     reference = strip_reference_types(reference)
     page = get_reference_steps(get_navigator_page_address(navigator))
     for last_step in length(page):-1:0
         prefix = extend_reference(EmptyReference(), page[1:last_step]...)
         evaluate_reference(content, prefix) === document &&
-            return make_navigator_open_operation(navigator, concat_references(prefix, reference))
+            return make_navigator_open_operation(navigator, concat_references(prefix, reference); selects)
     end
     held = find_navigator_address(content, document)
     held === nothing ||
-        return make_navigator_open_operation(navigator, concat_references(strip_reference_types(held), reference))
+        return make_navigator_open_operation(navigator, concat_references(strip_reference_types(held), reference);
+                                             selects)
     try_evaluate_reference(document, reference, _NOT_REACHED) === _NOT_REACHED && return nothing
     address = annotate_reference_types(document, reference)
     _make_visit_operation(navigator, NavigatorVisit(document, address, address),
-                          vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[])
+                          vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[]; selects)
 end
 
 """
@@ -226,10 +228,10 @@ _make_current_visit(navigator::Navigator) =
 
 # The writes that make `visit` the current one, with `back` and `forward` as the
 # lists, the view of its page, and the move of the hold of the navigator from the
-# view that it shows to that view, as view state; then the move of the selection
-# into its page. A visit that kept a view of its page shows that view again, and
-# any other visit makes the view of its page.
-function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back, forward)
+# view that it shows to that view, as view state; then, when `selects`, the move of
+# the selection into its page. A visit that kept a view of its page shows that view
+# again, and any other visit makes the view of its page.
+function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back, forward; selects::Bool = true)
     writes = Any[ReplaceReferencedValueOperation(navigator, "address", visit.address),
                  ReplaceReferencedValueOperation(navigator, "back", back),
                  ReplaceReferencedValueOperation(navigator, "forward", forward)]
@@ -248,6 +250,7 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
     view = slot === nothing ? page : slot.view
     shown = get_navigator_page_view(navigator)
     view === shown || push!(writes, ChangeHeldDocumentsOperation(navigator, Any[shown], Any[view]))
+    selects || return ReplaceViewStateOperation(CompoundOperation(writes))
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,
                              annotate_reference_types(visit.content, selection))

@@ -38,7 +38,7 @@ The change of the hold releases the old view of the page and acquires the new on
 
 | Builder | What it does |
 | --- | --- |
-| `make_navigator_open_operation(navigator, address; selection)` | opens the page at `address` as a new visit: the current visit goes on the back list, and the forward list is cleared; `nothing` for the page that the navigator shows |
+| `make_navigator_open_operation(navigator, address; selection, selects)` | opens the page at `address` as a new visit: the current visit goes on the back list, and the forward list is cleared; with `selects = false` the selection stays where it is; `nothing` for the page that the navigator shows |
 | `make_navigator_open_operation(navigator, document, reference)` | opens the node at `reference` from `document`; see [The open of a page](#the-open-of-a-page) |
 | `make_navigator_back_operation(navigator)` | returns to the newest visit of the back list, with the selection that the visit holds |
 | `make_navigator_forward_operation(navigator)` | the mirror of Back |
@@ -49,6 +49,8 @@ The change of the hold releases the old view of the page and acquires the new on
 `is_navigator_stop(document)` says where a navigator stops when it goes up, names the items of the address, and opens the selected part or the part under the pointer. It is `true` for a document, and `false` for a collection that `get_parent` looks past and for a value that is no document. A domain answers `false` for a container that holds the parts of the document around it: the data frame adapter does for `DataFrameViewRows`, so Parent goes from a row to the table. A navigator can still show such a container as a page at its own address.
 
 A visit puts back the selection that it holds when that selection still reaches a node inside its page, and selects the page itself otherwise. Parent and a press on a name of the address select the page that the person leaves, as a file manager selects the folder that a person comes from.
+
+An open that the page answers, such as a click on a link, a double click on a row or "Open as a page" of the menu of a part, shows the page and moves no selection (`selects = false`): the selection stays where the person put it, as a click on a link of a browser selects nothing. So the page shows with no ring of a whole selection. A key goes where the selection points, and a part that the page shows no more takes no key. Ctrl+Return, Back, Forward, Parent and the items of the address move the selection, so the keyboard stays on the page.
 
 ### The view of a page
 
