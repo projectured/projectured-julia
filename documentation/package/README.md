@@ -71,7 +71,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
 | `backgroundwork` | [backgroundwork.md](platform/backgroundwork/backgroundwork.md) | the log of the work that background cells do |
 | `shell` | [shell.md](platform/shell/shell.md) | the wrappers and the chrome of a window |
-| `help` | [help.md](platform/help/help.md) | the document types, the projections and the page about the program that the Help menu opens |
+| `help` | [help.md](platform/help/help.md) | the trees of the document types and of the projections, by package and by module, and the page about the program, which the Help menu opens |
 | `conversation` | [conversation.md](platform/conversation/conversation.md), with [transcript.md](platform/conversation/transcript.md) | the evaluator and the conversation documents |
 | `assistant` | [assistant.md](platform/assistant/assistant.md) | the chat with a model beside the panes of a window |
 | `application` | [application.md](platform/application/application.md) | the window of files, the Files pane and the assistant, and the command line of a binary |

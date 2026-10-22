@@ -33,8 +33,10 @@ _app_plain(operation) =
 _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
 
 # Every string a printed window draws, so a case asks what is on the screen and
-# not what a document holds.
+# not what a document holds. A list of graphics, such as the rows that a table
+# builds for its height, yields its nodes, and a node holds its graphic.
 function _app_drawn_strings(node, found = String[])
+    node = _app_graphic(node)
     node === nothing && return found
     if hasproperty(node, :elements)
         foreach(element -> _app_drawn_strings(element, found), node.elements)
@@ -235,8 +237,10 @@ end
 # Every string a printed window draws, at its position in the window. A cell is
 # read for its value, because a printed tree holds cells.
 _app_value(v) = v isa Cell ? _app_value(v[]) : v
+# A node of a list of graphics holds its graphic.
+_app_graphic(v) = (v = _app_value(v); v isa ListNode ? _app_graphic(v.value) : v)
 function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
-    node = _app_value(node)
+    node = _app_graphic(node)
     node === nothing && return found
     x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
     y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
@@ -1078,24 +1082,30 @@ function test_application()
                 @test "ProjecturEd" in drawn()
             end
 
-            @testset "a wheel over the list of document types moves its rows" begin
-                # The list is longer than its tab, and a tab page gets no scroll of
-                # its own: the list scrolls because it opens in a scroll pane.
+            @testset "a double click opens a group of a tree of the help, and a wheel over its table moves its rows" begin
+                # The table of the 42 groups of the platform is longer than its tab, and
+                # it scrolls its rows in the height that the tab gives it.
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 help = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "Help")
-                documents = only(item.action for item in help.submenu.elements
-                                 if string(item.action.label) == "Documents")
-                _app_apply!(editor, InvokeActionOperation(documents))
+                projections = only(item.action for item in help.submenu.elements
+                                   if string(item.action.label) == "Projections")
+                _app_apply!(editor, InvokeActionOperation(projections))
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
-                place() = only((x, y) for (text, x, y) in drawn() if text == "AboutPage")
-                (x, y) = place()
+                place(name) = first((x, y) for (text, x, y) in drawn() if text == name)
+                (x, y) = place("Platform")
+                operation = _app_fire(composed, editor.iomap,
+                                      MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(); time = 0.0))
+                @test operation isa Operation
+                _app_apply!(editor, operation)
+                @test any(text == "Widget" for (text, _, _) in drawn())
+                (x, y) = place("Appearance")
                 operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, x + 10, y + 5; time = 0.0))
                 @test operation isa Operation
                 _app_apply!(editor, operation)
                 # A wheel turned towards the person moves the rows up.
-                @test place()[2] < y
+                @test place("Appearance")[2] < y
             end
 
             @testset "the toolbar holds the tools, and draws no word" begin

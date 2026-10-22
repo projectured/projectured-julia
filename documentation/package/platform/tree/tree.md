@@ -107,6 +107,7 @@ These slices add kinds of node:
 | [assistant.md](../assistant/assistant.md) | `AssistantList`, `Assistant`, `AgentWork`, `AssistantWork` | the assistants; the subagents, then the background tasks |
 | [filesystem.md](../filesystem/filesystem.md) | `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile` | the folders; the entries of the folder document; the entries of a folder; none |
 | [explorer.md](../explorer/explorer.md) | `ExplorerSection`, `Dashboard`, `DashboardCard` | the entries; the cards; none |
+| [help.md](../help/help.md) | `DocumentTypeList`, `ProjectionList`, `HelpGroup` | the groups of the packages; the groups of the modules of a package, or the entries of its types |
 
 ## Design decisions
 

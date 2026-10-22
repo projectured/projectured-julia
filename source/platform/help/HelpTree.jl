@@ -158,8 +158,9 @@ end
 
 _sort_help_modules(modules) = modules[sortperm([lowercase(_get_help_module_title(m)) for m in modules])]
 
-# "ProjecturedJSON" is JSON, and "WidgetModule" is Widget: the names that a
-# binary knows, which the folders of the source need not match.
+# "ProjecturedJSON" is JSON, and "WidgetModule" is Widget: the names that the
+# loaded program holds, also in a binary, and that the folders of the source need
+# not match.
 _get_help_package_title(package::Module) = _remove_name_part(String(nameof(package)), "Projectured", true)
 _get_help_module_title(m::Module) = _remove_name_part(String(nameof(m)), "Module", false)
 

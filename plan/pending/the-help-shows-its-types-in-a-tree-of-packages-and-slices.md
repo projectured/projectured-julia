@@ -161,9 +161,10 @@ group, `:file` for a document type, `:lambda` for a projection.
   puts none around a page.
 - `HelpListToSyntax` goes. The page of a root takes its place. The exports
   `compute_help_entries` and `make_help_list_projection` go, and
-  `make_help_group_projection` and `make_help_entry_projection` come. The
-  platform takes the minor step 0.2.0 at its next release already (R36), so the
-  removal waits for no other step.
+  `make_help_group_projection` and `make_help_entry_projection` come.
+  `ProjecturedPlatform` 0.2.0 is released (2026-10-08), so the next release
+  gives it the minor step 0.3.0. The generator of the release finds a lost
+  export by itself (step B7 of the release plan), so no list needs the names.
 - Every field of `HelpTheme` keeps a use, because a removed theme field breaks
   a user: `heading_text` draws the line over a table, `name_text` the name of a
   type on its page, and `detail_text`, `description_text` and `muted_text` the
@@ -252,7 +253,19 @@ two trees".
    navigator on a group and loads it: the page comes back after the build. Change the two items of the Help menu.
    Test: the help cases of `test_window_shell()`, and in `test_explorer()` a
    press on Documents › JSON that shows its page.
-5. [ ] **The guides and a live check.** Update help.md (the tree, the pages, the
+5. [ ] **The guides and a live check.** The guides are done: help.md is new,
+   tree.md has a row for the help, shell.md says that a tree opens in a
+   navigator, and the index of documentation/package names the trees.
+   `test_application()` passes, 391 passed and 2 broken, against 386 and 2 on
+   main. Its helpers `_app_drawn_strings` and `_app_drawn_at` did not unwrap the
+   nodes of a lazy list of graphics, so they did not see the rows that a table
+   builds for its height; they do now. The wheel case scrolls the table of
+   Projections › Platform, 42 rows.
+   Live check, 2026-10-22, a real SDL window at density 1, with SDL events that
+   the main task pushed: a double click on Platform, Help and AboutPage opened
+   each page, Parent went to Help, Back returned to AboutPage, and Parent twice
+   reached Platform. The pictures show the problem of the next item: the three
+   columns take equal widths. Update help.md (the tree, the pages, the
    counts, the place of the tests), the table of the slices that add nodes in
    [tree.md](../../documentation/package/platform/tree/tree.md), and the Help
    menu in shell.md. In a live window, open Help › Documents, go to Platform ›
