@@ -24,7 +24,7 @@ const _CONTRAST_RULES = [
     ((:text, :text_muted, :keyword, :function_name, :macro_name, :event, :field, :string_literal,
       :character_literal, :number_literal, :boolean_literal, :null_literal, :symbol_literal,
       :constant, :type_name, :type_parameter, :module_name, :variable, :parameter, :enum_member,
-      :tag, :link, :operator, :punctuation, :punctuation_lit,
+      :tag, :link, :operator, :punctuation,
       :comment, :markup, :heading, :accent_text, :error_text, :warning_text, :success_text,
       :info_text), (:background, :surface), 4.5, 7.0),
     ((:text_faint,), (:background, :surface), 3.0, 4.5),

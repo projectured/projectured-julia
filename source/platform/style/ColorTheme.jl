@@ -157,8 +157,6 @@ bold.
     operator::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A bracket, a comma, a colon, a quote."
     punctuation::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
-    "The brackets around the part under the pointer."
-    punctuation_lit::ThemeColor = PaletteColor(:neutral, 12)
     "A comment."
     comment::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A mark of a markup: a heading mark, a bullet, an emphasis mark, a fence."

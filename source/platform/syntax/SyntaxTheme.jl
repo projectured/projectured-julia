@@ -58,8 +58,6 @@ that prints its own leaves styles them with a theme of its own.
     wrong_color::ThemeColor = ColorRole(:error_text)
     "The color of the typed text of the insertion while it names one thing."
     found_color::ThemeColor = ColorRole(:success_text)
-    "The color of the delimiters around the part under the pointer."
-    lit_delimiter::ThemeColor = ColorRole(:punctuation_lit)
     "The font of the indentation and the line breaks of a node with no delimiter of its own, such as the body of a block."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A bracket and a space of a reflected object, in the font of its field names."

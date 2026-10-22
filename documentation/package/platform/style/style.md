@@ -238,7 +238,7 @@ in eleven groups:
 | Accent | `accent`, `accent_text`, `accent_tint`, `focus_ring` |
 | The layers of a state | `hover`, `pressed`, `selection_band`, `selection_ring`, `caret` |
 | Status | `error_fill`, `error_text`, `warning_text`, `success_text`, `info_text` |
-| Tokens | `keyword`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| Tokens | `keyword`, `link`, `operator`, `punctuation`, `comment`, `markup`, `heading` |
 | The names of the tokens | `function_name`, `macro_name`, `event`, `field`, `type_name`, `type_parameter`, `module_name`, `variable`, `parameter`, `enum_member`, `tag` |
 | The values of the tokens | `string_literal`, `character_literal`, `number_literal`, `boolean_literal`, `null_literal`, `symbol_literal`, `constant` |
 | The series of a chart | `series_1` … `series_8` |

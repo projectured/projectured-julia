@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
-The mouse target is the part under the pointer, stored on a document the way the selection is. Each projection acts on the mouse target of its own document: a widget lights, and a syntax compound lights its delimiters. No central component decides where the pointer is or which part answers it; see [`PAR-DECIDE-LOCALLY`](../../rule/architecture-invariants.md#par-decide-locally) and [`PAR-NO-GLOBAL-ROUTING`](../../rule/architecture-invariants.md#par-no-global-routing).
+The mouse target is the part under the pointer, stored on a document the way the selection is. Each projection acts on the mouse target of its own document: a widget lights, and a list lights the row under the pointer. No central component decides where the pointer is or which part answers it; see [`PAR-DECIDE-LOCALLY`](../../rule/architecture-invariants.md#par-decide-locally) and [`PAR-NO-GLOBAL-ROUTING`](../../rule/architecture-invariants.md#par-no-global-routing).
 
 ## How it works
 
@@ -68,10 +68,6 @@ Each projection draws from its own mouse target, as it draws the selection ring 
 A row of a list, a table or a tree is not a document, so the pointer never reaches it through the chain of a child's own field. Instead, the backward map of the point inside such a container answers a path into the container's own structure, for example `items[2]`, and the container is itself the deepest part: it holds that path in its own `mouse_target` and lights the row the path names. A column header of a table works the same way, holding its own column in its own field. So a list, a table and a tree need no document for each row to give it a light.
 
 A widget container that a view builds for a domain, such as a tree of files, reads the forward-mapped mouse target the same way a native container reads its own: through `get_mouse_target` of the widget document it holds, to find the child the pointer was on last. [The forward map](#the-forward-map) computes that field.
-
-### The brackets of a tree
-
-In the text of a tree, such as a JSON document, the delimiters of the compounds around the part under the pointer light by their level: the innermost compound is at level 0 and has the light colour, and each level further out mixes the colour more with the delimiter's own gray, until a fixed number of levels out the delimiter keeps its own colour. [syntax.md](../platform/syntax/syntax.md#the-delimiters-around-the-pointer) describes the level and the colours.
 
 ### An edit keeps the mouse target right
 
