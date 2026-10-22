@@ -7,7 +7,9 @@
 
 The first content of the explorer of a window of `editor`: `entries`, which the
 host gives, such as the folder of the window or the projects of a simulator; the
-open files, the task list and the assistant list of the editor; a section of evaluators with one
+open files, the task list and the assistant list of the editor; the session
+document of each kind for which `is_session_explorer_entry_type` answers `true`,
+in the order of the names of their types; a section of evaluators with one
 evaluator; an empty section of dashboards; a section of what the editor does now,
 with its logs, its statistics, the selection and the processes of the system; a
 section of the settings; and a section of the help. `mcp_log` adds the log of the
@@ -35,7 +37,9 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
     settings = Any[document for document in (find_editor_settings(; editor), find_editor_appearance(; editor))
                    if document !== nothing]
     lists = Any[get_session_open_file_list(; editor), get_session_task_group_list(; editor),
-                get_session_assistant_list(; editor)]
+                get_session_assistant_list(; editor),
+                (get_session_document!(() -> Base.invokelatest(type), editor, type)
+                 for type in _collect_session_explorer_entry_types())...]
     ExplorerSection("Explorer", Any[
         entries...,
         (list for list in lists if !any(entry -> entry === list, entries))...,
@@ -48,6 +52,21 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
                                       SystemProcessTree([getpid()]; title = "System processes")]),
         ExplorerSection("Settings", settings),
         ExplorerSection("Help", Any[DocumentTypeList(), ProjectionList(), AboutPage()])])
+end
+
+# The kinds whose session document the first content holds: each type with a
+# method of `is_session_explorer_entry_type` that answers `true`, in the order of
+# their names. The method table is the list, so a package that loads adds its kind,
+# and the call reads the newest methods, as the table does.
+function _collect_session_explorer_entry_types()
+    types = Type[]
+    for method in methods(is_session_explorer_entry_type)
+        argument = Base.unwrap_unionall(method.sig).parameters[2]
+        (argument isa DataType && argument <: Type && length(argument.parameters) == 1) || continue
+        type = argument.parameters[1]
+        type isa DataType && Base.invokelatest(is_session_explorer_entry_type, type) && push!(types, type)
+    end
+    sort!(unique!(types); by = type -> String(nameof(type)))
 end
 
 # The first content of the explorer of the window of `editor`: the entries that

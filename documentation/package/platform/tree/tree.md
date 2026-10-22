@@ -21,7 +21,7 @@ The open nodes are `expanded`, the open places: an `IdDict` whose keys are the d
 
 ### Four generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. Another generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
+The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. Another generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)). The last generic, `is_session_explorer_entry_type(type)`, says whether the first content of the explorer of a window holds the session document of `type`, which `get_session_document!(type, editor, type)` gives. Its default is `false` too.
 
 | Generic | Answers | Default |
 | --- | --- | --- |

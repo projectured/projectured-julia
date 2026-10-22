@@ -83,3 +83,17 @@ insertion alias. A slice that owns a kind adds a method that answers `true`, so 
 package that loads adds its kinds to the list at once. The default is `false`.
 """
 function is_explorer_entry_type end
+
+"""
+    is_session_explorer_entry_type(type) -> Bool
+
+Whether the first content of the explorer of a window holds the session document
+of `type`: the document that `type()` makes, once for each editor, as
+`get_session_document!(type, editor, type)` gives it. The first content puts it
+after the lists of the session, such as the task list. A slice or a package that
+owns such a kind adds a method for its type that answers `true`, so the packages
+that are loaded give these entries, and no table names them. The session getter
+of the kind makes the same call, so both give one document. The default is
+`false`.
+"""
+function is_session_explorer_entry_type end

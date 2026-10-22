@@ -12,7 +12,7 @@ An `ExplorerSection(title, entries)` is a list of entries with a title. An entry
 
 `find_navigator_address(::ExplorerSection, document)` asks each entry for the document and puts the place of the entry before the answer. So a document with a root of its own, such as a task group that a Run starts, opens at its full address in the explorer.
 
-Each editor has one root section, `get_session_explorer_content(; editor)`: the section that an explorer in a tab of its window shows, else a new empty one. The application makes the first content with `make_editor_explorer_content(; editor, entries)` once the editor exists.
+Each editor has one root section, `get_session_explorer_content(; editor)`: the section that an explorer in a tab of its window shows, else a new empty one. The application makes the first content with `make_editor_explorer_content(; editor, entries)` once the editor exists. After the lists of the session, the first content holds the session document of each kind for which `is_session_explorer_entry_type(::Type)` of the tree slice answers `true`, in the order of the names of the types. The method table of the trait is the list, so a package that loads and marks a kind puts its document there, and no table names the kinds.
 
 ### An explorer is a tree beside a navigator
 
@@ -148,7 +148,7 @@ The commands of a row come from `collect_part_commands(::Explorer, steps)`, the 
 
 ## How it fits
 
-The slice uses the collection, domain, focus, gesture help, layout, navigator, pane, projection, serialization, style, task, tooltip, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice and `is_explorer_entry_type`, with no code of this slice.
+The slice uses the collection, domain, focus, gesture help, layout, navigator, pane, projection, serialization, style, task, tooltip, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice, `is_explorer_entry_type` and `is_session_explorer_entry_type`, with no code of this slice.
 
 ## Design decisions
 
@@ -165,6 +165,7 @@ The slice uses the collection, domain, focus, gesture help, layout, navigator, p
 - **A search does not watch the folders that it reads.** A later change on disk reaches its result only through a holder of the folder, such as an open node of the tree.
 - **The tree holds a removed document until its next toggle or scroll.**
 - **A card has no key that removes it.**
+- **A kind of a package enters only a new first content.** A window that restores a content file saved before the package loaded, and a window that started before the package loaded, do not hold the session document of its kind. A person adds it with `+` when the kind is also an entry kind.
 
 ## Layer structure
 

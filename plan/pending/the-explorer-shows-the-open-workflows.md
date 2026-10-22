@@ -105,7 +105,7 @@ The answers to the questions that followed:
 Do the work in a worktree of its own. Commit each step. Do not land on `main`
 before the owner approves.
 
-1. [ ] **The trait and the first content.** `is_session_explorer_entry_type` in
+1. [x] **The trait and the first content.** Done; see [As built](#as-built). `is_session_explorer_entry_type` in
    the tree slice, and its use in `make_editor_explorer_content`. A test in
    `test/platform/explorer/ExplorerTest.jl`: a probe kind that answers `true`
    is in the first content after the lists of the session, once for each
@@ -149,3 +149,31 @@ before the owner approves.
   history of its file. If it does not, the step stops and the plan records it.
 - The three lists of the platform (open files, tasks, assistants) stay in the
   fixed list of `make_editor_explorer_content` and do not use the trait.
+
+## As built
+
+- **Step 1.** The trait is in `TreeInterface.jl`, its default in
+  `TreeDefaults.jl`, and its export in `TreeModule.jl`.
+  - `_collect_session_explorer_entry_types()` in `ApplicationExplorer.jl` reads
+    the method table of the trait, as `compute_loaded_settings_types()` reads
+    the methods of `get_setting_descriptions`. It keeps each type whose method
+    answers `true`, and sorts them by the names of the types.
+  - Decision: the first content does not read `get_insertion_candidates(Document)`,
+    as the `+` list does. That function probes the constructor of each subtype
+    of `Document` and compiles a method for each, and the first content runs at
+    each window start.
+  - The call of the trait and the constructor run with `Base.invokelatest`, so
+    a method that a package added after the caller started still counts.
+  - The test of the first content now counts the kinds of the trait, so a
+    process that loads a package with such a kind passes it too. A new testset
+    uses a probe kind that a `Ref` switches on and off. It checks the place of
+    the entry, one document for each editor, and no second copy when the host
+    gives it.
+  - `test_explorer()`: 257 of 257 pass. The naming guard passes.
+  - The guides `tree.md`, `explorer.md` and `application.md` name the trait.
+    `explorer.md` lists the limit of a restored content file.
+- **For step 2.** `WorkflowList()` is the maker of the first content, so the
+  `@document` of the list must not generate a constructor with no arguments.
+  Give its fields no defaults, as `AssistantList` does. Another session works
+  on `the-open-files-show-as-a-roster.md` (branch `open-files-roster`): it adds
+  a field `table` to `OpenFileList` and keeps `files`, which the source reads.

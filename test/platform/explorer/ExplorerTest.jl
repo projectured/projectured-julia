@@ -19,6 +19,13 @@ DocumentModule.get_document_title(node::_ExplorerNode) = node.name
 
 _explorer_node(name, children...) = _ExplorerNode(name, CellVector(Any[children...]))
 
+# A kind whose session document the first content of an explorer holds while
+# `_SESSION_ENTRY_PROBE_ON` holds `true`. It is mutable, so each editor makes its own.
+mutable struct _SessionEntryProbe end
+const _SESSION_ENTRY_PROBE_ON = Ref(false)
+TreeModule.is_session_explorer_entry_type(::Type{_SessionEntryProbe}) = _SESSION_ENTRY_PROBE_ON[]
+DocumentModule.get_document_title(::_SessionEntryProbe) = "Probe entry"
+
 # A root section with a node of two children, and a section inside it with one
 # node.
 function _explorer_make()
@@ -419,14 +426,42 @@ function test_explorer()
         editor, _ = _nav_editor(PrimitiveString("start"))
         content = make_editor_explorer_content(; editor, entries = Any[Workspace([WorkspaceFolder("work", pwd())])])
         titles = [format_tree_node_label(entry) for entry in content.entries]
-        @test titles == ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings",
-                         "Help"]
+        # The kinds of the loaded packages stand after the lists of the session.
+        kinds = length(ApplicationModule._collect_session_explorer_entry_types())
+        @test titles[[1:4; (5 + kinds):end]] ==
+              ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings", "Help"]
         @test content.entries[2] === get_session_open_file_list(; editor)
         @test content.entries[3] === get_session_task_group_list(; editor)
         @test content.entries[4] === get_session_assistant_list(; editor)
-        editor_section = content.entries[7]
+        editor_section = content.entries[7 + kinds]
         @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
-        @test length(content.entries[9].entries) == 3
+        @test length(content.entries[9 + kinds].entries) == 3
+    end
+
+    @testset "the first content holds the session document of each kind that a loaded package marks" begin
+        @test !is_session_explorer_entry_type(Int)
+        editor, _ = _nav_editor(PrimitiveString("start"))
+        @test !any(entry -> entry isa _SessionEntryProbe, make_editor_explorer_content(; editor).entries)
+        _SESSION_ENTRY_PROBE_ON[] = true
+        try
+            content = make_editor_explorer_content(; editor)
+            probe = get_session_document!(_SessionEntryProbe, editor, _SessionEntryProbe)
+            @test count(entry -> entry === probe, content.entries) == 1
+            titles = [format_tree_node_label(entry) for entry in content.entries]
+            place = findfirst(==("Probe entry"), titles)
+            @test findfirst(==("Assistants"), titles) < place < findfirst(==("Evaluators"), titles)
+            # The same editor gives the same document again, and another editor its own.
+            @test any(entry -> entry === probe, make_editor_explorer_content(; editor).entries)
+            other, _ = _nav_editor(PrimitiveString("other"))
+            other_entries = make_editor_explorer_content(; editor = other).entries
+            @test count(entry -> entry isa _SessionEntryProbe, other_entries) == 1
+            @test !any(entry -> entry === probe, other_entries)
+            # A host that gives the document already gets it once.
+            given = make_editor_explorer_content(; editor, entries = Any[probe]).entries
+            @test count(entry -> entry === probe, given) == 1
+        finally
+            _SESSION_ENTRY_PROBE_ON[] = false
+        end
     end
 
     @testset "the list of `+` holds the kinds that a person adds, each made by its insertion" begin

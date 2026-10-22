@@ -25,3 +25,7 @@ demand_tree_children(document) = nothing
 
 # No kind is in the list of `+` of an explorer unless its slice puts it there.
 is_explorer_entry_type(::Type) = false
+
+# No session document is in the first content of an explorer unless its slice puts
+# it there.
+is_session_explorer_entry_type(::Type) = false
