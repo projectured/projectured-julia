@@ -833,11 +833,33 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   - `find_study_item(study, id)` answers the item itself; step 8 adds the method
     for a `ReferencedDocument`.
   `test_research_edits()`: 36 pass.
-- [ ] **4. The card and the outline.** §5.1. Test:
+- [x] **4. The card and the outline.** §5.1. Test:
   `test_research_study_to_widget()` through a headless editor that keeps its IO
   map, the printer, reader and REPL drivers on `research_example`, a press on
   "Accept" that makes a decision of the person, a card whose statement is a
   Markdown paragraph, and a change of `h1` that shows in the link line of `e1`.
+  **Done (2026-10-22).** `ResearchTheme.jl` and `ResearchToWidget.jl`:
+  `ResearchItemToWidget` draws one item as a card, and `ResearchStudyToWidget`
+  draws the outline. What was decided and found:
+  - The card of an item needs no study. The buttons that need the study (Accept,
+    Reject, the fold, an item linked to this one) stand in the row of the outline
+    around the card.
+  - The fold is the field `folded` of the study, the ids of the folded cards: view
+    state, written by `ReplaceViewStateOperation`, which a history does not
+    record, and left out of the file by `pred_arguments`, as the omnet study does
+    with `follow_end`.
+  - A link draws as one line with the word of the link, the id and the text of the
+    linked item (`describe_research_link`), and an expectation as one line
+    (`describe_research_expectation`).
+  - The helpers of the slots follow those of the workflow outline; the two domains
+    do not depend on each other.
+  - `research_example` joins both registries and the navigation skip list, and the
+    atoms of the eleven types join the catalog. The printer, reader and REPL drivers
+    pass on `research_example` (30865, 230 and 230 checks). The navigation and the
+    type-in drivers do not apply to a widget view, as for the workflow: the sweeps
+    run them on the text examples only.
+  - The test is `test_research_to_widget()`, not `test_research_study_to_widget()`,
+    because it covers the card too.
 - [ ] **5. The map.** §5.2. Test: `test_research_study_to_graph()`: the vertices
   and the labelled edges of the example, and an edge that follows a new link.
 - [ ] **6. The timeline.** §5.3. Test: a roster of `StudyItems` sorted by time

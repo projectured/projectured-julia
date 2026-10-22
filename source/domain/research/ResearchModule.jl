@@ -25,6 +25,8 @@ using ..FormulaModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..SerializationModule: pred_arguments
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
        ResearchHypothesis, ResearchEvidence, ResearchDecision, ResearchAnswer, ResearchExperiment,
@@ -34,8 +36,19 @@ export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, Research
 export find_study_item, collect_research_links, make_research_id, make_research_item,
        make_add_research_item_operation, collect_research_item_holders,
        make_delete_research_item_operation, make_record_decision_operation
+export ResearchTheme, ScaledResearchTheme
+export ResearchItemToWidget, ResearchStudyToWidget, ResearchToWidgetIoMap, make_research_projections,
+       make_research_graphics_entries, describe_research_link, describe_research_expectation
 
 include("ResearchDocument.jl")
 include("ResearchEdits.jl")
+include("ResearchTheme.jl")
+include("ResearchToWidget.jl")
+
+function __init__()
+    # The rows that let the renderer draw a study as its outline, and an item of
+    # one as its card inside any other document.
+    register_natural_graphics!(:research, make_research_graphics_entries)
+end
 
 end # module

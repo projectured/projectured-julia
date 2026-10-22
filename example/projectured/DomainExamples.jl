@@ -20,6 +20,7 @@ const natural_example        = Example("natural",        make_natural_document_e
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const workflow_example       = Example("workflow",       make_workflow_document_example,       make_workflow_projection_example)
 const workflow_journal_example = Example("workflow_journal", make_workflow_journal_document_example, make_workflow_projection_example)
+const research_example       = Example("research",       make_research_study_document_example, make_research_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
 const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const rst_example            = Example("rst",            make_rst_document_example,            make_rst_projection_example)
@@ -171,6 +172,7 @@ const domain_examples = Example[
     book_example,
     workflow_example,
     workflow_journal_example,
+    research_example,
     markdown_example,
     markdown_rendered_example,
     rst_example,
@@ -403,6 +405,17 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:workflow, "workflow", make_workflow_document_example),
     AtomicDocument(:workflow, "journal",  make_workflow_journal_document_example),
     AtomicDocument(:workflow, "catalog",  make_workflow_catalog_document_example),
+    AtomicDocument(:research, "question",    make_research_question_document_example),
+    AtomicDocument(:research, "source",      make_research_source_document_example),
+    AtomicDocument(:research, "hypothesis",  make_research_hypothesis_document_example),
+    AtomicDocument(:research, "experiment",  make_research_experiment_document_example),
+    AtomicDocument(:research, "analysis",    make_research_analysis_document_example),
+    AtomicDocument(:research, "result",      make_research_result_document_example),
+    AtomicDocument(:research, "evidence",    make_research_evidence_document_example),
+    AtomicDocument(:research, "decision",    make_research_decision_document_example),
+    AtomicDocument(:research, "answer",      make_research_answer_document_example),
+    AtomicDocument(:research, "expectation", make_research_expectation_document_example),
+    AtomicDocument(:research, "study",       make_research_study_document_example),
     AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
     AtomicDocument(:filesystem, "directory", make_filesystem_directory_document_example),
     AtomicDocument(:filesystem, "chooser",   make_filesystem_chooser_document_example),

@@ -1438,7 +1438,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedResearch]]
-deps = ["Dates", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedPlatform"]
+deps = ["Dates", "PrecompileTools", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPlatform"]
 path = "../../package/ProjecturedResearch"
 uuid = "226d5d21-7a82-49ae-88d7-994b1059b66b"
 version = "0.1.0"

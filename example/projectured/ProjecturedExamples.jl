@@ -34,6 +34,7 @@ const examples = [
     pivot_example,
     workflow_example,
     workflow_journal_example,
+    research_example,
     math_example,
     julia_example,
     formula_example,

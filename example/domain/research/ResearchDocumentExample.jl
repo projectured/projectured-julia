@@ -117,6 +117,14 @@ make_research_answer_document_example(; question = nothing, basis = Any[]) =
         basis = basis, author = :person, time = "2026-10-22T08:05:00Z")
 
 """
+    make_research_projection_example(; measure = FontFileMeasure()) -> Projection
+
+The renderer that draws any document, which draws a study as its outline: the rows
+that the research domain registers.
+"""
+make_research_projection_example(; measure = FontFileMeasure()) = NaturalToGraphics(; measure)
+
+"""
     make_research_study_document_example() -> ResearchStudy
 
 The study of the buffer of a router: an item of every kind, linked to each other.

@@ -251,6 +251,9 @@ function test_position_navigations()
                              # `workflow_journal` a WidgetTable, here for the
                              # widget-container reason as well.
                              "workflow", "workflow_journal",
+                             # `research` is a card of widgets for each item, here
+                             # for the widget-container reason as well.
+                             "research",
                              "assistant",
                              # The tree of documents, the plan, the tree of
                              # processes and the work page are a widget tree and

@@ -7,6 +7,7 @@ authors = []
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"

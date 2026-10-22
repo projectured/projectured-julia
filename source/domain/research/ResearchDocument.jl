@@ -335,6 +335,9 @@ item holds that item itself.
   they were made.
 - `report` — a Markdown page that tells the study in order and holds items and
   other documents, or `nothing`.
+- `folded` — the ids of the items whose cards the outline shows folded to their
+  first line. It is view state: a fold is no edit, and the file of the study does
+  not save it.
 - `author`, `time` — who made the study, and when, in UTC.
 
 Use it to read or build a study. A tab draws it as an outline of its items.
@@ -358,8 +361,16 @@ See also `start_study!`, `describe_study`, `find_study_item`.
     decisions::CellVector = CellVector()
     answers::CellVector = CellVector()
     report::Any = nothing
+    folded::Any = String[]
     author::Symbol = :person
     time::String = ""
+end
+
+# A study's file half is its fields but the view's: which cards an outline shows
+# folded is not a thing the study says.
+function pred_arguments(study::ResearchStudy)
+    positional, keywords = invoke(pred_arguments, Tuple{Any}, study)
+    positional, filter(pair -> first(pair) !== :folded, keywords)
 end
 
 # ── The kinds of item ────────────────────────────────────────────────────
