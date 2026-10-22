@@ -1,7 +1,7 @@
 # The edges of a graph reach their boxes, can curve, and the layout zooms
 
-Status: IN PROGRESS, 2026-10-22, on the branch `graph-edges`, in the worktree
-`projectured-julia-graph-edges`. The owner approved the plan on 2026-10-22, with
+Status: DONE, 2026-10-22, on the branch `graph-edges`, in the worktree
+`projectured-julia-graph-edges`. Not landed on `main`. The owner approved the plan on 2026-10-22, with
 the keyword only for curves: no switch in the window.
 
 ## The ask
@@ -184,7 +184,14 @@ narrower test functions in `test/domain/graph/projection/`.
    [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md).
    Move this plan to `plan/done/`.
 
+   **Done.** `graph.md` has the sections "The edges" and "The zoom of the
+   layout", two design decisions and three limits. `graph-layout.md` says that
+   the drawing uses only the bends of a route. The whole graph suite and the
+   FSM and process diagram tests pass (577), and the naming guard passes.
+
 ## Open items
 
 - The map of a study is on the branch `research`, not on `main`. It can ask for
   `edge_shape = :curved` after both branches land.
+- A host with no scroll pane does not scroll a zoomed graph, as the scroll check
+  of step 3 found. The owner decides whether a host of a graph gets one.

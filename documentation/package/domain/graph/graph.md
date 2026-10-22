@@ -15,7 +15,7 @@
 | `GraphGraph` | `vertices`, `edges`, the presentation fields `highlight_vertex` and `highlight_edge`, and `constraints`, the places that a drag gave its vertices |
 | `GraphVertex` | `content`, a document of any domain: a table, a JSON object, another graph |
 | `GraphEdge` | `source` and `target` vertices, `directed`, an optional `label` document, and `visible`, whether it draws a line |
-| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, and `drag`, the drag of a vertex as view state |
+| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, `drag`, the drag of a vertex as view state, and `zoom`, the zoom of the layout as view state |
 | `VertexLayout`, `EdgeLayout` | the box `(x, y, w, h)` of one vertex; the route of one edge as a list of points |
 | `GraphConstraint` | a `kind` and a `payload` for one vertex, such as a pin or a start |
 
@@ -30,13 +30,33 @@ GraphGraph ──GraphGraphToGraphLayout──▶ GraphLayout ──GraphLayoutT
 ```
 
 1. **Size, then place.** `GraphGraphToGraphLayout(engine; extent, border, constraints)` prints the `content` of each vertex through the recursion into a canvas and reads its width and height. One computed cell then calls `layout_graph` with those sizes. The cell reads the vertex list, the edge list, the sizes and the constraints, so the engine runs again only when one of them changes. `constraints` is a function of the graph, because a constraint names a vertex, and the vertices exist only when there is a document. The engine gets these constraints first and `graph.constraints` after them, so a pin that the person dropped wins over a pin of the projection.
-2. **Draw.** `GraphLayoutToGraphicsCanvas` draws the edges first, as `GraphicsPolyline`s with an arrowhead when `directed` is true. It prints each edge `label` and centres it on the midpoint of the route by arc length. It then draws each box as a rounded `GraphicsRect`, larger than the vertex by the padding of the theme on each side, with the content canvas on top.
+2. **Draw.** `GraphLayoutToGraphicsCanvas(; theme, edge_shape)` draws the edges first, with an arrowhead when `directed` is true; see "The edges". It prints each edge `label` and centres it on the middle of the line of the edge by arc length. It then draws each box as a rounded `GraphicsRect`, larger than the vertex by the padding of the theme on each side, with the content canvas on top.
 
-The size of the output canvas is a computed cell over the layout: the right and bottom edges of the boxes, of the highlight ring and of the route points. So a vertical layout above a graph reserves the right height, and the height grows when the vertices arrive after the first print.
+The size of the output canvas is a computed cell over the drawing: the right and bottom edges of the boxes, of the highlight ring and of the line of each edge. So a vertical layout above a graph reserves the right height, and the height grows when the vertices arrive after the first print or when a zoom spreads them.
 
 **The content prints twice.** The first stage prints each content to measure it, and the second stage prints it again to draw it. Nothing caches the first print for the second. A large content in a vertex costs two prints.
 
-`GraphToGraphics(engine = make_deferred_layout_engine(); extent, border, constraints)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
+`GraphToGraphics(engine = make_deferred_layout_engine(); extent, border, constraints, theme, edge_shape)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
+
+### The edges
+
+The drawing paints a box larger than the box that the engine places: the padding of the theme, and the ring of a highlighted vertex. So the drawing, not the engine, decides where an edge ends:
+
+1. The line starts at the centre of the drawn box of the source, passes through the bends of the route, and ends at the centre of the drawn box of the target. The two end points of the route are not drawn. So a route that ends on the border of a box (`GridEmbedding`, `FruchtermanReingoldLayout`) and a route that ends at its centre (`AdaptagramsLayout`) draw the same way.
+2. The drawing cuts the line where it leaves the painted rectangle of the source and where it enters the painted rectangle of the target. So the arrowhead touches the box, or the ring of a highlighted vertex. The cut ignores the rounded corner, so the gap at a corner is at most 2 px.
+3. When no part of the line is outside both rectangles, the two boxes overlap, and the drawing draws no line for that edge.
+
+`edge_shape` selects the shape of the line:
+
+- `:straight`, the default, draws a `GraphicsPolyline` through the points.
+- `:curved` draws a `GraphicsSpline` of kind `:bezier` through the same points. At each end, the curve leaves the box at a right angle to the side that it crosses, and its control point is half of the span along that direction. At a bend, the curve keeps the direction from the point before to the point after, as a Catmull-Rom spline does, and its control point is a third of the span. A curve takes one sample for about each 6 px of a span, from 12 to 64 samples, and the label sits on the samples.
+
+```julia
+GraphToGraphics(; edge_shape = :curved)
+make_graph_projection_example(edge_shape = :curved)
+```
+
+The geometry of each edge is one computed cell, `drawn_edges`. The element list and the size of the canvas read it.
 
 ### Selection and clicks
 
@@ -57,11 +77,23 @@ Edges and edge labels are decorations: a click on them selects nothing.
 
 A plain left press on the box of a vertex, its content or the padding around it, that the content does not take, writes `GraphLayout.drag` with the vertex and the point. No drag is on yet, so a release before the pointer moves is a click. A move of 5 pixels with the button held starts the drag: the graph answers `StartDragOperation` and the closed hand pointer, and the drag wrapper then sends it `DragMove`, `DragEnd` and `DragCancel` by its path.
 
-- **A move** writes the offset of the drag. Only the drawing reads it, through one cell of the started drag that the element list and the size of the canvas read, so the drawing moves the box, its content and the straight routes of its edges, and the engine does not run. A press that has not become a drag leaves that cell at `nothing`, so it draws nothing again. The dragged box is drawn over the others.
-- **The release** writes one edit, `ReplaceReferencedValueOperation(graph, "constraints", …)`: the constraints of other kinds and the pins of the other vertices stay, the dragged vertex gets a `:pin` at its new corner, and each other vertex without a pin gets a `:start` at the corner where it is drawn. The engine runs one time. Undo takes the edit back.
+- **A move** writes the offset of the drag. Only the drawing reads it, through one cell of the started drag that the element list and the size of the canvas read, so the drawing moves the box, its content and its edges, which lose the bends of their routes, and the engine does not run. A press that has not become a drag leaves that cell at `nothing`, so it draws nothing again. The dragged box is drawn over the others.
+- **The release** writes one edit, `ReplaceReferencedValueOperation(graph, "constraints", …)`: the constraints of other kinds and the pins of the other vertices stay, the dragged vertex gets a `:pin` at its new corner, and each other vertex without a pin gets a `:start` at its corner in the layout. A constraint holds a corner of the layout, so the pin is the corner of the release through the inverse of the zoom. The engine runs one time. Undo takes the edit back.
 - **Escape**, a loss of focus, or a move with no button held cancels the drag, and the vertex goes back.
 
+The hit tests, the drag and the routed changes read the boxes where the drawing draws them, with the zoom and the drag, from the cell `drawn_boxes` of the IO map.
+
 A part of a content that takes a press keeps it, such as the edge of a column of a table. The drag wrapper then sends the parts of that drag by the path of the part, and the drawing gives a change whose route leads into a vertex to its content, in the frame of its canvas (`get_child_iomaps`, `read_child_by_route`). The drag of a vertex and the drag of its content do not mix. Where two boxes overlap, the box on top takes the press, the click and the point.
+
+### The zoom of the layout
+
+Ctrl and the wheel over a graph zoom its layout, not its pixels. The zoom moves the centre of each box and each bend of a route. A box keeps its size, and its content and its fonts do not change.
+
+- A notch multiplies the scale by 1.15, inside 0.25 … 4. A turn away from the person zooms in. A notch at a limit answers `nothing`.
+- The content of the vertex under the pointer reads the turn first, in the frame of its canvas, so a content that zooms keeps it. A turn without Ctrl does not zoom.
+- `GraphLayout.zoom` holds the zoom as view state: `nothing`, or `(scale, shift)`. The drawing draws the centre `c` of a box at `scale .* c .+ shift`. Each notch writes the scale and the shift together, so that the top-left corner of the drawing stays where it is. A drop changes neither, so a dropped vertex stays where the person put it.
+- If a box would be drawn left of or above the drawing, for example after the engine placed a new vertex there, the drawing moves as a whole.
+- The engine does not run again. A zoom changes only the drawing and the size of the canvas, so a graph in a scroll pane gets more room to scroll.
 
 ### The layout engine seam
 
@@ -119,6 +151,8 @@ The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:
 - **The engine is chosen when the layout runs.** A projection that chose at construction would keep the fallback engine for the whole session. See [plan/done/graph-layout-engines.md](../../../../plan/done/graph-layout-engines.md).
 - **A highlight goes around the layout cell.** A running state machine moves its marker many times a second, and a force-directed layout for each move costs too much. See [plan/done/state-machine-domain.md](../../../../plan/done/state-machine-domain.md).
 - **The native engine is a separate package.** Its native dependency stays out of every other package. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md).
+- **The drawing cuts an edge, not the engine.** Only the drawing knows the padding and the ring that it paints around a box. One rule then serves each engine, a dragged box and a zoom. See [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../../../../plan/done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md).
+- **The zoom keeps a scale and a shift.** A shift that the drawing computed from the positions at each print moved the whole drawing at a drop of the vertex at the top-left corner. See [the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md](../../../../plan/done/the-edges-of-a-graph-reach-their-boxes-curve-and-zoom.md).
 
 ## Usage
 
@@ -131,16 +165,19 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/domain/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()` and `test_graph_vertex_drag()`.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()`, `test_graph_vertex_drag()` and `test_graph_layout_zoom()`.
 
 ## Limits
 
 - Edges and labels are not selectable. No gesture adds or removes a vertex or an edge. [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md) lists these as future work.
 - A graph that a view makes keeps the places of a drop only while the view lives: the diagram of a state machine, a process diagram, the topology of a network simulation. The pins go on that graph, and a reprint makes a new graph. After a reprint, undo of such a drop has no visible result.
-- During a drag, the edges of the dragged vertex are straight. An engine that routes around boxes routes them again at the drop.
+- During a drag, the edges of the dragged vertex lose the bends of their routes. An engine that routes around boxes routes them again at the drop.
 - No command removes the pins and the starts; undo is the way back.
+- A zoom keeps the top-left corner, not the point under the pointer: a graph can not scroll the pane around it. A graph in a host with no scroll pane, such as the window scene of the tests, does not scroll when a zoom makes it larger than the window.
+- A zoom under 1 can make boxes overlap, and can move a bend of a routed edge into a box. The zoom lives in `GraphLayout`, so a reprint of the graph starts at no zoom.
+- A layout corner is an integer, so at a zoom a dropped vertex is drawn at most `scale / 2` px from the place of the release.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
-- With a pure-Julia engine, a self-loop edge gets a route of two equal points at the centre of its box, so it does not show.
+- A self-loop edge has no part outside its box, so the drawing draws no line for it.
 - The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before `ProjecturedAdaptagrams` loads keeps its layout until its vertices, edges, sizes or constraints change.
 - The constraint kinds `:align`, `:same_rank` and `:min_separation` have a name and no engine that implements them.
 - The atom `graph/layout` is in the broken sets of `test/projectured/projection/CatalogTest.jl`. A `GraphLayout` printed alone has no recursion for the content of its vertices.

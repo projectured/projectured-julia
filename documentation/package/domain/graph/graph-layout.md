@@ -18,6 +18,12 @@ layout_graph(engine, graph, sizes, constraints; extent = nothing, border = 0)
 an `objectid`, which keeps the call free of any reactive cell so
 `GraphGraphToGraphLayout` can memoize it on topology, sizes and constraints.
 
+The drawing uses only the bends of a route. It starts the line at the centre of
+the box of the source, passes through the bends, ends it at the centre of the
+box of the target, and cuts it at the painted rim of each box. So an engine can
+end a route on the border of a box or at its centre, and the arrowhead still
+touches the box. [graph.md](graph.md) says how, under "The edges".
+
 `extent` is the box the caller has room for and `border` is the inset kept
 inside it. They are arguments rather than engine fields because the same graph,
 shown in two panes, needs two different layouts. The layouters of a C++ network
