@@ -71,6 +71,14 @@ npm install -g @agentclientprotocol/claude-agent-acp
 bin/projectured --assistant=acp --agent-command=claude-agent-acp
 ```
 
+Codex, the agent of OpenAI, runs through the adapter `codex-acp`, which also needs Node.js 22 or newer. It signs in with your ChatGPT account or with an API key:
+
+```sh
+bin/projectured --assistant=acp --agent-command="npx -y @agentclientprotocol/codex-acp"
+```
+
+When Codex is not signed in, the conversation shows a button for each way to sign in: "ChatGPT" opens the sign-in in the browser, and "API Key" reads `CODEX_API_KEY` or `OPENAI_API_KEY` from the environment of the editor.
+
 The settings tab keeps the command for the next start. A session in Julia loads the client by name: `using ProjecturedACP`.
 
 When the agent asks to run a tool, the conversation shows a card with its answers, and the agent waits for your click. Escape stops the turn of the agent. ProjecturEd reads no key and no token of the agent: the agent signs in with its own sign-in, and its use counts as its provider decides.
