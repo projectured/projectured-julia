@@ -36,6 +36,13 @@ end
 
 const _DOCTREE_HOLD_EVENTS = Tuple{Symbol,String}[]
 
+# A layer that shows another document, as a file or a history does.
+@document struct _DocTreeLayer
+    inner::Any
+end
+
+DocumentModule.get_edited_field(::_DocTreeLayer) = :inner
+
 # A node that says whether it has children: `true`, `false`, or `nothing` while
 # that is not known, whatever its collection holds.
 @document struct _DocTreeKnown
@@ -149,6 +156,18 @@ function test_document_tree()
         read = parse_pred_text(print_pred_text(DocumentTree(PrimitiveString("x"); title = "Leaf")))
         @test read isa DocumentTree && read.title == "Leaf" && read.root.value == "x"
         @test _doctree_is_open(read, read.root)
+    end
+
+    @testset "a layer has the children of the document that it shows" begin
+        inner = FieldReferenceStep("inner")
+        layer = _DocTreeLayer(_DocTreeLayer(_doctree_make()))
+        @test get_tree_children_steps(layer) ==
+              ((inner, inner, FieldReferenceStep("parts")), (inner, inner, FieldReferenceStep("notes")))
+        @test has_tree_children(layer)
+        @test get_tree_children_steps(_DocTreeLayer(_DocTreeLeaf(1))) == ()
+        @test !has_tree_children(_DocTreeLayer(_DocTreeLeaf(1)))
+        widget = print_document(projection, nothing, DocumentTree(layer), nothing).output
+        @test [child.label for child in widget.roots[1].children] == ["alpha", "beta", "gamma"]
     end
 
     @testset "a path maps both ways" begin

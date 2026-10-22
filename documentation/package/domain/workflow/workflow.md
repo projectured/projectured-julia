@@ -18,6 +18,7 @@ A workflow is an AND/OR tree. A step holds its sub-steps, and all of them belong
 | `WorkflowEntry` | `time`, `author` (`:person`, `:assistant`), `kind` (`:comment`, `:decision`, `:state`, `:link`), `text`, `source` |
 | `WorkflowJournal` | `workflow`, `kind`: a view of the entries of a whole tree |
 | `WorkflowCatalog` | `folder`, `version`: a view of the workflows of a folder |
+| `WorkflowList` | `file_list`, `files`, `table`: the workflows of the open files of an editor |
 
 The exploration tree is the decisions and their options. A rejected option keeps its children and its reason, as the record of a branch that was tried. Many steps can be `:active` at the same time. A loop is no node: a repeat is a new entry or a copy of a step.
 
@@ -62,9 +63,28 @@ One computation builds the output of the tree and the places of its documents, a
 
 The view reads the folder when it is built. A press on "Read again" raises `version`, and the view reads the folder again. A press on "New workflow" answers `CreateWorkflowFileOperation`, which writes a new workflow, `workflow.pred` or the next free `workflow-N.pred`, into the folder with `create_workflow_file!`, reads the folder again and opens the file in a tab. A new workflow also comes from the explorer: `WorkflowStep` is an entry of a section with the alias "workflow", and a new one has the goal "New workflow".
 
+### The list of the open workflows
+
+`WorkflowList` is a session document of each editor, as the list of the open files is. `get_session_workflow_list(; editor)` answers it. It holds the open file list of its editor in `file_list`, and `files` computes from it the open files whose document is a `WorkflowStep`: a file page, or the file document when no page holds it. A file comes when a tab or a page shows it, and goes when the last of them closes, so a workflow from any folder is in the list while it is open. The list reads no disk.
+
+The list says `is_session_explorer_entry_type`, so the explorer of each window holds it from the start, after the lists of the session, and `+` adds it as "workflows". Its maker runs with its editor as the editor of the evaluation, so it reads the open file list of that editor. A file of an explorer keeps that it holds the list, and no file and no row.
+
+In the tree, the list has its files as nodes. A file is a layer, so it has the tree of its workflow below it: a step and an option have their children, and a decision its options ([tree.md](../../platform/tree/tree.md)). A press on a file shows the page of the file, so an edit there goes into the history of the file, and Save writes it. A step and an option show their state as an icon and a pill in the colour of the role of the state; a decision shows "open" while no option is chosen. The node of the list counts the open workflows.
+
+`WorkflowListToWidget` draws the page: a line that counts the open workflows and their open decisions, and under it `table`, an arrangement of a roster of the workflows, so a person filters, sorts and groups the rows. The roster has one part for each file, and the item of a part is its workflow, with its file document as `within`. The columns are `goal`, `state`, `active`, `last_entry`, `open_decisions` and `within.name`. All but `state` are facets of `WorkflowStep`:
+
+| Facet | Value |
+| --- | --- |
+| `goal` | the title as text; for the root of a workflow, its goal |
+| `active` | the titles of the active steps of the tree, the step too |
+| `last_entry` | the time of the latest entry of the tree, to the minute |
+| `open_decisions` | the count of the decisions of the tree that have no chosen option |
+
+`register_roster_source!(:workflows, …)` gives the same rows to `StoreRecords(:workflows)`, so code and the assistant make a roster of the open workflows with `show_roster!`.
+
 ### The assistant
 
-The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)`: the five document types, the verbs below and `collect_workflow_entries`. A model finds them with `search_api` and calls them through `execute_julia_code`. Each verb writes as the assistant, takes a node or a `ReferencedDocument` of it, and lets the readers of the editor carry the operation from the node to the root, so the history of the tab records it.
+The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)`: the five document types, the verbs below, `collect_workflow_entries`, `WorkflowList` and `get_session_workflow_list`. The assistant sees the list in the explorer, as `find_explorer_content()` answers it, and reads its rows with the verbs of the roster. A model finds them with `search_api` and calls them through `execute_julia_code`. Each verb writes as the assistant, takes a node or a `ReferencedDocument` of it, and lets the readers of the editor carry the operation from the node to the root, so the history of the tab records it.
 
 | Verb | What it does |
 | --- | --- |
@@ -80,7 +100,7 @@ The docstring of each verb says when to use it: at an important point of the wor
 
 ## How it fits
 
-`ProjecturedWorkflow` depends on the kernel, the platform and `Dates`, and on no other domain. It uses the widget, layout, natural, serialization and assistant slices. No other package depends on it. It registers no file type and no notation: a workflow is a `.pred` file.
+`ProjecturedWorkflow` depends on the kernel, the platform and `Dates`, and on no other domain. It uses the widget, layout, natural, serialization, assistant, tree, roster, arrangement and file format slices. No other package depends on it. It registers no file type and no notation: a workflow is a `.pred` file. It adds a kind to the first content of the explorer through `is_session_explorer_entry_type`, and a source of a roster.
 
 ## Design decisions
 
@@ -88,6 +108,9 @@ The docstring of each verb says when to use it: at an important point of the wor
 - **A plan is a resource, not a program.** No state is enforced: a person skips, repeats and reorders steps, and the journal records it.
 - **No new operation type.** Each edit is a builder over the generic write, as [operation.md](../../kernel/operation.md) asks.
 - **Verbs, not tools.** A domain offers names to the assistant with `register_assistant_api!`; no seam adds a tool to the tool set of an editor.
+- **The list holds files, and a press shows the file.** A navigator page prints only the document at its address, so the history of a file does not record an edit on a page below it ([navigator.md](../../platform/navigator/navigator.md)). The nodes of the list are the open files, so a press shows the page of the file, with its history. The plan is `plan/pending/the-explorer-shows-the-open-workflows.md`.
+- **The list holds the open file list of its editor.** A source that finds the open file list through the editor of the evaluation caches an empty answer when a read outside the loop computes it first.
+- **The header is in the content of the card.** A `WidgetCard` gives a key only to its content, so a title in the title slot of a card would take no key.
 
 ## Usage
 
@@ -101,10 +124,12 @@ evaluate_operation(nothing, make_workflow_state_operation(workflow.children[1], 
 ```
 
 - Examples: `workflow_example` and `workflow_journal_example`, from `make_workflow_document_example()`, `make_workflow_journal_document_example()` and `make_workflow_projection_example()`.
-- Test: `test_workflow()` runs the layering guard, the documents, the edits, the outline, the journal, the catalog, the API of the assistant and the link to a conversation. `test_workflow_file()` of the umbrella saves a workflow with markers into a Markdown page and a JSON file, and alone with a JSON and a Markdown element written inline.
+- Test: `test_workflow()` runs the layering guard, the documents, the edits, the outline, the journal, the catalog, the list of the open workflows, the walk-through, the API of the assistant and the link to a conversation. `test_workflow_file()` of the umbrella saves a workflow with markers into a Markdown page and a JSON file, and alone with a JSON and a Markdown element written inline.
 
 ## Limits
 
 - The journal has the choice of a kind and no general filter, sort or find.
 - The catalog reads the folder only when it is built or when "Read again" is pressed, and it lists the files directly in the folder.
+- A double click on a row of the table of the list opens the page of the workflow below the history of its file, so the history of the file does not record an edit there. A press on the file in the tree shows the page of the file.
+- The table of the list does not keep its arrangement when its last entry goes, so the next filter starts a new one.
 - A verb takes its node as an argument: the `workflow` of an assistant is not the node that a verb acts on when a call names none, because a verb does not know which assistant calls it.

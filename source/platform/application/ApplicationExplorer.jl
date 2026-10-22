@@ -38,7 +38,8 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
                    if document !== nothing]
     lists = Any[get_session_open_file_list(; editor), get_session_task_group_list(; editor),
                 get_session_assistant_list(; editor),
-                (get_session_document!(() -> Base.invokelatest(type), editor, type)
+                (get_session_document!(() -> run_with_evaluation_editor(() -> Base.invokelatest(type), editor),
+                                       editor, type)
                  for type in _collect_session_explorer_entry_types())...]
     ExplorerSection("Explorer", Any[
         entries...,
@@ -64,7 +65,7 @@ function _collect_session_explorer_entry_types()
         argument = Base.unwrap_unionall(method.sig).parameters[2]
         (argument isa DataType && argument <: Type && length(argument.parameters) == 1) || continue
         type = argument.parameters[1]
-        type isa DataType && Base.invokelatest(is_session_explorer_entry_type, type) && push!(types, type)
+        type isa Type && Base.invokelatest(is_session_explorer_entry_type, type) && push!(types, type)
     end
     sort!(unique!(types); by = type -> String(nameof(type)))
 end

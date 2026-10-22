@@ -183,14 +183,14 @@ end
 
 """
 The names that the workflow domain offers to the model of an assistant: the
-documents of a workflow, the verbs that record the work as the assistant, and
-the read of the journal of a tree.
+documents of a workflow, the verbs that record the work as the assistant, the
+read of the journal of a tree, and the list of the workflows of the open files.
 """
 const WORKFLOW_ASSISTANT_API = (
     :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
     :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
     :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_element!,
-    :collect_workflow_entries,
+    :collect_workflow_entries, :WorkflowList, :get_session_workflow_list,
 )
 #
 # Each verb takes a node as a `ReferencedDocument`, makes the operation above, and

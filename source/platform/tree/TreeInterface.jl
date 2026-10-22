@@ -13,7 +13,10 @@ of its collections, one collection after the other, so a node can show two kinds
 of children, such as the parts that it holds and the work that it started.
 
 It runs inside a computation of the tree, so it can read cells. A path that
-reaches nothing gives no children. The default is `()`: a document is a leaf.
+reaches nothing gives no children. The default is `()`, a leaf, for a document
+that is no layer. A layer, a document whose `get_edited_field` names the field of
+the document that it shows, such as a file page, a file or a history, has by
+default the children of that document, each path after the step of that field.
 """
 function get_tree_children_steps end
 
@@ -89,7 +92,9 @@ function is_explorer_entry_type end
 
 Whether the first content of the explorer of a window holds the session document
 of `type`: the document that `type()` makes, once for each editor, as
-`get_session_document!(type, editor, type)` gives it. The first content puts it
+`get_session_document!(type, editor, type)` gives it. `type()` runs with the
+editor as the editor of the evaluation (`run_with_evaluation_editor`), so it can
+hold the other session documents of that editor. The first content puts it
 after the lists of the session, such as the task list. A slice or a package that
 owns such a kind adds a method for its type that answers `true`, so the packages
 that are loaded give these entries, and no table names them. The session getter

@@ -45,10 +45,11 @@ end
 
 The projections of a workflow, `node` and `entry` of the outline and `journal` of
 the timeline of its entries, with the values of the `OutlineTheme`
-`outline_theme`, and `catalog` of the workflows of a folder, with the styles of
-`theme`, a `WorkflowTheme`. Each theme is scaled or not, or the default for
-`nothing`. Each projection makes widgets; a renderer chains it with
-`VerticalLayoutToGraphicsCanvas`, as `make_workflow_graphics_entries` does.
+`outline_theme`, and `catalog` of the workflows of a folder and `list` of the
+workflows of the open files, with the styles of `theme`, a `WorkflowTheme`. Each
+theme is scaled or not, or the default for `nothing`. Each projection makes
+widgets; a renderer chains it with a layout to graphics, as
+`make_workflow_graphics_entries` does.
 """
 function make_workflow_projections(; theme = nothing, outline_theme = nothing)
     get_style(name) = get_workflow_style(theme, name)
@@ -57,16 +58,18 @@ function make_workflow_projections(; theme = nothing, outline_theme = nothing)
     entry = WorkflowEntryToWidget(; outline)
     journal = WorkflowJournalToWidget(; outline)
     catalog = WorkflowCatalogToWidget(; muted_text = get_style(:muted_text), gap = get_style(:gap))
-    (; node, entry, journal, catalog)
+    list = WorkflowListToWidget(; gap = get_style(:gap))
+    (; node, entry, journal, catalog, list)
 end
 
 """
     make_workflow_graphics_entries(; measure, appearance) -> Vector{Pair{Type,Any}}
 
 The rows of the renderer for the documents of a workflow: each projection of the
-outline, chained with `VerticalLayoutToGraphicsCanvas`, so the widgets that it
-makes come back through the renderer. The styles are those of the `OutlineTheme`
-and the `WorkflowTheme` of `appearance`.
+outline, chained with `VerticalLayoutToGraphicsCanvas`, and the page of the list,
+chained with `GridLayoutToGraphicsCanvas`, so the widgets that each makes come back
+through the renderer. The styles are those of the `OutlineTheme` and the
+`WorkflowTheme` of `appearance`.
 """
 function make_workflow_graphics_entries(; measure, appearance)
     projections = make_workflow_projections(; theme = get_scaled_theme!(appearance, WorkflowTheme),
@@ -75,7 +78,8 @@ function make_workflow_graphics_entries(; measure, appearance)
     Pair{Type,Any}[WorkflowStep => node, WorkflowDecision => node, WorkflowOption => node,
                    WorkflowEntry => ChainingProjection(projections.entry, VerticalLayoutToGraphicsCanvas()),
                    WorkflowJournal => ChainingProjection(projections.journal, VerticalLayoutToGraphicsCanvas()),
-                   WorkflowCatalog => ChainingProjection(projections.catalog, VerticalLayoutToGraphicsCanvas())]
+                   WorkflowCatalog => ChainingProjection(projections.catalog, VerticalLayoutToGraphicsCanvas()),
+                   WorkflowList => ChainingProjection(projections.list, GridLayoutToGraphicsCanvas())]
 end
 
 # ── The IO map ───────────────────────────────────────────────────────────

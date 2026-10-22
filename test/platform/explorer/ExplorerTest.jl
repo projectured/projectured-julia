@@ -20,8 +20,12 @@ DocumentModule.get_document_title(node::_ExplorerNode) = node.name
 _explorer_node(name, children...) = _ExplorerNode(name, CellVector(Any[children...]))
 
 # A kind whose session document the first content of an explorer holds while
-# `_SESSION_ENTRY_PROBE_ON` holds `true`. It is mutable, so each editor makes its own.
-mutable struct _SessionEntryProbe end
+# `_SESSION_ENTRY_PROBE_ON` holds `true`. It keeps the editor of the evaluation that
+# made it. Its type is parametric, as the type of a `@document` is.
+mutable struct _SessionEntryProbe{T}
+    editor::T
+end
+_SessionEntryProbe() = _SessionEntryProbe{Any}(find_evaluation_editor())
 const _SESSION_ENTRY_PROBE_ON = Ref(false)
 TreeModule.is_session_explorer_entry_type(::Type{_SessionEntryProbe}) = _SESSION_ENTRY_PROBE_ON[]
 DocumentModule.get_document_title(::_SessionEntryProbe) = "Probe entry"
@@ -447,7 +451,8 @@ function test_explorer()
             content = make_editor_explorer_content(; editor)
             probe = get_session_document!(_SessionEntryProbe, editor, _SessionEntryProbe)
             @test count(entry -> entry === probe, content.entries) == 1
-            titles = [format_tree_node_label(entry) for entry in content.entries]
+            @test probe.editor === editor
+            titles =[format_tree_node_label(entry) for entry in content.entries]
             place = findfirst(==("Probe entry"), titles)
             @test findfirst(==("Assistants"), titles) < place < findfirst(==("Evaluators"), titles)
             # The same editor gives the same document again, and another editor its own.
@@ -636,7 +641,9 @@ function test_explorer()
             first_editor, _ = _nav_editor(PrimitiveString("first"))
             content = make_editor_explorer_content(; editor = first_editor,
                                                    entries = Any[Workspace([WorkspaceFolder("work", work)])])
-            push!(content.entries[6].entries, ExplorerSection("Queue study"))
+            # The kinds of the loaded packages stand after the lists of the session.
+            kinds = length(ApplicationModule._collect_session_explorer_entry_types())
+            push!(content.entries[6 + kinds].entries, ExplorerSection("Queue study"))
             save_explorer_content!(content, path; editor = first_editor)
             @test isfile(path)
             # The next editor reads the same entries: its own lists of the session,
@@ -651,8 +658,8 @@ function test_explorer()
             @test loaded.entries[2] === get_session_open_file_list(; editor = next_editor)
             @test loaded.entries[3] === get_session_task_group_list(; editor = next_editor)
             @test loaded.entries[4] === get_session_assistant_list(; editor = next_editor)
-            @test only(loaded.entries[6].entries).title == "Queue study"
-            tools = loaded.entries[7].entries
+            @test only(loaded.entries[6 + kinds].entries).title == "Queue study"
+            tools = loaded.entries[7 + kinds].entries
             @test tools[1] === get_session_message_log(; editor = next_editor)
             @test tools[3] === get_session_fault_log(; editor = next_editor)
             @test any(tool -> tool === get_session_frame_statistics(; editor = next_editor), tools)

@@ -83,8 +83,20 @@ The answers to the questions that followed:
   gives the filter, the sort, the group and the find. A double click on a row
   opens the workflow as a page.
 - **The tree.**
-  - The list has its workflows as children: a computed `CellVector` of the
-    items of the source.
+  - The list has its files as children: a computed `CellVector` of the open
+    files that hold a workflow, the same file pages that "Open files" holds. A
+    press shows the page of the file, so an edit goes into its history. To
+    "can the rows below the Workflows entry be the file pages, with one new rule
+    that gives a file page the tree children of its document?", the owner
+    answered: "yes, I agree but take care, another agent is working on the open
+    file list".
+  - The rule is the default of `get_tree_children_steps` in the tree slice: a
+    layer, a document whose `get_edited_field` names a field, has the children
+    of the document that it shows. It is in the tree slice and not in the file
+    format slice, because the other agent changes the file format slice, and
+    because one rule also covers a `FileDocument` that the open file list holds
+    when no page shows it. The default of `get_document_decoration` follows the
+    layer already, and `ConversationPart` delegates to its content by hand.
   - A `WorkflowStep` and a `WorkflowOption` have their `children`, and a
     `WorkflowDecision` has its `options`. The journal and the cards are not
     nodes of the tree.
@@ -111,17 +123,18 @@ before the owner approves.
    is in the first content after the lists of the session, once for each
    editor, and the asserts on the entries 2 to 4 keep. Run `test_explorer()`.
    Update `tree.md`, `explorer.md` and `application.md`. Commit.
-2. [ ] **The workflow list.** `WorkflowList`, its source, the facets, the tree
+2. [x] **The workflow list.** Done; see [As built](#as-built). `WorkflowList`, its source, the facets, the tree
    methods, the decorations and the API. A test in `ProjecturedWorkflowTest`:
    - an editor with two open `.pred` files, one a workflow and one not, gives
      one row with the file in `within`;
    - a release of the file takes the row away;
    - the first content holds the list;
-   - the tree shows the steps, the decisions and the options;
-   - the facets give their values;
-   - an edit on the page of a row gives the file unsaved edits, and a save
-     writes it.
-   Run `test_workflow()`. Commit.
+   - the tree shows the file page, and below it the steps, the decisions and
+     the options;
+   - the facets give their values.
+   A test in `TreeTest.jl`: a layer has the children of the document that it
+   shows. Run `test_workflow()` and the platform tests of each slice that draws
+   a tree. Commit.
 3. [ ] **The catalog goes.** Remove the catalog, its test and its exports. Set the
    version to 0.2.0. Update `workflow.md`. In omnet-julia, remove the 16 lines
    of `asset/precompile/PrecompileStatements.jl` that name the catalog, and run
@@ -145,8 +158,9 @@ before the owner approves.
 
 - The workflow of an assistant that is not in a file of its own is not in the
   list. No verb sets `Assistant.workflow`; only its constructor takes it.
-- The step 2 test finds whether an edit on the page of a row reaches the
-  history of its file. If it does not, the step stops and the plan records it.
+- A double click on a row of the table opens the page of the workflow below the
+  history of its file, so that history does not record an edit there. This is
+  the limit of `navigator.md` for any page below a history.
 - The three lists of the platform (open files, tasks, assistants) stay in the
   fixed list of `make_editor_explorer_content` and do not use the trait.
 
@@ -201,3 +215,33 @@ before the owner approves.
   Give its fields no defaults, as `AssistantList` does. Another session works
   on `the-open-files-show-as-a-roster.md` (branch `open-files-roster`): it adds
   a field `table` to `OpenFileList` and keeps `files`, which the source reads.
+- **Step 2, done 2026-10-22.**
+  - `WorkflowList.jl`: the list (`file_list`, `files`, `table`), its maker, the
+    session getter, the traits of a session tool, the source `_OpenWorkflows`,
+    the facets `goal`, `active`, `last_entry` and `open_decisions` of
+    `WorkflowStep`, the tree methods and the decorations. The three helpers of
+    the catalog moved here, so step 3 deletes the catalog file whole.
+  - `WorkflowListToWidget.jl`: the page, a line above the table, in the shape of
+    the page of the background work log. It is a row of the natural graphics of
+    the domain, chained with `GridLayoutToGraphicsCanvas`.
+  - The tree slice: the default of `get_tree_children_steps` follows a layer.
+    `ApplicationExplorer.jl` makes the document of a kind inside
+    `run_with_evaluation_editor`.
+  - A fault that the workflow test found in step 1: the collector kept only a
+    `DataType`, and the type of a `@document` is a `UnionAll`, so the list was
+    not in the first content. The collector now keeps any `Type`, and the probe
+    kind of `ExplorerTest.jl` is parametric, so the test covers the case.
+  - With the workflow package loaded, the save test of the explorer read its
+    sections at fixed indices. It now adds the count of the marked kinds, as the
+    test of the first content does.
+  - The column `goal` and not `title`: a cell whose value is a document takes
+    keys, and an edit there goes into the history of the window and not of the
+    file. A text value shows as a label.
+  - `test_workflow()` now runs `test_workflow_journal_to_widget()` (11 tests),
+    which the tuple at line 29 skipped.
+  - Tests: the tests of each slice that draws a tree (`test_document_tree`,
+    `test_explorer`, `test_assistant_work`, `test_conversation_tree`,
+    `test_document_decoration`, `test_system_process`, `test_task_document`,
+    `test_work_plan`) end with exit code 0. `test_explorer()` and
+    `test_workflow()` in one process with the workflow package loaded: 481 of
+    481 pass. The naming guard passes.

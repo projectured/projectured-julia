@@ -1,8 +1,16 @@
 # Fragment of `TreeModule` — the fallback behaviours of the generics of
-# `TreeInterface.jl`, so any document is a leaf with a label.
+# `TreeInterface.jl`, so any document is a leaf with a label, and a layer has the
+# children of the document that it shows.
 
-# A document has no children unless its slice says so.
-get_tree_children_steps(document) = ()
+# A document has no children unless its slice says so. A layer that shows another
+# document, such as a file or a history, has the children of that document, below
+# the field that holds it.
+function get_tree_children_steps(document)
+    field = get_edited_field(document)
+    field === nothing && return ()
+    step = FieldReferenceStep(String(field))
+    Tuple((step, steps...) for steps in get_tree_children_steps(getproperty(document, field)))
+end
 
 # The title of a document, or the name of its type, as a column `type` of a roster
 # names it.

@@ -93,30 +93,6 @@ function evaluate_operation(editor, operation::CreateWorkflowFileOperation)
     evaluate_operation(editor, OpenFileOperation(path))
 end
 
-# The text of the time of the latest entry of the tree under `workflow`, or an
-# empty text for a workflow with no entry.
-function _get_last_entry_time(workflow)
-    entries = collect_workflow_entries(workflow)
-    isempty(entries) ? "" : last(last(entries)).time
-end
-
-# The steps under `workflow` that are active, the root too, in the order of the tree.
-function _collect_active_steps(node, found = Any[])
-    node isa WorkflowStep && node.state === :active && push!(found, node)
-    is_workflow_node(node) || return found
-    for child in get_workflow_node_children(node)
-        _collect_active_steps(child, found)
-    end
-    found
-end
-
-# The count of the decisions under `workflow` that have no chosen option.
-function _count_open_decisions(node)
-    is_workflow_node(node) || return 0
-    own = node isa WorkflowDecision && !any(option -> option.state === :chosen, node.options) ? 1 : 0
-    own + sum((_count_open_decisions(child) for child in get_workflow_node_children(node)); init = 0)
-end
-
 # A button of the catalog, which a press answers with `make()`; `name` says what
 # the press does.
 _make_workflow_button(text::AbstractString, name::AbstractString, make) =
@@ -124,7 +100,6 @@ _make_workflow_button(text::AbstractString, name::AbstractString, make) =
                  gestures = GestureBinding[
                      GestureBinding(MouseClickPattern(:left), (_, _) -> make();
                                     description = name, domain = "workflow")])
-
 print_document(p::WorkflowCatalogToWidget, recursion, catalog::WorkflowCatalog, ctx) =
     SimpleIoMap(p, catalog, Cell(@computation _build_catalog_view(p, catalog)))
 
