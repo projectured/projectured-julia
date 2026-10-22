@@ -573,7 +573,7 @@ end
     @test points[6][1] == 340 && points[6][2] < 192
 
     # The label sits on the curve, at the middle of its length.
-    path = tessellate_spline(points, :bezier, 16)
+    path = tessellate_spline(points, :bezier, Int(curve.segments))
     label = first(filter(e -> e isa GraphicsCanvas, collect(canvas.elements)))
     text = only(collect(label.elements))
     @test is_point_near_polyline(path, Int(label.x) + Int(text.w) ÷ 2,

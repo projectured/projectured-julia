@@ -70,12 +70,15 @@ These were my recommendations. The owner approved them on 2026-10-22.
   - `:curved` draws a `GraphicsSpline(kind = :bezier)` through the cut route. At
     each end, the curve leaves the box at a right angle to the side that it
     crosses. At a bend of a routed edge, the curve passes through the bend in
-    the direction from the point before to the point after (Catmull-Rom). An end
-    tangent is half the distance to the next point.
+    the direction from the point before to the point after (Catmull-Rom). The
+    control point of an end is half of its span along the direction of that
+    end, as in the vertical link of d3, and the control point of a bend is a
+    third of its span. (Changed in step 3, see there.)
   - The label of an edge sits at the middle of the curve by arc length. The
     highlight strokes the same curve again. A dragged edge curves too.
 - **The layout zoom is view state of the drawing.** `GraphLayout.zoom` holds it,
-  `1.0` at the start, beside `drag`. `ChartPlot.view` is the same for a chart.
+  beside `drag`: `nothing` at the start, then a scale and a shift (changed in
+  step 3, see there). `ChartPlot.view` is the same for a chart.
   - Ctrl and the wheel over the graph multiply the zoom by 1.15 for each notch,
     the step of a chart. The zoom stays inside 0.25 … 4. A notch at a limit
     answers `nothing`. A turn without Ctrl answers `nothing`, so the page
@@ -128,7 +131,7 @@ narrower test functions in `test/domain/graph/projection/`.
    **Done.** The facts of the implementation:
    - `_compute_drawn_edges` and the cell `drawn_edges` hold the geometry of
      each edge: the points of its element and the polyline that a backend
-     strokes. A curve samples 16 points for each span (`_CURVE_SEGMENTS`).
+     strokes. A curve samples 16 points for each span (changed in step 3).
    - The cell `drawn` and the cell `extent` read `drawn_edges`. So the extent
      counts the line that the drawing draws, not the points of the route. The
      two ends of a route are not drawn any more, so the test of the extent got
@@ -147,6 +150,35 @@ narrower test functions in `test/domain/graph/projection/`.
 
    Check in a live window that a zoomed graph in a tab scrolls. If it does not
    scroll, report it and ask. Do not add a scroll pane in this plan.
+
+   **Done.** The facts of the implementation:
+   - **The zoom holds a scale and a shift, not a number.** A shift computed
+     from the positions at each print moved the whole drawing at a drop, when
+     the dropped vertex was the one at the top-left corner. So each notch writes
+     both, as `GraphLayout.zoom = (scale, shift)`, and a drop changes neither.
+     `_compute_next_zoom` computes the shift that keeps the top-left corner.
+   - `_compute_zoom_map` adds to the shift only when a box would be drawn left
+     of or above the drawing, for example after the engine placed a new vertex
+     there.
+   - Ctrl and the wheel go first to the content of the vertex under the point
+     (`_read_ctrl_wheel`), so a content that zooms keeps the turn.
+   - The hit tests, the press and the move of a drag, and the routed intents
+     (`_collect_drawn_entries`) read the cell `drawn_boxes` of the IO map.
+   - A layout corner is an integer. So a dropped vertex is drawn at most
+     scale / 2 px from the place of the release.
+   - **The curve changed.** The pictures of the zoom showed two faults. An edge
+     that left the top of a wide card toward a card far to the side made a
+     loop. Zoomed in, a long curve showed corners. Now the control point of an
+     end is half of its span along the direction of that end. A curve takes one
+     sample for about each 6 px of a span, from 12 to 64 samples
+     (`_get_curve_segments`).
+   - `GraphLayoutZoomTest.jl` holds four test sets, and one of them sends the
+     wheel through the window of an editor. The zoom, drag and projection tests
+     pass (379).
+   - **The scroll check.** In the window of the test editor
+     (`make_window_scene`), no scroll pane holds the graph. Zoomed to 4, the
+     graph is 4620 × 2486 px in a window of 900 × 700 px, and a turn of the
+     wheel without Ctrl moves nothing. I reported this to the owner.
 4. **The guides.** Write the rim rule, `edge_shape` and the zoom in
    [graph.md](../../documentation/package/domain/graph/graph.md) and
    [graph-layout.md](../../documentation/package/domain/graph/graph-layout.md).

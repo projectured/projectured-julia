@@ -59,6 +59,11 @@ is the `GraphVertex` and `index` its place in `vertex_layouts`; `origin` is the
 point of the press and `offset` how far the pointer moved from it; `started` is
 false until the pointer moved far enough to start the drag. Only the drawing
 reads it, so a move of the pointer repaints and does not run the engine.
+
+`zoom` is the zoom of the layout, as view state: `nothing` for no zoom, or a
+`NamedTuple` `(scale, shift)`. The drawing draws the centre `c` of each box at
+`scale .* c .+ shift`, and the box keeps its size and its content. Only the
+drawing reads it, so a zoom repaints and does not run the engine.
 """
 @document struct GraphLayout <: GraphLayoutDocument
     vertex_layouts::CellVector = CellVector()
@@ -71,6 +76,7 @@ reads it, so a move of the pointer repaints and does not run the engine.
     engine::Symbol = :unknown
     graph::Any = nothing
     drag::Any = nothing
+    zoom::Any = nothing
 end
 
 """
