@@ -15,7 +15,7 @@
 | `GraphGraph` | `vertices`, `edges`, the presentation fields `highlight_vertex` and `highlight_edge`, and `constraints`, the places that a drag gave its vertices |
 | `GraphVertex` | `content`, a document of any domain: a table, a JSON object, another graph |
 | `GraphEdge` | `source` and `target` vertices, `directed`, an optional `label` document, and `visible`, whether it draws a line |
-| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, `drag`, the drag of a vertex as view state, and `zoom`, the zoom of the layout as view state |
+| `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, `drag`, the drag of a vertex as view state, `zoom`, the zoom of the layout as view state, and `edge_shape`, the shape of the edges that the menu of the graph chose, as view state |
 | `VertexLayout`, `EdgeLayout` | the box `(x, y, w, h)` of one vertex; the route of one edge as a list of points |
 | `GraphConstraint` | a `kind` and a `payload` for one vertex, such as a pin or a start |
 
@@ -70,6 +70,8 @@ The drawing paints a box larger than the box that the engine places: the padding
 GraphToGraphics(; edge_shape = :curved)
 make_graph_projection_example(edge_shape = :curved)
 ```
+
+**The menu of the graph switches the shape.** A right click on a graph opens the menu "Show the menu of the graph" of its `GraphLayout`, with the items "Straight edges" and "Curved edges". A right click on the content of a vertex shows it too, as an outer layer of the menu of that content. An item writes `GraphLayout.edge_shape`, which overrides the keyword. It is view state, as the zoom is: no undo records it, and a new print of the graph starts from the keyword again. The menu offers both items, because a gesture table gets the document and not the projection, so the menu does not know the shape that the keyword gave.
 
 The geometry of each edge is one computed cell, `drawn_edges`. The element list and the size of the canvas read it.
 
@@ -182,7 +184,7 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/domain/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()`, `test_graph_vertex_drag()`, `test_graph_layout_zoom()` and `test_graph_scroll_pane()`.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()`, `test_graph_theme()`, `test_graph_vertex_drag()`, `test_graph_layout_zoom()`, `test_graph_scroll_pane()` and `test_graph_context_menu()`.
 
 ## Limits
 

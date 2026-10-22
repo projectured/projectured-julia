@@ -34,6 +34,7 @@ These types have a binding:
 | `WidgetShell` | "Show the window menu" | its `context_menu`, the menu of the window |
 | `DataFrameColumn` | "Show the menu of the column" | filter the column by its values, hide it |
 | `DataFrameView` | "Show the menu of the view" | show the hidden columns, while a column is hidden |
+| `GraphLayout` | "Show the menu of the graph" | draw the edges as straight lines or as curves |
 
 ### The click goes to the part, and out through the parts around it
 
