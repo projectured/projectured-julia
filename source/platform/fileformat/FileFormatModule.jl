@@ -18,6 +18,7 @@ Round-trip on real data documents; not on editor scaffolding.
 """
 module FileFormatModule
 
+using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -69,7 +70,8 @@ export FileToContent
 export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
        SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
        receive_file_change!
-export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!
+export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!,
+       OpenFileListToWidget
 export make_file_api
 
 
@@ -78,6 +80,7 @@ include("DocumentFile.jl")
 include("FilePage.jl")
 include("FilePageToWidget.jl")
 include("OpenFileList.jl")
+include("OpenFileListToWidget.jl")
 include("FileToContent.jl")
 
 end # module

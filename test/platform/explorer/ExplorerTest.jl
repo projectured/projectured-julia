@@ -5,7 +5,8 @@
 # the page moves it, Ctrl+press opens the page in a new tab, a
 # double press puts the keyboard in the page, a link on the page of a section
 # opens the page of its entry, and the page and the tree follow the entries. The
-# editor is the one of `NavigatorToWidgetTest.jl`.
+# page of the open files is a table of the files. The editor is the one of
+# `NavigatorToWidgetTest.jl`.
 
 @document struct _ExplorerNode
     name::String
@@ -343,6 +344,60 @@ function test_explorer()
         drain_operations!(editor)
         run_frame!(editor)
         @test tabs() == before + 1
+    end
+
+    @testset "the page of the open files is a table of the files, which a person filters and opens" begin
+        root = mktempdir()
+        content = ExplorerSection("Explorer", Any[])
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer; tabs = true)
+        list = get_session_open_file_list(; editor)
+        push!(content.entries, list)
+        run_frame!(editor)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        table = list.table
+        roster = table.document
+        @test table isa ArrangementDocument && roster isa Roster && isempty(table.entries)
+        # The page of the list counts the files above its table.
+        _nav_press!(editor, backend, _explorer_click(backend, "Open files"))
+        @test get_navigator_page(explorer.navigator) === list
+        @test _nav_has_text(backend, "No file is open.")
+        # A row comes for each file that opens: a file, or the page of a file.
+        buffer = UndoBuffer(PrimitiveString("alpha"))
+        file = TextFile(joinpath(root, "a.txt"), buffer)
+        page = FilePage(; content = TextFile(joinpath(root, "b.txt"), UndoBuffer(PrimitiveString("beta"))))
+        add_open_file!(editor, file)
+        add_open_file!(editor, page)
+        frame!()
+        @test [collect(row.values) for row in roster.rows] == [Any["a.txt", root, ""], Any["b.txt", root, ""]]
+        @test _nav_has_text(backend, "2 open files") && _nav_has_text(backend, "a.txt") && _nav_has_text(backend, "b.txt")
+        # An edit in one file changes the state of its row, and the other row stays.
+        other = roster.rows[2]
+        push_undo_entry!(buffer, UndoEntry("an edit", nothing, nothing))
+        frame!()
+        @test roster.rows[1].values[3] == "unsaved edits" && roster.rows[2] === other && other.values[3] == ""
+        @test _nav_has_text(backend, "2 open files · 1 unsaved") && _nav_has_text(backend, "unsaved edits")
+        # A filter on the state hides the other file, and Show all keeps the
+        # arrangement of the list with no entry.
+        filter = ProjecturedPlatform.ArrangementModule._make_filter(("state" => ==("unsaved edits"),))
+        evaluate_operation(editor, make_arrangement_change_edit(
+            table, ArrangeCollectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("rows")), filter)))
+        frame!()
+        @test list.table === table && length(table.entries) == 1
+        @test _nav_has_text(backend, "a.txt") && !_nav_has_text(backend, "b.txt")
+        _nav_press!(editor, backend, _explorer_click(backend, "Show all"; side = :page))
+        frame!()
+        @test list.table === table && isempty(table.entries)
+        @test _nav_has_text(backend, "b.txt") && !_nav_has_text(backend, "Show all")
+        # A double press on a row opens the page of its file.
+        click = _explorer_click(backend, "b.txt"; side = :page)
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        frame!()
+        @test get_navigator_page(explorer.navigator) === page
+        @test find_open_file_document(joinpath(root, "b.txt"); editor) === page
+        # A row goes when the editor lets its file go.
+        remove_open_file!(editor, file)
+        @test [row.values[1] for row in roster.rows] == ["b.txt"]
     end
 
     @testset "the first content of a window holds the work of the session and the tools of the editor" begin

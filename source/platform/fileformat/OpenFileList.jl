@@ -12,6 +12,11 @@ file page or a file document adds it, and the release of its last holder takes
 it away, so the list is what the editor shows now. Each editor has its own
 ([`get_session_open_file_list`](@ref)).
 
+`table` is the table of the files, which the page of the list shows: an
+arrangement with no entry around a roster of `files`, with the columns `name`,
+`folder` and `state`. A person filters and sorts it in its bar. The list of a
+session has it; a list that `OpenFileList()` makes has `nothing`.
+
 Use it to know which files are open and whether they have unsaved edits.
 
 # Example
@@ -22,16 +27,21 @@ See also `find_open_file_document` and `get_session_open_file_list`.
 """
 @document struct OpenFileList <: Document
     files::CellVector = CellVector(Any[])
+    table::Any = nothing
 end
 
 get_document_title(::OpenFileList) = "Open files"
 accepts_pasted_document(::OpenFileList) = false
 has_document_duplicate(::OpenFileList) = false
 
+# The open files that have edits that no save wrote.
+_count_unsaved_files(list::OpenFileList) =
+    count(file -> any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(file).conditions),
+          list.files)
+
 # The list counts its files that have edits that no save wrote.
 function get_document_decoration(list::OpenFileList)
-    unsaved = count(file -> any(condition -> condition.name in (:unsaved, :conflict),
-                                get_document_decoration(file).conditions), list.files)
+    unsaved = _count_unsaved_files(list)
     DocumentDecoration(; icon = :file_stack,
                        counts = unsaved == 0 ? DocumentCount[] : [DocumentCount(string(unsaved, " unsaved"))],
                        tooltip = () -> TooltipNote(; title = "Open files", text = "The files that this editor holds open.",
@@ -50,7 +60,8 @@ make_pred_document(::Type{<:OpenFileList}, positional, keywords) = get_session_o
 
 The open files of the session of `editor`: by default the editor of the
 evaluation, or of the loop that runs the calling code. Each editor has its own,
-made at the first call. With no editor, a new list, which nothing fills.
+made at the first call with its table. With no editor, a new list, which nothing
+fills.
 
 Use it to read the files that a window shows, as the explorer does.
 
@@ -63,7 +74,18 @@ See also `OpenFileList` and `find_open_file_document`.
 function get_session_open_file_list end
 
 get_session_open_file_list(; editor = find_evaluation_editor()) =
-    editor isa Editor ? get_session_document!(OpenFileList, editor, OpenFileList) : OpenFileList()
+    editor isa Editor ? get_session_document!(_make_open_file_list, editor, OpenFileList) : _make_open_file_list()
+
+# A list with its table: an arrangement of a roster of the files, whose source is
+# the collection at `files` of the list.
+function _make_open_file_list()
+    list = OpenFileList()
+    roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("files")));
+                    columns = ["name", "folder", "state"], title = "Open files")
+    link_roster!(roster, list)
+    list.table = ArrangementDocument(roster, ArrangementEntry[])
+    list
+end
 
 """
     find_open_file_document(path; editor = find_evaluation_editor()) -> FilePage, FileDocument or nothing

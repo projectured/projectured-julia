@@ -104,7 +104,7 @@ question whether to write this as a plan, the owner answered: "yes".
    a compound, an edit at another field, and an edit of the arrangement itself.
    `test_background_work()`: 19 of 19 pass. `test_arrangement_menu()`: 32 of 32
    pass.
-3. [ ] **The list holds its table, and the table is its page.** Add the field
+3. [x] **The list holds its table, and the table is its page.** Add the field
    `table`, the maker, `OpenFileListToWidget`, its row in the natural-graphics
    table and the edge `arrangement`. Test: a new testset in
    [ExplorerTest.jl](../../test/platform/explorer/ExplorerTest.jl), beside the
@@ -116,6 +116,28 @@ question whether to write this as a plan, the owner answered: "yes".
    - A filter on `state` and the removal of the filter keep the arrangement.
    - `search_documents` and `find_open_file_document` find each open file once.
    Then run `test_explorer()`, `test_roster()` and `test_platform_layering()`.
+   **Done 2026-10-22.** What the step found and decided:
+   - The maker is `_make_open_file_list()` in `OpenFileList.jl`, and
+     `get_session_document!(_make_open_file_list, editor, OpenFileList)` calls
+     it. `_count_unsaved_files` gives the count to the decoration and to the line
+     of the page.
+   - `OpenFileListToWidget` is in its own file, `OpenFileListToWidget.jl`. Its
+     paths use `_FILE_PAGE_SECOND_STEPS` of `FilePageToWidget.jl`, the place of
+     the second child of a grid, so the slice has no second copy of those steps.
+     Five other slices each keep a private `_find_path_below`; a shared helper
+     belongs in the kernel and is not in this plan.
+   - The test makes the filter with `make_arrangement_change_edit` on the table,
+     and presses "Show all" on the page, so the removal goes through the reader
+     of the page. A filter from the verb `filter_collection!` needs a reference
+     from the root of the editor to the roster, which the explorer page does not
+     give to a test.
+   - "Of no other row" is checked by the identity of the other row and by its
+     value; the test has no counter of computations.
+   - `search_documents` finds each node at most once by its definition, so the
+     test checks only `find_open_file_document`.
+   - `test_platform_layering()`: 7 of 7 for each of the three packages.
+     `test_explorer()`: 263 of 263 pass. `test_roster()`: 46 of 46 pass. No
+     name of the step is in omnet-julia.
 4. [ ] **The guides and a live check.** Update
    [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md)
    (the list and its page) and
