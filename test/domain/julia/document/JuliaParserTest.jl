@@ -14,6 +14,14 @@ using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, Juli
                                     JuliaComment, JuliaMultilineComment, JuliaEndOfLineComment
 using ProjecturedPlatform.NaturalModule: print_natural_text
 
+# The file `path` of a slice of `package`: under `source/` in this repository, and
+# beside the entry file of the installed package in a release copy, which puts
+# `source/<path>` at `src/<path>`.
+function _find_parser_test_source(package::Module, path::String)
+    repository = joinpath(@__DIR__, "..", "..", "..", "..", "source", path)
+    isfile(repository) ? repository : joinpath(dirname(pathof(package)), path)
+end
+
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.
 _julia_round_trip(source::AbstractString) = strip(print_natural_text(parse_julia(source)))
@@ -230,10 +238,11 @@ function test_julia_parser()
     @testset "a real file keeps every comment, in order" begin
         # Files of this repository that the printer prints back exactly, with
         # many comments, and with a `#` inside a string.
-        root = joinpath(@__DIR__, "..", "..", "..", "..")
-        for path in ("source/domain/julia/JuliaCodePieces.jl", "source/domain/julia/JuliaExpression.jl",
-                     "source/domain/julia/JuliaFile.jl", "source/platform/syntax/FaultToSyntax.jl")
-            text = read(joinpath(root, path), String)
+        for (package, path) in ((ProjecturedJulia, "domain/julia/JuliaCodePieces.jl"),
+                                (ProjecturedJulia, "domain/julia/JuliaExpression.jl"),
+                                (ProjecturedJulia, "domain/julia/JuliaFile.jl"),
+                                (ProjecturedPlatform, "platform/syntax/FaultToSyntax.jl"))
+            text = read(_find_parser_test_source(package, path), String)
             printed = print_natural_text(parse_julia(text))
             missing_comments = String[]
             position = 1
