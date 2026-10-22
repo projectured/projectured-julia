@@ -136,6 +136,25 @@ approves. Test with the narrowest test functions of each package.
    into a viewport. Run `test_graph()`, the FSM and process diagram tests, and
    the tests of the natural renderer of the platform. Check omnet-julia for a
    test that opens a graph through the natural renderer.
+
+   **Done.** The facts of the implementation:
+   - In a window of 900 × 700 px, the table of the graph of the example takes
+     the whole view, and its other two vertices lie at x 1356 … 1563, outside the
+     view. The pane refuses a point outside its view, as it must. So the editor
+     tests of the drag get a graph of three contents of their natural size,
+     `_gvd_make_graph`. The size of the table is an open item.
+   - Two tests read a point outside the graph: a press at (-50, -50) that ended a
+     press, and the turns of the zoom at a point that a graph zoomed out leaves.
+     They read the top-left corner of the drawing now, which is on no box.
+   - The test of the natural renderer walks into the viewport of the pane.
+   - omnet-julia draws its graphs with chains of its own, so the pane does not
+     reach them. Its tests read layouts, not drawn places, so the margin of the
+     drawing changes no test there. The two new names collide with no name in
+     omnet-julia or inet-julia.
+   - The graph suite and the FSM and process diagram tests pass (598). The
+     platform suite passes except one test that also fails on `main`: the
+     layering check finds `using ..OperationModule: QuitEditorOperation` in
+     `shell/ShellModule.jl`, from `550163da1`.
 4. **The guides.** Write the dark edges, the pane and the transparent
    background in [graph.md](../../documentation/package/domain/graph/graph.md).
    Move this plan to `plan/done/`.

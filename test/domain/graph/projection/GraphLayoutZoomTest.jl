@@ -57,17 +57,19 @@ function test_graph_layout_zoom()
     read!(MouseScroll(0, 1, x, y, ModifierKeys(); time = 0.0))
     @test layout.zoom.scale == 1.15
 
-    # A turn toward the person zooms out, and the zoom stops at its limits.
+    # A turn toward the person zooms out, and the zoom stops at its limits. The
+    # turns are at the top-left corner of the drawing, which stays where it is and
+    # is on no box, because the pane of the graph is as large as the graph.
     for _ in 1:40
-        read!(_glz_notch(x, y, -1))
+        read!(_glz_notch(1, 1, -1))
     end
     @test layout.zoom.scale == 0.25
-    @test read_intent(drawing.projection, drawing, _glz_notch(x, y, -1)) === nothing
+    @test read_intent(drawing.projection, drawing, _glz_notch(1, 1, -1)) === nothing
     for _ in 1:40
-        read!(_glz_notch(x, y))
+        read!(_glz_notch(1, 1))
     end
     @test layout.zoom.scale == 4.0
-    @test read_intent(drawing.projection, drawing, _glz_notch(x, y)) === nothing
+    @test read_intent(drawing.projection, drawing, _glz_notch(1, 1)) === nothing
 end
 
 @testset "a zoomed edge ends at the rim of its target box" begin

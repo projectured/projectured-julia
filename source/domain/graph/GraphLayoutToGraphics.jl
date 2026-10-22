@@ -1040,16 +1040,17 @@ GraphToGraphics(engine::GraphLayoutEngine = make_deferred_layout_engine();
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A graph is a diagram, not a syntax tree: it goes through its own two stages
-# (size and place, then draw). No `NestingProjection` — the stages take the
-# natural renderer as their recursion, so a vertex's content is whatever it is,
-# rendered the same way it would be anywhere else. That is what lets a diagram
-# node be a widget, or prose, or a table.
+# (size and place, then draw), in a scroll pane of its own, so a large graph
+# scrolls where it is made. The content of a vertex goes on to the natural
+# renderer, so it is whatever it is, rendered the same way it would be anywhere
+# else. That is what lets a diagram node be a widget, or prose, or a table.
 
 function __init__()
     register_natural_graphics!(:graph, (; measure, appearance) -> Pair{Type,Any}[
-        GraphGraph => ChainingProjection(GraphGraphToGraphLayout(),
-                                         GraphLayoutToGraphicsCanvas(
-                                             theme = get_scaled_theme!(appearance, GraphTheme))),
+        GraphGraph => make_scrolling_graph_projection(
+            ChainingProjection(GraphGraphToGraphLayout(),
+                               GraphLayoutToGraphicsCanvas(theme = get_scaled_theme!(appearance, GraphTheme)));
+            measure, widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
     # The names a model draws a graph with: the vertices, the edges between them,
     # and the graph that holds both.

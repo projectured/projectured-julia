@@ -417,15 +417,9 @@ end
 
     output = print_document(renderer, graph).output
     @test output isa GraphicsCanvas
-    # A diagram, not a syntax tree: the vertices are placed boxes and the edge is
-    # drawn between them. Reflected `GraphGraph(…)` text would mean the `Any`
-    # fallback caught it.
-    elements = collect(output.elements)
-    @test count(e -> e isa GraphicsRect, elements) >= 2
-    @test any(e -> e isa GraphicsPolyline, elements)
-
-    # The widget vertex really went through the widget renderer.
-    text = String[]
+    # Every element that the drawing holds, also inside the viewport of the scroll
+    # pane that holds the graph.
+    drawn = Any[]
     pending, seen = Any[output], Set{UInt64}()
     while !isempty(pending)
         n = pop!(pending)
@@ -433,9 +427,20 @@ end
         n === nothing && continue
         objectid(n) in seen && continue
         push!(seen, objectid(n))
-        n isa GraphicsCanvas ? append!(pending, collect(n.elements)) :
-            n isa GraphicsText && push!(text, string(n.text))
+        push!(drawn, n)
+        n isa GraphicsCanvas && append!(pending, collect(n.elements))
+        n isa GraphicsViewport && push!(pending, n.content)
     end
+    # A diagram, not a syntax tree: the vertices are placed boxes and the edge is
+    # drawn between them. Reflected `GraphGraph(…)` text would mean the `Any`
+    # fallback caught it.
+    @test count(e -> e isa GraphicsRect, drawn) >= 2
+    @test any(e -> e isa GraphicsPolyline, drawn)
+    # The graph is in a scroll pane of its own.
+    @test any(e -> e isa GraphicsViewport, drawn)
+
+    # The widget vertex really went through the widget renderer.
+    text = [string(n.text) for n in drawn if n isa GraphicsText]
     @test "source" in text
     @test "sink" in text
 end

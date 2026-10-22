@@ -6,7 +6,9 @@
 # Defaults to the engine that defers its choice to the time of the layout:
 # FruchtermanReingoldLayout, or an engine that a package registered. Pass an engine to swap it
 # (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
-# behind the same interface. `edge_shape = :curved` draws each edge as a curve.
+# behind the same interface. `edge_shape = :curved` draws each edge as a curve. The
+# graph is in a scroll pane of its own, which scrolls only a graph larger than its
+# view.
 
 function make_graph_projection_example(; measure=FontFileMeasure(),
                                        engine=make_deferred_layout_engine(),
@@ -30,7 +32,7 @@ function make_graph_projection_example(; measure=FontFileMeasure(),
         GraphLayoutToGraphicsCanvas(; edge_shape),
     )
 
-    NestingProjection(graph_stages; recursion=content)
+    NestingProjection(make_scrolling_graph_projection(graph_stages; measure); recursion=content)
 end
 
 # The native AdaptagramsLayout graph projections (graph_adaptagrams,
