@@ -267,7 +267,12 @@ two trees".
    the main task pushed: a double click on Platform, Help and AboutPage opened
    each page, Parent went to Help, Back returned to AboutPage, and Parent twice
    reached Platform. The pictures show the problem of the next item: the three
-   columns take equal widths. Update help.md (the tree, the pages, the
+   columns take equal widths.
+   Not done: `Pkg.precompile` and the help tests of omnet-julia. omnet-julia
+   loads the packages of the main checkout, so that check runs after the
+   landing. A search of omnet-julia on 2026-10-22 found none of the removed
+   names (`compute_help_entries`, `make_help_list_projection`,
+   `HelpListToSyntax`, `_make_scrolling_tool`) and no use of the two trees. Update help.md (the tree, the pages, the
    counts, the place of the tests), the table of the slices that add nodes in
    [tree.md](../../documentation/package/platform/tree/tree.md), and the Help
    menu in shell.md. In a live window, open Help › Documents, go to Platform ›
