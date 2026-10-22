@@ -10,8 +10,8 @@
 Draw an [`OpenFileList`](@ref): a line that says how many files are open and how
 many of them have unsaved edits, and under it the table of the files, which fills
 the rest of the height. A row of the table shows a file: its name, its folder and
-its state. A person filters and sorts the table in its bar, and a double click on
-a row opens the page of its file.
+its state. A person filters and sorts the table in its bar, and a click on the
+name of a file, or a double click on its row, opens the page of the file.
 """
 @projection UntrackedCell struct OpenFileListToWidget <: Projection
     gap::Int = get_widget_style(nothing, :section_gap)

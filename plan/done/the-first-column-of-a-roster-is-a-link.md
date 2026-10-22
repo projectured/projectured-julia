@@ -1,7 +1,7 @@
 # The first column of a roster is a link
 
-Status: PENDING, 2026-10-22. It follows the branch `open-files-roster`, in the
-worktree `projectured-julia-open-files-roster`.
+Status: DONE, 2026-10-22, on the branch `open-files-roster`, in the
+worktree `projectured-julia-open-files-roster`. Not landed on `main`.
 
 ## The ask
 
@@ -106,11 +106,31 @@ click, and the page of a folder opens a file on one click on its name.
      `test_roster_program()` 21 of 21, `test_arrangement_group()` 24 of 24,
      `test_julia_roster()` 2 of 2. The roster test of omnet-julia presses no
      cell.
-3. [ ] **The guides and a live check.** Update
+3. [x] **The guides and a live check.** Update
    [roster.md](../../documentation/package/platform/roster/roster.md) ("A page
    from a row") and the guide of the widget slice for the maker. In a live
    window, take a picture of the page "Open files" with the link in the first
    column, and open a file with one click. Move this plan to `plan/done/`.
+   **Done 2026-10-22.** `roster.md` has a paragraph "The first cell is a link",
+   and `widget.md` describes `make_open_page_gestures` below the table of the
+   operations of the slice. `fileformat.md`, `explorer.md` and the docstring of
+   `OpenFileListToWidget` say that a click on the name of a file opens it.
+
+   The live check used the script of the plan of the open files, in a real SDL
+   window on the display `:0`. A pushed click on "Open files" showed the page,
+   a pushed click on the state of `notes.txt` selected its row, and a pushed
+   click on the name `todo.txt` opened the page of the file: the window drew
+   "buy milk" and no line of the list. What the pictures show:
+   - The link is a `WidgetButton`, so it draws as a button with a frame, as the
+     links on the page of a folder and in the Tasks pane do. The rows are taller
+     than rows of labels.
+   - In a selected row the button stays white on the color of the selection.
+   - The address after the open is "Explorer › Open files › Open files › Open
+     files › rows[2] › todo.txt". The link and the double click name the path
+     of the row in the roster, `table.document.rows[2].item`, and the address
+     names each document on that path: the arrangement and the roster take the
+     title of the list. The double click of the plan of the open files gives
+     the same address.
 
 ## Not in this plan
 
@@ -121,3 +141,6 @@ click, and the page of a folder opens a file on one click on its name.
 
 - How a link looks in a row that the person selected: the color of the link on
   the color of the selection.
+- The address of a page that a row of a roster inside a page opens: it names
+  the arrangement, the roster and the row, and not the place where the page
+  holds the item, such as `files[2]` of the open files.

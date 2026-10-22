@@ -198,8 +198,10 @@ Two more operations are fragments of the widget slice, `OpenPageOperation.jl` an
 
 | Operation | Made by |
 | --- | --- |
-| `OpenPageOperation(document, reference[, place]; target)` | a press on a link, a double click on a row of a roster, a double click or Return on a node of a tree; the navigator takes it and the editor evaluates it, as [navigator.md](../navigator/navigator.md) says |
+| `OpenPageOperation(document, reference[, place]; target)` | a press on a link, such as the first cell of a row of a roster, a double click on a row of a roster, a double click or Return on a node of a tree; the navigator takes it and the editor evaluates it, as [navigator.md](../navigator/navigator.md) says |
 | `OpenFileOperation(path; wrap, file_wrap)` | a link to a file, a row of the Files pane, the button that opens the output of a background task; the file-system slice evaluates it, as [filesystem.md](../filesystem/filesystem.md) says |
+
+A link is a `WidgetButton` with the gestures of `make_open_page_gestures(document, reference; domain)`: a click answers `OpenPageOperation(document, reference, :here)`, and Ctrl and a click answer the same open with `:new_tab`. `domain` names the slice of the link in a listing of the bindings. The page of a section, the page of a folder, the Tasks pane and the first cell of a row of a roster make their links with it, so every link of the platform opens on one click.
 
 These name their subject and not a place. `is_self_contained_operation` is `true` for them, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
 

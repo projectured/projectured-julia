@@ -188,7 +188,7 @@ explorer/ExplorerModule.jl        (ExplorerModule): the module, its exports and 
 - a section is a node and lists its first children, and says where it holds a document;
 - a press shows a page, Ctrl+press opens a tab, a double press puts the keyboard in the page;
 - the folders of a workspace are nodes, and a file is one document for its page, its tab and the open files;
-- the page of the open files is a table of the files, which a filter and Show all keep, and a double press on a row opens the page of its file;
+- the page of the open files is a table of the files, which a filter and Show all keep, and a press on the name of a file opens its page;
 - the kinds of `+`, a folder with no place, Insert, Delete, the moves, F2, the menu of a row and the command of the pane;
 - the filter, its kinds, and the tree of the matches;
 - a dashboard with its cards, a key in a card, and Insert;

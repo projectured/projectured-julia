@@ -182,4 +182,4 @@ question whether to write this as a plan, the owner answered: "yes".
   the Tasks pane. A roster opens a page on a double click only.
   **Answered 2026-10-22.** The owner agreed that the first column of every
   roster is a link, and a double click on a row still opens it. The plan is
-  [the-first-column-of-a-roster-is-a-link.md](../pending/the-first-column-of-a-roster-is-a-link.md).
+  [the-first-column-of-a-roster-is-a-link.md](the-first-column-of-a-roster-is-a-link.md).
