@@ -77,11 +77,17 @@ question whether to write this as a plan, the owner answered: "yes".
 
 ## Steps
 
-1. [ ] **The facets of a file.** Add `state` to `FileDocument`, and `name`,
+1. [x] **The facets of a file.** Add `state` to `FileDocument`, and `name`,
    `folder`, `has_edits` and `state` to `FilePage`, in the file format slice.
    Test: new cases in `test_roster_facets()`. A file with an edit says "unsaved
    edits". A page with a band says "changed on disk". A page with a band and an
    edit says the conflict. A page gives the name and the folder of its file.
+   **Done 2026-10-22.** `_format_file_state` in `DocumentFile.jl` joins the
+   `words` of `collect_decoration_conditions(decoration)` with ", ", so the
+   words come in the order that a tooltip says them. A `FilePage` is a
+   `Document`, so it also has the facet `type`. The facets of `TextFile` are now
+   `name`, `folder`, `has_edits`, `state` and `type`. `test_roster_facets()`:
+   30 of 30 pass.
 2. [ ] **One rule for a held arrangement.** Move `_keep_log_arrangement` to the
    arrangement slice as one function that takes the holder, the field and the
    answer. Give it a name that follows

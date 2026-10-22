@@ -49,6 +49,24 @@ function get_document_decoration(page::FilePage)
                        tooltip = base.tooltip, work_item = base.work_item)
 end
 
+# The facets of a page are those of its file, so a roster of the open files names a
+# file that a page shows. Its state says also that the file changed on disk, which
+# the band of the page knows.
+get_item_facets(::Type{FilePage}) = [
+    "name" => "the name of the file of the page, without its folder; nothing for a page with no file",
+    "folder" => "the folder of the file of the page; nothing for a page with no file",
+    "has_edits" => "whether the file of the page has edits since it was read or saved; nothing for a page " *
+                   "with no file, or a file that keeps no history",
+    "state" => "the conditions of the page in words, such as \"unsaved edits\" or \"changed on disk\"; empty " *
+               "for a page with none"]
+
+function compute_item_facet(page::FilePage, name::Union{Val{:name},Val{:folder},Val{:has_edits}})
+    file = find_page_file(page)
+    file === nothing ? nothing : compute_item_facet(file, name)
+end
+
+compute_item_facet(page::FilePage, ::Val{:state}) = _format_file_state(get_document_decoration(page))
+
 """
     find_page_file(page) -> FileDocument or nothing
 

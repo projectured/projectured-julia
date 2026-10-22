@@ -283,10 +283,19 @@ get_item_facets(::Type{FileDocument}) = [
     "name" => "the name of the file, without its folder",
     "folder" => "the folder of the file, as its file name gives it",
     "has_edits" => "whether the document has edits since its file was read or saved; nothing for a file " *
-                   "that keeps no history"]
+                   "that keeps no history",
+    "state" => "the conditions of the file in words, such as \"unsaved edits\" or \"read only\"; empty for a " *
+               "file with none"]
 compute_item_facet(file::FileDocument, ::Val{:name}) = basename(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:folder}) = dirname(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:has_edits}) = has_unsaved_edits(get_file_content(file))
+compute_item_facet(file::FileDocument, ::Val{:state}) = _format_file_state(get_document_decoration(file))
+
+# The conditions of a file in words, in the order that a tooltip says them, with
+# commas between them; empty for a file with none.
+_format_file_state(decoration::DocumentDecoration) =
+    join((get_condition_look(Val(condition.name)).words for condition in collect_decoration_conditions(decoration)),
+         ", ")
 
 """
     get_file_icon(path) -> Symbol

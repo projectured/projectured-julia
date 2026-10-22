@@ -27,7 +27,8 @@ function test_roster_facets()
         @test first.(collect_item_facets(PrimitiveString)) == ["type"]
         @test first.(collect_item_facets(Assistant)) ==
               ["title", "turn", "tokens", "plan", "subagents", "background_tasks", "type"]
-        @test first.(collect_item_facets(TextFile)) == ["name", "folder", "has_edits", "type"]
+        @test first.(collect_item_facets(TextFile)) == ["name", "folder", "has_edits", "state", "type"]
+        @test first.(collect_item_facets(FilePage)) == ["name", "folder", "has_edits", "state", "type"]
     end
 
     @testset "the name, the folder and the edits of a file" begin
@@ -51,6 +52,30 @@ function test_roster_facets()
         # A file that keeps no history can not say.
         plain = CellVector(Cell[Cell(TextFile("plain.txt", "x"))])
         @test link_roster!(Roster(CollectionItems(plain); columns = ["has_edits"]), plain).rows[1].values[1] === nothing
+    end
+
+    @testset "the state of a file, and the facets of the page of a file" begin
+        folder = mktempdir()
+        buffer = UndoBuffer(PrimitiveString("text"))
+        file = TextFile(joinpath(folder, "page.txt"), buffer)
+        page = FilePage(; content = file)
+        items = CellVector(Cell[Cell(file), Cell(page)])
+        roster = link_roster!(Roster(CollectionItems(items); columns = ["name", "folder", "has_edits", "state"]), items)
+        @test [collect(row.values) for row in roster.rows] ==
+              [Any["page.txt", folder, false, ""], Any["page.txt", folder, false, ""]]
+        push_undo_entry!(buffer, UndoEntry("an edit", nothing, nothing))
+        @test [row.values[4] for row in roster.rows] == ["unsaved edits", "unsaved edits"]
+        # The band of the page says that the file changed on disk.
+        page.band = FileBand(; message = "page.txt changed on disk.")
+        @test roster.rows[2].values[4] == "unsaved edits, and the file changed on disk"
+        @test roster.rows[1].values[4] == "unsaved edits"
+        clear_undo_history!(buffer)
+        @test roster.rows[2].values[4] == "changed on disk"
+        @test roster.rows[1].values[4] == ""
+        # A page that shows no file names none.
+        other = CellVector(Cell[Cell(FilePage(; content = PrimitiveString("x")))])
+        @test collect(link_roster!(Roster(CollectionItems(other); columns = ["name", "has_edits", "state"]),
+                                   other).rows[1].values) == Any[nothing, nothing, ""]
     end
 
     @testset "in an editor, a key press shows the edits of its file, and a save clears them" begin
