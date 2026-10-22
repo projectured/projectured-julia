@@ -459,3 +459,20 @@ text) with tracking, and the request with no tracking
 stay final. The docstring of `MarkedText` says that its marks must be final.
 Tests: the source file test checks that the marks are not provisional after the
 open and after a key; `test_languageserver()` 101 pass, twice.
+
+## 9. After the landing: a file in the Explorer
+
+*Found 2026-10-22 by the owner, in `bin/omnet_ide`:* a `.cc` file that a click
+in the Explorer shows stayed plain. The navigator of the Explorer holds only the
+view of its page (a `FilePage`), and a tab acquires every layer of its content,
+so the `SourceFile` was acquired in a tab and not in the Explorer, and it never
+took the server of its window. The live checks of step 5 opened the files as
+tabs.
+
+*The fix, in the file change slice of the platform:* a page holds the file that
+it shows (`hold_documents!` in the acquire of a `FilePage`, and the release of
+it), so the file is acquired wherever its page is. In a tab the file gets a
+second holder and nothing else changes. Tests: the store test of a page that a
+holder acquires alone; the adapter test of a page that gives its source file the
+server; the suites of the file change store, panes, the file system, the
+navigator, the file dialogs, the tree and the explorer pass.

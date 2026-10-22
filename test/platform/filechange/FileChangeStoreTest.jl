@@ -393,6 +393,21 @@ function test_file_change_store()
             @test !is_document_file_watched(file; store)
         end
 
+        @testset "a page holds the file that it shows, where nothing else acquires the file" begin
+            editor = Editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                            devices = Device[], feeds = Feed[FileChangeFeed()])
+            store = get_session_file_change_store(; editor)
+            (path, page) = _make_watched_text_file("one\n")
+            file = find_page_file(page)
+            # A holder of the page alone, as the navigator of an explorer is.
+            evaluate_operation(editor, AcquireDocumentOperation(page))
+            @test is_document_held(editor, file)
+            @test only(store.files).receiver === page
+            evaluate_operation(editor, ReleaseDocumentOperation(page))
+            @test !is_document_held(editor, file)
+            @test !is_document_file_watched(file; store)
+        end
+
         @testset "the wrapper file_change adds a feed, and the end of the loop stops its watchers" begin
             editor = build_editor(PrimitiveString("x"), IdentityProjection(); backend = HeadlessBackend(),
                                   devices = Device[], window = false, tabs = false, appearance = false,

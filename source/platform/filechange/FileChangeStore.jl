@@ -289,11 +289,15 @@ function release_document!(editor, file::FileDocument)
     nothing
 end
 
+# A page holds the file that it shows, so the file is acquired wherever the page
+# is: in a tab, which acquires every layer of its content, and in the navigator of
+# an explorer, which holds only the page.
 function acquire_document!(editor, page::FilePage)
     file = find_page_file(page)
     file === nothing ||
         watch_document_file!(file; store = find_file_change_store(editor), receiver = page)
     add_open_file!(editor, page)
+    file === nothing || hold_documents!(editor, page, Any[file])
     nothing
 end
 
@@ -301,6 +305,7 @@ function release_document!(editor, page::FilePage)
     file = find_page_file(page)
     file === nothing || unwatch_document_file!(file; store = find_file_change_store(editor))
     remove_open_file!(editor, page)
+    file === nothing || release_held_documents!(editor, page, Any[file])
     nothing
 end
 

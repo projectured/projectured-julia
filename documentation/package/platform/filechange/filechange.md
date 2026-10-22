@@ -42,7 +42,7 @@ A watcher reads a changed file off the loop. It hashes the text, parses a new do
 | a file document with no page, for a file that a person does not edit | loads the new document |
 | a file document with no page, for any other file | keeps what it holds, and logs a warning, because it can not tell its own save from a change |
 
-The receiver of a file in a tab is its `FilePage`. A tab acquires its outer layer first, so the page watches the file with itself as the receiver. A file document with no page is its own receiver. The page and its band are described in [fileformat.md](../fileformat/fileformat.md).
+The receiver of a file in a tab is its `FilePage`. A tab acquires its outer layer first, so the page watches the file with itself as the receiver. A file document with no page is its own receiver. **A page holds the file that it shows**, so the file is acquired wherever the page is: in a tab, which acquires every layer of its content, and in the navigator of an explorer, which holds only the page. A file whose acquire does more than watch, such as a source file that takes the language server of its window, does it in both places. The page and its band are described in [fileformat.md](../fileformat/fileformat.md).
 
 A file of a type that a person does not edit (`is_editable_file_type` answers `false`), such as the result file of a run that writes it while it runs, has no edits to keep and can be too large to read whole. The watcher compares only the time and the size of its file with those of the last read, and never reads its text.
 
