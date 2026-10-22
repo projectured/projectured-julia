@@ -4,7 +4,8 @@
 # themselves. The table summarizes the recent frames, and the plot draws them.
 
 # The parts that the widget projection draws: the head line, the title and the
-# table of the summary, and the title and the table of the frames.
+# table of the parts of a frame, the title and the table of the other
+# measurements, and the title and the table of the frames, which is the last.
 function _print_frame_statistics(statistics)
     p = FrameStatisticsToWidget()
     iomap = print_document(p, p, statistics, PrinterContext())
@@ -12,13 +13,17 @@ function _print_frame_statistics(statistics)
 end
 
 _get_frame_statistics_head(root) = root.children[1].children[1].content
-_get_frame_table(root) = root.children[5].child
+_get_frame_table(root) = root.children[end].child
+# The choice beside a title, and its options.
+_get_title_choice(line) = line.children[2]
+_get_choice_texts(choice) = [choice.options[index] for index in 1:length(choice.options)]
 _get_frame_scroll_bar(root) = _get_frame_table(root).vertical_scroll_bar
 _get_row_texts(row) = [row[index].content for index in 1:length(row)]
 _get_header_texts(table) = [table.column_headers[index].content for index in 1:length(table.column_headers)]
 
-# A table with two measurements over three frames; the counter did not measure
-# the first frame.
+# A table with three measurements over three frames: the time and the cell reads
+# of the whole frame, and a count of no part, which did not measure the first
+# frame.
 # The names that the frames of `editor` record, and those of them that are times:
 # a table shows a row for each name, and a plot a line for each time.
 function _get_recorded_names(editor)
@@ -33,10 +38,12 @@ function _make_frame_statistics_example()
     push!(statistics.rows,
           FrameStatisticsRow("frame_time", :second, 3, 0.01, 0.03, 0.02, 0.01, 0.06))
     push!(statistics.rows,
+          FrameStatisticsRow("frame_cell_reads", :count, 3, 3.0, 5.0, 4.0, 1.0, 12.0))
+    push!(statistics.rows,
           FrameStatisticsRow("reads", :count, 2, 120.0, 5000.0, 812.3, 900.14, 2436.7))
     statistics.frame_count = 3
     statistics.frames = [1, 2, 3]
-    statistics.columns = [[0.01, 0.02, 0.03], [NaN, 120.0, 5000.0]]
+    statistics.columns = [[0.01, 0.02, 0.03], [3.0, 4.0, 5.0], [NaN, 120.0, 5000.0]]
     statistics
 end
 
@@ -207,39 +214,103 @@ function test_frame_statistics_feed()
         @test (table_view[], plot_view[]) == (2, length(recorded.times))
     end
 
-    @testset "the printer shows a summary table and a table of the frames, newest first" begin
+    @testset "the printer shows the parts of a frame, the other measurements and the frames, newest first" begin
         statistics = _make_frame_statistics_example()
-        _, _, root = _print_frame_statistics(statistics)
+        p, iomap, root = _print_frame_statistics(statistics)
         @test _get_frame_statistics_head(root) == "3 frames"
         @test root.children[1].children[2] isa WidgetToggle
         pause = only(get_wrapped_operation(read_gesture(root.children[1].children[2],
                                                         MouseDwell(0, 0; time = 0.0))).layers)[2]
         @test pause.title == "Pause" && occursin("tables keep their rows", pause.text)
-        @test root.children[2].content == "Summary"
-        summary = root.children[3]
-        @test _get_header_texts(summary) ==
+        # The parts: a row for each part that the frames measured, a column for
+        # each measure, and a choice of the statistic.
+        @test root.children[2].children[1].content == "Parts of a frame"
+        statistic = _get_title_choice(root.children[2])
+        @test _get_choice_texts(statistic) == ["mean", "minimum", "maximum", "deviation", "total"]
+        @test statistic.selected == 1
+        parts = root.children[3]
+        @test _get_header_texts(parts) == ["part", "time (ms)", "reads"]
+        @test _get_row_texts(parts.cells[1]) == ["whole frame", "20.00", "4.0"]
+        # A pick of a statistic is view state, and the cells follow it.
+        pick = ReplaceReferencedValueOperation(statistics, "summary_statistic", :maximum)
+        answer = read_intent(p, iomap, pick)
+        @test answer isa ReplaceViewStateOperation && get_wrapped_operation(answer) === pick
+        statistics.summary_statistic = :maximum
+        @test statistic.selected == 3
+        @test _get_row_texts(parts.cells[1]) == ["whole frame", "30.00", "5"]
+        @test root.children[3] === parts
+        # The measurements of no part.
+        @test root.children[4].content == "Other measurements"
+        other = root.children[5]
+        @test _get_header_texts(other) ==
               ["measurement", "unit", "frames", "minimum", "maximum", "mean", "deviation", "total"]
-        @test _get_row_texts(summary.cells[1]) ==
-              ["frame_time", "ms", "3", "10.00", "30.00", "20.00", "10.00", "60"]
-        @test _get_row_texts(summary.cells[2]) ==
+        @test _get_row_texts(other.cells[1]) ==
               ["reads", "", "2", "120", "5000", "812.3", "900.1", "2437"]
-        @test root.children[4].content == "Frames, newest first"
+        # The frames: a column for each part of the chosen measure, the time first.
+        @test root.children[6].children[1].content == "Frames, newest first"
+        measure = _get_title_choice(root.children[6])
+        @test _get_choice_texts(measure) == ["time", "reads", "other"]
         frames = _get_frame_table(root)
-        @test _get_header_texts(frames) == ["frame_time (ms)", "reads"]
+        @test _get_header_texts(frames) == ["whole frame (ms)"]
         @test frames.corner.content == "frame"
-        @test _get_row_texts(frames.cells.value) == ["30.00", "5000"]
+        @test _get_row_texts(frames.cells.value) == ["30.00"]
         @test frames.row_headers.value.content == "3"
+        # A pick of a measure is view state, and it builds the table of the frames again.
+        pick = ReplaceReferencedValueOperation(statistics, "frame_measure", :other)
+        @test get_wrapped_operation(read_intent(p, iomap, pick)) === pick
+        statistics.frame_measure = :other
+        frames = _get_frame_table(root)
+        @test _get_title_choice(root.children[6]).selected == 3
+        @test _get_header_texts(frames) == ["reads"]
+        @test _get_row_texts(frames.cells.value) == ["5000"]
         # The oldest frame did not measure the counter, and it ends the list.
         oldest = frames.cells.next.next
-        @test _get_row_texts(oldest.value) == ["10.00", "-"]
+        @test _get_row_texts(oldest.value) == ["-"]
         @test oldest.next === nothing
         @test frames.row_headers.next.next.value.content == "1"
+        # A measure that the store does not hold shows the first one.
+        statistics.frame_measure = :cell_writes
+        @test _get_header_texts(_get_frame_table(root)) == ["whole frame (ms)"]
+    end
+
+    @testset "with the counters, a frame shows each part of a frame in the order of the loop" begin
+        store = FrameMeasurementStore()
+        for frame in 1:3
+            times = [get_frame_part_measurement_name(part, :time) => frame / 1e3
+                     for part in FRAME_PARTS]
+            counts = [get_frame_part_measurement_name(part, :cell_computes) => frame
+                      for part in FRAME_PARTS]
+            record_frame_measurements!(store; times = [times; :held_time => 0.0], counts)
+        end
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        _, _, root = _print_frame_statistics(statistics)
+        parts = root.children[3]
+        @test [parts.cells[k][1].content for k in 1:length(parts.cells)] ==
+              ["feed", "report", "input", "reader", "evaluate", "print", "paint", "whole frame"]
+        @test _get_header_texts(parts) == ["part", "time (ms)", "computes"]
+        @test root.children[4].content == "Other measurements"
+        @test _get_row_texts(root.children[5].cells[1])[1] == "held_time"
+        statistics.frame_measure = :cell_computes
+        @test _get_header_texts(_get_frame_table(root)) ==
+              ["whole frame", "feed", "report", "input", "reader", "evaluate", "print", "paint"]
+    end
+
+    @testset "a store with no part shows one summary and no choice" begin
+        store = FrameMeasurementStore()
+        record_frame_measurements!(store; times = [:probe_time => 0.001], counts = [:probe => 2])
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        _, _, root = _print_frame_statistics(statistics)
+        @test root.children[2].content == "Summary"
+        @test root.children[4] isa WidgetLabel && root.children[4].content == "Frames, newest first"
+        @test _get_header_texts(_get_frame_table(root)) == ["probe_time (ms)", "probe"]
     end
 
     @testset "a slow frame draws in the slow color, and the others do not" begin
         statistics = _make_frame_statistics_example()
         # The median is 20 ms, so the frame of 50 ms is slow, and 20 ms is not.
-        statistics.columns = [[0.01, 0.02, 0.05], [NaN, 120.0, 5000.0]]
+        statistics.columns = [[0.01, 0.02, 0.05], [3.0, 4.0, 5.0], [NaN, 120.0, 5000.0]]
         p, _, root = _print_frame_statistics(statistics)
         frames = _get_frame_table(root)
         slow_color = p.slow_text.color
@@ -256,7 +327,7 @@ function test_frame_statistics_feed()
         @test note.title == "Frame 3" && occursin("Slow: 50.0 ms", note.text)
         @test read_gesture(middle[1], MouseDwell(0, 0; time = 0.0)) === nothing
         # A frame at two times the median is not slow: the limit is strict.
-        statistics.columns = [[0.01, 0.02, 0.04], [NaN, 120.0, 5000.0]]
+        statistics.columns = [[0.01, 0.02, 0.04], [3.0, 4.0, 5.0], [NaN, 120.0, 5000.0]]
         @test !is_slow(frames.cells.value[1])
     end
 
@@ -310,23 +381,30 @@ function test_frame_statistics_feed()
 
     @testset "a flush changes the numbers and keeps the parts" begin
         statistics = _make_frame_statistics_example()
+        statistics.frame_measure = :other
         _, _, root = _print_frame_statistics(statistics)
-        summary = root.children[3]
+        parts = root.children[3]
+        other = root.children[5]
         frames = _get_frame_table(root)
         statistics.rows[1].count = 4
+        statistics.rows[1].mean = 0.03
+        statistics.rows[3].count = 3
         statistics.frame_count = 4
         statistics.frames = [2, 3, 4]
-        statistics.columns = [[0.02, 0.03, 0.04], [120.0, 5000.0, 7.0]]
-        @test root.children[3] === summary
+        statistics.columns = [[0.02, 0.03, 0.04], [4.0, 5.0, 6.0], [120.0, 5000.0, 7.0]]
+        @test root.children[3] === parts
+        @test root.children[5] === other
         @test _get_frame_table(root) === frames
-        @test summary.cells[1][3].content == "4"
+        @test parts.cells[1][2].content == "30.00"
+        @test other.cells[1][3].content == "3"
         @test _get_frame_statistics_head(root) == "4 frames"
-        @test _get_row_texts(frames.cells.value) == ["40.00", "7"]
+        @test _get_row_texts(frames.cells.value) == ["7"]
         @test frames.row_headers.value.content == "4"
     end
 
     @testset "a flush keeps the rows of the frames that stay, and makes rows for the new frames" begin
         statistics = _make_frame_statistics_example()
+        statistics.frame_measure = :other
         _, _, root = _print_frame_statistics(statistics)
         frames = _get_frame_table(root)
         # Frames 3, 2 and 1, newest first.
@@ -335,16 +413,16 @@ function test_frame_statistics_feed()
         statistics.rows[1].count = 3
         statistics.frame_count = 4
         statistics.frames = [2, 3, 4]
-        statistics.columns = [[0.02, 0.03, 0.04], [120.0, 5000.0, 7.0]]
+        statistics.columns = [[0.02, 0.03, 0.04], [4.0, 5.0, 6.0], [120.0, 5000.0, 7.0]]
         newest = frames.cells
-        @test _get_row_texts(newest.value) == ["40.00", "7"]
+        @test _get_row_texts(newest.value) == ["7"]
         # Frames 3 and 2 keep their rows and their row headers; frame 1 left.
         @test newest.next.value === rows[1]
         @test newest.next.next.value === rows[2]
         @test newest.next.next.next === nothing
         @test frames.row_headers.next.value === headers[1]
         @test frames.row_headers.next.next.value === headers[2]
-        @test _get_row_texts(newest.next.next.value) == ["20.00", "120"]
+        @test _get_row_texts(newest.next.next.value) == ["120"]
     end
 
     @testset "a flush prints only the rows of the new frames, and keeps the prints of the others" begin
@@ -399,7 +477,7 @@ function test_frame_statistics_feed()
         @test answer.operations[4] isa DoNothingOperation
         # The list starts again from the anchor.
         statistics.anchor = 2
-        @test _get_row_texts(frames.cells.value) == ["20.00", "120"]
+        @test _get_row_texts(frames.cells.value) == ["20.00"]
         @test frames.row_headers.value.content == "2"
         @test getfield(frames, :top_row) === getfield(statistics, :top_row)
         # A press on Pause writes the document, and the undo does not record it.
@@ -419,8 +497,9 @@ function test_frame_statistics_feed()
 
     @testset "a column of the frames is as wide as its widest text, at any offered width" begin
         statistics = _make_frame_statistics_example()
+        statistics.frame_measure = :other
         # The newest count, seven digits, is wider than its header, five letters.
-        statistics.columns = [[0.01, 0.02, 0.03], [NaN, 120.0, 5_000_000.0]]
+        statistics.columns = [[0.01, 0.02, 0.03], [3.0, 4.0, 5.0], [NaN, 120.0, 5_000_000.0]]
         projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
         # The x of each text of the table of the frames, which is under its title.
         function frame_texts(width)
@@ -432,15 +511,16 @@ function test_frame_statistics_feed()
         end
         narrow, wide = frame_texts(800), frame_texts(1600)
         @test narrow == wide
-        # A character is 8 wide. The column of the times is as wide as its
-        # header, 15 characters; the column of the counts as its widest value,
-        # 7 digits, which is wider than its header.
+        # A character is 8 wide. The column of the counts is as wide as its widest
+        # value, 7 digits, which is wider than its header; the column of the time
+        # of the whole frame is as wide as its header, 16 characters.
         p = FrameStatisticsToWidget(; measure = FixedMeasure(8, 12, 4, 0))
-        frames = _get_frame_table(print_document(p, p, statistics, PrinterContext()).output)
-        @test Any[column.policy for column in frames.columns] == Any[Fixed(15 * 8), Fixed(7 * 8)]
+        output = print_document(p, p, statistics, PrinterContext()).output
+        @test Any[column.policy for column in _get_frame_table(output).columns] == Any[Fixed(7 * 8)]
+        statistics.frame_measure = :time
+        @test Any[column.policy for column in _get_frame_table(output).columns] == Any[Fixed(16 * 8)]
         # A header and a value align right in their column, so both end at its
         # right edge.
-        @test narrow["30.00"] + 5 * 8 == narrow["frame_time (ms)"] + 15 * 8
         @test narrow["5000000"] + 7 * 8 == narrow["reads"] + 5 * 8
     end
 
@@ -460,7 +540,7 @@ function test_frame_statistics_feed()
         y_of(frame; limit = 50) = only(t[2] for t in _get_drawn_texts(io.output; limit)
                                        if t[3] == string(frame) && t[1] < 80)
         # The table is as wide as its columns: the wheel turns over its body.
-        body_x = only(t[1] for t in _get_drawn_texts(io.output) if t[3] == "frame_time (ms)") + 8
+        body_x = only(t[1] for t in _get_drawn_texts(io.output) if t[3] == "whole frame (ms)") + 8
         # Each turn comes a second after the last, so no two make a fast run.
         wheel_time = Ref(0.0)
         wheel(dy) = read_intent(projection, nothing,

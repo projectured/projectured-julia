@@ -9,7 +9,9 @@ documents of [`FrameStatisticsDocument.jl`](FrameStatisticsDocument.jl):
 `FrameStatistics`, a table of one summary for each measurement, and
 `FrameTimeSeries`, the times of the recent frames.
 [`FrameStatisticsToWidget`](FrameStatisticsToWidget.jl) draws the table as
-widgets: a summary table, a table of the recent frames and a Pause toggle. The
+widgets: a table of the parts of a frame, a table of the other measurements, a
+table of the recent frames, a choice of what two of them show, and a Pause
+toggle. The
 chart of the frame times is a projection of the chart domain,
 `FrameTimeSeriesToChart`, so this module depends on no domain.
 """

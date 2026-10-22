@@ -105,7 +105,7 @@ on `main` before the owner approves.
    and in `frame` only. Run the editor tests of the frame performance, the feeds,
    the fault barriers and the held frames, without and with the counters. The
    guides `editor.md` and `performance.md`. Commit.
-2. [ ] **The page.** In `source/platform/statistics/`: the two choice fields of
+2. [x] **The page.** Done; see [As built](#as-built). In `source/platform/statistics/`: the two choice fields of
    `FrameStatistics`, the table of the parts, the table of the process, the frame
    table with one column for each part, and the two toggle groups. Tests of the
    statistics slice and `FrameStatisticsFeedTest`: the parts table has a row for
@@ -136,3 +136,23 @@ on `main` before the owner approves.
   six cell keys of the scope are recorded only as `frame_cell_…`; every other key
   keeps its name. The editor tests pass: 197 of 197 without the counters, 212 of
   212 with them. The naming, style, argument and export guards pass.
+- **Step 2.** The document keeps its rows and its columns, one for each name, and
+  gets two fields, `summary_statistic` and `frame_measure`. The view finds the
+  rows of the parts by the names of `get_frame_part_measurement_name`. Four
+  decisions changed the layout of the model:
+  - The second table is "Other measurements", not "Process": the held time and
+    the keys that the code adds are not of the process.
+  - The whole frame is "whole frame" in both tables, so its column in the table
+    of the frames is not the column of the frame number.
+  - The choice of the frame table also has `other`, the measurements of no part,
+    so the value of each frame of the held time, the garbage collector or the
+    compiler stays to be seen. A choice of one option does not show.
+  - A store with no part, such as one that a test builds, shows one table,
+    "Summary", as before.
+
+  A pick of a choice is view state, as Pause is. A new choice of the columns
+  builds the page again; a new statistic changes only the labels of the parts.
+  Tests: `test_frame_statistics_feed()` 176 of 176, with a new example of a part,
+  a count of a part and a measurement of no part; `test_tool_themes()` and
+  `test_tool_views()` 132 of 132; `test_natural_renders_every_atom()` 2 of 2.
+  The guards pass.
