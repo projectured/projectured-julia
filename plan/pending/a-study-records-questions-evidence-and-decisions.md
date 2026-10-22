@@ -891,7 +891,7 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   author as the detail. `"study"` is the alias of the insertion, so the `+` of a
   section offers a new study. `test_research_explorer()` passes; step 9 opens a
   study in a tab of a window.
-- [ ] **8. The verbs, the check, the report, the folder and the sentence.** §7.1,
+- [x] **8. The verbs, the check, the report, the folder and the sentence.** §7.1,
   §4.2.1. Test: `test_research_assistant_api()`: the offered names, a search that
   finds a verb, and code run by `execute_julia_code!` that adds a question, a
   hypothesis, evidence that supports the hypothesis by its id, and a decision,
@@ -901,6 +901,25 @@ commits in a worktree of omnet-julia. Each step names its narrowest test.
   a second item of evidence. `test_research_folder()`: a study with a report
   saves to a folder, one file for each block, and loads to the same graph; a
   second save writes no file.
+  **Done (2026-10-22).** `ResearchVerbs.jl` and `ResearchFolder.jl`. What was
+  decided and found:
+  - `find_rooted_operation` looks for a place strictly between the root and the
+    edited node, so it found none for a study that is the whole content of a
+    history, one step from the root, and the verb evaluated its edit with no
+    history. Each verb now names the field of the study that it writes, such as
+    `.content.hypotheses`, so the place is the study.
+  - `start_study!` adds the study to the root section of the explorer and opens it
+    in a tab.
+  - `check_predictions!` adds evidence for each hypothesis whose prediction is an
+    expectation; a check that read no value says so and supports nothing.
+  - The folder holds `study.pred`, `study.md`, and a `.pred` file for each document
+    that an item holds as its design, method, content or prediction and that a
+    `.pred` file writes, named by the id and the field, such as `n1-method.pred`. A
+    text stays in `study.pred`.
+  - The package also depends on `ProjecturedMath`, for `parse_math`. The layering
+    guard needs `using` for a module whose names a file only calls.
+  - The sentence of the domain says to record a decision only when the person asks.
+  `test_research()`: 208 pass with steps 1 to 8.
 - [ ] **9. The combinations.** §6, in the umbrella test package, because its
   fixtures name several domains. Test: `test_research_combinations()`: a Markdown
   report that holds `H1` saves a `pred-ref` fence, loads and draws the card; a

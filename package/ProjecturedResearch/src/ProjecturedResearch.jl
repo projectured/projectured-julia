@@ -19,9 +19,10 @@ using ProjecturedFormula
 using ProjecturedGraph
 using ProjecturedKernel
 using ProjecturedMarkdown
+using ProjecturedMath
 using ProjecturedPlatform
 
-for _src in (ProjecturedFormula, ProjecturedGraph, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPlatform)
+for _src in (ProjecturedFormula, ProjecturedGraph, ProjecturedKernel, ProjecturedMarkdown, ProjecturedMath, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

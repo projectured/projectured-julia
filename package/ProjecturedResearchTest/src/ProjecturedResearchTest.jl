@@ -47,6 +47,7 @@ include("../../../test/domain/research/projection/ResearchToWidgetTest.jl")
 include("../../../test/domain/research/projection/ResearchMapToGraphTest.jl")
 include("../../../test/domain/research/projection/ResearchRosterTest.jl")
 include("../../../test/domain/research/projection/ResearchExplorerTest.jl")
+include("../../../test/domain/research/assistant/ResearchAssistantApiTest.jl")
 
 include("../../../test/domain/research/ResearchSuite.jl")
 

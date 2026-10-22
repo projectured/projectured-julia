@@ -25,6 +25,8 @@ using ..KernelModule
 using ..PlatformModule
 using ..FormulaModule
 using ..GraphModule
+using ..MarkdownModule
+using ..MathModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
@@ -49,6 +51,12 @@ export ResearchItemToWidget, ResearchStudyToWidget, ResearchToWidgetIoMap, make_
 export ResearchMap, ResearchMapToGraph, ResearchMapPartToWidget, ResearchMapToGraphIoMap,
        make_research_map_projection
 export StudyItems
+export RESEARCH_ASSISTANT_API, start_study!, add_question!, add_source!, add_hypothesis!,
+       add_experiment!, add_analysis!, add_result!, add_evidence!, add_answer!, record_decision!,
+       get_expectation_bounds, check_predictions!, add_study_section!, add_study_prose!,
+       embed_in_study!, add_study_formula!, describe_study
+export RESEARCH_STUDY_FILE_NAME, RESEARCH_REPORT_FILE_NAME, collect_study_blocks,
+       save_study_folder!, load_study_folder
 
 include("ResearchDocument.jl")
 include("ResearchEdits.jl")
@@ -57,11 +65,26 @@ include("ResearchToWidget.jl")
 include("ResearchMapToGraph.jl")
 include("ResearchRoster.jl")
 include("ResearchExplorer.jl")
+include("ResearchVerbs.jl")
+include("ResearchFolder.jl")
 
 function __init__()
     # The rows that let the renderer draw a study as its outline, and an item of
     # one as its card inside any other document.
     register_natural_graphics!(:research, make_research_graphics_entries)
+
+    # What the model of an assistant may write about a study: the documents, the
+    # verbs that write it as the assistant, and the reads of a study. Each verb is
+    # an edit of the editor, which a person takes back with Ctrl+Z.
+    register_assistant_api!(ResearchModule => RESEARCH_ASSISTANT_API;
+        description = "A study records the work on one problem by the scientific approach: " *
+                      "questions, sources, hypotheses, experiments, analyses, results, evidence, " *
+                      "decisions and answers, each with an id such as H1, its author and its time. " *
+                      "`start_study!` makes one; `add_question!`, `add_hypothesis!`, `add_evidence!` " *
+                      "and the other `add_` verbs add an item that links to others by item or id; " *
+                      "`record_decision!` accepts or rejects items, only when the person asks; " *
+                      "`describe_study` reads it, and `show_roster!(StudyItems(study); sort = [\"time\"])` " *
+                      "shows its timeline.")
 end
 
 end # module
