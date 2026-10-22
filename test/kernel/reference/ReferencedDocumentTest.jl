@@ -205,5 +205,12 @@ function test_referenced_document()
         gone = extend_reference(EmptyReference(), FieldReferenceStep("missing"))
         @test find_referenced_document(DocumentLocator(root, gone)) === nothing
     end
+
+    @testset "a walk stops at a locator: a holder of an address holds no document" begin
+        root = _make_referenced_tree()
+        is_leaf(node) = node isa ReferencedLeaf
+        @test length(search_references(ReferencedHolder(root, nothing), is_leaf)) == 2
+        @test isempty(search_references(ReferencedHolder(DocumentLocator(root, EmptyReference()), nothing), is_leaf))
+    end
 end
 end # test_referenced_document

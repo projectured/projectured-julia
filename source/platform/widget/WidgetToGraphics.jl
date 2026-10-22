@@ -509,6 +509,38 @@ WidgetButtonToGraphicsCanvas(theme; measure,
                                  placeholder_color, focus_ring_stroke, corner_radius, label_gap,
                                  icon_size)
 
+@projection UntrackedCell struct WidgetLinkToGraphicsCanvas
+    measure::TextMeasure
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    link_text::StyleText
+    underline_width::Int                   # the line under the text while the pointer is on the link
+    focus_ring_stroke::StyleStroke
+    corner_radius::Int
+    label_gap::Int                         # between the icon and the text
+    icon_size::Float64                     # times the height of the line of the text
+end
+
+WidgetLinkToGraphicsCanvas(theme; measure,
+                           margin = inset_default, border = inset_default, padding = inset_default,
+                           margin_color = color_transparent, border_color = color_transparent,
+                           padding_color = color_transparent, content_color = color_transparent,
+                           link_text = _themed(StyleText, theme, _get_link_text),
+                           underline_width = _themed(Int, theme, t -> t.border_width),
+                           focus_ring_stroke =
+                               _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                           corner_radius = _themed(Int, theme, t -> t.radius),
+                           label_gap = _themed(Int, theme, t -> t.label_gap),
+                           icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+    WidgetLinkToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                               padding_color, content_color, link_text, underline_width,
+                               focus_ring_stroke, corner_radius, label_gap, icon_size)
+
 @projection UntrackedCell struct WidgetTooltipToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
@@ -2395,6 +2427,86 @@ function _button_primary_op(w::WidgetButton)
     dlg === nothing && return InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
                         x=80, y=60, width=480, height=320, content=dlg)
+end
+
+# ── WidgetLink ──────────────────────────────────────────────────────────────
+
+# The line of a link: its text, its style, and the sizes of the text, of the icon
+# and of the line that holds both. The text and the icon stand on the middle of
+# the line.
+function _measure_link_line(p::WidgetLinkToGraphicsCanvas, w::WidgetLink)
+    text = string(w.content)
+    style = _get_part_text(w, :link_text, p.link_text)
+    line = compute_line_box(p.measure, text, style.font)
+    icon_extent = icon_width(w.icon, scale_length(line.height, p.icon_size))
+    icon_gap = icon_extent > 0 ? p.label_gap : 0
+    height = max(icon_extent, line.height)
+    (; text, style, line, icon_extent, icon_gap, height,
+       text_top = (height - line.height) ÷ 2, width = icon_extent + icon_gap + line.width)
+end
+
+# The baseline of the text of a link, from the top of the link.
+function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap)
+    w = iomap.input
+    w.visible == false && return nothing
+    _, content_y = _content_offset(p, w)
+    measured = _measure_link_line(p, w)
+    content_y + measured.text_top + measured.line.baseline
+end
+
+# A link draws as a label in the link color: its icon, its text, and no frame. A
+# line under the text and the hand pointer say that a press opens it.
+function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        measured = _measure_link_line(p, w)
+        style = measured.style
+        box = _get_box_insets(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        outer_width = _resolve_width(ctx, 0, measured.width + inset_width)
+        outer_height = _resolve_height(ctx, 0, measured.height + inset_height)
+        elements = Any[]
+        _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
+                         outer_height - inset_height)
+        if measured.icon_extent > 0
+            _push_icon!(elements, w.icon, content_x, content_y + (measured.height - measured.icon_extent) ÷ 2,
+                        measured.icon_extent, style.color)
+        end
+        text_x = content_x + measured.icon_extent + measured.icon_gap
+        text_top = content_y + measured.text_top
+        _push_text!(elements, p.measure, style.font, measured.text, text_x, text_top, style.color)
+        thickness = max(1, p.underline_width)
+        underline_y = text_top + min(measured.line.baseline + thickness, measured.line.height - thickness)
+        _push_link_underline!(elements, w, text_x, underline_y, measured.line.width, thickness, style.color)
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
+        push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :pointing_hand))
+        (width = outer_width, height = outer_height, elements = elements)
+    end))
+end
+
+# The line under the text of a link, while the pointer is on the link. Its size
+# reads the mouse target in cells of its own, as the layer of a button does, so a
+# move onto the link draws only the line.
+function _push_link_underline!(elements::Vector, w::WidgetLink, x::Int, y::Int, width::Int,
+                               thickness::Int, color::StyleColor)
+    line = GraphicsRect(x, y, 0, 0; color)
+    set_cell_computation!(getfield(line, :w), () -> _is_under_pointer(w) ? Int32(width) : Int32(0))
+    set_cell_computation!(getfield(line, :h), () -> _is_under_pointer(w) ? Int32(thickness) : Int32(0))
+    push!(elements, line)
+end
+
+map_reference_forward(::WidgetLinkToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+
+map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) = nothing
+
+# A link answers the gestures of its type and of every widget: the opens of
+# `make_open_page_gestures` with its own target, and the tooltip. A key reaches it
+# while it has the focus.
+function read_intent(::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    read_bound_gesture(iomap.input, evt)
 end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
@@ -13081,6 +13193,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetText       => WidgetTextToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
         WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
+        WidgetLink       => WidgetLinkToGraphicsCanvas(theme; measure = measure),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),

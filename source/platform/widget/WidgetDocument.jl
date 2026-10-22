@@ -544,6 +544,63 @@ same keywords (`action`, `enabled`, `border`, …). Stage 5.
 WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
     WidgetButton(label; size = size, icon=icon, kwargs...)
 
+# ── WidgetLink ─────────────────────────────────────────────────────────────
+
+"""
+    WidgetLink(content, target; icon, tooltip, position, visible, margin, border, padding, style)
+
+A text that names a part and opens its page, as a link in a browser does. A
+click opens the page here, in the nearest navigator around the link, or in a new
+tab when no navigator is around it. Ctrl and a click, or a middle click, open the
+page in a new tab. Return opens it here while the link has the focus.
+
+`content` is what a `WidgetLabel` takes: a string, a cell, or a function of no
+arguments for a text that follows a value. `target` says where the link leads:
+
+- a `DocumentLocator(document, reference)`: the part at `reference` from
+  `document`, which the link opens with `OpenPageOperation(document, reference,
+  place)`;
+- a `Reference`: a path from the link itself, so `EmptyReference()` opens the
+  part that the link shows, and each reader on the way up maps the path.
+
+`icon` names an icon that stands before the text. A link draws its text in the
+link color of the theme, with no frame, so it is as tall as a label. A line
+shows under the text while the pointer is on the link. A link keeps its target
+as an address, so a walk of the documents does not go from the link into its
+target.
+
+Use it for a text that names what it opens: a title, the name of a file, the id
+of a step. A label that names a command, such as "Open stdout", is a
+`WidgetButton` with the gestures of `make_open_page_gestures`.
+
+# Example
+
+    WidgetLink("notes.txt", DocumentLocator(folder, @reference(folder, elements[2])))
+
+See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
+"""
+@document struct WidgetLink <: WidgetDocument
+    position::Point2D
+    content::Any
+    target::Any
+    icon::Any
+    visible::Bool
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
+    style::Any
+    tooltip::Any
+end
+
+function WidgetLink(content, target::Union{DocumentLocator, Reference};
+                    position::Point2D = Point2D(0, 0), icon = nothing, visible::Bool = true,
+                    margin = nothing, border = nothing, padding = nothing,
+                    style = nothing, tooltip = nothing)
+    WidgetLink(Cell(position), _make_shown_cell(content), Cell(target), Cell(icon),
+               Cell(visible), Cell(margin), Cell(border), Cell(padding),
+               Cell(style), Cell(tooltip))
+end
+
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
 """
@@ -3725,6 +3782,9 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
 FocusModule.is_focusable_document(w::WidgetToolbarItem) =
     getfield(w, :focusable)[] && !(getfield(w, :enabled)[] === false)
+
+# A link is always a stop, so Return reaches it.
+FocusModule.is_focusable_document(::WidgetLink) = true
 
 # ── What a widget says about itself ──────────────────────────────────────────
 

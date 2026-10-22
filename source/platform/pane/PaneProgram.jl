@@ -130,7 +130,7 @@ make_interface_api() = Any[
         :WidgetLabel, :WidgetText, :WidgetTextarea, :WidgetTable, :WidgetBadge,
         :WidgetAlert, :WidgetProgressBar, :WidgetProgressRing, :WidgetSeparator,
         # What a person acts on.
-        :WidgetButton, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
+        :WidgetButton, :WidgetLink, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
         :WidgetRadioGroup, :WidgetSelect, :WidgetSlider, :WidgetSpinBox, :WidgetList,
         # A position or a size, and a spacing.
         :Point2D, :Inset),

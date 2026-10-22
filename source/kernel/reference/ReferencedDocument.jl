@@ -246,6 +246,10 @@ a field, so the locator stays right when that field gets another document.
 
 Use it to keep where a document is, and to find the document there again later.
 
+A locator names a document and holds none: a walk of the documents stops at it,
+so a document that keeps a locator, such as a link, is not a parent of the
+document that the locator names.
+
 # Example
 
     locator = DocumentLocator(root, get_reference(x))
@@ -257,6 +261,8 @@ struct DocumentLocator{S}
     start::S
     reference::Reference
 end
+
+DocumentModule.is_walk_opaque(::DocumentLocator) = true
 
 # What `try_evaluate_reference` answers when the reference reaches no node, apart
 # from every value a node can hold.

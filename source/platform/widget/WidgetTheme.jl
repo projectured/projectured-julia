@@ -51,6 +51,8 @@ builder fills them from a theme, scaled or not.
     accent::ThemeColor = ColorRole(:accent_tint)
     "The text on the accent color."
     accent_foreground::ThemeColor = ColorRole(:accent_text)
+    "The text of a link and the line under it."
+    link::ThemeColor = ColorRole(:link)
     "The color of an action that deletes or an error."
     destructive::ThemeColor = ColorRole(:error_fill)
     "The text on the destructive color."
@@ -216,13 +218,14 @@ make_widget_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; f
 _with_alpha(color::StyleColor, alpha::Real) =
     StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
-# The four text styles, and the layers of a hovered and of a pressed widget. The
+# The text styles, and the layers of a hovered and of a pressed widget. The
 # styles are no fields of the theme, so they follow the fonts and the palette. Each
 # takes the values of a widget theme, scaled or not (`get_theme_values`).
 _get_body_text(theme) = StyleText(theme.font, theme.foreground)
 _get_title_text(theme) = StyleText(theme.font_bold, theme.foreground)
 _get_caption_text(theme) = StyleText(theme.font_small, theme.muted_foreground)
 _get_label_text(theme) = StyleText(theme.font, theme.foreground)
+_get_link_text(theme) = StyleText(theme.font, theme.link)
 _get_hover_layer(theme) = theme.hover
 _get_pressed_layer(theme) = theme.pressed
 

@@ -97,8 +97,10 @@ padding, style)` is a widget document in `WidgetDocument.jl`.
   again, and nothing else.
 - The pointer is the hand over the link.
 
-The gestures are a `@gestures WidgetLink` table. `read_bound_gesture` reads the
-table of the type, so the gesture help lists the gestures of a link.
+The gestures are the table of the type, `get_document_gesture_bindings_own(::Type{WidgetLink})`,
+which is how the widget slice declares the gestures of its types.
+`read_bound_gesture` reads the table of the type, so the gesture help lists the
+gestures of a link, and a link also has the tooltip of every widget.
 
 | Gesture | Effect |
 | --- | --- |
@@ -198,7 +200,7 @@ sealed.
 0. [x] **Close the two plans.** `document-locator.md` and
    `document-link-feature.md` are in `plan/obsolete/`, each with a status line
    that says why. Done 2026-10-22 on the branch `widget-link`.
-1. [ ] **`WidgetLink`.** Add the document, the printer, the `@gestures` table,
+1. [x] **`WidgetLink`.** Add the document, the printer, the gesture table,
    the theme field `link`, the focus method, the export and the entry in
    `make_interface_api`. Add `is_walk_opaque(::DocumentLocator)`. Make one
    private list of the open gestures, and give `make_open_page_gestures` the
@@ -212,6 +214,23 @@ sealed.
    `test_referenced_document_editor()` (a new docstring can move the rank of a
    search of the interface), and the naming guard. Run the tests in a fresh
    process, because the dispatch table of the widgets is built once.
+   **Done 2026-10-22.** What the step found and decided:
+   - The document is in `WidgetDocument.jl`, the printer
+     `WidgetLinkToGraphicsCanvas` in `WidgetToGraphics.jl`, and the gestures in
+     `OpenPageOperation.jl`: `_make_open_page_bindings(open; domain)` makes the
+     four bindings, and both `make_open_page_gestures` and the table of
+     `WidgetLink` (`_WIDGET_LINK_BINDINGS`, domain "widget") call it.
+   - The reader of a link calls `read_bound_gesture`, as the reader of a button
+     does. It answers no mouse down, because a link has no pressed state.
+   - The underline is `max(1, border_width)` thick, one thickness below the
+     baseline of the text, and as wide as the text.
+   - `find_first_baseline` of a link gives the baseline of its text, so a row
+     that aligns its parts on the baseline aligns a link as it aligns a label.
+   - The icon of a folder is a glyph, so it draws as a second `GraphicsText`.
+   - Pass: `test_widget_link()` 27 of 27, `test_widget_button_behavior()` with
+     no failure, `test_open_page_operation()` 92 of 92,
+     `test_referenced_document()` 63 of 63, `test_referenced_document_editor()`
+     111 of 111, and the naming guard.
 2. [ ] **The platform links.** Replace the buttons in the table "Who uses it",
    except the research link. Test: `test_explorer()`, `test_task_views()`,
    `test_roster_table()`, `test_roster()`, `test_document_tree()`,
