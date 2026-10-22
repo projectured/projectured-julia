@@ -9,8 +9,11 @@ Drain input window inputs via the backend until one translates into an
 operation. Returns `true` when an operation was produced (stored in
 `editor.operation`), `false` once the backend has nothing left to
 deliver — used by `run_editor!` to decide when to stop draining and repaint.
-An Escape that leaves the safe mode also answers `false`, so the projection that
-is back paints before the input behind the Escape is read.
+A `WindowQuit` is the one input that the editor answers itself: it quits. A bare
+Escape that no reader takes leaves the safe mode and answers `false`, so the
+projection that is back paints before the input behind the Escape is read. Out
+of the safe mode, such an Escape is consumed as any other input that no reader
+takes.
 
 Window inputs that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
@@ -49,24 +52,15 @@ function run_read_stage!(editor::Editor)
                 editor.operation = op
                 return true
             end
-            # Escape closes the editor, but only when nothing else wanted it. A
-            # reader that binds Escape — a dialog, an insertion, the command palette
-            # — produced an operation above and won, so its Escape never reaches
-            # here. This is why a backend must deliver Escape as a key rather than
-            # as a quit: a quit cannot be declined.
-            if _is_quit_gesture(window_input)
-                # In the safe mode, Escape means "out of this", not "out of the
-                # editor". The quit gesture goes back to its usual meaning as
-                # soon as the projection is back. The projection that is back has
-                # no IoMap, so the frame paints before it reads the input behind
-                # this Escape, and the next frame runs without a wait.
-                if leave_safe_mode!(editor)
-                    editor.operation = nothing
-                    editor.wake_pending[] = true
-                    return false
-                end
-                editor.operation = QuitEditorOperation()
-                return true
+            # In the safe mode, a bare Escape that no reader took leaves it. The
+            # safe mode puts the projection aside, so no wrapper of the projection
+            # is there to answer the key. The projection that is back has no
+            # IoMap, so the frame paints before it reads the input behind this
+            # Escape, and the next frame runs without a wait.
+            if _is_bare_escape(window_input) && leave_safe_mode!(editor)
+                editor.operation = nothing
+                editor.wake_pending[] = true
+                return false
             end
         end
     end
@@ -116,12 +110,12 @@ function _pop_due_timer!(editor::Editor)
 end
 
 """
-    _is_quit_gesture(window_input) -> Bool
+    _is_bare_escape(window_input) -> Bool
 
-Is this the bare Escape that closes the editor? Modified Escape is left alone, so
-a chord stays available to a projection.
+Is this an Escape with no modifier, the key that leaves the safe mode? A
+modified Escape is left alone, so a chord stays available to a projection.
 """
-function _is_quit_gesture(window_input)
+function _is_bare_escape(window_input)
     window_input isa WindowInput || return false
     event = window_input.event
     event isa KeyDown || return false

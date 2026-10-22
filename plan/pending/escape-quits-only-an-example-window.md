@@ -53,7 +53,7 @@ implement".
 Do the work in this worktree. Commit each step. Do not land on `main` before the
 owner approves.
 
-1. [ ] **The Escape quit moves to a projection.** The kernel rule, the projection
+1. [x] **The Escape quit moves to a projection.** Done; see [As built](#as-built). The kernel rule, the projection
    and its wrapper, the wrap in the examples, and the tests: the kernel test
    `EscapeQuitTest.jl` keeps what the kernel still does, a new platform test
    `test/platform/shell/EscapeQuittingTest.jl` tests the projection and the
@@ -65,6 +65,34 @@ owner approves.
    `operation.md`, `devices-and-backends.md`, `screen.md`, `shell.md`,
    `console.md`, `keyboard-and-mouse-guide.md`, `setup-guide.md` and
    `debugging-guide.md`. The plan moves to `plan/done/`. Commit.
+
+## As built
+
+- **Step 1.** `run_read_stage!` answers `QuitEditorOperation` only for a
+  `WindowQuit`. A bare Escape that no reader took leaves the safe mode, through
+  `_is_bare_escape` of `EditorModule`; otherwise it is consumed. The screen
+  slice already had `_is_bare_escape(event)` in `WindowManaging.jl`, so
+  `EscapeQuitting.jl` uses it on the event of a `WindowInput`; a second method
+  in the same module failed the naming guard. `EscapeQuittingProjection` follows
+  `FocusCyclingProjection`: the IoMap has the same input as the child, so it
+  needs no `get_child_iomaps`, and a route goes to `inner` with the change. The
+  kernel test is `WindowQuitTest.jl` (`test_window_quit`); the platform test is
+  `test/platform/shell/EscapeQuittingTest.jl` (`test_escape_quitting`). The
+  fixture of `ContextMenuWindowTest.jl` wraps its projection, so its check that
+  a popup takes the Escape is a real claim. `GalleryWrapperTest.jl` checks that
+  an Escape closes a menu of an example window, and that a second Escape quits.
+- **Step 2.** The Exit callback evaluates `QuitEditorOperation()` at once. Its
+  `QuitEditorException` is no fault, so no barrier takes it, and the loop stops
+  as for the close button. `WindowShellTest.jl` presses Ctrl+Q in a headless
+  shell window and reads the `InvokeActionOperation` of Exit. The shortcut walk
+  of the shell skips a `WidgetSeparator`, and the label helpers of the tests skip
+  it too.
+- **Tests.** In `environment/all`: `test_window_quit`, `test_escape_quitting`,
+  `test_window_shell`, `test_context_menu_window`, `test_tracking_screen`,
+  `test_fault_safe_mode`, `test_gesture_tracking`, `test_shell_completeness`,
+  `test_console_backend` and `test_tooltip_window` pass, 509 of 509.
+  `test_gallery_wrappers` and `test_application` pass, 405 of 407; the 2 broken
+  are the two `@test_broken` marks that `ApplicationTest.jl` has on `main`.
 
 ## Not in this plan
 

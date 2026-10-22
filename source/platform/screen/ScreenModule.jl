@@ -56,6 +56,7 @@ export ChangeScreenPointerShapeOperation, make_screen_pointer_shape_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
+export EscapeQuittingProjection, EscapeQuittingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
@@ -69,6 +70,7 @@ include("ScreenDocument.jl")
 include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
+include("EscapeQuitting.jl")
 include("PartPlace.jl")
 include("PartPicture.jl")
 include("WindowLayers.jl")

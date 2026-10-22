@@ -184,12 +184,13 @@ function test_console_backend()
         @test q == KeyPress('q'; time = q.time)
     end
 
-    # ── the editor quits on Escape, and an Alt chord does not quit ────────
+    # ── Escape quits an editor that quits on Escape, as `run_console_example`
+    # does, and an Alt chord does not quit ─────────────────────────────────
     @testset "escape quits the editor" begin
         function read_operation(bytes)
             backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
             editor = Editor(make_json_document_example(),
-                            make_json_console_projection_example();
+                            EscapeQuittingProjection(inner = make_json_console_projection_example());
                             backend = backend, devices = Device[Keyboard()])
             Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
                 _ED.run_print_stage!(editor)

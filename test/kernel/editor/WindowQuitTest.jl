@@ -1,10 +1,10 @@
-# Escape closes the editor, but only when no reader wanted it.
+# The editor quits on a `WindowQuit`, and on no key.
 #
 # A backend reports what happened and decides no meaning, so Escape arrives as an
 # ordinary `KeyDown(:escape, …)`. If a backend turned it into a `WindowQuit`, the
 # quit could not be declined and every reader that binds Escape — a dialog, an
-# insertion, the command palette — would be unreachable. The editor loop makes the
-# decision instead, after the pipeline has had its say.
+# insertion, the command palette — would be unreachable. A projection that wants
+# Escape to quit answers it; the editor answers no key itself.
 
 using Test
 using ProjecturedKernel.EventModule
@@ -51,37 +51,31 @@ end
 
 _press!(editor, event) = push_event!(editor.backend, WindowInput(:probe, event))
 
-function test_escape_quit()
-@testset "Escape quits only when nothing handled it" begin
+function test_window_quit()
+@testset "the editor quits on a WindowQuit and on no key" begin
     none = ModifierKeys()
 
-    @testset "an Escape no reader wanted closes the editor" begin
-        editor = _escape_editor(EscapeDecliningProjection())
-        _press!(editor, KeyDown(:escape, none; time = 0.0))
-        @test EditorModule.run_read_stage!(editor)
-        @test editor.operation isa QuitEditorOperation
-    end
-
-    @testset "an Escape a reader claimed does not" begin
-        editor = _escape_editor(EscapeClaimingProjection())
-        _press!(editor, KeyDown(:escape, none; time = 0.0))
-        @test EditorModule.run_read_stage!(editor)
-        @test editor.operation isa DoNothingOperation
-        @test !(editor.operation isa QuitEditorOperation)
-    end
-
-    @testset "a modified Escape is left to the projections" begin
-        editor = _escape_editor(EscapeDecliningProjection())
-        _press!(editor, KeyDown(:escape, ModifierKeys(ctrl=true); time = 0.0))
-        @test !EditorModule.run_read_stage!(editor)                        # drained, nothing produced
-        @test editor.operation === nothing
-    end
-
-    @testset "a real quit still closes the editor whatever the readers say" begin
+    @testset "a WindowQuit closes the editor whatever the readers say" begin
         editor = _escape_editor(EscapeClaimingProjection())
         _press!(editor, WindowQuit(; time = 0.0))
         @test EditorModule.run_read_stage!(editor)
         @test editor.operation isa QuitEditorOperation
+    end
+
+    @testset "an Escape that no reader wanted is consumed, bare or modified" begin
+        for modifiers in (none, ModifierKeys(ctrl=true))
+            editor = _escape_editor(EscapeDecliningProjection())
+            _press!(editor, KeyDown(:escape, modifiers; time = 0.0))
+            @test !EditorModule.run_read_stage!(editor)                    # drained, nothing produced
+            @test editor.operation === nothing
+        end
+    end
+
+    @testset "an Escape a reader claimed gives the answer of the reader" begin
+        editor = _escape_editor(EscapeClaimingProjection())
+        _press!(editor, KeyDown(:escape, none; time = 0.0))
+        @test EditorModule.run_read_stage!(editor)
+        @test editor.operation isa DoNothingOperation
     end
 
     @testset "another key is not a quit" begin
@@ -102,4 +96,4 @@ function test_escape_quit()
 end
 end
 
-export test_escape_quit
+export test_window_quit

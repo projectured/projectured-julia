@@ -21,7 +21,9 @@ end
                 command_palette=false, gesture_log=false,
                 fault_tolerant=true, profile=false)
 
-Open one window per example, side by side. Each example contributes a
+Open one window per example, side by side. A bare Escape that nothing in the
+windows took quits, through an `EscapeQuittingProjection` around everything, and
+so does the close button of a window. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
 composed projection dispatches each window's content to that example's
 own projection by **reference path** (so two examples with the same
@@ -429,7 +431,9 @@ end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
 # put the gesture tracker around both, and make the editor on `backend`, printed
-# once. The shared start of `make_example_editor` and `run_file_editor`.
+# once. The shared start of `make_example_editor` and `run_file_editor`. A bare
+# Escape that nothing took quits an example window, so the projection is an
+# `EscapeQuittingProjection` around everything.
 function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
                                    content_unwrap::Vector{Symbol}=Symbol[],
                                    feeds::Vector{Feed}=Feed[])
@@ -437,8 +441,8 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
         compose(projs, backend);
         inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])
-    make_editor(screen, composed; backend = backend, feeds = feeds,
-                fault_policy = FaultPolicy())
+    make_editor(screen, EscapeQuittingProjection(inner = composed); backend = backend,
+                feeds = feeds, fault_policy = FaultPolicy())
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.
@@ -628,7 +632,7 @@ Keywords:
   - `interactive` — when `true`, run the read-eval-print loop: poll the
                     keyboard, apply operations, repaint. `Home` selects the root
                     node, arrows navigate the tree, `Ctrl+Space` toggles
-                    structural ⇄ text selection, `Ctrl+C` quits. Character-level
+                    structural ⇄ text selection, `Ctrl+C` and Escape quit. Character-level
                     text editing works too: it is in the `@gestures TextBlock`
                     table (`source/platform/text/TextDocument.jl`), geometry-free and so
                     available even though this pipeline omits `TextToGraphics`.
@@ -644,7 +648,8 @@ function run_console_example(; document=make_json_document_example(),
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            run_editor!(make_editor(document, projection; backend = backend,
+            run_editor!(make_editor(document, EscapeQuittingProjection(inner = projection);
+                                     backend = backend,
                                      devices = Device[Keyboard()],
                                      fault_policy = FaultPolicy()))
         end

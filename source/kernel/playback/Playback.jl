@@ -59,7 +59,7 @@ Each entry carries either an `event` (wrapped in an `WindowInput` for
 domain `Operation` value, or a `doc -> op` thunk, injected straight into the
 evaluator). At most one scheduled entry is applied per frame, so each resulting
 state is visible. Real user input is still polled every frame, so the user can
-interact and the window-close button / Escape quits cleanly. After the last
+interact and the window-close button quits cleanly. After the last
 entry the window stays live and interactive.
 
 `op_prefix` reroots directly-injected `operation` entries: a timeline authored

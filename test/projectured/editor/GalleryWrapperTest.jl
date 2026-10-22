@@ -126,7 +126,7 @@ function test_gallery_wrappers()
         end
     end
 
-    @testset "a right click opens a menu that draws in its own window" begin
+    @testset "a right click opens a menu that draws in its own window, and Escape closes it" begin
         # The gallery draws a window that opens later, such as the menu of a
         # right click, through the rows of the widgets.
         example = only(e for e in examples if e.name == "pivot")
@@ -144,6 +144,13 @@ function test_gallery_wrappers()
         send!(MouseUp(:right, x + 3, y + 3, ModifierKeys(); time = 1.15))
         menu = only(window for window in windows() if window.id !== main.id)
         @test "Show the totals" in [t[3] for t in _gw_texts(menu.content)]
+        # An Escape closes the menu and goes no further. A second Escape, which
+        # nothing takes, quits the example.
+        send!(KeyDown(:escape, ModifierKeys(); time = 1.2))
+        @test only(windows()).id === main.id
+        push_event!(backend, WindowInput(main.id, KeyDown(:escape, ModifierKeys(); time = 1.3)))
+        @test EditorModule.run_read_stage!(editor)
+        @test editor.operation isa QuitEditorOperation
     end
 end
 end

@@ -16,7 +16,9 @@ _cm_parts(; menu = _cm_menu("Cut", "Copy")) = WidgetComposite(Any[
     WidgetLabel("has none"; position = Point2D(0, 40)),
 ])
 
-# The window `W` at (100, 100) holds `document`, drawn with `projection`.
+# The window `W` at (100, 100) holds `document`, drawn with `projection`. A bare
+# Escape that nothing took quits, as in an example window, so a test sees whether
+# the window takes the Escape.
 function _cm_editor(document = _cm_parts();
                     projection = make_widget_projection_example(measure = _cm_measure()))
     scene = make_window_scene(document, "W"; width = 400, height = 300)
@@ -26,7 +28,7 @@ function _cm_editor(document = _cm_parts();
     document, projection = make_tracking_screen(scene, composed;
         inner_wrappers = [wrap_context_menu_window])
     backend = HeadlessBackend()
-    editor = Editor(document, projection; backend = backend,
+    editor = Editor(document, EscapeQuittingProjection(inner = projection); backend = backend,
                     devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend, scene)
