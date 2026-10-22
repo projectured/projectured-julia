@@ -13,6 +13,14 @@ holds the roster maps the path of a row to the place where it holds the item,
 background work. To the question "Do you want a plan for the address?", the
 owner answered: "yes".
 
+The first version of this plan found the place of an item by a search: the
+index of the item in the collection, and the index of its row in the roster.
+The owner, 2026-10-22: "wait, when the roster was created, it knew where the
+document came from, now we are going to re-search it?" The source walks the
+collection when it gathers the items, so it knows the place of each item then.
+To the question whether to rewrite the plan so that the source gives the place
+and the roster keeps it, the owner answered: "yes".
+
 ## The problem
 
 1. **The open names the path of the row in the roster.** A click on the link
@@ -29,26 +37,45 @@ owner answered: "yes".
 3. **The selection has the same path.** A press on a label of a row selects
    `table.document.rows[k].item`, so a key or a menu that acts at the selection
    names the row and not the place of the item.
+4. **The roster drops the place that its source knows.** `CollectionItems`
+   walks the collection at its reference to gather the items, so it knows the
+   index of each item. `RosterItem` holds only the item and `within`, so the
+   index is lost.
 
 ## The model
 
-- **A held roster of the holder's own collection.** The rule applies when the
-  holder keeps in a field, such as `table`, an `ArrangementDocument` around a
-  `Roster`, or the `Roster` alone, whose source is
-  `CollectionItems(<reference>)` and whose link is the holder. The reference
-  is the place of the collection in the holder, such as `files` or `rows`. The
-  rule reads it from the source, so a page names only the field of its table.
-- **Two functions in the roster slice.**
-  - `find_held_item_path(holder, step, path)`: for a path below the field
-    `step` that reaches the item of a row, `step.document.rows[k].item.<rest>`,
-    the place of the item in the holder, `<reference>[j].<rest>`. `j` is the
-    index of the item in the collection, by identity. `nothing` for any other
-    path, such as a cell of a facet, an entry of the arrangement or the bar.
-  - `find_held_row_path(holder, step, path)`: the inverse, for
-    `<reference>[j].<rest>`: the path of the row that shows that item,
-    `step.document.rows[k].item.<rest>`, with `k` the index of its row in
-    `rows` of the roster, by the identity of the item. `nothing` when no row
-    shows the item.
+- **The source gives the place with the item.** `RosterItem` gets a third
+  field, `place`: the path of the item from the link of the roster, or
+  `nothing`. `RosterItem(item)` and `RosterItem(item, within)` stay, with
+  `place = nothing`. `CollectionItems(<reference>)` gives `<reference>[j]` for
+  the item at the index `j`, which it has while it walks the collection. A
+  `CollectionItems` of a collection that is no reference, and every other
+  source, give `nothing`.
+- **The roster keeps the places where it computes its rows.**
+  `_compute_roster_slots` walks every item that the source gives, and keeps the
+  row of each item by identity. The roster gets a computed field `index`, which
+  answers for each item its place and the index of its row in `rows`. It reads
+  `rows` and the items that the parts already gathered, so it computes again
+  after the rows compute again, and only when a map reads it. A change of the
+  collection gathers its part again, so an item gets its new place when a file
+  before it closes. The row of the item stays the same object, with its cells
+  and its print.
+- **Two reads of the index.** `get_roster_item_place(roster, k)` answers the
+  place of the item of row `k`, or `nothing`. `find_roster_row(roster, item)`
+  answers the index of the row of `item`, or `nothing`. Neither searches.
+- **The rule of a held roster.** Two functions in the roster slice, for a
+  holder that keeps in the field `step` an `ArrangementDocument` around a
+  `Roster`, or the `Roster` alone, whose link is the holder:
+  - `find_held_item_path(holder, step, path)`: for
+    `step.document.rows[k].item.<rest>`, the place of the item of row `k` with
+    `<rest>` after it, such as `files[2].<rest>`. `nothing` when the row has no
+    place, and for any other path, such as a cell of a facet, an entry of the
+    arrangement or the bar.
+  - `find_held_row_path(holder, step, path)`: the inverse. For a path that
+    starts with the reference of a `CollectionItems` source and an index, such as
+    `files[j].<rest>`, it reads the item at `files[j]`, finds its row with
+    `find_roster_row`, and answers `step.document.rows[k].item.<rest>`.
+    `nothing` when no row shows the item.
 - **The two pages use them.** `map_reference_backward` of
   `OpenFileListToWidget` and of `BackgroundWorkLogToWidget` answers
   `find_held_item_path` before the path of the table, and
@@ -59,30 +86,30 @@ owner answered: "yes".
 - **The address.** After a click on `todo.txt` the address is "Explorer › Open
   files › todo.txt". Parent goes back to the list. The tree marks the node of
   the file under "Open files" when that node is open.
-- **The cost.** Each direction scans one list: the collection for `j`, or the
-  rows of the roster for `k`. The open files are a few files. Step 2 counts the
-  rows of the log in a long session of the live check, and records whether a
-  scan of that size in a map of a path is fast enough.
 
 ## Steps
 
-1. [ ] **The shared rule.** Add `find_held_item_path` and
-   `find_held_row_path` to the roster slice. Test: new cases in `test_roster()`
-   with a small holder that keeps an arrangement of a roster of its own
-   collection: a path to an item and below it maps both ways, a filter and a
-   sort do not change the place of the item, and a path to a facet cell, to an
-   entry of the arrangement or to an item that no row shows answers
-   `nothing`.
-2. [ ] **The two pages use it.** Change the two maps of `OpenFileListToWidget`
-   and of `BackgroundWorkLogToWidget`. Test: in the testset of the open files
-   in `test_explorer()`, after one click on a name the address of the navigator
-   is `files[j]` of the list, the bar draws "Open files" once before
-   "todo.txt", and a press on a label of a row selects `files[j]`. In
+1. [ ] **The source gives the place, and the roster keeps it.** Add `place` to
+   `RosterItem`, the places of `CollectionItems`, the field `index` of
+   `Roster`, `get_roster_item_place` and `find_roster_row`. Test: new cases in
+   `test_roster()`. A roster of `CollectionItems` at a reference answers the
+   place of each row. An insert before an item gives the item its new place,
+   and its row stays the same object. A roster of a plain collection answers
+   `nothing`. `find_roster_row` finds the row of an item and answers `nothing`
+   for an item that no row shows. Then run `test_roster_sources()` and
+   `test_roster_table()`.
+2. [ ] **The pages map through the places.** Add `find_held_item_path` and
+   `find_held_row_path`, and change the two maps of `OpenFileListToWidget` and
+   of `BackgroundWorkLogToWidget`. Test: in the testset of the open files in
+   `test_explorer()`, after one click on a name the address of the navigator is
+   `files[j]` of the list, the bar draws "Open files" once before "todo.txt",
+   and a press on a label of a row selects `files[j]`. In
    `test_background_work()`, a double click on a row opens its record at
    `rows[j]` of the log. Then run `test_roster_table()`,
    `test_navigator_gestures()` and `test_document_tree()`.
 3. [ ] **The guides and a live check.** Update
-   [roster.md](../../documentation/package/platform/roster/roster.md),
+   [roster.md](../../documentation/package/platform/roster/roster.md) (the
+   place of an item, the index, the rule of a held roster),
    [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md)
    and [backgroundwork.md](../../documentation/package/platform/backgroundwork/backgroundwork.md).
    In a live window, open a file from the page "Open files" by its name, take a
@@ -90,14 +117,14 @@ owner answered: "yes".
 
 ## Not in this plan
 
+- The place of an item of `TabDocuments`, `ItemsWithin`, `StoreRecords` or
+  `SystemProcesses`. Their items keep `place = nothing`.
 - The address of a roster that is the content of a navigator itself, such as a
   roster in a tab. Its rows are its own place, and its address stays
   `rows[k].item`.
-- A source other than `CollectionItems` of the holder's own collection.
 - The look of a link and of a link in a selected row (the open item of the plan
   of the link).
 
 ## Open items
 
-- Whether a scan of the rows of the log in a map of a path is fast enough
-  (step 2 measures it).
+- None.
