@@ -71,9 +71,9 @@ function _build_research_graph(study)
             vertex = GraphVertex(item)
             push!(vertices, vertex)
             vertex_of[item] = vertex
-            push!(slots, _ResearchSlot(Any[_make_field_step("study"), _make_field_step(kind.field), _make_element_step(index)],
+            push!(slots, OutlineSlot(Any[_make_field_step("study"), _make_field_step(kind.field), _make_element_step(index)],
                                        Any[_make_field_step("vertices"), _make_element_step(length(vertices)),
-                                           _make_field_step("content")], nothing))
+                                           _make_field_step("content")]))
         end
     end
     edges = Any[]
@@ -96,11 +96,11 @@ function _build_research_graph(study)
 end
 
 map_reference_forward(p::ResearchMapToGraph, iomap::ResearchMapToGraphIoMap, reference) =
-    _map_research_forward(iomap.slots, reference)
+    map_outline_forward(iomap.slots, reference)
 
 function map_reference_backward(p::ResearchMapToGraph, iomap::ResearchMapToGraphIoMap, reference)
     reference isa Reference || return nothing
-    found = _map_research_backward(iomap.slots, reference)
+    found = map_outline_backward(iomap.slots, reference)
     found === nothing && return nothing
     try
         annotate_reference_types(iomap.input, found)

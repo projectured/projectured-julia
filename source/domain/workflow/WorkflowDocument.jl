@@ -180,6 +180,10 @@ end
 
 # The name of a tab that shows a node of a workflow, its journal or a catalog: the
 # text that names the node, or the folder.
+# Which nodes and cards an outline shows folded is state of the view, not a thing
+# the workflow says: the file and a search leave it out.
+get_view_state_fields(::Type{<:Union{WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowCard}}) = (:collapsed,)
+
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =
     get_workflow_node_title(node).value
 get_document_title(journal::WorkflowJournal) =

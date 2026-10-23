@@ -29,9 +29,8 @@ using ..MarkdownModule
 using ..MathModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title
+import ..DocumentModule: get_document_title, get_view_state_fields
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
-import ..SerializationModule: pred_arguments
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
@@ -46,8 +45,8 @@ export find_study_item, collect_research_links, make_research_id, make_research_
        make_add_research_item_operation, collect_research_item_holders,
        make_delete_research_item_operation, make_record_decision_operation
 export ResearchTheme, ScaledResearchTheme
-export ResearchItemToWidget, ResearchStudyToWidget, ResearchToWidgetIoMap, make_research_projections,
-       make_research_graphics_entries, describe_research_link, describe_research_expectation
+export ResearchItemToWidget, ResearchStudyToWidget, make_research_projections, make_research_graphics_entries,
+       ResearchToWidgetIoMap, describe_research_link, describe_research_expectation
 export ResearchMap, ResearchMapToGraph, ResearchMapPartToWidget, ResearchMapToGraphIoMap,
        make_research_map_projection
 export StudyItems

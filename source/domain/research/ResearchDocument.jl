@@ -366,12 +366,9 @@ See also `start_study!`, `describe_study`, `find_study_item`.
     time::String = ""
 end
 
-# A study's file half is its fields but the view's: which cards an outline shows
-# folded is not a thing the study says.
-function pred_arguments(study::ResearchStudy)
-    positional, keywords = invoke(pred_arguments, Tuple{Any}, study)
-    positional, filter(pair -> first(pair) !== :folded, keywords)
-end
+# Which rows an outline shows folded is state of the view, not a thing the study
+# says: the file and a search leave it out.
+get_view_state_fields(::Type{<:ResearchStudy}) = (:folded,)
 
 # ── The kinds of item ────────────────────────────────────────────────────
 

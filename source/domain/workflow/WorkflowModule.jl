@@ -21,7 +21,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
-import ..DocumentModule: get_document_title
+import ..DocumentModule: get_document_title, get_view_state_fields
 
 export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry, WorkflowCard,
        WorkflowJournal, WorkflowCatalog, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,

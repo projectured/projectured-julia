@@ -586,26 +586,26 @@ Each step is a commit on a branch of its own. Each names its narrowest test, whi
 must pass, and the rules (R) and parts (G) that it builds. A step that changes a
 generic behaviour updates the design document of that slice in the same commit.
 
-- [ ] **1. Theme and type for outlines.** The outline slice (D1) with `OutlineTheme`:
+- [x] **1. Theme and type for outlines.** The outline slice (D1) with `OutlineTheme`:
   the sizes of R1 as theme fields of a size kind, the type of R3 as `TextRole`s, the
   colours of R3 as roles that exist. Widgets take a line height from the theme (D15).
   The `gap` of the two themes becomes a spacing. Test: `test_theme()`,
   `test_line_spacing()`, `test_style()` (no literal size outside a theme).
-- [ ] **2. Text that fits (G8).** A limit of lines with an ellipsis on `WidgetLabel`; a
+- [x] **2. Text that fits (G8).** A limit of lines with an ellipsis on `WidgetLabel`; a
   wrapped plain value in `WidgetText`; a `WidgetText` with no box at rest; the layout
   of R2. Test: `test_word_wrapping()`, `test_widget_text_editing()`, a new test of the
   layout of R2 at two widths.
-- [ ] **3. Icon, chip and avatar (G9).** Test: `test_widget_button_labels()` and a new
+- [x] **3. Icon, chip and avatar (G9).** Test: `test_widget_button_labels()` and a new
   test that draws a pressable `WidgetIcon` with a dot in a layout.
-- [ ] **4. A row that shows its controls (G2).** The hover band, the tint, the two cells,
+- [x] **4. A row that shows its controls (G2).** The hover band, the tint, the two cells,
   the menu that keeps the row lit, the order of Tab. The drawn buttons of a view get
   `follow_output_mouse_target!`. Test: `test_mouse_target_chain()` and a new test: a
   move of the pointer onto a row changes the colour of its "⋯" and rebuilds no row.
-- [ ] **5. Menus that a button opens and the keyboard drives (G3, D2, D3).** Test:
+- [x] **5. Menus that a button opens and the keyboard drives (G3, D2, D3).** Test:
   `test_widget_context_menu()`, `test_widget_menu()`: the menu opens under its button,
   Up, Down and Return choose, Escape closes, the keys of an item are drawn, Shift+F10
   opens the menu of the selection.
-- [ ] **6. The choice list (G4).** It moves into the widget slice; the navigator uses it.
+- [x] **6. The choice list (G4).** It moves into the widget slice; the navigator uses it.
   Test: the navigator tests of `test_platform()` pass unchanged, and a new test types
   into a list of three rows.
 - [ ] **7. The insertion with a popup (G5, G6, D4, D5, D6).** The word match and its rank,
@@ -614,7 +614,7 @@ generic behaviour updates the design document of that slice in the same commit.
   `test_document_insertion()`: "ch" finds Chart and Sequence chart in that order; Enter
   inserts the first; Escape removes the element; the explorer Insert with "stu" adds a
   study.
-- [ ] **8. View state and folds (G10, D9).** The trait of the fields of view state; the fold
+- [x] **8. View state and folds (G10, D9).** The trait of the fields of view state; the fold
   set. Test: `test_pred_file()` leaves a view field out; `test_document_duplicate()`
   copies none.
 - [ ] **9. A text format inside a `.pred` file (G13, D7).** Test: `test_pred_file()` and
@@ -647,6 +647,49 @@ generic behaviour updates the design document of that slice in the same commit.
 - [ ] **17. The documents.** research.md, workflow.md, widget.md, context-menu.md,
   domain.md, explorer.md and a new outline.md say what is; the limits that this plan
   removes go away. Test: `test_documentation()`.
+
+### 10.1 As built
+
+The steps land on the branch `ccr-1058c6d1-njtjm7`, in the worktree of the
+implementation, one commit for a group of steps that share files.
+
+- **Steps 1 to 5.** The outline slice holds `OutlineTheme`, `compute_shown_dates`
+  and the builders of a row (`make_outline_row` and its parts). The line height of
+  D15 is a `LineSpacing` of the style slice, `ExactSpacing(text_line)`, which a
+  label and a text field take as `line_spacing`; no new kind of length was needed.
+  The chip of G9 is a `WidgetLabel` with a ground, a radius and gestures, not a
+  badge. The layout of R2 is a `FlowLayout` of the text and its facts: they follow
+  a text of one line and stand under a longer one. The light of G2 is a card of the
+  variant `:row`, whose band and revealed controls are colour cells, and a card has
+  gestures of its own, which carry the menu of a row (a right click, Shift+F10). G3
+  adds `make_menu_button_binding`, the keys of a vertical menu, `highlighted`, and
+  the `keys` of a menu item. A toolbar item can leave the order of Tab
+  (`focusable = false`), and the kit's controls do.
+- **Step 6.** `WidgetChoiceList` and `WidgetChoice` are in the widget slice, with
+  `make_choice_list_operation`; the navigator builds its list of choices with them,
+  and its tests pass unchanged.
+- **Step 7, in part.** The word match of D4 answers only where no whole name
+  matches, so every completion that matched before matches the same; a word match
+  has no continuation. `find_insertion_choices` ranks the whole-name matches first.
+  `get_insertion_icon` and `is_element_type` are the traits of G5 and G6, and an
+  empty `DocumentInsertion` shows "Type a kind", which goes at the first key, as the
+  owner asked. Open: the popup option of `InsertionToSyntaxLeaf` for the Insert of
+  the explorer, of a dashboard and Ctrl+T (D5), and Escape in a list. The umbrella
+  tests of the insertion are updated for the new text but could not run here: the
+  umbrella needs `AutoIntegration.jl`, which this container does not hold.
+- **Step 8.** The trait is `get_view_state_fields(T)` of the kernel, with
+  `is_view_state_field(T, name)`; the file and the search read it. A copy keeps the
+  fields as it keeps a selection. The study declares `folded`; the workflow declares
+  `collapsed` on its nodes and cards and writes a fold as view state, which keeps
+  each fold on its node and needs no set keyed by identity.
+- **The outline paths.** `OutlineSlot`, `map_outline_forward`,
+  `map_outline_backward` and `route_outline_paths!` are in the kit, and both domains
+  use them. A whole slot maps a record to its row and any place of the row that no
+  field holds back to the record, so a menu that a mark or a "⋯" opens belongs to
+  the record, and a press on the facts of a row selects the record.
+- **Not yet.** G2 keeps a row lit while its own menu is open; the row is not kept
+  lit yet, because the pointer leaves the window of the row when the menu window
+  opens. A press on a chip selects nothing until step 11.
 
 ## 11. Not in this plan
 

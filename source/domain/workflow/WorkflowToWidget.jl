@@ -1,8 +1,9 @@
-# Fragment of `WorkflowModule` — the outline of a workflow as widgets: a card for
-# each node, with the node's own documents inside it.
+# Fragment of `WorkflowModule` — the outline of a workflow as widgets: the goal,
+# then a row of the outline kit for each node of the tree under it, indented by
+# its depth.
 #
-# The output holds the documents of the input — a title, a reason, the text of
-# an entry, the content of a card, a child node — and the renderer draws each of
+# The output holds the documents of the input that are not prose — the content of
+# a card, the text of an entry in another domain — and the renderer draws each of
 # them through the view of its own domain. So text, Markdown, syntax and widgets
 # mix in one outline, and an edit in any of them edits the document itself. The
 # maps of this file translate a path between the input and the output by the
@@ -11,66 +12,58 @@
 # ── The projections ──────────────────────────────────────────────────────
 
 """
-    WorkflowNodeToWidget(; styles…)
+    WorkflowNodeToWidget(; outline)
 
-Draw a step, a decision or an option as a card.
+Draw a node and the tree under it as an outline: its title, the counts of the
+states of its steps, then a row for each node under it, indented by its depth.
 
-The header holds a button that folds the node, the state of a step or an option
-as a badge with a button that steps it, the title or the question, and the time
-of the last entry.
-The body holds the reason of an option, the journal, the cards, the children and
-a row of buttons that add a child, an entry and a card. A card and a child each
-have a button that removes it. A press on the state button changes the state and
-writes a `:state` entry, as `make_workflow_state_operation` does.
+A row shows the fold and the mark of a node: the state of a step as a ring, a
+decision as a diamond, the state of an option. After the title stand the reason
+of an option, "decided" or "undecided" after a decision, the count of the entries
+of the journal and the time of the last one. The menu of the row holds every
+action of the node; a press on the mark of a step opens its states, and a press on
+the mark of an option chooses it. `outline` holds the values of an `OutlineTheme`.
 """
 @projection UntrackedCell struct WorkflowNodeToWidget <: Projection
-    question_text::StyleText = get_workflow_style(nothing, :question_text)
-    muted_text::StyleText = get_workflow_style(nothing, :muted_text)
-    gap::Int = get_workflow_style(nothing, :gap)
+    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
 end
 
 """
-    WorkflowEntryToWidget(; styles…)
+    WorkflowEntryToWidget(; outline)
 
-Draw an entry of a journal: a line with its time, its author and its kind, and
-its text under that line, through the view of the domain of the text.
+Draw an entry of a journal: its author, its time and its kind on a line, and its
+text under that line, through the view of the domain of the text.
 """
 @projection UntrackedCell struct WorkflowEntryToWidget <: Projection
-    muted_text::StyleText = get_workflow_style(nothing, :muted_text)
-    assistant_text::StyleText = get_workflow_style(nothing, :assistant_text)
-    person_text::StyleText = get_workflow_style(nothing, :person_text)
-    gap::Int = get_workflow_style(nothing, :gap)
+    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
 end
 
 """
-    WorkflowCardToWidget(; styles…)
+    WorkflowCardToWidget(; outline)
 
-Draw a card of a node: a card whose first row holds a button that folds it and
-its title, and whose second row is its content, through the view of the domain of
-the content.
+Draw a card of a node: its title and its content, through the view of the domain
+of the content, in a light inset.
 """
 @projection UntrackedCell struct WorkflowCardToWidget <: Projection
-    gap::Int = get_workflow_style(nothing, :gap)
+    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
 end
 
 """
-    make_workflow_projections(; theme = nothing) -> NamedTuple
+    make_workflow_projections(; theme = nothing, outline_theme = nothing) -> NamedTuple
 
-The projections of a workflow, `node`, `entry` and `card` of the outline,
-`journal` of the table of its entries and `catalog` of the workflows of a folder,
-with the styles
-of `theme`: a `WorkflowTheme`, scaled or not, or the default styles for
-`nothing`. Each one makes widgets; a renderer chains it with
+The projections of a workflow, `node`, `entry` and `card` of the outline, with
+the values of the `OutlineTheme` `outline_theme`, and `journal` of the table of
+its entries and `catalog` of the workflows of a folder, with the styles of
+`theme`, a `WorkflowTheme`. Each theme is scaled or not, or the default for
+`nothing`. Each projection makes widgets; a renderer chains it with
 `VerticalLayoutToGraphicsCanvas`, as `make_workflow_graphics_entries` does.
 """
-function make_workflow_projections(; theme = nothing)
+function make_workflow_projections(; theme = nothing, outline_theme = nothing)
     get_style(name) = get_workflow_style(theme, name)
-    node = WorkflowNodeToWidget(; question_text = get_style(:question_text),
-                                muted_text = get_style(:muted_text), gap = get_style(:gap))
-    entry = WorkflowEntryToWidget(; muted_text = get_style(:muted_text),
-                                  assistant_text = get_style(:assistant_text),
-                                  person_text = get_style(:person_text), gap = get_style(:gap))
-    card = WorkflowCardToWidget(; gap = get_style(:gap))
+    outline = make_theme_values_field(OutlineTheme, outline_theme)
+    node = WorkflowNodeToWidget(; outline)
+    entry = WorkflowEntryToWidget(; outline)
+    card = WorkflowCardToWidget(; outline)
     journal = WorkflowJournalToWidget(; muted_text = get_style(:muted_text),
                                       assistant_text = get_style(:assistant_text),
                                       person_text = get_style(:person_text), gap = get_style(:gap))
@@ -83,11 +76,12 @@ end
 
 The rows of the renderer for the documents of a workflow: each projection of the
 outline, chained with `VerticalLayoutToGraphicsCanvas`, so the widgets that it
-makes come back through the renderer. The styles are those of the
-`WorkflowTheme` of `appearance`.
+makes come back through the renderer. The styles are those of the `OutlineTheme`
+and the `WorkflowTheme` of `appearance`.
 """
 function make_workflow_graphics_entries(; measure, appearance)
-    projections = make_workflow_projections(; theme = get_scaled_theme!(appearance, WorkflowTheme))
+    projections = make_workflow_projections(; theme = get_scaled_theme!(appearance, WorkflowTheme),
+                                            outline_theme = get_scaled_theme!(appearance, OutlineTheme))
     node = ChainingProjection(projections.node, VerticalLayoutToGraphicsCanvas())
     Pair{Type,Any}[WorkflowStep => node, WorkflowDecision => node, WorkflowOption => node,
                    WorkflowEntry => ChainingProjection(projections.entry, VerticalLayoutToGraphicsCanvas()),
@@ -98,17 +92,8 @@ end
 
 # ── The IO map ───────────────────────────────────────────────────────────
 
-# A place in the output that holds a document of the input. `input` is the path
-# of that document from the input, `output` its path from the output. A slot of a
-# collection has a `suffix`: the steps from the place of an element in the output
-# to the element itself, inside the row that wraps it; a slot of a single
-# document has none (`nothing`).
-struct _WorkflowSlot
-    input::Vector{Any}
-    output::Vector{Any}
-    suffix::Union{Nothing, Vector{Any}}
-end
-
+# The places of the documents of the input in the output are `OutlineSlot`s of
+# the outline kit, which one build makes with its output.
 @iomap struct WorkflowToWidgetIoMap
     projection::Any
     input::Any
@@ -117,93 +102,40 @@ end
 end
 
 _make_field_step(name::AbstractString) = FieldReferenceStep(String(name))
+_make_field_step(name::Symbol) = FieldReferenceStep(String(name))
 _make_element_step(index::Integer) = RangeReferenceStep(index - 1, index)
-_make_reference(steps) = foldr((step, tail) -> ConcreteReference(step, tail), steps;
-                               init = EmptyReference())
 
-_is_same_step(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
-_is_same_step(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
-_is_same_step(::Any, ::Any) = false
-
-_has_prefix(steps, prefix) =
-    length(steps) >= length(prefix) && all(_is_same_step(steps[i], prefix[i]) for i in eachindex(prefix))
-
-_is_element_step(step) = step isa RangeReferenceStep && step.stop == step.start + 1
-
-# The path in the output of the place that `reference`, a path in the input, names.
-function _map_workflow_forward(slots, reference)
-    steps = collect(get_reference_steps(strip_reference_types(reference)))
-    isempty(steps) && return EmptyReference()
-    for slot in slots
-        _has_prefix(steps, slot.input) || continue
-        rest = steps[(length(slot.input) + 1):end]
-        # An element of a removable row, or a place inside it, is the element in
-        # the row, not the row with its button.
-        if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1])
-            return _make_reference(vcat(slot.output, Any[rest[1]], slot.suffix, rest[2:end]))
-        end
-        return _make_reference(vcat(slot.output, rest))
-    end
-    nothing
-end
-
-# The path in the input of the place that `reference`, a path in the output, names,
-# or `nothing` for a part that the view drew.
-function _map_workflow_backward(slots, reference)
-    steps = collect(get_reference_steps(strip_reference_types(reference)))
-    for slot in slots
-        _has_prefix(steps, slot.output) || continue
-        rest = steps[(length(slot.output) + 1):end]
-        if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1]) && length(rest) > 1
-            inner = rest[2:end]
-            # A press on the row of an element and not on the element itself, such
-            # as the button that removes it, is a part that the view drew.
-            _has_prefix(inner, slot.suffix) || return nothing
-            return _make_reference(vcat(slot.input, Any[rest[1]], inner[(length(slot.suffix) + 1):end]))
-        end
-        return _make_reference(vcat(slot.input, rest))
-    end
-    nothing
-end
+# The steps of a child of a container in the output: its `children` field and its
+# 1-based index.
+_get_child_steps(index::Integer) = Any[_make_field_step("children"), _make_element_step(index)]
 
 const _WorkflowProjection = Union{WorkflowNodeToWidget, WorkflowEntryToWidget, WorkflowCardToWidget}
 
 function map_reference_forward(p::_WorkflowProjection, iomap::WorkflowToWidgetIoMap, reference)
     introduced = find_introduced_path(p, reference)
     introduced === nothing || return introduced
-    _map_workflow_forward(iomap.slots, reference)
+    map_outline_forward(iomap.slots, reference)
 end
 
 function map_reference_backward(p::_WorkflowProjection, iomap::WorkflowToWidgetIoMap, reference)
     reference isa Reference || return nothing
-    found = _map_workflow_backward(iomap.slots, reference)
+    found = map_outline_backward(iomap.slots, reference)
     found === nothing &&
         return invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
-    typed = try
+    try
         annotate_reference_types(iomap.input, found)
     catch
         found
     end
-    typed
 end
 
-# Each container that one build of a view made routes a key by its selection: it
-# holds the part of the image of the selection of the input below its own place.
-# The image comes from the slots of the same build, so a build needs no IO map.
-function _route_workflow_paths!(p, input, slots, containers)
-    image(path) = something(find_introduced_path(p, path), _map_workflow_forward(slots, path), Some(nothing))
-    for (container, prefix) in containers
-        set_output_path_computations!(container, input, path -> begin
-            r = image(path)
-            r === nothing && return nothing
-            steps = collect(get_reference_steps(strip_reference_types(r)))
-            isempty(prefix) && return r
-            _has_prefix(steps, prefix) || return nothing
-            _make_reference(steps[(length(prefix) + 1):end])
-        end; dormant = false)
-    end
-    nothing
-end
+# Every document that one build made holds its part of the image of the selection
+# and of the part under the pointer of the input, by the slots of the same build.
+_route_workflow_paths!(p, input, slots, output, embedded) =
+    route_outline_paths!(input, output,
+                         path -> something(find_introduced_path(p, path), map_outline_forward(slots, path),
+                                           Some(nothing));
+                         embedded)
 
 # The IO map of a view whose output and slots one computation builds: a change of
 # what the build reads builds a new output, and the stage after this one prints it
@@ -215,176 +147,293 @@ end
 
 # ── Texts ────────────────────────────────────────────────────────────────
 
-# A field of the text of `text` that follows its value and says `placeholder` while
-# it is empty. Its caret is a range of its `content`, which the slots of
-# `_push_text_slots!` map to the same range of the value of `text`, so an edit in
-# the field is an edit of `text`.
-function _make_title_text(text::PrimitiveString, placeholder::AbstractString)
-    # The field reads the value in its own cell, so a key that changes the text
-    # draws the field again and does not build the card again.
-    widget = WidgetText(""; placeholder, border = inset_default, margin = inset_default)
-    set_cell_computation!(getfield(widget, :content), () -> text.value)
-    widget
+# A quiet field of prose at `place` for the text field `field` of the document at
+# `prefix`, with its slots: a path into its value is a path into the content of
+# the field, and the whole text is the whole field.
+function _make_workflow_text!(slots, outline, text::PrimitiveString, prefix, field, place;
+                              role::Symbol = :text, line::Union{Nothing, Symbol} = :text_line,
+                              placeholder = nothing)
+    push!(slots, OutlineSlot(vcat(prefix, Any[_make_field_step(field), _make_field_step("value")]),
+                             vcat(place, Any[_make_field_step("content")])))
+    push!(slots, OutlineSlot(vcat(prefix, Any[_make_field_step(field)]), place))
+    make_outline_text(outline, () -> something(text.value, ""); role, line, placeholder)
 end
 
-# The slots of a text field at `place` that shows the field `field` of the input:
-# a path into its value is a path into the content of the field, and the whole
-# text is the whole field.
-function _push_text_slots!(slots, field::AbstractString, place)
-    push!(slots, _WorkflowSlot(Any[_make_field_step(field), _make_field_step("value")], vcat(place, Any[_make_field_step("content")]), nothing))
-    push!(slots, _WorkflowSlot(Any[_make_field_step(field)], place, nothing))
+# ── Times ────────────────────────────────────────────────────────────────
+
+# The time that the text `text` of the time of an entry names, or `nothing`.
+_find_workflow_text_time(text::AbstractString) =
+    isempty(text) ? nothing : find_workflow_time(WorkflowEntry(time = String(text)))
+
+# The local day of the text of a time, as a key that compares, or `nothing`.
+function _get_workflow_day(text::AbstractString)
+    time = _find_workflow_text_time(text)
+    time === nothing ? nothing : Dates.format(time, "yyyy-mm-dd")
 end
 
-# ── Buttons ──────────────────────────────────────────────────────────────
-
-# A button whose press answers the operation that `make()` makes at the time of
-# the press. `name` says what the press does: it is the title of the tooltip, as
-# the button shows a glyph or a short word, and the description of the gesture.
-_make_workflow_button(text::AbstractString, name::AbstractString, make) =
-    WidgetButton(text; tooltip = TooltipNote(; title = name),
-                 gestures = GestureBinding[
-                     GestureBinding(MouseClickPattern(:left), (_, _) -> make();
-                                    description = name, domain = "workflow")])
-
-_make_fold_button(document) =
-    _make_workflow_button(document.collapsed ? "▸" : "▾",
-                          document.collapsed ? "Unfold" : "Fold",
-                          () -> ToggleCollapseOperation(document))
-
-# The state of `node` as a badge in the colour of its role, and the button that
-# steps it.
-function _make_state_items(node)
-    badge = WidgetBadge(() -> string(node.state); variant = :outline)
-    set_cell_computation!(getfield(badge, :role), () -> _get_state_badge_role(node.state))
-    step = _make_workflow_button("›", "Step the state",
-        () -> make_workflow_state_operation(node, get_next_workflow_state(node)))
-    Any[badge, step]
+# The text of a time as a row says it: the clock alone on the day of the row
+# above, and the day and the clock where the day changes, as "9 Oct 13:40".
+function _format_workflow_when(text::AbstractString, shows_date::Bool)
+    time = _find_workflow_text_time(text)
+    time === nothing && return String(text)
+    shows_date ? Dates.format(time, "d u HH:MM") : Dates.format(time, "HH:MM")
 end
 
-_get_add_buttons(node::Union{WorkflowStep, WorkflowOption}) = Any[
-    _make_workflow_button("+ step", "Add a step",
-        () -> make_insert_workflow_node_operation(node, length(node.children) + 1, WorkflowStep())),
-    _make_workflow_button("+ decision", "Add a decision",
-        () -> make_insert_workflow_node_operation(node, length(node.children) + 1,
-                  WorkflowDecision(options = [WorkflowOption()]))),
+# ── Marks and menus ──────────────────────────────────────────────────────
+
+# The glyph of each state of a step and of an option.
+const _WORKFLOW_STATE_ICONS = Dict(:open => :circle, :active => :circle_dot, :done => :circle_check,
+                                   :dropped => :circle_slash, :chosen => :circle_check,
+                                   :rejected => :circle_x, :parked => :circle_pause)
+
+# Whether one of the options of `decision` is chosen.
+_is_decided(decision::WorkflowDecision) = any(option -> option.state === :chosen, decision.options)
+
+# The mark of a node: the ring of the state of a step or an option, in the colour
+# of its state, and a diamond for a decision, in the colour of a settled or an open
+# question.
+_make_workflow_icon(node::Union{WorkflowStep, WorkflowOption}) =
+    WidgetIcon(_WORKFLOW_STATE_ICONS[node.state]; role = _get_state_badge_role(node.state))
+_make_workflow_icon(node::WorkflowDecision) =
+    WidgetIcon(:diamond; role = _is_decided(node) ? :success : :warning)
+
+# The name of a node as a menu names it: its title, read when the menu opens, or
+# its kind for an empty title.
+_get_workflow_node_name(node) =
+    (title = something(get_workflow_node_title(node).value, ""); isempty(title) ? _get_workflow_kind_name(node) : title)
+
+# The kind of a node, as a control names the node it acts on. A build reads no
+# title, so an edit of a title draws its text and builds no row.
+_get_workflow_kind_name(::WorkflowStep) = "the step"
+_get_workflow_kind_name(::WorkflowDecision) = "the decision"
+_get_workflow_kind_name(::WorkflowOption) = "the option"
+
+# The items of the menu that give a step one of its states, with the current one off.
+_make_state_items(node::WorkflowStep) =
+    Any[WidgetMenuItem(uppercasefirst(string(state)); icon = _WORKFLOW_STATE_ICONS[state],
+                       operation = make_workflow_state_operation(node, state), enabled = node.state !== state)
+        for state in get_workflow_states(node)]
+
+# The items of the menu that change the state of an option.
+function _make_option_items(decision, index::Integer, option::WorkflowOption)
+    items = Any[WidgetMenuItem("Choose"; operation = make_choose_workflow_option_operation(decision, index),
+                               enabled = option.state !== :chosen),
+                WidgetMenuItem("Reject"; operation = make_workflow_state_operation(option, :rejected),
+                               enabled = option.state !== :rejected),
+                WidgetMenuItem("Park"; operation = make_workflow_state_operation(option, :parked),
+                               enabled = option.state !== :parked)]
+    option.state === :open ||
+        push!(items, WidgetMenuItem("Reopen"; operation = make_workflow_state_operation(option, :open)))
+    items
+end
+
+# The items of the menu that add a child to `node`.
+_make_add_items(node::Union{WorkflowStep, WorkflowOption}) = Any[
+    WidgetMenuItem("Add a step"; operation = make_insert_workflow_node_operation(
+        node, length(node.children) + 1, WorkflowStep())),
+    WidgetMenuItem("Add a decision"; operation = make_insert_workflow_node_operation(
+        node, length(node.children) + 1, WorkflowDecision(options = [WorkflowOption()]))),
 ]
-_get_add_buttons(node::WorkflowDecision) = Any[
-    _make_workflow_button("+ option", "Add an option",
-        () -> make_insert_workflow_node_operation(node, length(node.options) + 1, WorkflowOption())),
+_make_add_items(node::WorkflowDecision) = Any[
+    WidgetMenuItem("Add an option"; operation = make_insert_workflow_node_operation(
+        node, length(node.options) + 1, WorkflowOption())),
 ]
 
-function _make_body_buttons(node, gap::Integer)
-    buttons = _get_add_buttons(node)
-    push!(buttons, _make_workflow_button("+ comment", "Add a comment to the journal",
-        () -> make_add_workflow_entry_operation(node, make_workflow_entry(""))))
-    push!(buttons, _make_workflow_button("+ card", "Add a card",
-        () -> make_add_workflow_card_operation(node, WorkflowCard(content = PrimitiveString("")))))
-    HorizontalLayout(buttons; gap, vertical_align = :center)
+# A menu of the groups of items `groups`, with a separator between two groups.
+function _make_grouped_menu(groups)
+    elements = Any[]
+    for group in groups
+        isempty(group) && continue
+        isempty(elements) || push!(elements, WidgetSeparator())
+        append!(elements, group)
+    end
+    WidgetMenu(elements)
 end
 
-# The text of the time of the last entry of `node`, as a person reads it.
-_format_last_entry_time(node) =
-    length(node.journal) == 0 ? "" : _format_readable_time(node.journal[end].time)
+# The menu of the row of `node`, whose parent is `parent` at `index`, or of the
+# header for the root, whose parent is `nothing`: what changes its state, what
+# adds to it, what changes the view, and last the delete. The operations are made
+# when the menu opens.
+function _make_workflow_menu(node, parent, index)
+    state = node isa WorkflowStep ? _make_state_items(node) :
+            node isa WorkflowOption && parent isa WorkflowDecision ? _make_option_items(parent, index, node) : Any[]
+    adds = vcat(_make_add_items(node), Any[
+        WidgetMenuItem("Comment"; operation = make_add_workflow_entry_operation(node, make_workflow_entry(""))),
+        WidgetMenuItem("Add a card"; operation = make_add_workflow_card_operation(
+            node, WorkflowCard(content = PrimitiveString(""))))])
+    parent === nothing && return _make_grouped_menu(Any[state, adds])
+    view = Any[WidgetMenuItem(node.collapsed ? "Unfold" : "Fold"; operation = ReplaceViewStateOperation(ToggleCollapseOperation(node)))]
+    delete = Any[WidgetMenuItem("Delete"; operation = make_delete_workflow_node_operation(parent, index))]
+    _make_grouped_menu(Any[state, adds, view, delete])
+end
 
-# ── The printer of a node ────────────────────────────────────────────────
+# The answer of a press on the mark of `node`: the menu of the states of a step,
+# the choice of an option, and the menu of the row of a decision.
+function _make_mark_operation(node, parent, index)
+    node isa WorkflowStep &&
+        return make_outline_menu_operation(_get_workflow_node_name(node), () -> WidgetMenu(_make_state_items(node)))
+    node isa WorkflowOption && parent isa WorkflowDecision &&
+        return node.state === :chosen ? nothing : make_choose_workflow_option_operation(parent, index)
+    make_outline_menu_operation(_get_workflow_node_name(node), () -> _make_workflow_menu(node, parent, index))
+end
+
+# ── The outline of a node ────────────────────────────────────────────────
+
+# The counts of the states of the steps and of the decisions under `root`, as the
+# header says them.
+function _describe_workflow_progress(root)
+    steps = 0; done = 0; active = 0; decisions = 0; decided = 0
+    visit(node) = begin
+        if node isa WorkflowStep
+            steps += 1
+            node.state === :done && (done += 1)
+            node.state === :active && (active += 1)
+        elseif node isa WorkflowDecision
+            decisions += 1
+            _is_decided(node) && (decided += 1)
+        end
+        foreach(visit, get_workflow_node_children(node))
+    end
+    foreach(visit, get_workflow_node_children(root))
+    parts = String[string(done, " of ", steps, steps == 1 ? " step done" : " steps done")]
+    active > 0 && push!(parts, string(active, " active"))
+    decisions > 0 && push!(parts, string(decided, " of ", decisions, decisions == 1 ? " decision settled" :
+                                                                                     " decisions settled"))
+    join(parts, " · ")
+end
+
+# The nodes of the tree under `root` that the outline shows, in the order of the
+# rows, each with its parent, its index in its parent, its depth and its path from
+# `root`: a folded node shows no node under it.
+function _collect_workflow_rows(root)
+    rows = Any[]
+    visit(node, parent, index, depth, prefix) = begin
+        push!(rows, (; node, parent, index, depth, prefix))
+        node.collapsed && return
+        field = _get_children_field(node)
+        for (child_index, child) in enumerate(get_workflow_node_children(node))
+            visit(child, node, child_index, depth + 1,
+                  vcat(prefix, Any[_make_field_step(field), _make_element_step(child_index)]))
+        end
+    end
+    field = _get_children_field(root)
+    for (index, child) in enumerate(get_workflow_node_children(root))
+        visit(child, root, index, 0, Any[_make_field_step(field), _make_element_step(index)])
+    end
+    rows
+end
+
+# The row at `place` of a node of the outline, with its slots. `row` holds the
+# node, its parent, its index in its parent, its depth and its path from the root.
+function _make_workflow_row!(slots, embedded, outline, row, place, shows_date::Bool)
+    node, parent, index, prefix = row.node, row.parent, row.index, row.prefix
+    body_place = vcat(place, Any[_make_field_step("content")], _get_child_steps(2), Any[_make_field_step("child")])
+    body_rows = Any[]
+    next_body_place() = vcat(body_place, _get_child_steps(length(body_rows) + 1))
+    name = _get_workflow_kind_name(node)
+    compute_menu = () -> _make_workflow_menu(node, parent, index)
+
+    # The fold and the mark.
+    revealed = Any[]
+    has_under = length(get_workflow_node_children(node)) > 0 || length(node.cards) > 0
+    fold = if has_under || node.collapsed
+        control = make_outline_control(outline, node.collapsed ? :chevron_right : :chevron_down,
+                                       (node.collapsed ? "Unfold " : "Fold ") * name,
+                                       () -> ReplaceViewStateOperation(ToggleCollapseOperation(node)))
+        push!(revealed, control)
+        control
+    else
+        make_outline_spacer(outline)
+    end
+    mark_name = node isa WorkflowStep ? "The state of " * name :
+                node isa WorkflowOption ? "Choose " * name : "The menu of " * name
+    mark = make_outline_mark(outline, _make_workflow_icon(node), mark_name,
+                             () -> _make_mark_operation(node, parent, index))
+
+    # The title, and what follows it on its line.
+    line_place = next_body_place()
+    title_field = node isa WorkflowDecision ? "question" : "title"
+    settled = node isa Union{WorkflowStep, WorkflowOption} && node.state in (:done, :dropped, :rejected, :parked)
+    title = _make_workflow_text!(slots, outline, get_workflow_node_title(node), prefix, title_field,
+                                 vcat(line_place, _get_child_steps(1));
+                                 role = settled ? :quiet_text : :text,
+                                 placeholder = node isa WorkflowDecision ? "Question" : "Title")
+    line = Any[title]
+    if node isa WorkflowOption && !isempty(something(node.reason.value, ""))
+        push!(line, _make_workflow_text!(slots, outline, node.reason, prefix, "reason",
+                                         vcat(line_place, _get_child_steps(length(line) + 1));
+                                         role = :word_text))
+    end
+    node isa WorkflowDecision &&
+        push!(line, make_outline_label(outline, _is_decided(node) ? "decided" : "undecided", :relation_text))
+    entries = length(node.journal)
+    if entries > 0
+        push!(line, HorizontalLayout(Any[WidgetIcon(:message_square; size = outline.fold_size),
+                                         make_outline_label(outline, string(entries), :relation_text)];
+                                     gap = outline.meta_gap, vertical_align = :center))
+        push!(line, make_outline_label(outline, _format_workflow_when(node.journal[entries].time, shows_date),
+                                       :time_text))
+    end
+    push!(body_rows, FlowLayout(line; horizontal_gap = outline.column_gap, vertical_align = :center))
+
+    # The cards, each through its own view.
+    if !node.collapsed
+        for (card_index, card) in enumerate(node.cards)
+            push!(slots, OutlineSlot(vcat(prefix, Any[_make_field_step("cards"), _make_element_step(card_index)]),
+                                     next_body_place()))
+            push!(embedded, card)
+            push!(body_rows, card)
+        end
+    end
+
+    menu = make_outline_control(outline, :ellipsis, "The menu of " * name,
+                                () -> make_outline_menu_operation(_get_workflow_node_name(node), compute_menu);
+                                size = :avatar_size)
+    push!(revealed, menu)
+    push!(slots, OutlineSlot(prefix, place; whole = true))
+    make_outline_row(outline; facts = make_outline_facts(outline, [Any[fold, mark]]),
+                     body = VerticalLayout(body_rows; child_width = Fill), menu, revealed,
+                     indent = row.depth * outline.indent, title = name, compute_menu,
+                     facts_width = outline.tree_meta_width)
+end
 
 print_document(p::WorkflowNodeToWidget, recursion, node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}, ctx) =
     _make_workflow_iomap(p, node, () -> _build_node_view(p, node))
 
-# The card of `node`: what the outline shows of it, and the slots of its documents.
-# The header row is the first row of the content of the card, and not its title,
-# because a card gives a key only to its content: a title in the header must take
-# the keys of its text.
-function _build_node_view(p::WorkflowNodeToWidget, node)
+function _build_node_view(p::WorkflowNodeToWidget, root)
+    outline = unwrap_cell(p.outline)
     slots = Any[]
-    containers = Any[]
-    card_place = Any[_make_field_step("children"), _make_element_step(1)]
-    content_place = vcat(card_place, Any[_make_field_step("content")])
+    embedded = Base.IdSet{Any}()
     rows = Any[]
-    # The place of the row that is pushed next.
-    next_place() = vcat(content_place, Any[_make_field_step("children"), _make_element_step(length(rows) + 1)])
+    next_place() = _get_child_steps(length(rows) + 1)
 
-    title = get_workflow_node_title(node)
-    title_field = node isa WorkflowDecision ? "question" : "title"
-    header_items = Any[_make_fold_button(node)]
-    node isa WorkflowDecision || append!(header_items, _make_state_items(node))
-    node isa WorkflowDecision && push!(header_items, WidgetLabel("?"; text_style = p.question_text))
-    title_text = _make_title_text(title, node isa WorkflowDecision ? "Question" : "Title")
-    push!(header_items, title_text)
-    header_place = next_place()
-    title_place = vcat(header_place, Any[_make_field_step("children"), _make_element_step(length(header_items))])
-    _push_text_slots!(slots, title_field, title_place)
-    push!(containers, (title_text, title_place))
-    push!(header_items, WidgetLabel(() -> _format_last_entry_time(node); text_style = p.muted_text))
-    header = HorizontalLayout(header_items; gap = p.gap, vertical_align = :center)
-    push!(containers, (header, header_place))
-    push!(rows, header)
+    title_field = root isa WorkflowDecision ? "question" : "title"
+    push!(rows, _make_workflow_text!(slots, outline, get_workflow_node_title(root), Any[], title_field,
+                                     next_place(); role = :title_text, line = nothing,
+                                     placeholder = root isa WorkflowDecision ? "Question" : "Goal"))
+    # The counts of the states, and the menu of the root, which adds the steps of
+    # the first level.
+    header_menu = make_outline_control(outline, :ellipsis, "The menu of the workflow",
+                                       () -> make_outline_menu_operation(_get_workflow_node_name(root),
+                                                () -> _make_workflow_menu(root, nothing, nothing));
+                                       size = :avatar_size)
+    # A place of the header that no other slot holds is the root, so the menu of the
+    # header belongs to the root.
+    push!(slots, OutlineSlot(Any[], next_place(); whole = true))
+    push!(rows, FlowLayout(Any[make_outline_label(outline, () -> _describe_workflow_progress(root), :relation_text),
+                               header_menu]; horizontal_gap = outline.column_gap, vertical_align = :center))
 
-    if !node.collapsed
-        if node isa WorkflowOption
-            place = next_place()
-            reason_text = _make_title_text(node.reason, "Reason")
-            reason = HorizontalLayout(Any[WidgetLabel("because"; text_style = p.muted_text), reason_text];
-                                      gap = p.gap, vertical_align = :center)
-            reason_place = vcat(place, Any[_make_field_step("children"), _make_element_step(2)])
-            _push_text_slots!(slots, "reason", reason_place)
-            push!(containers, (reason_text, reason_place))
-            push!(containers, (reason, place))
-            push!(rows, reason)
-        end
-        for (field, elements, removable) in (("journal", node.journal, false),
-                                             ("cards", node.cards, true),
-                                             (String(_get_children_field(node)),
-                                              get_workflow_node_children(node), true))
-            length(elements) == 0 && continue
-            place = next_place()
-            items = Any[removable ? _make_removable_row(node, field, element, p.gap) : element
-                        for element in elements]
-            box = VerticalLayout(items; gap = p.gap, child_width = Fill)
-            suffix = removable ? Any[_make_field_step("children"), _make_element_step(1), _make_field_step("child")] : nothing
-            push!(slots, _WorkflowSlot(Any[_make_field_step(field)], vcat(place, Any[_make_field_step("children")]), suffix))
-            push!(containers, (box, place))
-            if removable
-                for (index, item) in enumerate(items)
-                    item_place = vcat(place, Any[_make_field_step("children"), _make_element_step(index)])
-                    push!(containers, (item, item_place))
-                    push!(containers, (item.children[1], vcat(item_place, Any[_make_field_step("children"), _make_element_step(1)])))
-                end
-            end
-            push!(rows, box)
-        end
-        push!(rows, _make_body_buttons(node, p.gap))
+    listed = _collect_workflow_rows(root)
+    days = [length(row.node.journal) == 0 ? nothing : _get_workflow_day(row.node.journal[end].time)
+            for row in listed]
+    for (row, shows_date) in zip(listed, compute_shown_dates(days))
+        push!(rows, _make_workflow_row!(slots, embedded, outline, row, next_place(), shows_date))
     end
 
-    content = VerticalLayout(rows; gap = p.gap, child_width = Fill)
-    push!(containers, (content, content_place))
-    card = WidgetCard(; content)
-    push!(containers, (card, card_place))
-    output = VerticalLayout(Any[card]; child_width = Fill)
-    push!(containers, (output, Any[]))
-    _route_workflow_paths!(p, node, slots, containers)
+    output = VerticalLayout(rows; child_width = Fill)
+    _route_workflow_paths!(p, root, slots, output, embedded)
     (; output, slots)
 end
-
-# An element of a collection of `node` with a button that removes it: the element
-# fills the row, and the button sits at its end.
-function _make_removable_row(node, field::AbstractString, element, gap::Integer)
-    remove = _make_workflow_button("×", "Remove", () -> begin
-        elements = field == "cards" ? node.cards : get_workflow_node_children(node)
-        index = _find_index(elements, element)
-        # A row that an edit already removed, pressed before the next frame.
-        index === nothing && return DoNothingOperation()
-        field == "cards" ? make_delete_workflow_card_operation(node, index) :
-                           make_delete_workflow_node_operation(node, index)
-    end)
-    HorizontalLayout(Any[LayoutConstraint(element; width = Fill), remove];
-                     gap, vertical_align = :top)
-end
-
-# The index of `element` in `elements` at the time of a press, so a button removes
-# the element that it stands beside after other edits moved it; `nothing` when the
-# element is gone.
-_find_index(elements, element) = findfirst(x -> x === element, collect(elements))
 
 # ── The printer of an entry ──────────────────────────────────────────────
 
@@ -392,27 +441,32 @@ print_document(p::WorkflowEntryToWidget, recursion, entry::WorkflowEntry, ctx) =
     _make_workflow_iomap(p, entry, () -> _build_entry_view(p, entry))
 
 function _build_entry_view(p::WorkflowEntryToWidget, entry::WorkflowEntry)
-    line = HorizontalLayout(Any[
-            WidgetLabel(_format_readable_time(entry.time); text_style = p.muted_text),
-            WidgetLabel(string(entry.author);
-                        text_style = entry.author === :assistant ? p.assistant_text : p.person_text),
-            WidgetLabel(string(entry.kind); text_style = p.muted_text)];
-        gap = p.gap, vertical_align = :center)
+    outline = unwrap_cell(p.outline)
+    avatar = entry.author === :assistant ?
+        make_outline_avatar(outline, :sparkle; color = outline.assistant_color,
+                            tooltip = TooltipNote(; title = "The assistant")) :
+        make_outline_avatar(outline, :user; tooltip = TooltipNote(; title = "The person"))
+    line = HorizontalLayout(Any[avatar,
+                                make_outline_label(outline, _format_workflow_when(entry.time, true), :time_text),
+                                make_outline_label(outline, string(entry.kind), :relation_text)];
+                            gap = outline.meta_gap, vertical_align = :center)
+    slots = Any[]
+    embedded = Base.IdSet{Any}()
+    text_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("children"),
+                     _make_element_step(2)]
     # A text is a field of prose; a document of another domain shows through the
     # view of its domain.
-    text = entry.text isa PrimitiveString ? _make_title_text(entry.text, "Text") : entry.text
+    text = if entry.text isa PrimitiveString
+        _make_workflow_text!(slots, outline, entry.text, Any[], "text", text_place;
+                             role = :field_text, line = :field_line, placeholder = "Text")
+    else
+        push!(slots, OutlineSlot(Any[_make_field_step("text")], text_place))
+        entry.text isa Document && push!(embedded, entry.text)
+        entry.text
+    end
     column = VerticalLayout(Any[line, text]; child_width = Fill)
     output = VerticalLayout(Any[column]; child_width = Fill)
-    text_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("children"), _make_element_step(2)]
-    slots = Any[]
-    containers = Any[(output, Any[]), (column, Any[_make_field_step("children"), _make_element_step(1)])]
-    if entry.text isa PrimitiveString
-        _push_text_slots!(slots, "text", text_place)
-        push!(containers, (text, text_place))
-    else
-        push!(slots, _WorkflowSlot(Any[_make_field_step("text")], text_place, nothing))
-    end
-    _route_workflow_paths!(p, entry, slots, containers)
+    _route_workflow_paths!(p, entry, slots, output, embedded)
     (; output, slots)
 end
 
@@ -422,22 +476,22 @@ print_document(p::WorkflowCardToWidget, recursion, card::WorkflowCard, ctx) =
     _make_workflow_iomap(p, card, () -> _build_card_view(p, card))
 
 function _build_card_view(p::WorkflowCardToWidget, card::WorkflowCard)
-    title_text = _make_title_text(card.title, "Title")
-    header = HorizontalLayout(Any[_make_fold_button(card), title_text]; gap = p.gap, vertical_align = :center)
-    rows = Any[header]
-    card.collapsed || card.content === nothing || push!(rows, card.content)
-    content = VerticalLayout(rows; gap = p.gap, child_width = Fill)
-    widget = WidgetCard(; content)
-    output = VerticalLayout(Any[widget]; child_width = Fill)
-    content_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("content")]
-    header_place = vcat(content_place, Any[_make_field_step("children"), _make_element_step(1)])
+    outline = unwrap_cell(p.outline)
     slots = Any[]
-    _push_text_slots!(slots, "title", vcat(header_place, Any[_make_field_step("children"), _make_element_step(2)]))
-    length(rows) == 2 &&
-        push!(slots, _WorkflowSlot(Any[_make_field_step("content")], vcat(content_place, Any[_make_field_step("children"), _make_element_step(2)]), nothing))
-    title_place = vcat(header_place, Any[_make_field_step("children"), _make_element_step(2)])
-    _route_workflow_paths!(p, card, slots, Any[(output, Any[]), (widget, Any[_make_field_step("children"), _make_element_step(1)]),
-                                               (content, content_place), (header, header_place),
-                                               (title_text, title_place)])
+    embedded = Base.IdSet{Any}()
+    content_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("content")]
+    title = _make_workflow_text!(slots, outline, card.title, Any[], "title",
+                                 vcat(content_place, _get_child_steps(1));
+                                 role = :section_text, line = nothing, placeholder = "Title")
+    rows = Any[title]
+    if !card.collapsed && card.content !== nothing
+        push!(slots, OutlineSlot(Any[_make_field_step("content")], vcat(content_place, _get_child_steps(2))))
+        card.content isa Document && push!(embedded, card.content)
+        push!(rows, card.content)
+    end
+    inset = WidgetCard(; variant = :muted, content = VerticalLayout(rows; child_width = Fill),
+                       margin = inset_default, border = inset_default, padding = outline.inset_padding)
+    output = VerticalLayout(Any[inset]; child_width = Fill)
+    _route_workflow_paths!(p, card, slots, output, embedded)
     (; output, slots)
 end
