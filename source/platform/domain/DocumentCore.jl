@@ -24,15 +24,22 @@ has_document_duplicate(::DocumentNothing) = true
 
 # ── DocumentInsertion ─────────────────────────────────────────────────────────
 
-const DOCUMENT_INSERTION_PREFIX = "Insert a new "
-const DOCUMENT_INSERTION_SUFFIX = " here"
+const DOCUMENT_INSERTION_PREFIX = ""
+const DOCUMENT_INSERTION_SUFFIX = ""
+
+"""
+The text that an empty `DocumentInsertion` shows, pale, until the first key.
+"""
+const DOCUMENT_INSERTION_PLACEHOLDER = "Type a kind"
 
 """
     DocumentInsertion(value; font=nothing, selection=nothing)
 
 An insertion placeholder document.  `value` is the editable string being
 inserted.  `font` is the optional display font (style/font, not yet ported).
-The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
+While `value` is empty it shows `DOCUMENT_INSERTION_PLACEHOLDER`, pale, as an
+empty field shows its placeholder, and the text goes at the first key; it has no
+prefix and no suffix.
 """
 @document struct DocumentInsertion <: DocumentBase
     value::String = ""

@@ -268,10 +268,11 @@ function _make_choice_menu_operation(navigator::Navigator, crumb::_AddressCrumb,
     index = length(steps)
     node = evaluate_reference(navigator.content, extend_reference(EmptyReference(), steps[1:(index - 1)]...))
     current = steps[index]
-    find = query -> find_navigator_choices(node, current; query)
-    row = something(findfirst(choice -> last(choice) == current, find("")), 1)
-    list = NavigatorChoiceList(; row, current, find,
-                               choose = step -> make_navigator_choice_operation(navigator, index, step))
+    find = query -> WidgetChoice[WidgetChoice(label; value = step)
+                                 for (label, step) in find_navigator_choices(node, current; query)]
+    row = something(findfirst(choice -> choice.value == current, find("")), 1)
+    list = WidgetChoiceList(; row, current, placeholder = "type a name or a number", empty = "No part matches",
+                            find, choose = step -> make_navigator_choice_operation(navigator, index, step))
     point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
     ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[(crumb.label, list, 0)],
                                                        annotate_reference_types(navigator, EmptyReference()),

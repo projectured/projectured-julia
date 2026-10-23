@@ -318,8 +318,25 @@ its fields and a file skip such a field.
 `selection`: `Union{Nothing, Reference}`, a `Reference` inside the document or
 `nothing` when the pointer is not in it. A copy of a document starts with no mouse
 target, a load gives none, and a history does not record it.
+
+    is_view_state_field(T::Type, name) -> Bool
+
+The same for a field of a document of type `T`, and also `true` for a field that
+`T` declares as state of a view with [`get_view_state_fields`](@ref).
 """
 function is_view_state_field end
+
+"""
+    get_view_state_fields(T::Type) -> Tuple of Symbol
+
+The fields of a document of type `T` that hold the state of a view of it, beside
+its `selection` and its `mouse_target`: what a view shows of the document, such as
+the folds of an outline, and not what the document says. A file and a search leave
+them out, and a view writes them with `ReplaceViewStateOperation`, so a history
+records no change of them. A copy takes them as they are, as it takes a
+selection. The default is `()`; a type that holds such a field adds a method.
+"""
+function get_view_state_fields end
 
 """
     has_document_duplicate(document) -> Bool

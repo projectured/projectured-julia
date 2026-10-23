@@ -17,8 +17,31 @@ A document that holds an operator, as a document of Julia code holds `:+` or
     operator::Symbol
 end
 
+"""
+A document that holds a name and the folds of a view of it, which are state of
+the view and no part of what it says.
+"""
+@document struct PredFileFolds
+    name::String = ""
+    folded::Any = String[]
+end
+
+ProjecturedKernel.DocumentModule.get_view_state_fields(::Type{<:PredFileFolds}) = (:folded,)
+
 function test_pred_file()
 @testset "PredFile: a document as the call that builds it" begin
+
+    @testset "a field of view state stays out of the file" begin
+        document = PredFileFolds(name = "outline", folded = ["Q1"])
+        text = print_pred_text(document)
+        @test occursin("outline", text)
+        @test !occursin("folded", text) && !occursin("Q1", text)
+        loaded = parse_pred_text(text)
+        @test loaded.name == "outline" && isempty(loaded.folded)
+        @test is_view_state_field(PredFileFolds, :folded)
+        @test !is_view_state_field(PredFileFolds, :name)
+        @test is_view_state_field(PredFileFolds, :selection)
+    end
 
     @testset "a value document with no keyword form reads back from its fields" begin
         font = StyleFont("DejaVu Sans", 14; weight = 700, italic = true)

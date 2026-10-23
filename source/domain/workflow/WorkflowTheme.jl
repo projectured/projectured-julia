@@ -24,7 +24,7 @@ the outline its styles with `get_workflow_style`, from a theme scaled or not.
     "The author of an entry that the person wrote."
     person_text::ThemeText = TextRole(:text; weight = 700)
     "The vertical gap between the parts of a node."
-    gap::Int = 6
+    gap::Spacing = Spacing(6)
 end
 
 # The role of the badge that shows `state`: the colour of a state that is under

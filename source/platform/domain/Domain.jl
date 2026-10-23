@@ -186,6 +186,25 @@ insertion's alias; anything else is a hand-written method.
 """
 get_insertion_aliases(::Type) = String[]
 
+"""
+    get_insertion_icon(::Type) -> Union{Symbol, Nothing}
+
+The glyph that a list of the kinds that a person can add shows before a kind,
+such as `:code` for a piece of code, or `nothing`, the default, for none. A domain
+adds a method for the types that it offers.
+"""
+get_insertion_icon(::Type) = nothing
+
+"""
+    is_element_type(::Type) -> Bool
+
+Whether a document of the type stands on its own as an element of a record, such
+as a piece of code, a page of text, a table or a chart that a research item or a
+workflow step holds. `false` by default; a domain says `true` for the documents
+that it offers so, and names them with `get_insertion_aliases`.
+"""
+is_element_type(::Type) = false
+
 # ── Text at the write of an operation ─────────────────────────────────────────
 
 # Rule 3 of the seam `convert_to_declared_type`: text that an operation writes into
@@ -378,17 +397,30 @@ end
 # Candidates (with their matching names) whose lowercase name starts with the
 # lowercase typed text. No stripping: the typed buffer is matched verbatim, so
 # a trailing space participates ("json " matches "json string" but not
-# "JsonString").
+# "JsonString"). Where no whole name starts so, a name of which a word starts with
+# the typed text matches, as "chart" matches "sequence chart"; the second answer
+# says which of the two the matches are.
 function _matching(root::Type, typed::AbstractString; place::Type = Any)
     key = lowercase(typed)
+    candidates = Type[T for T in get_insertion_candidates(root) if T <: place]
+    matches = _matching_names(candidates, root, name -> startswith(lowercase(name), key))
+    isempty(matches) || return (matches, :whole)
+    (_matching_names(candidates, root, name -> _has_word_prefix(name, key)), :word)
+end
+
+function _matching_names(candidates, root::Type, accept)
     matches = Tuple{Type, Vector{String}}[]
-    for T in get_insertion_candidates(root)
-        T <: place || continue
-        ns = [n for n in get_insertion_names(T; root) if startswith(lowercase(n), key)]
+    for T in candidates
+        ns = [n for n in get_insertion_names(T; root) if accept(n)]
         isempty(ns) || push!(matches, (T, ns))
     end
     matches
 end
+
+# Whether a word of `name` after its first starts with `key`, with no case: a word
+# follows a space.
+_has_word_prefix(name::AbstractString, key::AbstractString) =
+    !isempty(strip(key)) && any(word -> startswith(word, key), split(lowercase(name))[2:end])
 
 # The case-insensitive longest common prefix of `names` beyond the first `k`
 # characters, rendered in the first name's own case. Names are derived from
@@ -427,10 +459,11 @@ several of its names).
 """
 function complete_insertion(root::Type, typed::AbstractString; place::Type = Any)
     isempty(strip(typed)) && return (state = :empty, continuation = "", matches = Type[])
-    ms = _matching(root, typed; place)
+    ms, kind = _matching(root, typed; place)
     isempty(ms) && return (state = :invalid, continuation = "", matches = Type[])
     allnames = String[n for (_, ns) in ms for n in ns]
-    continuation = _common_continuation(allnames, length(typed))
+    # A match by a word has no continuation: its name does not start with the text.
+    continuation = kind === :whole ? _common_continuation(allnames, length(typed)) : ""
     (state = length(ms) == 1 ? :unambiguous : :ambiguous,
      continuation = continuation,
      matches = Type[T for (T, _) in ms])
@@ -480,6 +513,26 @@ function resolve_insertion(root::Type, typed::AbstractString; place::Type = Any)
     end
     c = complete_insertion(root, typed; place)
     c.state === :unambiguous ? c.matches[1] : nothing
+end
+
+"""
+    find_insertion_choices(root, typed; place = Any, include = T -> true) -> Vector{Type}
+
+The candidates of `root` that `typed` names, for a list that a person picks from
+while typing: first those of which a whole name starts with `typed`, then those
+of which a word of a name does, as "chart" finds "Chart" before "Sequence chart",
+each part in the order of the candidates. `place` is the declared type of the
+place, and `include` keeps a type, such as `is_element_type`. An empty `typed`
+gives every candidate that `include` keeps.
+"""
+function find_insertion_choices(root::Type, typed::AbstractString; place::Type = Any, include = T -> true)
+    key = lowercase(strip(typed))
+    candidates = Type[T for T in get_insertion_candidates(root) if T <: place && include(T)]
+    isempty(key) && return candidates
+    names(T) = get_insertion_names(T; root)
+    whole = Type[T for T in candidates if any(n -> startswith(lowercase(n), key), names(T))]
+    word = Type[T for T in candidates if !(T in whole) && any(n -> _has_word_prefix(n, key), names(T))]
+    vcat(whole, word)
 end
 
 """

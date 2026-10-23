@@ -52,6 +52,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `systemprocess` | [systemprocess.md](platform/systemprocess/systemprocess.md) | the processes of the operating system as documents: a tree, a page with Interrupt and Stop, and a roster source |
 | `workplan` | [workplan.md](platform/workplan/workplan.md) | the plan of an agent as documents: steps with five statuses, blocked steps, the progress, and the views |
 | `syntax` | [syntax.md](platform/syntax/syntax.md) | the syntax tree, the insertion leaf, and syntax to text |
+| `outline` | [outline.md](platform/outline/outline.md) | the theme and the parts of an outline of records with an author and a time, such as a study or a workflow |
 | `inspector` | [inspector.md](platform/inspector/inspector.md) | the inspector views of a reference and of the selection |
 | `gesturehelp` | [gesturehelp.md](platform/gesturehelp/gesturehelp.md) | the help window and the command palette |
 | `gesturelog` | [gesturelog.md](platform/gesturelog/gesturelog.md) | the log of the gestures of the session |

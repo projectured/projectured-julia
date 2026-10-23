@@ -38,12 +38,13 @@ import ..OperationModule: evaluate_operation, make_inverse_operation, describe_o
 export DocumentBase
 export compute_loaded_subtypes, var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
-       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
-       get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
-       complete_insertion, name_completion, resolve_insertion, find_declared_place_type,
+       get_domain_insertion, insertable, get_insertion_aliases, get_insertion_icon, is_element_type,
+       make_insertion_document, get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
+       complete_insertion, name_completion, resolve_insertion, find_insertion_choices,
+       find_declared_place_type,
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
-export DocumentNothing, DocumentInsertion
+export DocumentNothing, DocumentInsertion, DOCUMENT_INSERTION_PLACEHOLDER
 export compute_context_menu
 export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
        add_document_holder!, remove_document_holder!, is_document_held, hold_documents!,

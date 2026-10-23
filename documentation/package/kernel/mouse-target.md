@@ -8,7 +8,7 @@ The mouse target is the part under the pointer, stored on a document the way the
 
 ### The field
 
-`@document` adds a field `mouse_target::Union{Nothing,Reference}`, default `nothing`, next to `selection`, to every cell-layout document: the documents that an editor holds. A native, immutable layout has none. The mouse target is view state: `is_view_state_field(name)` is true for `:selection` and `:mouse_target` (`source/kernel/document/DocumentDefaults.jl`), so a binary save skips it, a load gives `nothing`, a copy gives `nothing`, and a history does not record it.
+`@document` adds a field `mouse_target::Union{Nothing,Reference}`, default `nothing`, next to `selection`, to every cell-layout document: the documents that an editor holds. A native, immutable layout has none. The mouse target is view state: `is_view_state_field(name)` is true for `:selection` and `:mouse_target` (`source/kernel/document/DocumentDefaults.jl`), so a binary save skips it, a load gives `nothing`, a copy gives `nothing`, and a history does not record it. A type declares its own fields of view state with `get_view_state_fields(T)`, such as the folds of an outline, and `is_view_state_field(T, name)` answers for them too: a file and a search leave them out.
 
 `get_mouse_target(document)` reads the field without its type checkpoints, as `get_selection` reads the selection. It answers `nothing` when the pointer is not in `document`, or `document` has no mouse target.
 

@@ -53,10 +53,22 @@ Only a left click moves the selection. A row of a list, of a table or of a tree,
 - **What it shows.** The window shows the menu of the nearest part, the first layer, as it is.
 - **More and fewer.** F2 shows the menu of the next part outward, and Shift+F2 one fewer. While more than one menu shows, the window holds one `WidgetMenu`: each layer starts with a disabled item that names its part, and a `WidgetSeparator` stands between two layers. `ContextMenuWindowState` declares both keys in its gesture table while the window is open, so the gesture help lists them. The keys and the reopening of the window are the layer helper of the screen slice (`make_window_layer_bindings`, `show_window_layers`), which the tooltip window uses too.
 - **Closing.** The window has the id of the popups of the widgets, `:widget_popup`. So the window manager closes it on a press in another window, on a bare Escape and on the loss of the focus. A choice of an item runs the action of the item and closes `:widget_popup`. The wrapper forgets its layers when the window is gone.
-- **Keys.** The window is a `:popup`, so the window under it keeps the focus. While the window is open, a key of that window goes first to the content of the menu, after F2 and Shift+F2: a menu that answers a key takes it, and a key that the menu does not answer goes on as before. A `WidgetMenu` answers no key, so its keys go on; the list of choices of the navigator takes the typed text, Up, Down and Return. A key that closes the window, such as Escape, makes the wrapper forget its layers at once.
+- **Keys.** The window is a `:popup`, so the window under it keeps the focus. While the window is open, a key of that window goes first to the content of the menu, after F2 and Shift+F2: a menu that answers a key takes it, and a key that the menu does not answer goes on as before. A vertical `WidgetMenu` takes Up, Down, Home, End and Return ([The keys of a menu](#the-keys-of-a-menu)); the list of choices of the navigator takes the typed text, Up, Down and Return. A key that closes the window, such as Escape, makes the wrapper forget its layers at once.
 - **An item that edits its part.** A `WidgetMenuItem` can hold an `operation`, relative to the part that the menu belongs to. A choice of the item answers `EditMenuPartOperation` in place of its action. The wrapper lifts the operation from the part through the readers of its content, as `read_rooted_operation` lifts an operation that code made: from the part outward, the first place from which the readers carry it. So every reader around the part has its turn: an undo buffer records the edit as an edit of the person, and Ctrl+Z takes it back. The part is the nearest one, under the pointer, also for an item of the menu of a part around it, which F2 shows; such an item holds an operation that names its own document. An action with a callback runs outside the readers, and no history records it. The menus of a data frame view use operations so.
 
 The state of the wrapper, `ContextMenuWindowState`, holds the layers, the count that shows, the source and the window operation. A view state operation writes each field.
+
+### A button opens a menu under itself
+
+`make_menu_button_binding(compute; description)` binds a left click to the menu that `compute(document)` returns, in the same window. The answer has no point, so the window opens below the part pressed, as a command opens it. The outline slice gives the "⋯" and the mark of a row such a press, and gives the row a right click and Shift+F10, so the three open one menu ([outline.md](../outline/outline.md)). `make_context_menu_operation` takes a `title`, which names the part in the window when F2 shows more than one menu.
+
+### The keys of a menu
+
+A vertical `WidgetMenu` answers the keys of a list. Down and Up light the next and the previous enabled item, Home and End the first and the last, and Return chooses the lit item as a click does. `highlighted`, the index of the lit item, is view state of the menu, so a key writes it with `ReplaceViewStateOperation` and a history does not record it. The lit item draws the hover layer behind it, as wide as the menu. A `WidgetMenuItem` draws its `keys` at its right edge, quiet, so the keys of a menu make a column and a person learns them from the menu.
+
+### A list that a person types into
+
+`WidgetChoiceList(; query, row, current, prompt, placeholder, empty, find, choose)` is a menu that a person types into: a line of the typed text over the choices that `find(query)` gives, each a `WidgetChoice` of a label, an icon, a note and a value. `make_choice_list_operation(title, list)` opens it in the context menu window. The list reads a key before any widget of it: a typed character narrows it, Backspace removes the last one, Up and Down move the row, and Return chooses it, so the window under it keeps the focus and a letter edits nothing there. A choice answers `EditMenuPartOperation` with the operation of `choose(value)`, as an item of a context menu does. The navigator shows the choices at a step of its address so ([navigator.md](../navigator/navigator.md)).
 
 ### A command runs the same binding
 
@@ -82,7 +94,7 @@ editor = build_editor(document, projection; backend = backend,
 
 A `WidgetContextMenu(child, menu)` gives a part of a widget tree a menu. The menu has no position of its own: it stands where its child stands, as a `LayoutConstraint` does, so a composite places it by the position of the child, and the box of the menu covers the child there. A domain type gives itself a menu with `make_context_menu_binding` in its gesture table.
 
-- Tests: `test_context_menu_window()` for the window, through a real editor; `test_widget_context_menu()` and `test_widget_popup_example()` for the binding of `WidgetContextMenu`; `test_data_frame_columns()` for the menus of a data frame.
+- Tests: `test_widget_menu_keys()` for the keys of a menu, its column of keys and a button that opens a menu; `test_context_menu_window()` for the window, through a real editor; `test_widget_context_menu()` and `test_widget_popup_example()` for the binding of `WidgetContextMenu`; `test_data_frame_columns()` for the menus of a data frame.
 
 ## Limits
 

@@ -447,13 +447,14 @@ default_completion(name::AbstractString) =
 """
     DocumentInsertionToSyntaxLeaf(; theme = nothing)
 
-The domain-independent insertion: `"Insert a new <name> here"`, committing via
-`default_factory` (type a domain name + Enter). `theme` is a `SyntaxTheme`, a
-scaled one, or `nothing` for the default styles.
+The domain-independent insertion: the typed name of a kind, committing via
+`default_factory` (type a domain name + Enter). An empty buffer shows "Type a kind",
+pale, which goes at the first key. `theme` is a `SyntaxTheme`, a scaled one, or
+`nothing` for the default styles.
 """
 DocumentInsertionToSyntaxLeaf(; theme = nothing) =
     InsertionToSyntaxLeaf((ins, text, place::Type = Any) -> default_factory(text; place);
-                          prefix = "Insert a new ", suffix = " here", theme)
+                          placeholder = DOCUMENT_INSERTION_PLACEHOLDER, theme)
 
 """
     DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing,

@@ -525,7 +525,8 @@ on it that has a title (`get_document_title`), past the fields that
 down, what a drag carries. Applying it applies `operation`. A history does not
 record it, because a hover is not an edit. The reader that writes the state marks
 it, because only that reader knows that the field belongs to the pointer and not
-to the document.
+to the document. A field that a type declares as state of a view
+(`get_view_state_fields`), such as the folds of an outline, is written so too.
 
 ### Downward edges
 

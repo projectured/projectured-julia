@@ -25,7 +25,7 @@ the outline its styles with `get_research_style`, from a theme scaled or not.
     "The author of an item that the person made."
     person_text::ThemeText = TextRole(:text; weight = 700)
     "The gap between the parts of an item."
-    gap::Int = 6
+    gap::Spacing = Spacing(6)
 end
 
 # The role of the badge that shows `status`: an accepted item draws as a success,

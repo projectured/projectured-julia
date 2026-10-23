@@ -11,7 +11,7 @@ The domain slice of `ProjecturedPlatform` holds what makes a set of document typ
 | Type | What it is |
 | --- | --- |
 | `DocumentNothing` | the empty document of no domain, "Empty document" |
-| `DocumentInsertion` | the typed-name buffer of no domain, "Insert a new … here" |
+| `DocumentInsertion` | the typed-name buffer of no domain, which shows a pale "Type a kind" until the first key |
 | `DocumentReference` | a document that holds a `Reference` into another document |
 
 `DocumentNothing` and `DocumentInsertion` have the same traits that `@domain` makes for a domain. So the Insert and Escape gestures and the completion treat them as they treat `JsonNothing` and `JsonInsertion`.
@@ -29,6 +29,10 @@ The domain slice of `ProjecturedPlatform` holds what makes a set of document typ
 `compute_concrete_subtypes(root)` is the walk that `get_insertion_candidates` builds on. It answers every concrete type under `root` in the loaded modules and their submodules, depth first, and it tests nothing about a type except that it sits under `root`. A caller that wants the type tree and not the insertable subset of it calls this function directly; the help slice's list of every projection calls `compute_concrete_subtypes(Projection)`, because a projection is drawn and never inserted. `get_insertion_candidates(root)` then filters that walk down to what a person can insert: it drops the scope's own insertion, a native layout variant of another document's schema, and an insertion cursor that is not its domain's entry point, and it keeps what `insertable` accepts.
 
 `complete_insertion(root, typed; place)` classifies what you typed as `:empty`, `:invalid`, `:unambiguous` or `:ambiguous`, and computes the common continuation. `resolve_insertion(root, typed; place)` returns the type to commit. An exact name wins over a prefix. The insertion leaf of the syntax slice shows this state as colours and a pale hint.
+
+**A word of a name matches where no whole name does.** When no name starts with the typed text, a name of which a later word starts with it matches, as "chart" matches "sequence chart". Such a match has no continuation, because its name does not start with the text. `find_insertion_choices(root, typed; place, include)` gives the candidates for a list that a person picks from while typing, in two parts: those of which a whole name starts with the text, then those of which a word does. `include` keeps a type, such as `is_element_type`.
+
+**A kind says what it shows and where it stands.** `get_insertion_icon(T)` is the glyph that a list of kinds shows before `T`, `nothing` by default, and the note after it is the summary of its docstring (`compute_docstring_summary`). `is_element_type(T)` says that a document of `T` stands on its own as an element of a record, such as code, a page of text, a table or a chart that a research item or a workflow step holds; it is `false` by default, and a domain says `true` for the documents that it offers so.
 
 **The candidates follow the place.** `place` is the declared type of the place where the insertion stands, and only a candidate `T <: place` counts, so a person sees only what the place admits. `find_declared_place_type(reference)` finds that type from the reference of the place: the declared type of the field that its last step names, or the element type of the list whose element it names. It answers `nothing` when the reference records no type of the document that holds the place. The template builders give each child a context whose reference ends in steps typed against the parent, so the reference of an insertion that a template prints names the type of its place.
 

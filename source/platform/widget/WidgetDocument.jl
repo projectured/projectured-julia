@@ -24,7 +24,8 @@ end
 # ── WidgetLabel ────────────────────────────────────────────────────────────
 
 """
-    WidgetLabel(content; position, <base kwargs>)
+    WidgetLabel(content; position, max_lines = 0, line_spacing = nothing, corner_radius = 0,
+                gestures = GestureBinding[], <base kwargs>)
 
 A line of text a person reads and does not edit.
 
@@ -33,6 +34,14 @@ card, a row or a column. `content` is a string, a document, a cell that holds
 one, or a function of no arguments. A function makes a live label: it shows what
 the function answers now, and an answer that is neither a string nor a document
 shows as its text.
+
+A text longer than the width that the parent gives breaks into lines. With
+`max_lines` above 0, the label shows at most that many lines, and the last one
+ends with "…" where the text goes on. `line_spacing`, a `LineSpacing`, sets the
+height of each line, with the half of its leading above the text, so labels of
+several sizes keep one rhythm; `nothing` keeps the lines of the font. `corner_radius` rounds the box of the label, as for a chip.
+`gestures` are the bindings of the label itself: a press on a chip can select
+what the chip names.
 
 # Example
 
@@ -56,6 +65,10 @@ and `WidgetAlert` for a message with a title.
     # severity still follows the window's theme. It wins over `style`.
     text_style::ImmutableCell{Union{StyleText, StyleFont, StyleColor, Nothing}}
     visible::Bool
+    max_lines::Int
+    line_spacing::Any
+    corner_radius::Int
+    gestures::Any
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -87,12 +100,17 @@ _make_value_cell(value) = Cell(value)
 function WidgetLabel(content; position::Point2D=Point2D(0, 0),
                      text_style=nothing,
                      visible::Bool=true,
+                     max_lines::Integer=0, line_spacing=nothing, corner_radius::Integer=0,
+                     gestures=GestureBinding[],
                      margin=nothing, border=nothing, padding=nothing,
                      style=nothing, tooltip=nothing)
     WidgetLabel(Cell(position), _make_shown_cell(content), Cell(text_style),
-                Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                Cell(visible), Cell(Int(max_lines)), Cell(line_spacing), Cell(Int(corner_radius)),
+                Cell(gestures), Cell(margin), Cell(border), Cell(padding),
                 Cell(style), Cell(tooltip), Cell(nothing))
 end
+
+get_instance_gesture_bindings(w::WidgetLabel) = w.gestures
 
 set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
@@ -125,6 +143,18 @@ package is loaded. The text, its caret and its edits are the same either way.
 empty, such as an example of what it takes, or `nothing`. It is no part of the
 content: the caret, a key and a save see an empty field.
 
+`text_style` is the text of the field instead of the text of the theme: a
+`StyleText`, a bare `StyleFont` or a bare `StyleColor`, as for a `WidgetLabel`.
+The placeholder takes its font.
+
+`wrap = true` breaks a plain text into lines at the width that the parent gives,
+so a field of prose, such as a statement in an outline, grows down and not past
+its column. A break is no character: the caret and an edit see the same text.
+`line_spacing`, a `LineSpacing`, sets the distance of its lines, as for a label.
+
+A `quiet` field draws its box only while it holds the caret, so a page of fields,
+such as the rows of an outline, reads as text and shows where the person types.
+
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
 """
@@ -135,6 +165,10 @@ only read, and `WidgetSpinBox` for a number.
     validator::Any
     language::Any
     placeholder::Any
+    text_style::Any
+    wrap::Bool
+    line_spacing::Any
+    quiet::Bool
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -149,14 +183,18 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
                     validator=nothing,
                     language::Union{Nothing,Symbol}=nothing,
                     placeholder::Union{Nothing,AbstractString}=nothing,
+                    text_style=nothing,
+                    wrap::Bool=false,
+                    line_spacing=nothing,
+                    quiet::Bool=false,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
-               Cell(placeholder), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
-               Cell(style), Cell(tooltip), Cell(nothing))
+               Cell(placeholder), Cell(text_style), Cell(wrap), Cell(line_spacing), Cell(quiet), Cell(visible), Cell(enabled), Cell(margin), Cell(border),
+               Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 """
@@ -648,13 +686,19 @@ end
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 
 """
-    WidgetMenu(elements; <base kwargs>)
+    WidgetMenu(elements; orientation = :vertical, highlighted = 0, <base kwargs>)
 
-A menu containing a sequence of `WidgetMenuItem`s..
+A menu containing a sequence of `WidgetMenuItem`s.
+
+A vertical menu answers the keys of a list: Down and Up light the next and the
+previous enabled item, Home and End the first and the last, and Return chooses the
+lit item as a click does. `highlighted` is the index in `elements` of the lit item,
+or 0 for none. It is view state, so a key that moves it is no edit.
 """
 @document struct WidgetMenu <: WidgetDocument
     elements::CellVector = CellVector()
     orientation::Symbol = :vertical
+    highlighted::Int = 0
     visible::Bool = true
     margin::Union{Inset, Nothing} = nothing
     border::Union{Inset, Nothing} = nothing
@@ -665,11 +709,12 @@ end
 
 function WidgetMenu(elements::Vector;
                     orientation::Symbol=:vertical,
+                    highlighted::Integer=0,
                     visible::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
-               Cell(orientation),
+               Cell(orientation), Cell(Int(highlighted)),
                Cell(visible), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -699,12 +744,16 @@ belongs to, relative to that part, or `nothing`. A click on an item that has one
 answers [`EditMenuPartOperation`](@ref) in place of its action, and the context
 menu window lifts it from the part through the readers around it, so a history
 records it as an edit of the person.
+`keys` are the keys that do what the item does, each a `GesturePattern` or a
+text such as `"Delete"`. The item draws them at its right edge, quiet, so a
+person learns them from the menu.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     action::Any
     gestures::Any
     submenu::Any
     operation::Any
+    keys::Any
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -720,6 +769,7 @@ function WidgetMenuItem(content;
                         icon=nothing,
                         submenu=nothing,
                         operation=nothing,
+                        keys=Any[],
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin=nothing, border=nothing, padding=nothing,
@@ -727,7 +777,7 @@ function WidgetMenuItem(content;
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
     WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu), Cell(operation),
-                   Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                   Cell(keys), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                    Cell(style), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
@@ -759,12 +809,16 @@ press.
 `pressed` is transient pointer state, as on a [`WidgetButton`](@ref): it is
 `true` while the left button is held down on the item, and the reader of the
 item writes it.
+
+An item that is not `focusable` is no stop of Tab, as a control of a row that the
+pointer shows: the keys reach what it does in another way, such as a menu.
 """
 @document struct WidgetToolbarItem <: WidgetDocument
     action::Any
     gestures::Any
     visible::Bool
     enabled::Bool
+    focusable::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -779,10 +833,11 @@ function WidgetToolbarItem(content;
                            icon=nothing,
                            visible::Bool=true,
                            enabled::Bool=true,
+                           focusable::Bool=true,
                            margin=nothing, border=nothing, padding=nothing,
                            style=nothing, tooltip=nothing)
     WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
-                      Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                      Cell(visible), Cell(enabled), Cell(focusable), Cell(margin), Cell(border), Cell(padding),
                       Cell(style), Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
@@ -1655,7 +1710,7 @@ WidgetIconMark(content; role = nothing) = WidgetIconMark(content, role)
 
 """
     WidgetIcon(name; role = nothing, top_left = nothing, top_right = nothing,
-               bottom_left = nothing, bottom_right = nothing)
+               bottom_left = nothing, bottom_right = nothing, size = 0)
 
 An icon with its decoration: the Lucide glyph `name`, tinted in `role`, one of
 `:success`, `:warning`, `:error`, `:info` and `:accent`, or `nothing` for the
@@ -1665,7 +1720,9 @@ glyph or a count, smaller than the icon, half outside its box, on a disc of the
 color behind it. A plain `Symbol` names an icon with no decoration.
 
 Use it to show the state of a thing on its icon, as the decoration of a document
-says it.
+says it. It also stands on its own in any layout, as tall as a line of the label
+font, or `size` pixels when `size` is above 0; a toolbar item that shows it as
+its action takes the same size, so a mark can be pressed.
 
 # Example
 
@@ -1680,11 +1737,12 @@ See also `WidgetIconMark` and `make_decoration_icon`.
     top_right::Any
     bottom_left::Any
     bottom_right::Any
+    size::Int
 end
 
 WidgetIcon(name::Symbol; role = nothing, top_left = nothing, top_right = nothing, bottom_left = nothing,
-           bottom_right = nothing) =
-    WidgetIcon(name, role, top_left, top_right, bottom_left, bottom_right)
+           bottom_right = nothing, size::Integer = 0) =
+    WidgetIcon(name, role, top_left, top_right, bottom_left, bottom_right, Int(size))
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -1772,6 +1830,18 @@ and its header in every variant — only the panel behind them changes:
 | `:tinted` | the theme's accent | none |
 | `:muted` | the theme's muted color | none |
 | `:plain` | none | none |
+| `:row` | none at rest, the hover layer under the pointer, the selection band while the selection is inside it | none |
+
+A `:row` card is a row of a list that a builder makes of widgets, such as a row
+of an outline: it lights while the pointer is on it and tints while the caret
+is in it, and both colours follow its `mouse_target` and its `selection`, so a
+light draws the band again and builds nothing. A part inside it that shows only
+then, such as the menu of the row, reads the same two cells
+(`get_mouse_target(card)`, `get_selection(card)`).
+
+`gestures` are the bindings of the card itself. A right click and a dwell on the
+card read them after its content, and a key that its content does not take
+reads them while the selection is in the card, so a row can open its menu.
 
 A quiet variant is for a surface that groups without announcing itself — one
 band of a transcript, where a border around every message would be noise. It is
@@ -1798,6 +1868,7 @@ folding sections, and `VerticalLayout` to stack cards.
     collapsed::Bool
     variant::Symbol
     collapsible::Bool
+    gestures::Any
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -1821,13 +1892,16 @@ tall content simply extends past the card.
 WidgetCard(; position::Point2D=Point2D(0, 0), title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
-           collapsible::Bool=false, margin=nothing, border=nothing, padding=nothing,
-           style=nothing, tooltip=nothing) =
+           collapsible::Bool=false, gestures=GestureBinding[], margin=nothing, border=nothing,
+           padding=nothing, style=nothing, tooltip=nothing) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
                Cell(visible), Cell(collapsed), Cell(variant),
-               Cell(collapsible), Cell(margin), Cell(border), Cell(padding), Cell(style),
+               Cell(collapsible), Cell(gestures), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(tooltip), Cell(nothing))
+
+# The bindings of the card itself, such as the menu of a row on a right click.
+get_instance_gesture_bindings(w::WidgetCard) = w.gestures
 
 # ── FindBarView ─────────────────────────────────────────────────────────────
 
@@ -2121,7 +2195,11 @@ WidgetRadioGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Uni
 """
     WidgetAvatar(initials; position, size=64, <base kwargs>)
 
-A circular avatar showing initials (image-clipping is future work).
+A circular avatar `size` pixels across that shows `initials`, a text, or an icon
+when `initials` is a `Symbol` that names one, such as `:user` or `:sparkle`. The
+text and the icon scale with the size, so a small avatar beside a time reads as
+well as a large one. `style` gives the colour of the circle (`content_color`) and
+of what it shows (`label_text_color`).
 """
 @document struct WidgetAvatar <: WidgetDocument
     position::Point2D
@@ -3645,6 +3723,8 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
+FocusModule.is_focusable_document(w::WidgetToolbarItem) =
+    getfield(w, :focusable)[] && !(getfield(w, :enabled)[] === false)
 
 # ── What a widget says about itself ──────────────────────────────────────────
 

@@ -87,7 +87,7 @@ end
 @testset "The name buffer draws its prompt" begin
     # The row this test was written for. Without it the buffer reflects as a
     # struct with a `value` field, and a person sees no prompt at all.
-    @test occursin("Insert a new", drawn())
+    @test occursin(DOCUMENT_INSERTION_PLACEHOLDER, drawn())
 end
 
 @testset "Backspace and Delete edit the name buffer" begin

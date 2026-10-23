@@ -554,6 +554,7 @@ WidgetTooltipToGraphicsCanvas(theme; measure,
     vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
     bar_gap::Int                # between the items of a horizontal menu bar
+    highlighted_color::StyleColor   # behind the item that the keys lit
 end
 
 WidgetMenuToGraphicsCanvas(theme; measure,
@@ -567,11 +568,12 @@ WidgetMenuToGraphicsCanvas(theme; measure,
                            vertical_padding_color = _themed(StyleColor, theme, t -> t.popover),
                            vertical_content_color = _themed(StyleColor, theme, t -> t.popover),
                            font = _themed(StyleFont, theme, t -> t.font),
-                           bar_gap = _themed(Int, theme, t -> t.bar_gap)) =
+                           bar_gap = _themed(Int, theme, t -> t.bar_gap),
+                           highlighted_color = _themed(StyleColor, theme, _get_hover_layer)) =
     WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
                                margin_color, border_color, padding_color, content_color,
                                vertical_border_color, vertical_padding_color,
-                               vertical_content_color, font, bar_gap)
+                               vertical_content_color, font, bar_gap, highlighted_color)
 
 # An item that opens a menu is the name of the menu on a bar, the variant
 # `submenu`; any other item is a command of a menu. Each takes its own padding.
@@ -591,6 +593,8 @@ WidgetMenuToGraphicsCanvas(theme; measure,
     label_gap::Int                   # between a leading icon and the label
     popup_gap::Int                   # below the item, where its submenu opens
     icon_size::Float64              # times the box of a leading icon, one line of the label
+    keys_text::StyleText             # the keys of the item, at its right edge
+    keys_gap::Int                    # between the label and the keys
 end
 
 WidgetMenuItemToGraphicsCanvas(theme; measure,
@@ -605,11 +609,13 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
                                layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                                label_gap = _themed(Int, theme, t -> t.label_gap),
                                popup_gap = _themed(Int, theme, t -> t.item_gap),
-                               icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                               icon_size = _themed(Float64, theme, t -> t.icon_size),
+                               keys_text = _themed(StyleText, theme, _get_caption_text),
+                               keys_gap = _themed(Int, theme, t -> t.section_gap)) =
     WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, submenu_padding, margin_color,
                                    border_color, padding_color, content_color, label_text,
                                    label_disabled_text,
-                                   layer_hovered_color, label_gap, popup_gap, icon_size)
+                                   layer_hovered_color, label_gap, popup_gap, icon_size, keys_text, keys_gap)
 
 @projection UntrackedCell struct WidgetToolbarItemToGraphicsCanvas
     measure::TextMeasure
@@ -627,6 +633,7 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
     layer_stroke::StyleStroke        # the outline of the layer: the item shows as a button
     corner_radius::Int
     icon_size::Float64               # times the box of the icon, one line of the label
+    badge::Any                       # the colors of the roles of a decorated icon and its marks
 end
 
 WidgetToolbarItemToGraphicsCanvas(theme; measure,
@@ -642,11 +649,12 @@ WidgetToolbarItemToGraphicsCanvas(theme; measure,
                                   layer_stroke =
                                       _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                   corner_radius = _themed(Int, theme, t -> t.radius),
-                                  icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
+                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
                                       layer_hovered_color, layer_pressed_color, layer_stroke,
-                                      corner_radius, icon_size)
+                                      corner_radius, icon_size, badge)
 
 @projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
@@ -989,18 +997,50 @@ function _text_lines(measure, font::StyleFont, text::AbstractString, bound::Int)
 end
 
 # One text, drawn from `x, y` down, broken to `bound`. Answers the width of the
-# widest line and the height of all of them.
+# widest line and the height of all of them. With `max_lines` above 0, only that
+# many lines are drawn, and the last ends with an ellipsis where the text goes on.
+# A `LineSpacing` in `spacing` sets the height of each line, with the half of its
+# leading above the text; `nothing` keeps the lines of the font.
 function _push_text_block!(elements::Vector, measure, style::StyleText,
-                           text::AbstractString, x::Int, y::Int, bound::Int)
+                           text::AbstractString, x::Int, y::Int, bound::Int;
+                           max_lines::Int = 0, spacing = nothing)
     width = 0
     height = 0
-    for line in _text_lines(measure, style.font, text, bound)
-        line_width, line_height = _text_size(measure, style.font, line)
-        _push_text!(elements, measure, style.font, line, x, y + height, style.color)
-        width = max(width, Int(line_width))
-        height += Int(line_height)
+    for line in _limit_text_lines(measure, style.font, _text_lines(measure, style.font, text, bound),
+                                  bound, max_lines)
+        if spacing === nothing
+            drawn_width, step = _text_size(measure, style.font, line)
+            lift = 0
+        else
+            box = compute_line_box(measure, line, style.font; spacing)
+            drawn_width, step, lift = box.width, box.height, box.text_y
+        end
+        _push_text!(elements, measure, style.font, line, x, y + height + Int(lift), style.color)
+        width = max(width, Int(drawn_width))
+        height += Int(step)
     end
     (width, height)
+end
+
+# The lines of a text of at most `max_lines`, when it is above 0: the last line
+# that is drawn ends with "…", and it is cut to fit `bound` with the ellipsis.
+function _limit_text_lines(measure, font::StyleFont, lines::Vector{String}, bound::Int, max_lines::Int)
+    (max_lines <= 0 || length(lines) <= max_lines) && return lines
+    kept = lines[1:max_lines]
+    kept[end] = _make_ellipsis_line(measure, font, kept[end] * " " * lines[max_lines + 1], bound)
+    kept
+end
+
+# `text` cut at the end so that it and "…" fit `bound`; the whole text when it fits.
+function _make_ellipsis_line(measure, font::StyleFont, text::AbstractString, bound::Int)
+    (bound <= 0 || first(_text_size(measure, font, text)) <= bound) && return String(text)
+    characters = collect(rstrip(text))
+    while !isempty(characters)
+        pop!(characters)
+        candidate = rstrip(String(characters)) * "…"
+        first(_text_size(measure, font, candidate)) <= bound && return candidate
+    end
+    "…"
 end
 
 # The width of `text` in `font` and the height of the line that holds it.
@@ -1554,7 +1594,11 @@ function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap)
     w = iomap.input
     (w.visible == false || w.content isa ImageDocument) && return nothing
     _, content_y = _content_offset(p, w)
-    content_y + compute_line_box(p.measure, string(w.content), _get_label_style(p, w).font).baseline
+    font = _get_label_style(p, w).font
+    spacing = w.line_spacing
+    line = spacing === nothing ? compute_line_box(p.measure, string(w.content), font) :
+                                 compute_line_box(p.measure, string(w.content), font; spacing)
+    content_y + line.baseline
 end
 
 function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
@@ -1583,13 +1627,18 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         # broken; it fills its box.
         edge = ctx === nothing ? nothing : ctx.maximum_width
         bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
-        if bound > 0 && content_width > bound
+        radius = w.corner_radius
+        text = content isa ImageDocument ? "" : string(content)
+        if !(content isa ImageDocument) && (bound > 0 && content_width > bound ||
+                                             w.line_spacing !== nothing || occursin('\n', text))
             text_elements = Any[]
-            text_width, text_height = _push_text_block!(text_elements, p.measure, style, string(content),
-                                                        content_x, content_y, bound)
+            text_width, text_height = _push_text_block!(text_elements, p.measure, style, text,
+                                                        content_x, content_y, bound;
+                                                        max_lines = w.max_lines, spacing = w.line_spacing)
             outer_width = _resolve_width(ctx, 0, text_width + inset_width)
             outer_height = _resolve_height(ctx, 0, text_height + inset_height)
-            _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height)
+            _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
+                             radius)
             append!(elements, text_elements)
             return (width = outer_width, height = outer_height, elements = elements)
         end
@@ -1598,7 +1647,7 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
         outer_height = _resolve_height(ctx, 0, content_height + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        _push_box_parts!(elements, box, colors, content_width, content_height)
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
                        content_height; placeholder_color = p.placeholder_color)
         (width = outer_width, height = outer_height, elements = elements)
@@ -1663,9 +1712,12 @@ function _find_row_index(bounds, y::Real)
     nothing
 end
 
+# A label takes only the gestures that it is given, such as a press on a chip.
 function read_intent(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
-    return nothing
+    w = iomap.input
+    w.visible == false && return nothing
+    read_bound_gesture(w, evt)
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
@@ -1812,8 +1864,14 @@ function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearan
                                 value_slot = nothing)
     view = _make_plain_text_view(w, style, appearance; value_slot)
     measure = p.measure
-    make_reconciled_child_iomap_cell(() -> view,
-                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+    # A field that wraps breaks its lines at the width of its content: a soft break
+    # is no character, so every reference of the view maps to itself.
+    text = hasfield(typeof(w), :wrap) && w.wrap ?
+        ChainingProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
+        TextToGraphics(measure = measure)
+    spacing = hasfield(typeof(w), :line_spacing) ? w.line_spacing : nothing
+    spacing === nothing || ctx === nothing || (ctx = with_property(ctx, :line_spacing, spacing))
+    make_reconciled_child_iomap_cell(() -> view, v -> print_document(text, recursion, v, ctx))
 end
 
 # The caret of the view: the range of `content` that the widget holds, as a flat
@@ -1880,8 +1938,9 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
         nothing
     value_slot = _is_value_child(document_iomap) ? document_iomap : nothing
+    text_style = _get_text_field_style(p, w, state)
     content_iomap = document_iomap !== nothing && value_slot === nothing ? document_iomap :
-        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx;
+        _print_plain_text_view(p, recursion, w, text_style, content_ctx;
                                appearance = p.appearance, value_slot)
     build = Cell(@computation begin
         radius = p.corner_radius
@@ -1898,7 +1957,8 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         shows_placeholder |= placeholder !== nothing && value_slot !== nothing &&
                              isempty(string(value_slot[].output))
         inner_w = Int(inner.w[])
-        shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, p.placeholder_text.font,
+        placeholder_style = StyleText(text_style.font, p.placeholder_text.color)
+        shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, placeholder_style.font,
                                                                 String(placeholder))[1]))
         # `w.width` is an authored inner width, so it and the offer are both
         # outer measures here: resolve the outer extent by the one rule, then
@@ -1906,12 +1966,13 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0, inner_w + inset_width)
         outer_h = _resolve_height(ctx, 0,
                                   max(Int(inner.h[]),
-                                      _text_size(p.measure, p.label_text.font, "X")[2]) + inset_height)
+                                      _text_size(p.measure, text_style.font, "X")[2]) + inset_height)
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          outer_w - inset_width, outer_h - inset_height; radius)
+        w.quiet && _make_box_quiet!(elems, w)
         if shows_placeholder
-            style = p.placeholder_text
+            style = placeholder_style
             push!(elems, GraphicsText(String(placeholder), content_x, content_y; font = style.font,
                                       color = style.color))
         end
@@ -1926,6 +1987,32 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     end)
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap,
                                     value_slot)
+end
+
+# The parts of the box of a quiet field take no colour while the field holds no
+# caret. The colours follow the selection of the field, so a caret that comes or
+# goes draws the box again and prints nothing.
+function _make_box_quiet!(elements::Vector, w::WidgetDocument)
+    for element in elements
+        element isa GraphicsRect || continue
+        for name in (:color, :border_color)
+            shown = getfield(element, name)[]
+            set_cell_computation!(getfield(element, name),
+                                  () -> getfield(w, :selection)[] === nothing ? color_transparent : shown)
+        end
+    end
+    elements
+end
+
+# The text of a field in `state`: the text of the theme, under the `text_style` of
+# the field when it gives one, as for a label.
+function _get_text_field_style(p, w, state)
+    base = _get_state_text(p, w, :label; state)
+    own = hasfield(typeof(w), :text_style) ? w.text_style : nothing
+    own === nothing ? base :
+    own isa StyleColor ? StyleText(base.font, own) :
+    own isa StyleFont ? StyleText(own, base.color) :
+    own
 end
 
 # Whether the child of a document in `content` gives a value and not graphics.
@@ -2808,8 +2895,12 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
                         content_y + (ch - line) ÷ 2, label.color)
             cw += icon_w + gap
         end
+        keys = _describe_menu_item_keys(w)
+        keys_width, keys_height = isempty(keys) ? (0, 0) : _text_size(p.measure, p.keys_text.font, keys)
+        keys_width > 0 && (cw += p.keys_gap + keys_width)
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         enabled, elements = elems, child_iomaps, variant)
+         enabled, elements = elems, child_iomaps, variant, keys, keys_width,
+         keys_y = content_y + (ch - keys_height) ÷ 2, content_x)
     end)
     build = Cell(@computation begin
         needed = measured[]
@@ -2826,6 +2917,13 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         needed.enabled && _push_hover_layer!(final, w, 0, 0, control_w, control_h;
                                              hovered_color = p.layer_hovered_color)
         append!(final, needed.elements)
+        # The keys stand at the right edge of the item, so the keys of the items of
+        # a menu make a column.
+        if needed.keys_width > 0
+            right = control_w - (needed.inset_width - needed.content_x)
+            _push_text!(final, p.measure, p.keys_text.font, needed.keys, right - needed.keys_width,
+                        needed.keys_y, p.keys_text.color)
+        end
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
     # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
@@ -2848,6 +2946,22 @@ function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, referen
     _map_point_to_child(iomap.input, iomap.child_iomaps, point)
 end
 
+# The answer to a choice of the enabled item `w`: its action, or the edit of the
+# part that its context menu belongs to when it holds one, and the close of the
+# popup that holds it.
+function _make_menu_item_choice(w::WidgetMenuItem)
+    command = _menu_item_command(w)
+    operation = w.operation
+    chosen = operation === nothing ? InvokeActionOperation(command) :
+             EditMenuPartOperation(operation, string(command.label))
+    CompoundOperation(Any[chosen, CloseWindowOperation(:widget_popup)])
+end
+
+# The keys of an item, as a person reads them: "Delete", "Shift+F10", with a
+# comma between two of them.
+_describe_menu_item_keys(w::WidgetMenuItem) =
+    join((key isa AbstractString ? String(key) : describe_gesture_pattern(key) for key in w.keys), ", ")
+
 # Invisible item (printer returned a bare empty canvas): inert.
 read_intent(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
 
@@ -2869,13 +2983,8 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         submenu = w.submenu
         submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
         # The subtree wins over the callback here (unlike a button's dialog):
-        # a menu-bar entry that opens a submenu is what the item IS. An item
-        # with an operation edits the part that its context menu belongs to.
-        command = _menu_item_command(w)
-        operation = w.operation
-        chosen = operation === nothing ? InvokeActionOperation(command) :
-                 EditMenuPartOperation(operation, string(command.label))
-        return CompoundOperation(Any[chosen, CloseWindowOperation(:widget_popup)])
+        # a menu-bar entry that opens a submenu is what the item IS.
+        return _make_menu_item_choice(w)
     end
     # A dwell goes to the content at its point, and invokes nothing.
     evt isa MouseDwell &&
@@ -2914,10 +3023,13 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         _, line = _text_size(p.measure, label.font, "M")
-        icon_size = icon_width(command.icon, scale_length(line, p.icon_size))
+        icon_size = icon_width(command.icon, _get_icon_size(command.icon, scale_length(line, p.icon_size)))
         elements = Any[]
         if icon_size > 0
-            _push_icon!(elements, command.icon, cox, coy, icon_size, label.color)
+            # A decorated icon takes the color of its role and its corner marks, as
+            # in a row of a tree.
+            _push_decorated_icon!(elements, p.badge, command.icon, cox, coy, icon_size, label.color,
+                                  color_transparent)
             content_width, content_height = icon_size, icon_size
         else
             text = string(command.label)
@@ -3092,10 +3204,13 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         y_cursor = 0
         item_w = 0
         row_h = item_h
-        for cim in child_cells[]
+        lit = nothing
+        for (index, cim) in enumerate(child_cells[])
             cim === nothing && continue
             push!(child_iomaps, (content_x + x_cursor, content_y + y_cursor, cim))
             push!(items, _make_canvas(content_x + x_cursor, content_y + y_cursor, Any[cim.output]))
+            index == w.highlighted && !horizontal &&
+                (lit = (content_y + y_cursor, max(item_h, _menu_item_height(cim))))
             if horizontal
                 x_cursor += _menu_item_width(cim) + item_gap
                 row_h = max(row_h, _menu_item_height(cim))
@@ -3109,6 +3224,9 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
                          content_width, content_height)
+        # The item that the keys lit, behind its label, as wide as the menu.
+        lit === nothing || push!(elems, GraphicsRect(content_x, lit[1], content_width, lit[2];
+                                                     color = p.highlighted_color, radius = 0))
         inset_width, inset_height = _inset_total(p, w; variant)
         width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
                                             child_iomaps, _p_measure(p))
@@ -3126,6 +3244,7 @@ map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
 function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    evt isa KeyDown && return _read_menu_key(iomap.input, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3133,6 +3252,25 @@ function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
+end
+
+# The keys of a vertical menu: Down and Up light the next and the previous
+# enabled item, Home and End the first and the last, and Return chooses the lit
+# item as a click does. The light is view state of the menu.
+function _read_menu_key(w::WidgetMenu, evt::KeyDown)
+    (w.orientation === :vertical && evt.modifiers == ModifierKeys()) || return nothing
+    choices = Int[index for (index, element) in enumerate(w.elements)
+                  if element isa WidgetMenuItem && element.visible !== false &&
+                     element.submenu === nothing && _menu_item_enabled(element)]
+    isempty(choices) && return nothing
+    current = findfirst(==(w.highlighted), choices)
+    evt.key === :return && return current === nothing ? nothing : _make_menu_item_choice(w.elements[choices[current]])
+    next = evt.key === :down ? (current === nothing ? 1 : min(current + 1, length(choices))) :
+           evt.key === :up ? (current === nothing ? length(choices) : max(current - 1, 1)) :
+           evt.key === :home ? 1 :
+           evt.key === :end ? length(choices) : nothing
+    next === nothing && return nothing
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "highlighted", choices[next]))
 end
 
 # ── WidgetComposite ─────────────────────────────────────────────────────────
@@ -7099,6 +7237,37 @@ macro _printer_only(P)
     end
 end
 
+# ── WidgetIcon ──────────────────────────────────────────────────────────────
+
+# The size of `icon` in its place: its own size when it gives one, else `size`.
+_get_icon_size(icon::WidgetIcon, size::Int) = icon.size > 0 ? _sc(icon.size) : size
+_get_icon_size(icon, size::Int) = size
+
+@projection UntrackedCell struct WidgetIconToGraphicsCanvas
+    measure::TextMeasure
+    label_text::StyleText            # the colour of an icon with no role, and the line it is as tall as
+    badge::Any                       # the colours of the roles of the icon and of its marks
+end
+
+WidgetIconToGraphicsCanvas(theme; measure,
+                           label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
+                           badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+    WidgetIconToGraphicsCanvas(measure, label_text, badge)
+
+# An icon with its corner marks, as tall as a line of the label font or as its own
+# size. The canvas is the box of the glyph, and the marks stand half outside it.
+function print_document(p::WidgetIconToGraphicsCanvas, recursion, w::WidgetIcon, ctx)
+    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+        _, line = _text_size(p.measure, p.label_text.font, "M")
+        size = icon_width(w, _get_icon_size(w, Int(line)))
+        elements = Any[]
+        size > 0 && _push_decorated_icon!(elements, p.badge, w, 0, 0, size, p.label_text.color,
+                                          color_transparent)
+        (width = size, height = size, elements = elements)
+    end))
+end
+@_printer_only WidgetIconToGraphicsCanvas
+
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetBadgeToGraphicsCanvas
@@ -7334,6 +7503,11 @@ end
     plain_border_color::StyleColor
     plain_padding_color::StyleColor
     plain_content_color::StyleColor
+    row_border_color::StyleColor
+    row_padding_color::StyleColor
+    row_content_color::StyleColor
+    row_hovered_color::StyleColor      # the band of a :row card under the pointer
+    row_selected_color::StyleColor     # the band of a :row card that holds the selection
     chevron_color::StyleColor          # the fold mark of a collapsible card
     graphics_style::NamedTuple         # the ring over the slot selected as a whole
     corner_radius::Int
@@ -7380,6 +7554,10 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            muted_content_color = _themed(StyleColor, theme, t -> t.muted),
                            plain_border_color = color_transparent,
                            plain_padding_color = color_transparent, plain_content_color = color_transparent,
+                           row_border_color = color_transparent,
+                           row_padding_color = color_transparent, row_content_color = color_transparent,
+                           row_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                           row_selected_color = _make_selected_row_color(graphics_theme),
                            chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                            graphics_style = _make_graphics_style(graphics_theme),
                            corner_radius = _themed(Int, theme, t -> t.radius),
@@ -7393,6 +7571,8 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                tinted_border_color, tinted_padding_color, tinted_content_color,
                                muted_border_color, muted_padding_color, muted_content_color,
                                plain_border_color, plain_padding_color, plain_content_color,
+                               row_border_color, row_padding_color, row_content_color,
+                               row_hovered_color, row_selected_color,
                                chevron_color, graphics_style, corner_radius, title_gap, section_gap,
                                chevron_size, chevron_nudge)
 
@@ -7556,6 +7736,7 @@ function _card_build(p, w, ctx, tim, cim)
     # are transparent, and `_push_box_parts!` skips a transparent part.
     surface = Any[]
     _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = p.corner_radius)
+    w.variant === :row && push!(surface, _make_row_band(p, w, box, region_width + inset_width, card_height))
     # The three regions, each a panel (transparent by default, so it costs
     # nothing) behind the elements that fill it.
     _push_panel!(surface, content_x, header_top, region_width, header_bottom - header_top;
@@ -7568,6 +7749,21 @@ function _card_build(p, w, ctx, tim, cim)
                 fill = _get_state_color(p, w, :footer))
     append!(surface, footer_elements)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
+end
+
+# The band of a `:row` card inside its margin: the selection band while the
+# selection is in the card, the hover layer while the pointer is on it, and no
+# colour else. The colour is a cell of its own, so a light draws the band again
+# and builds no card.
+function _make_row_band(p, w::WidgetCard, box, width::Int, height::Int)
+    left, top, right, bottom = box.margin
+    band = GraphicsRect(left, top, width - left - right, height - top - bottom;
+                        color = color_transparent, radius = p.corner_radius)
+    selected, hovered = p.row_selected_color, p.row_hovered_color
+    set_cell_computation!(getfield(band, :color), () ->
+        get_selection(w) !== nothing ? selected :
+        get_mouse_target(w) !== nothing ? hovered : color_transparent)
+    band
 end
 
 # The body a card recurses into, and the context to print it with.
@@ -7780,9 +7976,13 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
         cim.input === w.content || continue
-        return _card_reroot(w, cim, read_intent(cim.projection, cim, evt))
+        answer = _card_reroot(w, cim, read_intent(cim.projection, cim, evt))
+        answer === nothing || return answer
+        break
     end
-    nothing
+    # A key that the content does not take goes to the bindings of the card, such
+    # as the key that opens the menu of a row.
+    read_bound_gesture(w, evt)
 end
 
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
@@ -8459,6 +8659,10 @@ WidgetAvatarToGraphicsCanvas(theme; measure,
     WidgetAvatarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, label_text)
 
+# The share of the size of an avatar that its text takes, and that its icon takes.
+const _AVATAR_TEXT_SHARE = 0.42
+const _AVATAR_ICON_SHARE = 0.7
+
 # The margin, the border and the padding are rectangular bands; the content is a
 # circle, so it is excluded from the box's own fill and drawn on top of it.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
@@ -8471,14 +8675,21 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
-        initials = string(w.initials)
         label = _get_state_text(p, w, :label)
         elements = Any[]
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
         push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius; color = colors.content))
-        initials_width, initials_height = _text_size(p.measure, label.font, initials)
-        _push_text!(elements, p.measure, label.font, initials, content_x + radius - initials_width ÷ 2,
-                    content_y + radius - initials_height ÷ 2, label.color)
+        icon = w.initials isa Symbol ? icon_width(w.initials, max(1, round(Int, size * _AVATAR_ICON_SHARE))) : 0
+        if icon > 0
+            _push_icon!(elements, w.initials, content_x + radius - icon ÷ 2, content_y + radius - icon ÷ 2,
+                        icon, label.color)
+        else
+            initials = string(w.initials)
+            font = with_font_size(label.font, max(1, round(Int, size * _AVATAR_TEXT_SHARE)))
+            initials_width, initials_height = _text_size(p.measure, font, initials)
+            _push_text!(elements, p.measure, font, initials, content_x + radius - initials_width ÷ 2,
+                        content_y + radius - initials_height ÷ 2, label.color)
+        end
         (width=size + inset_width, height=size + inset_height, elements=elements)
     end))
 end
@@ -8879,6 +9090,17 @@ const LUCIDE_ICON_GLYPHS = (
     :circle_play    => 0xe080,  # circle-play: one run of a configuration
     :database       => 0xe0ad,  # database: a store of values on disk
     :circle_dashed  => 0xe4b0,  # circle-dashed: a configuration that only others extend
+    # The marks and the facts of a row of a record
+    :ellipsis       => 0xe0b6,  # ellipsis: the menu of a part
+    :sparkle        => 0xe47e,  # sparkle: what the assistant made
+    :circle_x       => 0xe084,  # circle-x: a choice that was set aside
+    :circle_slash   => 0xe402,  # circle-slash: a step that was dropped
+    :circle_dot     => 0xe345,  # circle-dot: a step that is under way
+    :git_branch     => 0xe0e2,  # git-branch: a plan of steps and decisions
+    :square_stack   => 0xe4a2,  # square-stack: the documents that a part holds
+    :code           => 0xe093,  # code: a piece of code
+    :message_square => 0xe117,  # message-square: the entries of a journal
+    :copy           => 0xe09e,  # copy: a copy of a document
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS
@@ -12810,6 +13032,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measure),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measure),
+        WidgetIcon       => WidgetIconToGraphicsCanvas(theme; measure = measure),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme; measure = measure),

@@ -558,17 +558,10 @@ const _PLACEHOLDER = "type here…"
 
 # ── Editable (active) part body — its value, drawn with the draft's selection.
 
-# A `DocumentInsertion` keeps its "Insert a new <value> here" decoration: static
-# gray prefix/suffix spans around the editable value span, caret in the value.
-const _INS_PREFIX = "Insert a new "
-const _INS_SUFFIX = " here"
-
 # Which run of the first line of the rendered body starts the editable value, and
-# the flat offset where the value starts: after the prefix of a kind chooser, and
-# at the start of a plain value, which fills every line of the body.
-_value_span(::DocumentInsertion) = 2
+# the flat offset where the value starts: the start of the body, for a kind chooser
+# and for a plain value, which fills every line of the body.
 _value_span(::Any) = 1
-_value_offset(::DocumentInsertion) = length(_INS_PREFIX)
 _value_offset(::Any) = 0
 
 function _editable_body(p, c::DocumentInsertion)
@@ -585,12 +578,14 @@ function _editable_body(p, c::DocumentInsertion)
         state === :invalid ? p.invalid_color :
         state === :empty   ? p.plain_color  : p.valid_color
     end)
-    TextBlock(TextLine(TextDocument[
-        TextString(_INS_PREFIX, p.code_font, p.placeholder_color),
-        value_span,
-        TextString(() -> name_completion(c).hint, p.code_font, p.completion_hint_color),
-        TextString(_INS_SUFFIX, p.code_font, p.placeholder_color),
-    ]))
+    # After the value stands the pale completion, or the placeholder of a kind while
+    # the value is empty, which goes at the first key.
+    hint = TextString(Cell(@computation isempty(_value(c)) ? DOCUMENT_INSERTION_PLACEHOLDER :
+                                                            name_completion(c).hint),
+                      p.code_font, Cell(p.completion_hint_color), nothing, nothing, nothing, nothing)
+    set_cell_computation!(getfield(hint, :font_color),
+                          () -> isempty(_value(c)) ? p.placeholder_color : p.completion_hint_color)
+    TextBlock(TextLine(TextDocument[value_span, hint]))
 end
 
 # Plain editable text (a `PrimitiveString` or a domain's insertion): a line of one
@@ -608,7 +603,7 @@ end
 
 # The body's selection for the value range `s..e` of the active part `c`: a flat
 # range of its line, past the runs before the value. While a kind chooser's value
-# is empty, the caret is at the end of its prefix, just after "Insert a new ".
+# is empty, the caret is at the start of its line, before its placeholder.
 function _body_selection(c, s::Int, e::Int)
     n = length(_value(c))
     base = _value_offset(c)

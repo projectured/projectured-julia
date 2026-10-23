@@ -220,6 +220,16 @@ The drag state of a `WidgetSplitPane` is in cells of the pane, because the pipel
 
 Each move adds a delta to slot `k` and takes it from slot `k+1`, clamped to the minimum and maximum of each slot. The evaluation of `ResizeSplitPaneOperation` writes a size or a pin only when it changes, so a move to the point of the last move writes no cell. The check is in the evaluation and not in the reader, because the pane tree answers the resize with its own write and leaves `sizes` as they were at the grab.
 
+### Text that fits, marks and rows
+
+A `WidgetLabel` breaks a long text at the width that its parent gives. `max_lines` keeps it to that many lines, and the last one ends with "…" where the text goes on. `line_spacing`, a `LineSpacing` of the style slice, sets the height of each line, so labels and fields of several sizes keep one rhythm; an outline gives every part of a row the line of its text. `corner_radius` rounds its box, and `gestures` are its own bindings, so a label with a ground and a radius is a chip that a press answers.
+
+A `WidgetText` takes `text_style`, its own font and colour, and `line_spacing`. `wrap = true` breaks a plain value at the width of its parent through `WordWrapping`; a soft break is no character, so the caret and an edit see the same text. A `quiet` field draws its box only while it holds the caret: the colours of its box are cells that read its selection, so a caret that comes or goes draws the box again and prints nothing.
+
+A `WidgetIcon` draws in any layout, with its corner marks, as tall as a line of the label font or `size` pixels. A toolbar item whose action holds a `WidgetIcon` draws it with its marks and at its size, so a mark with a dot can be pressed. A `WidgetAvatar` shows initials or an icon, and scales both to its size.
+
+A card of the variant `:row` is the row of a list that a builder makes of widgets: it draws no panel at rest, the hover layer while the pointer is on it, and the selection band while the selection is in it. Both colours are cells that read the `mouse_target` and the `selection` of the card, so a light builds nothing. A part that shows only then, such as the menu of the row, reads the same two cells in a colour of its `style`. A card has `gestures` of its own: a right click and a dwell read them after its content, and a key that its content does not take reads them while the selection is in the card. The outline slice builds its rows so ([outline.md](../outline/outline.md)).
+
 ### Actions
 
 An `Action(label; icon, enabled, shortcut, callback)` is one command that a menu item, a toolbar item, a button and a shortcut can share. A control reads the cells of its action, so a change of the label or of `enabled` draws again every control that shows it. A control is enabled when its own `enabled` and the one of its action are both `true`. `Shortcut(:s; ctrl = true)` makes the key pattern.
@@ -352,7 +362,7 @@ write_example_image(widget_tree_example, "tree.png")
 `save_all!` and `server` stand for your own function and object.
 
 - Examples: one for each widget in `example/platform/PlatformExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
-- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_part_pointer_shape()` in `PartPointerShapeTest.jl` sweeps the points of each part and checks, at every point, that the shape is the part's shape exactly where the reader answers the press of that part. `test_platform()` runs them all; the package has no suite of its own.
+- Tests: `test_widget_text_fit()` for the labels and the fields that fit and the marks of a row, `test_widget_menu_keys()` for a menu that the keys drive. The `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_part_pointer_shape()` in `PartPointerShapeTest.jl` sweeps the points of each part and checks, at every point, that the shape is the part's shape exactly where the reader answers the press of that part. `test_platform()` runs them all; the package has no suite of its own.
 
 ## Limits
 

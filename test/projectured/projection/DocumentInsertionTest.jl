@@ -236,13 +236,14 @@ function test_document_insertion()
             # Structure: node open/close carry the label, the inner leaf the
             # typed value (reactive colour) and the pale continuation hint.
             @test node isa SyntaxDelimitation      # one leaf behind a prefix/suffix, not a sequence
-            @test node.opening_delimiter.content == "Insert a new "
-            @test node.closing_delimiter.content == " here"
+            @test node.opening_delimiter.content == ""
+            @test node.closing_delimiter.content == ""
             leaf = node.content
             @test leaf isa SyntaxLeaf
-            # Empty buffer: neutral colour, no hint.
+            # Empty buffer: neutral colour, and the pale placeholder of a kind, which
+            # goes at the first key.
             @test leaf.value.font_color == _insertion_role(:text)
-            @test leaf.close.content == ""
+            @test leaf.close.content == DOCUMENT_INSERTION_PLACEHOLDER
             # Ambiguous prefix: green typed text, no hint (Tab-only LCP).
             ins.value = "jso"
             @test leaf.value.font_color == _insertion_role(:success_text)

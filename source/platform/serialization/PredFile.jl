@@ -114,7 +114,7 @@ of them produced it.
 function pred_arguments(document)
     keywords = Pair{Symbol,Any}[]
     for name in fieldnames(typeof(document))
-        is_view_state_field(name) && continue
+        is_view_state_field(typeof(document), name) && continue
         raw = getfield(document, name)
         value = raw isa AbstractCell ? raw[] : raw
         # A collection of cells is written as the list of what the cells hold.
@@ -139,7 +139,7 @@ function make_pred_document(T::Type, positional, keywords)
     names = Tuple(first(keyword) for keyword in keywords)
     hasmethod(T, Tuple{}, names) && return T(; keywords...)
     values = Dict{Symbol,Any}(keywords)
-    fields = Symbol[name for name in fieldnames(T) if !is_view_state_field(name)]
+    fields = Symbol[name for name in fieldnames(T) if !is_view_state_field(T, name)]
     for name in fields
         haskey(values, name) ||
             error("a .pred file builds ", nameof(T), " from its fields, and it gives no ", name)

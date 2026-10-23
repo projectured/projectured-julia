@@ -57,6 +57,11 @@ copy_selection_cell(policy::CopyPolicy, cell) =
 # Any name, because a walk asks it of every field name, and the fields of a tuple
 # are numbers.
 is_view_state_field(name) = name === :selection || name === :mouse_target
+is_view_state_field(::Type{T}, name) where {T} = is_view_state_field(name) || name in get_view_state_fields(T)
+
+# A document holds no state of a view but its selection and its mouse target until
+# its type declares more.
+get_view_state_fields(::Type) = ()
 
 # A kind has no duplicate until it declares one.
 has_document_duplicate(document) = false

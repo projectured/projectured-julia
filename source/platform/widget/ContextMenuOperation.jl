@@ -121,16 +121,18 @@ is_self_contained_operation(::EditMenuPartOperation) = true
 evaluate_operation(editor, ::EditMenuPartOperation) = nothing
 
 """
-    make_context_menu_operation(document, menu, gesture) -> Operation | Nothing
+    make_context_menu_operation(document, menu, gesture; title = nothing) -> Operation | Nothing
 
 The answer of a context menu binding: `menu` is the menu of `document`, or
 `nothing` when it has none. `gesture` is the right click, whose point
-places the window, or `nothing` when a command runs the binding.
+places the window, or `nothing` when a command runs the binding or a button
+opens the menu, which then opens under the part. `title` names the part when
+F2 shows more than one menu; `nothing` takes the title of `document`.
 """
-function make_context_menu_operation(document, menu, gesture)
+function make_context_menu_operation(document, menu, gesture; title = nothing)
     menu === nothing && return nothing
     point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
-    title = something(get_document_title(document), String(nameof(typeof(document))))
+    title === nothing && (title = something(get_document_title(document), String(nameof(typeof(document)))))
     ReplaceViewStateOperation(
         OpenContextMenuOperation(Tuple{String,Document,Int}[(String(title), menu, 0)],
                                  EmptyReference(), point))
@@ -162,6 +164,27 @@ make_context_menu_binding(compute::Function;
     GestureBinding(MouseClickPattern(:right),
                    (document, gesture) ->
                        make_context_menu_operation(document, compute(document), gesture);
+                   applicable = (document, selection) -> compute(document) !== nothing,
+                   description = description, domain = "context menu",
+                   name = String(description))
+
+"""
+    make_menu_button_binding(compute; description = "Show the menu") -> GestureBinding
+
+The binding of a button that opens a menu under itself: a left click answers the
+menu that `compute(document)` returns, in the context menu window, below the
+button with their left edges aligned, and nothing when `compute` returns
+`nothing`. The window is the one of a right click, so the keys of the menu, F2 and
+the close are the same.
+
+Use it for a "⋯" that opens the menu of a row, or for any part that a press opens
+a menu from.
+
+See also `make_context_menu_binding`, which opens the menu at a right click.
+"""
+make_menu_button_binding(compute::Function; description::AbstractString = "Show the menu") =
+    GestureBinding(MouseClickPattern(:left),
+                   (document, gesture) -> make_context_menu_operation(document, compute(document), nothing);
                    applicable = (document, selection) -> compute(document) !== nothing,
                    description = description, domain = "context menu",
                    name = String(description))

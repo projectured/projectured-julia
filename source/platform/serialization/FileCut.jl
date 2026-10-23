@@ -195,7 +195,7 @@ _slot_field(steps::Tuple) = Symbol(first(steps).name)
 function _child_slots(node::Document)
     slots = Tuple{Tuple,Any}[]
     for name in fieldnames(typeof(node))
-        is_view_state_field(name) && continue
+        is_view_state_field(typeof(node), name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         if is_element_collection(value) || value isa AbstractVector

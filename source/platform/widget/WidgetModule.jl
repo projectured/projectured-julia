@@ -39,7 +39,7 @@ using ..TooltipModule
 import ..CellModule: set_cell_computation!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
-                         get_document_title
+                         get_document_title, is_walk_opaque
 import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
@@ -97,7 +97,7 @@ export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_operation,
        make_find_bar_placement_operation
 export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
-       make_context_menu_binding
+       make_context_menu_binding, make_menu_button_binding
 export OpenPageOperation, make_open_page_gestures
 export OpenFileOperation
 export AddExplorerEntryOperation
@@ -106,6 +106,7 @@ export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        wrap_context_menu_window
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
+export WidgetChoice, WidgetChoiceList, make_choice_list_operation, WidgetChoiceListToWidget
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
@@ -137,5 +138,6 @@ include("OpenFileOperation.jl")
 include("AddExplorerEntryOperation.jl")
 include("ContextMenuWindow.jl")
 include("DocumentComposition.jl")
+include("WidgetChoiceList.jl")
 
 end # module
