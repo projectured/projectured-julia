@@ -135,5 +135,5 @@ one.mouse_target[]     ← nothing                     (off the path)
 
 ## Limits
 
-- **A graph draws no light under the pointer.** The graph domain maps no mouse target forward and draws only its explicit highlight. The topology card of a simulation also gives the graph that it makes no mouse target: its outer walk leaves the graph out, and no document of the input holds it.
+- **The topology card of a simulation gives the graph that it makes no mouse target.** Its outer walk leaves the graph out, and no document of the input holds it, so its vertices do not light, though a graph lights the vertex under the pointer ([graph.md](../domain/graph/graph.md#the-highlight)).
 - **An edit that is no operation keeps no path right.** A direct write into a cell does not move or clear the mouse target paths that pass through it. An assistant or a script that edits a document must make an operation, also for this reason.

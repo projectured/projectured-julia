@@ -14,7 +14,7 @@
 | --- | --- |
 | `GraphGraph` | `vertices`, `edges`, the presentation fields `highlight_vertex` and `highlight_edge`, and `constraints`, the places that a drag gave its vertices |
 | `GraphVertex` | `content`, a document of any domain: a table, a JSON object, another graph |
-| `GraphEdge` | `source` and `target` vertices, `directed`, and an optional `label` document |
+| `GraphEdge` | `source` and `target` vertices, `directed`, an optional `label` document, and `visible`, whether it draws a line |
 | `GraphLayout` | `vertex_layouts`, `edge_layouts`, the two highlights, `engine`, the name of the engine that placed it, `graph`, the graph it places, and `drag`, the drag of a vertex as view state |
 | `VertexLayout`, `EdgeLayout` | the box `(x, y, w, h)` of one vertex; the route of one edge as a list of points |
 | `GraphConstraint` | a `kind` and a `payload` for one vertex, such as a pin or a start |
@@ -86,6 +86,8 @@ The choice is made when the layout runs, not when the projection is built, becau
 
 `highlight_vertex` and `highlight_edge` of `GraphGraph` name one vertex and one edge by identity. The first stage passes them to `GraphLayout` as computed cells, and the cell that runs the engine does not read them. The second stage reads them only in the cell that builds the element list. It draws a ring behind the highlighted box and draws the highlighted edge again with a thicker stroke. So a change of a highlight builds the element list again, but it prints no content and runs no engine.
 
+The vertex under the pointer lights the same way. The first stage maps the mouse target of the graph forward into the layout, and the second stage keeps the index of the vertex that the mouse target of the layout names in a cell of its own, so a move inside one vertex draws nothing again. It draws a ring of `light` behind the vertex and behind each vertex that an edge joins to it, and draws each of its edges again in `light_edge`. An edge that is not `visible` draws no line and no label, and still joins its vertices in the layout and in the light: the map of a study gives a decision such edges to the items that it settled, so the pointer on the decision lights them and no line crosses the map.
+
 A producer sets the two fields as computed cells over the state it follows. Two domains do this, and each builds a `GraphGraph` in a stage of its own:
 
 - `FsmDiagramToGraph` makes one vertex for each state and one edge for each transition with a target. The highlights follow `FsmDiagram.live_state` and `live_transition`; see [fsm.md](../fsm/fsm.md).
@@ -95,7 +97,7 @@ In both, the content of a vertex is the domain node itself, held by identity. So
 
 ### The theme
 
-`GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; and the color, the width and the gap of the ring of a highlight. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows under the name of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme`, scaled or not, and holds all values as one `NamedTuple` and no theme, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
+`GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; the color, the width and the gap of the ring of a highlight; and the colors of the light of the vertex under the pointer. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows under the name of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme`, scaled or not, and holds all values as one `NamedTuple` and no theme, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
 
 ### The tooltip of a part
 

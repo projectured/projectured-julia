@@ -22,7 +22,7 @@ const RESEARCH_ASSISTANT_API = (
     :ResearchExpectation, :ResearchMap, :StudyItems,
     :start_study!, :add_question!, :add_source!, :add_hypothesis!, :add_experiment!, :add_analysis!,
     :add_result!, :add_evidence!, :add_answer!, :record_decision!, :check_predictions!,
-    :add_study_section!, :add_study_prose!, :embed_in_study!, :add_study_formula!,
+    :add_study_section!, :add_study_prose!, :embed_in_study!, :add_study_formula!, :add_element!,
     :describe_study, :find_study_item, :save_study_folder!, :load_study_folder,
 )
 
@@ -550,7 +550,8 @@ end
     describe_study(study) -> Base.Text
 
 The outline of `study` as text: its title, then one line for each item, with its
-id, its status, its text, its links, its author and its time.
+id, its status, its text, its links, its author and its time, and a line under it
+for each of its elements, with the kind and the first line of the element.
 
 Use it to read a study before you add to it, or to say what it holds.
 
@@ -571,6 +572,27 @@ function describe_study(study)
         push!(lines, item.id * status * " " * _format_plain_text(get_research_item_text(item)) *
                      (isempty(links) ? "" : " (" * join(links, "; ") * ")") *
                      " — " * string(item.author) * ", " * item.time)
+        for element in item.elements
+            push!(lines, "  element: " * _describe_research_element(element))
+        end
     end
     Base.Text(join(lines, "\n"))
+end
+
+# The kind of an element by the shortest name that completes it, and its first line
+# of text, cut to a short note.
+function _describe_research_element(element)
+    aliases = get_insertion_aliases(typeof(element))
+    names = get_insertion_names(typeof(element))
+    kind = !isempty(aliases) ? first(aliases) : isempty(names) ? string(nameof(typeof(element))) :
+           names[min(2, length(names))]
+    text = try
+        print_natural_text(element)
+    catch
+        _format_plain_text(element)
+    end
+    parts = split(text, '\n'; keepempty = false)
+    line = isempty(parts) ? "" : String(strip(first(parts)))
+    length(line) > 60 && (line = first(line, 59) * "…")
+    isempty(line) ? kind : kind * " " * repr(line)
 end

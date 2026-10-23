@@ -18,7 +18,8 @@ const RESEARCH_REPORT_FILE_NAME = "study.md"
 Every document of `study` that a file of its own writes, each once, with the
 name of its file: a node of a format, such as a Markdown paragraph, a math
 expression or a JSON object, that a field of an item holds at any depth, as
-`"h1-statement-1.md" => paragraph`; a file document, such as a NED or INI file,
+`"h1-statement-1.md" => paragraph`, and an element of an item by its place in the
+elements, as `"x1-elements-2.jl" => code`, so a new element renames no file; a file document, such as a NED or INI file,
 under its own name; and a block of the report that no item reaches and that is
 neither Markdown nor an item, such as a table, in a `.pred` file, as
 `"report-3.pred" => table`. The report itself is not among them: it has a file of
@@ -31,7 +32,9 @@ function collect_study_blocks(study::ResearchStudy)
     file = PredFile(RESEARCH_STUDY_FILE_NAME, study)
     seen = IdDict{Any, Bool}(study => true)
     study.report === nothing || (seen[study.report] = true)
-    function add!(stem, value)
+    # A block takes the count of the blocks after its stem, unless its stem names it
+    # alone, as the stem of an element does.
+    function add!(stem, value; numbered::Bool = true)
         if is_element_collection(value) || value isa AbstractVector
             for element in value
                 add!(stem, element)
@@ -48,8 +51,8 @@ function collect_study_blocks(study::ResearchStudy)
         end
         extension = find_file_extension(value)
         if extension !== nothing
-            count = length(blocks) + 1
-            push!(blocks, stem * "-" * string(count) * extension => value)
+            name = numbered ? stem * "-" * string(length(blocks) + 1) : stem
+            push!(blocks, name * extension => value)
             return
         end
         for name in fieldnames(typeof(value))
@@ -62,7 +65,15 @@ function collect_study_blocks(study::ResearchStudy)
         for name in fieldnames(typeof(item))
             is_view_state_field(name) && continue
             raw = getfield(item, name)
-            add!(lowercase(item.id) * "-" * string(name), raw isa AbstractCell ? raw[] : raw)
+            value = raw isa AbstractCell ? raw[] : raw
+            stem = lowercase(item.id) * "-" * string(name)
+            if name === :elements
+                for (index, element) in enumerate(value)
+                    add!(stem * "-" * string(index), element; numbered = false)
+                end
+            else
+                add!(stem, value)
+            end
         end
     end
     if study.report isa MarkdownRoot

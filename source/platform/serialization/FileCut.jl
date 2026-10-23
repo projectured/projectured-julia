@@ -11,8 +11,10 @@
 #
 # Two decisions come before any copy. Which file writes a node: a node is
 # written in a file of its own domain, the first one that reaches it through
-# nodes of that domain; anything else is an orphan and the save aborts. And how
-# a node is named from another file: `file("b.xml")` for a file's root,
+# nodes of that domain; a node that no file of its domain reaches is written
+# inline by a file that can write its text, as a `.pred` file writes a JSON value,
+# and anything else is an orphan and the save aborts. And how a node is named
+# from another file: `file("b.xml")` for a file's root,
 # `node(file("b.xml"), "children[1]")` for a node inside it, the path in the
 # reference DSL's text form.
 
@@ -96,6 +98,25 @@ find_reference_marker(::Any) = nothing
 "The marker text of `body`, with its brackets."
 make_marker_text(body::AbstractString) = _MARKER_OPEN * String(body) * _MARKER_CLOSE
 
+"""
+    is_written_inline(file, node) -> Bool
+
+Whether `file` writes `node`, a document of another domain that no file of the
+set writes, in its own text: a `.pred` file writes a JSON value as the text of a
+JSON file, inside a string tagged with the extension. The default is `false`, and
+such a node is an orphan.
+"""
+is_written_inline(file, node) = false
+
+"""
+    make_inline_leaf(file, node, path::Reference) -> Document
+
+The file's own spelling of `node`, a document that it writes inline, as
+[`is_written_inline`](@ref) says, at `path`. It throws a
+[`FileCutException`](@ref) where the text of the node can not be written.
+"""
+function make_inline_leaf end
+
 # ── Ownership ────────────────────────────────────────────────────────────────
 
 # `owner[node] = (file, path)` for every document node some file writes. A file
@@ -131,7 +152,34 @@ function _assign_owners(project::FileProject)
             end
         end
     end
+    # A node that no file of its domain writes is the file's that reaches it first
+    # and writes it inline, so a node of a format stays with the file of its format.
+    for file in project.files
+        _own_inline_walk!(owner, file, get_file_content(file), EmptyReference(), IdDict{Any,Bool}())
+    end
     owner
+end
+
+# The nodes that `file` writes inline: each node of another domain that no file
+# owns and that the walk meets through the nodes of `file`, at the place where
+# `file` writes it. The walk does not go into such a node, whose own text holds
+# what it holds.
+function _own_inline_walk!(owner, file, node, path::Reference, visited::IdDict)
+    node isa Document || return
+    is_file_document(node) && node !== get_file_content(file) && return
+    haskey(visited, node) && return
+    visited[node] = true
+    entry = get(owner, node, nothing)
+    if entry === nothing
+        is_written_inline(file, node) && (owner[node] = (file, path))
+        return
+    end
+    owner_file, owner_path = entry
+    owner_file === file || return
+    for (steps, child) in _child_slots(node)
+        is_written_in_file(file, node, _slot_field(steps)) || continue
+        _own_inline_walk!(owner, file, child, extend_reference(owner_path, steps...), visited)
+    end
 end
 
 # `kept` holds the nodes that wait for their typed slot; `at_fixed` says whether
@@ -233,6 +281,7 @@ function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::
     (haskey(visited, node) || !_is_same_path(path, owner_path)) &&
         return make_reference_leaf(file, _reference_marker(file, owner_path))
     visited[node] = true
+    is_file_domain_node(file, node) || return make_inline_leaf(file, node, path)
     _rebuild(owner, file, node, path, visited, strict)
 end
 

@@ -167,6 +167,73 @@ get_operation_path(operation::ReplacePathOperation) = operation.path
 make_path_operation(::ReplaceSelectionOperation, path::Reference) = ReplaceSelectionOperation(path)
 
 """
+    SelectDocumentOperation(document, tail = EmptyReference())
+
+Select `document`, a document that a root holds, found by identity, or the place
+`tail` inside it, and bring it into view. The first reader on the way up whose
+input holds it answers the selection of its path there, nearest place first, as a
+`ShowSelectionOperation`; an editor whose document holds it selects it when no
+reader did. A press on a link answers it, so the press selects the document that
+the link names, wherever the view drew the link. After an edit in the same
+compound, such as the add or the move of the document, it goes up as it is, and
+the editor names the place of the document once the edits before it are applied,
+so it puts the caret into a new or a moved document.
+"""
+struct SelectDocumentOperation <: Operation
+    document::Any
+    tail::Reference
+end
+
+SelectDocumentOperation(document) = SelectDocumentOperation(document, EmptyReference())
+
+function evaluate_operation(editor, operation::SelectDocumentOperation)
+    path = find_document_path(editor.document, operation.document)
+    path === nothing || replace_selection!(editor.document, concat_references(path, operation.tail))
+    nothing
+end
+
+"""
+    ShowSelectionOperation(operation)
+
+`operation`, a selection such as a `ReplaceSelectionOperation`, with the request
+to bring what it selects into view: a scroll pane on the way up scrolls so that
+the selected part shows. Applying it applies `operation`.
+"""
+struct ShowSelectionOperation <: WrappingOperation
+    operation::Any
+end
+
+get_wrapped_operation(operation::ShowSelectionOperation) = operation.operation
+rewrap_operation(::ShowSelectionOperation, inner) = ShowSelectionOperation(inner)
+evaluate_operation(editor, operation::ShowSelectionOperation) = evaluate_operation(editor, operation.operation)
+
+"""
+    find_document_path(root, document) -> Reference or nothing
+
+The path from `root` to `document`, a document that `root` holds, found by
+identity through the child documents of `child_reference_steps`, the nearest place
+first: the empty path for `root` itself, and `nothing` when `root` does not hold
+`document`.
+"""
+function find_document_path(root, document)
+    level = Any[(root, EmptyReference())]
+    seen = Base.IdSet{Any}()
+    while !isempty(level)
+        next = Any[]
+        for (node, path) in level
+            node === document && return path
+            (node isa Document && !(node in seen)) || continue
+            push!(seen, node)
+            for (step, child) in child_reference_steps(node)
+                push!(next, (child, extend_reference(path, step)))
+            end
+        end
+        level = next
+    end
+    nothing
+end
+
+"""
     ReplaceMouseTargetOperation(path)
 
 Operation that replaces the part under the pointer with `path`: the document at
@@ -644,7 +711,7 @@ end
 function child_reference_steps(node)
     pairs = Tuple{Any, Any}[]
     for nm in fieldnames(typeof(node))
-        is_view_state_field(nm) && continue
+        is_view_state_field(typeof(node), nm) && continue
         val = unwrap_cell(getfield(node, nm))
         val isa Document || continue
         push!(pairs, (FieldReferenceStep(string(nm)), val))

@@ -6342,9 +6342,73 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     end
     # A right click then reads the stretch of the pane (`read_container_gesture`).
     op === nothing ||
-        return read_container_gesture(_retarget_op(p, iomap, op), evt, iomap.input;
+        return read_container_gesture(_show_pane_selection(p, iomap, op), evt, iomap.input;
                                       steps = (FieldReferenceStep("content"),))
     read_container_gesture(_self_scroll(p, iomap, canvas, evt), evt, iomap.input)
+end
+
+# The answer of the content of a pane in the input of the pane, with the scroll
+# that brings into view the part that it selects to show. A selection of a
+# document that the content holds, which no reader below it named, is named here.
+function _show_pane_selection(p, iomap, operation)
+    if operation isa SelectDocumentOperation
+        input = get_iomap_input(iomap.content_iomap)
+        path = find_document_path(input, operation.document)
+        path === nothing ||
+            (operation = ShowSelectionOperation(ReplaceSelectionOperation(
+                annotate_reference_types(input, concat_references(path, operation.tail)))))
+    end
+    retargeted = _retarget_op(p, iomap, operation)
+    path = _find_shown_path(operation)
+    (retargeted === nothing || path === nothing) && return retargeted
+    scroll = _scroll_pane_to_show(p, iomap, path)
+    scroll === nothing ? retargeted : CompoundOperation(Any[retargeted, scroll])
+end
+
+# The path of the selection that `operation` asks to show, or `nothing`.
+_find_shown_path(::Any) = nothing
+_find_shown_path(operation::ShowSelectionOperation) =
+    operation.operation isa ReplaceSelectionOperation ? operation.operation.path : nothing
+function _find_shown_path(operation::CompoundOperation)
+    for member in operation.operations
+        path = _find_shown_path(member)
+        path === nothing || return path
+    end
+    nothing
+end
+
+# The scroll of a pane that brings the part at `path`, a path of the input of its
+# content, into its view: the least move that shows the part, its top when the part
+# is taller than the view. `nothing` when the part shows, has no image, or the pane
+# scrolls parts that keep their own places.
+function _scroll_pane_to_show(p, iomap, path::Reference)
+    content_iomap = iomap.content_iomap
+    (content_iomap === nothing || iomap.parts !== nothing) && return nothing
+    canvas = content_iomap.output
+    canvas isa GraphicsCanvas || return nothing
+    image = map_reference_forward(content_iomap.projection, content_iomap, path)
+    image === nothing && return nothing
+    box = find_reference_box(canvas, image; measure = p.measure)
+    box === nothing && return nothing
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
+    w = iomap.input
+    x = _pane_scroll_x(w, canvas, view_w)
+    y = _pane_scroll_y(w, canvas, view_h)
+    top = round(Int, box.y) - Int(canvas.y)
+    left = round(Int, box.x) - Int(canvas.x)
+    shown_y = _compute_shown_offset(y, view_h, top, round(Int, box.height))
+    shown_x = _compute_shown_offset(x, view_w, left, round(Int, box.width))
+    (shown_x == x && shown_y == y) && return nothing
+    _scroll_pane_by(p, iomap, shown_x - x, shown_y - y)
+end
+
+# The offset of a view of `size` at `offset` that shows a part from `start` of
+# `extent`: the same offset when the part shows, else the least move to show it,
+# and its start when it is longer than the view.
+function _compute_shown_offset(offset::Int, size::Int, start::Int, extent::Int)
+    start < offset && return start
+    start + extent > offset + size && return min(start, start + extent - size)
+    offset
 end
 
 # ── The bars of a scroll pane ─────────────────────────────────────────────────

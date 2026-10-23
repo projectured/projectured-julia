@@ -56,8 +56,8 @@ A study saves as a `.pred` file. An item that a link holds is written once, in i
 
 ### The views
 
-- **The outline.** `ResearchStudyToWidget` draws the title and a section for each kind, in the order of the work. `ResearchItemToWidget` draws one item as a card: the id, the status as a badge, the text, the author and the local time, a line for each link, and its content through the view of its own domain. The card needs no study, so an item draws the same in a Markdown page, a workflow card, a dashboard card or a vertex of a graph. The buttons that need the study stand in the row of the outline around the card: "Accept" and "Reject", which record a decision of the person, the buttons that add an item linked to the card, and the fold.
-- **The map.** `ResearchMap(study)` is a second view. `ResearchMapToGraph` makes a `GraphGraph` with a vertex for each item and an edge for each link, labelled with the word of the link, and the stages of the Graph domain lay it out (`make_research_map_projection`).
+- **The outline.** `ResearchStudyToWidget` draws the study as a quiet outline of the outline kit ([outline.md](../../platform/outline/outline.md)): a section for each kind, in the order of the work, and a row for each item. A row holds the mark of the kind in the colour of the status, the id, the time where the date or the hour changes and the avatar of the author, then the text, the fields with their words, the links as chips, the links that other items hold to it, the content through the view of its own domain, and its elements in a light inset. A press on a chip selects the item it names, and the scroll pane brings its row into view. The menu of a row, behind the "⋯" that shows under the pointer, holds "Accept…" and "Reject…", the adds of an item linked to the row, "Add an element", the fold and the delete. "Accept…" and "Reject…" open a panel in the row, the `ResearchDecisionDraft` of `deciding`: the verdict as a pair of toggles, a reason, and Record, which writes the decision of the person, its reason and the status in one edit, and Cancel. An item that the menu adds takes the caret at its text. Return at the end of the text of an item adds an item of the same kind, and Alt+Up and Alt+Down move an item in the list of its kind. A switch in the header shows the study by kind, by time, a group for each local day, or its report (`view`). A study with no item shows one quiet row, "The first question", and the first key typed there makes the first question. "Edit all fields" puts the id of the item in `editing` and the caret in its text: while the caret is in the row, it shows every field, the empty ones with their names, and each link field with its chips and a "+" that opens a list of the items of the study, matched by id and text, where a choice writes the link. The header says the first question and its latest answer with its status. `folded`, `deciding`, `view`, `first_text` and `editing` are state of the view: the file and a search leave them out, and a history does not record a write of one. `ResearchItemToWidget` draws one item the same way without the study, so an item draws the same in a Markdown page, a workflow element, a dashboard card or a vertex of a graph.
+- **The map.** `ResearchMap(study)` is a second view. `ResearchMapToGraph` makes a `GraphGraph` with a vertex for each item and an edge for each link, labelled with the word of the link, and the stages of the Graph domain lay it out (`make_research_map_projection`). A vertex is the small row of its item: the mark, the id, the author and the time, the text in two lines at most, and the count of its elements. What a decision accepts or rejects is an edge with no line, so the pointer on a decision lights the items it settled, and the vertex under the pointer lights with the items it joins. A press on a vertex selects its item.
 - **The timeline.** A roster of `StudyItems(study)`, sorted by the `time`, with the facets `kind` and `text`. The filter, the sort and the group of the arrangement work on it as on any collection.
 - **The explorer.** A study is an entry whose children are its items, each named by its id and its text and decorated with the glyph of its kind, its status and its author. A study is one of the kinds that the `+` of a section adds.
 
@@ -82,7 +82,7 @@ A verb names the field of the study that it writes when it reroots its operation
 
 `ProjecturedResearch` depends on the kernel, the platform, `Dates`, and the domains Formula (the reference of an expectation, the closed form), Graph (the map), Markdown (the report) and Math (`parse_math`). No domain depends on it; a simulator can build its simulation study on it.
 
-The Workflow domain and this one divide the work. A workflow records the work: the steps, who does each, and a choice of a way among options. A study records the knowledge: the claims, their evidence and a judgement of them. Each holds the other: a workflow card holds an item, and the design of an experiment holds a workflow.
+The Workflow domain and this one divide the work. A workflow records the work: the steps, who does each, and a choice of a way among options. A study records the knowledge: the claims, their evidence and a judgement of them. Each holds the other: a workflow step holds an item as an element, and the design of an experiment holds a workflow.
 
 ## Design decisions
 
@@ -104,11 +104,12 @@ describe_study(study)
 ```
 
 - Examples: `research_example`, and the atoms of each type and of the map.
-- Test: `test_research()` runs the layering guard, the documents, the edits, the outline, the map, the roster, the explorer and the verbs. `test_research_combinations()` of the umbrella holds items in a report, a workflow card and a window.
+- Test: `test_research()` runs the layering guard, the documents, the edits, the outline, the map, the roster, the explorer and the verbs. `test_research_combinations()` of the umbrella holds items in a report, a workflow element and a window.
 
 ## Limits
 
-- A card shows a link as a line; a press on the line does not select the linked item.
 - A pivot or a table as content needs a pane with a height around it, as the pivot domain says.
 - The navigation and type-in drivers do not apply to the outline, which is a widget view.
 - The next item of a kind takes one more than the highest number of its kind, so after a delete of the item with the highest number the id comes back.
+- The switch of the outline shows the study by kind, by time and its report; the map is a view of its own, a `ResearchMap` in a tab.
+- The full form of "Edit all fields" stays chosen when the caret leaves the row, and shows again when the caret comes back, until another row is chosen.

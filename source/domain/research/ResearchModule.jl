@@ -30,15 +30,16 @@ using ..MathModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, get_view_state_fields
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
-import ..DomainModule: get_document_decoration, get_insertion_aliases, make_insertion_document
+import ..DomainModule: get_document_decoration, get_insertion_aliases, make_insertion_document,
+                       make_pasted_document_operation, insertable
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
        ResearchHypothesis, ResearchEvidence, ResearchDecision, ResearchAnswer, ResearchExperiment,
-       ResearchAnalysis, ResearchResult, ResearchExpectation, RESEARCH_KINDS, RESEARCH_STATUSES,
+       ResearchAnalysis, ResearchResult, ResearchExpectation, ResearchDecisionDraft, RESEARCH_KINDS, RESEARCH_STATUSES,
        RESEARCH_AUTHORS, get_research_kind, has_research_status, collect_study_items,
        format_research_time, get_research_time, find_research_time, get_research_item_text
 export find_study_item, collect_research_links, make_research_id, make_research_item,
@@ -82,6 +83,7 @@ function __init__()
                       "`start_study!` makes one; `add_question!`, `add_hypothesis!`, `add_evidence!` " *
                       "and the other `add_` verbs add an item that links to others by item or id; " *
                       "`record_decision!` accepts or rejects items, only when the person asks; " *
+                      "`add_element!` adds a document of any domain, such as code or a table, to an item; " *
                       "`describe_study` reads it, and `show_roster!(StudyItems(study); sort = [\"time\"])` " *
                       "shows its timeline.")
 end

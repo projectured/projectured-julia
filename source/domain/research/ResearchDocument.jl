@@ -22,6 +22,8 @@ What a study must find out.
 - `criterion` — what would answer it: an observable, a comparison, a threshold.
 - `purpose` — what the answer decides.
 - `parent` — the wider question that this question refines, or `nothing`.
+- `elements` — documents of any domain that the item holds, such as code, a page
+  of text, a table or a chart; the outline draws each through its own view.
 - `status` — `:open`, `:accepted` (the study takes it on) or `:rejected` (out of
   scope). Only a decision changes it.
 - `author` — `:person` or `:assistant`; `time` — when it was made, in UTC.
@@ -40,6 +42,7 @@ See also `add_question!`, `ResearchHypothesis`.
     criterion::Any = PrimitiveString("")
     purpose::Any = PrimitiveString("")
     parent::Any = nothing
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -53,7 +56,7 @@ An item of the literature: a paper, a book, a standard, a data set or a web page
 - `link` — a DOI, a URL or the path of a file, as a text.
 - `summary` — what it says that matters to the study.
 - `status` — `:open`, `:accepted` (relevant and trusted) or `:rejected` (not used).
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build a source of a study.
 
@@ -68,6 +71,7 @@ See also `add_source!`, `ResearchEvidence`.
     citation::Any = PrimitiveString("")
     link::String = ""
     summary::Any = PrimitiveString("")
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -84,7 +88,7 @@ A claim that a test can refute, with its prediction.
 - `basis` — the items that the claim rests on, such as sources.
 - `status` — `:open`, `:accepted` (the evidence supports it) or `:rejected`
   (refuted, or dropped).
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build a hypothesis of a study.
 
@@ -101,6 +105,7 @@ See also `add_hypothesis!`, `ResearchExpectation`, `ResearchEvidence`.
     question::Any = nothing
     prediction::Any = nothing
     basis::CellVector = CellVector()
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -116,7 +121,7 @@ opposes. The statement says what was observed, apart from what it means.
 - `supports` — the claims that it supports, such as hypotheses.
 - `opposes` — the claims that it opposes.
 - `status` — `:open`, `:accepted` (the observation is correct) or `:rejected`.
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build the evidence of a study.
 
@@ -133,6 +138,7 @@ See also `add_evidence!`, `check_predictions!`.
     basis::CellVector = CellVector()
     supports::CellVector = CellVector()
     opposes::CellVector = CellVector()
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -149,7 +155,7 @@ supersedes it. Nobody edits a decision to change its sense.
 - `accepts` — the items that it accepts.
 - `rejects` — the items that it rejects.
 - `basis` — the items that it rests on, such as evidence.
-- `author`, `time` — as for a `ResearchQuestion`. A decision has no status.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`. A decision has no status.
 
 Use it to read or build a decision of a study.
 
@@ -166,6 +172,7 @@ See also `record_decision!`, `ResearchHypothesis`.
     accepts::CellVector = CellVector()
     rejects::CellVector = CellVector()
     basis::CellVector = CellVector()
+    elements::CellVector = CellVector()
     author::Symbol = :person
     time::String = ""
 end
@@ -179,7 +186,7 @@ The answer to a question, with its caveats and its basis.
 - `caveats` — where the answer does not hold.
 - `basis` — the items that it rests on, such as evidence and decisions.
 - `status` — `:open`, `:accepted` (the answer of the study) or `:rejected`.
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build the answer of a study.
 
@@ -195,6 +202,7 @@ See also `add_answer!`, `ResearchQuestion`.
     question::Any = nothing
     caveats::Any = PrimitiveString("")
     basis::CellVector = CellVector()
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -212,7 +220,7 @@ A plan that makes new data, such as a simulation or a measurement.
 - `tests` — the hypotheses that it tests.
 - `uses` — the sources and the results that it reads.
 - `status` — `:open`, `:accepted` (the plan is approved) or `:rejected`.
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build an experiment of a study.
 
@@ -228,6 +236,7 @@ See also `add_experiment!`, `ResearchResult`.
     design::Any = nothing
     tests::CellVector = CellVector()
     uses::CellVector = CellVector()
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -241,7 +250,7 @@ closed form.
 - `title` — what the analysis is.
 - `method` — Julia code, a SQL query, a pivot, a formula sheet, or a document of
   any domain.
-- `tests`, `uses`, `status`, `author`, `time` — as for a `ResearchExperiment`.
+- `tests`, `uses`, `elements`, `status`, `author`, `time` — as for a `ResearchExperiment`.
 
 Use it to read or build an analysis of a study.
 
@@ -257,6 +266,7 @@ See also `add_analysis!`, `add_study_formula!`.
     method::Any = nothing
     tests::CellVector = CellVector()
     uses::CellVector = CellVector()
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -273,7 +283,7 @@ Data that an experiment or an analysis made, or that a source reports.
   `nothing`.
 - `status` — `:open`, `:accepted` (valid) or `:rejected` (not valid, such as a
   run with a fault).
-- `author`, `time` — as for a `ResearchQuestion`.
+- `elements`, `author`, `time` — as for a `ResearchQuestion`.
 
 Use it to read or build a result of a study.
 
@@ -288,6 +298,7 @@ See also `add_result!`, `ResearchEvidence`.
     title::Any = PrimitiveString("")
     content::Any = nothing
     origin::Any = nothing
+    elements::CellVector = CellVector()
     status::Symbol = :open
     author::Symbol = :person
     time::String = ""
@@ -325,6 +336,25 @@ end
 # ── The study ────────────────────────────────────────────────────────────
 
 """
+The decision that a person writes in the row of an item before it is recorded:
+the item, the verdict, `:accepted` or `:rejected`, and the reason. A study holds it
+in `deciding` while the panel of the row is open, as state of its view.
+
+Use it to open the panel of a decision in the outline of a study.
+
+# Example
+
+    study_1.deciding = ResearchDecisionDraft(item = hypothesis_1, verdict = :accepted)
+
+See also `ResearchDecision`, which a press on Record writes.
+"""
+@document struct ResearchDecisionDraft <: ResearchDocument
+    item::Any = nothing
+    verdict::Symbol = :accepted
+    reason::Any = PrimitiveString("")
+end
+
+"""
 The whole piece of work on one problem, from the question to the answer. A study
 owns each of its items in the list of its kind; an item that links to another
 item holds that item itself.
@@ -338,6 +368,14 @@ item holds that item itself.
 - `folded` — the ids of the items whose cards the outline shows folded to their
   first line. It is view state: a fold is no edit, and the file of the study does
   not save it.
+- `deciding` — the `ResearchDecisionDraft` of the panel that a row of the outline
+  shows, or `nothing`. It is view state too.
+- `view` — how the outline shows the study: `:kind`, a section for each kind of
+  item, `:time`, a group for each day, or `:report`, the report. It is view state.
+- `first_text` — the quiet row that the outline of a study with no item shows,
+  where the first key a person types makes the first question. It is view state.
+- `editing` — the id of the item whose row shows every field, the empty ones too,
+  while the caret is in it, or `nothing`. It is view state.
 - `author`, `time` — who made the study, and when, in UTC.
 
 Use it to read or build a study. A tab draws it as an outline of its items.
@@ -362,13 +400,21 @@ See also `start_study!`, `describe_study`, `find_study_item`.
     answers::CellVector = CellVector()
     report::Any = nothing
     folded::Any = String[]
+    deciding::Any = nothing
+    view::Symbol = :kind
+    first_text::Any = PrimitiveString("")
+    editing::Any = nothing
     author::Symbol = :person
     time::String = ""
 end
 
-# Which rows an outline shows folded is state of the view, not a thing the study
-# says: the file and a search leave it out.
-get_view_state_fields(::Type{<:ResearchStudy}) = (:folded,)
+# Which rows an outline shows folded, the decision that a row writes and how the
+# outline shows the study are state of the view, not things the study says: the
+# file and a search leave them out.
+get_view_state_fields(::Type{<:ResearchStudy}) = (:folded, :deciding, :view, :first_text, :editing)
+
+# A draft is a part of the view of a study, no document that a person inserts.
+insertable(::Type{<:ResearchDecisionDraft}) = false
 
 # ── The kinds of item ────────────────────────────────────────────────────
 

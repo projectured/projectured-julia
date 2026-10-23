@@ -687,9 +687,77 @@ implementation, one commit for a group of steps that share files.
   use them. A whole slot maps a record to its row and any place of the row that no
   field holds back to the record, so a menu that a mark or a "⋯" opens belongs to
   the record, and a press on the facts of a row selects the record.
+- **Step 9.** A file of the save says with `is_written_inline(file, node)` that
+  it writes a node of another format in its own text, and `make_inline_leaf` gives
+  the spelling. The owner walk gives such a node to the first file that reaches it
+  after every file of its format had its turn, so a node of a format stays with a
+  file of the format. A `.pred` file writes the text that a file of the format alone
+  would hold, as `json"""…"""` at the indent of the value, and with every quote
+  escaped and no indent where the indent would change the text; a carriage return
+  is refused. A `PredText` stands for the node in the copy. A tagged string is a
+  value of the marker language, so the reader of a marker reads one too. The
+  umbrella `test_workflow_file()` ran here in an environment of the JSON, Markdown
+  and Workflow packages.
+- **Step 10.** The kit holds `make_add_element_operation`,
+  `make_remove_element_operation`, `make_move_element_operation`,
+  `make_element_choice_list`, `make_outline_element`, `make_element_menu` and
+  `add_element!`. A `WorkflowCard` is gone: a node holds `elements`, as every item of
+  a study does. A document pasted while the caret is in a row becomes an element of
+  the record (`make_pasted_document_operation`), the document itself after a note,
+  so it keeps its identity.
+- **Step 11.** `SelectDocumentOperation(document)` of the kernel names a document
+  by identity. The default `read_intent` of the first projection whose input holds
+  it answers the selection of its path there, the nearest place first
+  (`find_document_path`), wrapped in `ShowSelectionOperation`; a scroll pane on the
+  way up maps the selection forward, reads its box and scrolls the least that shows
+  it. A key that moves the caret still does not scroll a pane: only a selection to
+  show does, which leaves Q8 of the plan of definitions and uses open.
+- **Step 12.** The graph lights the vertex under the pointer in every graph, by
+  option (a′) of the plan of the graph: the drawing keeps the index of the vertex
+  that the mouse target of the layout names in a cell of its own, and draws a ring
+  of `light` around it and the vertices that an edge joins to it, and its edges in
+  `light_edge`. The option of D12 is `visible` of `GraphEdge`: an edge that is not
+  visible draws nothing and still joins its vertices in the layout and in the light.
+  The map routes its paths into its graph, so the item under the pointer lights its
+  vertex, and a vertex is the item as a whole. The topology card of omnet stays
+  as the plan of the graph left it.
+- **Step 13, in part.** The decision panel of R10 is a `ResearchDecisionDraft` in
+  `deciding` of the study: "Accept…" and "Reject…" open it, Record writes the
+  decision, its reason and the status in one edit, and Cancel and Escape close it.
+  The switch of the header writes `view`: by kind, by time and the report; the map
+  stays a view of its own for now. An empty study shows its quiet first row
+  (`first_text`), and the reader of the outline turns the first key there into the
+  first question. A linked add takes the caret at the text of the new item, through
+  `SelectDocumentOperation(document, tail)`, which the editor resolves once the
+  add is applied. A write of a whole field that its type declares view state is no
+  edit for a history, so a switch needs no mark. The keys of D14 are bindings of
+  the row card (`keys` of `make_outline_row`): Return at the end of the text adds an
+  item of the same kind, Alt+Up and Alt+Down move it; a `SelectDocumentOperation`
+  inside a compound goes up as it is, so the editor names the place of a moved
+  item after the move. Delete and Left and Right are not bound: in a text they
+  delete a character and move the caret. R9 is `editing` of the study: the row of
+  that id shows the full form while a cell of its own says the caret is in it, so
+  a key builds no outline; a link field has a "+" that opens a `WidgetChoiceList`
+  of the items (G4). The header says the first question and its latest answer.
+  Open: the map in the switch, the "⋯" of a section header, Open in the map, Copy
+  the id, the basis in the decision panel.
+- **Step 14, in part.** An empty workflow shows its quiet first row, and a step, a
+  decision and an option that the menu adds take the caret at their title. The
+  keys of a row: Return adds a sibling, Alt+Up and Alt+Down move, Tab indents and
+  Shift+Tab outdents; the menu has Move up and Move down. D20: `WorkflowStep` is an
+  explorer entry with the alias "workflow", and "New workflow" of the catalog
+  answers `CreateWorkflowFileOperation`, which writes `workflow.pred` or the next
+  free `workflow-N.pred` and opens it. The journal of a node shows under its row
+  (`journal_shown`, view state): the count after the title is a chip that shows
+  and hides it, and "Comment" adds an entry, shows the journal and puts the caret
+  in the entry. The journal view is a timeline of the kit, a group for each day;
+  the `WorkflowTheme` keeps only what the catalog takes. Open: the guide lines of
+  the tree and the bar of the progress in the catalog.
+- **Step 15.** `add_element!` is in the API of the study, and `describe_study`
+  names each element of an item by its kind and its first line.
 - **Not yet.** G2 keeps a row lit while its own menu is open; the row is not kept
   lit yet, because the pointer leaves the window of the row when the menu window
-  opens. A press on a chip selects nothing until step 11.
+  opens.
 
 ## 11. Not in this plan
 

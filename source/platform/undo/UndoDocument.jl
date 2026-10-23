@@ -201,14 +201,27 @@ is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operat
 
 # An operation that edits no document: one that does nothing, a move of the
 # selection or of the part under the pointer, a fold, a write of view state, a
-# timer, and a compound of nothing else. A compound that holds one real write is
-# an edit.
+# write into a field that the type of its document declares view state, a timer, a
+# selection to show, and a compound of nothing else. A compound that holds one real
+# write is an edit.
 _is_no_edit(operation) =
     operation isa Union{DoNothingOperation, ReplacePathOperation,
                         SelectNextInsertionOperation, ToggleCollapseOperation,
-                        ReplaceViewStateOperation, SetTimerOperation} ||
+                        ReplaceViewStateOperation, SetTimerOperation,
+                        SelectDocumentOperation} ||
+    (operation isa ShowSelectionOperation && _is_no_edit(operation.operation)) ||
+    _writes_view_state_field(operation) ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&
      all(_is_no_edit, operation.operations))
+
+# Whether `operation` writes the whole of a field that the type of the document it
+# carries declares view state, such as the view of a study that a switch chooses.
+function _writes_view_state_field(operation)
+    operation isa ReplaceReferencedValueOperation && operation.document isa Document || return false
+    steps = collect(get_reference_steps(strip_reference_types(operation.reference)))
+    length(steps) == 1 && only(steps) isa FieldReferenceStep &&
+        is_view_state_field(typeof(operation.document), Symbol(only(steps).name))
+end
 
 # ── The three operations ─────────────────────────────────────────────────────
 

@@ -1,11 +1,12 @@
 # Fragment of `GraphModule` — the theme of the graph drawing: the box of a node,
-# the line of an edge, and the ring of a highlight.
+# the line of an edge, the ring of a highlight, and the light of the node under the
+# pointer.
 
 """
     GraphTheme
 
 The colors and the sizes of a graph drawing: the box of a node, the line of an
-edge and the ring around a highlight.
+edge, the ring around a highlight, and the light of the node under the pointer.
 
 The theme of `GraphLayoutToGraphicsCanvas`. `@theme` declares it, so
 `ScaledGraphTheme` holds each value times its scale, and `GraphTheme()` is the
@@ -38,4 +39,8 @@ not; with no theme it holds the plain values of the default theme.
     highlight_width::LineWidth = LineWidth(3)
     "The space between the box of a highlighted node and its ring."
     highlight_gap::Spacing = Spacing(3)
+    "The ring around the node under the pointer and around the nodes it joins."
+    light::ThemeColor = ColorRole(:accent_tint)
+    "The line over an edge of the node under the pointer."
+    light_edge::ThemeColor = ColorRole(:focus_ring)
 end

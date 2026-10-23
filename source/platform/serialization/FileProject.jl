@@ -385,7 +385,7 @@ end
 # like any other non-call.
 function _parse_marker_expression(body::AbstractString)
     expr = Meta.parse(String(body); raise=false, depwarn=false)
-    _is_marker_call(expr) ? expr : nothing
+    _is_marker_call(expr) || _is_marker_text(expr) ? expr : nothing
 end
 
 # The subset: a call whose head is a plain name and whose arguments are
@@ -411,6 +411,7 @@ end
 _is_marker_argument(x) = _is_marker_call(x) || _is_marker_literal(x)
 
 function _is_marker_argument(e::Expr)
+    _is_marker_text(e) && return true
     e.head === :parameters && return all(_is_marker_argument, e.args)   # f(; a = 1)
     e.head === :kw && return Base.length(e.args) == 2 && e.args[1] isa Symbol &&
                              _is_marker_argument(e.args[2])
@@ -471,6 +472,23 @@ function _evaluate_marker_name(name::Symbol)
     T
 end
 
+# A text of a format, `json"""{"port": 5000}"""`: a string tagged with the
+# extension of the format, which stands for the document that the parser of the
+# format reads from it. Julia parses it as the call of a string macro, and the
+# reader runs no macro: it looks the tag up among the extensions.
+_is_marker_text(::Any) = false
+_is_marker_text(e::Expr) =
+    e.head === :macrocall && Base.length(e.args) == 3 && e.args[1] isa Symbol &&
+    e.args[3] isa String && _get_marker_text_tag(e) !== nothing
+
+# The tag of a text of a format, `:json` for `json"…"`, or `nothing`.
+function _get_marker_text_tag(e::Expr)
+    name = String(e.args[1])
+    startswith(name, "@") && endswith(name, "_str") && Base.length(name) > 5 || return nothing
+    tag = name[2:(end - 4)]
+    Base.isidentifier(tag) ? Symbol(tag) : nothing
+end
+
 # `:holds` is a symbol literal, and so is a quoted operator such as `:+` or
 # `:(=)`, which a Julia document holds. `Symbol("a b")` is a call, and a call
 # names a type or a verb, never a value.
@@ -487,6 +505,8 @@ end
 _print_canonical(io::IO, quoted::QuoteNode) = print(io, repr(quoted.value))
 
 function _print_canonical(io::IO, e::Expr)
+    _is_marker_text(e) &&
+        return print(io, _get_marker_text_tag(e), "\"", sprint(Base.escape_raw_string, e.args[3]), "\"")
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
         isempty(fields) && return print(io, "()")

@@ -5,6 +5,11 @@
 > (Q15) found this case. The owner deferred it to a plan of its own ("defer this
 > to another plan"), so that the pointer work could finish. No source changed.
 
+> **Status (2026-10-23):** the half of (a′) in projectured is done by step 12 of
+> [a-study-and-a-workflow-read-as-one-quiet-outline.md](a-study-and-a-workflow-read-as-one-quiet-outline.md),
+> whose G12 the owner agreed to: every graph lights the vertex under the pointer,
+> the vertices it joins and its edges. The topology card of omnet, (a), is left.
+
 ## The fault
 
 A vertex of the topology card of an omnet simulation does not light under the

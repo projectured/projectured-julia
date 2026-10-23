@@ -49,14 +49,13 @@ function test_research_combinations()
             end
         end
 
-        @testset "a workflow card holds an experiment, and the project gives back the same object" begin
+        @testset "a workflow element is an experiment, and the project gives back the same object" begin
             directory = mktempdir()
             try
                 study = make_research_study_document_example()
                 experiment = study.experiments[1]
                 workflow = WorkflowStep(title = PrimitiveString("Validate the model"),
-                                        cards = [WorkflowCard(title = PrimitiveString("The sweep"),
-                                                              content = experiment)])
+                                        elements = Any[experiment])
                 project = FileProject(directory, Any[PredFile("study.pred", study),
                                                      PredFile("work.pred", workflow)])
                 @test save_project!(project)
@@ -65,7 +64,7 @@ function test_research_combinations()
                 loaded = load_project(directory, ["study.pred", "work.pred"])
                 study_back = get_file_content(loaded.files[1])
                 workflow_back = get_file_content(loaded.files[2])
-                @test workflow_back.cards[1].content === study_back.experiments[1]
+                @test workflow_back.elements[1] === study_back.experiments[1]
                 editor = _make_combination_editor(workflow_back)
                 @test _has_combination_click(editor, path -> occursin("title.value", path))
             finally
@@ -79,14 +78,14 @@ function test_research_combinations()
                 study = make_research_study_document_example()
                 experiment = study.experiments[1]
                 experiment.design = WorkflowStep(title = PrimitiveString("Run the sweep"),
-                    cards = [WorkflowCard(title = PrimitiveString("The plan"), content = experiment)])
+                                                 elements = Any[experiment])
                 save_study_folder!(study, directory)
                 @test readdir(directory) == ["study.pred"]
                 text = read(joinpath(directory, "study.pred"), String)
                 @test count("ResearchExperiment(", text) == 1
-                @test occursin("content = node(file(\"study.pred\"), \"experiments[1]\")", text)
+                @test occursin("node(file(\"study.pred\"), \"experiments[1]\")", text)
                 loaded = load_study_folder(directory)
-                @test loaded.experiments[1].design.cards[1].content === loaded.experiments[1]
+                @test loaded.experiments[1].design.elements[1] === loaded.experiments[1]
             finally
                 rm(directory; recursive = true, force = true)
             end

@@ -199,7 +199,8 @@ end
 
 """
     make_outline_row(outline; facts, body, menu = nothing, indent = 0, revealed = (),
-                     title = nothing, compute_menu = nothing, facts_width = nothing) -> WidgetCard
+                     title = nothing, compute_menu = nothing, facts_width = nothing,
+                     keys = GestureBinding[]) -> WidgetCard
 
 A row of a record: the column of its `facts`, its `body` in the rest of the width,
 and its `menu` in a column of its own, on the line of the first line of its text.
@@ -213,15 +214,21 @@ theme by default; a tree whose rows show no id takes the `tree_meta_width`.
 a right click on the row opens it at the pointer, and Shift+F10 under the row. Its
 mark and its "⋯" open the same menu with `make_outline_menu_operation`. `title`
 names the row in the menu window.
+
+`keys` are the bindings of the keys of the row, such as Return at the end of its
+text and Alt+Up, which a key that no part of the row takes reaches while the
+caret is in the row.
 """
 function make_outline_row(outline; facts, body, menu = nothing, indent::Integer = 0, revealed = (),
-                          title = nothing, compute_menu = nothing, facts_width = nothing)
+                          title = nothing, compute_menu = nothing, facts_width = nothing,
+                          keys = GestureBinding[])
     columns = Any[LayoutConstraint(facts; width = Fixed(something(facts_width, outline.meta_width))),
                   LayoutConstraint(body; width = Fill)]
     menu === nothing ||
         push!(columns, LayoutConstraint(_make_outline_line(outline, Any[menu]); width = Fixed(outline.menu_width)))
     gestures = compute_menu === nothing ? GestureBinding[] :
                _make_row_menu_bindings(something(title, "the row"), compute_menu)
+    gestures = vcat(gestures, collect(GestureBinding, keys))
     row = WidgetCard(; variant = :row,
                      content = HorizontalLayout(columns; gap = outline.column_gap, vertical_align = :top),
                      margin = Inset(0, 0, indent, 0), border = inset_default, padding = outline.row_padding,

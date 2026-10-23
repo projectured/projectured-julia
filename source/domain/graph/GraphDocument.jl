@@ -32,7 +32,10 @@ end
 
 """
 An edge from `source` to `target` (both `GraphVertex`, held by identity).
-`directed` draws an end arrowhead; `label` is an optional content document.
+`directed` draws an end arrowhead; `label` is an optional content document. An
+edge that is not `visible` draws no line and no label, and still joins its
+vertices in the layout and in the light of the vertex under the pointer, as the
+items that a decision accepts light with the decision.
 
 Use it to draw a link between two nodes of a graph, with an arrow or a label.
 
@@ -50,14 +53,15 @@ See also `GraphGraph`, which holds it, and `GraphVertex`.
     target::Document
     directed::Bool = true
     label::Any = nothing
+    visible::Bool = true
 end
 
 # Mixed positional+keyword form the macro can't generate (source/target are
-# positional; directed/label are keywords). Typed args keep it distinct from the
-# macro's Rule Y `GraphEdge(source, target)`.
+# positional; directed/label/visible are keywords). Typed args keep it distinct
+# from the macro's Rule Y `GraphEdge(source, target)`.
 function GraphEdge(source::GraphVertex, target::GraphVertex;
-                   directed::Bool=true, label=nothing)
-    GraphEdge(Cell(source), Cell(target), Cell(directed), Cell(label), Cell(nothing))
+                   directed::Bool=true, label=nothing, visible::Bool=true)
+    GraphEdge(Cell(source), Cell(target), Cell(directed), Cell(label), Cell(visible), Cell(nothing))
 end
 
 """

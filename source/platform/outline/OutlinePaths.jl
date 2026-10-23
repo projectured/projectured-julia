@@ -85,14 +85,16 @@ image of the selection and of the part under the pointer of `input`. `image(path
 answers the path in the output of a path in the input, or `nothing`. So a
 container routes a key by its selection, and a row lights while the pointer is on
 it. A document of the input that the output holds, one of `embedded`, keeps its
-own paths, and the walk does not go into it.
+own paths, and the walk does not go into it, nor into `input` itself, which a
+part names as the target of its writes, such as a switch of the view.
 """
 function route_outline_paths!(input, output, image; embedded = ())
     set_output_path_computations!(output, input, image; dormant = false)
+    kept = Base.IdSet{Any}(embedded)
+    push!(kept, input)
     # The walk reads the fields of the parts, such as the text of a field, and a
     # build that called it must not follow them: a key would build the outline again.
-    run_without_cell_tracking(() ->
-        _route_outline_child_paths!(output, Base.IdSet{Any}(embedded), Base.IdSet{Any}()))
+    run_without_cell_tracking(() -> _route_outline_child_paths!(output, kept, Base.IdSet{Any}()))
     output
 end
 

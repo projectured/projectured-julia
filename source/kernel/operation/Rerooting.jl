@@ -61,9 +61,11 @@ retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
 is_self_contained_operation(op) = false
 # These name no place in a document, so each travels up a chain as it is: the
 # no-op, the quit, the new print of the view, the flip of the node that it
-# carries, the move of the selection at the root, and the timer of the editor.
+# carries, the move of the selection at the root, the selection of a document that
+# it carries, and the timer of the editor.
 is_self_contained_operation(::Union{DoNothingOperation, QuitEditorOperation,
                                     InvalidateProjectionOperation,
                                     ToggleCollapseOperation,
                                     SelectNextInsertionOperation,
+                                    SelectDocumentOperation,
                                     SetTimerOperation}) = true

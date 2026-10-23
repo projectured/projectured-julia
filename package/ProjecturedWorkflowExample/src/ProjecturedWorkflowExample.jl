@@ -42,7 +42,7 @@ end
 include("../../../example/domain/workflow/WorkflowDocumentExample.jl")
 
 export make_workflow_step_document_example, make_workflow_decision_document_example,
-       make_workflow_entry_document_example, make_workflow_card_document_example,
+       make_workflow_entry_document_example, make_workflow_element_document_example,
        make_workflow_document_example, make_workflow_projection_example,
        make_workflow_journal_document_example, make_workflow_catalog_document_example
 

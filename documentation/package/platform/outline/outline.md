@@ -39,6 +39,52 @@ a field after its word, `make_outline_relations` the links as groups of chips, a
 caret, and it reads its value in a cell of its own, so a key draws the text again
 and builds no row.
 
+`keys` of `make_outline_row` are the key bindings of a row, such as Return at the
+end of its text and Alt+Up: the card of the row reads a key that no part of the
+row takes while the caret is in the row. Each domain gives its own, and a key that
+moves a record answers the move and a `SelectDocumentOperation` of the record with
+the caret where it was, which the editor resolves after the move.
+
+A press on a chip answers what its maker gives, such as the
+`SelectDocumentOperation` of the linked record: the view whose input holds the
+record names its place, so the record is selected where its section holds it, and
+the scroll pane around the view brings its row into view.
+
+### Elements
+
+A record that holds a list field named `elements` holds documents of any domain
+there: code, a page of text, a table, a chart. `make_outline_element(outline;
+content, menu, revealed)` draws one: the document through the view of its own
+domain, in a light inset, with its own "⋯", which shows under the pointer. The
+block is a `:row` card, so it lights as a row does, and `get_outline_element_steps()`
+gives the steps from the block to the document, for the slots of a domain.
+
+`make_add_element_operation(holder, document; index)`,
+`make_remove_element_operation(holder, index)` and
+`make_move_element_operation(holder, index, to)` edit the list; each names
+`holder`, so it acts the same from any part, and a move is a remove and an insert
+in one edit. The document goes in as it is, so a document that a note of the
+clipboard holds stands at two places and keeps its identity. `make_element_menu`
+holds Move up, Move down, Remove and, when given, Open in a tab.
+`make_element_choice_list(holder)` lists the kinds of document that stand as an
+element (`is_element_type`), with their icons and the first sentence of their
+docstrings, and a choice adds a new one. `add_element!(holder, document)` is the
+verb of the assistant: it goes through the readers of the editor, so the history
+of the tab records it.
+
+### The paths
+
+A domain view builds its output in one computation, with `OutlineSlot`s that say
+where each document of the input sits. `map_outline_forward(slots, reference)` and
+`map_outline_backward(slots, reference)` map a path through the first slot that
+holds it. A `whole` slot is a record and its row: the record maps to the row, and
+any place of the row that no slot before it holds maps back to the record, so a
+press on the facts of a row selects the record, and a menu that its mark opens
+belongs to it. `route_outline_paths!(input, output, image; embedded)` makes every
+document of the output hold its part of the image of the selection and of the
+part under the pointer, so each row reads its light from its own cells; a
+document of the input that the output holds keeps its own paths.
+
 ### The menu of a row
 
 `compute_menu()` makes the menu of a row when it opens, so each item names the
@@ -71,11 +117,13 @@ the rows, in any form that compares, and `nothing` for a row with no time.
 
 ## How it fits
 
-The slice uses the widget, layout, tooltip and style slices. It holds builders
+The slice uses the widget, layout, tooltip, style and domain slices; the domain
+slice gives the kinds of document that stand as an element. It holds builders
 and no projection: a domain projection calls them inside its build, maps the
 places of its documents in the output with its own slots, and routes the paths
 of the selection and of the pointer to every part, so each row reads its light
-from its own cells. The research domain builds the outline of a study so.
+from its own cells. The research domain builds the outline of a study so, and the
+workflow domain the outline of a workflow.
 
 ## Design decisions
 
@@ -87,7 +135,16 @@ from its own cells. The research domain builds the outline of a study so.
   the "⋯" open the same menu, so a person who does not know the right click finds
   it.
 
+## Limits
+
+- A row is not lit while its own menu is open: the pointer leaves the window of
+  the row when the menu window opens.
+- A key that moves the caret does not scroll a pane: only a selection to show
+  does.
+
 ## Usage
 
 - Tests: `test_outline()` for the theme, a row that lights and opens its menu,
-  and the shown dates.
+  and the shown dates; `test_elements()` for the add, the move and the remove of
+  an element and the undo of each, its menu, the list of the kinds and the steps to
+  an element.

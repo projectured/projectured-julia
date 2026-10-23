@@ -9,7 +9,6 @@
 # ── Operations ───────────────────────────────────────────────────────────
 
 const _JOURNAL_PATH = Reference(FieldReferenceStep("journal"))
-const _CARDS_PATH = Reference(FieldReferenceStep("cards"))
 
 """
     make_add_workflow_entry_operation(node, entry) -> Operation
@@ -86,22 +85,6 @@ Remove the child at the 1-based `index` from the children of `parent`.
 make_delete_workflow_node_operation(parent, index::Integer) =
     make_delete_elements_operation(Reference(FieldReferenceStep(String(_get_children_field(parent)))),
                                    index; root = parent)
-
-"""
-    make_add_workflow_card_operation(node, card) -> Operation
-
-Append `card` to the cards of `node`.
-"""
-make_add_workflow_card_operation(node, card::WorkflowCard) =
-    make_insert_elements_operation(_CARDS_PATH, length(node.cards) + 1, Any[card]; root = node)
-
-"""
-    make_delete_workflow_card_operation(node, index) -> Operation
-
-Remove the card at the 1-based `index` from the cards of `node`.
-"""
-make_delete_workflow_card_operation(node, index::Integer) =
-    make_delete_elements_operation(_CARDS_PATH, index; root = node)
 
 """
     make_workflow_decision(question, options; chosen = 0, reason = "", author = :person,
@@ -204,9 +187,9 @@ documents of a workflow, the verbs that record the work as the assistant, and
 the read of the journal of a tree.
 """
 const WORKFLOW_ASSISTANT_API = (
-    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowCard, :WorkflowJournal,
+    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
     :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
-    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_workflow_card!,
+    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_element!,
     :collect_workflow_entries,
 )
 #
@@ -338,9 +321,9 @@ a link to a document. Do not record every turn.
 
 # Example
 
-    add_workflow_entry!(step_1, "The view embeds a card through the renderer."; kind = :comment)
+    add_workflow_entry!(step_1, "The view embeds an element through the renderer."; kind = :comment)
 
-See also `add_workflow_card!`, `collect_workflow_entries`.
+See also `add_element!`, `collect_workflow_entries`.
 """
 function add_workflow_entry! end
 
@@ -405,34 +388,6 @@ function change_workflow_state!(node, state::Symbol; editor = get_evaluation_edi
         _evaluate_workflow_operation!(editor, node,
             make_workflow_state_operation(get_document(node), state; author = :assistant),
             "Change the state to :" * string(state))
-        node
-    end
-end
-
-"""
-    add_workflow_card!(node, content; title = "", editor = get_evaluation_editor())
-        -> ReferencedDocument
-
-Add a card that shows the document `content` to `node`: a step, a decision or an
-option. The card shows `content` through the view of its own domain, and an edit
-in the card edits `content`. Answer `node`.
-
-Use it to keep a document that the work needs in view: a table, a chart, a part
-of a file.
-
-# Example
-
-    card_1 = add_workflow_card!(step_1, PrimitiveString("a note"); title = "Note")
-
-See also `add_workflow_entry!`, `add_workflow_step!`.
-"""
-function add_workflow_card! end
-
-function add_workflow_card!(node, content; title = "", editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "add_workflow_card!") do
-        card = WorkflowCard(title = _make_text(title), content = get_document(content))
-        _evaluate_workflow_operation!(editor, node,
-            make_add_workflow_card_operation(get_document(node), card), "Add a card")
         node
     end
 end

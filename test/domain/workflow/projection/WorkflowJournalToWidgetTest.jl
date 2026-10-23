@@ -1,42 +1,49 @@
-# The table of a journal view as the view prints it now: the second row of its
-# layout. The output is a computed cell, so a read after an edit sees the edit.
-_get_journal_table(iomap) = iomap.output.children[2]
+# The rows of the entries of a journal view as the view prints it now, each as the
+# text of the entry and the line under it, and the labels of its days. The output
+# is a computed cell, so a read after an edit sees the edit.
+function _get_journal_rows(iomap)
+    rows = Any[]
+    for part in iomap.output.children
+        if part isa WidgetCard
+            body = part.content.children[2].child
+            push!(rows, (body.children[1].content, body.children[2].content))
+        end
+    end
+    rows
+end
 
-# The text of each cell of a row of the table.
-_get_journal_row_texts(table, r) = [cell.content for cell in table.cells[r]]
+_get_journal_days(iomap) = [part.content for part in iomap.output.children[2:end] if part isa WidgetLabel]
 
 """
     test_workflow_journal_to_widget()
 
-The table of a journal: one row for each entry of the tree, the newest first,
-and a pick of a kind that keeps only the entries of that kind, in the view that
-an editor keeps.
+The timeline of a journal: a group for each day and a row for each entry of the
+tree, the newest first, and a pick of a kind that keeps only the entries of that
+kind, in the view that an editor keeps.
 """
 function test_workflow_journal_to_widget()
     @testset "WorkflowJournalToWidget" begin
-        @testset "a row for each entry, the newest first" begin
+        @testset "a row for each entry, the newest first, under the label of its day" begin
             journal = make_workflow_journal_document_example()
             iomap = print_document(WorkflowJournalToWidget(), nothing, journal, nothing)
-            table = _get_journal_table(iomap)
-            @test length(table.cells) == 3
-            @test _get_journal_row_texts(table, 1) ==
-                  ["2026-10-09 14:02", "assistant", "decision", "How to store a workflow",
-                   "Store a workflow as .pred with markers."]
-            @test _get_journal_row_texts(table, 3)[4] == "Workflow domain"
+            rows = _get_journal_rows(iomap)
+            @test length(rows) == 3
+            @test rows[1] == ("Store a workflow as .pred with markers.", "How to store a workflow · decision")
+            @test endswith(rows[3][2], "· state") || startswith(rows[3][2], "Workflow domain")
+            @test _get_journal_days(iomap) == ["9 OCT"]
         end
 
         @testset "a kind keeps only its entries, and a new entry shows at the top" begin
             journal = make_workflow_journal_document_example()
             iomap = print_document(WorkflowJournalToWidget(), nothing, journal, nothing)
             journal.kind = :comment
-            @test length(_get_journal_table(iomap).cells) == 1
+            @test length(_get_journal_rows(iomap)) == 1
             journal.kind = :all
             evaluate_operation(nothing, make_add_workflow_entry_operation(journal.workflow.children[4],
                 make_workflow_entry("Started the tools."; time = "2026-10-09T16:00:00")))
-            table = _get_journal_table(iomap)
-            @test length(table.cells) == 4
-            @test _get_journal_row_texts(table, 1)[4] == "Assistant tools"
-            @test _get_journal_row_texts(table, 1)[5] == "Started the tools."
+            rows = _get_journal_rows(iomap)
+            @test length(rows) == 4
+            @test rows[1] == ("Started the tools.", "Assistant tools · comment")
         end
 
         @testset "a click on a choice picks the kind in the view of an editor" begin

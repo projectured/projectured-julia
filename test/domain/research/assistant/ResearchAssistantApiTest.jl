@@ -1,3 +1,13 @@
+# A study of one question that holds a note as its element.
+function _make_api_element_study()
+    study = ResearchStudy(title = PrimitiveString("Notes"), author = :person, time = "2026-10-22T07:00:00Z")
+    question = make_research_item(study, ResearchQuestion; time = "2026-10-22T07:01:00Z",
+                                  statement = "Which capacity?")
+    push!(question.elements, PrimitiveString("a note on the run"))
+    push!(study.questions, question)
+    study
+end
+
 """
     test_research_assistant_api()
 
@@ -144,6 +154,20 @@ function test_research_assistant_api()
             @test occursin("H1 [accepted] A queue capacity of 13 is enough. (addresses Q1", text)
             @test occursin("— assistant, 2026-10-22T07:31:00Z", text)
             @test occursin("\nD2 A queue capacity of 13 is enough. (accepts H1", text)
+            # An element is named by its kind and its first line.
+            study = _make_api_element_study()
+            @test occursin("\n  element: ", string(describe_study(study)))
+            @test occursin("a note on the run", string(describe_study(study)))
+        end
+
+        @testset "code of a model adds an element to an item, and undo takes it back" begin
+            study = _make_api_element_study()
+            item = study.questions[1]
+            count = length(item.elements)
+            add_element!(item, PrimitiveString("one more"); editor = nothing)
+            @test length(item.elements) == count + 1
+            @test item.elements[end].value == "one more"
+            @test :add_element! in RESEARCH_ASSISTANT_API
         end
 
         @testset "a study saves to a folder and loads to the same graph" begin

@@ -1,35 +1,28 @@
-# Fragment of `WorkflowModule` — the theme of the outline of a workflow: the texts
-# of a question and of the parts of an entry, and the gaps.
+# Fragment of `WorkflowModule` — the theme of the catalog of workflows: its quiet
+# texts and its gaps. The outline and the journal take the `OutlineTheme`.
 
 """
     WorkflowTheme
 
-The fonts, the colors and the gaps of the outline of a workflow: the question of
-a decision, and the time, the author and the kind of an entry. The state of a
-node is a badge, which takes the colours of its role from the widget theme.
+The font, the quiet text and the gap of the catalog of the workflows of a folder.
+The outline of a workflow and its journal take the sizes and the type of the
+`OutlineTheme`, as every outline does.
 
 `@theme` declares it, so `ScaledWorkflowTheme` holds each value times its scale,
-and `WorkflowTheme()` is the default theme. The builder gives each projection of
-the outline its styles with `get_workflow_style`, from a theme scaled or not.
+and `WorkflowTheme()` is the default theme. The builder gives the catalog its
+styles with `get_workflow_style`, from a theme scaled or not.
 """
 @theme struct WorkflowTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu", 14)
-    "The mark of a decision before its question."
-    question_text::ThemeText = TextRole(:heading; weight = 700)
-    "The time and the kind of an entry, the date of the last entry of a node, and the word before a reason."
+    "The time of the last entry and the name of the file of a workflow in the catalog."
     muted_text::ThemeText = TextRole(:text_muted)
-    "The author of an entry that the assistant wrote."
-    assistant_text::ThemeText = TextRole(:info_text; weight = 700)
-    "The author of an entry that the person wrote."
-    person_text::ThemeText = TextRole(:text; weight = 700)
-    "The vertical gap between the parts of a node."
+    "The gap between the bar of the catalog and its table."
     gap::Spacing = Spacing(6)
 end
 
-# The role of the badge that shows `state`: the colour of a state that is under
-# way, settled well, settled badly or put aside. An open state has none, and its
-# badge draws as an outline.
+# The role of the mark that shows `state`: the colour of a state that is under
+# way, settled well, settled badly or put aside. An open state has none.
 _get_state_badge_role(state::Symbol) =
     state === :active ? :accent :
     state in (:done, :chosen) ? :success :

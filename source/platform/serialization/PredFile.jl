@@ -18,6 +18,18 @@
 #
 # One file type covers every domain: the first token names the document type, so
 # a domain gets a file notation by registering its types.
+#
+# A document of a text format that no file of the set writes, such as a JSON value
+# or a Markdown page that a workflow holds as an element, is written in the text
+# of its format, inside a string tagged with the extension of the format:
+#
+#     elements = [
+#         json"""
+#         {"port": 5000}
+#         """,
+#     ],
+#
+# The load reads the string with the parser of that format.
 
 """
     PredReference(marker)
@@ -34,6 +46,21 @@ end
 Base.show(io::IO, r::PredReference) = print(io, "PredReference(", repr(r.marker), ")")
 
 """
+    PredText(extension, text)
+
+A document of a text format standing where a value would be in a `.pred` file:
+`text` is the document written in the format that owns `extension`, such as
+`".json"`, and the file writes it as a string tagged with the extension without
+its dot, such as `json"…"`. The save leaves one where it writes a node inline.
+"""
+struct PredText <: Document
+    extension::String
+    text::String
+end
+
+Base.show(io::IO, t::PredText) = print(io, "PredText(", repr(t.extension), ", ", repr(t.text), ")")
+
+"""
     PredFile(filename, content)
 
 A `.pred` file: any document, written as its own constructor.
@@ -46,11 +73,52 @@ end
 # What a `.pred` file holds is a document of any type that no text format owns.
 # A node of the domain of a format, such as a JSON value or an XML element,
 # belongs to a file of that format, so a `.pred` file that holds one writes a
-# reference to that file. A reference it already carries is its own too: a
+# reference to that file, and writes it inline, in the text of its format, when
+# no file of the set writes it. A reference it already carries is its own too: a
 # marker naming a file outside the loaded set stays a reference, and the file
 # writes it back as it found it.
 get_file_domain(::Type{<:PredFile}) = Document
 is_file_domain_node(::PredFile, node) = node isa PredReference || is_pred_document(node)
+
+is_written_inline(::PredFile, node) = _find_inline_extension(node) !== nothing
+
+# The extension of the format of `node`, when its name without the dot can tag a
+# string: `".json"`, but not an extension such as `".c++"`.
+function _find_inline_extension(node)
+    extension = find_file_extension(node)
+    extension !== nothing && Base.isidentifier(extension[2:end]) ? extension : nothing
+end
+
+# The text of `node` is what a file of its format alone would hold, so a node that
+# it holds at two places is one node when the text is read again.
+function make_inline_leaf(file::PredFile, node, path::Reference)
+    extension = _find_inline_extension(node)
+    filename = _INLINE_FILENAME * extension
+    text = try
+        cut_file_text(get_file_document_type(filename)(filename, node))
+    catch e
+        e isa FileCutException || rethrow()
+        throw(FileCutException(repr(get_filename(file)) * " writes the " * string(nameof(typeof(node))) *
+                               " at " * print_path_text(path) * " as the text of a " * extension *
+                               " file, and " * e.message))
+    end
+    PredText(extension, text)
+end
+
+# The name of the file that a text of a format is, which a marker of the text into
+# itself names.
+const _INLINE_FILENAME = "inline"
+
+# The document that a text of a format holds, read by the parser of the format and
+# with its markers into itself joined.
+function _read_inline_text(tag::Symbol, text::AbstractString)
+    filename = _INLINE_FILENAME * "." * String(tag)
+    has_file_document_type(filename) ||
+        error("a .pred file holds a text tagged ", tag, ", and no loaded format has the extension .", tag)
+    file = make_file(get_file_document_type(filename), filename, text)
+    _splice!(FileProject(".", Any[file]))
+    get_file_content(file)
+end
 
 """
     is_pred_document(document) -> Bool
@@ -182,6 +250,7 @@ _evaluate_pred(quoted::QuoteNode) = quoted.value
 
 function _evaluate_pred(e::Expr)
     e.head === :vect && return Any[_evaluate_pred(a) for a in e.args]
+    _is_marker_text(e) && return _read_inline_text(_get_marker_text_tag(e), e.args[3])
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
         isempty(fields) && return ()
@@ -258,6 +327,63 @@ print_pred_text(document::ReferencedDocument) = print_pred_text(get_document(doc
 const _PRED_INDENT = "    "
 
 _print_pred_value(io::IO, reference::PredReference, where, indent) = print(io, reference.marker)
+
+# A text of a format, one line of the text to a line of the file at the indent of
+# the value, which the reader takes off again. A text that the indent would change,
+# such as one whose every line starts with a space and that ends with no newline,
+# is written with every quote escaped and no indent; a text that neither form
+# holds, such as one with a carriage return, is refused.
+function _print_pred_value(io::IO, value::PredText, where, indent)
+    tag = value.extension[2:end]
+    for written in (_print_indented_text(tag, value.text, _PRED_INDENT^indent),
+                    tag * "\"" * sprint(Base.escape_raw_string, value.text) * "\"")
+        _read_written_text(written) == value.text && return print(io, written)
+    end
+    throw(FileCutException("cannot write the text of a " * value.extension * " file" *
+                           (isempty(where) ? "" : " at " * where) *
+                           " — a tagged string of a .pred file can not hold it"))
+end
+
+function _print_indented_text(tag, text, margin)
+    escaped = _escape_inline_text(text)
+    lines = split(escaped, '\n')
+    body = join((isempty(line) ? "" : margin * line for line in lines), "\n")
+    tag * "\"\"\"\n" * body * (endswith(escaped, '\n') ? margin : "") * "\"\"\""
+end
+
+# `text` as the body of a tagged string: a quote that would be the third of a row,
+# a quote of the row that ends the text, and a quote after a backslash take a
+# backslash, and so does each backslash before such a quote or at the end.
+function _escape_inline_text(text::AbstractString)
+    io = IOBuffer()
+    characters = collect(text)
+    trailing = findlast(character -> character != '"', characters)
+    backslashes = 0
+    quotes = 0
+    for (index, character) in enumerate(characters)
+        if character == '\\'
+            backslashes += 1
+            continue
+        end
+        if character == '"' && (backslashes > 0 || quotes == 2 || trailing === nothing || index > trailing)
+            print(io, "\\"^(2 * backslashes + 1), '"')
+            quotes = 0
+        else
+            print(io, "\\"^backslashes, character)
+            quotes = character == '"' ? quotes + 1 : 0
+        end
+        backslashes = 0
+    end
+    print(io, "\\"^(2 * backslashes))
+    String(take!(io))
+end
+
+# The text that a written tagged string reads back to, or `nothing`.
+function _read_written_text(written::AbstractString)
+    expression = Meta.parse(written; raise = false, depwarn = false)
+    _is_marker_text(expression) ? expression.args[3] : nothing
+end
+
 _print_pred_value(io::IO, x::AbstractString, where, indent) = print(io, repr(String(x)))
 _print_pred_value(io::IO, ::Nothing, where, indent) = print(io, "nothing")
 # A symbol prints as Julia quotes it: `:name`, or an operator as `:+` or `:(=)`,
@@ -380,5 +506,5 @@ function _refuse_pred_value(value, where)
         " — the .pred notation holds a string, a number, a character, a bool, " *
         "nothing, a vector of those, a group of them, a mapping of names to " *
         "them, a document, a value of a type that a file may build, such a type, " *
-        "and a reference"))
+        "a reference, and the text of a format"))
 end

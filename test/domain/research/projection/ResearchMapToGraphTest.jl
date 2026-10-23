@@ -17,16 +17,42 @@ function test_research_map_to_graph()
                   ["Q1", "S1", "H1", "X1", "N1", "R1", "E1", "D1", "D2", "A1"]
             @test length(graph.edges) == 15
             words = Dict{String, String}()
+            unlined = String[]
             for edge in graph.edges
-                words[edge.source.content.id * ">" * edge.target.content.id] = edge.label.value
+                name = edge.source.content.id * ">" * edge.target.content.id
+                edge.visible ? (words[name] = edge.label.value) : push!(unlined, name)
             end
             @test words["E1>H1"] == "supports"
             @test words["H1>Q1"] == "addresses"
             @test words["A1>Q1"] == "answers"
             @test words["R1>X1"] == "from"
-            @test words["D2>S1"] == "accepts"
-            @test words["D2>E1"] == "accepts, rests on"
+            # What a decision settled joins it with no line; another link of the
+            # same items keeps the line, with its own word.
+            @test "D2>S1" in unlined
+            @test words["D2>E1"] == "rests on"
             @test all(edge.directed for edge in graph.edges)
+        end
+
+        @testset "the vertex of the item under the pointer lights, with the items it joins" begin
+            study = make_research_study_document_example()
+            research_map = ResearchMap(study = study)
+            projection = make_research_map_projection(; measure = FixedMeasure(10, 18, 6, 0))
+            iomap = print_document(projection, nothing, research_map, PrinterContext())
+            light = get_theme_defaults(GraphTheme).light
+            lit_rings(canvas) = sum((element isa GraphicsRect && element.color == unwrap_cell(light) ? 1 :
+                                     element isa GraphicsCanvas ? lit_rings(element) : 0
+                                     for element in canvas.elements); init = 0)
+            @test lit_rings(iomap.output) == 0
+            decision = study.decisions[2]
+            replace_mouse_target!(research_map, Reference(FieldReferenceStep("study"), FieldReferenceStep("decisions"),
+                                                          RangeReferenceStep(1, 2)))
+            # The decision, each item it accepts or rests on, through a line or not,
+            # and each item that links to it.
+            joined = Base.IdSet{Any}(linked for (_, linked) in collect_research_links(decision))
+            for item in collect_study_items(study), (_, linked) in collect_research_links(item)
+                linked === decision && push!(joined, item)
+            end
+            @test lit_rings(iomap.output) == length(joined) + 1
         end
 
         @testset "an edge follows a new link" begin

@@ -118,7 +118,9 @@ the part under the pointer), the reference of
 the text- and number-range replace operations, plus each member
 of a `CompoundOperation` recursively (so edits flow back through
 structure-preserving generic projections without a bespoke reader), and the one
-operation a `WrappingOperation` holds. A compound goes back whole or not at all,
+operation a `WrappingOperation` holds. A `SelectDocumentOperation` whose document
+the input holds becomes the selection of its path there, to be shown
+(`ShowSelectionOperation`), and goes on as it is otherwise and inside a compound. A compound goes back whole or not at all,
 except the answer to a move, which holds a `ReplaceMouseTargetOperation`: each of
 its members goes back alone, and a member with no image is left out. A
 `document === nothing` (`editor.document`-rooted)
@@ -161,6 +163,14 @@ function read_intent(projection::Projection, iomap, operation)
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         (input_ref === nothing || has_introduced_step(input_ref)) && return nothing
         return ReplaceReferencedValueOperation(nothing, input_ref, operation.value)
+    elseif operation isa SelectDocumentOperation
+        # The first input that holds the document names its place, and the readers
+        # above map that path as any selection.
+        input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
+        path = input === nothing ? nothing : find_document_path(input, operation.document)
+        path === nothing && return operation
+        return ShowSelectionOperation(ReplaceSelectionOperation(
+            annotate_reference_types(input, concat_references(path, operation.tail))))
     elseif operation isa ReplacePathOperation
         # The selection, the part under the pointer, and any later kind of path.
         input_path = map_reference_backward(projection, iomap, get_operation_path(operation))
@@ -170,7 +180,10 @@ function read_intent(projection::Projection, iomap, operation)
     # kernel cannot name them. They reach the `operation_reference` /
     # `retarget_operation` seam in the `else` branch below.
     elseif operation isa CompoundOperation
-        mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
+        # A selection of a document after an edit goes up as it is, so the editor
+        # names its place once the edits before it are applied, as for a moved node.
+        mapped = Any[o isa SelectDocumentOperation ? o : read_intent(projection, iomap, o)
+                     for o in operation.operations]
         # A move answers every part that it reached, the part under the pointer
         # with them: each goes back alone, and a part with no image here is left
         # out. Any other compound goes back whole or not at all.

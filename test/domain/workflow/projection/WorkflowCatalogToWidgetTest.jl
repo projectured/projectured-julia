@@ -57,5 +57,22 @@ function test_workflow_catalog_to_widget()
             @test catalog.version == 1
             @test _find_workflow_click(editor, opens("d.pred")) !== nothing
         end
+
+        @testset "New workflow writes a workflow into the folder, and the explorer adds one by name" begin
+            folder = _make_workflow_folder()
+            catalog = WorkflowCatalog(folder = folder)
+            editor = _make_workflow_view_editor(catalog)
+            create = _find_workflow_click(editor, operation -> operation isa CreateWorkflowFileOperation)
+            @test create !== nothing && create[3].catalog === catalog
+            path = create_workflow_file!(folder)
+            @test basename(path) == "workflow.pred"
+            @test basename(create_workflow_file!(folder)) == "workflow-2.pred"
+            written = parse_pred_text(read(path, String))
+            @test written isa WorkflowStep && written.title.value == "New workflow"
+            @test any(pair -> first(pair) == path, collect_workflow_files(folder))
+            @test is_explorer_entry_type(WorkflowStep)
+            @test "workflow" in get_insertion_aliases(WorkflowStep)
+            @test make_insertion_document(WorkflowStep).title.value == "New workflow"
+        end
     end
 end

@@ -18,7 +18,10 @@
 # The highlight (`GraphLayout.highlight_vertex` / `highlight_edge`) is a ring
 # just outside the node's box, and a re-stroke over the edge's own line. Both
 # are *extra* elements keyed on the highlight cells alone — never a change to a
-# node's content or geometry, so a highlight move never re-runs the layout.
+# node's content or geometry, so a highlight move never re-runs the layout. The
+# light of the vertex under the pointer is drawn the same way, from the mouse
+# target of the layout: a ring of the light around the vertex and the vertices
+# it joins, and a line of the light over its edges.
 
 # The point halfway along a polyline route by arc length — where an edge label
 # sits. Falls back to the single point / origin for degenerate routes.
@@ -109,6 +112,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # keeps this cell at `nothing`, so it draws nothing again.
     started_drag = Cell(@computation _find_started_drag(layout))
 
+    # The index of the vertex under the pointer, or 0. A cell of its own, so a move
+    # inside one vertex draws nothing again.
+    lit = Cell(@computation _find_lit_vertex(layout))
+
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
@@ -119,6 +126,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         # against the vertex/edge each layout holds.
         highlight_vertex = layout.highlight_vertex
         highlight_edge = layout.highlight_edge
+        # The vertex under the pointer and the vertices that an edge joins to it,
+        # through a line or not.
+        lit_vertex = lit[] == 0 ? nothing : getfield(layout.vertex_layouts[lit[]], :vertex)[]
+        joined = _collect_joined_vertices(layout, lit_vertex)
         # The drag of a vertex moves that vertex and the edges at it, and the
         # layout stays as it is until the drop.
         drag = started_drag[]
@@ -139,9 +150,17 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 route = something(_make_dragged_route(e, boxes), route)
             end
             length(route) < 2 && continue
+            # An edge that is not visible joins its vertices and draws nothing.
+            e isa GraphEdge && !e.visible && continue
             directed = e isa GraphEdge ? e.directed : false
             push!(result, GraphicsPolyline(route; color = style.edge,
                 width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
+            # An edge of the vertex under the pointer is lit over its own line.
+            if lit_vertex !== nothing && e isa GraphEdge && (e.source === lit_vertex || e.target === lit_vertex)
+                push!(result, GraphicsPolyline(route; color = style.light_edge,
+                    width = style.highlight_width, end_arrow = directed,
+                    arrow_size = style.arrow_size))
+            end
             # The highlighted edge is re-stroked over its own line, keeping the
             # arrowhead it already drew.
             if highlight_edge !== nothing && e === highlight_edge
@@ -179,6 +198,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 g = style.highlight_gap + style.highlight_width
                 push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g;
                     color = style.highlight, radius = style.node_radius + g))
+            elseif v in joined
+                g = style.highlight_gap + style.highlight_width
+                push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g;
+                    color = style.light, radius = style.node_radius + g))
             end
             push!(result, GraphicsRect(bx, by, bw, bh;
                 color = style.node_fill, radius = style.node_radius,
@@ -436,6 +459,36 @@ function _reroot_vertex_answer(op, i::Int, content)
     is_fully_typed_reference(path) ||
         (path = annotate_reference_types(content, strip_reference_types(path)))
     make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(path))
+end
+
+# The vertex `i` that the mouse target of `layout` names, a path that begins
+# `vertex_layouts[i].vertex`: the vertex under the pointer, or 0.
+function _find_lit_vertex(layout::GraphLayout)
+    target = get_mouse_target(layout)
+    target isa Reference || return 0
+    steps = collect(get_reference_steps(strip_reference_types(target)))
+    length(steps) >= 3 || return 0
+    (steps[1] isa FieldReferenceStep && steps[1].name == "vertex_layouts" &&
+     steps[2] isa RangeReferenceStep && steps[3] isa FieldReferenceStep &&
+     steps[3].name == "vertex") || return 0
+    i = steps[2].stop
+    1 <= i <= length(layout.vertex_layouts) && layout.vertex_layouts[i] isa VertexLayout ? i : 0
+end
+
+# `vertex` and every vertex that an edge of the layout joins to it, or none for
+# no vertex.
+function _collect_joined_vertices(layout::GraphLayout, vertex)
+    joined = Base.IdSet{Any}()
+    vertex === nothing && return joined
+    push!(joined, vertex)
+    for edge_layout in layout.edge_layouts
+        edge_layout isa EdgeLayout || continue
+        edge = getfield(edge_layout, :edge)[]
+        edge isa GraphEdge || continue
+        edge.source === vertex && push!(joined, edge.target)
+        edge.target === vertex && push!(joined, edge.source)
+    end
+    joined
 end
 
 # The vertex `i` whose content holds the part that the graph's own mouse target

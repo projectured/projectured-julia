@@ -399,7 +399,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:book, "list",    make_book_list_document_example),
     AtomicDocument(:book, "book",    make_book_book_document_example),
     AtomicDocument(:workflow, "entry",    make_workflow_entry_document_example),
-    AtomicDocument(:workflow, "card",     make_workflow_card_document_example),
+    AtomicDocument(:workflow, "element",  make_workflow_element_document_example),
     AtomicDocument(:workflow, "step",     make_workflow_step_document_example),
     AtomicDocument(:workflow, "decision", make_workflow_decision_document_example),
     AtomicDocument(:workflow, "workflow", make_workflow_document_example),

@@ -2,11 +2,11 @@
     test_workflow_file()
 
 A workflow saved as a `.pred` file. Alone, it writes as its constructor and reads
-back to the same text. In a project with a Markdown page and a JSON file, a card
-that holds a paragraph of the page and a card that holds a record of the JSON
-file write as markers into those files, and the load puts the same objects back
-into the cards. A card that holds a document of a domain with a file format needs
-a file of that format.
+back to the same text. In a project with a Markdown page and a JSON file, an
+element that is a paragraph of the page and an element that is a record of the
+JSON file write as markers into those files, and the load puts the same objects
+back into the elements. An element of a format that no file of the set writes is
+written in the text of its format.
 """
 function test_workflow_file()
 @testset "Workflow file" begin
@@ -24,18 +24,17 @@ function test_workflow_file()
         @test decision isa WorkflowDecision
         @test decision.options[1].reason.value == "Not diffable, and it breaks across Julia versions."
         @test decision.journal[1].author === :assistant
-        @test loaded.children[3].cards[1].content.value == "A card holds a document of any domain."
+        @test loaded.children[3].elements[1].value == "A node holds a document of any domain as an element."
     end
 
-    @testset "a card into a page and a record saves as markers, and loads as the same objects" begin
+    @testset "an element in a page and a record saves as markers, and loads as the same objects" begin
         paragraph = MarkdownParagraph([MarkdownText("The design of the view.")])
         page = MarkdownRoot([MarkdownParagraph([MarkdownText("Notes")]), paragraph])
         record = JsonObject("port" => JsonNumber(5000))
         data = JsonObject("record" => record)
         workflow = WorkflowStep(
             title = PrimitiveString("Ship the view"),
-            cards = [WorkflowCard(title = PrimitiveString("Design"), content = paragraph),
-                     WorkflowCard(title = PrimitiveString("Settings"), content = record)])
+            elements = Any[paragraph, record])
         directory = mktempdir()
         project = FileProject(directory, Any[PredFile("work.pred", workflow),
                                              MarkdownFile("page.md", page),
@@ -52,8 +51,8 @@ function test_workflow_file()
         loaded_page = get_file_content(loaded.files[2])
         loaded_data = get_file_content(loaded.files[3])
         @test loaded_workflow isa WorkflowStep
-        @test loaded_workflow.cards[1].content === loaded_page.elements[2]
-        @test loaded_workflow.cards[2].content === loaded_data.entries[1].value
+        @test loaded_workflow.elements[1] === loaded_page.elements[2]
+        @test loaded_workflow.elements[2] === loaded_data.entries[1].value
 
         stamp = mtime(joinpath(directory, "work.pred"))
         sleep(0.01)
@@ -61,20 +60,37 @@ function test_workflow_file()
         @test mtime(joinpath(directory, "work.pred")) == stamp
     end
 
-    @testset "a card of a domain with a file format needs a file of that format" begin
+    @testset "an element of a format that no file writes saves in the text of its format" begin
         # A `.pred` file writes a document that has no file format of its own, such
-        # as a primitive. A JSON object belongs in a JSON file, so the save refuses
-        # it and writes nothing.
-        workflow = WorkflowStep(cards = [WorkflowCard(content = PrimitiveString("a note")),
-                                         WorkflowCard(content = JsonObject("k" => JsonString("v")))])
+        # as a primitive, as its constructor. A JSON object and a Markdown page that
+        # no file of the set writes are written as the text of their format, and the
+        # load reads them with it. One that the workflow holds at two places is one
+        # object again.
+        record = JsonObject("port" => JsonNumber(5000), "name" => JsonString("say \"hi\""))
+        page = MarkdownRoot([MarkdownParagraph([MarkdownText("The design of the view.")])])
+        workflow = WorkflowStep(elements = Any[PrimitiveString("a note"), record, page],
+                                children = Any[WorkflowStep(elements = Any[record])])
         directory = mktempdir()
-        project = FileProject(directory, Any[PredFile("work.pred", workflow)])
-        @test (@test_logs (:error, r"JsonObject at cards\[2\]\.content") save_project!(project)) === false
-        @test !isfile(joinpath(directory, "work.pred"))
-        workflow.cards = Any[workflow.cards[1]]
-        @test save_project!(project) === true
-        loaded = get_file_content(load_project(directory, ["work.pred"]).files[1])
-        @test loaded.cards[1].content.value == "a note"
+        @test save_file!(PredFile("work.pred", workflow), directory)
+        text = read(joinpath(directory, "work.pred"), String)
+        @test occursin("json\"\"\"", text)
+        @test occursin("md\"\"\"", text)
+        @test occursin("The design of the view.", text)
+        # The record is written once, where the walk meets it first, and a marker
+        # into the file stands at the other place.
+        @test count("5000", text) == 1
+        @test occursin("node(file(\"work.pred\"), ", text)
+        loaded = get_file_content(load_file(directory, "work.pred"))
+        @test loaded.elements[1].value == "a note"
+        @test loaded.elements[2] isa JsonObject
+        @test loaded.elements[2].entries[1].value.value == 5000
+        @test loaded.elements[2].entries[2].value.value == "say \"hi\""
+        @test loaded.elements[3] isa MarkdownRoot
+        @test loaded.children[1].elements[1] === loaded.elements[2]
+        stamp = mtime(joinpath(directory, "work.pred"))
+        sleep(0.01)
+        @test save_file!(PredFile("work.pred", loaded), directory)
+        @test mtime(joinpath(directory, "work.pred")) == stamp
     end
 end
 end

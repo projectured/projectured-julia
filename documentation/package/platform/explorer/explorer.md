@@ -79,6 +79,10 @@ A kind is in the list of `+` when `is_explorer_entry_type(::Type)` of the tree s
 | `ExplorerSection` | section | an empty section, "New section" |
 | `Dashboard` | dashboard | an empty dashboard, "New dashboard" |
 
+A domain adds its own kinds the same way: the research domain a study, "New study",
+and the workflow domain a workflow, "New workflow", each of which opens with one
+quiet row where the first key makes the first item.
+
 "Other document" adds a `DocumentInsertion`, whose page takes the name of any document.
 
 ### The add of an entry

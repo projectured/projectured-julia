@@ -4,9 +4,8 @@ make_workflow_entry_document_example() =
     WorkflowEntry(time = "2026-10-09T13:40:00", author = :person, kind = :comment,
                   text = PrimitiveString("Keep the records readable in a text editor."))
 
-make_workflow_card_document_example() =
-    WorkflowCard(title = PrimitiveString("Notes"),
-                 content = PrimitiveString("A card holds a document of any domain."))
+make_workflow_element_document_example() =
+    PrimitiveString("A node holds a document of any domain as an element.")
 
 make_workflow_step_document_example() =
     WorkflowStep(title = PrimitiveString("Survey the literature"), state = :done,
@@ -32,7 +31,7 @@ make_workflow_decision_document_example() =
 
 A workflow of three steps and a decision: the goal, one step done, a decision
 with a chosen, a rejected and a parked option, a step that is active and a step
-that is open. Entries by the person and by the assistant, and a card.
+that is open. Entries by the person and by the assistant, and an element.
 """
 make_workflow_document_example() =
     WorkflowStep(
@@ -42,7 +41,7 @@ make_workflow_document_example() =
             make_workflow_step_document_example(),
             make_workflow_decision_document_example(),
             WorkflowStep(title = PrimitiveString("Outline view"), state = :active,
-                         cards = [make_workflow_card_document_example()]),
+                         elements = Any[make_workflow_element_document_example()]),
             WorkflowStep(title = PrimitiveString("Assistant tools")),
         ],
         journal = [WorkflowEntry(time = "2026-10-09T13:00:00", author = :person, kind = :state,

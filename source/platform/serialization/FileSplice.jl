@@ -236,11 +236,13 @@ function _splice_target(project, index, leaf, tolerant::Bool = false)
 end
 
 # The marker vocabulary, evaluated against the set: `file` and `node` here, a
-# capitalised name as a constructor, any other verb through the registry, with
-# the arguments evaluated the same way. A `file` naming a file outside the set
+# capitalised name as a constructor, a text of a format as the document it reads
+# to, any other verb through the registry, with the arguments evaluated the same
+# way. A `file` naming a file outside the set
 # answers `nothing`, and so does anything built on it.
 function _evaluate_splice(project, index, e::Expr)
     e.head === :vect && return Any[_evaluate_splice(project, index, a) for a in e.args]
+    _is_marker_text(e) && return _read_inline_text(_get_marker_text_tag(e), e.args[3])
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
         isempty(fields) && return ()

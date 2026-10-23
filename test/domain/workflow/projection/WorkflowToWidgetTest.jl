@@ -26,10 +26,27 @@ function _apply_workflow_operation!(editor, operation)
     run_print_stage!(editor)
 end
 
+# Every text that the output of a view draws, at any depth.
+function _collect_workflow_texts(node, found = String[])
+    node = node isa Cell ? node[] : node
+    if node isa GraphicsText
+        push!(found, String(node.text))
+    elseif node isa GraphicsViewport
+        _collect_workflow_texts(node.content, found)
+    elseif node isa GraphicsCanvas
+        foreach(element -> _collect_workflow_texts(element, found), node.elements)
+    end
+    found
+end
+
 _is_workflow_selection(operation, text) =
     operation isa ReplaceSelectionOperation && string(strip_reference_types(operation.path)) == text
 
+# An add answers its write and the caret into the new node, so the write is the
+# first part of a compound.
 _is_workflow_write(operation, node, text) =
+    operation isa CompoundOperation && !isempty(operation.operations) &&
+    operation.operations[end] isa SelectDocumentOperation ? _is_workflow_write(operation.operations[1], node, text) :
     operation isa ReplaceReferencedValueOperation && operation.document === node &&
     string(strip_reference_types(operation.reference)) == text
 
@@ -65,19 +82,18 @@ end
 
 The outline of a workflow in an editor: a click names the place it lands on, a key
 types into a title, the mark of a step opens its states, the menu of a row adds a
-node, an option, an entry and a card and removes a node, the fold folds a node,
+node, an option, an entry and an element and removes a node, the fold folds a node,
 and the view that the editor keeps follows each change.
 """
 function test_workflow_to_widget()
     @testset "WorkflowToWidget" begin
-        @testset "a click in a title, a question, a reason or a card names it" begin
+        @testset "a click in a title, a question, a reason or an element names it" begin
             workflow = make_workflow_document_example()
             editor = _make_workflow_view_editor(workflow)
             for text in (".title.value{2}", ".children[1].title.value{2}",
                          ".children[2].question.value{2}",
                          ".children[2].options[1].reason.value{2}",
-                         ".children[3].cards[1].title.value{2}",
-                         ".children[3].cards[1].content.value{2}")
+                         ".children[3].elements[1].value{2}")
                 @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, text)) !== nothing
             end
         end
@@ -133,6 +149,8 @@ function test_workflow_to_widget()
             @test length(workflow.children) == 5
             added = workflow.children[5]
             @test added isa WorkflowStep
+            # The caret is in the title of the new step, so the person types it in place.
+            @test string(strip_reference_types(get_selection(workflow))) == ".children[5].title.value{0}"
             removes(operation) = _is_workflow_write(operation, workflow, ".children[5]")
             found = _find_workflow_menu(editor, menu -> _find_workflow_menu_item(menu, "Delete", removes) !== nothing;
                                         button = :right)
@@ -141,13 +159,13 @@ function test_workflow_to_widget()
             @test length(workflow.children) == 4
         end
 
-        @testset "an option, an entry and a card are added by the menu of their node" begin
+        @testset "an option, an entry and an element are added by the menu of their node" begin
             workflow = make_workflow_document_example()
             decision = workflow.children[2]
             editor = _make_workflow_view_editor(workflow)
             for (label, text, count) in (("Add an option", ".options{3}", () -> length(decision.options)),
                                          ("Comment", ".journal{1}", () -> length(decision.journal)),
-                                         ("Add a card", ".cards{0}", () -> length(decision.cards)))
+                                         ("Add an element", ".elements{0}", () -> length(decision.elements)))
                 before = count()
                 writes(operation) = _is_workflow_write(operation, decision, text)
                 found = _find_workflow_menu(editor, menu -> _find_workflow_menu_item(menu, label, writes) !== nothing)
@@ -157,22 +175,97 @@ function test_workflow_to_widget()
             end
             @test decision.options[end] isa WorkflowOption
             @test decision.journal[end].kind === :comment
-            @test decision.cards[end] isa WorkflowCard
+            @test decision.elements[end] isa DocumentInsertion
+            # A comment shows the journal under the row, with the caret in the new entry.
+            @test decision.journal_shown
+            @test string(strip_reference_types(get_selection(workflow))) ==
+                  ".children[2].journal[" * string(length(decision.journal)) * "].text.value{0}"
+        end
+
+        @testset "a press on the count of the journal shows its entries under the row" begin
+            workflow = make_workflow_document_example()
+            survey = workflow.children[1]
+            editor = _make_workflow_view_editor(workflow)
+            said = something(survey.journal[1].text.value, "")
+            @test !any(text -> occursin(first(said, 12), text), _collect_workflow_texts(editor.iomap.output))
+            show = _find_workflow_click(editor, operation -> operation isa ReplaceViewStateOperation &&
+                                                             operation.operation isa ReplaceReferencedValueOperation &&
+                                                             operation.operation.document === survey &&
+                                                             operation.operation.value === true)
+            @test show !== nothing
+            _apply_workflow_operation!(editor, show[3])
+            @test survey.journal_shown
+            @test any(text -> occursin(first(said, 12), text), _collect_workflow_texts(editor.iomap.output))
+        end
+
+        @testset "an empty workflow shows a quiet row, and the first key makes the first step" begin
+            workflow = WorkflowStep(title = PrimitiveString("Ship the view"))
+            editor = _make_workflow_view_editor(workflow)
+            hit = _find_workflow_click(editor, operation -> _is_workflow_selection(operation, ".first_text.value{0}"))
+            @test hit !== nothing
+            _apply_workflow_operation!(editor, hit[3])
+            typed = read_intent(editor.projection, editor.iomap, KeyPress('S', ModifierKeys(); time = 0.0))
+            @test typed !== nothing
+            _apply_workflow_operation!(editor, typed)
+            @test length(workflow.children) == 1
+            @test workflow.children[1].title.value == "S"
+            @test isempty(workflow.first_text.value)
+            @test string(strip_reference_types(get_selection(workflow))) == ".children[1].title.value{1}"
+            _apply_workflow_operation!(editor, read_intent(editor.projection, editor.iomap,
+                                                           KeyPress('u', ModifierKeys(); time = 0.0)))
+            @test workflow.children[1].title.value == "Su"
+        end
+
+        @testset "the keys of a row add a sibling, move a node, and indent and outdent it" begin
+            workflow = make_workflow_document_example()
+            editor = _make_workflow_view_editor(workflow)
+            survey = workflow.children[1]
+            caret(steps...) = extend_reference(EmptyReference(), steps...)
+            at_title_end(index, node) = caret(FieldReferenceStep("children"), RangeReferenceStep(index - 1, index),
+                                              FieldReferenceStep("title"), FieldReferenceStep("value"),
+                                              RangeReferenceStep(length(node.title.value), length(node.title.value)))
+            press(key) = _apply_workflow_operation!(editor, read_intent(editor.projection, editor.iomap, key))
+            selected() = string(strip_reference_types(get_selection(workflow)))
+
+            # Return at the end of a title adds a step after it, with the caret in it.
+            replace_selection!(workflow, at_title_end(1, survey))
+            _apply_workflow_operation!(editor, DoNothingOperation())
+            @test read_intent(editor.projection, editor.iomap, KeyPress('\n'; time = 0.0)) isa CompoundOperation
+            press(KeyPress('\n'; time = 0.0))
+            @test length(workflow.children) == 5
+            added = workflow.children[2]
+            @test added isa WorkflowStep && isempty(added.title.value)
+            @test selected() == ".children[2].title.value{0}"
+
+            # Alt+Down moves the new step after the decision, and the caret goes with it.
+            press(KeyDown(:down, ModifierKeys(alt = true); time = 0.0))
+            @test workflow.children[3] === added
+            @test selected() == ".children[3].title.value{0}"
+            press(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
+            @test workflow.children[2] === added
+
+            # Tab makes it the last child of the step before it, and Shift+Tab takes it out again.
+            press(KeyPress('\t'; time = 0.0))
+            @test workflow.children[1].children[end] === added
+            @test length(workflow.children) == 4
+            press(KeyPress('\t', ModifierKeys(shift = true); time = 0.0))
+            @test workflow.children[2] === added
+            @test length(workflow.children) == 5
         end
 
         @testset "the fold folds a node, and a folded node shows only its row" begin
             workflow = make_workflow_document_example()
             outline_view = workflow.children[3]
             editor = _make_workflow_view_editor(workflow)
-            card_text = ".children[3].cards[1].content.value{2}"
-            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, card_text)) !== nothing
+            element_text = ".children[3].elements[1].value{2}"
+            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, element_text)) !== nothing
             hit = _find_workflow_click(editor, operation -> operation isa ReplaceViewStateOperation &&
                                                            operation.operation isa ToggleCollapseOperation &&
                                                            operation.operation.target === outline_view)
             @test hit !== nothing
             _apply_workflow_operation!(editor, hit[3])
             @test outline_view.collapsed
-            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, card_text)) === nothing
+            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, element_text)) === nothing
             # A fold is state of the view: the file leaves it out.
             @test !occursin("collapsed", print_pred_text(workflow))
             @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, ".children[3].title.value{2}")) !== nothing

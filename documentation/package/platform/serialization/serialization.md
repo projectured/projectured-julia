@@ -26,7 +26,7 @@ A document graph can also be saved as text files that a version control system c
 
 **A file reference is a fact about storage, so it is never a node of the document.** In memory the graph is the real graph. A JSON object can hold an XML element, a shared subtree is one object, and a cycle is a cycle. Only the save writes references:
 
-1. Each node gets an owner: the first file of its own domain that reaches it through nodes of that domain. A node that no file reaches is an orphan.
+1. Each node gets an owner: the first file of its own domain that reaches it through nodes of that domain. A node that no file of its domain reaches belongs to the first file that reaches it and can write it inline, in the text of its format, as a `.pred` file writes a JSON value; `is_written_inline(file, node)` says which file can, and `make_inline_leaf(file, node, path)` gives its spelling. Any other node that no file reaches is an orphan.
 2. Each file copies its content until it reaches a node that another file owns. There it writes a reference leaf in its own notation.
 3. `emit_text` prints the copy, and the file is written only when its bytes change.
 
@@ -62,12 +62,13 @@ A file type implements five functions, one line each:
 | `make_reference_leaf(file, marker)` | the spelling of a reference in the format, for a marker body without `<<` and `>>` | none |
 | `find_reference_marker(node)` | the marker body that a leaf holds, or `nothing` | `nothing` |
 
-Two more have a default that fits most formats:
+More have a default that fits most formats:
 
 | Function | Default | Override when |
 | --- | --- | --- |
 | `is_file_domain_node(file, node)` | `node isa get_file_domain(typeof(file))` | the domain of the file is not one type |
 | `is_written_in_file(file, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
+| `is_written_inline(file, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
 | `is_editable_file_type(::Type{T})` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
 | `read_file_content(::Type{T}, path)` | the text of the file through `parse_file_content` | the type does not edit, and its file is too large to read whole, so it reads only what it needs |
 
@@ -106,6 +107,20 @@ TestRun(
 
 It is the marker language at the scale of a file, read by the same interpreter. A file can build any loaded subtype of `Document`, by its schema name or by `nameof(T)`, and a type that is data but not a document when its package adds a method of the seam `is_pred_constructible(::Type)`, as a wire format does. The reader reads the names from the loaded modules when a name is not known yet, so a package loaded later brings its types, and a name that two loaded types have is an error that names both. `pred_arguments(document)` gives the arguments that the file writes, by default every field as a keyword. A document writes one argument on each line; a value that is not a document writes its call on one line, such as `size = Point2D(x = 800, y = 600)`, because it is one value in a diff. `make_pred_document(T, positional, keywords)` is its inverse, by default the constructor; a type with no keyword constructor is built from its fields in their declared order, and a type that a file must not build raises an error in its own method. A document that holds state of the session, such as a drag in progress or an API key, writes a reduced form with a method of each. A call in the file that names no type becomes a `PredReference`, which the load replaces.
 
+**A document of a text format that no file writes is written in the text of its format.** A workflow or a study holds a JSON value, a Markdown page or Julia code as an element, and one `.pred` file keeps it, with no file beside it. The save writes the node as the text that a file of its format alone would hold, inside a string tagged with the extension without its dot, at the indent of the value:
+
+```julia
+WorkflowStep(
+    elements = [
+        json"""
+        {"port": 5000}
+        """,
+    ],
+)
+```
+
+The reader reads the string with the parser of the format that has the extension, and the file runs no macro. A node that the file holds at two places is written once, and the other place is a marker into the file, so the load gives one object again. A node that a file of its format writes in the same set is a marker into that file, as before. A text that the indent would change is written with every quote escaped and no indent, and a text that no tagged string holds, such as one with a carriage return, is refused. A tagged string is a value of the marker language too, so a marker in a JSON string may hold one. A `PredText` stands for such a node in the copy that the save prints.
+
 **A type is a value too, written by its bare name.** A field that limits what a document can become holds types, such as `allowed_types = (PrimitiveNumber,)` of a type-in. The writer prints a type that a file may build as its name, and refuses any other type; the reader looks a bare name that starts with a capital up among the same types as the name of a call, and a name that no such type has is an error that names it. A bare name that starts with a small letter is no marker, so a file still can not name a function.
 
 `TextFile` holds a raw `String` and has no parser; its domain is `Union{}`, so it holds no document.
@@ -123,6 +138,7 @@ Its `__init__` registers the `section` marker, `TextFile` for a path with no ext
 - **A reference is written only where the save cuts.** The document holds no storage node, so a projection, an edit and a copy see the real graph. The reason is at the head of `source/platform/serialization/FileCut.jl`.
 - **A marker is data, not code.** The restricted interpreter keeps a project from running code when it opens.
 - **Any loaded document type can be built, and a type that its package calls data.** A file names data: a subtype of `Document`, or a type for which `is_pred_constructible` is `true`, never a function. The owner chose this over a list of offered types (plan/pending/packages-compose-by-seams.md, C16), so no package lists its types and a file can hold any document of the session.
+- **A `.pred` file writes a node of a format inline, not in a file beside it.** One workflow stays one file, and every holder of documents in a `.pred` file gets the same answer: a dashboard card, a workflow, a study saved from its tab. The alternatives were a folder save for every `.pred` file, and one for a workflow only (plan/pending/a-study-and-a-workflow-read-as-one-quiet-outline.md, D7).
 - **The first registration of a marker name wins.** A silent overwrite would let the load order choose the function, and the loser would fail only when a file loads.
 
 ## Usage
