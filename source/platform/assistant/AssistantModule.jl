@@ -100,7 +100,7 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
 export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
-export send_go_on!, GO_ON_PROMPT
+export send_go_on!, GO_ON_PROMPT, wake_assistant!, ASSISTANT_WAKE_LIMIT
 export AddDraftPictureOperation, register_picture_tools!
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
        compute_assistant_turn_side, describe_assistant_activity, collect_open_assistant_requests,
@@ -120,6 +120,7 @@ include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
 include("ExternalAgentTurn.jl")
+include("AssistantWake.jl")
 include("AssistantPicture.jl")
 include("AssistantOverview.jl")
 include("AssistantList.jl")

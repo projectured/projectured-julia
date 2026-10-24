@@ -931,7 +931,10 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
 
         @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
 
-        _run_turn_call!(() -> _finish_turn!(a, turn, stop_reason), editor, source; wait = false)
+        _run_turn_call!(editor, source; wait = false) do
+            _finish_turn!(a, turn, stop_reason)
+            _watch_turn_task_groups!(editor, a, turn)
+        end
     finally
         # The events that wait apply before the posts after the turn, such as its
         # status and the error of a turn that failed, and the queue leaves the feed.

@@ -187,7 +187,10 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             is_closed && _end_agent_work!(a, session)
         end
     end
-    run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
+    run_on_editor_task!(editor; wait = false) do
+        _finish_turn!(a, state[:turn], stop_reason)
+        _watch_turn_task_groups!(editor, a, state[:turn])
+    end
     nothing
 end
 

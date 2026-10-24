@@ -442,6 +442,7 @@ include("../../../test/platform/conversation/ExternalAgentTurnTest.jl")
 include("../../../test/platform/conversation/AgentWorkTest.jl")
 include("../../../test/platform/conversation/AssistantWorkTest.jl")
 include("../../../test/platform/conversation/AssistantRoundsTest.jl")
+include("../../../test/platform/conversation/AssistantWakeTest.jl")
 include("../../../test/platform/conversation/ConversationTreeTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
