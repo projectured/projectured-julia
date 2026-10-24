@@ -12,6 +12,9 @@ const RESEARCH_STUDY_FILE_NAME = "study.pred"
 "The file that holds the report of a study."
 const RESEARCH_REPORT_FILE_NAME = "study.md"
 
+"The file that holds the transcript of the conversation that wrote a study."
+const RESEARCH_CONVERSATION_FILE_NAME = "conversation.txt"
+
 """
     collect_study_blocks(study) -> Vector{Pair{String, Any}}
 
@@ -102,11 +105,14 @@ function _make_block_file(name::AbstractString, block)
 end
 
 """
-    save_study_folder!(study, directory) -> String
+    save_study_folder!(study, directory; conversation = nothing) -> String
 
 Write `study` as a folder: the study as `study.pred`, which owns every item and
-every document that an item reaches; the report as `study.md`; and each block of
-`collect_study_blocks` in a file of its format. A document that the study
+every document that an item reaches; the report as `study.md`; each block of
+`collect_study_blocks` in a file of its format; and, when `conversation` is an
+assistant or its conversation, the transcript of the conversation as
+`conversation.txt`, with the backend and the model of each answer, so the folder
+says who wrote the study. A document that the study
 holds at two places, such as an item that a link and a list hold, is written once,
 and each other place holds a marker. Nothing is written unless every file can be
 cut and printed; two blocks with one file name are refused. Answer the folder.
@@ -121,7 +127,7 @@ See also `load_study_folder`.
 """
 function save_study_folder! end
 
-function save_study_folder!(study, directory::AbstractString)
+function save_study_folder!(study, directory::AbstractString; conversation = nothing)
     document = get_document(study)
     files = Any[PredFile(RESEARCH_STUDY_FILE_NAME, document)]
     document.report isa MarkdownRoot && push!(files, MarkdownFile(RESEARCH_REPORT_FILE_NAME, document.report))
@@ -135,6 +141,8 @@ function save_study_folder!(study, directory::AbstractString)
                             "; give one of them another name."))
     save_project!(FileProject(String(directory), files)) ||
         error("save_study_folder!: the study could not be cut into files; the log says why.")
+    conversation === nothing ||
+        write_conversation(conversation, joinpath(directory, RESEARCH_CONVERSATION_FILE_NAME))
     String(directory)
 end
 

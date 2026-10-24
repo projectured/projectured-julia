@@ -68,6 +68,7 @@ The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTA
 
 | Verb | What it does |
 | --- | --- |
+| `start_workflow!(title; steps)` | makes a workflow, an active root step with one open step for each entry of `steps`, adds it to the explorer and opens it in a tab: the plan of work of a task of several stages |
 | `record_workflow_decision!(node, question, options; chosen, reason)` | records a decision under a step or an option |
 | `choose_workflow_option!(decision, index; reason)`, `reject_workflow_option!(decision, index; reason)` | settles an option |
 | `add_workflow_entry!(node, text; kind, source)` | writes an entry |
@@ -75,7 +76,7 @@ The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTA
 | `change_workflow_state!(node, state)` | changes a state |
 | `add_element!(node, document)` | adds an element, from the outline kit |
 
-The docstring of each verb says when to use it: at an important point of the work, never at every turn. An `Assistant` holds the node of a workflow that its conversation records its work in, in its field `workflow`, and its `.pred` file keeps the link.
+The docstring of each verb says when to use it: at an important point of the work, never at every turn. A plan of work is a workflow and not the `WorkPlan` of an external agent: the agent's plan changes at each update and no file keeps it, while a workflow takes edits, holds what each stage made, and stays with the work. An `Assistant` holds the node of a workflow that its conversation records its work in, in its field `workflow`, and its `.pred` file keeps the link.
 
 ## How it fits
 

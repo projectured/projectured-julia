@@ -439,8 +439,8 @@ search of a stream of many megabytes holds the editor task while it reads.
 A person at the REPL and a model through `execute_julia_code` read and act on
 the groups of the session with the verbs of the slice: `list_task_groups`,
 `find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
-`stop_tasks!`, `stop_task!`, `rerun_tasks!`, `wait_for_task_group!` and
-`close_task_group!`. Each but `wait_for_task_group!` takes the keyword
+`wait_for_tasks!`, `stop_tasks!`, `stop_task!`, `rerun_tasks!`,
+`wait_for_task_group!` and `close_task_group!`. Each but `wait_for_task_group!` takes the keyword
 `editor = get_evaluation_editor()`, so the code of a model names no editor;
 `wait_for_task_group!` takes `editor` first. Each does its document work on the
 task of the editor through `run_on_editor_task!`, so a person at the REPL, who
@@ -450,6 +450,14 @@ of the task gives (`format_task_details`).
 **A client of `execute_julia_code` never passes `wait = true`.** The call runs
 in a frame of the window, so a verb that waits holds the window until the group
 ends.
+
+**A wait has a deadline.** `wait_for_task_group!(editor, group; timeout)` ends
+when the group ends or when `timeout` seconds have passed, and the group goes
+on; `is_task_group_running(group)` tells the two ends apart. `wait_for_tasks!(group;
+timeout = 30)` is the wait that a model may call: it waits a short while and
+answers how the group stands, "Ended: …" or "Still running after …: …". For a
+group that runs for minutes, a model ends its turn, and an assistant whose wake
+is on starts a turn when the group ends ([assistant.md](../assistant/assistant.md)).
 
 `make_task_api()` is what a window declares that a model may call of the slice,
 as a `TaskModule => names` pair, beside the verbs of its domain that start the

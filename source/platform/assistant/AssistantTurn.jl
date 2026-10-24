@@ -728,13 +728,16 @@ _thinking_block(c::ConversationThinking) =
     format_conversation(conversation) -> String
 
 A plain, human-readable rendering of the whole conversation (for logging and as a
-non-API fallback): each turn labelled by role, each part rendered with its kind
+non-API fallback): each turn labelled by role, an answer also by its backend and
+model, each part rendered with its kind
 (prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
 """
 function format_conversation(conversation::ConversationConversation)
     io = IOBuffer()
     for t in conversation.turns
-        println(io, uppercasefirst(string(t.role)), ":")
+        writer = t.backend === :none ? "" :
+                 string(" (", t.backend, isempty(t.model) ? "" : ", " * t.model, ")")
+        println(io, uppercasefirst(string(t.role)), writer, ":")
         for part in t.parts
             c = part.content
             if c isa EvaluatorForm
@@ -758,7 +761,8 @@ end
     write_conversation(assistant_or_conversation, path) -> path
 
 Write the assistant's chat history to `path` as a readable transcript (the same
-rendering as `format_conversation`: `Role:` headers, prose / fenced source
+rendering as `format_conversation`: `Role:` headers, with the backend and the
+model of an answer as `Assistant (anthropic, a-model):`, prose / fenced source
 blocks, `> code` / `= result` for tool calls, `∴` for thinking, `※` for a
 note of the editor). Accepts a `Assistant` (uses its `.conversation`) or a
 `ConversationConversation` directly. Returns `path`.
@@ -861,8 +865,9 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
     # below — so the conversation stays strictly alternating user/assistant, with
     # this single turn holding every part in order. `build_messages` re-expands it
-    # into the tool_use/tool_result message shape.
-    turn = ConversationTurn(:assistant; start_time = time())
+    # into the tool_use/tool_result message shape. The turn names the backend and
+    # the model of the assistant, so a transcript says what answered.
+    turn = ConversationTurn(:assistant; start_time = time(), backend, model)
 
     # The blocks currently being streamed into (one text part, one thinking part).
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing)

@@ -114,8 +114,8 @@ end
 # agent makes the assistant keep the session and that count.
 function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnControl = AssistantTurnControl())
     session = _make_external_agent_session!(editor, a)
-    conversation = run_on_editor_task!(() -> a.conversation, editor)
-    turn = ConversationTurn(:assistant; start_time = time())
+    conversation, model = run_on_editor_task!(() -> (a.conversation, _find_agent_model(a)), editor)
+    turn = ConversationTurn(:assistant; start_time = time(), backend = :acp, model)
     state = _make_agent_turn_state(turn)
     state[:control] = control
     # The start of an agent takes seconds, and its first turn in a process takes
@@ -192,6 +192,13 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         _watch_turn_task_groups!(editor, a, state[:turn])
     end
     nothing
+end
+
+# The model of the session of the agent, as its options last named it: the value
+# of its option of the category `:model`, or the model of the assistant.
+function _find_agent_model(a::Assistant)
+    index = findfirst(option -> option.category === :model, collect(a.agent_options))
+    index === nothing ? a.model : a.agent_options[index].current_value
 end
 
 # What the part of a turn says while its agent starts: the name of the built-in

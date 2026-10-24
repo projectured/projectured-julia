@@ -363,13 +363,18 @@ end
 
 """
     ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false,
-                     start_time = 0.0, finish_time = 0.0)
+                     start_time = 0.0, finish_time = 0.0, backend = :none, model = "")
 
 One chat message: a `role` (`:user` / `:assistant`), an ordered list of parts,
 a streaming `stop_reason`, a `collapsed` flag, and the times at which the turn
 started and finished, in seconds of `time()`. A time of `0.0` is not known: a
 turn of a file that kept no times, a turn of a test, or a turn that runs and
 has not finished.
+
+`backend` and `model` say who wrote an answer: the backend of the assistant,
+such as `:anthropic`, `:ollama` or `:acp`, and the model that it named, empty
+for the default of the backend. A turn of the person has `:none` and an empty
+model. A file keeps them for an answer.
 """
 @document struct ConversationTurn <: ConversationDocument
     role::Symbol
@@ -378,6 +383,8 @@ has not finished.
     collapsed::Bool
     start_time::Float64
     finish_time::Float64
+    backend::Symbol
+    model::String
 end
 
 ConversationTurn(role::Symbol;
@@ -385,11 +392,23 @@ ConversationTurn(role::Symbol;
                  stop_reason::Symbol = :complete,
                  collapsed::Bool = false,
                  start_time::Real = 0.0,
-                 finish_time::Real = 0.0) =
+                 finish_time::Real = 0.0,
+                 backend::Symbol = :none,
+                 model::AbstractString = "") =
     ConversationTurn(Cell(role),
                      CellVector(Cell[Cell(p) for p in parts]),
                      Cell(stop_reason), Cell(collapsed),
-                     Cell(Float64(start_time)), Cell(Float64(finish_time)), Cell(nothing))
+                     Cell(Float64(start_time)), Cell(Float64(finish_time)),
+                     Cell(backend), Cell(String(model)), Cell(nothing))
+
+# A file names the writer of an answer, and leaves out the empty writer of a turn
+# of the person.
+function pred_arguments(turn::ConversationTurn)
+    positional, keywords = invoke(pred_arguments, Tuple{Any}, turn)
+    filter!(pair -> !(first(pair) === :backend && last(pair) === :none) &&
+                    !(first(pair) === :model && isempty(last(pair))), keywords)
+    positional, keywords
+end
 
 # A file that kept no times builds a turn whose times are not known.
 function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
@@ -398,7 +417,9 @@ function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
                      stop_reason = get(values, :stop_reason, :complete),
                      collapsed = get(values, :collapsed, false),
                      start_time = get(values, :start_time, 0.0),
-                     finish_time = get(values, :finish_time, 0.0))
+                     finish_time = get(values, :finish_time, 0.0),
+                     backend = get(values, :backend, :none),
+                     model = get(values, :model, ""))
 end
 
 ConversationTurn(role::Symbol, parts::Vector; kwargs...) =

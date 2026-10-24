@@ -17,11 +17,13 @@
 | `ChartCategoryAxis` | a category axis: `title` and `categories` |
 | `ChartLegend` | `visible`, `position`, `anchor`, `border`, `sort` |
 | `ChartStyle` | the theme colours and fonts, the colour and marker cycles, and three limits: `marker_limit`, `scatter_fold_threshold`, `bin_fold_px` |
-| `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, and the line and marker style |
+| `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, the line and marker style, and an interval around each value: `lower` and `upper` columns, drawn as a whisker at each point, or as a lighter band under a line (`interval_style = :band`) |
 | `ChartBarSeries` | one value for each category |
 | `ChartPieSeries` | `categories` and `values`, one slice for each, and `colors`, one for each slice or `nothing` for the colour cycle |
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
+
+**An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
 
 The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 

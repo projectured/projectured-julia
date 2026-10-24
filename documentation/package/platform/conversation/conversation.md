@@ -11,7 +11,8 @@ The conversation slice of `ProjecturedPlatform` holds a chat with a model as doc
 | Document | What it holds |
 | --- | --- |
 | `ConversationConversation` | `turns`, the history |
-| `ConversationTurn` | `role`, which is `:user` or `:assistant`, then `parts`, `stop_reason`, `collapsed`, and `start_time` and `finish_time` in seconds of `time()`, `0.0` when not known |
+| `ConversationTurn` | `role`, which is `:user` or `:assistant`, then `parts`, `stop_reason`, `collapsed`, `start_time` and `finish_time` in seconds of `time()`, `0.0` when not known, and `backend` and `model`, the writer of an answer, `:none` and empty for a turn of the person |
+| `ConversationNote` | a quiet line that the editor writes into a turn: `text`, `kind` (`:round_limit`, `:wake`, `:note`), and one button, `action_label` and the live function `action(editor)`; a file keeps the text and the kind. A turn whose parts are all notes is a turn of the editor (`is_note_turn`): it draws with the header of the editor and no tint, and the model reads its text as the words of the person |
 | `ConversationPart` | `content`, a document of any domain, and `collapsed` |
 | `ConversationThinking` | the reasoning of a model, with the `signature`, `redacted` and `data` that the provider needs back unchanged |
 | `ConversationDraft` | `parts` of the message that a person composes, and `assistant`, the host of the draft or `nothing` |

@@ -3,7 +3,9 @@
 > **Kind:** plan · **Status:** pending, written 2026-10-24 from a survey of
 > `main` at `4c83985`. The owner agreed to the plan and to every
 > recommendation of §5 on 2026-10-24 ("I agree with your plan and
-> recommendation"). · **Sibling
+> recommendation"). Steps 1 to 8 built the same day on the branch
+> `ccr-1058c6d1-njtjm7` (`2417fdd`..), each with its test; §4 says where the
+> build differs from §3. · **Sibling
 > plan:** omnet-julia
 > `plan/pending/the-assistant-carries-out-an-aloha-study-on-the-legacy-simulator.md`,
 > which holds the arc, the study and the simulation half. · **Stands on:**
@@ -171,43 +173,60 @@ interval_style::Symbol = :whisker   # :whisker or :band
 - `format_conversation` writes them in the heading of each assistant turn, and
   the reader of the conversation file reads them back.
 - `save_study_folder!(study, directory; conversation = nothing)` writes
-  `conversation.md` beside the study when a conversation is given.
+  `conversation.txt` beside the study when a conversation is given.
 
 ## 4. Steps
 
 Each step names its narrowest test.
 
-- [ ] **1. The round budget.** `Assistant.max_rounds`; the loop's
+- [x] **1. The round budget.** `Assistant.max_rounds`; the loop's
       `:round_limit`; the quiet row and **Go on**. Test: a stub model that
       always calls a tool ends at the budget with `:round_limit`; the row shows
       and **Go on** starts a turn. `test_agent_loop()`, and a new
       `test_assistant_rounds()` beside `test_assistant_work()`.
-- [ ] **2. The wait with a deadline.** `wait_for_task_group!(…; timeout)`.
+- [x] **2. The wait with a deadline.** `wait_for_task_group!(…; timeout)`.
       Test: a group of one sleeping task; the wait ends at the deadline with
       the group running, and at the end with the group done.
-      `test_task_group_verbs()`.
-- [ ] **3. The wake.** The owner of a group, the note part and its row, the
+      `test_task_group_verbs()`. **As built:** the model's own wait is a verb of
+      the task list, `wait_for_tasks!(group; timeout = 30)`, which answers how
+      the group stands, beside `is_task_group_running`. A wait in a call of
+      `execute_julia_code` holds the window, so the docstring keeps it short
+      and sends a long group to the wake.
+- [x] **3. The wake.** The owner of a group, the note part and its row, the
       three rules, ACP's prompt. Test: a scripted turn starts a group and ends;
       the end starts a turn whose first part is the note; a stop by the person
       turns the wake off; the fourth wake does not start. A new
-      `test_assistant_wake()`; `test_scripted_agent_connection()` for the
-      prompt of an external agent.
-- [ ] **4. The interval.** The three fields, the whisker and the band, the
-      tooltip, the file. Test: a chart of three points with intervals draws
+      `test_assistant_wake()`, which also holds the prompt of an external
+      agent. **As built:** a group needs no recorded owner. It belongs to the
+      turn during which it joined the list of the session, and the turn watches
+      it at its end if it still runs; two assistants whose turns overlap both
+      wake for it. The note waits as a message when a turn runs, and a stop
+      keeps the word with the person by the stop reason of the last turn, not
+      by a flag.
+- [x] **4. The interval.** The three fields, the whisker and the band, the
+      tooltip, the file. **As built:** a chart has no tooltip of a point, so the
+      readout of the crosshair names the interval of the value it snaps to; a
+      scatter series has `lower` and `upper` and draws whiskers only. Test: a chart of three points with intervals draws
       three whiskers in a picture; the y range holds the upper bound; the file
       round trip. `test_chart()`.
-- [ ] **5. The plan of work.** `start_workflow!`, its docstring and its place
+- [x] **5. The plan of work.** `start_workflow!`, its docstring and its place
       in the list. Test: the verb makes the root with its steps, opens the tab
-      and adds the explorer entry; undo removes it. `test_workflow()`.
-- [ ] **6. The check holds what it read.** A result as the selection, labelled
+      and adds the explorer entry. `test_workflow()`. **As built:** the root is
+      `:active`, its steps `:open`.
+- [x] **6. The check holds what it read.** A result as the selection, labelled
       values, the basis. Test: a study with a result whose content a stub
       `read` answers as labelled values; the evidence holds the result and
       names the value outside the bounds. `test_research()`.
-- [ ] **7. The conversation kept.** The two fields, the file, the folder.
+- [x] **7. The conversation kept.** The two fields, the file, the folder.
       Test: a conversation with a turn of each backend writes and reads back
-      with its models; `save_study_folder!` writes `conversation.md`.
-      `test_conversation()`, `test_research()`.
-- [ ] **8. The documents.** `agent.md` and `assistant.md` (the budget, the
+      with its models; `save_study_folder!` writes the transcript.
+      `test_conversation()`, `test_research()`. **As built:** the file is
+      `conversation.txt` (`RESEARCH_CONVERSATION_FILE_NAME`), because the
+      transcript of `format_conversation` is no Markdown; an answer names the
+      model that the assistant named, or for an external agent the value of
+      its option of the category `:model`, and an empty model is the default
+      of the backend.
+- [x] **8. The documents.** `agent.md` and `assistant.md` (the budget, the
       wake and its rules, the note), `task.md` (the owner of a group, the
       deadline), `chart.md` (intervals), `workflow.md` (`start_workflow!`),
       `research.md` (what a check holds), and the guide of the assistant's

@@ -55,7 +55,7 @@ export RESEARCH_ASSISTANT_API, start_study!, add_question!, add_source!, add_hyp
        add_experiment!, add_analysis!, add_result!, add_evidence!, add_answer!, record_decision!,
        get_expectation_bounds, check_predictions!, add_study_section!, add_study_prose!,
        embed_in_study!, add_study_formula!, describe_study
-export RESEARCH_STUDY_FILE_NAME, RESEARCH_REPORT_FILE_NAME, collect_study_blocks,
+export RESEARCH_STUDY_FILE_NAME, RESEARCH_REPORT_FILE_NAME, RESEARCH_CONVERSATION_FILE_NAME, collect_study_blocks,
        save_study_folder!, load_study_folder
 
 include("ResearchDocument.jl")

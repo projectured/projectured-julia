@@ -509,7 +509,9 @@ run_turn!(agent, target; messages, on_event, tools = Tool[]) -> stop_reason
 
 The loop owns a turn's **control flow** and nothing else: stream a round, collect the
 tool calls the model made, dispatch them through the `ToolSet`, decide from the stop
-reason whether to go again, and stop at the round cap. It owns nothing about
+reason whether to go again, and stop at the round cap, `max_rounds` of the `Agent`.
+A turn that the cap ends while the model still asks for tools answers
+`:round_limit`, so the caller can say so. It owns nothing about
 *conversations* — how a transcript is stored, how a message is built from one, and
 how an answer is rendered are all the caller's, because they are the caller's domain
 and not an agent's.

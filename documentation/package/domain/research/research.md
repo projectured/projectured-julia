@@ -70,11 +70,11 @@ The `__init__` calls `register_assistant_api!(ResearchModule => RESEARCH_ASSISTA
 | `start_study!(title; question)` | makes a study, adds it to the explorer, opens it in a tab, and answers the study as the part of the window that the tab shows |
 | `add_question!`, `add_source!`, `add_hypothesis!`, `add_experiment!`, `add_analysis!`, `add_result!`, `add_evidence!`, `add_answer!` | add an item and answer it |
 | `record_decision!(study, statement; accepts, rejects, basis, reason)` | records a decision; the docstring says to call it only when the person asks |
-| `check_predictions!(study, read)` | reads and bounds every expectation, then adds evidence that supports or opposes each hypothesis; an expectation that can not be checked changes nothing |
+| `check_predictions!(study, read)` | reads and bounds every expectation, then adds evidence that supports or opposes each hypothesis; an expectation that can not be checked changes nothing. An expectation whose selection is a result of the study, or its id, reads the content of the result, and the evidence holds the result in its basis; `read` answers numbers or `label => value` pairs, and the evidence names each labelled value outside the bounds |
 | `add_study_section!`, `add_study_prose!`, `embed_in_study!` | grow the report |
 | `add_study_formula!(study, name, text)` | adds a formula to the sheet of the analysis "Closed form", as an edit of the history |
 | `describe_study`, `find_study_item` | read a study |
-| `save_study_folder!`, `load_study_folder` | write and read a folder |
+| `save_study_folder!(study, directory; conversation)`, `load_study_folder` | write and read a folder; with a conversation, the folder keeps its transcript as `conversation.txt`, with the backend and the model of each answer |
 
 A verb names the field of the study that it writes when it reroots its operation, because `find_rooted_operation` needs a place between the root and the edited node, and a study can be the whole content of a history.
 

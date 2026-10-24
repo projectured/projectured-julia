@@ -219,6 +219,29 @@ function test_research_assistant_api()
             end
         end
 
+        @testset "a study keeps the conversation that wrote it, with the writer of each answer" begin
+            directory = mktempdir()
+            try
+                conversation = ConversationConversation([
+                    ConversationTurn(:user, [ConversationPart("Study the buffer.")]),
+                    ConversationTurn(:assistant, [ConversationPart("Done.")]; backend = :anthropic,
+                                     model = "a-model")])
+                save_study_folder!(make_research_study_document_example(), directory; conversation)
+                @test RESEARCH_CONVERSATION_FILE_NAME in readdir(directory)
+                text = read(joinpath(directory, RESEARCH_CONVERSATION_FILE_NAME), String)
+                @test occursin("User:\nStudy the buffer.", text)
+                @test occursin("Assistant (anthropic, a-model):\nDone.", text)
+                # A conversation file keeps the writer of an answer, and none for the person.
+                loaded = parse_pred_text(print_pred_text(conversation))
+                person, answer = collect(loaded.turns)
+                @test (person.backend, person.model) == (:none, "")
+                @test (answer.backend, answer.model) == (:anthropic, "a-model")
+                @test !occursin("backend = :none", print_pred_text(conversation))
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "a block of the report that no item holds has a file of its own" begin
             directory = mktempdir()
             try
