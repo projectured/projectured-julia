@@ -119,8 +119,16 @@ function _series_x_bounds(s::ChartStripSeries)
 end
 _series_x_bounds(::Any) = nothing
 
-_series_y_bounds(s::ChartLineSeries) = get_column_bounds(s.y)
-_series_y_bounds(s::ChartScatterSeries) = get_column_bounds(s.y)
+_series_y_bounds(s::Union{ChartLineSeries,ChartScatterSeries}) = _join_bounds(
+    get_column_bounds(s.y),
+    s.lower === nothing ? nothing : get_column_bounds(s.lower),
+    s.upper === nothing ? nothing : get_column_bounds(s.upper))
+
+# The bounds that hold every one of `bounds`, a missing one left out.
+function _join_bounds(bounds...)
+    found = filter(b -> b !== nothing, collect(bounds))
+    isempty(found) ? nothing : (minimum(first, found), maximum(last, found))
+end
 # A strip has no y data of its own: which row it occupies depends on the other
 # strips, so the extent is contributed by `_data_bounds` over the whole set.
 _series_y_bounds(::Any) = nothing
@@ -809,6 +817,8 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     color = _draw_color(g, index, s.color)
     pts = _series_points(g, index, s)
     isempty(pts) && return out
+    # A band lies under the line, and a whisker over it.
+    s.interval_style === :band && _interval_band!(out, g, s, color)
 
     if s.draw_style === :pins
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
@@ -823,6 +833,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
                                         dash=_dash_pattern(s.line_style, t)))
     end
 
+    s.interval_style === :whisker && _interval_whiskers!(out, g, s, color)
     shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     # Markers only while they still read as individual points; past that they
     # merge into a smear and the line already carries the shape.
@@ -859,6 +870,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         return out
     end
 
+    _interval_whiskers!(out, g, s, color)
     shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     shape === :none && return out
     seen = Set{Tuple{Int,Int}}()
@@ -872,6 +884,60 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         _marker!(out, shape, px, py, s.symbol_size, color)
     end
     out
+end
+
+# ── Intervals ────────────────────────────────────────────────────────────
+
+# The places of the values of `s` whose interval shows: in the visible window,
+# with a finite value and finite bounds.
+function _interval_indices(g, s)
+    (s.lower === nothing || s.upper === nothing) && return Int[]
+    n = min(length(s.x), length(s.y), length(s.lower), length(s.upper))
+    Int[i for i in 1:n
+        if (x = Float64(s.x[i]); g.view.x_min <= x <= g.view.x_max) &&
+           isfinite(Float64(s.lower[i])) && isfinite(Float64(s.upper[i]))]
+end
+
+# A whisker at each value: a vertical line between the bounds, with a cap at
+# each end. Past the marker limit the whiskers would merge into a smear, so they
+# do not draw.
+function _interval_whiskers!(out, g, s, color)
+    indices = _interval_indices(g, s)
+    (isempty(indices) || length(indices) > g.style.marker_limit) && return out
+    ox, oy = g.plot_x, g.plot_y
+    cap = max(2, s.symbol_size ÷ 2 + 1)
+    for i in indices
+        px = round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox
+        top = round(Int, to_pixel(g.ys, Float64(s.upper[i]))) - oy
+        bottom = round(Int, to_pixel(g.ys, Float64(s.lower[i]))) - oy
+        push!(out, GraphicsLine(px, top, px, bottom; color))
+        push!(out, GraphicsLine(px - cap, top, px + cap, top; color))
+        push!(out, GraphicsLine(px - cap, bottom, px + cap, bottom; color))
+    end
+    out
+end
+
+# A band between the bounds, in the color of the series made lighter.
+function _interval_band!(out, g, s, color)
+    indices = _interval_indices(g, s)
+    length(indices) >= 2 || return out
+    ox, oy = g.plot_x, g.plot_y
+    pixel(i, bound) = (round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox,
+                       round(Int, to_pixel(g.ys, Float64(bound[i]))) - oy)
+    points = vcat([pixel(i, s.upper) for i in indices], [pixel(i, s.lower) for i in reverse(indices)])
+    push!(out, GraphicsPolygon(points; color = StyleColor(color.red, color.green, color.blue, color.alpha * 0.25)))
+    out
+end
+
+# The interval of the value of `s` that draws at the pixel `(px, py)`, or
+# `nothing`: the nearest value along x that has one.
+function _find_interval_at(g, s, px::Integer)
+    (s isa Union{ChartLineSeries,ChartScatterSeries}) || return nothing
+    indices = _interval_indices(g, s)
+    isempty(indices) && return nothing
+    x = to_data(g.xs, px + g.plot_x)
+    nearest = argmin(i -> abs(Float64(s.x[i]) - x), indices)
+    (Float64(s.lower[nearest]), Float64(s.upper[nearest]))
 end
 
 # ── Bars ─────────────────────────────────────────────────────────────────
@@ -1214,6 +1280,10 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",
                    format_tick(to_data(g.ys, py + g.plot_y)))
+    # A value with an interval says it beside the value.
+    interval = _find_interval_at(g, g.chart.series[index], px)
+    interval === nothing ||
+        (label *= string("  [", format_tick(interval[1]), ", ", format_tick(interval[2]), "]"))
     # Flip the readout to the other side of the cursor near the right edge so it
     # is never clipped away by the viewport.
     line = g.measure_label(label)

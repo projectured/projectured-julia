@@ -146,12 +146,23 @@ visible index range instead of scanning the column. `draw_style` is `:none`,
 `:solid`, `:dotted` or `:dashed`. A `nothing` `color` takes the next entry of the
 chart's color cycle.
 
-Use it to draw a value that changes along x: a trend, a measure over time.
+`lower` and `upper` are an interval around each value, such as a confidence
+interval of a mean: columns as long as `y`, or `nothing` for none. A value with
+no interval holds `NaN` in both. `interval_style` says how it draws: `:whisker`,
+a vertical line with caps at each point, or `:band`, a lighter area under the
+line between the two bounds. The range of the y axis holds the intervals.
+
+Use it to draw a value that changes along x: a trend, a measure over time, a
+mean with its interval.
 
 # Example
 
     chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12); symbol = :circle)])
     open_pane!(chart_1; title = "Sales")
+
+    means = [0.10, 0.17, 0.18, 0.14]
+    chart_2 = Chart("Throughput", [ChartLineSeries("pure", [0.1, 0.3, 0.5, 1.0], means;
+                                                   lower = means .- 0.01, upper = means .+ 0.01)])
 
 See also `Chart`, which holds it, and `ChartScatterSeries`.
 """
@@ -167,7 +178,18 @@ See also `Chart`, which holds it, and `ChartScatterSeries`.
     symbol_size::Int = 4
     color::Any = nothing
     visible::Bool = true
+    lower::Any = nothing
+    upper::Any = nothing
+    interval_style::Symbol = :whisker
 end
+
+"""
+    CHART_INTERVAL_STYLES
+
+How the interval of a value of a `ChartLineSeries` draws: `:whisker`, a vertical
+line with caps at each point, and `:band`, a lighter area between the bounds.
+"""
+const CHART_INTERVAL_STYLES = (:whisker, :band)
 
 # The columns positional, the styling by keyword — the shape anyone actually
 # writes. The macro generates either all-positional or all-keyword, never the
@@ -177,15 +199,22 @@ function ChartLineSeries(label::AbstractString, x::AbstractVector, y::AbstractVe
                          sorted::Bool=issorted(x), draw_style::Symbol=:linear,
                          line_style::Symbol=:solid, line_width::Integer=1,
                          symbol::Symbol=:none, symbol_size::Integer=4,
-                         color=nothing, visible::Bool=true)
+                         color=nothing, visible::Bool=true,
+                         lower=nothing, upper=nothing, interval_style::Symbol=:whisker)
+    interval_style in CHART_INTERVAL_STYLES ||
+        throw(ArgumentError("an interval draws as one of $(CHART_INTERVAL_STYLES), not $(repr(interval_style))"))
     ChartLineSeries(String(label), x, y, sorted, draw_style, line_style,
-                    Int(line_width), symbol, Int(symbol_size), color, visible, nothing)
+                    Int(line_width), symbol, Int(symbol_size), color, visible,
+                    lower, upper, interval_style, nothing)
 end
 
 """
 A scatter series over paired `x`/`y` columns: markers only, no connecting line.
 Above the style's `scatter_fold_threshold` visible points the projection folds
 the cloud into a density grid instead of drawing one marker per point.
+
+`lower` and `upper` are an interval around each value, drawn as a whisker at
+each point, as for a `ChartLineSeries`.
 
 Use it to draw a cloud of points: it shows how two measures relate.
 
@@ -204,12 +233,14 @@ See also `Chart`, which holds it, and `ChartLineSeries`.
     symbol_size::Int = 4
     color::Any = nothing
     visible::Bool = true
+    lower::Any = nothing
+    upper::Any = nothing
 end
 
 function ChartScatterSeries(label::AbstractString, x::AbstractVector, y::AbstractVector;
                             symbol::Symbol=:circle, symbol_size::Integer=4,
-                            color=nothing, visible::Bool=true)
-    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, nothing)
+                            color=nothing, visible::Bool=true, lower=nothing, upper=nothing)
+    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, lower, upper, nothing)
 end
 
 """

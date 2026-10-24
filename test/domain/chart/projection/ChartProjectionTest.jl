@@ -450,6 +450,32 @@ function test_chart_projection()
             @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsRect) == 10
         end
 
+        @testset "intervals" begin
+            x = [0.1, 0.5, 1.0]
+            y = [0.08, 0.18, 0.14]
+            lower, upper = y .- 0.01, [0.09, 0.30, 0.15]
+            # A whisker is a stem with two caps at each point.
+            c = Chart("s", [ChartLineSeries("a", x, y; lower, upper)])
+            els = _series_elements(_chart_canvas(c))
+            @test _count_kind(els, GraphicsLine) == 3 * 3
+            @test _count_kind(els, GraphicsPolyline) == 1
+            # The y axis reaches the highest upper bound.
+            @test _chart_y_max(c) >= 0.30
+            # A band is one polygon under the line, and no stem.
+            c = Chart("s", [ChartLineSeries("a", x, y; lower, upper, interval_style = :band)])
+            els = _series_elements(_chart_canvas(c))
+            @test _count_kind(els, GraphicsPolygon) == 1 && _count_kind(els, GraphicsLine) == 0
+            @test findfirst(e -> e isa GraphicsPolygon, els) < findfirst(e -> e isa GraphicsPolyline, els)
+            @test_throws ArgumentError ChartLineSeries("a", x, y; interval_style = :cloud)
+            # A value with no interval, as NaN, draws none.
+            c = Chart("s", [ChartScatterSeries("a", x, y; lower = [NaN, 0.17, 0.13], upper = [NaN, 0.19, 0.15])])
+            @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsLine) == 2 * 3
+            # A chart file keeps the intervals.
+            series = ChartLineSeries("a", x, y; lower, upper, interval_style = :band)
+            loaded = parse_pred_text(print_pred_text(series))
+            @test (loaded.lower, loaded.upper, loaded.interval_style) == (lower, upper, :band)
+        end
+
         @testset "strips" begin
             states = ["IDLE", "BUSY", "DONE"]
             t = collect(0.0:1.0:10.0)
