@@ -188,7 +188,7 @@ the read of the journal of a tree.
 """
 const WORKFLOW_ASSISTANT_API = (
     :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
-    :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
+    :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
     :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_element!,
     :collect_workflow_entries,
 )
@@ -334,6 +334,39 @@ function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothi
         _evaluate_workflow_operation!(editor, node,
             make_add_workflow_entry_operation(get_document(node), entry), "Add an entry")
         node
+    end
+end
+
+"""
+    start_workflow!(title; steps = String[], editor = get_evaluation_editor()) -> ReferencedDocument
+
+Make a new workflow whose goal is `title`, with one open step for each entry of
+`steps`, in order; open it in a tab and add it to the explorer. Answer the
+workflow as the part of the window that the tab shows, which every other verb
+takes.
+
+Use it at the start of work of several stages, before the first of them, so the
+person sees the stages ahead and the one that runs: a study, a port, a release.
+Keep the steps at the level of the stages; mark each `:active` when it starts and
+`:done` when it ends, and add to it what it made with `add_element!`.
+
+# Example
+
+    plan_1 = start_workflow!("A study of the Aloha sample";
+                             steps = ["Read the model", "Run the sweep", "Answer the question"])
+
+See also `add_workflow_step!`, `change_workflow_state!`, `add_element!`.
+"""
+function start_workflow! end
+
+function start_workflow!(title; steps::AbstractVector = String[], editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "start_workflow!") do
+        root = WorkflowStep(title = _make_text(title), state = :active)
+        for step in steps
+            push!(root.children, WorkflowStep(title = _make_text(step)))
+        end
+        evaluate_operation(editor, AddExplorerEntryOperation(root))
+        get_edited_document(open_pane!(root; editor))
     end
 end
 

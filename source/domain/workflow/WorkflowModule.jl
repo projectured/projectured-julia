@@ -34,7 +34,8 @@ export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, Workflo
 export make_add_workflow_entry_operation, make_workflow_entry, make_workflow_state_operation,
        get_next_workflow_state, make_insert_workflow_node_operation, make_delete_workflow_node_operation,
        make_workflow_decision,
-       make_choose_workflow_option_operation, WORKFLOW_ASSISTANT_API, record_workflow_decision!,
+       make_choose_workflow_option_operation, WORKFLOW_ASSISTANT_API, start_workflow!,
+       record_workflow_decision!,
        choose_workflow_option!, reject_workflow_option!, add_workflow_entry!, add_workflow_step!,
        change_workflow_state!, collect_workflow_entries
 export WorkflowTheme, ScaledWorkflowTheme

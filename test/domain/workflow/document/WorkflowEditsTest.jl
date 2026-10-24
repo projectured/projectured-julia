@@ -163,6 +163,24 @@ function test_workflow_edits()
             @test step.elements[end].value == "a note"
         end
 
+        @testset "a workflow that the assistant starts opens with its steps and joins the explorer" begin
+            editor = Editor(PaneTree(PaneGroup(PaneTab[PaneTab("start", PrimitiveString("x"))])),
+                            NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            plan = run_with_evaluation_editor(editor) do
+                start_workflow!("A study of the Aloha sample"; steps = ["Read the model", "Run the sweep"])
+            end
+            root = get_document(plan)
+            @test root isa WorkflowStep && root.state === :active
+            @test root.title.value == "A study of the Aloha sample"
+            @test [child.title.value for child in root.children] == ["Read the model", "Run the sweep"]
+            @test all(child -> child.state === :open, root.children)
+            entries = get_session_explorer_content(; editor).entries
+            @test any(entry -> get_document(entry) === root, entries)
+            @test find_pane("A study of the Aloha sample"; editor) !== nothing
+            @test :start_workflow! in WORKFLOW_ASSISTANT_API
+        end
+
         @testset "a verb answers a node as a referenced document when it gets one" begin
             workflow = make_workflow_document_example()
             editor = _WorkflowTestEditor(workflow)
