@@ -28,7 +28,8 @@ WidgetChoice(label::AbstractString; value = label, icon = nothing, note = nothin
 
 """
     WidgetChoiceList(; query = "", row = 1, current = nothing, prompt = "Find",
-                     placeholder = "type a name", empty = "Nothing matches", find, choose)
+                     placeholder = "type a name", empty = "Nothing matches", find, choose,
+                     edit = nothing)
 
 A list that a person types into: a line of the typed text over the choices that
 the text narrows to.
@@ -39,6 +40,9 @@ the text narrows to.
   after it while nothing is typed; `empty` is the row of a list with no choice.
 - `find(query)` gives the choices, a vector of [`WidgetChoice`](@ref).
 - `choose(value)` gives the operation of a choice, or `nothing` for none.
+- `edit(query)` gives the edit of the part that the list belongs to that the
+  typed text makes, such as the text of the field that the list opened under, or
+  `nothing` for none; `edit` itself is `nothing` for a list that edits no part.
 
 Typing narrows the list, Backspace removes the last character, Up and Down move
 the row, and Return chooses it. It is view state of a popup: an undo records no
@@ -55,9 +59,33 @@ See also `make_choice_list_operation`, which opens one in the context menu windo
     empty::String = "Nothing matches"
     find::Any = query -> WidgetChoice[]
     choose::Any = value -> nothing
+    edit::Any = nothing
 end
 
 is_walk_opaque(::WidgetChoiceList) = true
+
+"""
+    make_insertion_choice(type) -> WidgetChoice
+
+The row of a kind of document in a list of kinds: its shortest name, an alias
+such as "code" when its domain gives one, the icon of the kind
+(`get_insertion_icon`), and the first sentence of its docstring as the note. The
+value of the row is `type`.
+"""
+function make_insertion_choice(type::Type)
+    names = get_insertion_names(type)
+    aliases = get_insertion_aliases(type)
+    label = isempty(aliases) ? names[min(2, length(names))] : first(aliases)
+    note = _cut_choice_note(compute_docstring_summary(type))
+    WidgetChoice(uppercasefirst(label); value = type, icon = get_insertion_icon(type),
+                 note = isempty(note) ? nothing : note)
+end
+
+# The first sentence of `text`, at most 60 characters.
+function _cut_choice_note(text::AbstractString)
+    sentence = first(split(text, r"(?<=\.)\s"; limit = 2))
+    length(sentence) <= 60 ? String(sentence) : String(first(sentence, 59)) * "…"
+end
 
 """
     make_choice_list_operation(title, list; point = nothing) -> Operation
@@ -129,7 +157,7 @@ function _read_choice_key(list::WidgetChoiceList, key::KeyDown)
     key.key === :up && return _write_choice_list(list; row = max(1, list.row - 1))
     key.key === :down &&
         return _write_choice_list(list; row = max(1, min(length(list.find(list.query)), list.row + 1)))
-    key.key === :backspace && return _write_choice_list(list; query = String(chop(list.query)), row = 1)
+    key.key === :backspace && return _type_choice_list(list, String(chop(list.query)))
     DoNothingOperation()
 end
 
@@ -139,7 +167,15 @@ function _read_choice_key(list::WidgetChoiceList, key::KeyPress)
         (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
         return key.char == '\n' ? _choose_choice_row(list) : DoNothingOperation()
     end
-    _write_choice_list(list; query = list.query * key.char, row = 1)
+    _type_choice_list(list, list.query * key.char)
+end
+
+# The typed text of the list, which narrows it to its first row, and the edit of
+# the part that the text makes.
+function _type_choice_list(list::WidgetChoiceList, query::String)
+    write = _write_choice_list(list; query, row = 1)
+    edited = list.edit === nothing ? nothing : list.edit(query)
+    edited === nothing ? write : CompoundOperation(Any[write, EditMenuPartOperation(edited, "Type")])
 end
 
 # The writes of the list, as view state.

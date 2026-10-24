@@ -608,7 +608,7 @@ generic behaviour updates the design document of that slice in the same commit.
 - [x] **6. The choice list (G4).** It moves into the widget slice; the navigator uses it.
   Test: the navigator tests of `test_platform()` pass unchanged, and a new test types
   into a list of three rows.
-- [ ] **7. The insertion with a popup (G5, G6, D4, D5, D6).** The word match and its rank,
+- [x] **7. The insertion with a popup (G5, G6, D4, D5, D6).** The word match and its rank,
   the trait filter, the icon and the note of a type, the popup option, Escape in a list,
   the trait on the documents of D6. The explorer Insert types and filters. Test:
   `test_document_insertion()`: "ch" finds Chart and Sequence chart in that order; Enter
@@ -673,8 +673,18 @@ implementation, one commit for a group of steps that share files.
   has no continuation. `find_insertion_choices` ranks the whole-name matches first.
   `get_insertion_icon` and `is_element_type` are the traits of G5 and G6, and an
   empty `DocumentInsertion` shows "Type a kind", which goes at the first key, as the
-  owner asked. Open: the popup option of `InsertionToSyntaxLeaf` for the Insert of
-  the explorer, of a dashboard and Ctrl+T (D5), and Escape in a list. The umbrella
+  owner asked. The popup option of D5 is `popup` of `InsertionToSyntaxLeaf`, on in
+  `DocumentInsertionToSyntaxLeaf`: a key that types text opens a `WidgetChoiceList`
+  of the kinds that the text names under the field, in the context menu window,
+  and the next keys go to the list, whose new `edit` writes the text of the field
+  as the person types. Return puts a new document of the kind of the row in place
+  of the insertion, and Escape closes the list and keeps the field; a second
+  Escape cancels the insertion, which removes an element. So the add of an
+  element, the "Other document" of an explorer, a new card of a dashboard and an
+  empty tab show the list, and a domain insertion typed in place shows none. The
+  row of a kind is `make_insertion_choice` of the widget slice, which the list of
+  the kinds of an element shares, and the syntax slice uses the widget slice for
+  it. The umbrella
   tests of the insertion are updated for the new text but could not run here: the
   umbrella needs `AutoIntegration.jl`, which this container does not hold.
 - **Step 8.** The trait is `get_view_state_fields(T)` of the kernel, with
@@ -783,8 +793,8 @@ implementation, one commit for a group of steps that share files.
   lit yet, because the pointer leaves the window of the row when the menu window
   opens. "Paste as an element" in the menu of a row needs the menu to read the
   clipboard when it opens, which the clipboard slice does not offer to a builder of
-  a menu; a paste (Ctrl+V) on a row adds the document as an element. The popup
-  option of `InsertionToSyntaxLeaf` (G5, D5) is not built.
+  a menu; a paste (Ctrl+V) on a row adds the document as an element. The owner
+  set both aside on 2026-10-24 as not important.
 
 ## 11. Not in this plan
 

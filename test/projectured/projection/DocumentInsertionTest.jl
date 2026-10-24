@@ -274,10 +274,13 @@ function test_document_insertion()
             proj = DocumentInsertionToSyntaxLeaf()
             iom = print_document(proj, proj, ins, nothing)
 
-            # A printable key edits the value.
+            # A printable key edits the value, and opens the list of the kinds that
+            # the text after it names under the field.
             op = read_intent(proj, iom, KeyPress('a'; time = 0.0))
-            @test op isa ReplaceStringRangeOperation
-            evaluate_operation((document = ins,), op)
+            @test op isa CompoundOperation && op.operations[1] isa ReplaceStringRangeOperation
+            @test op.operations[2].operation isa OpenContextMenuOperation
+            @test op.operations[2].operation.layers[1][2].query == "julia"
+            evaluate_operation((document = ins,), op.operations[1])
             @test ins.value == "julia"
 
             # Enter commits via the factory → a JuliaInsertion.

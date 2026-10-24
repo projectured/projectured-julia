@@ -47,6 +47,7 @@ using ..ReferenceModule
 using ..SelectionModule
 using ..StyleModule
 using ..TextModule
+using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!

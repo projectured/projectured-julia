@@ -261,5 +261,33 @@ end
     @test (window.x, window.y) == (100, 100 + height + 2)
 end
 
+@testset "the first key of an insertion opens its kinds under it, the next keys type into them, and Return makes one" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    editor, backend, scene = _cm_editor(insertion; projection = NaturalToGraphics(; measure = _cm_measure()))
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test insertion.value == "t"
+    list = only(_cm_menus(scene)).content
+    @test list isa WidgetChoiceList && list.query == "t"
+    # The next key goes to the list, which writes the field too.
+    _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
+    @test list.query == "te"
+    @test insertion.value == "te"
+    expected = list.find("te")
+    @test !isempty(expected)
+    _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))
+    @test isempty(_cm_menus(scene))
+    @test scene.windows[1].content isa expected[1].value
+end
+
+@testset "Escape closes the kinds of an insertion and keeps its text" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    editor, backend, scene = _cm_editor(insertion; projection = NaturalToGraphics(; measure = _cm_measure()))
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test length(_cm_menus(scene)) == 1
+    _cm_send!(editor, backend, KeyDown(:escape, ModifierKeys(); time = 1.1))
+    @test isempty(_cm_menus(scene))
+    @test scene.windows[1].content === insertion && insertion.value == "t"
+end
+
 end # @testset
 end # function

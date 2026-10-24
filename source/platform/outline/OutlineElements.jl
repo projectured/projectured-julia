@@ -88,27 +88,10 @@ summary of the docstring of each kind as its note. A choice adds the document
 that `make_insertion_document` makes of the kind.
 """
 function make_element_choice_list(holder; place::Type = Any)
-    find = query -> WidgetChoice[_make_element_choice(T)
+    find = query -> WidgetChoice[make_insertion_choice(T)
                                  for T in find_insertion_choices(Document, query; place, include = is_element_type)]
     WidgetChoiceList(; prompt = "Add", placeholder = "type a kind", empty = "No kind matches", find,
                      choose = T -> make_add_element_operation(holder, make_insertion_document(T)))
-end
-
-# The row of the kind `T`: its shortest name, its icon, and the summary of its
-# docstring, cut to a short note.
-function _make_element_choice(T::Type)
-    names = get_insertion_names(T)
-    aliases = get_insertion_aliases(T)
-    label = isempty(aliases) ? names[min(2, length(names))] : first(aliases)
-    note = _cut_note(compute_docstring_summary(T))
-    WidgetChoice(uppercasefirst(label); value = T, icon = get_insertion_icon(T),
-                 note = isempty(note) ? nothing : note)
-end
-
-# The first sentence of `text`, at most 60 characters.
-function _cut_note(text::AbstractString)
-    sentence = first(split(text, r"(?<=\.)\s"; limit = 2))
-    length(sentence) <= 60 ? String(sentence) : String(first(sentence, 59)) * "…"
 end
 
 """

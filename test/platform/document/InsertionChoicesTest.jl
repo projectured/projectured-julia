@@ -29,5 +29,46 @@ function test_insertion_choices()
     @testset "an empty insertion shows a pale text that names what it takes" begin
         @test DOCUMENT_INSERTION_PLACEHOLDER == "Type a kind"
     end
+
+    @testset "the first key of an insertion opens the list of the kinds it names, which the next keys type into" begin
+        leaf = DocumentInsertionToSyntaxLeaf()
+        insertion = with_value_caret(DocumentInsertion(""), 0)
+        iomap = print_document(leaf, nothing, insertion, PrinterContext())
+        answer = read_intent(leaf, iomap, KeyPress('c'; time = 0.0))
+        @test answer isa CompoundOperation
+        typed, opened = answer.operations
+        @test typed isa ReplaceStringRangeOperation && typed.replacement == "c"
+        @test opened isa ReplaceViewStateOperation && opened.operation isa OpenContextMenuOperation
+        list = opened.operation.layers[1][2]
+        @test list isa WidgetChoiceList && list.query == "c"
+        # The rows are the kinds that the text names, the whole-name matches first.
+        @test [choice.value for choice in list.find("c")] == first(find_insertion_choices(Document, "c"), 12)
+        @test all(choice -> !isempty(choice.label), list.find("c"))
+        # A key in the list narrows it and writes the text of the field.
+        insertion.value = "c"
+        choice_projection = WidgetChoiceListToWidget()
+        listed = print_document(choice_projection, nothing, list, PrinterContext())
+        read_list(gesture) = read_intent(choice_projection, nothing, Intent(gesture), listed).operation
+        narrowed = read_list(KeyPress('h'; time = 0.0))
+        @test narrowed isa CompoundOperation
+        edited = narrowed.operations[2]
+        @test edited isa EditMenuPartOperation
+        @test edited.operation isa ReplaceStringRangeOperation && edited.operation.replacement == "ch"
+        @test string(edited.operation.reference) == ".value[1]"
+        evaluate_operation(nothing, narrowed.operations[1])
+        @test list.query == "ch"
+        # Return makes a document of the kind of the first row in place of the insertion.
+        found = list.find("ch")
+        if !isempty(found)
+            chosen = read_list(KeyPress('\n'; time = 0.0))
+            made = chosen.operations[1].operation
+            @test made.operations[1].value isa found[1].value
+        end
+        # An insertion of a domain, which a person types in place, opens no list.
+        domain = DomainInsertionToSyntaxLeaf(TextDocument)
+        text = with_value_caret(TextInsertion(""), 0)
+        @test read_intent(domain, print_document(domain, nothing, text, PrinterContext()),
+                          KeyPress('b'; time = 0.0)) isa ReplaceStringRangeOperation
+    end
 end
 end

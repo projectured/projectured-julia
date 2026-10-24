@@ -33,6 +33,7 @@ using ..ScreenModule
 using ..SelectionModule
 using ..StyleModule
 using ..TextModule
+using ..ToolModule
 using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -106,7 +107,8 @@ export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        wrap_context_menu_window
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
-export WidgetChoice, WidgetChoiceList, make_choice_list_operation, WidgetChoiceListToWidget
+export WidgetChoice, WidgetChoiceList, make_insertion_choice, make_choice_list_operation,
+       WidgetChoiceListToWidget
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,

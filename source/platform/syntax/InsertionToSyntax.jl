@@ -22,7 +22,12 @@
 #   inverse of the placeholder's Insert gesture, or to what the option `cancel`
 #   gives;
 # - with the option `commit_at_key`, a key whose text names a document replaces
-#   the insertion with it at once, with the caret where the key left it.
+#   the insertion with it at once, with the caret where the key left it;
+# - with the option `popup`, the first key opens the list of the kinds that the
+#   typed text names under the field, a `WidgetChoiceList` in the context menu
+#   window. The next keys type into the list, which writes the text of the field
+#   too; Up and Down move its row, Return makes the kind of the row, and Escape
+#   closes the list and keeps the field.
 #
 # The candidates, names (`JsonString` / `json string`, prefix-free inside a
 # domain scope), and constructors all come from `DomainModule`'s
@@ -52,6 +57,9 @@ struct InsertionToSyntaxLeaf <: Projection
     # `nothing`, or (ins) -> Document: what Escape puts in place of the insertion;
     # `nothing` puts the empty document of its domain.
     cancel::Any
+    # Whether the first key opens the list of the kinds that the typed text names
+    # under the field, which the next keys type into (`_make_insertion_popup_operation`).
+    popup::Bool
     # The label (prefix/suffix), the editable value, and the completion hint
     # share a font but are coloured distinctly, so each is its own StyleText.
     # The value's colour is only the *neutral* (`:empty`) colour — a non-empty
@@ -78,10 +86,10 @@ end
 
 function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
                                completion = name_completion, commit_at_key = nothing,
-                               cancel = nothing, theme = nothing,
+                               cancel = nothing, popup::Bool = false, theme = nothing,
                                label = nothing, value = nothing, hint = nothing,
                                placeholder::Union{Nothing,AbstractString,Function} = nothing)
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel,
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel, popup,
                           something(label, get_syntax_style(theme, :label_text)),
                           something(value, get_syntax_style(theme, :typed_text)),
                           something(hint, get_syntax_style(theme, :hint_text)),
@@ -92,7 +100,7 @@ function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::Abst
 end
 
 _with_insertion_place(p::InsertionToSyntaxLeaf, place) =
-    InsertionToSyntaxLeaf(p.prefix, p.suffix, p.commit, p.completion, p.commit_at_key, p.cancel,
+    InsertionToSyntaxLeaf(p.prefix, p.suffix, p.commit, p.completion, p.commit_at_key, p.cancel, p.popup,
                           p.label, p.value, p.hint, p.wrong_color, p.found_color, p.placeholder,
                           place)
 
@@ -276,7 +284,8 @@ end
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     mapped = map_reference_backward(p, iomap, op.reference)
     mapped === nothing && return nothing
-    _make_insertion_key_operation(p, iomap.input, ReplaceStringRangeOperation(mapped, op.replacement))
+    _add_insertion_popup(p, iomap.input,
+                         _make_insertion_key_operation(p, iomap.input, ReplaceStringRangeOperation(mapped, op.replacement)))
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
@@ -318,8 +327,7 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
                        description = "Delete forward", domain = "insertion"),
         # A type-in holds one line, so it takes printable text only.
         GestureBinding(KeyPressPattern(nothing; guard = event -> !any(iscntrl, event.text)),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           insert_insertion_text_operation(ins, event.text));
+                       (doc, event) -> _make_insertion_typed_operation(p, ins, event.text);
                        description = "Insert character", domain = "insertion"),
         # Insert widens the insertion of a domain to the insertion of every domain, with
         # the same text, where the place admits a `DocumentInsertion` as it is: a
@@ -370,6 +378,42 @@ function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
     document = p.commit_at_key(ins, text, range.start + length(operation.replacement))
     document === nothing ? operation :
         make_replace_document_operation(EmptyReference(), document)
+end
+
+# A typed key: the edit of the text, with the list of the kinds that it names.
+_make_insertion_typed_operation(p::InsertionToSyntaxLeaf, ins, text::AbstractString) =
+    _add_insertion_popup(p, ins, _make_insertion_key_operation(p, ins, insert_insertion_text_operation(ins, text)))
+
+# `operation`, an edit of the text of `ins`, and with the option `popup`, when the
+# edit types text, the list of the kinds that the text after the edit names, which
+# opens under the field.
+function _add_insertion_popup(p::InsertionToSyntaxLeaf, ins, operation)
+    (p.popup && operation isa ReplaceStringRangeOperation && !isempty(operation.replacement)) ||
+        return operation
+    range = find_value_range(operation.reference)
+    range === nothing && return operation
+    typed = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
+    CompoundOperation(Any[operation, _make_insertion_popup_operation(p, ins, typed)])
+end
+
+"The most kinds that the list of an insertion shows; more typed text narrows it."
+const _INSERTION_POPUP_ROWS = 12
+
+# The list of the kinds that `typed` names in the place of the insertion, the
+# whole-name matches first, which opens under the field. Its typed text writes the
+# text of the field, and a choice puts a new document of its kind in place of the
+# insertion.
+function _make_insertion_popup_operation(p::InsertionToSyntaxLeaf, ins, typed::AbstractString)
+    root = get_insertion_root(typeof(ins))
+    place = _get_insertion_place(p)
+    find = query -> WidgetChoice[make_insertion_choice(T)
+                                 for T in first(find_insertion_choices(root, query; place), _INSERTION_POPUP_ROWS)]
+    choose = T -> make_replace_document_operation(EmptyReference(), make_insertion_document(T))
+    edit = query -> ReplaceStringRangeOperation(
+        _value_path(RangeReferenceStep(0, length(something(ins.value, "")))), query)
+    list = WidgetChoiceList(; query = String(typed), prompt = "Kind", placeholder = "type a kind",
+                            empty = "No kind matches", find, choose, edit)
+    make_choice_list_operation("Kinds", list)
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret
@@ -449,12 +493,13 @@ default_completion(name::AbstractString) =
 
 The domain-independent insertion: the typed name of a kind, committing via
 `default_factory` (type a domain name + Enter). An empty buffer shows "Type a kind",
-pale, which goes at the first key. `theme` is a `SyntaxTheme`, a scaled one, or
-`nothing` for the default styles.
+pale, which goes at the first key, and the first key opens the list of the kinds
+that the text names under the field (the option `popup`). `theme` is a
+`SyntaxTheme`, a scaled one, or `nothing` for the default styles.
 """
 DocumentInsertionToSyntaxLeaf(; theme = nothing) =
     InsertionToSyntaxLeaf((ins, text, place::Type = Any) -> default_factory(text; place);
-                          placeholder = DOCUMENT_INSERTION_PLACEHOLDER, theme)
+                          placeholder = DOCUMENT_INSERTION_PLACEHOLDER, popup = true, theme)
 
 """
     DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing,
