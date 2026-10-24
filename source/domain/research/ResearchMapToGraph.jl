@@ -186,9 +186,13 @@ function make_research_map_projection(; measure, theme = nothing, outline_theme 
         WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
     part = ChainingProjection(ResearchMapPartToWidget(; outline = make_theme_values_field(OutlineTheme, outline_theme)),
                               widgets)
+    drawing = GraphLayoutToGraphicsCanvas()
+    # The drawing paints the box and the ring of a vertex outside its place, so the
+    # layout leaves that much room at the top and the left edge of the map.
+    style = unwrap_cell(drawing.style)
+    border = round(Int, style.node_padding + style.highlight_gap + style.highlight_width)
     ChainingProjection(ResearchMapToGraph(),
-                       NestingProjection(ChainingProjection(GraphGraphToGraphLayout(engine),
-                                                            GraphLayoutToGraphicsCanvas());
+                       NestingProjection(ChainingProjection(GraphGraphToGraphLayout(engine; border), drawing);
                                          recursion = part))
 end
 
