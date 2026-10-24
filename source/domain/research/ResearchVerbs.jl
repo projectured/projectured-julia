@@ -343,35 +343,63 @@ function get_expectation_bounds(expectation::ResearchExpectation)
     minmax(value * (1 - tolerance), value * (1 + tolerance))
 end
 
-# The evidence of one check: what the read gave, against the bounds, for `hypothesis`.
-function _make_check_evidence(study, hypothesis, values, (lower, upper))
+# The evidence of one check: what the read gave, against the bounds, for
+# `hypothesis`. `values` are `label => value` pairs, a label `nothing` when the
+# read gave a bare number, and `basis` is the result that the check read, or
+# `nothing`.
+function _make_check_evidence(study, hypothesis, values, (lower, upper), basis = nothing)
     bounds = "[" * (lower === nothing ? "-∞" : string(lower)) * ", " *
              (upper === nothing ? "∞" : string(upper)) * "]"
+    basis_items = basis === nothing ? Any[] : Any[basis]
     if isempty(values)
-        return make_research_item(study, ResearchEvidence; author = :assistant,
+        return make_research_item(study, ResearchEvidence; author = :assistant, basis = basis_items,
             statement = "The check of " * hypothesis.id * " read no value.")
     end
-    holds = all(values) do value
-        (lower === nothing || value >= lower) && (upper === nothing || value <= upper)
-    end
-    mean = sum(values) / length(values)
+    is_inside(value) = (lower === nothing || value >= lower) && (upper === nothing || value <= upper)
+    outside = filter(pair -> !is_inside(last(pair)), values)
+    holds = isempty(outside)
+    mean = sum(last, values) / length(values)
     statement = "The check of " * hypothesis.id * " read " * string(length(values)) *
                 (length(values) == 1 ? " value" : " values") * " with the mean " * string(mean) *
                 "; " * (holds ? "every value is" : "not every value is") * " in " * bounds * "."
-    make_research_item(study, ResearchEvidence; author = :assistant, statement,
+    labelled = filter(pair -> first(pair) !== nothing, outside)
+    isempty(labelled) ||
+        (statement *= " Outside: " * join((string(first(pair), ": ", last(pair)) for pair in labelled), "; ") * ".")
+    make_research_item(study, ResearchEvidence; author = :assistant, statement, basis = basis_items,
                        supports = holds ? Any[hypothesis] : Any[],
                        opposes = holds ? Any[] : Any[hypothesis])
 end
+
+# What a check reads for an expectation whose selection is `selection`: the
+# selection itself, or the content of a result of the study, which also becomes
+# the basis of the evidence. A result is the item, or a string that is its id; a
+# string that names no result is a selection like any other.
+function _resolve_check_selection(study::ResearchStudy, selection)
+    selection isa AbstractString && (item = find_study_item(study, selection); item isa ResearchResult) &&
+        (selection = item)
+    selection isa ResearchResult ? (selection.content, selection) : (selection, nothing)
+end
+
+# The values that a read answered, as `label => value` pairs: a read answers
+# numbers, or pairs whose first is the label of the value, such as `"G = 2" => 0.031`.
+_make_check_value(value::Pair) = first(value) => Float64(last(value))
+_make_check_value(value) = nothing => Float64(value)
 
 """
     check_predictions!(study, read; editor = get_evaluation_editor()) -> Vector
 
 Check each hypothesis of `study` whose prediction is a `ResearchExpectation`:
-`read(selection)` answers the values that the expectation names, as numbers, and
-every value must lie in its bounds. Each check adds evidence that supports the
-hypothesis when every value is in the bounds, opposes it when one is not, and only
-says so when the read gave no value. The expectation keeps no status, so the study
-keeps every check. Answer the new evidence.
+`read(selection)` answers the values that the expectation names, and every value
+must lie in its bounds. Each check adds evidence that supports the hypothesis
+when every value is in the bounds, opposes it when one is not, and only says so
+when the read gave no value. The expectation keeps no status, so the study keeps
+every check. Answer the new evidence.
+
+The selection of an expectation may be a result of the study, or the id of one:
+the check then reads the content of the result, and the evidence holds the result
+in its basis, so a person follows the link from the hypothesis to what was read.
+`read` answers numbers, or `label => value` pairs, and the evidence names each
+labelled value that lies outside the bounds.
 
 Use it after the runs, to hold the results against what the hypotheses predicted.
 
@@ -391,13 +419,14 @@ function check_predictions!(study, read; editor = get_evaluation_editor())
         checks = Any[]
         for hypothesis in collect(document.hypotheses)
             hypothesis.prediction isa ResearchExpectation || continue
-            selection = hypothesis.prediction.result_selection
-            values = selection === nothing ? Float64[] : Float64[Float64(v) for v in read(selection)]
-            push!(checks, (hypothesis, values, get_expectation_bounds(hypothesis.prediction)))
+            selection, basis = _resolve_check_selection(document, hypothesis.prediction.result_selection)
+            values = selection === nothing ? Pair{Any,Float64}[] :
+                     Pair{Any,Float64}[_make_check_value(v) for v in read(selection)]
+            push!(checks, (hypothesis, values, get_expectation_bounds(hypothesis.prediction), basis))
         end
         added = Any[]
-        for (hypothesis, values, bounds) in checks
-            evidence = _make_check_evidence(document, hypothesis, values, bounds)
+        for (hypothesis, values, bounds, basis) in checks
+            evidence = _make_check_evidence(document, hypothesis, values, bounds, basis)
             _evaluate_research_operation!(editor, study, :evidence,
                                           make_add_research_item_operation(document, evidence),
                                           "Check " * hypothesis.id)

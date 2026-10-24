@@ -109,6 +109,34 @@ function test_research_assistant_api()
             @test length(study.evidence) == before
         end
 
+        @testset "a check of a result holds the result and names a labelled value outside" begin
+            study = ResearchStudy()
+            result = make_research_item(study, ResearchResult; title = PrimitiveString("The summary"),
+                                        content = PrimitiveString("the summary of the sweep"))
+            evaluate_operation(nothing, make_add_research_item_operation(study, result))
+            by_item = make_research_item(study, ResearchHypothesis; statement = "The peak is near 0.18.",
+                prediction = ResearchExpectation(result_selection = result, lower = 0.17, upper = 0.19))
+            by_id = make_research_item(study, ResearchHypothesis; statement = "Every mean is under 0.19.",
+                prediction = ResearchExpectation(result_selection = result.id, upper = 0.19))
+            evaluate_operation(nothing, make_add_research_item_operation(study, by_item))
+            evaluate_operation(nothing, make_add_research_item_operation(study, by_id))
+            seen = Any[]
+            read(selection) = (push!(seen, selection); ["G = 0.5" => 0.184, "G = 2" => 0.2])
+            added = check_predictions!(study, read; editor = nothing)
+            # Both read the content of the result, and hold the result.
+            @test all(selection -> selection === result.content, seen)
+            @test all(evidence -> only(evidence.basis) === result, added)
+            @test all(evidence -> evidence.opposes[1] isa ResearchHypothesis, added)
+            @test occursin("Outside: G = 2: 0.2.", added[1].statement.value)
+            # A string that names no result is a selection like any other.
+            plain = make_research_item(study, ResearchHypothesis; statement = "A plain one.",
+                prediction = ResearchExpectation(result_selection = "drop rate", upper = 1.0))
+            evaluate_operation(nothing, make_add_research_item_operation(study, plain))
+            empty!(seen)
+            check_predictions!(study, selection -> (push!(seen, selection); [0.5]); editor = nothing)
+            @test "drop rate" in seen
+        end
+
         @testset "the bounds of an expectation follow its reference" begin
             study = make_research_study_document_example()
             sheet = study.analyses[1].method
