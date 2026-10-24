@@ -102,8 +102,8 @@ export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
 export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
        TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
-       get_task_output, wait_for_task_group!, stop_tasks!, rerun_tasks!, close_task_group!,
-       make_task_api
+       get_task_output, wait_for_task_group!, wait_for_tasks!, is_task_group_running, stop_tasks!,
+       rerun_tasks!, close_task_group!, make_task_api
 
 include("TaskResult.jl")
 include("TaskExecution.jl")

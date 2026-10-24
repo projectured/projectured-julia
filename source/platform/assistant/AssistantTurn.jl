@@ -175,6 +175,8 @@ end
 # The fence names the document's own natural extension, so a domain says what it
 # is called rather than this file listing them.
 _block_text(c::TextBlock) = _content_to_string(c)
+# A note is the editor's line, and the model reads it as it reads the person.
+_block_text(c::ConversationNote) = c.text
 function _block_text(c)
     extension = get_natural_extension(c)
     extension === nothing && return _content_to_string(c)
@@ -693,8 +695,10 @@ function _emit_assistant_turn!(out, parts)
     for part in parts
         c = part.content
         # A request for the person is no content of the model: the answer to a
-        # question reaches the model in the result of its tool.
-        c isa Union{ConversationQuestionRequest,ConversationPermissionRequest,ConversationSignInRequest} && continue
+        # question reaches the model in the result of its tool. A note under an
+        # answer is the editor's line to the person, not the model's text.
+        c isa Union{ConversationQuestionRequest,ConversationPermissionRequest,ConversationSignInRequest,
+                    ConversationNote} && continue
         if c isa EvaluatorForm
             push!(evals, c)
             prev_was_eval = true
@@ -739,6 +743,8 @@ function format_conversation(conversation::ConversationConversation)
                 println(io, "= ", _eval_result(c))
             elseif c isa ConversationThinking
                 println(io, "∴ ", c.redacted ? "[redacted thinking]" : _content_to_string(c.text))
+            elseif c isa ConversationNote
+                println(io, "※ ", c.text)
             else
                 println(io, _block_text(c))
             end
@@ -753,9 +759,9 @@ end
 
 Write the assistant's chat history to `path` as a readable transcript (the same
 rendering as `format_conversation`: `Role:` headers, prose / fenced source
-blocks, `> code` / `= result` for tool calls, `∴` for thinking). Accepts a
-`Assistant` (uses its `.conversation`) or a `ConversationConversation`
-directly. Returns `path`.
+blocks, `> code` / `= result` for tool calls, `∴` for thinking, `※` for a
+note of the editor). Accepts a `Assistant` (uses its `.conversation`) or a
+`ConversationConversation` directly. Returns `path`.
 """
 write_conversation(a::Assistant, path::AbstractString) =
     write_conversation(a.conversation, path)
@@ -883,7 +889,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # a turn that can not read its conversation in time fails with a message, and
     # nothing that it streamed is lost.
     try
-        agent = Agent(llm, set; system, thinking = true)
+        agent = Agent(llm, set; system, thinking = true, max_rounds = a.max_rounds)
         stop_reason = try
             run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
                 on_stop = _make_turn_stop_step(editor, a),
@@ -1000,8 +1006,35 @@ end
 # A turn ends with its stop reason and the time of its end. A turn that produced
 # nothing (an immediate stop, or an error before any content) is dropped, so it
 # does not render as a bare "assistant:" line.
-_finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol) =
+# A turn that used its budget of rounds ends with a note that says so, and the
+# button of the note tells the model to go on.
+function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
+    stop_reason === :round_limit &&
+        push!(turn.parts, Cell(ConversationPart(_make_round_limit_note(a))))
     _finish_turn!(a.conversation, turn, stop_reason)
+end
+
+# What the button under a turn that used its rounds sends as the person.
+const GO_ON_PROMPT = "Go on."
+
+_make_round_limit_note(a::Assistant) =
+    ConversationNote("The turn reached its " * string(a.max_rounds) * " rounds.";
+                     kind = :round_limit, action_label = "Go on",
+                     action = editor -> send_go_on!(editor, a))
+
+"""
+    send_go_on!(editor, assistant) -> nothing
+
+Send "Go on." to `assistant` as the person, and start a turn with it. It does
+nothing while a turn runs. The note under a turn that used its rounds calls it.
+"""
+function send_go_on!(editor, a::Assistant)
+    is_assistant_turn_running(a) && return nothing
+    turn = _make_instant_turn(:user, [ConversationPart(GO_ON_PROMPT)])
+    push!(a.conversation.turns, turn)
+    _send_user_turn!(editor, a, turn)
+    nothing
+end
 
 function _finish_turn!(conversation::ConversationConversation, turn::ConversationTurn,
                        stop_reason::Symbol)

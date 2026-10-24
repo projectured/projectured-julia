@@ -183,6 +183,46 @@ function make_pred_document(::Type{<:ConversationSignInRequest}, positional, key
     request
 end
 
+# ── ConversationNote ──────────────────────────────────────────────────────────
+
+"""
+    ConversationNote(text; kind = :note, action_label = "", action = nothing)
+
+A quiet line that the editor writes into a turn, neither the person nor the
+model: why a turn ended before the model was done, or why the assistant started
+a turn that no person asked for. `kind` names the cause: `:round_limit` when a
+turn used its budget of rounds, `:wake` when a task group that the assistant
+started ended, and `:note` for any other line.
+
+`action_label` and `action` give the line one button: `action(editor)` runs when
+a person presses it, such as the one that tells the model to go on. `action` is a
+live function and no data, so a note that a `.pred` file read back has no
+button.
+
+Use it to tell the person, in the transcript, what the editor did on its own.
+
+# Example
+
+    note_1 = ConversationNote("The turn reached its 40 rounds."; kind = :round_limit)
+
+See also `ConversationTurn`, `ConversationPart`.
+"""
+@document struct ConversationNote <: ConversationDocument
+    text::String
+    kind::Symbol
+    action_label::String
+    action::Any
+end
+
+ConversationNote(text::AbstractString; kind::Symbol = :note, action_label::AbstractString = "",
+                 action = nothing) =
+    ConversationNote(Cell(String(text)), Cell(kind), Cell(String(action_label)), Cell(action), Cell(nothing))
+
+pred_arguments(note::ConversationNote) = (note.text,), Pair{Symbol,Any}[:kind => note.kind]
+
+make_pred_document(::Type{<:ConversationNote}, positional, keywords) =
+    ConversationNote(positional[1]; kind = get(Dict{Symbol,Any}(keywords), :kind, :note))
+
 # ── ConversationQuestionRequest ───────────────────────────────────────────────
 
 """
@@ -367,6 +407,15 @@ ConversationTurn(role::Symbol, parts::Vector; kwargs...) =
 # Convenience: a user/assistant turn from a single string or content document.
 user_turn(content) = ConversationTurn(:user, [ConversationPart(content)])
 assistant_turn(content) = ConversationTurn(:assistant, [ConversationPart(content)])
+
+"""
+    is_note_turn(turn) -> Bool
+
+Whether every part of `turn` is a `ConversationNote`: a turn that the editor
+wrote, such as the one that wakes the assistant when its runs end.
+"""
+is_note_turn(turn::ConversationTurn) =
+    !isempty(turn.parts) && all(part -> part.content isa ConversationNote, turn.parts)
 
 # ── ConversationConversation ──────────────────────────────────────────────────
 

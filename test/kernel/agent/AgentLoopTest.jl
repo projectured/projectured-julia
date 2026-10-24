@@ -204,8 +204,8 @@ function test_agent_loop()
         @test isempty(_get_agent_tool_results(events))
     end
 
-    # The answer is the stop reason of the last round that ran: the model still
-    # waits for tools when the cap ends the turn.
+    # The answer says that the cap ended the turn while the model still waited
+    # for tools.
     @testset "the round cap ends a turn that keeps calling tools" begin
         calls = Ref(0)
         tools = _make_agent_loop_tools((target, arguments) -> (calls[] += 1; "ran"))
@@ -214,7 +214,7 @@ function test_agent_loop()
         stop = @test_logs (:warn, r"round cap") match_mode = :any run_turn!(
             agent, (name = :target,); messages = () -> LlmMessage[],
             on_event = event -> nothing)
-        @test stop === :tool_use
+        @test stop === :round_limit
         @test calls[] == 2
         @test llm.cursor == 2
     end

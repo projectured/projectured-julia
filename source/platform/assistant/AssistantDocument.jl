@@ -154,6 +154,14 @@ that the person sets, one of [`ASSISTANT_WORK_STATES`](@ref); only the person
 changes it. The three are data that the person wrote, so a `.pred` file keeps
 them for every backend, and a fork copies them.
 
+`max_rounds` is how many rounds a turn of a model may run, eight by default
+([`DEFAULT_ASSISTANT_ROUNDS`](@ref)). A turn that reaches it ends with the stop
+reason `:round_limit`, and a note under the answer says so and offers to go on.
+`wake` says that the assistant starts a turn of its own when a task group that
+one of its turns started ends, with a note that says why; it is off by default.
+A window that serves long work sets both. They are settings that a person or a
+window chose, so a `.pred` file keeps them.
+
 `turn_control` is the live control of the turn that runs, an
 `AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
 no data, like `llm`.
@@ -195,6 +203,8 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     description::PrimitiveString
     comment::PrimitiveString
     work_state::Symbol
+    max_rounds::Int
+    wake::Bool
 end
 
 """
@@ -205,6 +215,15 @@ The states of the work of a conversation that a person sets on an `Assistant`
 assistant is `:pending`.
 """
 const ASSISTANT_WORK_STATES = (:pending, :in_progress, :complete, :abandoned)
+
+"""
+    DEFAULT_ASSISTANT_ROUNDS
+
+How many rounds a turn of a model may run when nobody says otherwise: eight. A
+round is one answer of the model and the tools that it asked for. A window that
+serves long work, such as a study, gives its assistant more.
+"""
+const DEFAULT_ASSISTANT_ROUNDS = 8
 
 # The command of the external agent that an assistant starts when nobody names
 # another: empty, which starts the built-in agent of `ProjecturedACP`.
@@ -255,7 +274,11 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               workflow = nothing,
                               description::Union{AbstractString,PrimitiveString} = "",
                               comment::Union{AbstractString,PrimitiveString} = "",
-                              work_state::Symbol = :pending)
+                              work_state::Symbol = :pending,
+                              max_rounds::Integer = DEFAULT_ASSISTANT_ROUNDS,
+                              wake::Bool = false)
+    max_rounds >= 1 ||
+        throw(ArgumentError("an assistant runs at least one round in a turn, not $(max_rounds)"))
     work_state in ASSISTANT_WORK_STATES ||
         throw(ArgumentError("the work state of an assistant is one of $(ASSISTANT_WORK_STATES), not $(repr(work_state))"))
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
@@ -272,6 +295,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(AgentWork("")), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
+                           Cell(Int(max_rounds)), Cell(wake),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -317,6 +341,10 @@ function pred_arguments(a::Assistant)
     isempty(a.description.value) || push!(keywords, :description => a.description.value)
     isempty(a.comment.value) || push!(keywords, :comment => a.comment.value)
     a.work_state === :pending || push!(keywords, :work_state => a.work_state)
+    # How long a turn may run and whether the assistant wakes are what a person
+    # or a window chose for the work, so the file keeps them when they differ.
+    a.max_rounds == DEFAULT_ASSISTANT_ROUNDS || push!(keywords, :max_rounds => a.max_rounds)
+    a.wake && push!(keywords, :wake => true)
     if a.backend === :acp && !isempty(a.agent_session_id)
         append!(keywords, Pair{Symbol,Any}[
             :conversation             => a.conversation,

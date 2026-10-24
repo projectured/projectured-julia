@@ -202,10 +202,13 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # done by a channel the content does not already use. It stays a card, so
     # its chevron still folds it and the collapse reader below still finds
     # the turn that a produced card came from.
+    # A turn of notes is the editor speaking, not the person: it has the header
+    # of no role of its own and no tint.
+    editor = is_note_turn(t)
     card = WidgetCard(;
-                      title = _role_header(projection, t.role),
+                      title = _role_header(projection, editor ? :editor : t.role),
                       content = body,
-                      variant = t.role === :user ? :tinted : :plain,
+                      variant = t.role === :user && !editor ? :tinted : :plain,
                       collapsible = true)
     _follow_fold!(card, () -> t.collapsed)
     iomap = ChildrenIoMap(projection, t, card, ioms)
@@ -250,6 +253,7 @@ function print_document(projection::ConversationPartToWidget,
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
              content isa ConversationQuestionRequest ? _question_card(projection, content, part) :
+             content isa ConversationNote     ? _note_row(projection, content)               :
              content isa ImageFile            ? _picture_card(projection, content, part)     :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
@@ -302,6 +306,16 @@ _part_card(p, tag::AbstractString, body, part::ConversationPart) =
 # panel cannot say which language it holds.
 _code_card(p, content, part::ConversationPart) =
     _part_card(p, _kind_label(content), content, part)
+
+# A note is one quiet line, in the style of a tag, and the button of its action
+# when it has one.
+function _note_row(p, note::ConversationNote)
+    children = Any[WidgetLabel(note.text; text_style = p.section_text)]
+    action = note.action
+    action === nothing || isempty(note.action_label) ||
+        push!(children, WidgetButton(note.action_label; action))
+    HorizontalLayout(children; vertical_align = :center, gap = p.section_gap)
+end
 
 # A picture, under the tag "picture".
 _picture_card(p, image::ImageFile, part::ConversationPart) =

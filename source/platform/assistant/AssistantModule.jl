@@ -88,7 +88,7 @@ import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explore
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
-       DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES
+       DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES, DEFAULT_ASSISTANT_ROUNDS
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
@@ -100,6 +100,7 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
 export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
+export send_go_on!, GO_ON_PROMPT
 export AddDraftPictureOperation, register_picture_tools!
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
        compute_assistant_turn_side, describe_assistant_activity, collect_open_assistant_requests,

@@ -41,6 +41,21 @@ function test_task_group_verbs()
             wait_task_group(get_task_group(slow))
         end
 
+        @testset "a wait with a deadline ends before the group, and the group goes on" begin
+            slow = wrap_task_group_document(
+                TaskGroup([_TaskViewProbeTask("slow", "sleep 2")]; name = "slow", jobs = 1))
+            start_task_group_document!(slow)
+            started = time()
+            @test wait_for_task_group!(editor, slow; timeout = 0.3) === slow
+            @test time() - started < 1.5
+            @test is_task_group_running(slow)
+            answer = string(wait_for_tasks!(slow; timeout = 0.2, editor))
+            @test startswith(answer, "Still running after ")
+            answer = string(wait_for_tasks!(slow; timeout = 10, editor))
+            @test startswith(answer, "Ended: ")
+            @test !is_task_group_running(slow)
+        end
+
         @testset "a group is listed and found" begin
             line = only(l for l in split(string(list_task_groups(; editor)), "\n")
                         if startswith(l, identifier * " "))

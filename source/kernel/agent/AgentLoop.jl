@@ -13,7 +13,8 @@ _is_error_output(output::AbstractString) =
 
 Run one turn: stream a round from the model, run any tools it asked for, and go
 again until it stops asking. Returns the stop reason of the final round
-(`:end_turn`, `:tool_use` if the round cap cut it short, `:max_tokens`, `:error`).
+(`:end_turn`, `:max_tokens`, `:error`), or `:round_limit` when the model still
+asked for tools after `agent.max_rounds` rounds.
 A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` gives `:error`,
 and the loop runs none of its tool calls.
 
@@ -73,6 +74,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
         if round > agent.max_rounds
             rounds = round - 1
             @warn "[agent] hit the round cap; ending the turn" agent.max_rounds rounds
+            stop = :round_limit
             break
         end
 

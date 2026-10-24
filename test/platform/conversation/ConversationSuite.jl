@@ -12,6 +12,7 @@ function test_conversation()
         test_external_agent_turn()
         test_agent_work()
         test_assistant_work()
+        test_assistant_rounds()
         test_conversation_tree()
     end
 end
@@ -24,4 +25,5 @@ export test_conversation_theme
 export test_external_agent_turn
 export test_agent_work
 export test_assistant_work
+export test_assistant_rounds
 export test_conversation_tree

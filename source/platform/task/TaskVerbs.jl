@@ -245,28 +245,53 @@ end
 # ── Acting on a group ───────────────────────────────────────────────────────
 
 """
-    wait_for_task_group!(editor, group) -> group
+    wait_for_task_group!(editor, group; timeout = nothing) -> group
 
 Wait for `group` to end, and then copy what its tasks said into their documents.
 The wait is on the calling task, so a person at the REPL waits while the window
 draws, and the copy runs on the task of the editor. Called on the task of the
 editor, it holds the window until the group ends.
 
+With a `timeout` in seconds, the wait also ends when that time has passed, and
+the group goes on; what its tasks said so far is copied, and
+[`is_task_group_running`](@ref) tells the two ends apart. A model that waits
+for a long group waits in steps shorter than the time limit of its client.
+
 In a code unit, a stop of the unit ends the wait and throws `InterruptException`;
 the group goes on, and its own stop stops it.
 """
-function wait_for_task_group!(editor, group::TaskGroupDocument)
+function wait_for_task_group!(editor, group::TaskGroupDocument; timeout::Union{Real,Nothing} = nothing)
     task_group = get_task_group(group)
+    deadline = timeout === nothing ? Inf : time() + Float64(timeout)
+    scheduler = task_group.runtime.scheduler
     if get_current_code_unit() === nothing
-        wait_task_group(task_group)
+        if timeout === nothing
+            wait_task_group(task_group)
+        elseif scheduler !== nothing
+            timedwait(() -> istaskdone(scheduler), max(0.0, deadline - time()); pollint = 0.1)
+        end
     else
-        scheduler = task_group.runtime.scheduler
-        while scheduler !== nothing && !istaskdone(scheduler)
-            wait_in_code_unit(0.1)
+        while scheduler !== nothing && !istaskdone(scheduler) && time() < deadline
+            wait_in_code_unit(min(0.1, max(0.0, deadline - time())))
         end
     end
-    run_on_editor_task!(() -> wait_task_group_document(group), editor)
+    if is_task_group_running(group)
+        run_on_editor_task!(() -> _sync_task_group_shadow!(group), editor)
+    else
+        run_on_editor_task!(() -> wait_task_group_document(group), editor)
+    end
     group
+end
+
+"""
+    is_task_group_running(group) -> Bool
+
+Whether the tasks of `group` still run: its scheduler started and has not
+ended.
+"""
+function is_task_group_running(group::TaskGroupDocument)
+    scheduler = get_task_group(group).runtime.scheduler
+    scheduler !== nothing && !istaskdone(scheduler)
 end
 
 
@@ -347,6 +372,41 @@ function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool 
 end
 
 """
+    wait_for_tasks!(group; timeout = 30, editor = get_evaluation_editor()) -> Text
+
+**Wait a short while for a group of tasks to end**, at most `timeout` seconds,
+and say how it stands: ended, with the line that sums it up, or still running,
+with what is done so far.
+
+**The wait holds the window**, as every call of `execute_julia_code` does, so
+keep it short. For a group that runs for minutes, say how long it takes and end
+the turn: an assistant whose wake is on starts a turn of its own when a group
+that its turn started ends.
+
+Use it to wait for runs, a build or a test that end within seconds, before you
+read what they wrote.
+
+# Example
+
+    wait_for_tasks!(t1; timeout = 20)
+
+See also `describe_task_group`, `stop_tasks!`.
+"""
+function wait_for_tasks! end
+
+function wait_for_tasks!(group::TaskGroupDocument; timeout::Real = 30, editor = get_evaluation_editor())
+    started = time()
+    wait_for_task_group!(editor, group; timeout)
+    run_on_editor_task!(editor; description = "wait_for_tasks!") do
+        summary = compute_task_group_summary(get_task_group(group)).summary
+        waited = format_elapsed_time(time() - started; precision = 0)
+        Text(is_task_group_running(group) ?
+             string("Still running after ", waited, ": ", summary, ".") :
+             string("Ended: ", summary, "."))
+    end
+end
+
+"""
     close_task_group!(group; editor = get_evaluation_editor()) -> Text
 
 **Close the pane of a group and its row in the Tasks tab.** A group that runs
@@ -383,11 +443,12 @@ end
 
 The verbs of tasks that a model may call, as the module and the names: list,
 find and describe the groups of the session and their tasks, read the output of
-a task, stop, run again and close, and the title of the tab of a group. A window
+a task, wait a short while, stop, run again and close, and the title of the tab
+of a group. A window
 declares them beside the verbs of its domain, which start the groups.
 """
 make_task_api() = Any[
     TaskModule => (:list_task_groups, :find_task_group, :describe_task_group, :describe_task,
-                   :get_task_output, :stop_tasks!, :stop_task!, :rerun_tasks!,
+                   :get_task_output, :wait_for_tasks!, :stop_tasks!, :stop_task!, :rerun_tasks!,
                    :close_task_group!, :make_task_group_tab_title),
 ]
