@@ -1,7 +1,9 @@
 # An assistant carries a long study to its end, and a person follows every stage
 
 > **Kind:** plan · **Status:** pending, written 2026-10-24 from a survey of
-> `main` at `4c83985`. Every decision of §5 waits for the owner. · **Sibling
+> `main` at `4c83985`. The owner agreed to the plan and to every
+> recommendation of §5 on 2026-10-24 ("I agree with your plan and
+> recommendation"). · **Sibling
 > plan:** omnet-julia
 > `plan/pending/the-assistant-carries-out-an-aloha-study-on-the-legacy-simulator.md`,
 > which holds the arc, the study and the simulation half. · **Stands on:**
