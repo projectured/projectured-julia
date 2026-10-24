@@ -258,6 +258,29 @@ function make_outline_row(outline; facts, body, menu = nothing, indent::Integer 
 end
 
 """
+    make_outline_card(outline; content, revealed = (), title = nothing, compute_menu = nothing,
+                      keys = GestureBinding[], width = 0) -> WidgetCard
+
+A record as one block, such as the vertex of a graph: `content` in a `:row` card,
+which lights under the pointer and tints while the caret is in it, with the menu
+and the keys of a row as `make_outline_row` takes them, and the controls of
+`revealed`, made with `make_outline_control`, which show only then. `width` is the
+width of the card, which a block that stands on its own, as a vertex does, needs;
+`0` takes the width that the card is offered.
+"""
+function make_outline_card(outline; content, revealed = (), title = nothing, compute_menu = nothing,
+                           keys = GestureBinding[], width::Integer = 0)
+    gestures = compute_menu === nothing ? GestureBinding[] :
+               _make_row_menu_bindings(something(title, "the record"), compute_menu)
+    card = WidgetCard(; variant = :row, content, width, margin = inset_default, border = inset_default,
+                      padding = outline.row_padding, gestures = vcat(gestures, collect(GestureBinding, keys)))
+    for control in revealed
+        _reveal_in_row!(control, card)
+    end
+    card
+end
+
+"""
     make_outline_guides(outline, row, depth) -> Widget
 
 `row`, a row of a tree at `depth`, with the guide line of each node above it: a

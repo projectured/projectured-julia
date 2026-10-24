@@ -439,8 +439,10 @@ end
 # path gets the typed steps to the content, because it points to a place inside a
 # node and only the graph holds the place of that node. A widget that holds its
 # parts answers a path without types, which gets them from the content. An
-# operation that carries its own subject travels, and any other operation is
-# dropped: an operation that no reader can place is worse than no answer.
+# operation that names its part by a path of its own, such as the open of the menu
+# of a part, gets the same steps. An operation that carries its own subject
+# travels, and any other operation is dropped: an operation that no reader can
+# place is worse than no answer.
 _reroot_vertex_answer(::Nothing, i::Int, content) = nothing
 _reroot_vertex_answer(op::CompoundOperation, i::Int, content) =
     join_move_answers((_reroot_vertex_answer(member, i, content) for member in op.operations)...)
@@ -454,11 +456,21 @@ end
 _reroot_vertex_answer(op::ReplaceReferencedValueOperation, i::Int, content) =
     op.document === nothing ? nothing : op
 function _reroot_vertex_answer(op, i::Int, content)
-    op isa ReplacePathOperation || return is_self_contained_operation(op) ? op : nothing
-    path = get_operation_path(op)
+    if !(op isa ReplacePathOperation)
+        is_self_contained_operation(op) && return op
+        reference = operation_reference(op)
+        reference === nothing && return nothing
+        return retarget_operation(op, _make_vertex_content_reference(i, content, reference))
+    end
+    make_path_operation(op, _make_vertex_content_reference(i, content, get_operation_path(op)))
+end
+
+# The path `path` in the content of vertex `i` as a path from the layout, with the
+# types of its nodes, which the stages of the graph read.
+function _make_vertex_content_reference(i::Int, content, path)
     is_fully_typed_reference(path) ||
         (path = annotate_reference_types(content, strip_reference_types(path)))
-    make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(path))
+    @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(path)
 end
 
 # The vertex `i` that the mouse target of `layout` names, a path that begins
@@ -670,9 +682,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     cim === nothing && return nothing
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
-    op isa ReplacePathOperation ||
-        return op !== nothing && is_self_contained_operation(op) ? op : nothing
-    _reroot_vertex_answer(op, i, cim.input)
+    op === nothing ? nothing : _reroot_vertex_answer(op, i, cim.input)
 end
 
 # A dwell and a right click go to the content of the vertex at their point, as a
@@ -702,11 +712,9 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         (entry === nothing || entry[3] === nothing) && continue
         cim = entry[3]
         op = read_intent(cim.projection, cim, event)
-        if op isa ReplacePathOperation
-            return make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(get_operation_path(op)))
-        elseif op !== nothing && is_self_contained_operation(op)
-            return op
-        end
+        op === nothing && continue
+        answer = _reroot_vertex_answer(op, i, cim.input)
+        answer === nothing || return answer
     end
     nothing
 end

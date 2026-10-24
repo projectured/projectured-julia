@@ -35,7 +35,9 @@ text in a text role of the theme, `make_outline_mark` the mark of a record,
 the id of a linked record, `make_outline_avatar` the author, `make_outline_field`
 a field after its word, `make_outline_relations` the links as groups of chips, and
 `make_outline_section` the label of a section; with `compute_menu` a section has a
-menu, behind a "⋯" that shows under the pointer, as a row does. A row of a tree
+menu, behind a "⋯" that shows under the pointer, as a row does. A record drawn as one block, such as the vertex of a graph, is a
+`make_outline_card`: the same `:row` card with the menu, the keys and the revealed
+controls of a row, around any content. A row of a tree
 stands in `make_outline_guides`: one plain card for each node above it, a step of
 the indent apart, whose left border is the guide line of that node, so the lines
 of the rows under one node meet and draw as one line. A text of a record is a quiet

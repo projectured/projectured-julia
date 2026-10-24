@@ -665,15 +665,17 @@ end
 
 # The panel of the decision that the person writes in the row of an item, at
 # `place` in the output: the verdict as a pair of toggles, the reason, the basis,
-# and Record and Cancel. Escape cancels it.
-function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchDecisionDraft, place)
+# and Record and Cancel. Escape cancels it. `prefix` is the path of the study from
+# the input of the view.
+function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchDecisionDraft, place;
+                               prefix = Any[])
     # The toggles write the draft, which keeps its own paths.
     push!(embedded, draft)
     verdict = WidgetToggleGroup(["Accept", "Reject"]; values = [:accepted, :rejected], target = draft,
                                 field = "verdict")
     set_cell_computation!(getfield(verdict, :selected), () -> draft.verdict === :rejected ? 2 : 1)
     reason_place = vcat(place, Any[_make_field_step("content")], _get_child_steps(2))
-    reason = _make_text_part!(slots, embedded, outline, draft, Any[_make_field_step("deciding")], :reason,
+    reason = _make_text_part!(slots, embedded, outline, draft, vcat(prefix, Any[_make_field_step("deciding")]), :reason,
                               reason_place; role = :field_text, line = :field_line, placeholder = "the reason")
     buttons = HorizontalLayout(Any[_make_panel_button("Record", () -> _make_record_draft_operation(study, draft)),
                                    _make_panel_button("Cancel", () -> _make_close_decision_operation(study))];
@@ -764,7 +766,11 @@ _make_linked_add_items(study, ::ResearchItem) = Any[]
 # The menu of the row of `item`, in one order: what changes its status, what adds
 # a linked item or an element, what changes the view, and last the delete. The
 # operations are made when the menu opens, so each names the study as it is then.
-function _make_research_menu(study, item::ResearchItem, folded::Bool)
+# `in_map` makes the menu of the item on the map: an add of an element and Edit all
+# fields show the outline of the study and act there, a vertex has no fold, and
+# "Show in the outline" takes the place of "Open in the map".
+function _make_research_menu(study, item::ResearchItem, folded::Bool; in_map::Bool = false)
+    in_outline(operation) = in_map ? _make_in_outline_operation(study, operation) : operation
     groups = Any[]
     has_research_status(item) && push!(groups, Any[
         WidgetMenuItem("Accept " * item.id * "…"; operation = _make_open_decision_operation(study, item, :accepted),
@@ -773,13 +779,15 @@ function _make_research_menu(study, item::ResearchItem, folded::Bool)
                        enabled = item.status !== :rejected)])
     adds = _make_linked_add_items(study, item)
     isempty(adds) || push!(groups, adds)
-    push!(groups, Any[WidgetMenuItem("Add an element"; operation = make_new_element_operation(item))])
-    push!(groups, Any[WidgetMenuItem("Edit all fields"; operation = _make_edit_all_operation(study, item)),
-                      WidgetMenuItem(folded ? "Unfold" : "Fold"; operation = _make_fold_operation(study, item))])
-    push!(groups, Any[WidgetMenuItem("Open in the map";
-                                     operation = CompoundOperation(Any[ReplaceReferencedValueOperation(study, "view", :map),
-                                                                       SelectDocumentOperation(item)])),
-                      WidgetMenuItem("Copy the id"; operation = WriteOsClipboardOperation(item.id))])
+    push!(groups, Any[WidgetMenuItem("Add an element"; operation = in_outline(make_new_element_operation(item)))])
+    view_items = Any[WidgetMenuItem("Edit all fields"; operation = in_outline(_make_edit_all_operation(study, item)))]
+    in_map || push!(view_items, WidgetMenuItem(folded ? "Unfold" : "Fold"; operation = _make_fold_operation(study, item)))
+    push!(groups, view_items)
+    shown = in_map ?
+        WidgetMenuItem("Show in the outline"; operation = _make_in_outline_operation(study, SelectDocumentOperation(item))) :
+        WidgetMenuItem("Open in the map"; operation = CompoundOperation(Any[ReplaceReferencedValueOperation(study, "view", :map),
+                                                                          SelectDocumentOperation(item)]))
+    push!(groups, Any[shown, WidgetMenuItem("Copy the id"; operation = WriteOsClipboardOperation(item.id))])
     delete = try
         make_delete_research_item_operation(study, item)
     catch exception
@@ -794,6 +802,11 @@ function _make_research_menu(study, item::ResearchItem, folded::Bool)
     end
     WidgetMenu(elements)
 end
+
+# `operation` after the switch of `study` to its outline by kind, where its effect
+# shows, such as the full form of Edit all fields.
+_make_in_outline_operation(study, operation) =
+    CompoundOperation(Any[ReplaceReferencedValueOperation(study, "view", :kind), operation])
 
 # The question of a study and its answer, as the header says them: the first
 # question, and the latest answer to it with its status.

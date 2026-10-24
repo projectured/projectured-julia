@@ -265,6 +265,46 @@ function test_research_to_widget()
             @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1]"
         end
 
+        @testset "a vertex of the map is the row of its item: a press, its menu and its keys act on the item" begin
+            study = _make_small_research_study()
+            study.view = :map
+            hypothesis = study.hypotheses[1]
+            editor = _make_research_view_editor(study)
+            # A press on the text of a vertex puts the caret in the text of the item.
+            @test _find_research_click(editor, operation ->
+                _is_research_selection(operation, ".hypotheses[1].statement.value{2}")) !== nothing
+            # The menu of a vertex is the menu of the item on the map.
+            found = _find_research_menu(editor, _has_research_menu_item("Accept H1…"))
+            @test found !== nothing
+            labels = [string(element.action.label) for element in found[3].elements if element isa WidgetMenuItem]
+            @test "Show in the outline" in labels && !("Fold" in labels) && !("Open in the map" in labels)
+            # Accept… opens the panel in the vertex, and Record decides.
+            _apply_research_operation!(editor, _find_research_menu_item(found[3], "Accept H1…"))
+            @test study.deciding isa ResearchDecisionDraft
+            record = _find_research_click(editor, operation -> _holds_research_status(operation, hypothesis))
+            @test record !== nothing
+            _apply_research_operation!(editor, record[3])
+            @test hypothesis.status === :accepted && length(study.decisions) == 1
+            # A key types into the text of a vertex, and Return at its end adds an
+            # item of the same kind with the caret in its text.
+            count = length(hypothesis.statement.value)
+            replace_selection!(study, extend_reference(EmptyReference(), FieldReferenceStep("hypotheses"),
+                                                       RangeReferenceStep(0, 1), FieldReferenceStep("statement"),
+                                                       FieldReferenceStep("value"), RangeReferenceStep(count, count)))
+            _apply_research_operation!(editor, DoNothingOperation())
+            press_key(char) = _apply_research_operation!(editor, read_intent(editor.projection, editor.iomap,
+                                                                             KeyPress(char; time = 0.0)))
+            press_key('!')
+            @test hypothesis.statement.value == "Thirteen.!"
+            press_key('\n')
+            @test length(study.hypotheses) == 2
+            @test string(strip_reference_types(get_selection(study))) == ".hypotheses[2].statement.value{0}"
+            # Show in the outline switches the study to its outline.
+            shown = _find_research_menu(editor, _has_research_menu_item("Show in the outline"))
+            _apply_research_operation!(editor, _find_research_menu_item(shown[3], "Show in the outline"))
+            @test study.view === :kind
+        end
+
         @testset "the switch shows the study by time and its report, and no history records it" begin
             study = make_research_study_document_example()
             editor = _make_research_view_editor(study)

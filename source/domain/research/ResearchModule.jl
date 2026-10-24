@@ -48,7 +48,7 @@ export find_study_item, collect_research_links, make_research_id, make_research_
 export ResearchTheme, ScaledResearchTheme
 export ResearchItemToWidget, ResearchStudyToWidget, make_research_projections, make_research_graphics_entries,
        ResearchToWidgetIoMap, describe_research_link, describe_research_expectation
-export ResearchMap, ResearchMapToGraph, ResearchMapPartToWidget, ResearchMapToGraphIoMap,
+export ResearchMap, ResearchMapToGraph, ResearchMapToGraphIoMap,
        make_research_map_projection
 export StudyItems
 export RESEARCH_ASSISTANT_API, start_study!, add_question!, add_source!, add_hypothesis!,

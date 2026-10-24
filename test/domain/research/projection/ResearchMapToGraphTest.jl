@@ -1,3 +1,8 @@
+# The item of each vertex of the map of `study`: the vertices stand in the order of
+# the items of the study.
+_get_map_items(study, graph) =
+    IdDict{Any, Any}(vertex => item for (vertex, item) in zip(graph.vertices, collect_study_items(study)))
+
 """
     test_research_map_to_graph()
 
@@ -13,14 +18,17 @@ function test_research_map_to_graph()
             iomap = print_document(projection, nothing, ResearchMap(study = study), nothing)
             graph = iomap.output
             @test graph isa GraphGraph
-            @test [vertex.content.id for vertex in graph.vertices] ==
+            items = _get_map_items(study, graph)
+            @test [items[vertex].id for vertex in graph.vertices] ==
                   ["Q1", "S1", "H1", "X1", "N1", "R1", "E1", "D1", "D2", "A1"]
+            # The content of a vertex is the small row of its item.
+            @test all(vertex -> vertex.content isa WidgetCard && vertex.content.variant === :row, graph.vertices)
             @test length(graph.edges) == 15
             words = Dict{String, String}()
             unlined = String[]
             for edge in graph.edges
-                name = edge.source.content.id * ">" * edge.target.content.id
-                edge.visible ? (words[name] = edge.label.value) : push!(unlined, name)
+                name = items[edge.source].id * ">" * items[edge.target].id
+                edge.visible ? (words[name] = edge.label.children[1].content) : push!(unlined, name)
             end
             @test words["E1>H1"] == "supports"
             @test words["H1>Q1"] == "addresses"
@@ -66,7 +74,8 @@ function test_research_map_to_graph()
             graph = iomap.output
             @test length(graph.vertices) == 11
             @test length(graph.edges) == 17
-            @test any(edge -> edge.source.content === evidence && edge.label.value == "opposes", graph.edges)
+            items = _get_map_items(study, graph)
+            @test any(edge -> items[edge.source] === evidence && edge.label.children[1].content == "opposes", graph.edges)
         end
 
         @testset "a place of an item maps from the study to its vertex and back" begin
@@ -77,7 +86,7 @@ function test_research_map_to_graph()
             forward = map_reference_forward(projection, iomap,
                 Reference(FieldReferenceStep("study"), FieldReferenceStep("hypotheses"),
                           RangeReferenceStep(0, 1), FieldReferenceStep("statement")))
-            @test string(strip_reference_types(forward)) == ".vertices[3].content.statement"
+            @test string(strip_reference_types(forward)) == ".vertices[3].content.content.children[2].child"
             backward = map_reference_backward(projection, iomap, forward)
             @test string(strip_reference_types(backward)) == ".study.hypotheses[1].statement"
         end

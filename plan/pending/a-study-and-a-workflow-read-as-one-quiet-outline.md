@@ -782,6 +782,19 @@ implementation, one commit for a group of steps that share files.
   steps of the cards (`get_outline_guide_steps`). The catalog has a column of the
   progress: a `WidgetProgressBar` of the share of the steps done and the count.
   The journal view keeps its choice of the kind of entry.
+- **The items on the map (2026-10-24).** The owner asked that the behaviour of an
+  item work in the graph too. A vertex of the map is the small row of its item as
+  a card of the kit (`make_outline_card`), which `ResearchMapToGraph` builds with
+  the study in hand, in place of the part view that drew an item with no study: a
+  press selects the item or puts the caret in its text, a key types, Return adds
+  an item of the same kind, the mark, the "⋯", a right click and Shift+F10 open the
+  menu of the item, and "Accept…" opens the panel in the vertex. On the map the
+  menu has no fold, and an add of an element, Edit all fields and "Show in the
+  outline" switch the study to its outline. Two changes below made it work: the
+  drawing of a graph passes on an answer of a vertex that names its part by a path
+  of its own, such as the open of a menu, with typed steps, where it dropped it;
+  and the layout of a graph hands a vertex no path, so the map routes the row of
+  each item from the map itself.
 - **Step 16.** `test_research_walkthrough()` and `test_workflow_walkthrough()` go
   from the empty document to the `.pred` text and back with the gestures of a
   person, and then take each edit back, the last first, to the empty document. The

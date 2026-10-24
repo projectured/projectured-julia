@@ -31,7 +31,7 @@ export compute_shown_dates
 export OutlineSlot, map_outline_forward, map_outline_backward, route_outline_paths!
 export make_outline_label, make_outline_text, make_outline_chip, make_outline_mark, make_outline_control,
        make_outline_spacer, make_outline_avatar, make_outline_facts, make_outline_field, make_outline_relations,
-       make_outline_section, make_outline_menu_operation, make_outline_row,
+       make_outline_section, make_outline_menu_operation, make_outline_row, make_outline_card,
        make_outline_guides, get_outline_guide_steps
 export make_add_element_operation, make_remove_element_operation, make_new_element_operation,
        make_element_cancel_operation, make_move_element_operation, make_element_choice_list,
