@@ -1,9 +1,10 @@
 # A study and a workflow read as one quiet outline, from the empty document to the whole record
 
-> **Kind:** plan · **Status:** pending, written 2026-10-23. The design of §2 is
-> agreed with the owner, and the owner agreed to every recommendation of §9 the
-> same day ("Agree with all"), with two additions to G5 and G7. The steps are built
-> in a worktree beside the repository. · **Stands on:**
+> **Kind:** plan · **Status:** done, 2026-10-24, on the branch
+> `ccr-1058c6d1-njtjm7` in the worktree `projectured-julia-outline`, landed on
+> `main`. Written 2026-10-23; the design of §2 is agreed with the owner, and the
+> owner agreed to every recommendation of §9 the same day ("Agree with all"), with
+> two additions to G5 and G7. · **Stands on:**
 > [research.md](../../documentation/package/domain/research/research.md),
 > [workflow.md](../../documentation/package/domain/workflow/workflow.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
@@ -13,8 +14,8 @@
 > [a-study-records-questions-evidence-and-decisions.md](../done/a-study-records-questions-evidence-and-decisions.md),
 > [a-workflow-records-steps-decisions-and-dates.md](../done/a-workflow-records-steps-decisions-and-dates.md),
 > [document-insertion-completion.md](../done/document-insertion-completion.md),
-> [a-graph-lights-the-part-under-the-pointer.md](a-graph-lights-the-part-under-the-pointer.md),
-> [tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md](tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md)
+> [a-graph-lights-the-part-under-the-pointer.md](../pending/a-graph-lights-the-part-under-the-pointer.md),
+> [tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md](../pending/tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md)
 
 This plan replaces the views of the Research and the Workflow domains with one
 compact notation: a row shows what was written, and one menu on the row holds
@@ -220,7 +221,7 @@ Five surveys of the code found the parts below. The words "reuse", "change" and
   `selection` and `mouse_target`; the study leaves `folded` out with a method of
   `pred_arguments`.
 - **Missing.** No path follows an insert, so an added row does not take the caret
-  (pending [an-insert-moves-the-paths-after-it.md](an-insert-moves-the-paths-after-it.md)).
+  (pending [an-insert-moves-the-paths-after-it.md](../pending/an-insert-moves-the-paths-after-it.md)).
   A scroll pane does not bring the selection into view. Up and Down do not move
   between rows of a widget view (pending plan of the keyboard, N1 to N7).
 
@@ -257,7 +258,7 @@ Five surveys of the code found the parts below. The words "reuse", "change" and
   target cells; the state machine diagram shows how (`FsmDiagramToGraph.jl:176-182`).
   The vertex is a `WidgetCard`, which doubles the box of the vertex.
 - **Missing.** Nothing draws a light under the pointer (pending
-  [a-graph-lights-the-part-under-the-pointer.md](a-graph-lights-the-part-under-the-pointer.md);
+  [a-graph-lights-the-part-under-the-pointer.md](../pending/a-graph-lights-the-part-under-the-pointer.md);
   its fact 3 is partly out of date). No engine makes a layered layout, and only
   Adaptagrams routes right angles.
 - **Not a fit.** A roster groups rows into one aggregate row and draws every row as
@@ -644,7 +645,7 @@ generic behaviour updates the design document of that slice in the same commit.
   `test_research_combinations()` and a new workflow test beside it. The examples of
   both domains show a study and a workflow with elements, and `test_domain_examples()`
   draws them.
-- [ ] **17. The documents.** research.md, workflow.md, widget.md, context-menu.md,
+- [x] **17. The documents.** research.md, workflow.md, widget.md, context-menu.md,
   domain.md, explorer.md and a new outline.md say what is; the limits that this plan
   removes go away. Test: `test_documentation()`.
 
@@ -802,6 +803,18 @@ implementation, one commit for a group of steps that share files.
   that takes the caret has a way back in a history.
 - **Step 15.** `add_element!` is in the API of the study, and `describe_study`
   names each element of an item by its kind and its first line.
+- **Step 17.** The documents of each slice that a step changed say what is, and
+  `test/suite/documentation.jl` finds no violation.
+- **Tests that did not run here.** The test package of the graph needs the XML
+  domain, which the container of the work could not load, so the change of the
+  routing of a click and a key into a vertex ran only through the tests of the
+  map. The umbrella tests (`test_document_insertion`, `test_insertion_in_tab`,
+  `test_research_combinations`) need packages that it could not load either; the
+  assertion of the first on a typed key is updated for the list it opens. The
+  platform suite fails five assertions in slices that this plan does not touch:
+  one of the layering guard, on two `using` lines with a list of names in
+  `filechange` and `shell`, which failed before the first step too, and four that
+  need a user other than root or a process group of their own.
 - **Not yet.** G2 keeps a row lit while its own menu is open; the row is not kept
   lit yet, because the pointer leaves the window of the row when the menu window
   opens. "Paste as an element" in the menu of a row needs the menu to read the

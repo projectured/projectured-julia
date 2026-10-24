@@ -138,7 +138,7 @@ Its `__init__` registers the `section` marker, `TextFile` for a path with no ext
 - **A reference is written only where the save cuts.** The document holds no storage node, so a projection, an edit and a copy see the real graph. The reason is at the head of `source/platform/serialization/FileCut.jl`.
 - **A marker is data, not code.** The restricted interpreter keeps a project from running code when it opens.
 - **Any loaded document type can be built, and a type that its package calls data.** A file names data: a subtype of `Document`, or a type for which `is_pred_constructible` is `true`, never a function. The owner chose this over a list of offered types (plan/pending/packages-compose-by-seams.md, C16), so no package lists its types and a file can hold any document of the session.
-- **A `.pred` file writes a node of a format inline, not in a file beside it.** One workflow stays one file, and every holder of documents in a `.pred` file gets the same answer: a dashboard card, a workflow, a study saved from its tab. The alternatives were a folder save for every `.pred` file, and one for a workflow only (plan/pending/a-study-and-a-workflow-read-as-one-quiet-outline.md, D7).
+- **A `.pred` file writes a node of a format inline, not in a file beside it.** One workflow stays one file, and every holder of documents in a `.pred` file gets the same answer: a dashboard card, a workflow, a study saved from its tab. The alternatives were a folder save for every `.pred` file, and one for a workflow only (plan/done/a-study-and-a-workflow-read-as-one-quiet-outline.md, D7).
 - **The first registration of a marker name wins.** A silent overwrite would let the load order choose the function, and the loser would fail only when a file loads.
 
 ## Usage

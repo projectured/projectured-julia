@@ -6,7 +6,7 @@
 > to another plan"), so that the pointer work could finish. No source changed.
 
 > **Status (2026-10-23):** the half of (a′) in projectured is done by step 12 of
-> [a-study-and-a-workflow-read-as-one-quiet-outline.md](a-study-and-a-workflow-read-as-one-quiet-outline.md),
+> [a-study-and-a-workflow-read-as-one-quiet-outline.md](../done/a-study-and-a-workflow-read-as-one-quiet-outline.md),
 > whose G12 the owner agreed to: every graph lights the vertex under the pointer,
 > the vertices it joins and its edges. The topology card of omnet, (a), is left.
 
