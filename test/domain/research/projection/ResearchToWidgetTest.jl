@@ -170,6 +170,101 @@ function test_research_to_widget()
             @test decision.reason.value == "The sweep shows it."
         end
 
+        @testset "the basis of the panel is the evidence that bears on the item, and a press on a chip changes it" begin
+            study = _make_small_research_study()
+            hypothesis = study.hypotheses[1]
+            evidence = make_research_item(study, ResearchEvidence; time = "2026-10-22T07:03:00Z",
+                                          statement = "At K = 13 it holds.", supports = Any[hypothesis])
+            push!(study.evidence, evidence)
+            editor = _make_research_view_editor(study)
+            found = _find_research_menu(editor, _has_research_menu_item("Accept H1…"))
+            _apply_research_operation!(editor, _find_research_menu_item(found[3], "Accept H1…"))
+            draft = study.deciding
+            @test collect(draft.basis) == Any[evidence]
+            toggles(operation) = operation isa ReplaceReferencedValueOperation && operation.document === draft &&
+                                 startswith(string(strip_reference_types(operation.reference)), ".basis")
+            chip = _find_research_click(editor, toggles)
+            @test chip !== nothing
+            _apply_research_operation!(editor, chip[3])
+            @test isempty(draft.basis)
+            _apply_research_operation!(editor, _find_research_click(editor, toggles)[3])
+            @test collect(draft.basis) == Any[evidence]
+            record = _find_research_click(editor, operation -> _holds_research_status(operation, hypothesis))
+            _apply_research_operation!(editor, record[3])
+            @test collect(only(study.decisions).basis) == Any[evidence]
+        end
+
+        @testset "the menu of a section adds an item of its kind, folds its items and switches the view" begin
+            study = _make_small_research_study()
+            editor = _make_research_view_editor(study)
+            section(label) = _find_research_menu(editor, menu -> _find_research_menu_item(menu, label) !== nothing &&
+                                                                 _find_research_menu_item(menu, "Add a hypothesis") !== nothing)
+            found = section("Fold all")
+            @test found !== nothing
+            _apply_research_operation!(editor, _find_research_menu_item(found[3], "Add a hypothesis"))
+            @test length(study.hypotheses) == 2
+            @test string(strip_reference_types(get_selection(study))) == ".hypotheses[2].statement.value{0}"
+            _apply_research_operation!(editor, _find_research_menu_item(section("Fold all")[3], "Fold all"))
+            @test Set(study.folded) == Set(["H1", "H2"])
+            unfold = section("Unfold all")
+            @test unfold !== nothing
+            _apply_research_operation!(editor, _find_research_menu_item(unfold[3], "Unfold all"))
+            @test isempty(study.folded)
+            by_time = _find_research_menu_item(section("View by time")[3], "View by time")
+            @test !is_undo_step(nothing, by_time)
+            _apply_research_operation!(editor, by_time)
+            @test study.view === :time
+            # A section of a day has no add, and switches back by kind.
+            day = _find_research_menu(editor, _has_research_menu_item("View by kind"))
+            @test day !== nothing && _find_research_menu_item(day[3], "Add a hypothesis") === nothing
+        end
+
+        @testset "the menu of a row copies the id and shows the item in the map, and an element opens in a tab" begin
+            study = _make_small_research_study()
+            hypothesis = study.hypotheses[1]
+            push!(hypothesis.elements, PrimitiveString("K from 1 to 20"))
+            editor = _make_research_view_editor(study)
+            found = _find_research_menu(editor, _has_research_menu_item("Accept H1…"))
+            copied = _find_research_menu_item(found[3], "Copy the id")
+            @test copied isa WriteOsClipboardOperation && copied.text == "H1"
+            element = _find_research_menu(editor, _has_research_menu_item("Open in a tab"))
+            @test element !== nothing
+            tab = _find_research_menu_item(element[3], "Open in a tab")
+            @test tab isa OpenPageOperation && tab.document === hypothesis.elements[1] && tab.place === :new_tab
+            # Open in the map shows the map in place of the rows, with the item selected,
+            # and is no edit.
+            opened = _find_research_menu_item(found[3], "Open in the map")
+            @test !is_undo_step(nothing, opened)
+            _apply_research_operation!(editor, opened)
+            @test study.view === :map
+            @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1]"
+            output = editor.iomap.output
+            shown = output isa Cell ? output[] : output
+            @test any(text -> text == "H1", _collect_research_texts(shown))
+            # A path into the study is a path into the study of the map, and back.
+            projection = ResearchStudyToWidget()
+            iomap = print_document(projection, nothing, study, nothing)
+            forward = map_reference_forward(projection, iomap,
+                                            Reference(FieldReferenceStep("hypotheses"), RangeReferenceStep(0, 1)))
+            @test string(strip_reference_types(forward)) == ".children[4].study.hypotheses[1]"
+            @test string(strip_reference_types(map_reference_backward(projection, iomap, forward))) == ".hypotheses[1]"
+            @test iomap.output.children[4] isa ResearchMap && iomap.output.children[4].study === study
+        end
+
+        @testset "Add an element puts the caret in its type-in, and Escape there removes it" begin
+            study = _make_small_research_study()
+            hypothesis = study.hypotheses[1]
+            editor = _make_research_view_editor(study)
+            found = _find_research_menu(editor, _has_research_menu_item("Accept H1…"))
+            _apply_research_operation!(editor, _find_research_menu_item(found[3], "Add an element"))
+            @test only(hypothesis.elements) isa DocumentInsertion
+            @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1].elements[1].value{0}"
+            escape = read_intent(editor.projection, editor.iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
+            _apply_research_operation!(editor, escape)
+            @test isempty(hypothesis.elements)
+            @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1]"
+        end
+
         @testset "the switch shows the study by time and its report, and no history records it" begin
             study = make_research_study_document_example()
             editor = _make_research_view_editor(study)

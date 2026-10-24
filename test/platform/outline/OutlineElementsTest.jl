@@ -36,13 +36,17 @@ function test_elements()
         @test holder.elements[4] === added
     end
 
-    @testset "the menu of an element moves it where it can move, and removes it" begin
+    @testset "the menu of an element opens it in a tab, moves it where it can move, and removes it" begin
         holder = make_holder()
         labels(menu) = [(string(item.action.label), item.enabled) for item in menu.elements if item isa WidgetMenuItem]
-        @test labels(make_element_menu(holder, 1)) == [("Move up", false), ("Move down", true), ("Remove", true)]
-        @test labels(make_element_menu(holder, 3)) == [("Move up", true), ("Move down", false), ("Remove", true)]
-        opened = labels(make_element_menu(holder, 2; open = DoNothingOperation()))
-        @test opened[1] == ("Open in a tab", true)
+        @test labels(make_element_menu(holder, 1; open = nothing)) ==
+              [("Move up", false), ("Move down", true), ("Remove", true)]
+        @test labels(make_element_menu(holder, 3; open = nothing)) ==
+              [("Move up", true), ("Move down", false), ("Remove", true)]
+        menu = make_element_menu(holder, 2)
+        @test labels(menu)[1] == ("Open in a tab", true)
+        opened = menu.elements[1].operation
+        @test opened isa OpenPageOperation && opened.document === holder.elements[2] && opened.place === :new_tab
     end
 
     @testset "the kinds list adds a new element of a kind that stands as an element" begin
@@ -50,6 +54,28 @@ function test_elements()
         list = make_element_choice_list(holder)
         @test list isa WidgetChoiceList
         @test all(choice -> is_element_type(choice.value), list.find(""))
+    end
+
+    @testset "a new element is a type-in with the caret, and its cancel removes it" begin
+        holder = make_holder()
+        added = make_new_element_operation(holder)
+        evaluate_operation(nothing, added.operations[1])
+        insertion = holder.elements[4]
+        @test insertion isa DocumentInsertion
+        @test added.operations[2] isa SelectDocumentOperation && added.operations[2].document === insertion
+        # Escape writes the empty document of the type-in over it.
+        cancel = CompoundOperation(Any[
+            ReplaceReferencedValueOperation(nothing, Reference(FieldReferenceStep("elements"), RangeReferenceStep(3, 4)),
+                                            DocumentNothing()),
+            ReplaceSelectionOperation(Reference(FieldReferenceStep("elements"), RangeReferenceStep(3, 4)))])
+        removal = make_element_cancel_operation(holder, cancel)
+        @test removal !== cancel
+        evaluate_operation(nothing, removal.operations[1])
+        @test texts(holder) == ["a", "b", "c"]
+        # A write of anything else over an element stays as it is.
+        other = CompoundOperation(Any[ReplaceReferencedValueOperation(nothing,
+            Reference(FieldReferenceStep("elements"), RangeReferenceStep(0, 1)), PrimitiveString("z"))])
+        @test make_element_cancel_operation(holder, other) === other
     end
 
     @testset "an element draws in a light inset, and the element is at the steps of the kit" begin

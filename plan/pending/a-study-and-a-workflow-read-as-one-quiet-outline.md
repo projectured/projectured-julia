@@ -617,29 +617,29 @@ generic behaviour updates the design document of that slice in the same commit.
 - [x] **8. View state and folds (G10, D9).** The trait of the fields of view state; the fold
   set. Test: `test_pred_file()` leaves a view field out; `test_document_duplicate()`
   copies none.
-- [ ] **9. A text format inside a `.pred` file (G13, D7).** Test: `test_pred_file()` and
+- [x] **9. A text format inside a `.pred` file (G13, D7).** Test: `test_pred_file()` and
   `test_serialization()`: a workflow with a JSON and a Markdown element saves alone and
   loads to the same graph; a node that a project file owns still writes a marker.
-- [ ] **10. Elements (G7, D18).** The builders, the drawing of R14 with the fold and the
+- [x] **10. Elements (G7, D18).** The builders, the drawing of R14 with the fold and the
   menu of an element, `add_element!`. Test: a new `test_elements()` in the outline
   slice: add, move, remove, copy, fold, and undo of each.
-- [ ] **11. Select and show (G11).** Test: a new test: a press on a chip selects the item
+- [x] **11. Select and show (G11).** Test: a new test: a press on a chip selects the item
   and the scroll pane shows it.
-- [ ] **12. The graph lights the part under the pointer (G12, D12, D13).** The steps of the
+- [x] **12. The graph lights the part under the pointer (G12, D12, D13).** The steps of the
   pending graph plan, and the option that leaves a class of edges out. Test:
   `test_graph()`, `test_graph_projection()`.
-- [ ] **13. The research outline (R1 to R12, §5, D10, D11, D14, D19).** The row, the menu,
+- [x] **13. The research outline (R1 to R12, §5, D10, D11, D14, D19).** The row, the menu,
   the decision panel, Edit all fields, the back links, the view by time, the empty
   study, the keys, `elements` on every item and the names of the folder save. Test:
   `test_research()`; `ResearchToWidgetTest` asserts the parts of each rule;
   `ResearchMapToGraphTest` counts 12 edges in the example.
-- [ ] **14. The workflow outline (R1 to R8, R11, R13, R14, §6, D8, D14, D17, D19, D20).** The
+- [x] **14. The workflow outline (R1 to R8, R11, R13, R14, §6, D8, D14, D17, D19, D20).** The
   tree, the state menu, the journal of a node, the keys, `elements` in place of
   `cards`, the folds as view state, the journal view, the catalog, the explorer
   entry. Test: `test_workflow()`, `test_workflow_file()`.
-- [ ] **15. The assistant (§8).** Test: `ResearchAssistantApiTest`,
+- [x] **15. The assistant (§8).** Test: `ResearchAssistantApiTest`,
   `WorkflowAssistantApiTest`.
-- [ ] **16. The walk-throughs (§7).** Two tests of gestures: each walk-through from the
+- [x] **16. The walk-throughs (§7).** Two tests of gestures: each walk-through from the
   empty document to the saved file and back, with an undo of each edit. Test:
   `test_research_combinations()` and a new workflow test beside it. The examples of
   both domains show a study and a workflow with elements, and `test_domain_examples()`
@@ -739,8 +739,22 @@ implementation, one commit for a group of steps that share files.
   that id shows the full form while a cell of its own says the caret is in it, so
   a key builds no outline; a link field has a "+" that opens a `WidgetChoiceList`
   of the items (G4). The header says the first question and its latest answer.
-  Open: the map in the switch, the "⋯" of a section header, Open in the map, Copy
-  the id, the basis in the decision panel.
+  The switch has the map too: `view = :map` puts a `ResearchMap` of the study in
+  place of the rows, which the renderer draws as the graph of the map, and a slot
+  maps the study to the study of the map, so the selection of an item is the
+  selection of its vertex, and the vertex that the graph selects maps back to its
+  item. "Open in the map" switches to it and selects
+  the item, in place and with no history. "Copy the id" writes the id to the
+  clipboard of the system. A section header has a menu (`make_outline_section`
+  with `compute_menu`): the add of an item of its kind, "Fold all" or "Unfold all",
+  and the other view; a whole slot maps the header to the study, or the route of a
+  press would stop at the outline. The panel holds the basis: a chip for each
+  evidence that supports or opposes the item, all in the basis when the panel
+  opens, and a press takes one out or puts it back; its ground follows the basis
+  in a cell of its own, so a press builds no outline. "Add an element" puts the
+  caret in the new type-in (`make_new_element_operation`), and Escape there
+  removes the element (`make_element_cancel_operation`), which is the Escape in a
+  list of step 7 for elements. An element menu opens the element in a new tab.
 - **Step 14, in part.** An empty workflow shows its quiet first row, and a step, a
   decision and an option that the menu adds take the caret at their title. The
   keys of a row: Return adds a sibling, Alt+Up and Alt+Down move, Tab indents and
@@ -751,13 +765,26 @@ implementation, one commit for a group of steps that share files.
   (`journal_shown`, view state): the count after the title is a chip that shows
   and hides it, and "Comment" adds an entry, shows the journal and puts the caret
   in the entry. The journal view is a timeline of the kit, a group for each day;
-  the `WorkflowTheme` keeps only what the catalog takes. Open: the guide lines of
-  the tree and the bar of the progress in the catalog.
+  the `WorkflowTheme` keeps only what the catalog takes. The tree has its guide
+  lines (`make_outline_guides`): a row stands in a plain card for each node above
+  it, a step of the indent apart, whose left border is the guide line of that
+  node, so the lines of the rows under one node meet; the places of a row take the
+  steps of the cards (`get_outline_guide_steps`). The catalog has a column of the
+  progress: a `WidgetProgressBar` of the share of the steps done and the count.
+  The journal view keeps its choice of the kind of entry.
+- **Step 16.** `test_research_walkthrough()` and `test_workflow_walkthrough()` go
+  from the empty document to the `.pred` text and back with the gestures of a
+  person, and then take each edit back, the last first, to the empty document. The
+  way back of `SelectDocumentOperation` puts the selection where it was, so an add
+  that takes the caret has a way back in a history.
 - **Step 15.** `add_element!` is in the API of the study, and `describe_study`
   names each element of an item by its kind and its first line.
 - **Not yet.** G2 keeps a row lit while its own menu is open; the row is not kept
   lit yet, because the pointer leaves the window of the row when the menu window
-  opens.
+  opens. "Paste as an element" in the menu of a row needs the menu to read the
+  clipboard when it opens, which the clipboard slice does not offer to a builder of
+  a menu; a paste (Ctrl+V) on a row adds the document as an element. The popup
+  option of `InsertionToSyntaxLeaf` (G5, D5) is not built.
 
 ## 11. Not in this plan
 

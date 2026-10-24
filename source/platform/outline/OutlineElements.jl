@@ -24,6 +24,49 @@ make_remove_element_operation(holder, index::Integer) =
     make_delete_elements_operation(_ELEMENTS_PATH, index; root = holder)
 
 """
+    make_new_element_operation(holder) -> Operation
+
+The add of a new element of a kind that the person types: an empty
+`DocumentInsertion` at the end of the elements of `holder`, with the caret in it.
+It shows "Type a kind" until the first key, and Escape there removes it again
+(`make_element_cancel_operation`).
+"""
+function make_new_element_operation(holder)
+    insertion = DocumentInsertion("")
+    CompoundOperation(Any[make_add_element_operation(holder, insertion),
+                          SelectDocumentOperation(insertion, Reference(FieldReferenceStep("value"),
+                                                                       RangeReferenceStep(0, 0)))])
+end
+
+"""
+    make_element_cancel_operation(input, operation) -> Operation
+
+The answer of the reader of an outline of `input` to `operation`, an operation
+that the reader read: the write of the empty document of an element over the
+element, which the type-in of a new element answers to Escape, becomes the
+removal of the element from its list, with the selection on its holder. So an
+element that a person starts to add and leaves goes away. Any other operation is
+itself.
+"""
+function make_element_cancel_operation(input, operation)
+    (operation isa CompoundOperation && !isempty(operation.operations)) || return operation
+    write = operation.operations[1]
+    (write isa ReplaceReferencedValueOperation && write.document === nothing) || return operation
+    steps = collect(get_reference_steps(strip_reference_types(write.reference)))
+    length(steps) >= 2 || return operation
+    place, field = steps[end], steps[end - 1]
+    (place isa RangeReferenceStep && place.stop == place.start + 1 &&
+     field isa FieldReferenceStep && field.name == "elements") || return operation
+    holder_path = _make_outline_reference(steps[1:(end - 2)])
+    holder = try_evaluate_reference(input, holder_path, missing)
+    (holder !== missing && hasproperty(holder, :elements) && place.stop <= length(holder.elements)) ||
+        return operation
+    empty = get_nothing_document(typeof(holder.elements[place.stop]))
+    (write.value isa empty && !(holder.elements[place.stop] isa empty)) || return operation
+    CompoundOperation(Any[make_remove_element_operation(holder, place.stop), ReplaceSelectionOperation(holder_path)])
+end
+
+"""
     make_move_element_operation(holder, index, to) -> Operation
 
 Move the element at the 1-based `index` of the elements of `holder` so that it is
@@ -100,13 +143,15 @@ get_outline_element_steps() =
         FieldReferenceStep("child"), FieldReferenceStep("content")]
 
 """
-    make_element_menu(holder, index; open = nothing) -> WidgetMenu
+    make_element_menu(holder, index; open) -> WidgetMenu
 
-The menu of the element at `index` of the elements of `holder`: Move up and Move
-down where it can move, and Remove. `open`, when given, is the operation that
-opens the element in a tab of its own.
+The menu of the element at `index` of the elements of `holder`: Open in a tab,
+Move up and Move down where it can move, and Remove. `open` is the operation of
+Open in a tab, by default an `OpenPageOperation` that shows the element itself
+in a new tab; with `nothing` the menu has no Open in a tab.
 """
-function make_element_menu(holder, index::Integer; open = nothing)
+function make_element_menu(holder, index::Integer;
+                           open = OpenPageOperation(holder.elements[index], EmptyReference(), :new_tab))
     count = length(holder.elements)
     items = Any[]
     open === nothing || push!(items, WidgetMenuItem("Open in a tab"; operation = open), WidgetSeparator())

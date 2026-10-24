@@ -53,6 +53,13 @@ function test_scroll_pane_show()
     @testset "an editor selects a document that no reader named, and the history keeps no step" begin
         root = VerticalLayout(Any[rows[1], rows[2]])
         editor = (; document = root)
+        evaluate_operation(editor, SelectDocumentOperation(rows[1]))
+        # Its way back puts the selection where it was, so an add that takes the
+        # caret has a way back.
+        inverse = evaluate_invertible_operation!(editor, SelectDocumentOperation(rows[2]))
+        @test evaluate_reference(root, strip_reference_types(get_selection(root))) === rows[2]
+        evaluate_operation(editor, inverse)
+        @test evaluate_reference(root, strip_reference_types(get_selection(root))) === rows[1]
         evaluate_operation(editor, SelectDocumentOperation(rows[2]))
         @test evaluate_reference(root, strip_reference_types(get_selection(root))) === rows[2]
         @test find_document_path(root, WidgetLabel("elsewhere")) === nothing

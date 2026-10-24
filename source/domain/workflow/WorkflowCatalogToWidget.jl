@@ -134,11 +134,11 @@ function _build_catalog_view(p::WorkflowCatalogToWidget, catalog::WorkflowCatalo
         () -> ReplaceViewStateOperation(ReplaceReferencedValueOperation(catalog, "version", version + 1)))
     create = _make_workflow_button("New workflow", "Write a new workflow into the folder and open it",
                                    () -> CreateWorkflowFileOperation(catalog))
-    headers = Any[WidgetLabel(text) for text in ("workflow", "state", "active", "last entry",
+    headers = Any[WidgetLabel(text) for text in ("workflow", "progress", "state", "active", "last entry",
                                                  "open decisions", "file")]
     rows = Any[_make_catalog_row(p, path, workflow) for (path, workflow) in collect_workflow_files(catalog.folder)]
     isempty(rows) && push!(rows, Any[WidgetLabel("no workflow in " * catalog.folder; text_style = p.muted_text),
-                                    WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel("")])
+                                    (WidgetLabel("") for _ in 2:length(headers))...])
     VerticalLayout(Any[HorizontalLayout(Any[create, again]; gap = p.gap), WidgetTable(headers, rows)];
                    gap = p.gap, child_width = Fill)
 end
@@ -148,11 +148,24 @@ function _make_catalog_row(p::WorkflowCatalogToWidget, path::AbstractString, wor
     open = _make_workflow_button(isempty(goal) ? basename(path) : goal, "Open the workflow in a tab",
                                  () -> OpenFileOperation(path))
     Any[open,
+        _make_catalog_progress(p, workflow),
         WidgetLabel(string(workflow.state)),
         WidgetLabel(join((step.title.value for step in _collect_active_steps(workflow)), ", ")),
         WidgetLabel(_format_readable_time(_get_last_entry_time(workflow)); text_style = p.muted_text),
         WidgetLabel(string(_count_open_decisions(workflow))),
         WidgetLabel(basename(path); text_style = p.muted_text)]
 end
+
+# The progress of `workflow` in the catalog: a bar of the share of its steps that are
+# done, and the count beside it, such as "1 of 3".
+function _make_catalog_progress(p::WorkflowCatalogToWidget, workflow::WorkflowStep)
+    (; steps, done) = _count_workflow_progress(workflow)
+    HorizontalLayout(Any[WidgetProgressBar(steps == 0 ? 0.0 : done / steps; width = _CATALOG_BAR_WIDTH),
+                         WidgetLabel(string(done, " of ", steps); text_style = p.muted_text)];
+                     gap = p.gap, vertical_align = :center)
+end
+
+"The length of the bar of the progress of a workflow in the catalog, in pixels."
+const _CATALOG_BAR_WIDTH = 80
 
 map_reference_forward(p::WorkflowCatalogToWidget, iomap, reference) = find_introduced_path(p, reference)

@@ -1,6 +1,6 @@
 # Fragment of `WorkflowModule` — the outline of a workflow as widgets: the goal,
 # then a row of the outline kit for each node of the tree under it, indented by
-# its depth.
+# its depth along the guide lines of the nodes above it.
 #
 # The output holds the documents of the input that are not prose — an element of
 # a node, the text of an entry in another domain — and the renderer draws each of
@@ -15,7 +15,8 @@
     WorkflowNodeToWidget(; outline)
 
 Draw a node and the tree under it as an outline: its title, the counts of the
-states of its steps, then a row for each node under it, indented by its depth.
+states of its steps, then a row for each node under it, indented by its depth,
+with a guide line under the mark of each node down along the rows under it.
 
 A row shows the fold and the mark of a node: the state of a step as a ring, a
 decision as a diamond, the state of an option. After the title stand the reason
@@ -261,7 +262,7 @@ function _make_workflow_menu(node, parent, index)
             node isa WorkflowOption && parent isa WorkflowDecision ? _make_option_items(parent, index, node) : Any[]
     adds = vcat(_make_add_items(node), Any[
         WidgetMenuItem("Comment"; operation = _make_comment_operation(node)),
-        WidgetMenuItem("Add an element"; operation = make_add_element_operation(node, DocumentInsertion("")))])
+        WidgetMenuItem("Add an element"; operation = make_new_element_operation(node))])
     parent === nothing && return _make_grouped_menu(Any[state, adds])
     siblings = get_workflow_node_children(parent)
     view = Any[WidgetMenuItem(node.collapsed ? "Unfold" : "Fold"; operation = ReplaceViewStateOperation(ToggleCollapseOperation(node))),
@@ -301,9 +302,9 @@ end
 
 # ── The outline of a node ────────────────────────────────────────────────
 
-# The counts of the states of the steps and of the decisions under `root`, as the
-# header says them.
-function _describe_workflow_progress(root)
+# The counts of the steps under `root`, of those done and of those active, and of
+# the decisions and of those settled.
+function _count_workflow_progress(root)
     steps = 0; done = 0; active = 0; decisions = 0; decided = 0
     visit(node) = begin
         if node isa WorkflowStep
@@ -317,6 +318,13 @@ function _describe_workflow_progress(root)
         foreach(visit, get_workflow_node_children(node))
     end
     foreach(visit, get_workflow_node_children(root))
+    (; steps, done, active, decisions, decided)
+end
+
+# The counts of the states of the steps and of the decisions under `root`, as the
+# header says them.
+function _describe_workflow_progress(root)
+    (; steps, done, active, decisions, decided) = _count_workflow_progress(root)
     parts = String[string(done, " of ", steps, steps == 1 ? " step done" : " steps done")]
     active > 0 && push!(parts, string(active, " active"))
     decisions > 0 && push!(parts, string(decided, " of ", decisions, decisions == 1 ? " decision settled" :
@@ -505,7 +513,7 @@ function _make_workflow_row!(slots, embedded, outline, row, place, shows_date::B
     push!(slots, OutlineSlot(prefix, place; whole = true))
     make_outline_row(outline; facts = make_outline_facts(outline, [Any[fold, mark]]),
                      body = VerticalLayout(body_rows; child_width = Fill), menu, revealed,
-                     indent = row.depth * outline.indent, title = name, compute_menu,
+                     title = name, compute_menu,
                      facts_width = outline.tree_meta_width, keys = _make_workflow_row_keys(row))
 end
 
@@ -539,7 +547,9 @@ function _build_node_view(p::WorkflowNodeToWidget, root)
     days = [length(row.node.journal) == 0 ? nothing : _get_workflow_day(row.node.journal[end].time)
             for row in listed]
     for (row, shows_date) in zip(listed, compute_shown_dates(days))
-        push!(rows, _make_workflow_row!(slots, embedded, outline, row, next_place(), shows_date))
+        place = vcat(next_place(), get_outline_guide_steps(row.depth))
+        push!(rows, make_outline_guides(outline, _make_workflow_row!(slots, embedded, outline, row, place, shows_date),
+                                        row.depth))
     end
     # A workflow with no step shows a quiet row, where the first key makes the
     # first step.
@@ -604,6 +614,10 @@ function read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, oper
     isempty(answer.replacement) && return nothing
     _make_add_and_type_operation(root, WorkflowStep(title = PrimitiveString(answer.replacement)))
 end
+
+# An Escape in the type-in of a new element of a node removes the element.
+read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::CompoundOperation) =
+    make_element_cancel_operation(iomap.input, invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation))
 
 # A document that is pasted while the caret is in the row of a node is an element
 # of the node: the document itself after a note, or a copy.

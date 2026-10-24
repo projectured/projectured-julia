@@ -44,7 +44,7 @@ its values with `get_outline_style`, from a theme scaled or not.
     chip_fill::ThemeColor = ColorRole(:surface_sunken)
     "The ground of a document inside a row."
     inset_fill::ThemeColor = ColorRole(:surface_sunken)
-    "The line around a document inside a row, and the line under a section label."
+    "The line around a document inside a row, the line under a section label, and the guide lines of a tree."
     line::ThemeColor = ColorRole(:border)
     "The colour of an open mark and of a control that a row shows under the pointer."
     mark_color::ThemeColor = ColorRole(:text_muted)
@@ -74,6 +74,8 @@ its values with `get_outline_style`, from a theme scaled or not.
     section_gap::Spacing = Spacing(14)
     "The step of the indent of a row of a tree."
     indent::Spacing = Spacing(30)
+    "The width of a guide line of a tree."
+    guide_width::Spacing = Spacing(1)
     "The height of a line of the text of a row."
     text_line::Spacing = Spacing(22)
     "The height of a line of a field and of a link."

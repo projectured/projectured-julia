@@ -337,8 +337,9 @@ end
 
 """
 The decision that a person writes in the row of an item before it is recorded:
-the item, the verdict, `:accepted` or `:rejected`, and the reason. A study holds it
-in `deciding` while the panel of the row is open, as state of its view.
+the item, the verdict, `:accepted` or `:rejected`, the reason, and the basis, the
+items that the decision rests on. A study holds it in `deciding` while the panel
+of the row is open, as state of its view.
 
 Use it to open the panel of a decision in the outline of a study.
 
@@ -352,6 +353,7 @@ See also `ResearchDecision`, which a press on Record writes.
     item::Any = nothing
     verdict::Symbol = :accepted
     reason::Any = PrimitiveString("")
+    basis::CellVector = CellVector()
 end
 
 """
@@ -371,7 +373,8 @@ item holds that item itself.
 - `deciding` — the `ResearchDecisionDraft` of the panel that a row of the outline
   shows, or `nothing`. It is view state too.
 - `view` — how the outline shows the study: `:kind`, a section for each kind of
-  item, `:time`, a group for each day, or `:report`, the report. It is view state.
+  item, `:time`, a group for each day, `:map`, the map of its items and links, or
+  `:report`, the report. It is view state.
 - `first_text` — the quiet row that the outline of a study with no item shows,
   where the first key a person types makes the first question. It is view state.
 - `editing` — the id of the item whose row shows every field, the empty ones too,

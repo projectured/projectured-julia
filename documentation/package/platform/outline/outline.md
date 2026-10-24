@@ -34,7 +34,11 @@ text in a text role of the theme, `make_outline_mark` the mark of a record,
 `make_outline_control` a control that shows under the pointer, `make_outline_chip`
 the id of a linked record, `make_outline_avatar` the author, `make_outline_field`
 a field after its word, `make_outline_relations` the links as groups of chips, and
-`make_outline_section` the label of a section. A text of a record is a quiet
+`make_outline_section` the label of a section; with `compute_menu` a section has a
+menu, behind a "⋯" that shows under the pointer, as a row does. A row of a tree
+stands in `make_outline_guides`: one plain card for each node above it, a step of
+the indent apart, whose left border is the guide line of that node, so the lines
+of the rows under one node meet and draw as one line. A text of a record is a quiet
 `WidgetText` that wraps at its column and draws its box only while it holds the
 caret, and it reads its value in a cell of its own, so a key draws the text again
 and builds no row.
@@ -65,7 +69,11 @@ gives the steps from the block to the document, for the slots of a domain.
 `holder`, so it acts the same from any part, and a move is a remove and an insert
 in one edit. The document goes in as it is, so a document that a note of the
 clipboard holds stands at two places and keeps its identity. `make_element_menu`
-holds Move up, Move down, Remove and, when given, Open in a tab.
+holds Open in a tab, which shows the element itself in a new tab, Move up, Move
+down and Remove. `make_new_element_operation` adds an empty type-in of a kind with
+the caret in it, and the reader of an outline passes what it reads through
+`make_element_cancel_operation`, so Escape in that type-in, which writes the empty
+document of the type-in over it, removes the element from its list.
 `make_element_choice_list(holder)` lists the kinds of document that stand as an
 element (`is_element_type`), with their icons and the first sentence of their
 docstrings, and a choice adds a new one. `add_element!(holder, document)` is the

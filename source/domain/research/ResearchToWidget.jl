@@ -591,21 +591,28 @@ function _make_add_and_type_operation(study, item::ResearchItem)
 end
 
 # The operation of a press on Record: a decision of the person that names the item,
-# with the reason of the person.
-function _make_decide_operation(study, item, status::Symbol; reason::AbstractString = "")
+# with the reason of the person and the items of `basis`.
+function _make_decide_operation(study, item, status::Symbol; reason::AbstractString = "", basis = Any[])
     verb = status === :accepted ? "Accept " : "Reject "
     decision = make_research_item(study, ResearchDecision; author = :person,
-                                  statement = verb * item.id, reason,
+                                  statement = verb * item.id, reason, basis = collect(Any, basis),
                                   accepts = status === :accepted ? Any[item] : Any[],
                                   rejects = status === :rejected ? Any[item] : Any[])
     make_record_decision_operation(study, decision)
 end
 
+# The evidence of `study` that bears on `item`: each that supports it or opposes it.
+_collect_bearing_evidence(study, item) =
+    Any[evidence for evidence in study.evidence
+        if any(other -> other === item, collect(evidence.supports)) ||
+           any(other -> other === item, collect(evidence.opposes))]
+
 # The operation of "Accept…" and "Reject…": the panel of a decision in the row of
-# `item`, with `status` as its verdict. It is a write of view state.
+# `item`, with `status` as its verdict and the evidence that bears on the item as its
+# basis. It is a write of view state.
 _make_open_decision_operation(study, item, status::Symbol) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(study, "deciding",
-                                                              ResearchDecisionDraft(; item, verdict = status)))
+        ResearchDecisionDraft(; item, verdict = status, basis = _collect_bearing_evidence(study, item))))
 
 # The close of the panel of a decision, with nothing recorded.
 _make_close_decision_operation(study) =
@@ -615,7 +622,7 @@ _make_close_decision_operation(study) =
 # the close of the panel, in one edit.
 function _make_record_draft_operation(study, draft::ResearchDecisionDraft)
     reason = _format_plain_text(draft.reason)
-    CompoundOperation(Any[_make_decide_operation(study, draft.item, draft.verdict; reason),
+    CompoundOperation(Any[_make_decide_operation(study, draft.item, draft.verdict; reason, basis = draft.basis),
                           _make_close_decision_operation(study)])
 end
 
@@ -624,9 +631,41 @@ _make_panel_button(name::AbstractString, make::Function) =
     WidgetButton(name; gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> make();
                                                                 description = name, domain = "research")])
 
+# The put of `other` in the basis of `draft`, or its take out of the basis.
+function _make_basis_toggle_operation(draft::ResearchDecisionDraft, other)
+    index = findfirst(element -> element === other, collect(draft.basis))
+    path = Reference(FieldReferenceStep("basis"))
+    index === nothing ?
+        make_insert_elements_operation(path, length(draft.basis) + 1, Any[other]; root = draft) :
+        make_delete_elements_operation(path, index; root = draft)
+end
+
+# The basis of the panel: a chip for each evidence that bears on the item of
+# `draft`, on its ground while it is in the basis and with none while it is not.
+# A press puts it in or takes it out, and the ground follows the basis, so a press
+# builds no outline.
+function _make_basis_line(outline, study, draft::ResearchDecisionDraft)
+    candidates = _collect_bearing_evidence(study, draft.item)
+    isempty(candidates) && return nothing
+    chips = Any[]
+    for other in candidates
+        chip = make_outline_chip(outline, other.id, "Put " * other.id * " in the basis or take it out",
+                                 () -> _make_basis_toggle_operation(draft, other);
+                                 tooltip = TooltipNote(; title = other.id,
+                                                       text = WidgetLabel(_format_plain_text(get_research_item_text(other)))))
+        shown = chip.style.content_color
+        for name in (:content_color, :padding_color)
+            set_cell_computation!(getfield(chip.style, name), () ->
+                any(element -> element === other, collect(draft.basis)) ? shown : color_transparent)
+        end
+        push!(chips, chip)
+    end
+    make_outline_field(outline, "basis", HorizontalLayout(chips; gap = outline.meta_gap, vertical_align = :center))
+end
+
 # The panel of the decision that the person writes in the row of an item, at
-# `place` in the output: the verdict as a pair of toggles, the reason, and Record
-# and Cancel. Escape cancels it.
+# `place` in the output: the verdict as a pair of toggles, the reason, the basis,
+# and Record and Cancel. Escape cancels it.
 function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchDecisionDraft, place)
     # The toggles write the draft, which keeps its own paths.
     push!(embedded, draft)
@@ -641,7 +680,9 @@ function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchD
                                gap = outline.meta_gap)
     cancel = GestureBinding(KeyDownPattern(:escape), (_, _) -> _make_close_decision_operation(study);
                             description = "Cancel the decision", domain = "research")
-    WidgetCard(; variant = :muted, content = VerticalLayout(Any[verdict, reason, buttons]; gap = outline.meta_gap),
+    basis = _make_basis_line(outline, study, draft)
+    parts = basis === nothing ? Any[verdict, reason, buttons] : Any[verdict, reason, basis, buttons]
+    WidgetCard(; variant = :muted, content = VerticalLayout(parts; gap = outline.meta_gap),
                margin = inset_default, border = inset_default, padding = outline.inset_padding,
                gestures = GestureBinding[cancel])
 end
@@ -662,6 +703,38 @@ function _make_fold_operation(study, item)
     folded = String[id for id in study.folded if id != item.id]
     item.id in study.folded || push!(folded, item.id)
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(study, "folded", folded))
+end
+
+# The fold of every item of `items` with `fold`, or the unfold of each: a write of
+# view state.
+function _make_fold_all_operation(study, items, fold::Bool)
+    ids = Set{String}(item.id for item in items)
+    folded = String[id for id in study.folded if !(id in ids)]
+    fold && append!(folded, (item.id for item in items))
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(study, "folded", folded))
+end
+
+# The words of an add of a new item of `kind`, as "Add a question" and "Add evidence".
+_describe_kind_add(kind) =
+    kind.field === :evidence ? "Add evidence" :
+    "Add " * (kind.name[1] in "aeiou" ? "an " : "a ") * kind.name
+
+# The menu of a section of the outline of a study, whose rows are the items of
+# `items`: the add of an item of `kind` for a section of a kind, the fold of all
+# its items, and the other view.
+function _make_section_menu(study, items, kind)
+    elements = Any[]
+    kind === nothing ||
+        push!(elements, WidgetMenuItem(_describe_kind_add(kind); operation = _make_add_operation(study, kind.type)),
+              WidgetSeparator())
+    folded = Set{String}(study.folded)
+    all_folded = all(item -> item.id in folded, items)
+    push!(elements, WidgetMenuItem(all_folded ? "Unfold all" : "Fold all";
+                                   operation = _make_fold_all_operation(study, items, !all_folded)))
+    other = study.view === :time ? :kind : :time
+    push!(elements, WidgetMenuItem(other === :time ? "View by time" : "View by kind";
+                                   operation = ReplaceReferencedValueOperation(study, "view", other)))
+    WidgetMenu(elements)
 end
 
 # The items of the menu that add an item linked to `item`, each with the operation
@@ -700,9 +773,13 @@ function _make_research_menu(study, item::ResearchItem, folded::Bool)
                        enabled = item.status !== :rejected)])
     adds = _make_linked_add_items(study, item)
     isempty(adds) || push!(groups, adds)
-    push!(groups, Any[WidgetMenuItem("Add an element"; operation = make_add_element_operation(item, DocumentInsertion("")))])
+    push!(groups, Any[WidgetMenuItem("Add an element"; operation = make_new_element_operation(item))])
     push!(groups, Any[WidgetMenuItem("Edit all fields"; operation = _make_edit_all_operation(study, item)),
                       WidgetMenuItem(folded ? "Unfold" : "Fold"; operation = _make_fold_operation(study, item))])
+    push!(groups, Any[WidgetMenuItem("Open in the map";
+                                     operation = CompoundOperation(Any[ReplaceReferencedValueOperation(study, "view", :map),
+                                                                       SelectDocumentOperation(item)])),
+                      WidgetMenuItem("Copy the id"; operation = WriteOsClipboardOperation(item.id))])
     delete = try
         make_delete_research_item_operation(study, item)
     catch exception
@@ -768,6 +845,8 @@ function _build_study_view(p::ResearchStudyToWidget, study::ResearchStudy)
     view = study.view
     if view === :report
         _push_study_report!(rows, slots, embedded, outline, study, next_place)
+    elseif view === :map
+        _push_study_map!(rows, slots, study, next_place)
     else
         _push_study_rows!(rows, slots, embedded, outline, study, next_place; by_time = view === :time)
     end
@@ -777,11 +856,26 @@ function _build_study_view(p::ResearchStudyToWidget, study::ResearchStudy)
     (; output, slots)
 end
 
-# The switch of the views of a study: by kind, by time and the report. A pick
-# writes `view` of the study, which is view state.
+# The views of a study, in the order of the switch, with the words of each.
+const _STUDY_VIEWS = (:kind => "By kind", :time => "By time", :map => "Map", :report => "Report")
+
+# The switch of the views of a study: by kind, by time, the map and the report. A
+# pick writes `view` of the study, which is view state.
 _make_study_view_switch(study::ResearchStudy) =
-    WidgetToggleGroup(["By kind", "By time", "Report"]; values = [:kind, :time, :report], target = study,
-                      field = "view", selected = something(findfirst(==(study.view), (:kind, :time, :report)), 1))
+    WidgetToggleGroup(collect(String, last.(_STUDY_VIEWS)); values = collect(Symbol, first.(_STUDY_VIEWS)),
+                      target = study, field = "view",
+                      selected = something(findfirst(view -> first(view) === study.view, _STUDY_VIEWS), 1))
+
+# The map of the study in place of its rows: a `ResearchMap` of the study, which the
+# renderer draws as a graph. The study is the study of the map, so a path into the
+# study is a path into the map, and a press on a vertex selects its item.
+function _push_study_map!(rows, slots, study, next_place)
+    place = next_place()
+    push!(slots, OutlineSlot(Any[], vcat(place, Any[_make_field_step("study")])))
+    push!(slots, OutlineSlot(Any[], place; whole = true))
+    push!(rows, ResearchMap(; study))
+    nothing
+end
 
 # The rows of the items: a section for each kind with items, in the order of the
 # work, or with `by_time` a group for each local day, in the order of the time. A
@@ -799,7 +893,13 @@ function _push_study_rows!(rows, slots, embedded, outline, study, next_place; by
         group = by_time ? day : kind
         if !isequal(group, current)
             title = by_time ? (day === nothing ? "No date" : _format_research_day(item.time)) : _get_section_title(kind)
-            push!(rows, make_outline_section(outline, title))
+            members = [listed[i][3] for i in eachindex(listed) if isequal(by_time ? days[i] : listed[i][1], group)]
+            add_kind = by_time ? nothing : kind
+            # The header of a section is a place of the study, so a press on its "⋯"
+            # reaches it.
+            push!(slots, OutlineSlot(Any[], next_place(); whole = true))
+            push!(rows, make_outline_section(outline, title;
+                                             compute_menu = () -> _make_section_menu(study, members, add_kind)))
             current = group
         end
         prefix = Any[_make_field_step(kind.field), _make_element_step(index)]
@@ -832,6 +932,10 @@ function read_intent(p::ResearchStudyToWidget, iomap::ResearchToWidgetIoMap, ope
     question = make_research_item(study, ResearchQuestion; author = :person, statement = answer.replacement)
     _make_add_and_type_operation(study, question)
 end
+
+# An Escape in the type-in of a new element of an item removes the element.
+read_intent(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, operation::CompoundOperation) =
+    make_element_cancel_operation(iomap.input, invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation))
 
 function _is_first_text_reference(reference)
     steps = collect(get_reference_steps(strip_reference_types(reference)))

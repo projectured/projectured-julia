@@ -13,26 +13,37 @@ A person makes a workflow from the empty document: the goal, the first step from
 the quiet row, the next step with Return and under the first with Tab, the state
 of a step from its mark, a decision with two options and the choice of one from
 its mark, a comment, and an element; the workflow saves as a `.pred` text and reads
-back to the same text.
+back to the same text, and each edit taken back in turn leads back to the empty
+document.
 """
 function test_workflow_walkthrough()
 @testset "a workflow from its empty document to its file" begin
     workflow = make_insertion_document(WorkflowStep)
     editor = _make_workflow_view_editor(workflow)
-    press_key(char) = _apply_workflow_operation!(editor, read_intent(editor.projection, editor.iomap,
-                                                                     KeyPress(char; time = 0.0)))
+    empty_text = print_pred_text(workflow)
+    # Each edit with its way back and the text of the workflow before it, so the end
+    # takes each one back in turn.
+    history = Tuple{Any, String}[]
+    apply!(operation) = begin
+        before = print_pred_text(workflow)
+        inverse = evaluate_invertible_operation!(editor, operation)
+        run_print_stage!(editor)
+        is_undo_step(nothing, operation) && push!(history, (inverse, before))
+        nothing
+    end
+    press_key(char) = apply!(read_intent(editor.projection, editor.iomap, KeyPress(char; time = 0.0)))
     type_text(text) = foreach(press_key, text)
     selected() = string(strip_reference_types(get_selection(workflow)))
     # A press that `accept` takes, and an item of a menu: each answers whether it
     # found one, and applies it.
     click(accept) = begin
         hit = _find_workflow_click(editor, accept)
-        hit === nothing || _apply_workflow_operation!(editor, hit[3])
+        hit === nothing || apply!(hit[3])
         hit !== nothing
     end
     pick(label, accept) = begin
         found = _find_workflow_menu(editor, menu -> _find_workflow_menu_item(menu, label, accept) !== nothing)
-        found === nothing || _apply_workflow_operation!(editor, _find_workflow_menu_item(found[3], label, accept))
+        found === nothing || apply!(_find_workflow_menu_item(found[3], label, accept))
         found !== nothing
     end
 
@@ -40,7 +51,7 @@ function test_workflow_walkthrough()
     count = length(workflow.title.value)
     replace_selection!(workflow, extend_reference(EmptyReference(), FieldReferenceStep("title"),
                                                   FieldReferenceStep("value"), RangeReferenceStep(count, count)))
-    _apply_workflow_operation!(editor, DoNothingOperation())
+    apply!(DoNothingOperation())
     type_text(" of the view")
     @test workflow.title.value == "New workflow of the view"
 
@@ -80,7 +91,7 @@ function test_workflow_walkthrough()
     @test pick("Comment", operation -> _is_workflow_write(operation, survey, ".journal{" * string(entries) * "}"))
     type_text("Started")
     @test survey.journal[end].text.value == "Started"
-    _apply_workflow_operation!(editor, make_add_element_operation(survey, PrimitiveString("a note")))
+    apply!(make_add_element_operation(survey, PrimitiveString("a note")))
     @test survey.elements[end].value == "a note"
 
     # The file: the workflow as its `.pred` text, which reads back to the same text.
@@ -89,5 +100,19 @@ function test_workflow_walkthrough()
     @test print_pred_text(loaded) == text
     @test loaded.children[1].children[2].options[1].state === :chosen
     @test loaded.children[1].elements[1].value == "a note"
+
+    # Each edit taken back, the last first, gives the text before it, down to the
+    # empty document.
+    @test all(entry -> entry[1] !== nothing, history)
+    missed = Int[]
+    for (index, (inverse, before)) in Iterators.reverse(collect(enumerate(history)))
+        inverse === nothing && break
+        # As a history takes a step back: the edits, without the moves of the
+        # selection, which name places that exist only after the edits.
+        evaluate_operation(editor, UndoModule._drop_selection_moves(inverse))
+        print_pred_text(workflow) == before || push!(missed, index)
+    end
+    @test isempty(missed)
+    @test print_pred_text(workflow) == empty_text
 end
 end

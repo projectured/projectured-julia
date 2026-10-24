@@ -163,16 +163,34 @@ function make_outline_relations(outline, groups)
 end
 
 """
-    make_outline_section(outline, title) -> WidgetLabel
+    make_outline_section(outline, title; compute_menu = nothing) -> Widget
 
 The label of a section of an outline, such as a kind of record or a day: small
 bold capitals, with the gap of a section above it, in line with the facts of the
 rows under it.
+
+With `compute_menu`, the section has a menu, a `WidgetMenu` that `compute_menu()`
+makes at the time it opens: the header is a `:row` card whose "⋯" shows under the
+pointer, and the "⋯", a right click and Shift+F10 open the menu.
 """
-make_outline_section(outline, title::AbstractString) =
-    WidgetLabel(uppercase(title); text_style = outline.section_text, margin = inset_default,
-                border = inset_default,
-                padding = Inset(outline.section_gap, outline.meta_gap, outline.row_padding.left[], 0))
+function make_outline_section(outline, title::AbstractString; compute_menu = nothing)
+    label = WidgetLabel(uppercase(title); text_style = outline.section_text, margin = inset_default,
+                        border = inset_default,
+                        padding = Inset(outline.section_gap, outline.meta_gap, outline.row_padding.left[], 0))
+    compute_menu === nothing && return label
+    name = "The menu of " * title
+    control = make_outline_control(outline, :ellipsis, name, () -> make_outline_menu_operation(title, compute_menu);
+                                   size = :avatar_size)
+    columns = Any[LayoutConstraint(label; width = Fill),
+                  LayoutConstraint(control; width = Fixed(outline.menu_width))]
+    header = WidgetCard(; variant = :row,
+                        content = HorizontalLayout(columns; gap = outline.column_gap, vertical_align = :bottom),
+                        margin = inset_default, border = inset_default,
+                        padding = Inset(0, 0, 0, outline.row_padding.right[]),
+                        gestures = _make_row_menu_bindings(title, compute_menu))
+    _reveal_in_row!(control, header)
+    header
+end
 
 """
     make_outline_menu_operation(title, compute_menu) -> Operation | Nothing
@@ -238,6 +256,34 @@ function make_outline_row(outline; facts, body, menu = nothing, indent::Integer 
     end
     row
 end
+
+"""
+    make_outline_guides(outline, row, depth) -> Widget
+
+`row`, a row of a tree at `depth`, with the guide line of each node above it: a
+line under the mark of the node, down along the rows under it. Each line is the
+left border of a plain card around the row, a step of the indent from the line
+before it, so the lines of the rows of one node meet and draw as one line, and
+the cards indent the row. `row` takes no indent of its own, and its place is the
+place of the guides with `get_outline_guide_steps(depth)` after it.
+"""
+function make_outline_guides(outline, row, depth::Integer)
+    for _ in 1:depth
+        row = WidgetCard(; variant = :plain, content = row,
+                         margin = Inset(0, 0, outline.indent - outline.guide_width, 0),
+                         border = Inset(0, 0, outline.guide_width, 0), padding = inset_default,
+                         style = WidgetCardStyle(; plain_border_color = outline.line))
+    end
+    row
+end
+
+"""
+    get_outline_guide_steps(depth) -> Vector
+
+The steps from the place of the guides of a row at `depth`, as
+`make_outline_guides` makes them, to the row itself.
+"""
+get_outline_guide_steps(depth::Integer) = Any[FieldReferenceStep("content") for _ in 1:depth]
 
 # A control that shows only while the pointer is on `row` or the caret is in it:
 # its colour is none at rest. The colour follows the two cells of the row, so the

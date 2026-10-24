@@ -83,7 +83,8 @@ end
 The outline of a workflow in an editor: a click names the place it lands on, a key
 types into a title, the mark of a step opens its states, the menu of a row adds a
 node, an option, an entry and an element and removes a node, the fold folds a node,
-and the view that the editor keeps follows each change.
+a row of the tree stands in the guide lines of the nodes above it, and the view
+that the editor keeps follows each change.
 """
 function test_workflow_to_widget()
     @testset "WorkflowToWidget" begin
@@ -111,6 +112,24 @@ function test_workflow_to_widget()
             @test iomap.output === output
             evaluate_operation(nothing, make_insert_workflow_node_operation(workflow, 1, WorkflowStep()))
             @test iomap.output !== output
+        end
+
+        @testset "a row of the tree stands in a guide line for each node above it" begin
+            workflow = make_workflow_document_example()
+            projection = WorkflowNodeToWidget()
+            iomap = print_document(projection, nothing, workflow, nothing)
+            # The depth of the guides around a row, and the row inside them.
+            depth(widget) = widget isa WidgetCard && widget.variant === :plain ? 1 + depth(widget.content) : 0
+            option = Reference(FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                               FieldReferenceStep("options"), RangeReferenceStep(0, 1))
+            place = string(strip_reference_types(map_reference_forward(projection, iomap, option)))
+            @test place == ".children[5].content"
+            rows = iomap.output.children
+            @test depth(rows[4]) == 0 && depth(rows[5]) == 1
+            @test rows[5].border.left[] == 1 && rows[5].content.variant === :row
+            @test string(strip_reference_types(map_reference_backward(projection, iomap,
+                Reference(FieldReferenceStep("children"), RangeReferenceStep(4, 5), FieldReferenceStep("content"))))) ==
+                  ".children[2].options[1]"
         end
 
         @testset "a key types into the title that holds the caret" begin
@@ -176,10 +195,11 @@ function test_workflow_to_widget()
             @test decision.options[end] isa WorkflowOption
             @test decision.journal[end].kind === :comment
             @test decision.elements[end] isa DocumentInsertion
-            # A comment shows the journal under the row, with the caret in the new entry.
+            # A comment shows the journal under the row; the new element, the last add,
+            # holds the caret in its type-in.
             @test decision.journal_shown
             @test string(strip_reference_types(get_selection(workflow))) ==
-                  ".children[2].journal[" * string(length(decision.journal)) * "].text.value{0}"
+                  ".children[2].elements[" * string(length(decision.elements)) * "].value{0}"
         end
 
         @testset "a press on the count of the journal shows its entries under the row" begin

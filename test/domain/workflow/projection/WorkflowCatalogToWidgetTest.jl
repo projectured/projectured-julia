@@ -20,9 +20,9 @@ _get_catalog_table(iomap) = iomap.output.children[2]
     test_workflow_catalog_to_widget()
 
 The catalog of the workflows of a folder: one row for each workflow file, the
-last worked on first, with its state, its active steps, its last entry and its
-open decisions; a press on a goal opens its file, and "Read again" reads a file
-that came after the view was built.
+last worked on first, with the bar of its progress, its state, its active steps,
+its last entry and its open decisions; a press on a goal opens its file, and
+"Read again" reads a file that came after the view was built.
 """
 function test_workflow_catalog_to_widget()
     @testset "WorkflowCatalogToWidget" begin
@@ -35,10 +35,14 @@ function test_workflow_catalog_to_widget()
             @test length(table.cells) == 3
             row = table.cells[1]
             @test row[1].action.label == "Workflow domain"
-            @test [cell.content for cell in row[2:6]] ==
+            # The progress: a bar of the share of the steps done, and the count.
+            bar, count = row[2].children
+            @test bar isa WidgetProgressBar && bar.value ≈ 1 / 3 && count.content == "1 of 3"
+            @test [cell.content for cell in row[3:7]] ==
                   ["active", "Workflow domain, Outline view", "2026-10-09 14:02", "0", "b.pred"]
             @test table.cells[3][1].action.label == "Open question"
-            @test table.cells[3][5].content == "1"
+            @test table.cells[3][6].content == "1"
+            @test table.cells[3][2].children[1].value == 0.0
             @test isempty(collect_workflow_files(joinpath(folder, "missing")))
         end
 
