@@ -10,10 +10,12 @@ What the target of a link names, for a navigator whose content is `root`:
 `#install`, `guide.md` or the name of an rst target. The answer is a `Reference`
 to a part of `root`, the absolute path of a file, a `Url` for an address outside
 the editor, such as a web address, which opens in the program of the system for
-it, or `nothing` for a target that names nothing. The default answers `nothing`;
-a domain adds a method for its root and its file document.
+it, or `nothing` for a target that names nothing. An address outside the editor
+needs no page to resolve it, so the default answers a `Url` for an address of the
+web or of mail (`find_web_url`) and `nothing` for any other target; a domain adds
+a method for its root and its file document.
 """
-find_navigator_target(root, target::AbstractString) = nothing
+find_navigator_target(root, target::AbstractString) = find_web_url(target)
 
 """
     find_navigator_address(root, document) -> Reference or nothing

@@ -109,6 +109,10 @@ end
     @test make_target_open_operation(WidgetLink("Julia", web).target, :here) isa OpenUrlOperation
     @test format_link_label(Link(web; content = "Julia")) == "Julia" && format_link_label(Link(web)) == "https://julialang.org"
     @test !open_url!(nothing, "https://julialang.org")
+    # Any content of a navigator resolves an address outside the editor, which needs
+    # no page; a name stays for the domain of the content.
+    @test find_navigator_target(ExplorerSection("Home", Any[]), "https://julialang.org") isa Url
+    @test find_navigator_target(ExplorerSection("Home", Any[]), "#install") === nothing
 end
 
 @testset "an address draws as a link whose click opens it outside the editor, and its page offers its open" begin
