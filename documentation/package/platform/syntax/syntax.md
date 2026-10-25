@@ -114,7 +114,7 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` sh
 
 ### The bridges
 
-- `ObjectToSyntax()` reflects any Julia value into a tree by its runtime type. A struct becomes a node of its type name and one node for each field. A `Bool`, number, string, `Symbol`, `Char` or `nothing` becomes a leaf.
+- `ObjectToSyntax()` reflects any Julia value into a tree by its runtime type. A struct becomes a node of its type name and one node for each field. A `Bool`, number, string, `Symbol`, `Char` or `nothing` becomes a leaf. A type becomes a leaf of its name, because its fields reach the whole type system.
 - `ObjectFieldToSyntax()` prints one field of one object, an `ObjectField` of the primitive slice, as the name leaf and the value. `ObjectToSyntax` prints each field from its `Cell` through `CellToSyntax`, so a write to the cell repaints the field. An `ObjectField` has no cell, so it needs a separate projection. Put its row in front of the `ObjectToSyntax` table, or the `Any` row prints the whole object.
 - `CollectionToSyntax()` prints a `CellVector` as a node in brackets and keeps a `ListNode` lazy.
 - `PrimitiveToSyntax()` prints a `PrimitiveBool`, `PrimitiveNumber` or `PrimitiveString` as a leaf, and a `PrimitiveInsertion` as a type-in.

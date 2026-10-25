@@ -64,7 +64,7 @@ export SyntaxTheme, ScaledSyntaxTheme
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
-       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
+       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf, TypeToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
 export ObjectFieldToSyntax
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax

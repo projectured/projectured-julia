@@ -5,7 +5,7 @@
 # whose first child is the type-name leaf and whose remaining children are
 # per-field SyntaxNodes, each holding a field-name leaf and the recursively
 # projected field value. Primitive values (Nothing, Bool, Number,
-# AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
+# AbstractString, Symbol, Char) and types produce SyntaxLeaf terminals.
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
 @projection UntrackedCell struct NothingToSyntaxLeaf
@@ -110,6 +110,23 @@ function print_document(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
         open=TextString("'", p.quote_style),
         close=TextString("'", p.quote_style))
     SimpleIoMap(p, c, leaf)
+end
+
+# ── TypeToSyntaxLeaf ─────────────────────────────────────────────────────────
+# A type prints as its name. Its fields are the machinery of Julia, and they reach
+# the whole type system, so a type is a leaf here as it is in the reflection slice.
+
+@projection UntrackedCell struct TypeToSyntaxLeaf
+    style::StyleText
+    include_selection::Bool
+end
+
+TypeToSyntaxLeaf(; theme = nothing, style = get_syntax_style(theme, :type_name_text),
+       include_selection::Bool = false) = TypeToSyntaxLeaf(style, include_selection)
+
+function print_document(p::TypeToSyntaxLeaf, recursion, t::Type, ctx)
+    leaf = SyntaxLeaf(TextString(string(t), p.style))
+    SimpleIoMap(p, t, leaf)
 end
 
 # ── CellToSyntax ─────────────────────────────────────────────────────────────
@@ -334,6 +351,7 @@ function ObjectToSyntax(; theme = nothing,
         AbstractString => StringToSyntaxLeaf(; theme, value=style(:string_text, nothing, string_color), include_selection=include_selection),
         Symbol         => SymbolToSyntaxLeaf(style=style(:symbol_text, nothing, symbol_color), include_selection=include_selection),
         Char           => CharToSyntaxLeaf(; theme, value=style(:char_text, nothing, char_color), include_selection=include_selection),
+        Type           => TypeToSyntaxLeaf(style=style(:type_name_text, type_name_font, type_name_color), include_selection=include_selection),
         Any            => ObjectNodeToSyntaxNode(; theme,
                                                  type_name=style(:type_name_text, type_name_font, type_name_color),
                                                  field_name=style(:field_name_text, field_name_font, field_name_color),

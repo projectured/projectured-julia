@@ -39,6 +39,19 @@ end # @testset
     @test rule(Symbol).style.color == role(:symbol_literal)
     @test rule(AbstractString).value.color == role(:string_literal)
     @test rule(Char).value.color == role(:character_literal)
+    @test rule(Type).style == rule(Any).type_name
+
+end # @testset
+
+@testset "a type prints as its name and not as its fields" begin
+
+    @test _ofs_render(Int64) == "Int64"
+    @test _ofs_render(Vector{Int64}) == "Vector{Int64}"
+    # A field that holds a type is one leaf: the fields of the type reach the
+    # whole type system, and none of them prints.
+    text = _ofs_render(Some(Int64))
+    @test occursin("value Int64", text)
+    @test !occursin("hash", text)
 
 end # @testset
 
