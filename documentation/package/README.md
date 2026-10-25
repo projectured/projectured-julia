@@ -48,7 +48,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `natural` | [natural.md](platform/natural/natural.md) | the natural notation of each domain, and the renderer of any document |
 | `roster` | [roster.md](platform/roster/roster.md) | a list of the items of a source across the session, such as the open files or the tasks, with their facets as the columns of a table |
 | `tree` | [tree.md](platform/tree/tree.md) | a document of any type, with the documents under it, as a tree: the generics that make a node, the open nodes, and the open of a page |
-| `link` | [link.md](platform/link/link.md) | a link as data: the functions of a link, the general `Link`, the address `Url`, and the view that draws any link as a `WidgetLink` |
+| `link` | [link.md](platform/link/link.md) | a link as data: the functions of a link, the general `Link`, the address `Url` with its pieces and its text line, and the view that draws any link as a `WidgetLink` |
 | `explorer` | [explorer.md](platform/explorer/explorer.md) | a tree of sections and entries beside a navigator: what an editor holds in one tab, with add, remove, filter, dashboards, and the content kept for the next start |
 | `systemprocess` | [systemprocess.md](platform/systemprocess/systemprocess.md) | the processes of the operating system as documents: a tree, a page with Interrupt and Stop, and a roster source |
 | `workplan` | [workplan.md](platform/workplan/workplan.md) | the plan of an agent as documents: steps with five statuses, blocked steps, the progress, and the views |

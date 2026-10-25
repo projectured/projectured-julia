@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [reference.md](../../kernel/reference.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
 
-The link slice of `ProjecturedPlatform` holds a link as data: a value that refers to a target and has a face. Each domain has link types of its own, such as a link of Markdown or a reference of rst, and the slice gives the general `Link` and the address `Url`. This document says what a link type answers, how a view gives a link its face, how an address opens outside the editor, and why a search stops at a link.
+The link slice of `ProjecturedPlatform` holds a link as data: a value that refers to a target and has a face. Each domain has link types of its own, such as a link of Markdown or a reference of rst, and the slice gives the general `Link` and the address `Url`. This document says what a link type answers, how a view gives a link its face, what pieces an address holds and how a person edits it, how an address opens outside the editor, and why a search stops at a link.
 
 ## How it works
 
@@ -34,13 +34,36 @@ A tree names a link by its face, and gives it the icon of its target, with no co
 
 ### An address
 
-`Url(address)` is an address as the web writes it, and a link to itself, so an address shows as a link wherever it stands. Its icon is `:external_link`.
+`Url(text)` is an address as the web writes it, and a link to itself, so an address shows as a link wherever it stands. Its icon is `:external_link`.
+
+A `Url` holds the seven pieces of RFC 3986 as fields, each one as it was written: not decoded, not changed to lower case, with no default port added. A piece that the address does not have is `nothing`, and a piece with no text is `""`: `guide.md?` has the empty query, and `guide.md` has no query. The path is never `nothing`, and the `//` part is there when `host` is not `nothing`.
+
+| Address | Pieces that are not `nothing` |
+| --- | --- |
+| `https://julialang.org` | scheme `https`, host `julialang.org`, path `""` |
+| `http://u:p@[::1]:8080/a?b#c` | scheme `http`, userinfo `u:p`, host `[::1]`, port `8080`, path `/a`, query `b`, fragment `c` |
+| `mailto:someone@example.org` | scheme `mailto`, path `someone@example.org` |
+| `file:///tmp/a%20b.txt` | scheme `file`, host `""`, path `/tmp/a%20b.txt` |
+| `#install` | path `""`, fragment `install` |
+| `1x:y` | path `1x:y`, because `1x` is no scheme |
+
+- **The read never fails.** `Url(text)` reads with the regular expression of RFC 3986, appendix B, which matches every text, with the scheme limited to its grammar. In the `//` part, the userinfo is the text before the last `@`, and the port the text after the last `:` that stands after any `]`. An address with no host, such as `mailto:` or `urn:`, needs no special case: the text after the scheme is the path.
+- **The print gives the same text.** `format_url(url)` prints the pieces by the rule of RFC 3986, section 5.3, so `format_url(Url(text)) == text` for every text, an address or not. `Url(; scheme, host, path, …)` makes an address from its pieces.
+- **An edit reads the address again.** `make_url_text_operation(url, text)` writes each piece that `text` changes, in one operation, and `make_url_piece_operation(url, piece, text)` prints the address with one piece changed and reads it again: the host `julialang.org/docs` gives the host `julialang.org` and the path `/docs`. Both write the fields of the same `Url`, so a link that holds it keeps it. A write of one field with `ReplaceReferencedValueOperation` stays possible, as on any document, and can give pieces whose print reads back to other pieces; a program and the assistant change a piece with `make_url_piece_operation`.
 
 - **An absolute address** (`is_absolute_url`) names a place outside the editor, such as `https://julialang.org` or `mailto:someone@example.org`. A `file:` address names a file, whose path `find_url_file_path` reads, with its escaped characters.
 - **A relative address**, such as `#install` or `guide.md`, names a place that the page of the link resolves against itself, as a browser resolves a relative link against its page: `find_navigator_target` of the domain of the content.
 - **`find_web_url(text)`** answers a `Url` for a text that is an address outside the editor: a scheme with `//` after it, or a `mailto:` address, and `nothing` for any other text. A domain whose links name their target by a text uses it, because a name can hold a colon, such as the rst name `ug:cha:queueing`, and a text with a colon reads as a scheme.
 
-The page of an address is a view document: `make_document_view(url)` answers `UrlView(url)`, which a navigator makes at a visit and at its acquire. `UrlViewToWidget` draws the address and a button: "Open in the browser", or "Open the file" for a `file:` address. The button is off for a relative address.
+The page of an address is a view document: `make_document_view(url)` answers `UrlView(url)`, which a navigator makes at a visit and at its acquire. `UrlViewToWidget` draws three parts: the text line of the address, the list of its pieces with their names, "none" for an absent piece and "empty" for a piece with no text, and a button. The button reads "Open in the browser", or "Open the file" for a `file:` address, and it is off for a relative address.
+
+### The text line
+
+`UrlToSyntax` prints a `Url` as one line of syntax: a leaf for each piece that is there, and a leaf for each delimiter, `:`, `//`, `@`, `?` and `#`. The host draws in `typed_text` of the syntax theme, and the other pieces and the delimiters in `label_text`, as the address bar of a browser draws them. A selection in a leaf of a piece names the field, such as `.host{3}`. It is a `@projection_template` whose children come from a thunk, so a leaf comes and goes with its piece.
+
+**A typed edit reads the whole address again**, as the address bar of a browser does. The syntax stage gives an edit to the line as a range in leaf `i`, and a delimiter is a leaf too, so the reader finds the place in the text of the address from the leaves before it. It changes the text there, calls `make_url_text_operation`, and puts the caret at the same place in the new text, in the first piece whose text holds that place. So `/docs` typed after the host goes into the path, `?` starts a query, a Backspace that removes `//` makes the host a part of the path, and a paste of a whole address fills every piece. One edit is one operation, and so one undo step.
+
+The page puts the output of the line among its parts, as the navigator does with its path view, and sends a path and a typed edit in the line to `UrlToSyntax` through the IO map of the line.
 
 ### The open of an address
 
@@ -54,7 +77,7 @@ The page of an address is a view document: `make_document_view(url)` answers `Ur
 
 ## How it fits
 
-The slice uses the domain, layout, projection, style, tree and widget slices of the platform, and the kernel. It stands after the tree slice, because the default face reads `format_tree_node_label`, and before the navigator, which uses `Url` and evaluates `OpenUrlOperation`. It adds methods to `make_target_open_operation` of the widget slice, to `format_tree_node_label` of the tree slice, and to `get_document_decoration` and `make_document_view` of the domain slice.
+The slice uses the domain, layout, primitive, projection, style, syntax, text, tree and widget slices of the platform, and the kernel. It stands after the syntax slice, because the text line of an address is syntax and the default face reads `format_tree_node_label` of the tree slice, and before the navigator, which uses `Url` and evaluates `OpenUrlOperation`. It adds methods to `make_target_open_operation` of the widget slice, to `format_tree_node_label` of the tree slice, and to `get_document_decoration` and `make_document_view` of the domain slice.
 
 The domains answer the functions for their own link types: a `MarkdownLink` has the target `Url(url)` ([markdown.md](../../domain/markdown/markdown.md)), and an `RstReference` the target `Url(target)`, or `Url("#<name>")` for a named reference ([rst.md](../../domain/rst/rst.md)). Their views stay in the text pipeline, and their pages answer a `Url` for an address of the web, so a click on a web link opens the browser.
 
@@ -65,10 +88,13 @@ The domains answer the functions for their own link types: a `MarkdownLink` has 
 - **The widget holds a face and a target, and no link.** The owner asked "why not just the face and the behaviour?", and agreed that the behaviour is the target and not a general action: a target is data, which a tooltip can describe, a view can find gone, and an assistant can read.
 - **A click on a web address opens the browser at once.** The owner agreed on 2026-10-25. "Open as a page" shows the page of the address with its open.
 - **A search stops at a link.** The owner agreed on 2026-10-25, so a link into a table of ten million rows costs a search of a note nothing. The walk asks `is_field_walked`, a field of a document, and not `is_walk_opaque`, which would also hide the alias of the link.
+- **An address holds its pieces as written.** The owner asked on 2026-10-25 why a URL is not held by its pieces, scheme, host and port, and chose an address of pieces. A browser keeps a normalized address, which changes what a person wrote at the next save; a piece as written prints back the same text. The port is text for the same reason: `08080` and an empty port must print back as written.
+- **A typed edit reads the whole address again**, and is no gesture for each delimiter key. The owner agreed on 2026-10-25. One rule handles a paste, a delete over a delimiter and a typed delimiter, and the pieces stay the stored structure.
+- **The path and the query are one text each.** The segments of a path and the pairs of a query are a split of that text, and the pairs are a convention of HTML forms, not of RFC 3986.
 - **A name that a page resolves is a relative `Url`.** A browser resolves `href="#install"` against its page in the same way, so the domains need no kind of target of their own.
 - **The browser opens through the backend of the editor.** The clipboard reaches the system through a hook in a module, which is global state; the backend is the editor's own.
 
-The plan with the alternatives is [plan/done/a-link-is-data-with-a-target-and-a-face.md](../../../../plan/done/a-link-is-data-with-a-target-and-a-face.md).
+The plans with the alternatives are [plan/done/a-link-is-data-with-a-target-and-a-face.md](../../../../plan/done/a-link-is-data-with-a-target-and-a-face.md) and [plan/done/an-address-holds-its-pieces.md](../../../../plan/done/an-address-holds-its-pieces.md).
 
 ## Usage
 
@@ -78,6 +104,10 @@ note = ExplorerSection("Notes", Any[Link(page), Link(page; content = "the list")
                                     Link(Url("https://julialang.org"); content = "Julia")])
 format_link_label(Link(page))                 # the name of `page`, as a tree shows it
 make_target_open_operation(Url("https://julialang.org"), :here)   # an OpenUrlOperation
+url = Url("https://julialang.org/learning?lang=en")
+url.host, url.query                            # ("julialang.org", "lang=en")
+format_url(url)                                # "https://julialang.org/learning?lang=en"
+make_url_piece_operation(url, :query, nothing)  # the edit that removes the query
 ```
 
 A domain makes its own link type a link with three methods:
@@ -95,4 +125,6 @@ get_link_content(link::MyLink) = link.text
 - No command makes a link or changes its target: a program or the assistant builds one.
 - No view shows the links that point to a document ("what links here").
 - The face of a `Url` is its address: no read gives the title of a web page.
+- No view lists the segments of a path or the pairs of a query, no function checks whether an address is valid, no comparison finds two addresses that are equal in meaning, and no function resolves a relative address against a base address.
+- A `Url` has no natural row and no clipboard text of its own.
 - A view shows a link as a `WidgetLink` only where it draws one: a roster cell or a tree that holds a link shows it by the view of its own type.

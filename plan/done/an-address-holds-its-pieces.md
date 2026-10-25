@@ -1,6 +1,6 @@
 # An address holds its pieces
 
-Status: IN PROGRESS, 2026-10-25, on the branch `url-pieces`.
+Status: DONE, 2026-10-25, on the branch `url-pieces`. Not landed.
 
 ## The ask
 
@@ -232,8 +232,12 @@ decide.
    - Pass: `test_link()` 2,104 of 2,104, `test_widget_link()`,
      `test_navigator()`, `test_explorer()`, `test_platform_slice_edges()`, and
      the link tests of Markdown and rst.
-4. [ ] **The guides.** `link.md` describes the pieces, the read and the print,
+4. [x] **The guides.** `link.md` describes the pieces, the read and the print,
    the edit and the text line. Move this plan to `plan/done/`.
+   **Done 2026-10-25.** `link.md` describes the pieces with the table of
+   addresses, the read, the print, the two edits, the page and the text line, the
+   new design decisions and the limits. The index of the package guides names
+   the pieces and the text line. No other guide named the field `address`.
 
 ## Not in this plan
 
