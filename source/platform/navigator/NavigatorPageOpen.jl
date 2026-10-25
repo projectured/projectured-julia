@@ -1,16 +1,17 @@
 # Fragment of `NavigatorModule` — the open of a page that no navigator takes, which
-# opens a tab with a navigator of its own, what the target of a link names, and
-# where a content holds a document.
+# opens a tab with a navigator of its own, the open of an address outside the
+# editor, what the target of a link names, and where a content holds a document.
 
 """
-    find_navigator_target(root, target) -> Reference, String or nothing
+    find_navigator_target(root, target) -> Reference, String, Url or nothing
 
 What the target of a link names, for a navigator whose content is `root`:
 `target` is the text of the target as the domain of the link writes it, such as
 `#install`, `guide.md` or the name of an rst target. The answer is a `Reference`
-to a part of `root`, the absolute path of a file, or `nothing` for a target that
-names nothing here, such as a web URL. The default answers `nothing`; a domain
-adds a method for its root and its file document.
+to a part of `root`, the absolute path of a file, a `Url` for an address outside
+the editor, such as a web address, which opens in the program of the system for
+it, or `nothing` for a target that names nothing. The default answers `nothing`;
+a domain adds a method for its root and its file document.
 """
 find_navigator_target(root, target::AbstractString) = nothing
 
@@ -39,6 +40,7 @@ function evaluate_operation(editor, operation::OpenPageOperation)
     if operation.target !== nothing
         address = find_navigator_target(content, operation.target)
         address isa AbstractString && return evaluate_operation(editor, OpenFileOperation(address; file_wrap = Navigator))
+        address isa Url && return evaluate_operation(editor, OpenUrlOperation(address, operation.place))
         address isa Reference || return nothing
         address = annotate_reference_types(content, strip_reference_types(address))
     end
@@ -151,4 +153,16 @@ function _find_opened_content(root, operation::OpenPageOperation)
     end
     content = nodes[index]
     (content, annotate_reference_types(content, extend_reference(EmptyReference(), steps[index:end]...)))
+end
+
+# An address outside the editor: a file opens in a new tab with a navigator, as a
+# link to a file does, and any other address in the program of the system for it,
+# through the backend of the editor. A backend that opens nothing says so in the
+# log.
+function evaluate_operation(editor, operation::OpenUrlOperation)
+    path = find_url_file_path(operation.url)
+    path === nothing || return evaluate_operation(editor, OpenFileOperation(path; file_wrap = Navigator))
+    address = String(operation.url.address)
+    open_url!(editor.backend, address) || @warn("No program of the system opened the address.", address)
+    nothing
 end

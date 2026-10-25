@@ -468,6 +468,7 @@ end
 function _follow_navigator_target(navigator::Navigator, operation::OpenPageOperation)
     found = find_navigator_target(navigator.content, operation.target)
     found isa AbstractString && return OpenFileOperation(found; file_wrap = Navigator)
+    found isa Url && return OpenUrlOperation(found, operation.place)
     found isa Reference || return DoNothingOperation()
     operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
     something(make_navigator_open_operation(navigator, found; selects = false), DoNothingOperation())

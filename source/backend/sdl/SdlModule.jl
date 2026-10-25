@@ -21,6 +21,7 @@ using Xorg_libX11_jll: Xorg_libX11_jll
 import ..EditorModule: get_backend_name, get_backend_output
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SettingsModule: apply_settings!, read_settings!
+import ..LinkModule: open_url!
 
 # A backend's public surface is the generic it extends, not the helper behind
 # it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are

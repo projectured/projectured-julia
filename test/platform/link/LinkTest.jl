@@ -93,5 +93,63 @@ end
     @test files["b.pred"].entries[1].target === files["a.pred"].entries[1]
 end
 
+@testset "an address is a link to itself: a relative one opens through its page, an absolute one outside the editor" begin
+    web = Url("https://julialang.org")
+    @test is_link(web) && get_link_target(web) === web
+    @test format_link_label(web) == "https://julialang.org" && describe_link(web) == "https://julialang.org"
+    @test get_document_decoration(web).icon === :external_link
+    @test is_absolute_url(web) && is_absolute_url(Url("mailto:someone@example.org")) && !is_absolute_url(Url("#install"))
+    opened = make_target_open_operation(web, :here)
+    @test opened isa OpenUrlOperation && opened.url === web
+    relative = make_target_open_operation(Url("#install"), :new_tab)
+    @test relative isa OpenPageOperation && relative.target == "#install" && relative.place === :new_tab
+    @test find_url_file_path(Url("file:///tmp/a%20b.txt")) == "/tmp/a b.txt"
+    @test find_url_file_path(Url("file://host/srv/x.md")) == "/srv/x.md" && find_url_file_path(web) === nothing
+    # A widget keeps an address as a locator of it, and its click still opens it outside.
+    @test make_target_open_operation(WidgetLink("Julia", web).target, :here) isa OpenUrlOperation
+    @test format_link_label(Link(web; content = "Julia")) == "Julia" && format_link_label(Link(web)) == "https://julialang.org"
+    @test !open_url!(nothing, "https://julialang.org")
+end
+
+@testset "an address draws as a link whose click opens it outside the editor, and its page offers its open" begin
+    web = Url("https://julialang.org")
+    natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+    backend = HeadlessBackend()
+    editor = build_editor(VerticalLayout(Any[web]), natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false)
+    run_frame!(editor)
+    @test "https://julialang.org" in _arrangement_texts(backend)
+    (x, y) = _arrangement_place(backend, "https://julialang.org")
+    answer = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)),
+                         editor.iomap).operation
+    @test (answer isa WrappingOperation ? get_wrapped_operation(answer) : answer) isa OpenUrlOperation
+    # The page of the address, as "Open as a page" opens it: a visit makes the
+    # view of the page, the address and the command that opens it.
+    navigator = Navigator(ExplorerSection("Home", Any[web]))
+    page_editor, page_backend = _nav_editor(navigator)
+    evaluate_operation(page_editor, make_navigator_open_operation(navigator, web, EmptyReference()))
+    run_frame!(page_editor)
+    @test get_navigator_page_view(navigator) isa UrlView
+    @test _nav_has_text(page_backend, "https://julialang.org") && _nav_has_text(page_backend, "Open in the browser")
+    press = _nav_click(page_backend, "Open in the browser")
+    pressed = read_intent(page_editor.projection, nothing, Intent(press), page_editor.iomap).operation
+    @test (pressed isa WrappingOperation ? get_wrapped_operation(pressed) : pressed) isa OpenUrlOperation
+end
+
+@testset "the editor opens a file address in a tab, and a web address through its backend" begin
+    path = joinpath(mktempdir(), "notes.txt")
+    write(path, "hello\n")
+    navigator = Navigator(ExplorerSection("Home", Any[]))
+    editor, backend = _nav_editor(navigator; tabs = true)
+    before = length(_nav_tabs(editor))
+    evaluate_operation(editor, OpenUrlOperation(Url("file://" * path)))
+    drain_operations!(editor)
+    run_frame!(editor)
+    @test length(_nav_tabs(editor)) == before + 1
+    # A backend with no system to open it in opens nothing, and the editor says so.
+    @test_logs (:warn, "No program of the system opened the address.") match_mode = :any evaluate_operation(
+        editor, OpenUrlOperation(Url("https://julialang.org")))
+end
+
 end
 end # test_link

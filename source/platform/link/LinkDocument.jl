@@ -40,3 +40,51 @@ is_field_walked(::Link, name::Symbol) = name !== :target
 # A tree names a link as its face, with the icon of its target.
 format_tree_node_label(link::Link) = format_link_label(link)
 get_document_decoration(link::Link) = DocumentDecoration(; icon = _get_target_icon(link.target))
+
+"""
+    Url(address)
+
+An address as the web writes it, and a link to itself, so an address shows as a
+link wherever it stands. An absolute address names a place outside the editor,
+such as `https://julialang.org` or `mailto:someone@example.org`, and a click opens
+it in the program of the system for it, such as the browser. A `file:` address
+names a file, which opens in a tab. A relative address, such as `#install` or
+`guide.md`, names a place that the page of the link resolves against itself, as
+a browser resolves a relative link against its page.
+
+The page of an address, for "Open as a page", shows the address and the command
+that opens it.
+
+Use it for a link to the web, to a mail address, or to a file by its address.
+
+# Example
+
+    Url("https://julialang.org")
+    Link(Url("https://julialang.org"); content = "Julia")
+
+See also `OpenUrlOperation` and `is_absolute_url`.
+"""
+@document struct Url
+    address::String
+end
+
+is_link(::Url) = true
+get_link_target(url::Url) = url
+
+_format_target_label(url::Url) = String(url.address)
+_describe_target(url::Url) = String(url.address)
+format_tree_node_label(url::Url) = String(url.address)
+get_document_decoration(::Url) = DocumentDecoration(; icon = :external_link)
+
+"""
+    UrlView(url)
+
+The page of an address: the view document that a navigator shows for a `Url`,
+with the address and the command that opens it.
+"""
+@document struct UrlView
+    url::Any
+end
+
+get_edited_field(::UrlView) = :url
+make_document_view(url::Url) = UrlView(url)

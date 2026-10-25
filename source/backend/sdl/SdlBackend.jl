@@ -447,6 +447,9 @@ end
 # Convenience overload: extract modifiers from the current SDL state.
 _current_modifiers() = sdl_modifiers(UInt16(SDL_GetModState() & 0xFFFF))
 
+# The system opens an address in its program for it, such as the browser.
+open_url!(::SdlBackend, address::AbstractString) = SDL_OpenURL(address) == 0
+
 # ════════════════════════════════════════════════════════════════════════
 # Keyboard
 # ════════════════════════════════════════════════════════════════════════

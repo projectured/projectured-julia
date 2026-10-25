@@ -234,10 +234,34 @@ Work in a new worktree from main, with a commit for each step.
    - Pass: `test_link()` 26 of 26, `test_document_contract()`,
      `test_referenced_document()`, `test_widget_link()`, `test_explorer()` and
      `test_roster_table()`.
-3. [ ] **The URL.** `Url`, its page, `OpenUrlOperation`, `open_url!` for the SDL
+3. [x] **The URL.** `Url`, its page, `OpenUrlOperation`, `open_url!` for the SDL
    backend and the default, and the methods of `make_target_open_operation` for
    a `Url`. Test: `test_link()` cases for each kind of address, and
    `test_navigator()`.
+   **Done 2026-10-25.** What the step found and decided:
+   - `Url` and its page `UrlView` are in `LinkDocument.jl`, `OpenUrlOperation`
+     and `open_url!` in `OpenUrlOperation.jl`, `is_absolute_url`,
+     `find_url_file_path` and the open of an address in `UrlInterface.jl`, and
+     the page in `UrlViewToWidget.jl`. A `Url` draws as a link through
+     `LinkToWidget`, with the icon `:external_link`; its page is a view
+     document, `make_document_view(url) = UrlView(url)`, which a navigator
+     makes at a visit and at its acquire. The button of the page reads "Open in
+     the browser", or "Open the file" for a `file:` address, and is off for a
+     relative address.
+   - A `file:` address goes through `OpenUrlOperation` as every absolute
+     address does, and not to `OpenFileOperation` from the widget as the table
+     says: the editor evaluates `OpenUrlOperation` in the navigator slice,
+     because the open of a file wraps it in a `Navigator`, which the slice
+     `link` stands below. The navigator slice opens the file in a tab with a
+     navigator, and gives any other address to `open_url!(editor.backend,
+     address)`. A backend that answers `false` makes a warning in the log.
+   - `find_navigator_target` can answer a `Url`, and the navigator and the
+     editor open it with `OpenUrlOperation`. The slice `navigator` uses `link`
+     now, a new row of `PLATFORM_SLICE_EDGES`, and `link` uses `layout`.
+   - The SDL backend answers `open_url!` with `SDL_OpenURL`; the SDL of the
+     manifest is 2.32.10. `test_sdl_layering()` passes.
+   - Pass: `test_link()` 44 of 44, `test_navigator()`, `test_widget_link()`,
+     `test_platform_slice_edges()` and `test_sdl_layering()`.
 4. [ ] **Markdown and rst.** `MarkdownLink` and `RstReference` answer the
    interface, and `find_navigator_target` answers a `Url` for a web address.
    Test: `test_markdown()` and `test_rst()`, with a click on a web link that

@@ -24,6 +24,7 @@ using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
+using ..LinkModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
