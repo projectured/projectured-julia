@@ -22,7 +22,7 @@ function print_document(p::UrlViewToWidget, recursion, view::UrlView, context)
                                              description = "Open the address", domain = "link"),
                               GestureBinding(KeyPressPattern('\n'; modifiers = Symbol[]), open;
                                              description = "Open the address", domain = "link")])
-    root = VerticalLayout(Any[WidgetLabel(() -> String(view.url.address)), button];
+    root = VerticalLayout(Any[WidgetLabel(() -> format_url(view.url)), button];
                           horizontal_align = :left, gap = p.gap)
     iomap = ChildrenIoMap(p, view, root, Cell(Any[]))
     set_output_path_computations!(root, view, path -> map_reference_forward(p, iomap, path); dormant = false)

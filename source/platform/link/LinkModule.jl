@@ -10,14 +10,16 @@ defaults from the target, and draws it as a `WidgetLink`: a face and a target. A
 link holds its target directly, as an edge of the graph of the documents, and a
 walk of the documents does not go through a `Link` into its target.
 
-A `Url` is an address and a link to itself: a relative address opens through the
-page of its link, and an absolute one outside the editor, through
-`OpenUrlOperation`, which the editor evaluates with `open_url!` of its backend.
+A `Url` is an address and a link to itself. It holds the pieces of RFC 3986 as
+written, and `format_url` prints them back as the same text. A relative address
+opens through the page of its link, and an absolute one outside the editor,
+through `OpenUrlOperation`, which the editor evaluates with `open_url!` of its
+backend.
 
 `LinkInterface.jl` holds the functions of a link and their defaults,
 `LinkDocument.jl` the general `Link`, the `Url` and its page `UrlView`,
 `OpenUrlOperation.jl` the open of an address outside the editor,
-`UrlInterface.jl` what an address names, `LinkToWidget.jl` the view that draws a
+`UrlInterface.jl` the pieces of an address and what it names, `LinkToWidget.jl` the view that draws a
 link as a `WidgetLink`, and `UrlViewToWidget.jl` the page of an address.
 """
 module LinkModule
@@ -47,7 +49,8 @@ import ..WidgetModule: make_graphics_projection, make_target_open_operation
 
 export is_link, get_link_target, get_link_content, format_link_label, describe_link, is_link_broken
 export Link, LinkToWidget
-export Url, UrlView, UrlViewToWidget, is_absolute_url, find_url_file_path, find_web_url, OpenUrlOperation, open_url!
+export Url, UrlView, UrlViewToWidget, format_url, make_url_text_operation, make_url_piece_operation
+export is_absolute_url, find_url_file_path, find_web_url, OpenUrlOperation, open_url!
 
 include("LinkInterface.jl")
 include("LinkDocument.jl")

@@ -164,7 +164,7 @@ end
 function evaluate_operation(editor, operation::OpenUrlOperation)
     path = find_url_file_path(operation.url)
     path === nothing || return evaluate_operation(editor, OpenFileOperation(path; file_wrap = Navigator))
-    address = String(operation.url.address)
+    address = format_url(operation.url)
     open_url!(editor.backend, address) || @warn("No program of the system opened the address.", address)
     nothing
 end

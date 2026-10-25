@@ -8,6 +8,28 @@ save keeps the target of a link.
 _link_entries_place(k::Integer) =
     extend_reference(EmptyReference(), FieldReferenceStep("entries"), ElementReferenceStep(k))
 
+_url_pieces(url::Url) = (url.scheme, url.userinfo, url.host, url.port, url.path, url.query, url.fragment)
+
+# Addresses and their pieces: scheme, userinfo, host, port, path, query, fragment.
+const _URL_CASES = [
+    "https://julialang.org" => ("https", nothing, "julialang.org", nothing, "", nothing, nothing),
+    "http://u:p@[::1]:8080/a?b#c" => ("http", "u:p", "[::1]", "8080", "/a", "b", "c"),
+    "mailto:someone@example.org" => ("mailto", nothing, nothing, nothing, "someone@example.org", nothing, nothing),
+    "file:///tmp/a%20b.txt" => ("file", nothing, "", nothing, "/tmp/a%20b.txt", nothing, nothing),
+    "#install" => (nothing, nothing, nothing, nothing, "", nothing, "install"),
+    "guide.md?" => (nothing, nothing, nothing, nothing, "guide.md", "", nothing),
+    "ug:cha:queueing" => ("ug", nothing, nothing, nothing, "cha:queueing", nothing, nothing),
+    "1x:y" => (nothing, nothing, nothing, nothing, "1x:y", nothing, nothing),
+    "" => (nothing, nothing, nothing, nothing, "", nothing, nothing),
+    "//host/p" => (nothing, nothing, "host", nothing, "/p", nothing, nothing),
+    "http://h:/" => ("http", nothing, "h", "", "/", nothing, nothing),
+    "HTTP://Example.ORG:080/A%2fB?x=1&y=2#" => ("HTTP", nothing, "Example.ORG", "080", "/A%2fB", "x=1&y=2", ""),
+    "../a?b#c?d#e" => (nothing, nothing, nothing, nothing, "../a", "b", "c?d#e"),
+    "urn:isbn:0451450523" => ("urn", nothing, nothing, nothing, "isbn:0451450523", nothing, nothing),
+    "http://a@b@c/" => ("http", "a@b", "c", nothing, "/", nothing, nothing),
+    "line\nbreak#é" => (nothing, nothing, nothing, nothing, "line\nbreak", nothing, "é"),
+]
+
 function test_link()
 @testset "Link" begin
 
@@ -91,6 +113,55 @@ end
     loaded = load_project(directory, ["a.pred", "b.pred"])
     files = Dict(file.filename => get_file_content(file) for file in loaded.files)
     @test files["b.pred"].entries[1].target === files["a.pred"].entries[1]
+end
+
+@testset "an address holds its pieces as written, and prints back the same text" begin
+    for (text, pieces) in _URL_CASES
+        url = Url(text)
+        @test _url_pieces(url) == pieces
+        @test format_url(url) == text
+    end
+    # Any text reads and prints back the same, an address or not.
+    letters = collect(":/?#@[]a1.%")
+    for _ in 1:2000
+        text = String(rand(letters, rand(0:12)))
+        @test format_url(Url(text)) == text
+    end
+    @test format_url(Url(; scheme = "https", host = "julialang.org", path = "/learning")) ==
+          "https://julialang.org/learning"
+    @test find_web_url("MAILTO:a@b") isa Url && find_web_url("https://x").host == "x"
+    @test find_web_url("ug:cha:queueing") === nothing && find_web_url("guide.md") === nothing
+    @test find_url_file_path(Url("FILE:///x")) == "/x" && find_url_file_path(Url("file:///a?b")) == "/a"
+    @test find_url_file_path(Url("file:notes.txt")) === nothing
+end
+
+@testset "an edit of the text or of one piece writes the pieces that change, in the same Url" begin
+    url = Url("https://julialang.org")
+    link = Link(url)
+    edit = make_url_text_operation(url, "https://julialang.org/learning?lang=en")
+    @test edit isa CompoundOperation && length(edit.operations) == 2
+    evaluate_operation(nothing, edit)
+    @test url.path == "/learning" && url.query == "lang=en" && link.target === url
+    @test make_url_text_operation(url, format_url(url)) === nothing
+    # A delimiter in a piece moves its text into the next piece.
+    evaluate_operation(nothing, make_url_piece_operation(url, :host, "julia.org/docs"))
+    @test url.host == "julia.org" && url.path == "/docs/learning"
+    evaluate_operation(nothing, make_url_piece_operation(url, :query, nothing))
+    @test format_url(url) == "https://julia.org/docs/learning"
+    # A port gives an address with no host the host "", and its path a "/".
+    relative = Url("guide.md")
+    evaluate_operation(nothing, make_url_piece_operation(relative, :port, "8080"))
+    @test format_url(relative) == "//:8080/guide.md" && relative.host == ""
+    @test_throws ArgumentError make_url_piece_operation(url, :address, "x")
+end
+
+@testset "a save keeps the pieces of an address" begin
+    directory = mktempdir()
+    save_file!(PredFile("url.pred", ExplorerSection("Links", Any[Url("http://u@h:1/p?q#f"), Url("#install")])),
+               directory)
+    read = get_file_content(load_file(directory, "url.pred"))
+    @test format_url(read.entries[1]) == "http://u@h:1/p?q#f" && read.entries[1].port == "1"
+    @test read.entries[2].host === nothing && read.entries[2].fragment == "install"
 end
 
 @testset "an address is a link to itself: a relative one opens through its page, an absolute one outside the editor" begin

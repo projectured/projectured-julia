@@ -24,7 +24,7 @@ end
 OpenUrlOperation(url::Url) = OpenUrlOperation(url, :here)
 
 is_self_contained_operation(::OpenUrlOperation) = true
-describe_operation(operation::OpenUrlOperation) = "Open " * String(operation.url.address)
+describe_operation(operation::OpenUrlOperation) = "Open " * format_url(operation.url)
 
 """
     open_url!(backend, address) -> Bool

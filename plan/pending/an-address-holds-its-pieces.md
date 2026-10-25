@@ -1,6 +1,6 @@
 # An address holds its pieces
 
-Status: PENDING, 2026-10-25. Not started.
+Status: IN PROGRESS, 2026-10-25, on the branch `url-pieces`.
 
 ## The ask
 
@@ -159,7 +159,7 @@ decide.
 
 ## Steps
 
-1. [ ] **The pieces.** `Url` holds the seven fields; `Url(text)` reads, and
+1. [x] **The pieces.** `Url` holds the seven fields; `Url(text)` reads, and
    `format_url` prints. `make_url_text_operation` and
    `make_url_piece_operation`. The readers of `address` use the pieces or
    `format_url`: `is_absolute_url` reads the scheme, and `find_url_file_path`
@@ -168,6 +168,20 @@ decide.
    back; the two operations write only the pieces that change; a save keeps the
    pieces. `test_markdown()` and `test_rst()` read `format_url` where they read
    `address`.
+   **Done 2026-10-25.** What the step found and decided:
+   - The fields have defaults, so `@document` makes the keyword constructor
+     `Url(; scheme, …)`; `Url(text)` is an outer constructor of one argument
+     beside it. `find_web_url` reads the pieces too: a scheme and a host, or the
+     scheme `mailto`.
+   - `make_url_piece_operation` also puts a `/` before a path that does not start
+     with one when the address has a host, because RFC 3986 needs it there: a
+     port on `guide.md` gives `//:8080/guide.md`.
+   - `find_url_file_path` reads the path only, so `file:///a?b` names `/a`, and
+     the scheme in any case.
+   - The test reads 2,000 random texts of the characters `:/?#@[]a1.%` and
+     prints each back as the same text.
+   - Pass: `test_link()` 2,092 of 2,092, the link tests of Markdown and rst, and
+     `test_navigator()`.
 2. [ ] **The text line.** The link slice moves after the syntax slice
    (`ProjecturedPlatform.jl` and the row `link` of `PLATFORM_SLICE_EDGES`).
    `UrlToSyntax` and its reader. Test, in an editor with a `HeadlessBackend`:

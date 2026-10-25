@@ -22,13 +22,13 @@ function test_markdown_link_target()
     @test find_navigator_target(file, "guide.md#guide") == joinpath(folder, "guide.md")
     @test find_navigator_target(file, "missing.md") === nothing
     web = find_navigator_target(file, "https://example.org/guide.md")
-    @test web isa Url && web.address == "https://example.org/guide.md"
+    @test web isa Url && format_url(web) == "https://example.org/guide.md"
     @test find_navigator_target(file, "mailto:someone@example.org") isa Url
     @test find_navigator_target(root, "https://example.org") isa Url
     # A link of Markdown answers the functions of a link.
     link = only(element for element in _make_markdown_root_with_link().elements[1].content
                 if element isa MarkdownLink)
-    @test is_link(link) && get_link_target(link) isa Url && get_link_target(link).address == "#install-it"
+    @test is_link(link) && get_link_target(link) isa Url && format_url(get_link_target(link)) == "#install-it"
     @test get_link_content(link) === link.content
 end
 end
@@ -73,7 +73,7 @@ function test_markdown_link_gestures()
         click = platform._nav_click(backend, "Julia")
         answer = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
         opened = _find_markdown_url_open(answer)
-        @test opened isa OpenUrlOperation && opened.url.address == "https://julialang.org"
+        @test opened isa OpenUrlOperation && format_url(opened.url) == "https://julialang.org"
         @test get_navigator_page(navigator) === root
     end
 
