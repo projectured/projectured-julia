@@ -182,13 +182,32 @@ decide.
      prints each back as the same text.
    - Pass: `test_link()` 2,092 of 2,092, the link tests of Markdown and rst, and
      `test_navigator()`.
-2. [ ] **The text line.** The link slice moves after the syntax slice
+2. [x] **The text line.** The link slice moves after the syntax slice
    (`ProjecturedPlatform.jl` and the row `link` of `PLATFORM_SLICE_EDGES`).
    `UrlToSyntax` and its reader. Test, in an editor with a `HeadlessBackend`:
    `/docs` typed after the host goes into the path; `?` starts a query; a
    Backspace over `//` joins the host to the path; a paste fills the pieces; the
    caret stays where the person typed; one undo step takes an edit back.
    `test_platform_slice_edges()` passes.
+   **Done 2026-10-25.** What the step found and decided:
+   - `UrlToSyntax` is a `@projection_template` with a `SyntaxConcatenation` thunk,
+     so a leaf comes and goes with its piece. Only the reader of a typed edit is
+     written by hand. The syntax stage gives it the edit as
+     `.children[i].value{start:stop}`, leaf `i` of the line, and a delimiter is a
+     leaf too, so the reader finds the place in the text from the lengths of the
+     leaves before it (`_get_url_segments`, in the order of the template).
+   - The answer is the writes of `make_url_text_operation` and a
+     `ReplaceSelectionOperation` in one `CompoundOperation`. The writes carry the
+     `Url`, so a reroot leaves them, and only the caret path gets the steps
+     before the line.
+   - The caret goes into the first piece whose text holds the place, its ends
+     included: a letter typed at the end of the host stays in the host, and `/`
+     goes into the path.
+   - The host draws in `typed_text` of the syntax theme, and the other pieces and
+     the delimiters in `label_text`: the theme has no strong style.
+   - The undo test takes the inverse as the editor does, member by member while
+     the writes run (`evaluate_invertible_operation!`).
+   - Pass: `test_link()` 2,100 of 2,100, `test_platform_slice_edges()`.
 3. [ ] **The page.** `UrlView` shows the text line, the list of the pieces and
    the button. Test: an edit on the page changes the list, and the button opens
    the new address. A live SDL check: the page of a `Url` takes typed text, the

@@ -155,6 +155,56 @@ end
     @test_throws ArgumentError make_url_piece_operation(url, :address, "x")
 end
 
+# A typed edit in leaf `index` of the text line of an address, at the characters
+# `start` to `stop` of the leaf.
+_url_leaf_edit(index, start, stop, text) = ReplaceStringRangeOperation(
+    extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(index),
+                     FieldReferenceStep("value"), RangeReferenceStep(start, stop)), text)
+
+# The answer of the text line of `url` to `edit`: its writes, evaluated, and the
+# steps of the caret that it puts.
+function _read_url_line_edit!(url::Url, edit)
+    projection = UrlToSyntax()
+    answer = read_intent(projection, print_document(projection, url), edit)
+    members = answer isa CompoundOperation ? answer.operations : Any[answer]
+    writes = Any[member for member in members if !(member isa ReplaceSelectionOperation)]
+    caret = only(member for member in members if member isa ReplaceSelectionOperation)
+    isempty(writes) || evaluate_operation(nothing, CompoundOperation(writes))
+    (answer, get_reference_steps(strip_reference_types(caret.path)))
+end
+
+_url_caret(piece, offset) = Any[FieldReferenceStep(piece), RangeReferenceStep(offset, offset)]
+
+@testset "the text line of an address reads the whole address again at each typed edit" begin
+    # https, ":", "//", the host, the path.
+    url = Url("https://julialang.org")
+    (answer, caret) = _read_url_line_edit!(url, _url_leaf_edit(4, 13, 13, "/docs"))
+    @test url.host == "julialang.org" && url.path == "/docs" && caret == _url_caret("path", 5)
+    (_, caret) = _read_url_line_edit!(url, _url_leaf_edit(5, 5, 5, "?"))
+    @test url.query == "" && caret == _url_caret("query", 0)
+    # A letter in the host keeps the caret in the host.
+    (_, caret) = _read_url_line_edit!(url, _url_leaf_edit(4, 2, 2, "x"))
+    @test url.host == "juxlialang.org" && caret == _url_caret("host", 3)
+    # A Backspace over `//` makes the host a part of the path.
+    (_, caret) = _read_url_line_edit!(url, _url_leaf_edit(3, 0, 2, ""))
+    @test url.host === nothing && url.path == "juxlialang.org/docs" && caret == _url_caret("path", 0)
+    @test format_url(url) == "https:juxlialang.org/docs?"
+    # A paste into the placeholder of an empty address fills every piece.
+    empty = Url("")
+    (_, caret) = _read_url_line_edit!(empty, _url_leaf_edit(1, 4, 4, "http://u@h:8/p?q#f"))
+    @test _url_pieces(empty) == ("http", "u", "h", "8", "/p", "q", "f") && caret == _url_caret("fragment", 1)
+    # One operation is one undo step: its inverse, taken as the editor takes it
+    # while the writes run, gives the address back.
+    url = Url("https://julialang.org")
+    projection = UrlToSyntax()
+    answer = read_intent(projection, print_document(projection, url), _url_leaf_edit(4, 13, 13, "/docs?x"))
+    writes = CompoundOperation(Any[member for member in answer.operations if !(member isa ReplaceSelectionOperation)])
+    inverse = evaluate_invertible_operation!((; document = nothing), writes)
+    @test format_url(url) == "https://julialang.org/docs?x"
+    evaluate_operation(nothing, inverse)
+    @test format_url(url) == "https://julialang.org"
+end
+
 @testset "a save keeps the pieces of an address" begin
     directory = mktempdir()
     save_file!(PredFile("url.pred", ExplorerSection("Links", Any[Url("http://u@h:1/p?q#f"), Url("#install")])),
