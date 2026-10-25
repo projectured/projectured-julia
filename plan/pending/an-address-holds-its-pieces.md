@@ -208,10 +208,30 @@ decide.
    - The undo test takes the inverse as the editor does, member by member while
      the writes run (`evaluate_invertible_operation!`).
    - Pass: `test_link()` 2,100 of 2,100, `test_platform_slice_edges()`.
-3. [ ] **The page.** `UrlView` shows the text line, the list of the pieces and
+3. [x] **The page.** `UrlView` shows the text line, the list of the pieces and
    the button. Test: an edit on the page changes the list, and the button opens
    the new address. A live SDL check: the page of a `Url` takes typed text, the
    pieces follow, and the button answers `OpenUrlOperation` with the new address.
+   **Done 2026-10-25.** What the step found and decided:
+   - The page holds a syntax theme and makes `UrlToSyntax` at print time, because
+     only the algebra holds a projection. Its IO map, `UrlViewToWidgetIoMap`,
+     holds the IO map of the line. The page puts the output of the line among its
+     parts, as the navigator does with its path view, and two maps and the reader
+     of a typed edit send a path in the line through the line.
+   - The list shows "empty" for a piece with no text, beside "none" for an absent
+     piece, so a person sees the difference that the model makes.
+   - The label and the enabled state of the button follow the address.
+   - An editor with no window makes no click of a press and a release, so the
+     test sends a `MouseClick` and then real `KeyPress` events. The live check
+     sent a real press and release.
+   - The live SDL check opened the page of a `Url` from the explorer. A press at
+     the end of the host put the caret at `.host{13}`, and SDL text events typed
+     `/docs?lang=en`: the line, the list, the tree row and the address of the
+     navigator showed `https://julialang.org/docs?lang=en`, and the button
+     answered `OpenUrlOperation` with it.
+   - Pass: `test_link()` 2,104 of 2,104, `test_widget_link()`,
+     `test_navigator()`, `test_explorer()`, `test_platform_slice_edges()`, and
+     the link tests of Markdown and rst.
 4. [ ] **The guides.** `link.md` describes the pieces, the read and the print,
    the edit and the text line. Move this plan to `plan/done/`.
 

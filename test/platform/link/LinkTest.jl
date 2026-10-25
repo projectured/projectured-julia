@@ -248,17 +248,36 @@ end
     answer = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)),
                          editor.iomap).operation
     @test (answer isa WrappingOperation ? get_wrapped_operation(answer) : answer) isa OpenUrlOperation
+end
+
+@testset "the page of an address takes typed text in its line, shows its pieces, and opens the new address" begin
+    web = Url("https://julialang.org")
     # The page of the address, as "Open as a page" opens it: a visit makes the
-    # view of the page, the address and the command that opens it.
+    # view of the page, its text line, its pieces and the command that opens it.
     navigator = Navigator(ExplorerSection("Home", Any[web]))
-    page_editor, page_backend = _nav_editor(navigator)
-    evaluate_operation(page_editor, make_navigator_open_operation(navigator, web, EmptyReference()))
-    run_frame!(page_editor)
+    editor, backend = _nav_editor(navigator)
+    evaluate_operation(editor, make_navigator_open_operation(navigator, web, EmptyReference()))
+    run_frame!(editor)
     @test get_navigator_page_view(navigator) isa UrlView
-    @test _nav_has_text(page_backend, "https://julialang.org") && _nav_has_text(page_backend, "Open in the browser")
-    press = _nav_click(page_backend, "Open in the browser")
-    pressed = read_intent(page_editor.projection, nothing, Intent(press), page_editor.iomap).operation
-    @test (pressed isa WrappingOperation ? get_wrapped_operation(pressed) : pressed) isa OpenUrlOperation
+    @test _nav_has_text(backend, "Open in the browser") && _nav_has_text(backend, "fragment")
+    @test _nav_has_text(backend, "none") && _nav_has_text(backend, "empty")
+    # The host shows in the line and in the list of the pieces; the line is above.
+    hosts = sort([entry for entry in _nav_texts(backend) if entry[1] == "julialang.org"]; by = entry -> entry[3])
+    @test length(hosts) == 2
+    # A click at the end of the host, and the keys that a person types. An editor
+    # with no window makes no click of a press and a release, so the click is sent.
+    (_, x, y) = hosts[1]
+    _nav_press!(editor, backend, MouseClick(:left, x + 103, y + 2, 1, ModifierKeys(); time = 1.0))
+    for (k, character) in enumerate("/docs?lang=en")
+        _nav_press!(editor, backend, KeyPress(character, ModifierKeys(); time = 2.0 + k))
+    end
+    @test web.host == "julialang.org" && web.path == "/docs" && web.query == "lang=en"
+    @test _nav_has_text(backend, "/docs") && _nav_has_text(backend, "lang=en")
+    # The button opens the address as it is now.
+    pressed = read_intent(editor.projection, nothing, Intent(_nav_click(backend, "Open in the browser")),
+                          editor.iomap).operation
+    opened = pressed isa WrappingOperation ? get_wrapped_operation(pressed) : pressed
+    @test opened isa OpenUrlOperation && format_url(opened.url) == "https://julialang.org/docs?lang=en"
 end
 
 @testset "the editor opens a file address in a tab, and a web address through its backend" begin
