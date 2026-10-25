@@ -519,7 +519,8 @@ WidgetButtonToGraphicsCanvas(theme; measure,
     padding_color::StyleColor
     content_color::StyleColor
     link_text::StyleText
-    underline_width::Int                   # the line under the text while the pointer is on the link
+    link_disabled_text::StyleText          # a link that opens nothing
+    underline_width::Int                   # the line under the face while the pointer is on the link
     focus_ring_stroke::StyleStroke
     corner_radius::Int
     label_gap::Int                         # between the icon and the text
@@ -531,6 +532,7 @@ WidgetLinkToGraphicsCanvas(theme; measure,
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
                            link_text = _themed(StyleText, theme, _get_link_text),
+                           link_disabled_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                            underline_width = _themed(Int, theme, t -> t.border_width),
                            focus_ring_stroke =
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
@@ -538,7 +540,7 @@ WidgetLinkToGraphicsCanvas(theme; measure,
                            label_gap = _themed(Int, theme, t -> t.label_gap),
                            icon_size = _themed(Float64, theme, t -> t.icon_size)) =
     WidgetLinkToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                               padding_color, content_color, link_text, underline_width,
+                               padding_color, content_color, link_text, link_disabled_text, underline_width,
                                focus_ring_stroke, corner_radius, label_gap, icon_size)
 
 @projection UntrackedCell struct WidgetTooltipToGraphicsCanvas
@@ -2431,15 +2433,28 @@ end
 
 # ── WidgetLink ──────────────────────────────────────────────────────────────
 
+# Whether a link opens something: a link with `enabled = false` draws muted.
+_is_link_enabled(w::WidgetLink) = w.enabled !== false
+
+# The style of the text of a link: the link color, or the muted color of a link
+# that opens nothing.
+_get_link_style(p::WidgetLinkToGraphicsCanvas, w::WidgetLink) =
+    _is_link_enabled(w) ? _get_part_text(w, :link_text, p.link_text) : p.link_disabled_text
+
+# The icon of a link and the gap after it, for a line of `height`.
+function _measure_link_icon(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, height::Integer)
+    extent = icon_width(w.icon, scale_length(height, p.icon_size))
+    (extent, extent > 0 ? p.label_gap : 0)
+end
+
 # The lines of a link: its text broken where a label breaks it, at `bound` less
 # the icon, or at its line breaks only when `bound` is 0; the style; and the sizes
 # of the icon and of the lines. The icon and the first line stand on the middle
 # of the first row.
 function _measure_link_lines(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, bound::Int)
     text = string(w.content)
-    style = _get_part_text(w, :link_text, p.link_text)
-    icon_extent = icon_width(w.icon, scale_length(compute_line_box(p.measure, text, style.font).height, p.icon_size))
-    icon_gap = icon_extent > 0 ? p.label_gap : 0
+    style = _get_link_style(p, w)
+    icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, text, style.font).height)
     room = bound > 0 ? max(1, bound - icon_extent - icon_gap) : 0
     texts = _text_lines(p.measure, style.font, text, room)
     boxes = [compute_line_box(p.measure, line, style.font) for line in texts]
@@ -2450,62 +2465,88 @@ function _measure_link_lines(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, bound
        width = icon_extent + icon_gap + maximum(box.width for box in boxes))
 end
 
-# The baseline of the first line of a link, from the top of the link. A break
-# moves no baseline of the first line, so the text is measured whole.
+# The baseline of the first line of a link with a text face, from the top of the
+# link. A break moves no baseline of the first line, so the text is measured
+# whole. A face that is a document gives no baseline.
 function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap)
     w = iomap.input
-    w.visible == false && return nothing
+    (w.visible == false || w.content isa Document) && return nothing
     _, content_y = _content_offset(p, w)
     measured = _measure_link_lines(p, w, 0)
     content_y + measured.text_top + measured.boxes[1].baseline
 end
 
-# A link draws as a label in the link color: its icon, its text, and no frame. Its
-# text breaks at the edge of the range that the parent gave, as the text of a
-# label does. A line under each line of the text and the hand pointer say that a
-# press opens it.
+# A link draws its icon and its face, and no frame. A text face is in the link
+# color and breaks at the edge of the range that the parent gave, as the text of a
+# label does. A face that is a document draws as the renderer draws it: the link
+# keeps the child for itself and gives it no event, so a press on the face is a
+# press on the link, and the link is the part under the pointer. A line under the
+# face and the hand pointer say that a press opens it, while the link is enabled.
 function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    # The child is made only for a face that is a document.
+    face = make_reconciled_child_iomap_cell(() -> w.content,
+                                            c -> print_child(recursion, c, _get_inner_content_context(p, w, ctx)))
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         box = _get_box_insets(p, w)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
-        edge = ctx === nothing ? nothing : ctx.maximum_width
-        measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
-        style = measured.style
-        outer_width = _resolve_width(ctx, 0, measured.width + inset_width)
-        outer_height = _resolve_height(ctx, 0, measured.height + inset_height)
+        thickness = max(1, p.underline_width)
         elements = Any[]
+        body = Any[]
+        if w.content isa Document
+            style = _get_link_style(p, w)
+            inner = face[].output
+            face_width, face_height = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
+            icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, "", style.font).height)
+            height = max(icon_extent, face_height)
+            face_x = content_x + icon_extent + icon_gap
+            face_top = content_y + (height - face_height) ÷ 2
+            icon_extent > 0 && _push_icon!(body, w.icon, content_x, content_y + (height - icon_extent) ÷ 2,
+                                           icon_extent, style.color)
+            push!(body, _make_canvas(face_x, face_top, Any[inner]))
+            _push_link_underline!(body, w, face_x, face_top + max(0, face_height - thickness), face_width,
+                                  thickness, style.color)
+            width = icon_extent + icon_gap + face_width
+        else
+            edge = ctx === nothing ? nothing : ctx.maximum_width
+            measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
+            style = measured.style
+            if measured.icon_extent > 0
+                _push_icon!(body, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
+                            measured.icon_extent, style.color)
+            end
+            text_x = content_x + measured.icon_extent + measured.icon_gap
+            top = content_y + measured.text_top
+            for (text, line) in zip(measured.texts, measured.boxes)
+                _push_text!(body, p.measure, style.font, text, text_x, top, style.color)
+                _push_link_underline!(body, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
+                                      line.width, thickness, style.color)
+                top += line.height
+            end
+            width, height = measured.width, measured.height
+        end
+        outer_width = _resolve_width(ctx, 0, width + inset_width)
+        outer_height = _resolve_height(ctx, 0, height + inset_height)
         _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
                          outer_height - inset_height)
-        if measured.icon_extent > 0
-            _push_icon!(elements, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
-                        measured.icon_extent, style.color)
-        end
-        text_x = content_x + measured.icon_extent + measured.icon_gap
-        top = content_y + measured.text_top
-        thickness = max(1, p.underline_width)
-        for (text, line) in zip(measured.texts, measured.boxes)
-            _push_text!(elements, p.measure, style.font, text, text_x, top, style.color)
-            _push_link_underline!(elements, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
-                                  line.width, thickness, style.color)
-            top += line.height
-        end
+        append!(elements, body)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
-        push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :pointing_hand))
+        _is_link_enabled(w) && push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :pointing_hand))
         (width = outer_width, height = outer_height, elements = elements)
     end))
 end
 
-# The line under the text of a link, while the pointer is on the link. Its size
-# reads the mouse target in cells of its own, as the layer of a button does, so a
-# move onto the link draws only the line.
+# The line under the face of a link, while the pointer is on the link and the
+# link is enabled. Its size reads the mouse target in cells of its own, as the
+# layer of a button does, so a move onto the link draws only the line.
 function _push_link_underline!(elements::Vector, w::WidgetLink, x::Int, y::Int, width::Int,
                                thickness::Int, color::StyleColor)
     line = GraphicsRect(x, y, 0, 0; color)
-    set_cell_computation!(getfield(line, :w), () -> _is_under_pointer(w) ? Int32(width) : Int32(0))
-    set_cell_computation!(getfield(line, :h), () -> _is_under_pointer(w) ? Int32(thickness) : Int32(0))
+    is_lit() = _is_link_enabled(w) && _is_under_pointer(w)
+    set_cell_computation!(getfield(line, :w), () -> is_lit() ? Int32(width) : Int32(0))
+    set_cell_computation!(getfield(line, :h), () -> is_lit() ? Int32(thickness) : Int32(0))
     push!(elements, line)
 end
 
@@ -2517,9 +2558,10 @@ map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) = nothing
 # `make_open_page_gestures` with its own target, and the tooltip. A key reaches it
 # while it has the focus. A link acts on the click, so it answers the press before
 # the click itself, as a button does, and the press selects nothing: no focus moves
-# to the link.
+# to the link. A link that is not enabled answers nothing, as a disabled button.
 function read_intent(::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
+    _is_link_enabled(iomap.input) || return nothing
     is_focusing_press(evt) && return DoNothingOperation()
     read_bound_gesture(iomap.input, evt)
 end

@@ -170,5 +170,51 @@ end
     @test pressed isa OpenPageOperation && pressed.document === target && pressed.place === :here
 end
 
+@testset "a link to a document keeps a locator of it, and opens its page" begin
+    target = WidgetLabel("the page")
+    link = WidgetLink("the page", target)
+    @test link.target isa DocumentLocator && link.target.start === target
+    projection = make_projection()
+    iomap = print_document(projection, nothing, link, PrinterContext())
+    opened = click(projection, iomap, :left)
+    @test opened isa OpenPageOperation && opened.document === target && opened.place === :here
+    @test isempty(get_reference_steps(strip_reference_types(opened.reference)))
+    @test click(projection, iomap, :left; ctrl = true).place === :new_tab
+    # A walk over the link does not reach the document that it opens.
+    @test isempty(search_references(link, node -> node === target))
+end
+
+@testset "a link that is not enabled draws muted and opens nothing, and a function follows a value" begin
+    open = Cell(true)
+    link = WidgetLink("gone", EmptyReference(); enabled = () -> open[])
+    projection = make_projection()
+    iomap = print_document(projection, nothing, link, PrinterContext())
+    @test click(projection, iomap, :left) isa OpenPageOperation
+    open[] = false
+    elements = collect_elements(iomap.output)
+    text = only(element for element in elements if element isa GraphicsText)
+    @test !is_color_equal(text.color, link_color)
+    @test !any(element -> element isa GraphicsPointerShape, elements)
+    @test click(projection, iomap, :left) === nothing
+    @test read_intent(projection, iomap, KeyPress('\n'; time = 0.0)) === nothing
+    @test get_first_focusable_path(link) === nothing
+    open[] = true
+    @test click(projection, iomap, :left) isa OpenPageOperation
+end
+
+@testset "a face that is a document draws as itself, and a press on it opens the link" begin
+    link = WidgetLink(WidgetLabel("the face"), EmptyReference())
+    driver = MttDriver(make_projection(), link)
+    elements() = collect_elements(driver.iomap.output)
+    @test any(element -> element isa GraphicsText && element.text == "the face", elements())
+    underline() = only(element for element in elements()
+                       if element isa GraphicsRect && is_color_equal(element.color, link_color))
+    @test Int(underline().w) == 0
+    _mtt_move!(driver, 5, 5, 1.0)
+    @test Int(underline().w) > 0
+    opened = read_intent(driver.projection, driver.iomap, MouseClick(:left, 5, 5, 1, ModifierKeys(); time = 0.0))
+    @test opened isa OpenPageOperation && opened.place === :here
+end
+
 end
 end # test_widget_link

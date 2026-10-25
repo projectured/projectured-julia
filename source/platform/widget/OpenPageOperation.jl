@@ -95,11 +95,32 @@ these gestures of its own.
 make_open_page_gestures(document, reference::Reference; domain::AbstractString) =
     _make_open_page_bindings((_, place) -> OpenPageOperation(document, reference, place); domain)
 
-# The open of a link: its target names the part from a document, or from the link.
-_make_link_open(link::WidgetLink, place::Symbol) = _make_target_open(link.target, place)
-_make_target_open(target::DocumentLocator, place::Symbol) =
-    OpenPageOperation(target.start, target.reference, place)
-_make_target_open(target::Reference, place::Symbol) = OpenPageOperation(nothing, target, place)
+"""
+    make_target_open_operation(target, place) -> Operation
+
+The open that a link makes of `target`, at `place`, `:here` or `:new_tab`: any
+object opens as its page, a `DocumentLocator` as the page of the part at its
+reference, and a `Reference` as the part at that path from the link. A locator
+with an empty reference opens as the object that it names would, so a kind of
+target that opens in its own way does so also behind a locator.
+
+Use it to add a kind of target to a link: a method for the type of the target,
+such as an address outside the editor.
+
+# Example
+
+    make_target_open_operation(DocumentLocator(folder, reference), :new_tab)
+"""
+function make_target_open_operation end
+
+make_target_open_operation(target, place::Symbol) = OpenPageOperation(target, EmptyReference(), place)
+make_target_open_operation(target::DocumentLocator, place::Symbol) =
+    target.reference isa EmptyReference ? make_target_open_operation(target.start, place) :
+                                          OpenPageOperation(target.start, target.reference, place)
+make_target_open_operation(target::Reference, place::Symbol) = OpenPageOperation(nothing, target, place)
+
+# The open of a link: the open of its target.
+_make_link_open(link::WidgetLink, place::Symbol) = make_target_open_operation(link.target, place)
 
 const _WIDGET_LINK_BINDINGS = _make_open_page_bindings(_make_link_open; domain = "widget")
 

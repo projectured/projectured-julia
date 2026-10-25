@@ -99,7 +99,7 @@ export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_ope
        make_find_bar_placement_operation
 export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
        make_context_menu_binding, make_menu_button_binding
-export OpenPageOperation, make_open_page_gestures
+export OpenPageOperation, make_open_page_gestures, make_target_open_operation
 export OpenFileOperation
 export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,

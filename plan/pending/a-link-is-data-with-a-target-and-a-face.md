@@ -177,11 +177,27 @@ view stays the text pipeline.
 
 Work in a new worktree from main, with a commit for each step.
 
-1. [ ] **The widget.** `WidgetLink` takes a document as a target, keeps it as a
+1. [x] **The widget.** `WidgetLink` takes a document as a target, keeps it as a
    locator, and gets `enabled`. `make_target_open_operation(target, place)` is a
    generic of the widget slice, with the methods of the table above but the
    ones for a `Url`. A document as content draws through the recursion. Test:
    `test_widget_link()` with new cases, `test_open_page_operation()`.
+   **Done 2026-10-25.** What the step found and decided:
+   - `make_target_open_operation` opens any object as its page by default, so a
+     document needs no method of its own. A locator with an empty reference
+     opens as the object that it names would. So a `Url` that a link keeps as a
+     locator still opens outside the editor in step 3.
+   - A face that is a document prints through the recursion, and the link keeps
+     the child for itself: it gives the face no event, so a press on the face is
+     a press on the link, and the link stays the innermost part under the
+     pointer. The line lies at the bottom of the face. Such a face gives no
+     baseline.
+   - `enabled` takes a `Bool` or a function. A link that is not enabled draws in
+     the muted color, has no hand pointer and no line, opens nothing, and is no
+     stop of Tab.
+   - Pass: `test_widget_link()` 48 of 48, `test_open_page_operation()` 93 of 93,
+     `test_widget_button_behavior()`, `test_roster_table()` 34 of 34,
+     `test_explorer()` 294 of 294, and the naming guard.
 2. [ ] **The link slice.** `is_field_walked` in `source/kernel/document/`
    (check its line in `SEALING.md` first), and the walk that asks it.
    `source/platform/link/`: the interface, `Link`, its view `LinkToWidget`, and

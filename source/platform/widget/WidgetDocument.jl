@@ -547,37 +547,42 @@ WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
 # ── WidgetLink ─────────────────────────────────────────────────────────────
 
 """
-    WidgetLink(content, target; icon, tooltip, position, visible, margin, border, padding, style)
+    WidgetLink(content, target; icon, tooltip, enabled, position, visible, margin, border, padding, style)
 
-A text that names a part and opens its page, as a link in a browser does. A
-click opens the page here, in the nearest navigator around the link, or in a new
-tab when no navigator is around it. Ctrl and a click, or a middle click, open the
-page in a new tab. Return opens it here while the link has the focus.
+The face and the behaviour of a link, as a link in a browser shows: what it
+draws, and what a click opens. A click opens the target here, in the nearest
+navigator around the link, or in a new tab when no navigator is around it. Ctrl
+and a click, or a middle click, open it in a new tab. Return opens it here while
+the link has the focus. A press selects nothing.
 
-`content` is the text of the link: a string, a cell that holds one, or a function
-of no arguments for a text that follows a value. The text breaks at the edge of
-the range that the parent gives, as the text of a label does. `target` says
-where the link leads:
+`content` is the face: a string, a document that the renderer draws, a cell that
+holds one, or a function of no arguments for a face that follows a value. A text
+breaks at the edge of the range that the parent gives, as the text of a label
+does. `target` is what a click opens, by `make_target_open_operation`:
 
+- a document: its page;
 - a `DocumentLocator(document, reference)`: the part at `reference` from
-  `document`, which the link opens with `OpenPageOperation(document, reference,
-  place)`;
+  `document`;
 - a `Reference`: a path from the link itself, so `EmptyReference()` opens the
   part that the link shows, and each reader on the way up maps the path.
 
-`icon` names an icon that stands before the text. A link draws its text in the
-link color of the theme, with no frame, so it is as tall as a label. A line
-shows under each line of the text while the pointer is on the link. A link keeps its target
-as an address, so a walk of the documents does not go from the link into its
-target.
+A domain adds a kind of target with a method of `make_target_open_operation`.
 
-Use it for a text that names what it opens: a title, the name of a file, the id
+`icon` names an icon that stands before the text. A text face is in the link
+color of the theme, with no frame, so the link is as tall as a label. A line
+shows under the face while the pointer is on the link. With `enabled = false`, or
+a function that answers `false`, the link draws muted and opens nothing, as for a
+target that is gone. The link keeps a document target as a locator of it, so a
+walk over the output of a view does not go from the link into its target.
+
+Use it for a face that names what it opens: a title, the name of a file, the id
 of a step. A label that names a command, such as "Open stdout", is a
 `WidgetButton` with the gestures of `make_open_page_gestures`.
 
 # Example
 
     WidgetLink("notes.txt", DocumentLocator(folder, @reference(folder, elements[2])))
+    WidgetLink(() -> format_tree_node_label(page), page)
 
 See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
 """
@@ -587,6 +592,7 @@ See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
     target::Any
     icon::Any
     visible::Bool
+    enabled::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -594,14 +600,23 @@ See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
     tooltip::Any
 end
 
-function WidgetLink(content, target::Union{DocumentLocator, Reference};
+function WidgetLink(content, target::Union{Document, DocumentLocator, Reference};
                     position::Point2D = Point2D(0, 0), icon = nothing, visible::Bool = true,
+                    enabled::Union{Bool, Function} = true,
                     margin = nothing, border = nothing, padding = nothing,
                     style = nothing, tooltip = nothing)
-    WidgetLink(Cell(position), _make_shown_cell(content), Cell(target), Cell(icon),
-               Cell(visible), Cell(margin), Cell(border), Cell(padding),
-               Cell(style), Cell(tooltip))
+    link = WidgetLink(Cell(position), _make_shown_cell(content), Cell(_make_link_target(target)), Cell(icon),
+                      Cell(visible), Cell(enabled isa Bool ? enabled : true),
+                      Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip))
+    enabled isa Function && set_cell_computation!(getfield(link, :enabled), enabled)
+    link
 end
+
+# A document that a link opens is kept as a locator of it. A walk over the output
+# of a view writes the selection and the mouse target of each node that it
+# reaches, and a document of the input must not get them from a widget.
+_make_link_target(target::Document) = DocumentLocator(target, EmptyReference())
+_make_link_target(target) = target
 
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
@@ -3785,8 +3800,8 @@ FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[
 FocusModule.is_focusable_document(w::WidgetToolbarItem) =
     getfield(w, :focusable)[] && !(getfield(w, :enabled)[] === false)
 
-# A link is always a stop, so Return reaches it.
-FocusModule.is_focusable_document(::WidgetLink) = true
+# A link is a stop while it opens something, so Return reaches it.
+FocusModule.is_focusable_document(w::WidgetLink) = !(getfield(w, :enabled)[] === false)
 
 # ── What a widget says about itself ──────────────────────────────────────────
 
