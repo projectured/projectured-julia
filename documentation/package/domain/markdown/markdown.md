@@ -31,7 +31,9 @@ This route exists for a block that is not Markdown. A page can hold any file doc
 
 ### Links
 
-A link follows its target with the target form of `OpenPageOperation` ([navigator.md](../../platform/navigator/navigator.md)). In the source view a press puts the caret in the text of the link, so Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab; in the rendered view a plain click follows it, Ctrl+click opens a new tab, and the pointer is a hand over it. Each is an `override` rule, which takes the click from the caret of the text. The tooltip of a link shows its target. `find_navigator_target` of a page names a heading by its slug (`compute_markdown_heading_slug`, as GitHub writes an anchor), and of a `MarkdownFile` also a file beside it that exists; a URL names nothing.
+A link follows its target with the target form of `OpenPageOperation` ([navigator.md](../../platform/navigator/navigator.md)). In the source view a press puts the caret in the text of the link, so Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab; in the rendered view a plain click follows it, Ctrl+click opens a new tab, and the pointer is a hand over it. Each is an `override` rule, which takes the click from the caret of the text. The tooltip of a link shows its target. `find_navigator_target` of a page names a heading by its slug (`compute_markdown_heading_slug`, as GitHub writes an anchor), an address of the web or of mail as a `Url` (`find_web_url`), which opens outside the editor, such as in the browser, and of a `MarkdownFile` also a file beside it that exists.
+
+A `MarkdownLink` is a link of the slice `link` ([link.md](../../platform/link/link.md)): `get_link_target` answers `Url(url)`, and `get_link_content` its inline parts. So a view that shows any link, such as `LinkToWidget`, shows a link of Markdown too.
 
 ## The text form
 

@@ -37,8 +37,9 @@ get_link_content(link::Link) = link.content
 # A search finds the target where its own document holds it.
 is_field_walked(::Link, name::Symbol) = name !== :target
 
-# A tree names a link as its face, with the icon of its target.
+# A tree, an address and a tab name a link as its face, with the icon of its target.
 format_tree_node_label(link::Link) = format_link_label(link)
+get_document_title(link::Link) = format_link_label(link)
 get_document_decoration(link::Link) = DocumentDecoration(; icon = _get_target_icon(link.target))
 
 """
@@ -74,6 +75,7 @@ get_link_target(url::Url) = url
 _format_target_label(url::Url) = String(url.address)
 _describe_target(url::Url) = String(url.address)
 format_tree_node_label(url::Url) = String(url.address)
+get_document_title(url::Url) = String(url.address)
 get_document_decoration(::Url) = DocumentDecoration(; icon = :external_link)
 
 """

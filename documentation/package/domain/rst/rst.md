@@ -67,7 +67,9 @@ The rule moves the blocks and does not change them, so the reference maps only c
 
 ### References
 
-A reference follows its target with the target form of `OpenPageOperation` ([navigator.md](../../platform/navigator/navigator.md)): its embedded target, or its text for a named reference. In the source view Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab; in the rendered view a plain click follows it, Ctrl+click opens a new tab, and the pointer is a hand over it. Its tooltip shows its target. `find_navigator_target` names the part after an `.. _name:` target, or a section whose title reads the name, as rst compares names; an `RstFile` also names a file beside it that exists.
+A reference follows its target with the target form of `OpenPageOperation` ([navigator.md](../../platform/navigator/navigator.md)): its embedded target, or its text for a named reference. In the source view Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab; in the rendered view a plain click follows it, Ctrl+click opens a new tab, and the pointer is a hand over it. Its tooltip shows its target. `find_navigator_target` names the part after an `.. _name:` target, or a section whose title reads the name, as rst compares names, also when the name comes as the fragment `#name`; an address of the web or of mail as a `Url` (`find_web_url`), which opens outside the editor; and an `RstFile` also names a file beside it that exists. A name can hold a colon, such as `ug:cha:queueing`, so a text is an address only with `//` after its scheme or as a `mailto:` address.
+
+An `RstReference` is a link of the slice `link` ([link.md](../../platform/link/link.md)). An embedded target answers `Url(target)`. A named reference answers `Url("#<name>")`, as the HTML of docutils writes an internal reference. `get_link_content` answers its text.
 
 ### The text form
 

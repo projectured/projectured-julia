@@ -1,6 +1,6 @@
 # A link is data with a target and a face
 
-Status: PENDING, 2026-10-25. Not started.
+Status: DONE, 2026-10-25, on the branch `link-data`. Not landed.
 
 ## The ask
 
@@ -280,11 +280,42 @@ Work in a new worktree from main, with a commit for each step.
      nothing expect a `Url` now.
    - Pass: `test_markdown()` 274 of 274, `test_rst()` 115 of 115, and
      `test_link()` 44 of 44.
-5. [ ] **The guides and a live check.** A guide `documentation/package/platform/link/link.md`,
+5. [x] **The guides and a live check.** A guide `documentation/package/platform/link/link.md`,
    and updates of `widget.md`, `navigator.md`, `markdown.md` and `rst.md`. In a
    live SDL window: a `Link` on a page shows the name and the icon of its
    target; a click on a web link of a markdown page opens the browser. Move this
    plan to `plan/done/`.
+   **Done 2026-10-25.** What the step found and decided:
+   - The guide `link.md` is new. `widget.md`, `navigator.md`, `markdown.md`,
+     `rst.md`, `document.md` of the kernel and the index of the package guides
+     name the slice and its functions.
+   - The live check put a `Link` to the page of `notes.txt` into the root
+     section of the explorer. The page of the link drew a `WidgetLink`
+     "notes.txt" with the icon of the text file, and the line under the face
+     while the pointer was on it. A click on the link "Julia" of a page of
+     `readme.md` answered `OpenUrlOperation`, and `SDL_OpenURL` started the
+     browser: the end of the run stopped its processes.
+   - The live check found two faults, which the tests did not find:
+     - The walk asks `is_field_walked` for each element of a tuple, by its
+       position. The default takes any name, not only a `Symbol`, and
+       `test_document_contract()` walks a tuple.
+     - The navigator of the explorer resolves a target text against its section,
+       which knows no address of the web, so a click on a web link opened
+       nothing. The default of `find_navigator_target(root, text)` is
+       `find_web_url(text)` now, so a web link opens from any content. A
+       relative address of a markdown page in the explorer still resolves
+       against the section, as before this plan.
+   - A `Link` and a `Url` answer `get_document_title` with their face, so the
+     address bar and the name of the tab of a navigator name a link by its face.
+   - No name of the slice collides with a name of omnet-julia or inet-julia.
+   - Pass on the last tree, with no fail and no error: `test_kernel()`,
+     `test_link()`, `test_widget_link()`, `test_navigator()`, `test_explorer()`,
+     `test_roster()`, `test_roster_table()`, `test_document_tree()`, the suites of
+     the task views, pages and work, `test_platform_slice_edges()`,
+     `test_research()`, `test_workflow()`, `test_dataframes()`,
+     `test_markdown()`, `test_rst()` and `test_sdl_layering()`.
+     `test_platform_layering()` fails on main too, for files that this plan does
+     not change.
 
 ## Not in this plan
 

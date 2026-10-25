@@ -38,7 +38,7 @@ using ..TreeModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_edited_field, is_field_walked
+import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..DomainModule: get_document_decoration, make_document_view
 import ..OperationModule: describe_operation, is_self_contained_operation
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward

@@ -78,6 +78,11 @@ domain — fills in:
   `false` (in `DocumentDefaults.jl`); a 1-D positional collection opts in.
 - **`is_walk_opaque`** — `true` when a document is a walk leaf (its internals are
   implementation detail, not addressable content). Defaults to `false`.
+- **`is_field_walked`** — whether the walk enters the field `name` of a document.
+  Defaults to `true`. A document whose field refers to a node that lives
+  elsewhere, as a `Link` holds what it names, answers `false` for that field, so
+  a search finds the node where its own document holds it, and still finds the
+  other fields. A save does not use this walk.
 - **`copy_document`** — deep copy (below).
 - **`sync_document!`** — the shadow sync (below); the kernel handles both record
   and positional-collection shapes.

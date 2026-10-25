@@ -18,7 +18,7 @@ function test_link()
     @test get_link_target(link) === section && get_link_content(link) === nothing
     @test format_link_label(link) == "Inner"
     @test get_document_decoration(link).icon === get_document_decoration(section).icon
-    @test format_tree_node_label(link) == "Inner"
+    @test format_tree_node_label(link) == "Inner" && get_document_title(link) == "Inner"
     evaluate_operation(nothing, ReplaceReferencedValueOperation(section, "title", "Outer"))
     @test format_link_label(link) == "Outer"
     @test format_link_label(Link(section; content = "my list")) == "my list"
