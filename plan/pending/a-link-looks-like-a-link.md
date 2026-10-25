@@ -177,6 +177,14 @@ at that place.
   document. A locator is a plain value, and step 1 makes every walk stop at it.
 - **The underline shows only while the pointer is on the link.** The owner
   agreed on 2026-10-22. The colour and the hand pointer say "link" at rest.
+- **The mouse target goes to the innermost part.** The owner, 2026-10-22, when
+  the live check of step 4 showed no underline on the page of a section and in
+  a roster: "the mouse target should go to the innermost element, that's a
+  principle. why would anybody swallow it? what if a large table cell contains
+  some complex stuff? the mouse target should go deep in, the table can still
+  highlight under the mouse" and "the link should always highlight". So every
+  page that holds a link gives the link its part of the mouse target, and the
+  roster keeps the cell in its mouse target. Step 4 does it.
 - **A link has no tooltip of its own.** My decision, which changes the survey:
   the survey said that a link shows its target in a tooltip. The target is a
   path from a document, such as `entries[2]`, which says little to a person.
@@ -276,7 +284,60 @@ sealed.
    kept the remote version, so the rebase dropped the research code of this step
    and the research part of step 4: no `WidgetLink` in a research row and no
    `find_navigator_address(::ResearchStudy, ::ResearchItem)`.
-4. [ ] **The guides and a live check.** Update `widget.md` (the link and the
+4. [x] **The mouse target reaches every link.** Added 2026-10-22 by the owner's
+   decision above. The first live check showed where the path of the part under
+   the pointer stops:
+   - On the page of a section and of its search, the path reaches the link as an
+     introduced path of the page, but the page wires the mouse target of its
+     root only (`set_output_path_computations!`), so no widget below the root
+     gets its part. The page wires its tree, and each card that it computes
+     later, when it makes the card.
+   - In a roster the path stops at `rows[k].item`: the backward map turns a cell
+     that holds no document into the item of the row, for the selection and the
+     menu of the item. For the mouse target the rows answer the item and, below
+     it, the cell as a part that the rows draw, an introduced step, as
+     `.elements[2]‹.open{0}›` names a bracket that a view draws for an element.
+     So the navigator still reads the item as the document under the pointer,
+     the table lights the row, and each cell that the rows make reads its part
+     from the mouse target of its row.
+   - The card of a research item, the page of a step and the page of the work of
+     an agent: a test shows whether the link gets its part, and the page is
+     wired when it does not.
+   Test: a new case in the test of each page: a move onto a link draws the line
+   under it. Then `test_roster()`, `test_roster_table()`, `test_explorer()`,
+   `test_navigator_gestures()`, `test_research()`, `test_work_plan()`,
+   `test_agent_work()` and `test_dataframes()`.
+   **Done 2026-10-22.** What the step found and decided:
+   - The roster: `_map_mouse_target_backward` answers a cell of text with
+     `[r].item‹[c]›`, a `ProjectionReferenceStep` of the rows below the item,
+     and `_map_rows_forward` maps it to `cells[k][c]` of the table. The
+     selection, the open and the menu still read the item. Each cell that the
+     rows make computes its own mouse target from the mouse target of its row
+     (`_follow_cell_mouse_target!`), so a cell that a table makes again later
+     follows too, which a walk at print time does not give.
+   - The page of a section and of its search follow the mouse target down their
+     tree (`follow_output_mouse_target!`), and each card or table that the body
+     computes later follows it when the body makes it
+     (`_follow_body_child_mouse_target!`).
+   - The page of a folder of a workspace wired the mouse target of its root
+     only; it follows it down its tree now, as the page of any other folder did.
+   - The card of a research item registers each line of a link and its link as
+     containers at their places, so `_route_research_paths!` gives them their
+     paths.
+   - The page of a step and the page of the work of an agent passed the mouse
+     target to their links already: their new cases passed with no change.
+   - A test predicate `is_link_text_underlined(canvas, text)` in
+     `WidgetLinkTest.jl`, exported by the platform test package, finds the line
+     under a drawn text. The roster, the explorer, the step, the work of an
+     agent and the research tests use it.
+   - `test_dataframes()` was not run again: no file of this step draws a data
+     frame or changes a layout.
+   - Pass: `test_widget_link()`, `test_roster_table()`, `test_work_plan()` and
+     `test_assistant_work()` (the log of that run was cleaned before its counts
+     were read), `test_explorer()` 273 of 273, `test_document_tree()` 130 of
+     130, `test_navigator_gestures()` 26 of 26, `test_roster()` 63 of 63,
+     `test_background_work()` 21 of 21, `test_research()` 240 of 240.
+5. [ ] **The guides and a live check.** Update `widget.md` (the link and the
    open gestures), `roster.md`, `explorer.md`, `navigator.md` ("The open of a
    page"), `research.md`, `reference.md` (a walk stops at an address) and
    `keyboard-and-mouse-guide.md`. In a live SDL window, take pictures of the

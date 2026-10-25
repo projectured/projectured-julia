@@ -208,11 +208,32 @@ function _make_row_cells(row::RosterRow)
     for c in 1:length(values)
         value = get_cell_at(values, c)
         label = c == 1 ? _make_item_link(value) : WidgetLabel(() -> format_roster_value(value[]))
+        _follow_cell_mouse_target!(label, row, c)
         push!(slots, peek(value) isa Document ?
                          Cell(Computation(() -> (v = value[]; v isa Document ? v : label))) :
                          Cell(label))
     end
     CellVector(slots)
+end
+
+# A cell that the rows make holds the empty path while the mouse target of its row
+# names it, below the item, as a part that the rows draw, so a link lights under
+# the pointer.
+function _follow_cell_mouse_target!(widget, row::RosterRow, c::Int)
+    set_cell_computation!(getfield(widget, :mouse_target), () ->
+        _find_cell_column(get_mouse_target(row)) == c ? EmptyReference() : nothing)
+    widget
+end
+
+# The column of the cell that `target`, a path from a row, names below the item of
+# the row as a part that the rows draw, or `nothing`.
+function _find_cell_column(target)
+    target isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(target))
+    (length(steps) == 2 && steps[1] == FieldReferenceStep("item") &&
+     steps[2] isa ProjectionReferenceStep && steps[2].projection isa RosterRowsToWidget) || return nothing
+    column = get_reference_steps(steps[2].output_path)
+    (length(column) == 1 && _is_index_step(column[1])) ? column[1].start + 1 : nothing
 end
 
 # The link of the first cell of a row, with the text of `value`. Its open names the
@@ -259,6 +280,9 @@ function _map_rows_forward(iomap::RosterRowsToWidgetIoMap, path)
     k = r - _get_roster_head_row(iomap) + 1
     whole = _make_table_path(FieldReferenceStep("rows"), ElementReferenceStep(k))
     length(steps) == 1 && return whole
+    c = _find_cell_column(extend_reference(EmptyReference(), steps[2:end]...))
+    c === nothing ||
+        return _make_table_path(FieldReferenceStep("cells"), ElementReferenceStep(k), ElementReferenceStep(c))
     for c in 1:length(row.columns)
         place = get_reference_steps(_get_column_path(row, r, c))
         length(steps) >= length(place) && all(steps[i] == place[i] for i in eachindex(place)) || continue
@@ -286,16 +310,39 @@ function map_reference_backward(::RosterRowsToWidget, iomap::RosterRowsToWidgetI
         r = head + rest[2].start
         return (1 <= r <= length(rows)) ? item_of(r) : nothing
     end
-    if rest[1] == FieldReferenceStep("cells") && length(rest) >= 3 && _is_index_step(rest[2]) &&
-       _is_index_step(rest[3])
-        r, c = head + rest[2].start, rest[3].start + 1
-        (1 <= r <= length(rows)) || return nothing
-        row = rows[r]
-        (1 <= c <= length(row.columns)) || return nothing
-        row.values[c] isa Document || return item_of(r)
-        return extend_reference(_get_column_path(row, r, c), rest[4:end]...)
-    end
-    nothing
+    cell = _find_table_cell(iomap, rest)
+    cell === nothing && return nothing
+    (r, c) = cell
+    row = rows[r]
+    row.values[c] isa Document || return item_of(r)
+    extend_reference(_get_column_path(row, r, c), rest[4:end]...)
+end
+
+# The row and the column of the cell that `rest`, the steps of a path of the table,
+# names, or `nothing`.
+function _find_table_cell(iomap::RosterRowsToWidgetIoMap, rest)
+    (length(rest) >= 3 && rest[1] == FieldReferenceStep("cells") && _is_index_step(rest[2]) &&
+     _is_index_step(rest[3])) || return nothing
+    rows = iomap.input
+    r, c = _get_roster_head_row(iomap) + rest[2].start, rest[3].start + 1
+    (1 <= r <= length(rows) && 1 <= c <= length(rows[r].columns)) ? (r, c) : nothing
+end
+
+# The part under the pointer in a cell that holds no document: the item of its
+# row and, below it, the cell as a part that the rows draw. So the item stays the
+# document under the pointer, whose menu a right click shows, and the cell lights.
+# Any other part maps as a path does.
+function _map_mouse_target_backward(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap,
+                                    operation::ReplaceMouseTargetOperation)
+    path = get_operation_path(operation)
+    steps = path isa ConcreteReference ? get_reference_steps(strip_reference_types(path)) : ReferenceStep[]
+    inside = length(steps) >= length(_TABLE_STEPS) && all(steps[k] == _TABLE_STEPS[k] for k in eachindex(_TABLE_STEPS))
+    cell = inside ? _find_table_cell(iomap, steps[(length(_TABLE_STEPS) + 1):end]) : nothing
+    (cell === nothing || iomap.input[cell[1]].values[cell[2]] isa Document) &&
+        return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+    (r, c) = cell
+    make_path_operation(operation, extend_reference(EmptyReference(), ElementReferenceStep(r), FieldReferenceStep("item"),
+                                                    ProjectionReferenceStep(p, Reference(ElementReferenceStep(c)))))
 end
 
 _is_index_step(step) = step isa RangeReferenceStep && is_element_reference_step(step)
@@ -312,6 +359,7 @@ _get_roster_head_row(iomap::RosterRowsToWidgetIoMap) =
 # selection of the rows names a row of `rows`, which the maps place from the
 # anchor. Every other answer goes back as it goes from any projection.
 function read_intent(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, operation)
+    operation isa ReplaceMouseTargetOperation && return _map_mouse_target_backward(p, iomap, operation)
     k = _find_roster_head_move(iomap, operation)
     k === nothing && return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
     anchor = _get_roster_head_row(iomap) + k - 1

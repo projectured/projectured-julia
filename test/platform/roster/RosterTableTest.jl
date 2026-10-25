@@ -124,6 +124,29 @@ function test_roster_table()
         @test !(answer("done") isa OpenPageOperation)
     end
 
+    @testset "the pointer on the link of a row draws the line under it, and the item stays under the pointer" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, k == 2 ? "failed" : "done", 0.1)) for k in 1:3])
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs"), runs)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false)
+        run_frame!(editor)
+        drawing() = last(rendered_output(backend))
+        move!(text, time) = _arrangement_press!(editor, backend, MouseMove(_arrangement_place(backend, text)...; time))
+        @test !is_link_text_underlined(drawing(), "2")
+        move!("2", 0.0)
+        @test is_link_text_underlined(drawing(), "2")
+        @test !is_link_text_underlined(drawing(), "1")
+        # The row holds the item, and below it the cell, as a part that the rows draw.
+        row = roster.rows[2]
+        @test get_reference_steps(strip_reference_types(get_mouse_target(row)))[1] == FieldReferenceStep("item")
+        # The pointer on another cell of the row draws no line under the link.
+        move!("failed", 0.1)
+        @test !is_link_text_underlined(drawing(), "2")
+        @test get_mouse_target(row) !== nothing
+    end
+
     @testset "a file keeps the source, the columns and the title of a roster" begin
         roster = Roster(StoreRecords(:log); columns = ["level", "message"], title = "Errors")
         text = print_pred_text(roster)

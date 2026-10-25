@@ -186,6 +186,10 @@ function test_work_plan()
         @test _nav_has_text(backend, "blocked by")
         link = _nav_click(backend, "step 2")
         @test link !== nothing
+        # The pointer on the link draws the line under it.
+        @test !is_link_text_underlined(last(rendered_output(backend)), "step 2")
+        _nav_press!(editor, backend, MouseMove(link.x, link.y; time = 0.0))
+        @test is_link_text_underlined(last(rendered_output(backend)), "step 2")
         _nav_press!(editor, backend, link)
         @test get_navigator_page(navigator) === plan.steps[2]
         @test _nav_is(navigator.address, _workplan_step_path(2))

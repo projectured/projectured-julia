@@ -39,13 +39,13 @@ function _print_folder_page(p::FileSystemDirectoryToWidget, owner, directory::Fi
             Cell[Cell(widget) for widget in (_has_folder_place(owner) ? Any[heading, table] : asked)])
     end
     iomap = ChildrenIoMap(p, owner, root, Cell(Any[]))
-    # The part under the pointer, so a link lights and takes a press. A folder of a
-    # workspace gives the page its selection too, so a key goes to the field of the
-    # place that holds the caret.
-    owner isa WorkspaceFolder ?
-        set_output_path_computations!(root, owner, path -> map_reference_forward(p, iomap, path); dormant = false) :
-        follow_output_mouse_target!(root, () ->
-            map_mouse_target_forward(owner, path -> map_reference_forward(p, iomap, path)))
+    # The part under the pointer, so each link lights and takes a press. A folder of
+    # a workspace gives the page its selection too, so a key goes to the field of
+    # the place that holds the caret.
+    owner isa WorkspaceFolder &&
+        set_output_path_computations!(root, owner, path -> map_reference_forward(p, iomap, path); dormant = false)
+    follow_output_mouse_target!(root, () ->
+        map_mouse_target_forward(owner, path -> map_reference_forward(p, iomap, path)))
     iomap
 end
 

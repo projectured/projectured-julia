@@ -38,6 +38,20 @@ function test_assistant_work()
             @test haskey(work.work_tree.expanded, work)
         end
 
+        @testset "the pointer on a link of the page of the work of an agent draws the line under it" begin
+            a, _ = _make_worked_assistant()
+            editor, backend = _work_page_editor(Navigator(a.agent_work))
+            drawing() = last(ProjecturedKernelExample.rendered_output(backend))
+            # The links of the subagents stand in the last card of the page.
+            texts = _work_page_texts(backend)
+            index = findlast(entry -> startswith(entry[1], "Explore"), texts)
+            @test index !== nothing
+            (text, x, y) = texts[index]
+            @test !is_link_text_underlined(drawing(), text)
+            _work_page_press!(editor, backend, MouseMove(x + 2, y + 2; time = 0.0))
+            @test is_link_text_underlined(drawing(), text)
+        end
+
         @testset "a double click opens a subagent; Back and Parent return" begin
             a, connection = _make_worked_assistant()
             work = AssistantWork(a)

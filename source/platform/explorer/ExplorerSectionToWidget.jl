@@ -25,7 +25,9 @@ function print_document(p::ExplorerSectionToWidget, recursion, section::Explorer
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         entries = section.entries
         isempty(entries) && return Cell[Cell(WidgetLabel("This section has no entry."))]
-        Cell[Cell(_make_entry_card(p, section, k, entries[k])) for k in eachindex(entries)]
+        cards = Any[_make_entry_card(p, section, k, entries[k]) for k in eachindex(entries)]
+        run_without_cell_tracking(() -> foreach(k -> _follow_body_child_mouse_target!(body, cards[k], k), eachindex(cards)))
+        Cell[Cell(card) for card in cards]
     end)
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(section.title))
@@ -35,8 +37,25 @@ function print_document(p::ExplorerSectionToWidget, recursion, section::Explorer
     iomap = ChildrenIoMap(p, section, root, Cell(Any[]))
     # The part under the pointer, so a link lights and takes a press, and the
     # selection, so a key goes to the field of the title that holds the caret.
+    # Each widget of the page holds its part of the part under the pointer.
     set_output_path_computations!(root, section, path -> map_reference_forward(p, iomap, path); dormant = false)
+    follow_output_mouse_target!(root, () -> map_mouse_target_forward(section, path -> map_reference_forward(p, iomap, path)))
     iomap
+end
+
+# A widget that the body of a page computes, at `k` of its children, holds the part
+# of the mouse target of the body below it, and so does each widget inside it. So a
+# link of a card that the body makes later lights under the pointer too.
+_follow_body_child_mouse_target!(body, child, k::Int) =
+    follow_output_mouse_target!(child, () -> _find_child_path(get_mouse_target(body), k))
+
+# The part of `path`, a path of a layout, inside its child `k`, or `nothing`.
+function _find_child_path(path, k::Int)
+    path isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) >= 2 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(k - 1, k)) ||
+        return nothing
+    extend_reference(EmptyReference(), steps[3:end]...)
 end
 
 const _TITLE_FIELD_WIDTH = 240

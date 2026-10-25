@@ -274,6 +274,24 @@ function test_explorer()
         @test _nav_is(explorer.tree.current, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
     end
 
+    @testset "the pointer on a link of the page of a section draws the line under it" begin
+        explorer = Explorer(_explorer_make())
+        editor, backend = _nav_editor(explorer)
+        drawing() = last(rendered_output(backend))
+        on_page = _explorer_click(backend, "beta"; side = :page)
+        @test on_page !== nothing && !is_link_text_underlined(drawing(), "beta")
+        _nav_press!(editor, backend, MouseMove(on_page.x, on_page.y; time = 0.0))
+        @test is_link_text_underlined(drawing(), "beta")
+        # The pointer on another link moves the line; on a node of the tree, which
+        # is no link, no line shows.
+        other = _explorer_click(backend, "alpha one"; side = :page)
+        _nav_press!(editor, backend, MouseMove(other.x, other.y; time = 0.1))
+        @test is_link_text_underlined(drawing(), "alpha one") && !is_link_text_underlined(drawing(), "beta")
+        in_tree = _explorer_click(backend, "Inner"; side = :tree)
+        _nav_press!(editor, backend, MouseMove(in_tree.x, in_tree.y; time = 0.2))
+        @test !is_link_text_underlined(drawing(), "alpha one") && !is_link_text_underlined(drawing(), "Inner")
+    end
+
     @testset "the page and the tree follow the entries" begin
         content = _explorer_make()
         explorer = Explorer(content)
@@ -318,6 +336,11 @@ function test_explorer()
         @test get_navigator_page(explorer.navigator) === workspace.folders[1]
         @test format_tree_node_label(folder) == basename(root)
         @test _nav_has_text(backend, "folder") && _nav_has_text(backend, "md file")
+        # The pointer on the name of an entry, a link, draws the line under it.
+        on_page = _explorer_click(backend, "notes.md"; side = :page)
+        @test !is_link_text_underlined(last(rendered_output(backend)), "notes.md")
+        _nav_press!(editor, backend, MouseMove(on_page.x, on_page.y; time = 0.0))
+        @test is_link_text_underlined(last(rendered_output(backend)), "notes.md")
         page = print_document(FileSystemDirectoryToWidget(), nothing, folder, nothing).output
         @test page isa VerticalLayout
         @test occursin("2 entries", page.children[1].content)

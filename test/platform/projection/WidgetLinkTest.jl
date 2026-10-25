@@ -5,6 +5,47 @@ link draws its text in the link color, with no frame, as tall as a label, and a
 line under its text only while the pointer is on it.
 """
 
+"""
+    is_link_text_underlined(canvas, text) -> Bool
+
+Whether `canvas`, the drawing of a window or of a part, draws a line in the color
+of the text `text` under it: the line that a `WidgetLink` draws while the pointer
+is on it. A line belongs to the nearest text above it that starts where the line
+starts. The walk reads the canvases, the lists and the viewports inside
+`canvas`, at their places.
+"""
+function is_link_text_underlined(canvas, text::AbstractString)
+    texts, rects = Any[], Any[]
+    _collect_link_drawing!(canvas, 0, 0, texts, rects)
+    any(rects) do (rect, rx, ry)
+        (Int(rect.w) > 0 && Int(rect.h) > 0) || return false
+        above = [(element, y) for (element, x, y) in texts if x == rx && y < ry]
+        isempty(above) && return false
+        (element, _) = above[argmax([y for (_, y) in above])]
+        element.text == text && is_color_equal(rect.color, element.color)
+    end
+end
+
+# Each text and each rect that `canvas` draws, with its place in the frame of the
+# first canvas.
+function _collect_link_drawing!(canvas, ox::Int, oy::Int, texts, rects)
+    x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        element = element isa ListNode ? element.value : element
+        if element isa GraphicsText
+            push!(texts, (element, x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsRect
+            push!(rects, (element, x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _collect_link_drawing!(element, x, y, texts, rects)
+        elseif element isa GraphicsViewport
+            _collect_link_drawing!(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                                   y + Int(element.y) + round(Int, element.transform.f), texts, rects)
+        end
+    end
+end
+
 function test_widget_link()
 @testset "WidgetLink" begin
 
