@@ -1,6 +1,6 @@
 # A link is data with a target and a face
 
-Status: DONE, 2026-10-25, on the branch `link-data`. Not landed.
+Status: DONE, 2026-10-25. Landed on main at `514007226`.
 
 ## The ask
 
