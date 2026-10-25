@@ -16,14 +16,14 @@ _stage_note(text::AbstractString) = parse_markdown(text * "\n").elements[1]
 
 A study at its first stage, the question framed: which channel plan the office
 Wi-Fi gets. The person asks the question and a narrower one, with a note on the
-floor as an attachment; the assistant adds a third question that the plan needs.
+floor as an element; the assistant adds a third question that the plan needs.
 """
 function make_research_framed_study_document_example()
     q1 = ResearchQuestion(id = "Q1",
         statement = PrimitiveString("Which channel plan gives the office floor the fewest retransmissions in the 5 GHz band?"),
         criterion = PrimitiveString("the retransmission rate of each access point in the busy hour, one week for each plan"),
         purpose = PrimitiveString("the channel plan that the twelve access points get"),
-        attachments = Any[_stage_note("The floor has **12** access points and about **180** clients in the busy hour, from 10:00 to 11:00.")],
+        elements = Any[_stage_note("The floor has **12** access points and about **180** clients in the busy hour, from 10:00 to 11:00.")],
         author = :person, time = _stage_time(5, 9, 10))
     q2 = ResearchQuestion(id = "Q2",
         statement = PrimitiveString("Is a channel width of 40 MHz better than 80 MHz on this floor?"),
@@ -67,7 +67,7 @@ function make_research_grounded_study_document_example()
         citation = PrimitiveString("Current log of node 17, 14 to 16 October"),
         link = "logs/node17-current.csv",
         summary = PrimitiveString("The current does not fall to the 4 µA of the data sheet between the wake-ups."),
-        attachments = Any[_stage_note("Three days: a mean of **1.0 mA**, and **0.8 mA** between the wake-ups.")],
+        elements = Any[_stage_note("Three days: a mean of **1.0 mA**, and **0.8 mA** between the wake-ups.")],
         status = :accepted, author = :person, time = _stage_time(16, 17, 5))
     h1 = ResearchHypothesis(id = "H1",
         statement = PrimitiveString("The radio listens between the wake-ups because the MAC does not turn it off."),
@@ -107,7 +107,7 @@ function make_research_planned_study_document_example()
         statement = PrimitiveString("Does the time-aware shaper keep the delay of the control traffic under 100 µs while best-effort traffic fills the link?"),
         criterion = PrimitiveString("the 99.9th percentile of the end-to-end delay of the control stream, over ten replications"),
         purpose = PrimitiveString("whether the plant network needs a link of its own for control"),
-        attachments = Any[_stage_note("The control stream is **64 bytes every 500 µs**, from the controller to three drives through three switches of 1 Gb/s.")],
+        elements = Any[_stage_note("The control stream is **64 bytes every 500 µs**, from the controller to three drives through three switches of 1 Gb/s.")],
         author = :person, time = _stage_time(19, 10, 0))
     s1 = ResearchSource(id = "S1",
         citation = PrimitiveString("IEEE 802.1Qbv-2015, Enhancements for Scheduled Traffic"),
@@ -211,7 +211,7 @@ function make_research_contested_study_document_example()
     e3 = ResearchEvidence(id = "E3",
         statement = PrimitiveString("With CUBIC started 5 s after the new flow, three runs at 2 BDP give 0.91, 0.92 and 0.93."),
         supports = Any[h1],
-        attachments = Any[_stage_note("Run by hand on the bench on 12 October; the order of the starts is the only change.")],
+        elements = Any[_stage_note("Run by hand on the bench on 12 October; the order of the starts is the only change.")],
         author = :person, time = _stage_time(12, 16, 20))
     h2 = ResearchHypothesis(id = "H2",
         statement = PrimitiveString("In a deep buffer, the flow that starts second takes the larger share, whichever it is."),
