@@ -231,17 +231,51 @@ sealed.
      no failure, `test_open_page_operation()` 92 of 92,
      `test_referenced_document()` 63 of 63, `test_referenced_document_editor()`
      111 of 111, and the naming guard.
-2. [ ] **The platform links.** Replace the buttons in the table "Who uses it",
+2. [x] **The platform links.** Replace the buttons in the table "Who uses it",
    except the research link. Test: `test_explorer()`, `test_task_views()`,
    `test_roster_table()`, `test_roster()`, `test_document_tree()`,
    `test_navigator_gestures()`, `test_work_plan()`, `test_agent_work()` and
    `test_background_work()`. A link changes the height of a roster row, so run
    `test_dataframes()` too.
-3. [ ] **The research links.** Add `find_navigator_address(::ResearchStudy,
+   **Done 2026-10-22.** What the step found and decided:
+   - The private helper of the task pages that made a link button is
+     `_make_open_button` now, renamed with `julia-rename.jl`, because it makes
+     only the buttons of a command: "Open stdout", "Open stderr" and "Open the
+     group". `_make_task_link` makes the links: "in" and the group, the text of
+     a link of a kind, and the number of an execution.
+   - A review of the diff found that a long research link did not break at the
+     edge of the card, as the label that it replaces did. So a link breaks its
+     text where a label breaks it (`_text_lines`), with a line under each line,
+     and a text with a line break draws as several lines. A new case of
+     `test_widget_link()` checks it.
+   - The title of a group in a row of the Tasks pane, and "in" and the group on
+     the page of a task, are functions, so the link follows a new title.
+   - No test found a link by the type `WidgetButton`. The tests press the drawn
+     text, so they pass with no change.
+   - Pass: `test_widget_link()` 31 of 31, `test_explorer()` 267 of 267,
+     `test_task_views()` 70 of 70, `test_task_pages()` 48 of 48,
+     `test_roster_table()` 28 of 28, `test_roster()` 63 of 63,
+     `test_document_tree()` 130 of 130, `test_navigator_gestures()` 26 of 26,
+     `test_work_plan()` 83 of 83, `test_agent_work()` 158 of 158,
+     `test_background_work()` 21 of 21, `test_open_page_operation()` 92 of 92,
+     `test_widget_button_behavior()` with no failure, and `test_dataframes()`.
+3. [x] **The research links.** Add `find_navigator_address(::ResearchStudy,
    item)`, and draw each link of a card as a `WidgetLink`. Test:
    `test_research()`, with a new case: a click on a link of a card opens the
    linked item at its place in the study, and Ctrl and a click open it in a new
    tab.
+   **Done 2026-10-22.** The line of a link is a row of the word of the link, a
+   muted label, and the linked item as a `WidgetLink` with the id and the text
+   of the item. `describe_research_link` keeps the whole line as text for the
+   assistant. `find_navigator_address(::ResearchStudy, ::ResearchItem)` is in
+   `ResearchEdits.jl`, beside `find_study_item`. Pass: `test_research()` 238 of
+   238.
+   **Rebased onto the remote main 2026-10-25.** The remote rewrote the study as a
+   quiet outline (`67db30f43`), which replaced the card of an item. A link of a
+   row there is a chip of the outline that selects the linked item. The owner
+   kept the remote version, so the rebase dropped the research code of this step
+   and the research part of step 4: no `WidgetLink` in a research row and no
+   `find_navigator_address(::ResearchStudy, ::ResearchItem)`.
 4. [ ] **The guides and a live check.** Update `widget.md` (the link and the
    open gestures), `roster.md`, `explorer.md`, `navigator.md` ("The open of a
    page"), `research.md`, `reference.md` (a walk stops at an address) and
