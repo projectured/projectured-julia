@@ -136,8 +136,25 @@ function ProjecturedKernel.DocumentModule.replace_wrapped_document!(
     holder
 end
 
+# A document whose field `target` refers to a node that lives elsewhere, so the
+# walk does not enter that field.
+@document struct ContractReferrer
+    label::String
+    target::Any
+end
+ProjecturedKernel.DocumentModule.is_field_walked(::ContractReferrer, name::Symbol) = name !== :target
+
 function test_document_contract()
 @testset "DocumentContract" begin
+
+    @testset "the walk leaves out a field that a document does not walk" begin
+        far = ToyNode("far", nothing, nothing)
+        referrer = ContractReferrer("near", far, nothing)
+        @test is_field_walked(referrer, :label) && !is_field_walked(referrer, :target)
+        @test isempty(search_documents(referrer, node -> node === far))
+        @test !isempty(search_documents(ContractPair(far, nothing, nothing), node -> node === far))
+        @test !isempty(search_documents(referrer, "near"))
+    end
 
     @testset "@document constructs and unwraps cells" begin
         n = ToyNode("root", nothing, nothing)

@@ -1,6 +1,6 @@
 # Fragment of `DocumentModule` — the default behaviours every document inherits
-# unless it overrides them: the two walk-steering traits (`is_element_collection`
-# / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
+# unless it overrides them: the walk-steering traits (`is_element_collection`,
+# `is_walk_opaque` and `is_field_walked`, declared in `DocumentInterface.jl`), the unbounded default
 # for the three sync policy hooks, the defaults of the `CopyPolicy` hooks and of
 # `has_document_duplicate`, the value that stands for itself, and the
 # depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
@@ -9,6 +9,7 @@
 
 is_element_collection(value) = false
 is_walk_opaque(value) = false
+is_field_walked(document, name::Symbol) = true
 is_collection_field_type(::Val) = false
 # No substitution: a declared type is what the cell layout holds, unchanged.
 get_cell_layout_field_type(::Val) = nothing

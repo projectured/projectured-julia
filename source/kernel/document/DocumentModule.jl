@@ -14,8 +14,8 @@ its own definition:
 
 | Fragment | Contract |
 |---|---|
-| [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `copy_document` / `sync_document!` / `search_documents`) |
-| [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` trait answers, the defaults of the sync and copy policy hooks, and the depth-limited debug `show` |
+| [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `is_field_walked` / `copy_document` / `sync_document!` / `search_documents`) |
+| [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` / `is_field_walked` trait answers, the defaults of the sync and copy policy hooks, and the depth-limited debug `show` |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving under a `CopyPolicy`, or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DeclaredType.jl`](DeclaredType.jl) | the check of the declared type of a field at each write and at construction, `DeclaredTypeMismatchException`, and the records of an inventory |
@@ -41,7 +41,7 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        is_descendable_for_copy, make_copy_placeholder, copy_computed_cell, get_copy_memo,
        copy_selection_cell, is_view_state_field, get_view_state_fields,
        DuplicatePolicy, has_document_duplicate, make_document_duplicate,
-       is_element_collection, is_walk_opaque, is_collection_field_type,
+       is_element_collection, is_walk_opaque, is_field_walked, is_collection_field_type,
        get_cell_layout_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol

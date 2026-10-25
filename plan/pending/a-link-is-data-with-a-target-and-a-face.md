@@ -198,7 +198,7 @@ Work in a new worktree from main, with a commit for each step.
    - Pass: `test_widget_link()` 48 of 48, `test_open_page_operation()` 93 of 93,
      `test_widget_button_behavior()`, `test_roster_table()` 34 of 34,
      `test_explorer()` 294 of 294, and the naming guard.
-2. [ ] **The link slice.** `is_field_walked` in `source/kernel/document/`
+2. [x] **The link slice.** `is_field_walked` in `source/kernel/document/`
    (check its line in `SEALING.md` first), and the walk that asks it.
    `source/platform/link/`: the interface, `Link`, its view `LinkToWidget`, and
    the default face. Test: a kernel case of the walk that leaves out a field; a
@@ -208,6 +208,32 @@ Work in a new worktree from main, with a commit for each step.
    the alias of its link and reads nothing of the large collection that the
    link names, and a save and load of a document that holds a `Link` to a node
    of the same file, of another file, and to a node that only the link holds.
+   **Done 2026-10-25.** What the step found and decided:
+   - `is_field_walked(document, name)` is declared in `DocumentInterface.jl`,
+     true in `DocumentDefaults.jl`, and the walk of `DocumentWalk.jl` asks it
+     for each field, after it leaves out `selection` and `mouse_target`. A case
+     of `test_document_contract()` shows a field that the walk leaves out.
+   - The slice `link` stands after `tree` in `ProjecturedPlatform.jl`, and its
+     row of `PLATFORM_SLICE_EDGES` is domain, projection, style, tree and widget.
+   - `LinkToWidget` makes a `WidgetLink` whose face, icon, tooltip, target and
+     `enabled` are computed from the link, so each follows the link and its
+     target. Its output holds the selection and the mouse target of the link.
+   - The name of a link in a tree is its face, and its decoration is the icon of
+     its target, with no counts or conditions of the target.
+   - `print_pred_text` writes a tree, and a node at two places twice, with or
+     without a link. The save of a file, `save_file!` and `save_project!`,
+     writes a marker at the link (`node(file("same.pred"), "entries[1]")`), and
+     the load gives the same node back. The test uses the save of a file.
+   - A single widget at the root of an editor with no window gets no mouse
+     target, because no container turns the move into one. The test puts the
+     link in a `VerticalLayout`, as a page puts it.
+   - `test_platform_layering()` fails on main too, at the rule that a file
+     imports what it extends: `filechange/FileChangeModule.jl` and
+     `shell/ShellModule.jl` name symbols on a `using`. This plan changes neither
+     file, and the rule passes for the slice `link`.
+   - Pass: `test_link()` 26 of 26, `test_document_contract()`,
+     `test_referenced_document()`, `test_widget_link()`, `test_explorer()` and
+     `test_roster_table()`.
 3. [ ] **The URL.** `Url`, its page, `OpenUrlOperation`, `open_url!` for the SDL
    backend and the default, and the methods of `make_target_open_operation` for
    a `Url`. Test: `test_link()` cases for each kind of address, and

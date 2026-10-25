@@ -159,6 +159,18 @@ structure opts in with its own method.
 function is_walk_opaque end
 
 """
+    is_field_walked(document, name::Symbol) -> Bool
+
+Whether the reflection walk enters the field `name` of `document`. Defaults to
+`true`. A document whose field refers to a node that lives elsewhere, as a link
+holds what it names, answers `false` for that field: a search of the document
+does not walk into the node from there, and finds it where its own document
+holds it. The walk still enters every other field. A save does not use this
+walk, and writes the field as it writes any other.
+"""
+function is_field_walked end
+
+"""
     is_collection_field_type(::Val{name}) -> Bool
 
 `true` when a `@document` field declared with type `name` should receive the

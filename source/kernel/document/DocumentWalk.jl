@@ -420,6 +420,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
         for fn in fieldnames(typeof(obj))
             fn == :mouse_target && continue
             fn == :selection && !include_selection && continue
+            is_field_walked(obj, fn) || continue
             isdefined(obj, fn) || continue
             length(results) > counts.limit && return
             child = _read_walked(getfield(obj, fn), background, counts)
