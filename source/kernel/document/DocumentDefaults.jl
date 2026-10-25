@@ -9,7 +9,7 @@
 
 is_element_collection(value) = false
 is_walk_opaque(value) = false
-is_field_walked(document, name::Symbol) = true
+is_field_walked(document, name) = true
 is_collection_field_type(::Val) = false
 # No substitution: a declared type is what the cell layout holds, unchanged.
 get_cell_layout_field_type(::Val) = nothing

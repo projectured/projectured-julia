@@ -154,6 +154,8 @@ function test_document_contract()
         @test isempty(search_documents(referrer, node -> node === far))
         @test !isempty(search_documents(ContractPair(far, nothing, nothing), node -> node === far))
         @test !isempty(search_documents(referrer, "near"))
+        # A tuple names its fields by position, and the walk still enters them.
+        @test !isempty(search_documents(ContractPair((far, 1), nothing, nothing), node -> node === far))
     end
 
     @testset "@document constructs and unwraps cells" begin

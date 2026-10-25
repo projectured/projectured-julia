@@ -159,10 +159,11 @@ structure opts in with its own method.
 function is_walk_opaque end
 
 """
-    is_field_walked(document, name::Symbol) -> Bool
+    is_field_walked(document, name) -> Bool
 
-Whether the reflection walk enters the field `name` of `document`. Defaults to
-`true`. A document whose field refers to a node that lives elsewhere, as a link
+Whether the reflection walk enters the field `name` of `document`: the name of a
+field, or the position of an element of a tuple, as `fieldnames` gives them.
+Defaults to `true`. A document whose field refers to a node that lives elsewhere, as a link
 holds what it names, answers `false` for that field: a search of the document
 does not walk into the node from there, and finds it where its own document
 holds it. The walk still enters every other field. A save does not use this
