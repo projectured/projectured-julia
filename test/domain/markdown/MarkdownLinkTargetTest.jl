@@ -1,5 +1,6 @@
 # What the target of a markdown link names, for a navigator: a heading by its
-# slug, a file beside the file of the page, and nothing for a URL.
+# slug, a file beside the file of the page, and a place outside the editor for an
+# address of the web or of mail. A markdown link is a link.
 
 function test_markdown_link_target()
 @testset "markdown link targets" begin
@@ -20,10 +21,20 @@ function test_markdown_link_target()
     @test find_navigator_target(file, "guide.md") == joinpath(folder, "guide.md")
     @test find_navigator_target(file, "guide.md#guide") == joinpath(folder, "guide.md")
     @test find_navigator_target(file, "missing.md") === nothing
-    @test find_navigator_target(file, "https://example.org/guide.md") === nothing
-    @test find_navigator_target(file, "mailto:someone@example.org") === nothing
+    web = find_navigator_target(file, "https://example.org/guide.md")
+    @test web isa Url && web.address == "https://example.org/guide.md"
+    @test find_navigator_target(file, "mailto:someone@example.org") isa Url
+    @test find_navigator_target(root, "https://example.org") isa Url
+    # A link of Markdown answers the functions of a link.
+    link = only(element for element in _make_markdown_root_with_link().elements[1].content
+                if element isa MarkdownLink)
+    @test is_link(link) && get_link_target(link) isa Url && get_link_target(link).address == "#install-it"
+    @test get_link_content(link) === link.content
 end
 end
+
+# A page with one paragraph that holds a link.
+_make_markdown_root_with_link() = parse_markdown("Read the [setup](#install-it) part.\n")
 
 # A page with a link to a heading below it.
 const _MARKDOWN_LINK_SOURCE = "# Guide\n\nRead the [setup](#install-it) part.\n\n## Install it\n\nSteps.\n"
@@ -34,6 +45,13 @@ _find_markdown_open(operation::WrappingOperation) = _find_markdown_open(get_wrap
 _find_markdown_open(operation::CompoundOperation) =
     something((_find_markdown_open(member) for member in operation.operations)..., nothing)
 _find_markdown_open(::Any) = nothing
+
+# The open of an address in an answer, inside a compound or a wrapper, or `nothing`.
+_find_markdown_url_open(operation::OpenUrlOperation) = operation
+_find_markdown_url_open(operation::WrappingOperation) = _find_markdown_url_open(get_wrapped_operation(operation))
+_find_markdown_url_open(operation::CompoundOperation) =
+    something((_find_markdown_url_open(member) for member in operation.operations)..., nothing)
+_find_markdown_url_open(::Any) = nothing
 
 function test_markdown_link_gestures()
 @testset "markdown link gestures" begin
@@ -46,6 +64,17 @@ function test_markdown_link_gestures()
         platform._nav_press!(editor, backend, platform._nav_click(backend, "setup"))
         @test get_navigator_page(navigator) === root.elements[3]
         @test length(navigator.back) == 1
+    end
+
+    @testset "a click on a web link of the rendered page answers the open of the address outside the editor" begin
+        root = parse_markdown("Read [Julia](https://julialang.org) now.\n")
+        navigator = Navigator(root)
+        editor, backend = platform._nav_editor(navigator)
+        click = platform._nav_click(backend, "Julia")
+        answer = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+        opened = _find_markdown_url_open(answer)
+        @test opened isa OpenUrlOperation && opened.url.address == "https://julialang.org"
+        @test get_navigator_page(navigator) === root
     end
 
     @testset "the rendered page shows the hand over a link, and the I-beam over its text" begin

@@ -47,7 +47,7 @@ import ..WidgetModule: make_graphics_projection, make_target_open_operation
 
 export is_link, get_link_target, get_link_content, format_link_label, describe_link, is_link_broken
 export Link, LinkToWidget
-export Url, UrlView, UrlViewToWidget, is_absolute_url, find_url_file_path, OpenUrlOperation, open_url!
+export Url, UrlView, UrlViewToWidget, is_absolute_url, find_url_file_path, find_web_url, OpenUrlOperation, open_url!
 
 include("LinkInterface.jl")
 include("LinkDocument.jl")

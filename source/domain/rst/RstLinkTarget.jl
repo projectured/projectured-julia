@@ -1,7 +1,8 @@
-# Fragment of `RstModule` — a reference: the gestures that follow it, and what its
-# target names, for a navigator whose content is a document: an `.. _name:` target
-# names the part after it, a section its title, a relative path a file beside the
-# file of the document, and a URL nothing here.
+# Fragment of `RstModule` — a reference: the gestures that follow it, the link that
+# it is, and what its target names, for a navigator whose content is a document: an
+# `.. _name:` target names the part after it, a section its title, an address of
+# the web or of mail a place outside the editor, and a relative path a file beside
+# the file of the document.
 
 # ── The gestures of a reference ───────────────────────────────────────────────
 #
@@ -40,20 +41,39 @@ const _RENDERED_REFERENCE_BINDINGS = GestureBinding[
 get_projection_gesture_bindings(p::RstReferenceToSyntaxNode, iomap) =
     p.show_markers ? GestureBinding[] : _RENDERED_REFERENCE_BINDINGS
 
+# ── The link that it is ──────────────────────────────────────────────────────
+
+# A reference of rst is a link. An embedded target is its address. A named
+# reference names a target of its document, as the fragment `#name`, as the HTML
+# of docutils writes an internal reference, so a name with a colon in it is no
+# address. Its face is its text.
+is_link(::RstReference) = true
+get_link_target(reference::RstReference) =
+    isempty(reference.target) ? Url("#" * reference.text) : Url(reference.target)
+get_link_content(reference::RstReference) = reference.text
+
 # ── What a target names ───────────────────────────────────────────────────────
 
 # A name as rst compares it: in lower case, with each run of space one space.
 _normalize_rst_name(name::AbstractString) = lowercase(join(split(name), " "))
 
-find_navigator_target(root::RstRoot, target::AbstractString) =
-    _find_rst_target(root, _normalize_rst_name(target), ReferenceStep[])
+# The name that a target gives, also as the fragment `#name`.
+_get_rst_target_name(target::AbstractString) = startswith(target, "#") ? chop(target; head = 1, tail = 0) : target
 
-# A file names the targets and the sections of its document first, and else a
-# file beside it by a relative path, when that file exists.
+# A document names its targets and its sections, and an address outside the editor.
+find_navigator_target(root::RstRoot, target::AbstractString) =
+    something(_find_rst_target(root, _normalize_rst_name(_get_rst_target_name(target)), ReferenceStep[]),
+              find_web_url(target), Some(nothing))
+
+# A file names the targets and the sections of its document first, then an address
+# outside the editor, and else a file beside it by a relative path, when that file
+# exists.
 function find_navigator_target(file::RstFile, target::AbstractString)
-    found = _find_rst_target(get_file_content(file), _normalize_rst_name(target),
+    found = _find_rst_target(get_file_content(file), _normalize_rst_name(_get_rst_target_name(target)),
                              ReferenceStep[FieldReferenceStep("content")])
     found === nothing || return found
+    web = find_web_url(target)
+    web === nothing || return web
     path = first(split(target, '#'; limit = 2))
     (isempty(path) || occursin(r"^[A-Za-z][A-Za-z0-9+.\-]*:", path)) && return nothing
     candidate = normpath(joinpath(dirname(abspath(file.filename)), path))

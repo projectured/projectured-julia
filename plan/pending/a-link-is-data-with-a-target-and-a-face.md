@@ -262,10 +262,24 @@ Work in a new worktree from main, with a commit for each step.
      manifest is 2.32.10. `test_sdl_layering()` passes.
    - Pass: `test_link()` 44 of 44, `test_navigator()`, `test_widget_link()`,
      `test_platform_slice_edges()` and `test_sdl_layering()`.
-4. [ ] **Markdown and rst.** `MarkdownLink` and `RstReference` answer the
+4. [x] **Markdown and rst.** `MarkdownLink` and `RstReference` answer the
    interface, and `find_navigator_target` answers a `Url` for a web address.
    Test: `test_markdown()` and `test_rst()`, with a click on a web link that
    answers `OpenUrlOperation`.
+   **Done 2026-10-25.** What the step found and decided:
+   - An rst name can hold a colon, such as `ug:cha:queueing`, and a text with a
+     colon reads as an absolute address with the scheme `ug:`. So a page answers
+     a `Url` only for an address outside the editor: `find_web_url(text)` of the
+     slice `link` answers one for a scheme with `//` after it or a `mailto:`
+     address, and `nothing` for any other text.
+   - A named reference of rst has the target `Url("#<name>")`, as the HTML of
+     docutils writes an internal reference, and `find_navigator_target` of rst
+     reads the name after the `#`. An embedded target is the address itself.
+   - The target of a link of Markdown is `Url(url)`, and its content the inline
+     parts of its text. The two assertions of the tests that a web address names
+     nothing expect a `Url` now.
+   - Pass: `test_markdown()` 274 of 274, `test_rst()` 115 of 115, and
+     `test_link()` 44 of 44.
 5. [ ] **The guides and a live check.** A guide `documentation/package/platform/link/link.md`,
    and updates of `widget.md`, `navigator.md`, `markdown.md` and `rst.md`. In a
    live SDL window: a `Link` on a page shows the name and the icon of its
