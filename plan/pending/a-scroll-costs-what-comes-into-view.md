@@ -1,0 +1,152 @@
+# A scroll costs what comes into view
+
+Status: PENDING, 2026-10-26. Not started. The way of the change is my
+recommendation, and it is open.
+
+## The ask
+
+On 2026-10-26 the owner read the timing of
+[a-scroll-copies-the-pixels-that-stay-in-view.md](a-scroll-copies-the-pixels-that-stay-in-view.md)
+and said: "we should investigate further, and we should figure how this change
+can actually make things faster and guard that". That plan lets the partial paint
+copy the pixels of a viewport whose content only moved. Its timing found no gain.
+
+## What the investigation found
+
+All runs used `main` `eb4d80fb0` in a clean worktree, through `bounded-run`. The
+scene is a Julia file of 4999 lines in a focused file tab of the application
+window, 1600 × 1000 pixels, density 1, supersample 2. Each notch scrolls 48
+pixels.
+
+**1. The gutter makes every frame cost the whole file.** `TextBlockToScrollLayout`
+puts the gutter of each line, a small canvas with the line number and the fold
+mark, into one canvas with no layout and with overlap, together with a pointer
+shape over the whole gutter. A canvas with no layout cannot stop at the edge of
+the view. So the walk, the recording, the guards and the paint visit all 4000
+gutter rows in every frame. The walk keeps 115,880 records: 695 bounds, 43,501
+origins and 33,195 guards. A profile of the walk of a scroll frame: 495 samples
+make the guards again at the new place, and 306 record the moved content.
+
+**2. The focus ring stops the copy.** The focused pane has a ring: a
+`GraphicsRect` over the whole pane with a transparent fill, a border of 2 pixels
+and corners of 3. Rule 3 of the copy takes a graphic outside the moved content
+that meets the box as a change of all its record, unless it is a filled rectangle
+whose inside covers the box. So the ring gives the whole box, and the paint paints
+it.
+
+**3. With both causes patched, the copy saves almost nothing on the graphics
+card.** A scratch patch laid the gutter rows out in a vertical canvas, with the
+pointer shape beside it, and let rule 3 take from a rectangle only the band of
+its border and corners and the edges of a visible fill. The pixels equal a full
+paint in 48 of 48 frames of the offscreen renderer. In a real window, with the
+moves on and off in turns in one process, at a load of about 5:
+
+| Julia source | Frame | Walk | Paint | Wait for the screen | Boxes copied |
+| --- | --- | --- | --- | --- | --- |
+| `main`, moves on or off | 299 ms | 238 ms | 60 ms | 0.5 ms | 0 |
+| Patched, moves on | 15.8 ms | 5.2 ms | 0.73 ms | 9.2 ms | 90 of 45 frames |
+| Patched, moves off | 15.9 ms | 4.8 ms | 0.96 ms | 9.5 ms | 0 |
+
+The gutter fix takes the frame from 299 ms to the refresh of the screen. The copy
+saves 0.2 ms of paint and costs 0.4 ms more walk. With the offscreen software
+renderer, the copy takes the paint from 5.4 to 3.7 ms and the leaves drawn from
+384 to 196.
+
+**4. Why a move costs as much as a repaint.** The walk of a move records each
+graphic that the render draws again at its new place, tests it against two sets
+of edges, and the guards of the content and of every canvas inside it are made
+again at the new place. The repaint of the content as one unit does the same
+recording and the same guards. So the copy can only save paint, and on the
+graphics card the paint costs about 1 ms.
+
+## The way of the change (my recommendation; open)
+
+A scroll must cost what comes into view, not what the view shows and not what the
+file holds. Three changes do that, and a guard holds it:
+
+1. **The gutter rows in a laid-out canvas.** The rows of the gutter go into a
+   canvas with a vertical layout and no overlap, and the pointer shape of the
+   gutter goes beside that canvas. The walk, the guards and the paint then stop
+   at the edges of the view. This helps every frame of a text with a gutter.
+2. **A rectangle outside a moved content gives its border, not its box.** Rule
+   3 takes from a `GraphicsRect` the bands of its border and corners, at their
+   place and where the copy moved them, and, when its fill shows, the edges of the
+   fill that the move carries across. Then a focused pane copies.
+3. **A move records and guards only what comes into view.** The records and the
+   places of the guards of the graphics inside a viewport are kept relative to
+   the content of that viewport. A move then changes the origin of the content,
+   records the graphics that enter the view, forgets those that leave it, and
+   keeps the records and the guards of the graphics that stay. The guard of the
+   content itself reads its elements between the new edges, and each kept guard
+   inside it answers at once.
+
+The guard of this plan counts work, not time, so it holds on a busy machine:
+
+- A walk counts what it does: the elements that it tests (`res.painted.visits`
+  counts this now), the graphics that it records, and the guards that it makes.
+  The last two are new counts on the paint state of a window.
+- A test drives the application window with a focused Julia file tab, the Files
+  pane and a data frame, as the measurement did, and paints each frame by the walk
+  of the partial paint into an offscreen renderer. For each notch it asserts:
+  - the pixels equal a full paint;
+  - each moved viewport is copied;
+  - the paint draws only the leaves that meet the strip and the rows at the
+    edges, named by their rows;
+  - the counts of the walk are the same for a file of 1000 lines and of 4000
+    lines, so no part of the view costs the whole file again.
+- The same test asserts that no canvas in these scenes holds more than 200
+  elements with no layout, so the next gutter is found where it is made.
+- The data frame copies nothing while its grid stays where it is
+  (`_make_part_region`). Its assertion of the copy is `@test_broken`, with a
+  `# @broken:` comment that names the grid.
+
+## Keep
+
+1. A partial paint gives the same pixels as a full paint, in every frame.
+2. A click, a key and the pointer on the gutter work as now.
+3. The rules of [a-scroll-copies-the-pixels-that-stay-in-view.md](a-scroll-copies-the-pixels-that-stay-in-view.md)
+   hold, except rule 3 for a rectangle.
+4. Each new name follows
+   [naming-rules.md](../../documentation/rule/naming-rules.md).
+
+## Rule of measurement
+
+A time runs only on the word of the owner, in the lane `taskset -c 28,30,31`,
+through `bounded-run`, with the load written beside it. A count needs neither.
+
+## Steps
+
+Do the work in a worktree on a branch of its own. Commit each step. Do not land
+on `main` before the owner approves.
+
+1. [ ] **The guard, failing where it must.** Add the counts of the walk and the
+   test of the three scenes. Mark each assertion that `main` fails with
+   `@test_broken` and its reason: the counts that grow with the file, the copy of
+   the focused pane, the copy of the data frame. Move
+   `a-scroll-copies-the-pixels-that-stay-in-view.md` to `plan/done/`, with a line
+   that points here. Commit.
+2. [ ] **The gutter rows in a laid-out canvas.** The counts no longer grow with
+   the file; promote those assertions. Run the tests of the text, the Julia domain
+   and the gutter. Commit.
+3. [ ] **A rectangle gives its border.** Add pixel tests: a ring over a pane that
+   scrolls, and a filled rectangle that covers a part of the box. The focused pane
+   copies; promote that assertion. Commit.
+4. [ ] **A move records and guards only what comes into view.** The counts of the
+   walk of a scroll frame fall to the rows of the strip and the edges; the test
+   names the numbers. Run `test_sdl()` and `test_video()` with the offscreen
+   driver. Commit.
+5. [ ] **The measurement, the guides and the end.** On the word of the owner,
+   time the three scenes in real windows, with the moves on and off in turns, as
+   in this plan. Describe the relative records in
+   [sdl.md](../../documentation/package/backend/sdl/sdl.md). Move this plan to
+   `plan/done/`. Commit.
+
+## Not in this plan
+
+- The grid of the table of a data frame, which stays while the cells move.
+- A strip cut to the bounds of what the content draws, which would save paint on
+  the software renderer when the lines are short.
+
+## As built
+
+Nothing yet.
