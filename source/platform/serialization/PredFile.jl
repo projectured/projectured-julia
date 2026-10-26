@@ -172,6 +172,7 @@ end
 The arguments of the call a `.pred` file writes for `document`. The default
 writes every declared field as a keyword, in declaration order: a document made
 of data is its fields.
+A positional collection writes the list of its elements as its one argument.
 
 A document that also holds what it did not read — a `PaneTree`'s drag in
 progress, an `Assistant`'s API key and conversation — says here what its file
@@ -180,6 +181,9 @@ inverses, and a value the notation cannot write is refused at save whichever
 of them produced it.
 """
 function pred_arguments(document)
+    # A collection that is itself held in a vector, such as a row of a table, is
+    # the call that takes the list of what its cells hold.
+    is_element_collection(document) && return (Any[element for element in document],), ()
     keywords = Pair{Symbol,Any}[]
     for name in fieldnames(typeof(document))
         is_view_state_field(typeof(document), name) && continue

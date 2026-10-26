@@ -40,7 +40,7 @@ using ..TooltipModule
 import ..CellModule: set_cell_computation!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
-                         get_document_title, is_walk_opaque
+                         get_document_title, is_walk_opaque, get_view_state_fields
 import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own

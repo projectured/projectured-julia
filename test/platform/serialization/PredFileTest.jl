@@ -7,6 +7,7 @@ using Test
 using ProjecturedPlatform.SerializationModule
 using ProjecturedPlatform.StyleModule: StyleFont, StyleColor
 using ProjecturedPlatform.TextModule: TextBlock, TextString
+using ProjecturedPlatform.WidgetModule: WidgetTable, WidgetLabel
 using ProjecturedKernel.DocumentModule: @document
 
 """
@@ -157,6 +158,20 @@ function test_pred_file()
         @test string.font.family == "DejaVu Sans"
         @test string.font_color.red == 1.0
         @test print_pred_text(loaded) == text
+    end
+
+    @testset "a table of computed rows of strings and numbers reads back with the same cells" begin
+        headers = ["protocol", "N", "G"]
+        rows = [Any["pure", 5.0, 0.5], Any["slotted", 6, "0.25"]]
+        table = WidgetTable(headers, rows)
+        text = print_pred_text(table)
+        loaded = parse_pred_text(text)
+        @test loaded isa WidgetTable
+        @test [header.content for header in loaded.column_headers] == headers
+        @test [[cell.content for cell in row] for row in loaded.cells] ==
+              [["pure", "5.0", "0.5"], ["slotted", "6", "0.25"]]
+        @test print_pred_text(loaded) == text
+        @test !occursin("scroll_position", text)
     end
 
 end

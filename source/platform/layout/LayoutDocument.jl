@@ -40,6 +40,9 @@ struct SizePolicy
     weight::Union{Nothing,Float64}
 end
 
+# A size policy is data, so a saved window keeps it: a file writes it as its call.
+is_pred_constructible(::Type{SizePolicy}) = true
+
 """
     Fixed(n) -> SizePolicy
 

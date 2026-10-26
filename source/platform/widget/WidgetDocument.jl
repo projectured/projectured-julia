@@ -3893,6 +3893,18 @@ pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pa
 # its other fields, but the run of the wheel.
 pred_arguments(pane::WidgetTransformPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
 
+# The scroll, the first row in view, the rows in view and the drag of a column
+# edge are what a person did to the view of a table, and no part of what it holds.
+get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :shown, :column_drag)
+
+# A saved table keeps its headers and its cells. The counts of its rows and of
+# its columns, which a table without data for them derives from the cells and the
+# headers, are built again when the file loads; the data of a row or a column is
+# kept.
+pred_arguments(table::WidgetTable) =
+    (), filter(keyword -> !(last(keyword) isa Union{WidgetTableRows,WidgetTableColumns}),
+               last(invoke(pred_arguments, Tuple{Any}, table)))
+
 # The keywords that a file writes for `widget` by default, but for its content,
 # which is written as the first argument, and for the fields `left_out`.
 _get_field_keywords(widget::WidgetDocument, left_out::Tuple) =

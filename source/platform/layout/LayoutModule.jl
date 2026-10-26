@@ -32,6 +32,7 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
+import ..SerializationModule: is_pred_constructible
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis,
