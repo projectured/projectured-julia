@@ -61,6 +61,12 @@ Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no 
 
 `make_clipboard_projection(…; to_text, from_text)` connects the clipboard to the operating system. A copy then adds a `WriteOsClipboardOperation` with the text form of the document, and a paste with an empty slice reads the system clipboard. `read_os_clipboard` and `write_os_clipboard!` call the first tool that is installed: `xclip` or `xsel`, `wl-paste` or `wl-copy`, `pbpaste` or `pbcopy`. With no tool they return `nothing` and `false`. The inverse of the write is `DoNothingOperation()`, because the system clipboard is not part of the document. `set_os_clipboard_backend!` puts a fake in place for a test.
 
+The editor never waits for a clipboard tool:
+
+- **A tool has a time limit.** A read or a write that does not end in `CLIPBOARD_TOOL_SECONDS` (2 s) is stopped, logs one warning, and gives `nothing` or `false`.
+- **A copy writes on a task of its own.** `WriteOsClipboardOperation` and `CopyReferenceOperation` call `start_os_clipboard_write!`. Each write starts after the write before it, and goes to the backend that is set when it starts. A read, and a direct `write_os_clipboard!`, wait for the writes that were started, so a copy and a paste in one frame paste what was copied.
+- **A reader reads no clipboard.** A paste that needs the text of the system clipboard answers `PasteOsClipboardOperation(place, projection, copy)`, in a `ReplaceViewStateOperation`, so undo does not record it. The readers above give it the place of the clipboard document, as they reroot any operation. Its evaluation reads the clipboard with `start_document_read!`. A read that ends inside 50 ms pastes in the same evaluation. A later read posts `ApplyOsClipboardPasteOperation`, which pastes in a later frame, at the place that the gesture named. It makes the edit from the root with `read_rooted_operation`, so each reader between the place and the root lifts it, as it lifts the answer to a gesture. When the place holds no clipboard document any more, it pastes nothing and logs one warning.
+
 With `text = true` over a `TextBlock` content, the clipboard copies and pastes character ranges only, and never a node.
 
 ### The `clipboard` wrapper of `build_editor`

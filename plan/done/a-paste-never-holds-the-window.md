@@ -1,6 +1,6 @@
 # A paste never holds the window
 
-Status: PENDING, 2026-10-19. Not started. No decision is open.
+Status: DONE, branch `paste-off-the-window`, 2026-10-26. No decision is open.
 
 ## The ask
 
@@ -47,7 +47,7 @@ paste of it needs no read and pastes at once, as today.
 
 ## Steps
 
-1. [ ] **The read, the write and the time limit.** The paste operation and its
+1. [x] **The read, the write and the time limit.** The paste operation and its
    evaluation; the time limit and the order of the tool calls in `Clipboard.jl`;
    the bindings answer the operation. Tests: `test/platform/projection/ClipboardTest.jl`,
    `test/projectured/projection/TextClipboardTest.jl`, the clipboard cases of
@@ -55,7 +55,7 @@ paste of it needs no read and pastes at once, as today.
    answers after 0.2 s pastes in a later frame while the frames go on; a backend
    that does not answer gives no paste and one log line after 2 s; a copy and a
    paste in one frame paste the copied text.
-2. [ ] **The guides.** `documentation/package/platform/clipboard/clipboard.md`, and
+2. [x] **The guides.** `documentation/package/platform/clipboard/clipboard.md`, and
    the row of the clipboard in `documentation/design/communication-anatomy.md`. The
    plan moves to `plan/done/`.
 
@@ -65,4 +65,33 @@ paste of it needs no read and pastes at once, as today.
 
 ## As built
 
-Nothing yet.
+- **The operation.** A reader answers `PasteOsClipboardOperation(place, projection,
+  copy)` in a `ReplaceViewStateOperation`, so undo steps over the start of the
+  paste. Its place starts as the empty reference, and the readers above give it
+  the place of the clipboard document through the reroot protocol
+  (`operation_reference`, `retarget_operation`). The stored slice still pastes
+  in the reader, because it is a value in the document.
+- **The two paths.** The evaluation calls `start_document_read!(editor,
+  read_os_clipboard, apply)`. A read inside 50 ms evaluates
+  `ApplyOsClipboardPasteOperation` at once; a later read posts it. The apply
+  finds the clipboard document at the place, makes the edit with the text
+  (the paste functions take it as the keyword `os`), and lifts it to the root
+  with `read_rooted_operation`. A place with no clipboard document pastes
+  nothing and logs one warning.
+- **The writes.** `start_os_clipboard_write!` runs each write on a task of its
+  own, after the write before it, with the backend that is set when it starts.
+  `read_os_clipboard` and `write_os_clipboard!` wait for these writes first.
+  `CopyReferenceOperation` writes this way too.
+- **The time limit.** `_shell_read` and `_shell_write` wait at most
+  `CLIPBOARD_TOOL_SECONDS` (2 s), then stop the tool and log one warning.
+- **Undo.** In the application window, a Ctrl+Z after a paste of the system
+  clipboard into the evaluator gives the same result on main and on the branch:
+  the first Ctrl+Z takes back the typing before the paste, so undo holds no step
+  for the paste on either tree. This plan does not change that.
+- **Tests.** Three new testsets in `ClipboardTest.jl`: a read that waits behind
+  a gate pastes only after the drain; a tool that does not end (`sleep 30`) is
+  stopped with one warning and pastes nothing; two writes behind a gate and a
+  read give the last copy. The tests that read the fake buffer right after a
+  copy now read it through `read_os_clipboard`, which waits for the write.
+  `test_clipboard`, `test_document_read` and `test_text_clipboard`: 238 of 238.
+  `test_application`: 391 pass, 2 broken, as on main. The naming guard passes.

@@ -207,7 +207,7 @@ A post during a frame shows in the next frame. A demand that the print records s
 | A child process | Pipes, a process group of its own, and signals | The reader tasks of a terminal or of a task |
 | The disk | The notification of a folder, or a poll of its files | The watcher task of the folder; background work for a read |
 | `/proc` | A read of files | The sampler task |
-| The clipboard | A clipboard tool that the editor starts | The owner task: a copy runs the tool in `evaluate_operation`, and a paste runs it in the reader. The frame waits for the tool |
+| The clipboard | A clipboard tool that the editor starts, with a time limit of 2 s | A task of its own: a copy starts the write in `evaluate_operation`, after the writes before it, and a paste reads in the evaluation of `PasteOsClipboardOperation` through `start_document_read!`. The frame waits at most 50 ms |
 
 ## Two editors in one process
 
