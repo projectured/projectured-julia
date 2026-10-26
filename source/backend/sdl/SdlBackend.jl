@@ -136,12 +136,14 @@ mutable struct _PaintedGeometry
     baseline::Int
     guards::Dict{UInt,Any}
     guard_places::Dict{UInt,Any}
-    visits::Int
+    visits::Int        # the elements that the last walk tested
+    recordings::Int    # the records of bounds that the last walk wrote
+    new_guards::Int    # the guards that the last walk made
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
                                       Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
                                       Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0,
-                                      Dict{UInt,Any}(), Dict{UInt,Any}(), 0)
+                                      Dict{UInt,Any}(), Dict{UInt,Any}(), 0, 0, 0)
 
 """
     SdlWindowResources
@@ -2531,6 +2533,7 @@ _compute_viewport_content_place(box::NTuple{4,Int}, content::GraphicsCanvas, M::
                                 Int(content.x), Int(content.y), M)
 
 function _record_bounds!(res::SdlWindowResources, key::UInt, b::Union{Nothing,NTuple{4,Int}})
+    res.painted.recordings += 1
     b === nothing ? delete!(res.dirty_bounds, key) : (res.dirty_bounds[key] = b)
     b
 end
@@ -3394,6 +3397,7 @@ function _read_guard!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt
         res.painted.guard_places[key] = place
         guard = Cell(Computation(() -> _read_guarded_cells(res, canvas, key, ox, oy, edges)))
         res.painted.guards[key] = guard
+        res.painted.new_guards += 1
     end
     guard[]
     nothing
@@ -3624,6 +3628,8 @@ end
 # effect, so this is also called (its answer ignored) on the first full paint to
 # seed each unit's previous bounds and each graphic's place.
 function _compute_dirty_change(res::SdlWindowResources, canvas::GraphicsCanvas)
+    res.painted.recordings = 0
+    res.painted.new_guards = 0
     walk = _DirtyWalk()
     root = _make_placement_key(canvas, UInt(0))
     edges = _ClipEdges(0, 0, res.width, res.height)
@@ -4477,7 +4483,9 @@ end
 # on each frame until the next repaint, as a window keeps its last picture.
 mutable struct _OffscreenPaintState
     res::SdlWindowResources
-    last_rects::Vector{NTuple{4,Int}}
+    last_rects::Vector{NTuple{4,Int}}    # the rectangles of the last frame that painted
+    last_copies::Vector{NTuple{4,Int}}   # the boxes whose pixels the last frame copied
+    last_drawn::Int                      # the leaves that the last frame drew, or -1 in a full paint
 end
 
 """
@@ -4494,7 +4502,7 @@ function make_offscreen_paint_state(off)
                              off.S, _get_offscreen_content_scale(off), 1.0, C_NULL, 0, 0, true,
                              Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[],
                              C_NULL)
-    _OffscreenPaintState(res, NTuple{4,Int}[])
+    _OffscreenPaintState(res, NTuple{4,Int}[], NTuple{4,Int}[], 0)
 end
 
 """
@@ -4503,8 +4511,10 @@ end
 Render `canvas` into `renderer` as a window with `partial_render` does: the
 surface keeps its pixels, the pixels that stay in the box of a viewport whose
 content only moved are copied to their new place, and only the rects that the
-dirty walk finds are painted again. The first frame paints everything. Answers the rects painted,
-empty when nothing changed.
+dirty walk finds are painted again. The first frame paints everything. Answers
+the rects painted, empty when nothing changed. The state keeps the boxes copied
+and the leaves drawn of the last frame, and the rects of the last frame that
+painted.
 """
 function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::GraphicsCanvas;
                                    background::NTuple{4,UInt8})
@@ -4518,12 +4528,15 @@ function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::Gra
     rects = res.first_paint ? [(0, 0, res.width, res.height)] : _limit_dirty_rects(computed)
     records = res.first_paint ? nothing : res.dirty_bounds
     res.first_paint = false
+    state.last_copies = NTuple{4,Int}[]
+    state.last_drawn = 0
     isempty(rects) && return rects
-    _copy_moved_boxes!((box, offset) -> _copy_surface_box!(off, res, box, offset), rects, moves)
+    state.last_rects = rects
+    state.last_copies = _copy_moved_boxes!((box, offset) -> _copy_surface_box!(off, res, box, offset), rects, moves)
     scale = _get_offscreen_content_scale(off)
     SDL_RenderSetScale(off.renderer, Float32(scale * off.S), Float32(scale * off.S))
-    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale; records)
-    state.last_rects = rects
+    paint = _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale; records)
+    state.last_drawn = paint === nothing ? -1 : paint.drawn
     rects
 end
 

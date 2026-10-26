@@ -6,7 +6,7 @@ recommendation, and it is open.
 ## The ask
 
 On 2026-10-26 the owner read the timing of
-[a-scroll-copies-the-pixels-that-stay-in-view.md](a-scroll-copies-the-pixels-that-stay-in-view.md)
+[a-scroll-copies-the-pixels-that-stay-in-view.md](../done/a-scroll-copies-the-pixels-that-stay-in-view.md)
 and said: "we should investigate further, and we should figure how this change
 can actually make things faster and guard that". That plan lets the partial paint
 copy the pixels of a viewport whose content only moved. Its timing found no gain.
@@ -90,8 +90,8 @@ The guard of this plan counts work, not time, so it holds on a busy machine:
   of the partial paint into an offscreen renderer. For each notch it asserts:
   - the pixels equal a full paint;
   - each moved viewport is copied;
-  - the paint draws only the leaves that meet the strip and the rows at the
-    edges, named by their rows;
+  - the paint draws less than half of the leaves that a paint of the whole
+    window draws (see [As built](#as-built));
   - the counts of the walk are the same for a file of 1000 lines and of 4000
     lines, so no part of the view costs the whole file again.
 - The same test asserts that no canvas in these scenes holds more than 200
@@ -104,7 +104,7 @@ The guard of this plan counts work, not time, so it holds on a busy machine:
 
 1. A partial paint gives the same pixels as a full paint, in every frame.
 2. A click, a key and the pointer on the gutter work as now.
-3. The rules of [a-scroll-copies-the-pixels-that-stay-in-view.md](a-scroll-copies-the-pixels-that-stay-in-view.md)
+3. The rules of [a-scroll-copies-the-pixels-that-stay-in-view.md](../done/a-scroll-copies-the-pixels-that-stay-in-view.md)
    hold, except rule 3 for a rectangle.
 4. Each new name follows
    [naming-rules.md](../../documentation/rule/naming-rules.md).
@@ -119,7 +119,7 @@ through `bounded-run`, with the load written beside it. A count needs neither.
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The guard, failing where it must.** Add the counts of the walk and the
+1. [x] **The guard, failing where it must.** Done; see [As built](#as-built). Add the counts of the walk and the
    test of the three scenes. Mark each assertion that `main` fails with
    `@test_broken` and its reason: the counts that grow with the file, the copy of
    the focused pane, the copy of the data frame. Move
@@ -146,7 +146,41 @@ on `main` before the owner approves.
 - The grid of the table of a data frame, which stays while the cells move.
 - A strip cut to the bounds of what the content draws, which would save paint on
   the software renderer when the lines are short.
+- The walk of a data frame does more work at each notch: 1831 records at the first
+  notch and 2308 at the sixth.
 
 ## As built
 
-Nothing yet.
+### Step 1: the guard, 2026-10-26
+
+`_PaintedGeometry` counts the work of the last walk: `visits` as before, and the
+new `recordings`, the records of bounds that the walk wrote, and `new_guards`, the
+guards that it made. `_OffscreenPaintState` keeps the boxes that the last frame
+copied (`last_copies`) and the leaves that it drew (`last_drawn`). `last_rects`
+keeps its meaning, the rects of the last frame that painted, because a video
+outlines it on a frame that paints nothing.
+
+`test_scroll_work()` in [ScrollWorkTest.jl](../../test/projectured/editor/ScrollWorkTest.jl)
+drives each scene with a `HeadlessBackend` and paints it by the walk into an
+offscreen renderer at supersample 1. Six notches, on the code of `main`:
+
+| Scene | Pixels | Copies | Leaves drawn of the whole window | Work: records, new guards |
+| --- | --- | --- | --- | --- |
+| Julia file of 3999 lines, focused | equal | 0 | 8249 of 8308 | 34,799, 26,544 |
+| The same of 999 lines | equal | 0 | — | 8,983, 6,736 |
+| Files pane over 500 entries | equal | 1 | 76 to 101 of 261 | 306, 52 |
+| Data frame of 1000 rows | equal | 0 | 712 to 723 of 816 to 887 | 1831 at notch 1, 2308 at notch 6 |
+
+The canvases with more than 200 elements and no layout: the gutter column of the
+Julia file, 3203 elements. None in the other scenes.
+
+Two decisions from this run:
+
+- The bound of the leaves drawn is half of the leaves of a paint of the whole
+  window, not the rows of the strip by their numbers. With the copy, the Files
+  pane draws 29% to 39% of its window; a paint of the whole box draws 82% to 99%.
+  Rows by their numbers would tie the test to the fonts and the theme.
+- Six assertions fail on `main` and are `@test_broken` with their reason: for the
+  Julia file, the copy, the leaves drawn, the work that grows with the file and
+  the canvas with no layout; for the data frame, the copy and the leaves drawn.
+
