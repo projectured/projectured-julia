@@ -345,6 +345,12 @@ Make a new workflow whose goal is `title`, with one open step for each entry of
 workflow as the part of the window that the tab shows, which every other verb
 takes.
 
+The tab opens above the conversation of the assistant that calls: the group of
+the conversation, which `pane_group_to_avoid` names, becomes a split with the
+workflow on top, a third of the height, and the conversation below. A second
+workflow joins the tab group on top. A window with no conversation opens the tab
+as `open_pane!` places any pane.
+
 Use it at the start of work of several stages, before the first of them, so the
 person sees the stages ahead and the one that runs: a study, a port, a release.
 Keep the steps at the level of the stages; mark each `:active` when it starts and
@@ -366,8 +372,36 @@ function start_workflow!(title; steps::AbstractVector = String[], editor = get_e
             push!(root.children, WorkflowStep(title = _make_text(step)))
         end
         evaluate_operation(editor, AddExplorerEntryOperation(root))
-        get_edited_document(open_pane!(root; editor))
+        get_edited_document(_open_workflow_pane!(editor, root))
     end
+end
+
+# The tab of `root` above the conversation: in the group of workflows that sits
+# over it, else in a new group that takes the top third of the conversation's
+# place. Without a conversation, the placement of `open_pane!`.
+function _open_workflow_pane!(editor, root::WorkflowStep)
+    tree = get_window_tree(; editor)
+    conversation = pane_group_to_avoid(tree)
+    conversation === nothing && return open_pane!(root; editor)
+    parent = get_pane_parent(tree, conversation)
+    if parent !== nothing
+        owner, index = parent
+        if owner isa PaneSplit && owner.orientation === :horizontal && index > 1
+            above = owner.elements[index - 1]
+            if above isa PaneGroup && !isempty(above.tabs) &&
+               all(tab -> tab.content isa WorkflowStep, above.tabs)
+                return open_pane!(root; group = above, editor)
+            end
+        end
+    end
+    title = get_document_title(root)
+    name = title === nothing ? "Workflow" : String(title)
+    group = PaneGroup(PaneTab[PaneTab(name, root)])
+    reference = first(search_references(editor.document, node -> node === conversation;
+                                        descend = is_pane_search_step))
+    replace_referenced_value!(reference,
+        PaneSplit(:horizontal, Any[group, conversation]; weights = [1 / 3, 2 / 3]); editor)
+    find_pane(name; editor)
 end
 
 """

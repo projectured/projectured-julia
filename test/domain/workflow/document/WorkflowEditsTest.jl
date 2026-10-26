@@ -4,6 +4,15 @@ mutable struct _WorkflowTestEditor
     document::Any
 end
 
+# The conversation of a test window is the group with a tab of this title.
+const _WORKFLOW_CONVERSATION_TITLE = "Test conversation"
+
+function ProjecturedPlatform.PaneModule.pane_group_to_avoid(tree::PaneTree)
+    index = findfirst(group -> any(tab -> tab.title.name.value == _WORKFLOW_CONVERSATION_TITLE, group.tabs),
+                      get_pane_groups(tree))
+    index === nothing ? nothing : get_pane_groups(tree)[index]
+end
+
 const _WORKFLOW_TEST_TIME = "2026-10-09T15:00:00"
 
 """
@@ -179,6 +188,28 @@ function test_workflow_edits()
             @test any(entry -> get_document(entry) === root, entries)
             @test find_pane("A study of the Aloha sample"; editor) !== nothing
             @test :start_workflow! in WORKFLOW_ASSISTANT_API
+        end
+
+        @testset "a workflow opens above the conversation, and a second joins it" begin
+            conversation = PaneGroup(PaneTab[PaneTab(_WORKFLOW_CONVERSATION_TITLE, PrimitiveString("talk"))])
+            files = PaneGroup(PaneTab[PaneTab("files", PrimitiveString("f"))])
+            tree = PaneTree(PaneSplit(:vertical, Any[files, conversation]; weights = [0.5, 0.5]))
+            editor = Editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            run_with_evaluation_editor(editor) do
+                start_workflow!("First plan"; steps = ["a"])
+            end
+            column = tree.root.elements[2]
+            @test column isa PaneSplit && column.orientation === :horizontal
+            @test column.elements[2] === conversation
+            @test column.elements[1].tabs[1].content isa WorkflowStep
+            @test get_pane_normalized_weights(get_pane_weights(column)) ≈ [1 / 3, 2 / 3]
+            run_with_evaluation_editor(editor) do
+                start_workflow!("Second plan")
+            end
+            column = tree.root.elements[2]
+            @test length(column.elements) == 2 && column.elements[2] === conversation
+            @test length(column.elements[1].tabs) == 2
         end
 
         @testset "a verb answers a node as a referenced document when it gets one" begin

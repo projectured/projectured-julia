@@ -81,7 +81,7 @@ The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTA
 
 | Verb | What it does |
 | --- | --- |
-| `start_workflow!(title; steps)` | makes a workflow, an active root step with one open step for each entry of `steps`, adds it to the explorer and opens it in a tab: the plan of work of a task of several stages |
+| `start_workflow!(title; steps)` | makes a workflow, an active root step with one open step for each entry of `steps`, adds it to the explorer and opens it in a tab above the conversation of the assistant (the group that `pane_group_to_avoid` names becomes a horizontal split, the workflow a third of the height on top; a second workflow joins the top group; with no conversation the tab opens as `open_pane!` places it): the plan of work of a task of several stages |
 | `record_workflow_decision!(node, question, options; chosen, reason)` | records a decision under a step or an option |
 | `choose_workflow_option!(decision, index; reason)`, `reject_workflow_option!(decision, index; reason)` | settles an option |
 | `add_workflow_entry!(node, text; kind, source)` | writes an entry |
