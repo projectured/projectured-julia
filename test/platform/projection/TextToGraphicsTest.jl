@@ -800,10 +800,8 @@ end
     layout = iomap.line_cells(1).layout
     @test is_cell_valid(layout)
     block.elements[1].elements[1].font_color = color_red
-    # @broken: the layout of a line reads the colour of each span, and the overlay of the caret lays out every line again; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
-    @test_broken is_cell_valid(getfield(caret, :x))
-    # @broken: the layout of a line reads the colour of each span; plan/pending/a-gesture-in-a-text-costs-only-the-lines-it-touches.md
-    @test_broken is_cell_valid(layout)
+    @test is_cell_valid(getfield(caret, :x))
+    @test is_cell_valid(layout)
     @test [text.color for text in _texts(iomap.output)] == [color_red, color_white, color_white]
     @test _ttg_read_caret(caret) == (20, 0, 2, 20)
 end

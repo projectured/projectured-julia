@@ -135,7 +135,7 @@ approves.
 3. [x] **The reader with the same structure.** The read guard of step 1 passes. Run
    the tests of step 2, `test_position_navigations()` for the text examples, and the
    click and type-in tests (`test_click_roundtrips`, `test_typeins`). Commit.
-4. [ ] **The colour of a span reaches only the text that draws it.** The layout of a
+4. [x] **The colour of a span reaches only the text that draws it.** The layout of a
    line reads no colour, and the colour cell of each drawn text reads the colour of
    its span. The locality test of step 1 passes. Run the tests of step 2 and the
    theme tests of the text (`test/platform/projection/TextThemeTest.jl`). Commit.
@@ -376,4 +376,32 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
     each key after it no operation (`/var/tmp/text-gestures/caret_check.jl`). The
     second key puts the caret on the open bracket of the array. So the JSON caret
     guard measures a key that does nothing after its warm up.
+
+### Step 4: the colour of a span reaches only the text that draws it
+
+- `_layout_group` reads the content and the font of a span, and no colour. A text
+  placement of a layout carries its span in place of a colour.
+- `_get_drawn_color(p, span)` gives the colour that a span draws in: its own, or
+  the plain text colour of the theme for a run that names `color_default`. The
+  colour cell of each persistent text reads it, and no longer reads the layout. A
+  key of a persistent text belongs to one occurrence of one span, so the text reads
+  the span of its first placement. A text whose placement went falls back to no
+  text, so it paints nothing.
+- **A decision.** The owner asked whether the drawn text could use the same cell
+  as its span. It could for a span whose colour is never `color_default`, but a
+  colour cell can move between a colour and the default, which only the projection
+  resolves to the plain colour of the theme. So each text keeps its own colour cell,
+  the one that it had before, and that cell reads only the colour of its span.
+- The lines of a lazy list read their colour once, when a line canvas is built, as
+  before: `_make_list_line_graphic` takes the projection.
+- The fill of a span stays in the layout: whether a span has a fill decides whether
+  its line has a fill rect.
+- **Tests.** The colour test of step 1 passes: a new colour leaves the caret and
+  the layout of the line valid, and the text draws the new colour.
+  `test_text_to_graphics()`, `test_text()`, `test_inline_image_caret()`,
+  `test_text_and_syntax_themes()`, `test_syntax_to_text()`,
+  `test_highlighted_text_to_text()`, `test_text_folding()`: 1006 pass. The 34 text
+  parts of `test_platform()`: the counts of `frame-guards`. `test_json()`: 239 pass.
+  The window guards: 27 pass, 9 broken. A move of the pointer in the Julia file is
+  1.4 ms at 100 lines and 5.5 ms at 1_000; its read stage is the folding of step 7.
 

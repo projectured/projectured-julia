@@ -747,7 +747,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
             for pl in pls
                 if pl isa NamedTuple
                     push!(live, pl.key)
-                    push!(out, _persistent_graphic!(cache, line_layout, pl))
+                    push!(out, _persistent_graphic!(p, cache, line_layout, pl))
                 else
                     push!(out, pl)
                 end
@@ -1070,11 +1070,10 @@ function _layout_group(p::TextToGraphics, spacing::LineSpacing, group, y0::Int, 
         span isa TextString || continue
         span_oid = objectid(span)
         span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
+        # The layout reads no colour: the text that draws a piece reads the colour
+        # of its span (`_get_drawn_color`).
         txt = span.content::AbstractString               # reads span content cell
         sf  = span.font::StyleFont                       # reads span font cell
-        col = span.font_color::StyleColor                # reads span font_color cell
-        # A run that names no colour draws with the plain text of the theme.
-        is_color_equal(col, color_default) && (col = p.plain_color::StyleColor)
         last_font = sf
 
         # An empty span draws no glyph, but it has a place: a zero-width coordinate
@@ -1110,7 +1109,7 @@ function _layout_group(p::TextToGraphics, spacing::LineSpacing, group, y0::Int, 
             push!(g.pieces, (kind = :text, key = key, path = path,
                              char_start = start, char_end = stop,
                              span = span, text = piece, x = x, width = width,
-                             ascent = ascent, descent = descent, font = sf, color = col))
+                             ascent = ascent, descent = descent, font = sf))
             if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
                cursor_pos.span == path && start <= cursor_pos.char <= stop
                 # A caret at the end of a row that a soft break ends stands at
@@ -1202,7 +1201,7 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
                     g.by_key[fill.key] = fill
                 end
                 text = (kind = :text, key = piece.key, text = piece.text, x = piece.x, y = y,
-                        font = piece.font, color = piece.color)
+                        font = piece.font, span = piece.span)
                 push!(g.result, text)
                 g.by_key[text.key] = text
             end
@@ -1379,7 +1378,8 @@ _is_caret_span(span) = span isa Union{TextString, TextGraphics}
 # text/fill segment instead of a graphic. The element builder turns each placement
 # into a GraphicsText/GraphicsRect that is created ONCE per key and reused across
 # re-layouts; its fields are `set_cell_computation!` cells that read the placement back out of the
-# `layout` cell (via `by_key`). So a structural edit keeps the object identity of
+# `layout` cell (via `by_key`), and the colour of a text reads its span
+# (`_get_drawn_color`). So a structural edit keeps the object identity of
 # every unchanged segment and only re-derives the cells of those whose placement
 # moved — the cursor/highlight overlay idiom, generalised to every span. No cell is
 # ever written from inside another cell's computation.
@@ -1394,22 +1394,35 @@ function _fill_placement(span, key, x, y, w, h)
     (kind = :fill, key = key, x = x, y = y, w = w, h = h, color = fill)
 end
 
-_persistent_graphic!(cache, layout, pl) =
+_persistent_graphic!(p::TextToGraphics, cache, layout, pl) =
     get!(() -> pl.kind === :fill ? _make_persistent_rect(layout, pl) :
-                                   _make_persistent_text(layout, pl),
+                                   _make_persistent_text(p, layout, pl),
          cache, pl.key)
 
-# When a placement disappears (segment removed in a re-layout), the cell falls
-# back to `color_transparent`, so the persistent graphic paints nothing.
+# When a placement disappears (segment removed in a re-layout), a text falls back
+# to no text and a rect to `color_transparent`, so the persistent graphic paints
+# nothing.
 
-function _make_persistent_text(layout, pl0)
+# The colour that `span` draws in: its own, or the plain text colour of the theme
+# for a run that names `color_default`. The colour cell of each text that draws a
+# span reads it, and no layout does, so a new colour of a span, as a delimiter lit
+# by the pointer takes, repaints the texts of that span and lays out no line.
+function _get_drawn_color(p::TextToGraphics, span::TextString)
+    color = span.font_color::StyleColor
+    is_color_equal(color, color_default) ? p.plain_color::StyleColor : color
+end
+
+# A key belongs to one occurrence of one span, so the text of a key reads the
+# colour of the span of its first placement.
+function _make_persistent_text(p::TextToGraphics, layout, pl0)
     key = pl0.key
-    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y); font = pl0.font, color = pl0.color)
+    span = pl0.span
+    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y); font = pl0.font, color = _get_drawn_color(p, span))
     set_cell_computation!(getfield(gt, :text),  () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
     set_cell_computation!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
     set_cell_computation!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_computation!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
-    set_cell_computation!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
+    set_cell_computation!(getfield(gt, :color), () -> _get_drawn_color(p, span))
     gt
 end
 
@@ -1462,11 +1475,11 @@ _layout_list_line(p::TextToGraphics, spacing::LineSpacing, line::TextLine, colle
     _layout_group(p, spacing, _make_line_group(line), 0, nothing, collect_spans, Cell(_element_font(line)))
 
 # The graphic of a placement of a layout: a fill, a text, or the image it holds.
-_make_list_line_graphic(placement) =
+_make_list_line_graphic(p::TextToGraphics, placement) =
     !(placement isa NamedTuple) ? placement :
     placement.kind === :fill ? GraphicsRect(placement.x, placement.y, placement.w, placement.h;
                                             color = placement.color) :
-    _make_sdl(placement.text, placement.x, placement.y, placement.font, placement.color)
+    _make_sdl(placement.text, placement.x, placement.y, placement.font, _get_drawn_color(p, placement.span))
 
 """
     _build_line_node(p, spacing, input_node, y_offset) -> ListNode
@@ -1478,7 +1491,7 @@ around it when they are read, each at the line spacing `spacing` of the print.
 function _build_line_node(p::TextToGraphics, spacing::LineSpacing, input_node::ListNode, y_offset::Float64)
     laid = _layout_list_line(p, spacing, input_node.value::TextLine, true)
     canvas = GraphicsCanvas(Int32(0), Int32(round(Int, y_offset)), Int32(0), Int32(0),
-                            CellVector(Cell[Cell(_make_list_line_graphic(placement)) for placement in laid.spans]),
+                            CellVector(Cell[Cell(_make_list_line_graphic(p, placement)) for placement in laid.spans]),
                             layout_none, false, Cell(nothing))
     out_node = ListNode(canvas)
     set_lazy_link!(out_node, :next, () -> begin
