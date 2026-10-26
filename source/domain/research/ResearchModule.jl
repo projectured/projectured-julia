@@ -81,7 +81,7 @@ function __init__()
                       "questions, sources, hypotheses, experiments, analyses, results, evidence, " *
                       "decisions and answers, each with an id such as H1, its author and its time. " *
                       "`start_study!` makes one; `add_question!`, `add_hypothesis!`, `add_evidence!` " *
-                      "and the other `add_` verbs add an item that links to others by item or id; " *
+                      "and the other add verbs add an item that links to others by item or id; " *
                       "`record_decision!` accepts or rejects items, only when the person asks; " *
                       "`add_element!` adds a document of any domain, such as code or a table, to an item; " *
                       "`describe_study` reads it, and `show_roster!(StudyItems(study); sort = [\"time\"])` " *
