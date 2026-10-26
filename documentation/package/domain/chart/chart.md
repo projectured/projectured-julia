@@ -18,6 +18,7 @@
 | `ChartLegend` | `visible`, `position`, `anchor`, `border`, `sort` |
 | `ChartStyle` | the theme colours and fonts, the colour and marker cycles, and three limits: `marker_limit`, `scatter_fold_threshold`, `bin_fold_px` |
 | `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, the line and marker style, and an interval around each value: `lower` and `upper` columns, drawn as a whisker at each point, or as a lighter band under a line (`interval_style = :band`) |
+| `ChartFunctionSeries` | a `callable` of one number, drawn as a line sampled over the window of the plot; `x_range`, `sample_count` (200), the line style, width and colour |
 | `ChartBarSeries` | one value for each category |
 | `ChartPieSeries` | `categories` and `values`, one slice for each, and `colors`, one for each slice or `nothing` for the colour cycle |
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
@@ -36,6 +37,8 @@ Chart ──ChartToChartPlot──▶ ChartPlot ──ChartPlotToGraphicsCanvas�
 ```
 
 `ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor` and the state of a drag. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
+
+**A function series samples in the print.** The layout calls each `ChartFunctionSeries` at `sample_count` points evenly spaced over the x window that the plot shows, through `Base.invokelatest`, and again at each new window, so a zoom shows more detail. The x window comes from the other series and the `x_range` of the function series; the samples over the fit window give its y bounds. One function, `_compute_function_samples`, answers the samples or the reason, and the bounds, the line, the legend and the hit read it. A call that raises, or a value that is no real number, stops the samples: the series draws no line, keeps its legend entry, and the entry says why after the label (`no x range; give x_range`, `gives no number at x = 0.1`, or the text of the error of a callable object such as a formula). A formula called in the print reads its stored function, so the line follows a new value of the formula.
 
 `ChartPlotToGraphicsCanvas(; measure, width, height, minimum_width, minimum_height)` is the renderer. `width` and `height` are the chart's own size: an exact range from the parent replaces it, and a bounded range caps it at the edge. `minimum_width` and `minimum_height`, 120 and 80 by default, are the least size that it draws at; a chart in a cell of a pivot takes 24 and 16. One computed cell derives the frame from the chart, the view and that size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
 
@@ -156,6 +159,7 @@ projection = ChainingProjection(ChartToChartPlot(),
 
 ## Limits
 
+- A function series has no sample to select: a click on its line selects the series. A slow function slows the frame at each new window, since the print calls it; the samples in a background cell are the later route. It does not draw on a category axis.
 - A strip series together with line, scatter or histogram series is allowed but reads badly: the y axis stays numeric and the strips sit on its integer rows. A log y axis under strips reads badly in the same way. The renderer shows no warning for either.
 - The line styles are `:solid`, `:dotted` and `:dashed`. A dash-dot line needs a pattern of four elements, and the graphics polyline has one on-off pair.
 - No label rotates, because the SDL and PDF backends draw no rotated text. A dense category axis thins its labels instead, and a state name that does not fit in its segment is left out.

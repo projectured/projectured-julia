@@ -102,7 +102,7 @@ function _julia_of(node::MathFunction, functions)
     base = node.base
     node.name == "log" && base !== nothing &&
         return JuliaCall(JuliaIdentifier("log"), Any[_julia_of(base, functions), argument])
-    key = _function_key(node)
+    key = _get_function_key(node)
     if key in functions || (base === nothing && key in _NOTATION_FUNCTIONS)
         return JuliaCall(JuliaIdentifier(key), Any[argument])
     end
@@ -117,7 +117,7 @@ const _NOTATION_FUNCTIONS = Set{String}([
 
 # The name a function node has alone: a Greek letter is its symbol, `ρ` is
 # `rho`, and a subscript is part of the name, `S_{pure}` is `S_pure`.
-function _function_key(node::MathFunction)
+function _get_function_key(node::MathFunction)
     name = node.name
     symbol = length(name) == 1 && !isascii(first(name)) ? find_math_symbol_name(name) : nothing
     key = _name_of(symbol === nothing ? name : String(symbol), "the function")

@@ -100,7 +100,7 @@ function get_formula_key(name::AbstractString)
     try
         # A name that reads as a number, such as `1`, is no math tree.
         tree = parse_math(text)
-        _is_function_name(tree) && return _function_key(tree)
+        _is_function_name(tree) && return _get_function_key(tree)
         tree isa MathDocument && (read = convert_math_to_julia(tree)) isa JuliaIdentifier &&
             return read.name
     catch e

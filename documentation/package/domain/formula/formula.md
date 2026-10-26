@@ -18,15 +18,31 @@ The Formula domain, `ProjecturedFormula`, holds named formulas that refer to eac
 
 A formula refers to another by its name. `C = A + B` holds two identifiers, and `get_formula_dependencies(formula, environment)` resolves each free name of the code in the environment. The code holds no node of the formula domain, so a formula that a file holds, `(1 - rho) * rho^n`, and a formula that a person types refer in the same way. `get_formula_key` reads a name as a one-line math expression, so `ρ` and `rho` are the same key and `p_{block}` becomes `p_block`.
 
+**A formula of one variable.** A name with one name in parentheses, `S_{pure}(G)`, makes the formula a function of that name, as Mathcad does: the key is the name before the parentheses (`S_pure`), the parameter is the name inside (`G`; `ρ` and `rho` are one parameter), and the value of the formula is a Julia function. The parameter lives in the name, so the file writes the name as it is and an old file reads as before. `get_formula_names(formula)` binds the parameter: it is no name of the sheet, and it shadows a formula `G` as the parameter of a lambda does. `compute_formula_key` hashes the parameter too. One parameter only; a name with two, `f(x, y)`, stays its own text.
+
+What a name with an argument means follows what the name is. The math parser reads any name directly before `(` as one neutral `MathFunction`, whatever its spelling, and the reading into Julia decides, with `convert_math_to_julia(tree; functions)`, where `functions` holds the key of each function formula of the sheet:
+
+| the name | the node reads as |
+| --- | --- |
+| the key of a function formula of the sheet | a call: `S_pure(0.5)` |
+| the key of a formula of the sheet that names no parameter | a product: `ρ(1 - ρ)` is `rho * (1 - rho)` |
+| no formula of the sheet, and a function of the notation | a call: `exp(1)`, `sqrt(x)` |
+| no formula of the sheet, and any other name | a product |
+| `log` with a subscript | `log(2, x)` |
+
+A name of the sheet wins over a function of the notation. The functions of the notation are `exp`, `log`, `log2`, `log10`, `sqrt`, `cbrt`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `abs`, `sign`, `floor`, `ceil`, `round`, `factorial`, `min` and `max`. A call and a product hold the same identifiers, so the names, the dependencies and the order of computation do not depend on the reading. A key in the name that adds, removes or changes the parameter computes the formula again (`ComputeFormulasOperation` joins the rename), so the formulas that name it read it with its new meaning; a name that does not read yet, such as `f(`, writes no use.
+
 `get_formula_names` gives the free names of the code. A name that the code binds itself is local, and refers to no formula: a parameter of a lambda, a function or a `do` block, a variable of a `let`, a `for` loop or a comprehension, and the target of an `=` in the statements after it. In `sum(x -> x * A, 1:3)`, only `sum` and `A` are free. A callee is a name like any other, because the value of a formula can be a function: `G = F(3)` depends on `F`. A free name that the environment does not hold, such as `sum`, stays for Julia.
 
 ### Evaluation
 
-The code of a formula is the code of a person, so it can take any time. A view therefore shows only the stored value, `result`, and no print runs the code. The value is any value: a number, a vector, a function. So `F = x -> x^2` and `G = F(3)` give `9`. The views show it on one line: a float to six digits, and another value in its `text/plain` form, or its compact form when that form takes more lines. A view shows `⋯` while a computation of the formula runs.
+The code of a formula is the code of a person, so it can take any time. A view therefore shows only the stored value, `result`, and no print runs the code. The value is any value: a number, a vector, a function. So `F = x -> x^2` and `G = F(3)` give `9`. The views show it on one line: a float to six digits, and another value in its `text/plain` form, or its compact form when that form takes more lines. A view shows `⋯` while a computation of the formula runs. A row whose stored value is a function shows its equation and no value, `S_{pure}(G) = G e^{-2G}`, and the mark `⋯` while a computation runs.
 
 `ComputeFormulasOperation(environment, formulas)` computes formulas again, each after the formulas of the list that it names. While the loop of the editor runs, the formula task of that editor computes them, one at a time, off the loop: the loop prepares each job through the door (the `Expr` of the code with `make_julia_expression`, and the stored value of each formula that it names), the task runs the code in the scratch module of the editor, and `ReplaceFormulaResultOperation` brings the value back. With no loop, as in a test that drives the frames or a script with no editor, the formulas compute at once on the task that applies the operation. The code runs in a `let` block that binds each free name that resolves in the environment to the value of that formula. The `let` is the innermost scope, so the names of the environment win over a Julia global: a formula named `pi` means that formula.
 
 A stored value keeps `result_key`, the key of the code and the inputs that it came from (`compute_formula_key`): the hash of the text of the code, and of the key of the stored value of each formula that the code names. A value that comes back for code that changed meanwhile is dropped, and the formula computes again. A new value computes again each formula that names the formula; an equal value does not, so a cycle ends. A computation starts at a commit, when a window acquires the sheet (`acquire_document!`, as when a tab opens with it), and at a new value of a formula that the code names. A key starts none.
+
+A formula is callable: `S_pure(0.5)`. The call follows the rule of the domain, that a computation never runs the code of a formula and reads the stored value. Outside a computation, as in a script, a verb or a code unit, the call takes `get_formula_value`, computed on the calling task for the code and the inputs now. Inside a computation, such as the print of a chart, it takes the stored function, read as a cell so a new value draws again; while a computation of the formula runs, it takes the stored function of the old code and marks the computation provisional; a formula with no stored value raises "has no value yet". A `FormulaError` raises an `ErrorException` with its text, and a value that is no function raises an `ArgumentError`. A `ReferencedDocument` of a formula, such as `get_study().analyses[1].method.formulas[3]`, forwards `get_formula_value` and the call to the formula it refers to. A study acquires the sheets of its analyses when it enters the window (`acquire_document!`), so a chart that calls a formula of a loaded study finds its function.
 
 Code that needs a value reads `get_formula_value`, which answers the value for the code and the inputs now and computes it on the task that calls it: a script that adds a formula reads its value at once. `wire_result!(formula, environment)` wires that `current_value` cell, and `FormulaEnvironment(formulas)` wires every formula that it holds. No print reads it; a view reads `get_formula_result`.
 
@@ -38,7 +54,7 @@ A formula edits as a cell of a spreadsheet does. A key reads at the stage neares
 
 ### Math code
 
-When the code is a `MathDocument`, `convert_math_to_julia` reads it into Julia nodes, one rule for each math type. A fraction becomes a division, a superscript a power, a sum with limits a `sum` over a range, and a case list a chain of `ifelse`. A math node that has no value, such as an integral, a derivative or a matrix, raises a `MathReadingException` that names the node.
+When the code is a `MathDocument`, `convert_math_to_julia` reads it into Julia nodes, one rule for each math type. A fraction becomes a division, a superscript a power, a sum with limits a `sum` over a range, and a case list a chain of `ifelse`. A math node that has no value, such as an integral, a derivative or a matrix, raises a `MathReadingException` that names the node. `e` is Euler's number in the scratch module of every computation, so `G e^{-2G}` works; a formula of the sheet named `e` means that formula, as one named `pi` does.
 
 ### Views
 
@@ -47,6 +63,8 @@ When the code is a `MathDocument`, `convert_math_to_julia` reads it into Julia n
 Ctrl+click on a reference selects the name of the formula that it refers to, and the whole formula when its layout does not show the name. A plain click selects the identifier, to edit it, as in the source of a Markdown page.
 
 A key in the name of a formula renames it: the edit of the name and the new name in each use, as one `CompoundOperation`, so every use keeps its formula while a person types, and one undo takes back one key. The sheet rule makes the compound from the string edit of the name. A key that would make a use mean something else does nothing: a math formula uses the name, another formula has the new name, or a local name of the code would take the use. The sheet rule reads the click with its own `read_intent`, because the sheet is the lowest node that holds both the reference and the definition; a gesture binding can not do it, because its operation gets only the node and the event. So the jump works where the sheet is the root of the view. In a view that prints the sheet inside a template, the parent asks only the bindings of the parts, and a Ctrl+click selects the identifier. The rule for `FormulaFormula` has three layouts, one for each `display_mode`.
+
+A function formula shows no value in any row: `S_{pure}(G) = G exp(-2 G)` in the text view, and the equation alone in the graphics row. A cell of the grid that holds a function is empty.
 
 The graphics rows draw a formula with math code as a `MathAssignment` of the math domain, followed by `= value`. A formula with Julia code is one line: `name = code = value`. These rows print only; they have no reader.
 
@@ -110,6 +128,8 @@ evaluate_operation(editor, ComputeFormulasOperation(sheet))  # the values that a
 
 ## Limits
 
+- A function formula has one parameter. A key in the parameter of a name changes the parameter and does not rename its uses in the code. A function that reaches itself is a cycle, `#CYCLE!`.
+- Math code that calls a formula whose name names no parameter, such as a Julia formula `F = x -> x^2`, reads `F(3)` as a product; name such a formula `F(x)`. A word before `(` that is no formula and not a function of the notation, such as `erf(x)`, reads as a product.
 - You can not type a new formula yet. `FormulaInsertion` prints a fixed label and has no reader, although its docstring describes a commit on Enter. This is Phase 5 of the plan.
 - A key edits the code of a math formula only. An identifier of Julia code prints through `FormulaIdentifierToSyntaxLeaf`, which maps no text, so a key there reads nothing. Alt+Enter has no new line of the code yet.
 - A formula in a cell of a table of another domain is a goal of the plan (Phase 6). A sheet in a Markdown page works through the natural renderer, as `formula_report` shows; one recursion that prints a sheet inside a template gives it no edit mode.

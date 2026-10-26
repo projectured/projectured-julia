@@ -567,16 +567,25 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 7 — the guides
 
-- [ ] `formula.md`: a function formula in "References and names" and
+- [x] `formula.md`: a function formula in "References and names" and
       "Evaluation", the call of §3.8, the row of §3.4 in "Views", `e` in "Math
       code", and the limits of §9.
-- [ ] `math.md`: a name directly before `(`, of any spelling, is one node that
+- [x] `math.md`: a name directly before `(`, of any spelling, is one node that
       draws its name as a name; what it means is the reader's. `formula.md`
       holds the table of §3.2 and the list of the functions of the notation.
-- [ ] `chart.md`: `ChartFunctionSeries` in "The documents", the samples in
+- [x] `chart.md`: `ChartFunctionSeries` in "The documents", the samples in
       "The chain", and the limit that it has no sample to select.
-- [ ] Test: `test_formula()`, `test_chart()`, then `test_formula_examples()` of
+- [x] Test: `test_formula()`, `test_chart()`, then `test_formula_examples()` of
       the umbrella.
+- **As built:** `formula.md` holds the table of §3.2, the list of the functions of
+  the notation, the call, the row, `e` and the limits; `math.md` states the neutral
+  node; `chart.md` states the samples in the print and the limits. The private
+  helpers carry a verb (`_get_function_key`, `_get_function_fault_reason`,
+  `_compute_function_points`). The whole suites pass: `test_math()` 204,
+  `test_formula()` 295, `test_chart()` 418, `test_research()` 381, each with its
+  layering guard; `test_printer`, `test_reader`, `test_repl`, `test_position_navigation`
+  of `formula_example` and `test_formula_examples()` pass. `test_typein(formula_example)`
+  fails 489 assertions with and without this plan (step 3).
 
 ## 6. Tests
 

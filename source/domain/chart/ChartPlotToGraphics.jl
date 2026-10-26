@@ -243,9 +243,9 @@ function _compute_function_samples(s::ChartFunctionSeries, lower::Real, upper::R
         value = try
             Base.invokelatest(s.callable, x)
         catch exception
-            return (x = Float64[], y = Float64[], reason = _function_fault_reason(s, x, exception))
+            return (x = Float64[], y = Float64[], reason = _get_function_fault_reason(s, x, exception))
         end
-        value isa Real || return (x = Float64[], y = Float64[], reason = _function_fault_reason(s, x, nothing))
+        value isa Real || return (x = Float64[], y = Float64[], reason = _get_function_fault_reason(s, x, nothing))
         isfinite(value) || continue
         push!(sampled, x)
         push!(ys, Float64(value))
@@ -253,7 +253,7 @@ function _compute_function_samples(s::ChartFunctionSeries, lower::Real, upper::R
     (x = sampled, y = ys, reason = nothing)
 end
 
-_function_fault_reason(s::ChartFunctionSeries, x::Real, exception) =
+_get_function_fault_reason(s::ChartFunctionSeries, x::Real, exception) =
     exception !== nothing && !(s.callable isa Function) ? sprint(showerror, exception) :
     "gives no number at x = " * format_tick(x)
 
@@ -931,7 +931,7 @@ end
 
 # Pixel points of a function series: its samples, in the local frame of the plot.
 # A value far off the window is clamped, so a pixel stays an integer.
-function _function_points(g, index::Int, s::ChartFunctionSeries)
+function _compute_function_points(g, index::Int, s::ChartFunctionSeries)
     samples = get(g.function_samples, index, nothing)
     samples === nothing && return Tuple{Int,Int}[]
     ox, oy = g.plot_x, g.plot_y
@@ -1977,7 +1977,7 @@ _series_points(g, index::Int, s::ChartLineSeries) =
 
 _hit_points(g, index::Int, s::ChartLineSeries) = _series_points(g, index, s)
 _series_points(g, index::Int, s::ChartFunctionSeries) =
-    get!(() -> _function_points(g, index, s), g.point_cache, index)
+    get!(() -> _compute_function_points(g, index, s), g.point_cache, index)
 _hit_points(g, index::Int, s::ChartFunctionSeries) = _series_points(g, index, s)
 _hit_points(g, index::Int, s::ChartScatterSeries) =
     get!(() -> _scatter_points(g, s), g.point_cache, index)
