@@ -529,11 +529,16 @@ Add a named formula, written in math notation, to the sheet of the analysis of
 "Closed form". Answer the formula; `get_formula_value` reads its value.
 
 Use it to write a closed form that a hypothesis is held against, such as the
-blocking of a queue.
+blocking of a queue. A name with one name in parentheses, `S_{pure}(G)`, makes the
+formula a function of that name: the formula is callable, another formula of the
+sheet calls it, and a chart draws it.
 
 # Example
 
     add_study_formula!(study_1, "P_block", "(1 - rho) rho^(K + 1) / (1 - rho^(K + 2))")
+    S_pure = add_study_formula!(study_1, "S_{pure}(G)", "G e^{-2G}")
+    S_pure(0.5)                                                  # 0.18394
+    add_study_formula!(study_1, "S_{peak}", "S_{pure}(0.5)")     # a call from another formula
 
 See also `ResearchExpectation`, `check_predictions!`.
 """

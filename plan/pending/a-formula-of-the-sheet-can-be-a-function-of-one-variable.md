@@ -503,18 +503,26 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 4 — a formula is callable; `e`; a referenced formula (D5, D6, D8)
 
-- [ ] The call of `FormulaFormula` and of a `ReferencedDocument` of one (§3.8),
+- [x] The call of `FormulaFormula` and of a `ReferencedDocument` of one (§3.8),
       with a docstring on the call; `get_formula_value(::ReferencedDocument)`;
       `e` in `_make_formula_scratch_module()`.
-- [ ] The docstring of `add_study_formula!` shows a function formula, its call
+- [x] The docstring of `add_study_formula!` shows a function formula, its call
       and a call from another formula.
-- [ ] Test: `test_formula_evaluation()`: `S_pure(0.5)` ≈ 0.18394 with no loop;
+- [x] Test: `test_formula_evaluation()`: `S_pure(0.5)` ≈ 0.18394 with no loop;
       in `Cell(@computation S_pure(0.5))` before a stored value the call raises
       "has no value yet"; with a stored value and `is_computing` the cell
       answers the old function's value and is provisional; a number formula
       raises the `ArgumentError`; an error formula raises its text; a
       referenced formula calls and answers its value; `e^{1}` is `ℯ`, and a
       sheet formula named `e` wins.
+- **As built:** `(formula::FormulaFormula)(x)` and `(formula::ReferencedDocument)(x)`
+  are in `FormulaDocument.jl`; inside a computation `_read_stored_formula_value`
+  reads `formula.result` (raises "has no value yet" when it is `nothing`) and calls
+  `mark_computation_provisional!()` while `formula.is_computing`; outside one the
+  call takes `get_formula_value`. The test of a cell uses
+  `Cell(@computation …)` and `is_cell_provisional`. `e` is `const e` in the
+  scratch module. The docstring of `add_study_formula!` shows the function
+  formula, its call and a call from another formula.
 
 ### Step 5 — a study computes its sheets when it enters the window (D7)
 

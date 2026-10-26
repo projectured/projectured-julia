@@ -494,7 +494,13 @@ end
 # formula task keeps, and one for each formula that code reads the value of. The
 # values of the dependencies are bound as locals in a generated `let`, so they
 # never leak into globals.
-_make_formula_scratch_module() = Module(:FormulaScratch)
+# `e` is Euler's number in each scratch module; the `let` of the sheet binds last,
+# so a formula named `e` means that formula.
+function _make_formula_scratch_module()
+    scratch = Module(:FormulaScratch)
+    Core.eval(scratch, :(const e = Base.MathConstants.e))
+    scratch
+end
 
 """
     FormulaError(text)
@@ -632,6 +638,45 @@ See also `get_edited_document`, `print_natural_text`.
 function get_formula_value end
 
 get_formula_value(formula::FormulaFormula) = formula.current_value
+get_formula_value(formula::ReferencedDocument) = get_formula_value(get_document(formula))
+
+"""
+    (formula::FormulaFormula)(x) -> Any
+
+Call the function that `formula` holds, as `S_pure(0.5)` for the formula
+`S_{pure}(G)` of a sheet. The formula follows one rule: a computation never runs
+the code of a formula, and reads the stored value.
+
+- Outside a computation, as in a script, a verb or a code unit, the call takes
+  [`get_formula_value`](@ref), computed on the calling task for the code and the
+  inputs now.
+- Inside a computation, as in the print of a chart, the call takes the stored
+  value of the last computation, read as a cell, so a new value draws again. While
+  a computation of the formula runs, the call takes the stored function of the
+  old code and marks the computation provisional, because a newer value comes
+  later. A formula with no stored value yet raises "has no value yet".
+
+An error value raises an `ErrorException` with its text, and a value that is no
+function raises an `ArgumentError`. A `ReferencedDocument` of a formula, such as
+one read back from a study, calls the formula it refers to.
+"""
+function (formula::FormulaFormula)(x)
+    value = is_computation_running() ? _read_stored_formula_value(formula) : get_formula_value(formula)
+    value isa FormulaError && throw(ErrorException(value.text))
+    value isa Function || throw(ArgumentError(formula.name * " is no function of one number"))
+    Base.invokelatest(value, x)
+end
+
+(formula::ReferencedDocument)(x) = get_document(formula)(x)
+
+# The stored value of `formula` as a computation reads it: a read that subscribes,
+# provisional while a computation of the formula runs.
+function _read_stored_formula_value(formula::FormulaFormula)
+    value = formula.result
+    value === nothing && throw(ErrorException(formula.name * " has no value yet"))
+    formula.is_computing && mark_computation_provisional!()
+    value
+end
 
 """
     get_formula_result(formula) -> Any
