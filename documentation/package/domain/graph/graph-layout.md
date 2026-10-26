@@ -82,6 +82,14 @@ A drop of a dragged vertex writes a `:pin` for it and a `:start` for every other
 vertex, at the place where it is drawn, into `GraphGraph.constraints`. The next
 layout begins from what the person saw.
 
+`GraphGraphToGraphLayout` also gives a `:start` to each vertex that the engine
+placed by itself in its last run, at that corner, when the engine takes a start.
+So an edit that changes the size of a box does not lay out the graph from the
+start: the boxes stay, and only the boxes that overlap after it move. These starts
+come before the constraints of the projection and of the graph, and the stage
+does not write them into the document. A vertex that a constraint placed gets
+none, so the undo of a drop gives the engine its free choice again.
+
 | engine | what a `:start` does |
 | --- | --- |
 | `FruchtermanReingoldLayout` | the vertex stays there; only the pass that removes overlaps and the rule of the extent move it |

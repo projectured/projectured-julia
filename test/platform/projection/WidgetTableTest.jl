@@ -466,12 +466,14 @@ end
 
 @testset "the column names stay put while the body travels" begin
     texts(io) = Dict(t[3] => (t[1], t[2]) for t in _texts(io.output))
-    still = texts(print_document(_rec, nothing, _table(), _sized()))
+    # A table narrower than its columns, so its body can travel to the side.
+    narrow = with_exact_size(PrinterContext(); width = Cell(Int32(120)), height = Cell(Int32(100)))
+    still = texts(print_document(_rec, nothing, _table(), narrow))
     moved = texts(print_document(_rec, nothing, WidgetTable(;
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
                        cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
-                       scroll_position = Point2D(10, 40)), _sized()))
+                       scroll_position = Point2D(10, 40)), narrow))
     # The header row travels to the side only, the header column down only,
     # and the cells both ways.
     @test moved["Name"] == (still["Name"][1] - 10, still["Name"][2])

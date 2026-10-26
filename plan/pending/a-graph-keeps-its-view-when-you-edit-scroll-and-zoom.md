@@ -1,6 +1,6 @@
 # A graph keeps its view when you edit, scroll and zoom
 
-Status: IN PROGRESS, 2026-10-26, on the branch `graph-view`. The owner approved the plan on 2026-10-26.
+Status: DONE, 2026-10-27, on the branch `graph-view`. The owner approved the plan on 2026-10-26. Not landed on `main`.
 
 ## The ask
 
@@ -128,7 +128,7 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    finds the box under the pointer with its padding (`_find_node_at`). The test of
    a box runs in a window of 360 × 300 px, so the drawing is larger than the view,
    and checks that the pane scrolled. The zoom tests: 38 pass.
-4. ⬜ **The example works when you do all of it together.** A headless test in the
+4. ✅ **The example works when you do all of it together.** A headless test in the
    graph suite that does the steps of the problem: the zoom, the scroll to the
    end, the click, the text, one more turn and one more notch. After each step the
    JSON box stays at its point of the window, the scroll does what the turn asked,
@@ -137,6 +137,33 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    guides: `graph.md`, `graph-layout.md`, `widget.md` and the guides that name
    `follow_end`. Run `test_graph()`, `test_research()`, and `test_example` for the
    two graph examples.
+
+   Done. The test runs in a window of 360 × 300 px, so the pane scrolls from the
+   start. Found in the work: the zoom maps the centre of a box, so a box that grows
+   by `d` px at the zoom `scale` moves its left edge by `(scale - 1) * d / 2` px
+   (7 px for `42` at zoom 2). The test expects that move, and `graph.md` lists it
+   as a limit; mapping the corner instead is a change of the zoom that the plan of
+   the edges chose, so it waits for the owner. The clamp to the side as the pane
+   reads made `the column names stay put while the body travels` fail: its table
+   fitted its width and still scrolled 10 px to the side. The test now uses a
+   table of 120 px, narrower than its columns.
+
+   Results: `test_graph()` 602 pass; `test_research()` 381 pass;
+   `test_dataframes()` 628 pass; `test_example(graph_example)` 13 189 pass and the
+   4 REPL failures of `main` (`SelectionMismatchException` at the XML child);
+   `test_example(graph_services_example)` 14 332 pass. `test_platform()`: 173 590
+   pass, 7 broken, and 5 failures: the two of the table test, fixed and run again
+   (14 pass), and three that `main` has too (the layering of `FileChangeModule`
+   and `ShellModule`, and two of the interface vocabulary). The pictures of
+   `graph_example`, `graph_services_example` and the study map show no fault.
+
+## Open
+
+- The zoom maps the centre of a box, so an edit of a zoomed box moves its left
+  edge a little. Mapping the corner keeps the edge, but changes the alignment of
+  boxes of different heights at a zoom.
+- A graph that fits in its view grows from its top-left corner at a zoom in,
+  because the pane can not scroll a content that fits.
 
 ## Notes
 

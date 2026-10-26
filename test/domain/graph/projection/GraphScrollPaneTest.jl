@@ -145,5 +145,71 @@ end
     end
 end
 
+@testset "a zoom, a scroll, a click and an edit keep the view of the graph" begin
+    # A window smaller than the drawing, so the pane scrolls from the start.
+    editor, backend, graph = _gvd_editor(; width = 360, height = 300)
+    drawing = _gvd_find_drawing(editor.iomap)
+    pane = _gsp_find_pane(editor.iomap, graph)
+    scroll() = (p = getfield(pane.input, :scroll_position)[]; (Int(p.x[]), Int(p.y[])))
+    place(i) = _gvd_place_of(editor, drawing.output) .+ drawing.drawn_boxes[i][1:2]
+    centre(i) = place(i) .+ drawing.drawn_boxes[i][3:4] .÷ 2
+    clock = Ref(1.0)
+    send!(event) = _gvd_send!(editor, backend, event)
+    tick() = (clock[] += 1.0)
+    near(a, b) = all(abs.(a .- b) .<= 1)
+    # The zoom maps the centre of a box, so a box that grows by `growth` at the
+    # zoom `scale` moves its corner by `(scale - 1) * growth / 2` to the side.
+    grown(corner, growth) = corner .+ ((drawing.input.zoom.scale - 1) * growth / 2, 0)
+
+    # A turn of the wheel down moves the JSON box up by the scroll.
+    start = place(2)
+    send!(MouseScroll(0, -1, 180, 150, ModifierKeys(); time = tick()))
+    @test scroll()[2] > 0
+    @test place(2) == start .- scroll()
+
+    # Four notches of the zoom over the JSON box: it stays under the pointer.
+    shown = place(2)
+    x, y = centre(2)
+    for _ in 1:4
+        send!(MouseScroll(0, 1, x, y, ModifierKeys(ctrl = true); time = tick()))
+        @test near(place(2), shown)
+    end
+
+    # A click into the key "active", and the text 42: the box grows, and it and
+    # the view stay where they are.
+    x, y = centre(2)
+    send!(MouseDown(:left, x, y, ModifierKeys(); time = tick()))
+    send!(MouseUp(:left, x, y, ModifierKeys(); time = tick()))
+    @test string(strip_reference_types(get_selection(graph))) == ".vertices[2].content.entries[2].key{5}"
+    view, width, others = scroll(), drawing.drawn_boxes[2][3], (place(1), place(3))
+    for ch in "42"
+        send!(KeyPress(ch; time = tick()))
+    end
+    @test string(strip_reference_types(get_selection(graph))) == ".vertices[2].content.entries[2].key{7}"
+    @test drawing.drawn_boxes[2][3] > width
+    @test scroll() == view
+    @test near(place(2), grown(shown, drawing.drawn_boxes[2][3] - width))
+    @test (place(1), place(3)) == others
+
+    # One more notch over the box keeps it under the pointer.
+    x, y = centre(2)
+    shown = place(2)
+    send!(MouseScroll(0, 1, x, y, ModifierKeys(ctrl = true); time = tick()))
+    @test near(place(2), shown)
+
+    # Turns down to the end of the drawing do not pin the view there: one more
+    # letter makes the box wider, and the view stays.
+    for _ in 1:20
+        send!(MouseScroll(0, -1, 180, 150, ModifierKeys(); time = tick()))
+    end
+    @test getfield(pane.input, :follow_end)[] === nothing
+    view, kept, width = scroll(), place(2), drawing.drawn_boxes[2][3]
+    send!(KeyPress('x'; time = tick()))
+    @test string(strip_reference_types(get_selection(graph))) == ".vertices[2].content.entries[2].key{8}"
+    @test scroll() == view
+    @test near(place(2), grown(kept, drawing.drawn_boxes[2][3] - width))
+    @test isempty(get_fault_records(get_fault_store(editor)))
+end
+
 end
 end
