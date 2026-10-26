@@ -139,7 +139,7 @@ approves.
    line reads no colour, and the colour cell of each drawn text reads the colour of
    its span. The locality test of step 1 passes. Run the tests of step 2 and the
    theme tests of the text (`test/platform/projection/TextThemeTest.jl`). Commit.
-5. [ ] **A removal of a reader with no scan**, in `ReactiveCell.jl`. A new test in
+5. [x] **A removal of a reader with no scan**, in `ReactiveCell.jl`. A new test in
    `test/kernel/cell/`: a cell with 100_000 readers, of which 1_000 detach; the time
    for each detach is flat in the count of readers. Run `test_kernel()` and
    `test_cell()`. Commit.
@@ -404,4 +404,48 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
   parts of `test_platform()`: the counts of `frame-guards`. `test_json()`: 239 pass.
   The window guards: 27 pass, 9 broken. A move of the pointer in the Julia file is
   1.4 ms at 100 lines and 5.5 ms at 1_000; its read stage is the folding of step 7.
+
+### Step 5: a removal of a reader with no scan
+
+- **Where the scan was.** In the Markdown file of 3_000 paragraphs, the SDL walk of a
+  typed character checks a cell for each paragraph. Each check that computes again
+  detaches from the cells that it read, and `_unregister_dependent!` scanned the
+  whole list of readers of each of them: 1017 samples of self time.
+- **The model.** Each entry of `dependencies` is a `_Dependency`: the cell that the
+  run read, and the place of the reader in the `dependents` of that cell. A record
+  puts the reader at the end of the readers and keeps the place
+  (`_register_dependent!` answers it). A removal (`_remove_dependent!`) takes the
+  entry at its place: the last entry moves into the place, and the reader of the
+  moved entry learns its new place (`_move_dependency_place!`, a scan of the
+  dependencies of that reader for the cell and the old place). A sweep of collected
+  readers tells each live entry that moves its new place. A repeat read in a run
+  puts a second entry, and the end of the run takes the repeats out, from the highest
+  place down, so an entry that moves into a free place is never a repeat that waits
+  for its removal. `_unregister_dependent!` went.
+- **Decisions.**
+  - The list of readers stays a `Vector{WeakRef}`, because the sealed
+    `CellDefaults.jl` reads it as one (`has_dependent_cells`). The places are on the
+    side of the reader, in the entries of its `dependencies`, which no sealed file
+    reads. A cell is no larger; an edge costs 8 bytes more.
+  - `_Dependency` holds its cell as an `AbstractCell`, because the reactive kind is
+    defined after it; the readers assert `::ReactiveCell`. It stands before the
+    docstring of `ReactiveCell`, because a definition between a docstring and its
+    struct takes the docstring (the docstring test found it).
+  - A place that does not hold its reader, as after a test cleared an entry by hand,
+    is found by a scan.
+- **The guard** in `test/kernel/cell/CellTest.jl`: a thousand readers compute again
+  beside 1_000 and beside 100_000 readers of the cell that they all read
+  (`_measure_detach_seconds`), the best of three, bound by `FLAT_TIME_RATIO`:
+
+  | Readers of the cell | `frame-guards` | The branch |
+  |---|---|---|
+  | 1_000 | 0.68 ms | 0.17 ms |
+  | 100_000 | 78.6 ms | 0.19 ms |
+
+  The base was measured with the same function (`/var/tmp/text-gestures/detach_base.jl`).
+- **Tests.** `test_cell()`: 317 pass. `test_kernel()`: 4938 pass, 2 broken
+  (`frame-guards`: 4935 and the same 2; the three more are the guard). The 34 text
+  parts of `test_platform()`: the counts of `frame-guards`.
+  `test_position_navigations()` and `test_click_roundtrips()`: 9081 pass, 5 broken,
+  with the five warnings of step 3. The window guards: 27 pass, 9 broken.
 

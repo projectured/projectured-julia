@@ -32,6 +32,28 @@ end
     nothing
 end
 
+# The cells that the last run of `cell` read, in their order.
+_get_read_cells(cell) = AbstractCell[dependency.cell for dependency in getfield(cell, :dependencies)]
+
+# The best of three times that `count` readers of a cell of `size` readers take to
+# compute again, each after a write of an input of its own: each detaches from the
+# cell that they all read, and registers again.
+function _measure_detach_seconds(size::Int, count::Int)
+    shared = Cell(0)
+    inputs = [Cell(k) for k in 1:size]
+    readers = [Cell(Computation(() -> shared[] + inputs[k][])) for k in 1:size]
+    foreach(getindex, readers)
+    best = Inf
+    for _ in 1:3
+        foreach(k -> (inputs[k][] = peek(inputs[k]) + 1), 1:count)
+        started = time_ns()
+        foreach(k -> readers[k][], 1:count)
+        best = min(best, (time_ns() - started) / 1e9)
+    end
+    @assert all(k -> readers[k][] == k + 3, 1:count)
+    best
+end
+
 function test_cell()
 @testset "Cell" begin
 
@@ -479,15 +501,31 @@ end
     a, b, c = Cell(1), Cell(2), Cell(3)
     short = Cell(@computation a[] + b[] + a[] + c[] + b[])
     @test short[] == 9
-    @test getfield(short, :dependencies) == [a, b, c]
+    @test _get_read_cells(short) == [a, b, c]
     # A cell that the run read again keeps the reader once.
     @test all(cell -> length(getfield(cell, :dependents)) == 1, (a, b, c))
     sources = [Cell(k) for k in 1:40]
     long = Cell(@computation sum(sources[k][] + sources[1][] for k in 1:40))
     @test long[] == sum(1:40) + 40
-    @test getfield(long, :dependencies) == sources
+    @test _get_read_cells(long) == sources
     sources[40][] = 41
     @test long[] == sum(1:40) + 41
+end
+
+@testset "a reader detaches from a cell of many readers with no scan" begin
+    # A reader keeps its place in the readers of each cell that it reads, so a
+    # thousand readers compute again as fast beside a hundred thousand readers of
+    # their cell as beside a thousand. A scan of the list made it a hundred times
+    # slower. Each reader still follows its cells.
+    small = _measure_detach_seconds(1_000, 1_000)
+    large = _measure_detach_seconds(100_000, 1_000)
+    @test large <= FLAT_TIME_RATIO * max(small, 1e-4)
+    shared = Cell(1)
+    readers = [Cell(Computation(() -> shared[] + k)) for k in 1:100]
+    foreach(getindex, readers)
+    shared[] = 2
+    @test [reader[] for reader in readers] == collect(3:102)
+    @test _count_live_dependents(shared) == 100
 end
 
 @testset "a read on another task records no reader" begin
