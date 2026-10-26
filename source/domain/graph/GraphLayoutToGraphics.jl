@@ -157,13 +157,12 @@ function _find_zoomed_top_left(layout::GraphLayout, zoom_map)
     isempty(corners) ? nothing : (minimum(first, corners), minimum(last, corners))
 end
 
-# The map of the zoom of `layout`, as the drawing draws it. A box that the zoom of
-# the view state would draw left of or above the drawing, after an engine placed a
-# new vertex there, moves the whole drawing, so no box is cut.
-function _compute_zoom_map(layout::GraphLayout)
-    zoom = layout.zoom
-    zoom === nothing && return (scale = 1.0, shift = (0.0, 0.0))
-    stored = (scale = Float64(zoom.scale), shift = Float64.(zoom.shift))
+# The map of the zoom `zoom` of `layout`, as the drawing draws it. A box that the
+# zoom would draw left of or above the drawing, after an engine placed a vertex
+# there, moves the whole drawing, so no box is cut.
+function _compute_zoom_map(layout::GraphLayout, zoom = layout.zoom)
+    stored = zoom === nothing ? (scale = 1.0, shift = (0.0, 0.0)) :
+             (scale = Float64(zoom.scale), shift = Float64.(zoom.shift))
     top_left = _find_zoomed_top_left(layout, stored)
     top_left === nothing && return stored
     (scale = stored.scale, shift = stored.shift .- min.(0.0, top_left))

@@ -82,7 +82,7 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
 
 ## The steps
 
-1. ⬜ **A layout keeps its places on a change of a size.** `GraphGraphToGraphLayout`:
+1. ✅ **A layout keeps its places on a change of a size.** `GraphGraphToGraphLayout`:
    the `Ref` of the last corners, the starts for an engine that takes them, the
    order before `graph.constraints`. `_compute_zoom_map`: the correction at every
    zoom. Tests in the graph suite: an edit that makes a box larger keeps the
@@ -90,6 +90,14 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    only; a new vertex gets a place and the old ones keep theirs; a drop still
    puts the vertex where the person dropped it; an engine without `:start` lays
    out as before. Run `test_graph()`.
+
+   Done. Found in the work: the stage must keep only the corners that the engine
+   chose by itself. A vertex that a `:pin` or a `:start` of the projection or of
+   the graph placed keeps no corner, because otherwise the undo of a drop leaves
+   the vertex at the dropped place (`the inverse of a drop puts the vertex back`
+   failed). The pass that removes overlaps moves both boxes of a pair that hold a
+   start by half each, so the test asserts that the two are apart and that a box
+   which the grown box does not reach stays. Graph suite: 568 pass.
 2. ⬜ **Only a pane that is made to follow its end follows it.** `WidgetScrollPane`:
    the type and the default of `follow_end`, the docstring. `_scroll_pane_by` and
    the reader of the bar: the change between `true` and `false` only. The

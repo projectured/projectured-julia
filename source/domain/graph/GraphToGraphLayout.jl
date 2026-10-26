@@ -71,6 +71,34 @@ GraphGraphToGraphLayout(engine::GraphLayoutEngine = make_deferred_layout_engine(
 _make_graph_part_context(ctx, document, steps...) =
     with_exact_size(make_child_context(ctx, document, steps...); width = nothing, height = nothing)
 
+# The vertices, by `objectid`, that a `:pin` or a `:start` of `constraints` places.
+_collect_placed_vertices(constraints::Vector) =
+    Set{UInt}(objectid(constraint.target) for constraint in constraints
+              if constraint.kind === :pin || constraint.kind === :start)
+
+# A `:start` at its last corner for each vertex of `graph` in `corners`, when
+# `engine` takes a start. A vertex in `placed` has a place already, and gets none.
+function _make_kept_starts(engine::GraphLayoutEngine, graph::GraphGraph, corners::IdDict,
+                           placed::Set{UInt})
+    (isempty(corners) || !(:start in get_supported_constraint_kinds(engine))) &&
+        return GraphConstraint[]
+    GraphConstraint[GraphConstraint(vertex, :start, corners[vertex])
+                    for vertex in layout_vertices(graph)
+                    if haskey(corners, vertex) && !(objectid(vertex) in placed)]
+end
+
+# The corner of each vertex of `graph` that the engine placed by itself: a vertex
+# in `placed` is left out.
+function _collect_vertex_corners(graph::GraphGraph, positions::Dict, placed::Set{UInt})
+    corners = IdDict{Any,Tuple{Int,Int}}()
+    for vertex in layout_vertices(graph)
+        objectid(vertex) in placed && continue
+        position = get(positions, objectid(vertex), nothing)
+        position === nothing || (corners[vertex] = (position[1], position[2]))
+    end
+    corners
+end
+
 _canvas_wh(im) = begin
     o = im === nothing ? nothing : im.output
     o isa GraphicsCanvas ? (Int(o.w), Int(o.h)) : (60, 30)
@@ -96,6 +124,14 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         ims
     end)
 
+    # The corner of each vertex that the last run of the engine placed by itself.
+    # The next run starts each of them there, so a change of a size moves only the
+    # boxes that overlap after it, and a new vertex is placed among the others. A
+    # vertex that a constraint placed keeps no corner, so the undo of a drop puts
+    # it back where the engine places it. A new print starts with no corner, and
+    # lays out the graph from the start.
+    last_corners = Ref(IdDict{Any,Tuple{Int,Int}}())
+
     # Run the engine (keyed on the live sizes + topology + constraints). Held in
     # one cell so it re-runs only when a size, the vertex/edge list or a
     # constraint changes.
@@ -108,16 +144,19 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v isa GraphVertex || continue
             sizes[objectid(v)] = _canvas_wh(i <= length(ims) ? ims[i] : nothing)
         end
-        # The graph's own constraints come last, so a pin that the person dropped
-        # wins over a pin of the projection.
-        constraints = vcat(p.constraints === nothing ? GraphConstraint[] : p.constraints(graph),
-                           graph.constraints)
-        positions, routes = layout_graph(p.engine, graph, sizes, constraints;
-                                         extent = p.extent, border = p.border)
-        # Which engine really ran is decided inside this cell, because an engine
+        # Which engine really runs is decided inside this cell, because an engine
         # that defers its choice reads the vertex count to make it.
-        name = layout_engine_name(resolve_layout_engine(p.engine, length(sizes)))
-        (positions, routes, name)
+        engine = resolve_layout_engine(p.engine, length(sizes))
+        # The graph's own constraints come last, so a pin that the person dropped
+        # wins over a pin of the projection, and both win over the last corners.
+        given = vcat(p.constraints === nothing ? GraphConstraint[] : p.constraints(graph),
+                     graph.constraints)
+        placed_by_given = _collect_placed_vertices(given)
+        constraints = vcat(_make_kept_starts(engine, graph, last_corners[], placed_by_given), given)
+        positions, routes = layout_graph(engine, graph, sizes, constraints;
+                                         extent = p.extent, border = p.border)
+        last_corners[] = _collect_vertex_corners(graph, positions, placed_by_given)
+        (positions, routes, layout_engine_name(engine))
     end)
 
     vertex_layouts = CellVector(@computation begin

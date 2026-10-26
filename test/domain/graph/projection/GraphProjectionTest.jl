@@ -1,6 +1,29 @@
 
 const _gctx = PrinterContext
 
+# An engine that takes no constraint: it puts the boxes in one row, 20 px apart,
+# in the order of the vertices.
+struct _GptRowEngine <: GraphLayoutEngine end
+function ProjecturedGraph.GraphModule.layout_graph(engine::_GptRowEngine, graph::GraphGraph,
+                                                   sizes::Dict, constraints::Vector;
+                                                   extent = nothing, border::Real = 0)
+    check_constraints(engine, constraints)
+    positions = Dict{UInt,NTuple{4,Int}}()
+    x = 0
+    for vertex in layout_vertices(graph)
+        w, h = sizes[objectid(vertex)]
+        positions[objectid(vertex)] = (x, 0, w, h)
+        x += w + 20
+    end
+    (positions, get_straight_routes(graph, positions))
+end
+ProjecturedGraph.GraphModule.layout_engine_name(::_GptRowEngine) = :row
+
+# The corner of each box of `layout`, and its box `(x, y, w, h)`.
+_gpt_corners(layout) = [(Int(vl.x), Int(vl.y)) for vl in layout.vertex_layouts]
+_gpt_boxes(layout) = Dict(i => (Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h))
+                          for (i, vl) in enumerate(layout.vertex_layouts))
+
 function test_graph_projection()
 
 @testset "the engine a caller gets when it names none" begin
@@ -238,6 +261,54 @@ end
     getfield(v, :content)[].value = "hello world!!!"
     vl2 = layout.vertex_layouts[1]
     @test vl2.w > w_before
+end
+
+@testset "a change of a size keeps the places of the vertices" begin
+    vertices = [GraphVertex(JsonString("v$i")) for i in 1:4]
+    graph = GraphGraph(vertices, [GraphEdge(vertices[i], vertices[i+1]) for i in 1:3])
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    layout = print_document(GraphGraphToGraphLayout(FruchtermanReingoldLayout()), content, graph,
+                            _gctx()).output
+    before = _gpt_corners(layout)
+    width = Int(layout.vertex_layouts[2].w)
+
+    # A box that grows a little keeps its corner, and the others keep theirs.
+    getfield(vertices[2], :content)[].value = "v2!"
+    @test Int(layout.vertex_layouts[2].w) == width + 10
+    @test _gpt_corners(layout) == before
+
+    # A box that grows into another one pushes the two apart, and a box that it
+    # does not reach stays.
+    grown = before[2]
+    getfield(vertices[2], :content)[].value = "v2" * "!"^30
+    boxes = _gpt_boxes(layout)
+    @test _are_boxes_disjoint(boxes)
+    reach = (grown[1] - 20, grown[2] - 20, boxes[2][3] + 40, boxes[2][4] + 40)
+    far = [i for i in (1, 3, 4)
+           if _are_boxes_disjoint(Dict(1 => reach, 2 => (before[i]..., boxes[i][3], boxes[i][4])))]
+    @test !isempty(far)
+    for i in far
+        @test _gpt_corners(layout)[i] == before[i]
+    end
+
+    # A new vertex gets a place among the others, and the others keep theirs.
+    kept = _gpt_corners(layout)
+    vertex = GraphVertex(JsonString("v5"))
+    push!(graph.vertices, vertex)
+    push!(graph.edges, GraphEdge(vertices[4], vertex))
+    @test length(layout.vertex_layouts) == 5
+    @test _gpt_corners(layout)[1:4] == kept
+    @test _are_boxes_disjoint(_gpt_boxes(layout))
+end
+
+@testset "an engine that takes no start lays out the graph again on a change of a size" begin
+    vertices = [GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))]
+    graph = GraphGraph(vertices, [GraphEdge(vertices[1], vertices[2])])
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    layout = print_document(GraphGraphToGraphLayout(_GptRowEngine()), content, graph, _gctx()).output
+    x = Int(layout.vertex_layouts[2].x)
+    getfield(vertices[1], :content)[].value = "abc"
+    @test Int(layout.vertex_layouts[2].x) == x + 20
 end
 
 @testset "a pin of a vertex wins over its start" begin
