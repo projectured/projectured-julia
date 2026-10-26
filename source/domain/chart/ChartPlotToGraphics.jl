@@ -109,6 +109,9 @@ end
 
 _series_x_bounds(s::ChartLineSeries) = get_column_bounds(s.x)
 _series_x_bounds(s::ChartScatterSeries) = get_column_bounds(s.x)
+# A function series spans its own x range and none otherwise; it samples the window
+# that the other series give.
+_series_x_bounds(s::ChartFunctionSeries) = s.x_range
 # A histogram spans its outermost edges, whatever the values do.
 _series_x_bounds(s::ChartHistogramSeries) = get_column_bounds(s.binedges)
 # A strip reaches past its last sample when it is told where the trace ends.
@@ -198,7 +201,79 @@ function _data_bounds(series, chart::Chart)
     # disagreed about would jump under the first zoom.
     k = count(s -> s isa ChartStripSeries, (s for (_, s) in series))
     k > 0 && (yb = merge_bounds(yb, (0.5, k + 0.5)))
+    # A function series holds the y range with its samples over the fit of the x
+    # bounds; the window of a zoom is sampled by the layout.
+    if xb !== nothing
+        lower, upper = _fit_range(xb, chart.x_axis, 0.02)
+        for (_, s) in series
+            s isa ChartFunctionSeries || continue
+            window = _find_function_window(s, lower, upper)
+            window === nothing && continue
+            samples = _compute_function_samples(s, window...)
+            yb = merge_bounds(yb, get_column_bounds(samples.y))
+        end
+    end
     (xb, yb)
+end
+
+# The part of the x window `lower`..`upper` that a function series samples: the
+# window, or its part inside the `x_range` of the series; `nothing` when the
+# series has none.
+function _find_function_window(s::ChartFunctionSeries, lower::Real, upper::Real)
+    s.x_range === nothing && return (Float64(lower), Float64(upper))
+    from, to = max(Float64(lower), s.x_range[1]), min(Float64(upper), s.x_range[2])
+    from < to ? (from, to) : nothing
+end
+
+"""
+    _compute_function_samples(series, lower, upper) -> (x, y, reason)
+
+The samples of a function series over `lower`..`upper`: `sample_count` points
+evenly spaced, each `Float64(callable(x))` called through `Base.invokelatest`, and
+the reason that it has none, or `nothing`. A call that raises, or a value that is
+no real number, stops the samples and gives the reason. A value that is not finite
+is no sample. A callable that is a `Function` gives no number at the x where it
+stopped; any other callable, such as a formula, says why in its own words.
+"""
+function _compute_function_samples(s::ChartFunctionSeries, lower::Real, upper::Real)
+    xs = collect(range(Float64(lower), Float64(upper); length = s.sample_count))
+    ys = Float64[]
+    sampled = Float64[]
+    for x in xs
+        value = try
+            Base.invokelatest(s.callable, x)
+        catch exception
+            return (x = Float64[], y = Float64[], reason = _function_fault_reason(s, x, exception))
+        end
+        value isa Real || return (x = Float64[], y = Float64[], reason = _function_fault_reason(s, x, nothing))
+        isfinite(value) || continue
+        push!(sampled, x)
+        push!(ys, Float64(value))
+    end
+    (x = sampled, y = ys, reason = nothing)
+end
+
+_function_fault_reason(s::ChartFunctionSeries, x::Real, exception) =
+    exception !== nothing && !(s.callable isa Function) ? sprint(showerror, exception) :
+    "gives no number at x = " * format_tick(x)
+
+# The samples of each function series over the window `view`, by series position.
+# A chart whose series give no x range at all leaves a function series with no
+# range to sample.
+function _compute_function_series_samples(series, view)
+    samples = Dict{Int,Any}()
+    has_range = any(s -> _series_x_bounds(s) !== nothing, (s for (_, s) in series))
+    for (index, s) in series
+        s isa ChartFunctionSeries || continue
+        if !has_range
+            samples[index] = (x = Float64[], y = Float64[], reason = "no x range; give x_range")
+            continue
+        end
+        window = _find_function_window(s, view.x_min, view.x_max)
+        samples[index] = window === nothing ? (x = Float64[], y = Float64[], reason = nothing) :
+                         _compute_function_samples(s, window...)
+    end
+    samples
 end
 
 # Stacked bars reach as high as the running sum in the tallest category, not as
@@ -336,7 +411,7 @@ A zero index is an entry that names no series, which is what keeps a state entry
 inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
 """
-function _legend_items(chart::Chart, series, t)
+function _legend_items(chart::Chart, series, t, samples = Dict{Int,Any}())
     cycle = _get_color_cycle(chart.style, t)
     items = Tuple{Int,String,Any}[]
     states = Tuple{Int,String,Any}[]
@@ -355,6 +430,11 @@ function _legend_items(chart::Chart, series, t)
                 own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
                 push!(items, (index, string(category), get_series_color(own, k, cycle)))
             end
+        elseif s isa ChartFunctionSeries
+            # A function series that draws no line says why after its label.
+            reason = haskey(samples, index) ? samples[index].reason : nothing
+            label = reason === nothing ? _series_label(s) : _series_label(s) * ": " * reason
+            push!(items, (index, label, get_series_color(s.color, index, cycle)))
         else
             push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle)))
         end
@@ -366,11 +446,11 @@ end
 # series order unless the legend asks for a dictionary sort. `font` is the
 # legend's own font, which may differ from the axis font the frame draws with.
 function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
-                      font::StyleFont, w::Int, h::Int, t)
+                      font::StyleFont, w::Int, h::Int, t, samples = Dict{Int,Any}())
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
-    items = _legend_items(chart, series, t)
+    items = _legend_items(chart, series, t, samples)
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
@@ -499,6 +579,8 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     view = resolve_view(plot)
     x_axis, y_axis = chart.x_axis, chart.y_axis
     series = _visible_series(chart)
+    # The functions are called here, once for each window of the plot.
+    function_samples = _compute_function_series_samples(series, view)
 
     title = chart.title
     if isempty(title)
@@ -571,7 +653,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
 
     # An outside legend reserves a strip, shrinking the plot; an inside one
     # overlays it and takes nothing.
-    legend = _legend_plan(p, chart, series, legend_font, w, h, t)
+    legend = _legend_plan(p, chart, series, legend_font, w, h, t, function_samples)
     if legend !== nothing && legend.position !== :inside
         legend.position === :above && (top += legend.box_h + t.padding)
         legend.position === :below && (bottom += legend.box_h + t.padding)
@@ -612,7 +694,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
-       point_cache, strip_spans, strip_rows, strip_count, strip_only, pie,
+       point_cache, function_samples, strip_spans, strip_rows, strip_count, strip_only, pie,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
@@ -842,6 +924,26 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
             _marker!(out, shape, x, y, s.symbol_size, color)
         end
     end
+    out
+end
+
+# ── Function ─────────────────────────────────────────────────────────────
+
+# Pixel points of a function series: its samples, in the local frame of the plot.
+# A value far off the window is clamped, so a pixel stays an integer.
+function _function_points(g, index::Int, s::ChartFunctionSeries)
+    samples = get(g.function_samples, index, nothing)
+    samples === nothing && return Tuple{Int,Int}[]
+    ox, oy = g.plot_x, g.plot_y
+    pixel(scale, value) = round(Int, clamp(to_pixel(scale, value), -1e6, 1e6))
+    Tuple{Int,Int}[(pixel(g.xs, x) - ox, pixel(g.ys, y) - oy) for (x, y) in zip(samples.x, samples.y)]
+end
+
+function _function_elements!(out, g, index::Int, s::ChartFunctionSeries)
+    pts = _series_points(g, index, s)
+    length(pts) >= 2 || return out
+    push!(out, GraphicsPolyline(pts; color = _draw_color(g, index, s.color), width = max(s.line_width, 1),
+                                dash = _dash_pattern(s.line_style, g.theme_values)))
     out
 end
 
@@ -1336,6 +1438,7 @@ end
 
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartScatterSeries) = _scatter_elements!(out, g, index, s)
+_series_elements!(out, g, index::Int, s::ChartFunctionSeries) = _function_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartHistogramSeries) = _histogram_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartStripSeries) = _strip_elements!(out, g, index, s)
 # Bar series are drawn as a group rather than one at a time: how wide a bar is
@@ -1873,6 +1976,9 @@ _series_points(g, index::Int, s::ChartLineSeries) =
     get!(() -> _line_points(g, s), g.point_cache, index)
 
 _hit_points(g, index::Int, s::ChartLineSeries) = _series_points(g, index, s)
+_series_points(g, index::Int, s::ChartFunctionSeries) =
+    get!(() -> _function_points(g, index, s), g.point_cache, index)
+_hit_points(g, index::Int, s::ChartFunctionSeries) = _series_points(g, index, s)
 _hit_points(g, index::Int, s::ChartScatterSeries) =
     get!(() -> _scatter_points(g, s), g.point_cache, index)
 

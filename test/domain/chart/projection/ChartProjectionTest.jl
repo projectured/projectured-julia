@@ -79,6 +79,17 @@ function _apply_to(chart, op)
     evaluate_operation(editor, op)
 end
 
+# A callable object that reads a function from a cell, as a formula reads its
+# stored function, and raises when it holds none.
+struct _ChartCellCallable
+    cell::Cell
+end
+function (callable::_ChartCellCallable)(x)
+    f = callable.cell[]
+    f === nothing && throw(ErrorException("the callable has no value yet"))
+    f(x)
+end
+
 const alt_modifier = ModifierKeys(; alt=true)
 const move_modifier = ModifierKeys(; ctrl=true, shift=true)
 const no_modifier = ModifierKeys()
@@ -120,6 +131,68 @@ function test_chart_projection()
             @test Int(vp.x) + Int(vp.w) <= Int(canvas.w)
             @test Int(vp.y) + Int(vp.h) <= Int(canvas.h)
             @test Int(vp.w) > 100 && Int(vp.h) > 100
+        end
+
+        @testset "a function series samples the window the plot shows" begin
+            legend_labels(g) = [item[2] for item in g.legend.items]
+            # Alone, with an x range: 200 samples over the range.
+            g = _chart_layout(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))]))
+            samples = g.function_samples[1]
+            @test length(samples.x) == 200 && samples.reason === nothing
+            @test samples.x[1] ≈ 0 atol = 1e-12
+            @test samples.x[end] ≈ 2π atol = 1e-12
+            @test samples.y ≈ sin.(samples.x) atol = 1e-12
+            @test g.view.y_min < -1 && g.view.y_max > 1
+            @test length(_line_points_of(g, 1)) == 200
+            @test legend_labels(g) == ["sin"]
+            # Beside a line series with no x range, it samples the fit window of the line.
+            beside = Chart("f", [ChartLineSeries("pts", [1.0, 3.0], [0.0, 1.0]),
+                                 ChartFunctionSeries("line", x -> 2 * x - 4)])
+            g = _chart_layout(beside)
+            samples = g.function_samples[2]
+            @test samples.x[1] ≈ g.view.x_min && samples.x[end] ≈ g.view.x_max
+            @test g.view.x_min < 1 && g.view.x_max > 3
+            @test g.view.y_min <= minimum(samples.y) && g.view.y_max >= maximum(samples.y)
+            # A zoom samples the new window.
+            iomap = _chart_iomap(beside)
+            iomap.step_iomaps[1][].output.view = ChartView(1.5, 2.0, -1.0, 1.0)
+            zoomed = iomap.step_iomaps[2][].geometry.function_samples[2]
+            @test zoomed.x[1] ≈ 1.5 && zoomed.x[end] ≈ 2.0 && length(zoomed.x) == 200
+            # The line is in the canvas, as a polyline of the samples.
+            polylines = [e for e in _series_elements(_chart_canvas(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))])))
+                         if e isa GraphicsPolyline]
+            @test length(polylines) == 1 && length(polylines[1].points) == 200
+            # A click on the curve selects the series.
+            g = _chart_layout(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))]))
+            (px, py) = _line_points_of(g, 1)[100]
+            @test ChartModule._series_hit(g, px + g.plot_x, py + g.plot_y) == 1
+            @test ChartModule._sample_hit(g, px + g.plot_x, py + g.plot_y) === nothing
+        end
+
+        @testset "a function series that can not sample draws no line and the legend says why" begin
+            reason(chart) = (g = _chart_layout(chart); (g.function_samples[1], [item[2] for item in g.legend.items]))
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("bad", x -> error("boom"); x_range = (0, 1))]))
+            @test isempty(samples.x) && samples.reason == "gives no number at x = 0"
+            @test labels == ["bad: gives no number at x = 0"]
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("text", x -> "no"; x_range = (0, 1))]))
+            @test isempty(samples.x) && labels == ["text: gives no number at x = 0"]
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("sin", sin)]))
+            @test isempty(samples.x) && labels == ["sin: no x range; give x_range"]
+            # A callable object says why in its own words.
+            callable = _ChartCellCallable(Cell(nothing))
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))]))
+            @test labels == ["held: the callable has no value yet"]
+            canvas = _chart_canvas(Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))]))
+            @test isempty([e for e in _series_elements(canvas) if e isa GraphicsPolyline])
+            # A new value of what the callable reads draws the line again.
+            chart = Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))])
+            iomap = _chart_iomap(chart)
+            canvas = iomap.output
+            @test isempty([e for e in _series_elements(canvas) if e isa GraphicsPolyline])
+            callable.cell[] = x -> 2x
+            lines = [e for e in _series_elements(canvas) if e isa GraphicsPolyline]
+            @test length(lines) == 1
+            @test iomap.step_iomaps[2][].geometry.function_samples[1].y[end] ≈ 2
         end
 
         @testset "series geometry" begin

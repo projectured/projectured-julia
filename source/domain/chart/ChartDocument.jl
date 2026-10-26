@@ -244,6 +244,59 @@ function ChartScatterSeries(label::AbstractString, x::AbstractVector, y::Abstrac
 end
 
 """
+    ChartFunctionSeries(label, callable; x_range = nothing, sample_count = 200,
+                        line_style = :solid, line_width = 1, color = nothing, visible = true)
+
+A function drawn as a line: `callable` is anything that takes one number and
+answers one, a Julia function, a formula of a sheet or a callable object. The
+chart calls it at `sample_count` points, evenly spaced over the x window that the
+plot shows, in each print, and again at each new window such as a zoom, so a zoom
+shows more detail.
+
+The x window comes from the other visible series, and a series with an `x_range`,
+a pair `(lower, upper)`, draws only the part of the window inside it. A function
+series alone needs an `x_range`. The y range of the chart holds the curve.
+
+A call that raises, or a value that is no real number, stops the samples: the
+series then draws no line and keeps its legend entry, which says why after the
+label. A function series has no sample to select.
+
+Use it to draw a closed form against measured points.
+
+# Example
+
+    chart_1 = Chart("Sine", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))])
+    open_pane!(chart_1; title = "Sine")
+
+See also `Chart`, which holds it, and `ChartLineSeries`.
+"""
+@document struct ChartFunctionSeries <: ChartSeries
+    label::String
+    callable::Any
+    x_range::Any = nothing
+    sample_count::Int = 200
+    line_style::Symbol = :solid
+    line_width::Int = 1
+    color::Any = nothing
+    visible::Bool = true
+end
+
+function ChartFunctionSeries(label::AbstractString, callable; x_range=nothing, sample_count::Integer=200,
+                             line_style::Symbol=:solid, line_width::Integer=1,
+                             color=nothing, visible::Bool=true)
+    range = nothing
+    if x_range !== nothing
+        (length(x_range) == 2 && all(bound -> bound isa Real, x_range) && x_range[1] < x_range[2]) ||
+            throw(ArgumentError("x_range is a pair (lower, upper) of numbers with lower below upper, " *
+                                "not $(repr(x_range))"))
+        range = (Float64(x_range[1]), Float64(x_range[2]))
+    end
+    sample_count >= 2 || throw(ArgumentError("a function series needs at least 2 samples, not $sample_count"))
+    ChartFunctionSeries(String(label), callable, range, Int(sample_count), line_style,
+                        Int(line_width), color, visible, nothing)
+end
+
+"""
 A bar series: one value per category of the chart's `ChartCategoryAxis`. How
 several bar series share a category slot is the chart's `bar_placement`.
 
@@ -508,6 +561,7 @@ rather than throwing.
 get_chart_series_family(::Any) = :unknown
 get_chart_series_family(::ChartLineSeries) = :xy
 get_chart_series_family(::ChartScatterSeries) = :xy
+get_chart_series_family(::ChartFunctionSeries) = :xy
 get_chart_series_family(::ChartHistogramSeries) = :xy
 get_chart_series_family(::ChartStripSeries) = :xy
 get_chart_series_family(::ChartBarSeries) = :category

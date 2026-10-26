@@ -538,18 +538,32 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 6 — a chart draws a function (D9, D10)
 
-- [ ] `ChartFunctionSeries` in `ChartDocument.jl`, exported; its docstring
+- [x] `ChartFunctionSeries` in `ChartDocument.jl`, exported; its docstring
       with `Chart("S", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))])`.
-- [ ] `_compute_function_samples` and the parts of `ChartPlotToGraphics.jl`
+- [x] `_compute_function_samples` and the parts of `ChartPlotToGraphics.jl`
       that read a series: the bounds, the fit, the line, the legend entry, the
       hit.
-- [ ] Test: `test_chart_projection()`: `sin` with `x_range = (0, 2π)` alone
+- [x] Test: `test_chart_projection()`: `sin` with `x_range = (0, 2π)` alone
       draws 200 samples from 0 to 2π within 1e-12; beside a line series over
       `[1, 3]` with no `x_range` it samples the fit window of the line series
       and the fit holds its y; a zoom samples the new window; a function that
       raises and a function that answers a string draw no line and the legend
       says why; no range says `no x range`; a formula of a sheet draws its
       stored function and, with no stored value, says "has no value yet".
+- **As built:** `ChartFunctionSeries` has an outer constructor that checks the
+  `x_range` (a pair of numbers, lower below upper) and `sample_count >= 2`; its
+  family is `:xy`. `_compute_function_samples(series, lower, upper)` answers
+  `(x, y, reason)`; a value that is not finite is dropped from the samples, and a
+  call that raises or answers a non-`Real` stops them. The reason of a raise is
+  the text of the exception when the callable is no `Function` (a formula or a
+  callable object says why in its own words) and `gives no number at x = …`
+  otherwise, so the chart names no formula. `_data_bounds` samples the fit of the
+  x bounds for the y bounds; `_layout` samples the window of the view once into
+  `g.function_samples`, which the legend (`_legend_items` takes the samples), the
+  line and the hit (`_series_points`) read. A series with no range anywhere says
+  `no x range; give x_range`. A fit without a zoom calls the function twice, once
+  for the bounds and once for the window. The series is not added to the
+  assistant API list of the chart.
 
 ### Step 7 — the guides
 
