@@ -254,6 +254,22 @@ end
     end
 end
 
+@testset "a scroll under a rectangle that the box of another pane cuts" begin
+    for (supersample, density) in scroll_settings
+        # A second pane over the one that scrolls holds a filled rectangle that
+        # goes past its bottom edge, so its fill ends where the box of the pane
+        # cuts it, and not at its own edge.
+        rows, _ = make_scroll_rows(200, 16, font)
+        scroll = Cell(0)
+        cut = GraphicsRect(20, 50, 100, 60; color = StyleColor(0.9, 0.8, 0.6, 1.0), border_width = 1,
+                           border_color = black)
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [rows], Cell(0), scroll),
+                                    make_pane((100, 60, 150, 80), [cut], Cell(0), Cell(0))];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(scroll, [16, 85, 62, 63]); supersample, density))
+    end
+end
+
 @testset "two viewports, one in the box of the other, that scroll together" begin
     # The shape of the table of a data frame: the rules of the rows in one
     # viewport, and the cells in a viewport inside its box, which scroll by the

@@ -3633,18 +3633,20 @@ end
 # are not in its content. The copy moves their pixels too, so each one whose
 # record, widened by the pad, meets the box gives that place and the place that
 # the copy moved it to, cut to the box. The walk goes down from the window by the
-# records, as a partial paint does. A rectangle gives only its border and the edges
-# of its fill (`_add_rect_cover_rects!`), and a viewport in `nested`, whose content
-# moved by the same offset, gives its own strips in `_settle_content_moves!`.
+# records, as a partial paint does, and keeps the clip in force, the window cut by
+# the box of each viewport above. A rectangle gives only its border and the edges
+# of its fill, as the clip shows them (`_add_rect_cover_rects!`), and a viewport in
+# `nested`, whose content moved by the same offset, gives its own strips in
+# `_settle_content_moves!`.
 function _collect_cover_rects!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources,
                                canvas::GraphicsCanvas, move::_ContentMove, nested::Dict{UInt,_ContentMove})
     _collect_cover_canvas!(rects, res, canvas, _make_placement_key(canvas, UInt(0)), 0, 0,
-                           _ClipEdges(0, 0, res.width, res.height), move, nested)
+                           _ClipEdges(0, 0, res.width, res.height), (0, 0, res.width, res.height), move, nested)
 end
 
 function _collect_cover_canvas!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources,
                                 canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int, edges::_ClipEdges,
-                                move::_ContentMove, nested::Dict{UInt,_ContentMove})
+                                clip::NTuple{4,Int}, move::_ContentMove, nested::Dict{UInt,_ContentMove})
     elements = canvas.elements
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
@@ -3653,7 +3655,7 @@ function _collect_cover_canvas!(rects::Vector{NTuple{4,Int}}, res::SdlWindowReso
         for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
             value = node.value
             _collect_cover_element!(rects, res, value, _make_placement_key(value, _make_placement_key(node, key)),
-                                    ox, oy, edges, move, nested)
+                                    ox, oy, edges, clip, move, nested)
         end
         return nothing
     end
@@ -3661,14 +3663,14 @@ function _collect_cover_canvas!(rects::Vector{NTuple{4,Int}}, res::SdlWindowReso
         elem = elements[i]
         elem isa GraphicsFence && continue
         _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-        _collect_cover_element!(rects, res, elem, _make_placement_key(elem, key), ox, oy, edges, move, nested)
+        _collect_cover_element!(rects, res, elem, _make_placement_key(elem, key), ox, oy, edges, clip, move, nested)
     end
     nothing
 end
 
 function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources, elem, key::UInt,
-                                 ox::Int, oy::Int, edges::_ClipEdges, move::_ContentMove,
-                                 nested::Dict{UInt,_ContentMove})
+                                 ox::Int, oy::Int, edges::_ClipEdges, clip::NTuple{4,Int},
+                                 move::_ContentMove, nested::Dict{UInt,_ContentMove})
     (key == move.key || haskey(nested, key)) && return nothing
     record = get(res.dirty_bounds, key, nothing)
     record === nothing && return nothing
@@ -3677,43 +3679,46 @@ function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowRes
     _has_overlap(padded, move.box) || return nothing
     if elem isa GraphicsCanvas
         return _collect_cover_canvas!(rects, res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges,
-                                      move, nested)
+                                      clip, move, nested)
     elseif elem isa GraphicsViewport
         box, content, transform = _get_viewport_geometry(elem, ox, oy)
         if _is_plain_viewport_transform(transform)
             cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
             return _collect_cover_canvas!(rects, res, content, _make_placement_key(content, key), cox, coy,
-                                          cedges, move, nested)
+                                          cedges, _intersect_boxes(clip, box), move, nested)
         end
     elseif elem isa GraphicsRect
-        return _add_rect_cover_rects!(rects, elem, ox, oy, record, move)
+        return _add_rect_cover_rects!(rects, elem, ox, oy, record, clip, move)
     end
     cut = _intersect_boxes(padded, move.box)
     push!(rects, cut, _intersect_boxes(_move_box(cut, move.offset), move.box))
     nothing
 end
 
-# A rectangle outside the content of a move, with the record `record`; it draws
-# nothing outside its box. Where a part of it has one colour along the move, the
-# copy keeps that part and only its ends change, the part minus the part moved by
-# the offset and back (`_add_move_ends!`): the fill, inside the border and the
-# corners, and, for a move up or down, the left and the right band of the border.
-# Any other band, which holds a corner, gives its place and the place that the copy
-# moved it to (`_add_moved_place!`). Each is cut to the box. A focus ring, with no
-# fill, so gives its top and bottom band and the ends of its sides.
+# A rectangle outside the content of a move, with the record `record`, under the
+# clip `clip`; it draws nothing outside its box or the clip. Where a part of it has
+# one colour along the move, the copy keeps that part and only its ends change, the
+# part minus the part moved by the offset and back (`_add_move_ends!`): the fill,
+# inside the border and the corners, and, for a move up or down, the left and the
+# right band of the border. Any other band, which holds a corner, gives its place
+# and the place that the copy moved it to (`_add_moved_place!`). Each part is cut
+# to the clip first, so an edge of the clip across a part is an end of it, and then
+# to the box. A focus ring, with no fill, so gives its top and bottom band and the
+# ends of its sides.
 function _add_rect_cover_rects!(rects::Vector{NTuple{4,Int}}, elem::GraphicsRect, ox::Int, oy::Int,
-                                record::NTuple{4,Int}, move::_ContentMove)
+                                record::NTuple{4,Int}, clip::NTuple{4,Int}, move::_ContentMove)
     x, y = ox + Int(elem.x), oy + Int(elem.y)
     border = elem.border_color.alpha == 0 ? 0 : Int(elem.border_width)
     inset = border + max(Int(elem.radius_tl), Int(elem.radius_tr), Int(elem.radius_br), Int(elem.radius_bl))
     inner = (x + inset, y + inset, x + Int(elem.w) - inset, y + Int(elem.h) - inset)
-    _is_empty_box(inner) && return _add_moved_place!(rects, record, move)
-    _add_moved_place!(rects, (record[1], record[2], record[3], inner[2]), move)
-    _add_moved_place!(rects, (record[1], inner[4], record[3], record[4]), move)
+    _is_empty_box(inner) && return _add_moved_place!(rects, _intersect_boxes(record, clip), move)
+    _add_moved_place!(rects, _intersect_boxes((record[1], record[2], record[3], inner[2]), clip), move)
+    _add_moved_place!(rects, _intersect_boxes((record[1], inner[4], record[3], record[4]), clip), move)
     for side in ((record[1], inner[2], inner[1], inner[4]), (inner[3], inner[2], record[3], inner[4]))
+        side = _intersect_boxes(side, clip)
         move.offset[1] == 0 ? _add_move_ends!(rects, side, move) : _add_moved_place!(rects, side, move)
     end
-    elem.color.alpha == 0 || _add_move_ends!(rects, inner, move)
+    elem.color.alpha == 0 || _add_move_ends!(rects, _intersect_boxes(inner, clip), move)
     nothing
 end
 

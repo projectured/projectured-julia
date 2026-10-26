@@ -267,3 +267,28 @@ the elements drawn before and now is exact, and the walk has both.
 and 200 and 150. `test_scroll_work`, `test_sdl()` and `test_video()` with the
 offscreen driver: 1172 of 1172 pass.
 
+### A check by random scenes, 2026-10-26
+
+Step 4 changes how records and guards outlive a move, so a check of random
+scenes ran after it: up to three panes of random rows, a list, a pane inside a
+pane, a scaled viewport, rings, thumbs and dots, eight changes of scroll, text
+and place, at three settings of supersample and density. Each frame of the
+partial paint is compared with a full paint, and a scene that differs runs again
+with the moves off.
+
+The first run found 39 scenes that differed with the moves on and not with them
+off. The same seeds passed on the code of step 2 and failed on the code of step
+3, so the rule for a rectangle (`_add_rect_cover_rects!`) held the fault. A
+rectangle in the content of a second pane went past the bottom edge of that
+pane, over the box that moved. The rule took the ends of its fill from the whole
+rectangle, but the clip of the pane ends the fill earlier, and the copy brought
+pixels from under that edge into the fill.
+
+The walk of the rule now keeps the clip in force, the window cut by the box of
+each viewport above, and cuts each part of a rectangle to it before it takes the
+ends. A new pixel test, "a scroll under a rectangle that the box of another pane
+cuts", fails at frames 2, 4 and 5 with the clip ignored and passes with it. The
+check of random scenes: 0 of 1200 seeds differ at three settings, with 14109
+boxes copied. `test_sdl()`, `test_scroll_work()` and `test_video()` with the
+offscreen driver: 1176 of 1176 pass.
+
