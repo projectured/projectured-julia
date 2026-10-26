@@ -138,9 +138,11 @@ on `main` before the owner approves.
    driver. Commit.
 5. [ ] **The measurement, the guides and the end.** On the word of the owner,
    time the three scenes in real windows, with the moves on and off in turns, as
-   in this plan. Describe the relative records in
-   [sdl.md](../../documentation/package/backend/sdl/sdl.md). Move this plan to
-   `plan/done/`. Commit.
+   in this plan. Describe the moved records and the guards in
+   [sdl.md](../../documentation/package/backend/sdl/sdl.md); the guide is done:
+   it says how a move keeps its records and guards, the merged bands, the
+   graphics that draw no pixel, the counts of the walk and `test_scroll_work`.
+   Move this plan to `plan/done/`. Commit.
 
 ## Not in this plan
 
