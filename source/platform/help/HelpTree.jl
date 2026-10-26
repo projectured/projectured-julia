@@ -114,12 +114,105 @@ function _update_help_entry!(old_entries, @nospecialize(T), name; typed::Bool)
     words = typed ? join(_get_typed_names(T), ", ") : ""
     description = compute_docstring_summary(T)
     text = something(find_docstring_text(T), "")
+    supertypes = _format_help_supertypes(T)
+    fields = _collect_help_fields(T)
     entry = get(old_entries, T, nothing)
-    entry === nothing && return HelpEntry(name, T, words, description, text)
+    entry === nothing && return HelpEntry(name, T, words, description, text, supertypes, fields)
     entry.typed == words || (entry.typed = words)
     entry.description == description || (entry.description = description)
     entry.text == text || (entry.text = text)
+    entry.supertypes == supertypes || (entry.supertypes = supertypes)
+    entry.fields == fields || (entry.fields = fields)
     entry
+end
+
+# The supertypes of `T`, nearest first, as a person reads them: without the
+# family type `A<Name>` that `@document` makes for a document, and without `Any`.
+function _format_help_supertypes(@nospecialize(T))
+    body = Base.unwrap_unionall(T)
+    body isa DataType || return ""
+    family = Symbol("A", nameof(body))
+    names = String[]
+    S = supertype(body)
+    while S !== Any
+        nameof(S) === family || push!(names, String(nameof(S)))
+        S = supertype(S)
+    end
+    join(names, " <: ")
+end
+
+# The fields of `T` that a person can set, each `(name, type, description)`. The
+# view state that every document holds, its selection and the part under the
+# pointer, is left out, and any other field of view state says so.
+function _collect_help_fields(@nospecialize(T))
+    body = Base.unwrap_unionall(T)
+    body isa DataType || return ()
+    texts = collect_field_docstrings(T)
+    fields = NamedTuple{(:name, :type, :description), Tuple{String, String, String}}[]
+    for name in fieldnames(body)
+        is_view_state_field(name) && continue
+        declared = body <: Document ? find_declared_field_type(T, name) : nothing
+        type = declared === nothing ? _get_help_value_type(fieldtype(body, name)) : declared
+        text = replace(get(texts, name, ""), r"\s*\n\s*" => " ")
+        is_view_state_field(T, name) && (text = strip("View state, which a save does not keep. " * text))
+        push!(fields, (name = String(name), type = _format_help_type(type), description = String(text)))
+    end
+    Tuple(fields)
+end
+
+# The type of the value that a field holds: a projection keeps each field in a
+# cell of that type.
+function _get_help_value_type(@nospecialize(F))
+    S = F
+    while S isa DataType && S !== Any
+        S.name === Base.unwrap_unionall(AbstractCell).name && return S.parameters[1]
+        S = supertype(S)
+    end
+    F
+end
+
+# A type as a person reads it: as Julia prints it, which names an alias such as
+# `ThemeText`, with no module path before a name, unless that text shows the cell
+# layout of a document type, `AC<Name>{…}`. The layout then shows as the
+# document `<Name>`, also inside a union or the parameters of a type.
+function _format_help_type(@nospecialize(T))
+    text = _remove_module_paths(string(T))
+    names = _collect_cell_layout_names(T)
+    any(name -> occursin(name * "{", text), names) ? _build_help_type_text(T, 0) : text
+end
+
+# "ProjecturedPlatform.CollectionModule.CellVector" is "CellVector".
+_remove_module_paths(text::AbstractString) = replace(text, r"(?:\b[A-Za-z_][A-Za-z0-9_]*\.)+(?=[A-Za-z_])" => "")
+
+# The names of the cell layouts inside `T`: a type `AC<Name>` whose module
+# defines `<Name>`, as `@document` makes it.
+function _collect_cell_layout_names(@nospecialize(T), found = String[], depth::Int = 0)
+    depth > 4 && return found
+    if T isa Union
+        foreach(U -> _collect_cell_layout_names(U, found, depth + 1), Base.uniontypes(T))
+    elseif T isa DataType
+        _is_cell_layout(T) && push!(found, String(nameof(T)))
+        foreach(P -> P isa Type && _collect_cell_layout_names(P, found, depth + 1), T.parameters)
+    end
+    found
+end
+
+function _is_cell_layout(T::DataType)
+    name = String(nameof(T))
+    startswith(name, "AC") && isdefined(T.name.module, Symbol(name[3:end]))
+end
+
+function _build_help_type_text(@nospecialize(T), depth::Int)
+    depth > 4 && return "…"
+    T isa Union && return "Union{" * join((_build_help_type_text(U, depth + 1) for U in Base.uniontypes(T)), ", ") * "}"
+    T isa DataType || return _remove_module_paths(string(T))
+    _is_cell_layout(T) && return String(nameof(T))[3:end]
+    isempty(T.parameters) && return String(nameof(T))
+    T <: AbstractVector && T.name === Vector.body.name &&
+        return "Vector{" * _build_help_type_text(eltype(T), depth + 1) * "}"
+    parameters = (parameter isa Type ? _build_help_type_text(parameter, depth + 1) : repr(parameter)
+                  for parameter in T.parameters)
+    String(nameof(T)) * "{" * join(parameters, ", ") * "}"
 end
 
 # The names a person types into an empty tab to make a `T`, without the name of

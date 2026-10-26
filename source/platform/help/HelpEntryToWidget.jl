@@ -1,15 +1,19 @@
 # Fragment of `HelpModule` — the page of one type in a tree of the help: its name,
-# where it is defined, the names that make it, and its whole docstring, in a
-# scroll pane of its own, because a navigator puts none around a page.
+# where it is defined, its supertypes, the names that make it, its whole
+# docstring and the table of its fields, in a scroll pane of its own, because a
+# navigator puts none around a page.
 
 """
     HelpEntryToWidget(; gap, name, detail, description, muted)
 
 Draw a [`HelpEntry`](@ref) as its page, in a scroll pane: the name of the type,
-the module that defines it, for a document type the names that a person types
-into an empty tab to make one, and the whole docstring, one line of the page for
-each line of the text, or "No description." for a type with none. The page is
-read only.
+the module that defines it, the type with its supertypes, such as
+`AboutPage <: Document`, for a document type the names that a person types into
+an empty tab to make one, the whole docstring, one line of the page for each
+line of the text, or "No description." for a type with none, and a table of the
+fields that a person can set: the field and its type, each as wide as its widest
+cell, and the docstring of the field in the rest of the width. A type with no
+such field says "No fields.". The page is read only.
 
 The projection holds its styles and no theme; `make_help_entry_projection` fills
 them from a theme.
@@ -52,6 +56,8 @@ function _make_help_entry_parts(p::HelpEntryToWidget, entry::HelpEntry)
     parts = Any[WidgetLabel(entry.name; text_style = p.name)]
     T = entry.type
     T isa Type && push!(parts, WidgetLabel(join(String.(fullname(parentmodule(T))), "."); text_style = p.detail))
+    isempty(entry.supertypes) ||
+        push!(parts, WidgetLabel(entry.name * " <: " * entry.supertypes; text_style = p.detail))
     isempty(entry.typed) ||
         push!(parts, WidgetLabel("Names to type in an empty tab: " * entry.typed; text_style = p.detail))
     if isempty(entry.text)
@@ -60,8 +66,15 @@ function _make_help_entry_parts(p::HelpEntryToWidget, entry::HelpEntry)
         lines = Any[WidgetLabel(String(line); text_style = p.description) for line in split(entry.text, '\n')]
         push!(parts, VerticalLayout(lines; child_width = Fill))
     end
+    push!(parts, isempty(entry.fields) ? WidgetLabel("No fields."; text_style = p.muted) :
+                     _make_help_widget_table(_HELP_FIELD_COLUMNS,
+                                             [[field.name, field.type, field.description] for field in entry.fields]))
     parts
 end
+
+# The field and its type are as wide as their widest cell, and the docstring of
+# the field takes the rest of the width.
+const _HELP_FIELD_COLUMNS = ["field" => Content, "type" => Content, "description" => Fill]
 
 # A type draws as its page inside any document that a renderer draws.
 make_graphics_projection(::Type{<:HelpEntry}; measure, appearance) =

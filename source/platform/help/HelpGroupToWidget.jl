@@ -77,14 +77,18 @@ _get_help_cells(group::HelpGroup) = Any[group.name, string(group.count), group.d
 _get_help_cells(entry::HelpEntry) =
     _is_projection_entry(entry) ? Any[entry.name, entry.description] : Any[entry.name, entry.typed, entry.description]
 
-function _make_help_table(children)
-    columns = _get_help_columns(children)
+_make_help_table(children) =
+    _make_help_widget_table(_get_help_columns(children), [_get_help_cells(child) for child in children];
+                            tooltip = _HELP_TABLE_TOOLTIP)
+
+# A table of the help with every row: `columns` holds the header and the width
+# policy of each column, and `rows` the texts of each row.
+_make_help_widget_table(columns, rows; tooltip = nothing) =
     WidgetTable(; column_headers = Any[name for (name, _) in columns],
-                cells = Any[Any[WidgetLabel(text) for text in _get_help_cells(child)] for child in children],
+                cells = Any[Any[WidgetLabel(text) for text in row] for row in rows],
                 columns = Any[WidgetTableColumn(; policy, align = name == "types" ? :right : nothing)
                               for (name, policy) in columns],
-                tooltip = _HELP_TABLE_TOOLTIP)
-end
+                tooltip)
 
 # "268 document types in 21 packages. …", the description of a group, or a note
 # for a group whose package or module has no docstring.

@@ -12,6 +12,9 @@ function _collect_help_label_texts(node, found = String[])
         _collect_help_label_texts(node.content, found)
     elseif node isa VerticalLayout || node isa GridLayout
         foreach(child -> _collect_help_label_texts(child, found), node.children)
+    elseif node isa WidgetTable
+        _collect_help_label_texts(node.column_headers, found)
+        _collect_help_label_texts(node.cells, found)
     elseif node isa CellVector || node isa AbstractVector
         foreach(child -> _collect_help_label_texts(child, found), node)
     end
@@ -83,16 +86,34 @@ end
           nothing
 end
 
-@testset "the page of a type shows its name, its module, the names to type and its whole docstring" begin
+@testset "the page of a type shows its name, its module, its supertypes, the names to type, its docstring and its fields" begin
     list = update_help_groups!(DocumentTypeList())
-    about = _find_help_child(_find_help_child(_find_help_child(list, "Platform"), "Help"), "AboutPage")
+    help = _find_help_child(_find_help_child(list, "Platform"), "Help")
+    about = _find_help_child(help, "AboutPage")
     texts = _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, about, nothing).output)
-    @test texts[1:3] == ["AboutPage", "ProjecturedPlatform.HelpModule", "Names to type in an empty tab: " * about.typed]
-    @test texts[4:end] == split(about.text, '\n')
-    @test texts[4] == "    AboutPage(; name, summary, version, homepage)"
-    bare = HelpEntry("Bare", Int, "", "", "")
+    @test texts[1:4] == ["AboutPage", "ProjecturedPlatform.HelpModule", "AboutPage <: Document",
+                         "Names to type in an empty tab: " * about.typed]
+    lines = split(about.text, '\n')
+    @test texts[5:(4 + length(lines))] == lines
+    @test texts[5] == "    AboutPage(; name, summary, version, homepage)"
+    # The table of the fields: its header, then the field, its type and its
+    # description, which is empty for a field with no docstring.
+    @test texts[(5 + length(lines)):end] ==
+          ["field", "type", "description", "name", "String", "", "summary", "String", "",
+           "version", "String", "", "homepage", "String", ""]
+    # The fields of a theme have a docstring each, and the type is the document
+    # that the cell layout holds.
+    theme = _find_help_child(help, "HelpTheme")
+    page = print_document(make_help_entry_projection(), nothing, theme, nothing).output
+    table = only(part for part in page.children[1].child.content.children if part isa WidgetTable)
+    @test [column.policy for column in table.columns] == [Content, Content, Fill]
+    texts = _collect_help_label_texts(table)
+    at = findfirst(==("font"), texts)
+    @test texts[at + 1] == "StyleFont"
+    @test startswith(texts[at + 2], "The font that the texts of this theme follow")
+    bare = HelpEntry("Bare", Int, "", "", "", "", ())
     @test _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, bare, nothing).output) ==
-          ["Bare", "Core", "No description."]
+          ["Bare", "Core", "No description.", "No fields."]
 end
 
 @testset "in a navigator, a double click on a row opens its page, and Parent and Back return" begin

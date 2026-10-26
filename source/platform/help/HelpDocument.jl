@@ -46,13 +46,19 @@ modules of a package, or the [`HelpEntry`](@ref)s of its types.
 end
 
 """
-    HelpEntry(name, type, typed, description, text)
+    HelpEntry(name, type, typed, description, text, supertypes, fields)
 
 One type in a tree of the help: `name` is its name, `type` the type; `typed`
 holds the names that a person types into an empty tab to make a document of the
 type, joined by ", ", and is empty for a projection. `description` is the first
 paragraph of its docstring, and `text` the whole docstring, or `""` for a type
 with none.
+
+`supertypes` and `fields` are the shape of the type. `supertypes` names its
+supertypes, joined by " <: ", without the family type of a document and without
+`Any`. `fields` holds a named tuple `(name, type, description)` for each field
+that a person can set: every field but `selection` and `mouse_target`, with the
+type in the form a person reads, and the docstring of the field on one line.
 """
 @document struct HelpEntry
     name::String
@@ -60,6 +66,8 @@ with none.
     typed::String
     description::String
     text::String
+    supertypes::String
+    fields::Any
 end
 
 # The version every ProjecturEd package carries, read from the project file of

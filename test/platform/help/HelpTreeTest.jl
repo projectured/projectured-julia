@@ -58,6 +58,28 @@ end
     @test get_document_decoration(chaining).icon === :lambda
 end
 
+@testset "an entry holds the shape of its type: its supertypes and the fields that a person sets" begin
+    list = update_help_groups!(DocumentTypeList())
+    help = _find_help_child(_find_help_child(list, "Platform"), "Help")
+    documents = _find_help_child(help, "DocumentTypeList")
+    # The family type `ADocumentTypeList` and the view state of every document
+    # are left out.
+    @test documents.supertypes == "Document"
+    @test [(field.name, field.type) for field in documents.fields] == [("children", "CellVector"), ("world", "UInt64")]
+    theme = _find_help_child(help, "HelpTheme")
+    @test !occursin("AHelpTheme", theme.supertypes) && endswith(theme.supertypes, "Document")
+    font = only(field for field in theme.fields if field.name == "font")
+    @test font.type == "StyleFont"
+    @test startswith(font.description, "The font that the texts of this theme follow")
+    @test only(field for field in theme.fields if field.name == "heading_text").type == "ThemeText"
+    # A projection keeps each field in a cell, and the type is the type of the
+    # value.
+    projections = update_help_groups!(ProjectionList())
+    entry = only(entry for entry in _collect_help_entries(projections) if entry.name == "HelpGroupToWidget")
+    @test entry.supertypes == "Projection"
+    @test [(field.name, field.type) for field in entry.fields] == [("gap", "Int64"), ("line", "StyleText")]
+end
+
 @testset "a second build keeps the objects, and writes no collection that stays" begin
     list = update_help_groups!(DocumentTypeList())
     children = list.children
