@@ -39,3 +39,8 @@ end
 # dvdrental_relationship) live in the opt-in `ProjecturedAdaptagramsExample` package so
 # the base example package does not depend on the native ProjecturedAdaptagrams
 # shim. They reuse `make_graph_projection_example` with the engine swapped in.
+
+# The view of the graph of the services: curved edges, and the text of a vertex and
+# of a label, which the natural renderer draws.
+make_graph_services_projection_example(; measure = FontFileMeasure()) =
+    make_graph_projection_example(; measure, content = NaturalToGraphics(; measure), edge_shape = :curved)

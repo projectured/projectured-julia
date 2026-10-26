@@ -50,5 +50,6 @@ include("../../../example/domain/graph/GraphProjectionExample.jl")
 
 export make_graph_document_example, make_graph_graph_document_example, make_graph_layout_document_example
 export make_graph_projection_example
+export make_graph_services_document_example, make_graph_services_projection_example
 
 end # module ProjecturedGraphExample

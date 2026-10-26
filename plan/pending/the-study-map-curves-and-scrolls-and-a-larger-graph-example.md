@@ -37,8 +37,8 @@ The facts at `main` `31b19cda3`. Find each function by its name.
   ways while the title and the switch of the views stay. The `border` goes,
   because the drawing keeps the margin.
 - **A larger example, `graph_services_example`.** The services of a small shop
-  and how they call each other: 15 vertices, each a `WidgetLabel` with the name
-  of a service, and directed edges with a label each, such as "calls", "reads"
+  and how they call each other: 15 vertices, each the name of a service as a
+  line of text (changed in step 3), and directed edges with a label each, such as "calls", "reads"
   and "publishes". Its edges are curves. It is larger than a window when zoomed
   in, so it shows the scroll too.
 
@@ -103,6 +103,15 @@ fonts and look at it before a step is done.
    `make_graph_services_projection_example` and `graph_services_example`, and
    register them as `fsm_toggle_example` is. Run `test_example` for it and the
    graph suite. Render it at zoom 1, zoomed in and scrolled.
+
+   **Done.** The facts of the implementation:
+   - A vertex and a label hold a line of text, a `TextBlock` in the font of the
+     widgets (`_make_graph_text`), which a person can edit. A `WidgetLabel`, which
+     the plan named, is display text with no caret, so the type-in sweep failed on
+     it.
+   - `test_example(graph_services_example)` passes with no failure. A render at
+     900 × 700 px shows all 15 services at zoom 1; Ctrl and the wheel spread
+     them, a plain turn scrolls, and no fault occurs.
 4. **The guides.** Write the map in the guide of the research domain and the new
    example in [graph.md](../../documentation/package/domain/graph/graph.md).
    Move this plan to `plan/done/`.

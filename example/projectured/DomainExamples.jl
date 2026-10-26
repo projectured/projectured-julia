@@ -37,6 +37,8 @@ const focusing_example       = Example("focusing",       make_focusing_document_
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
 const graph_example          = Example("graph",          make_graph_document_example,          make_graph_projection_example)
+# A larger graph: fifteen services with labelled calls, curved edges, the zoom and the scroll.
+const graph_services_example = Example("graph_services", make_graph_services_document_example, make_graph_services_projection_example)
 const chart_example          = Example("chart",          make_chart_document_example,          make_chart_projection_example)
 const chart_line_example     = Example("chart_line",     make_chart_line_document_example,     make_chart_line_projection_example)
 const chart_bar_example      = Example("chart_bar",      make_chart_bar_document_example,      make_chart_bar_projection_example)
@@ -193,6 +195,7 @@ const domain_examples = Example[
     table_example,
     math_table_example,
     graph_example,
+    graph_services_example,
     chart_example,
     chart_line_example,
     chart_bar_example,
