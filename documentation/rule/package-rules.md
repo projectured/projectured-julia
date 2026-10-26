@@ -197,13 +197,17 @@ behind the code. It goes stale gracefully: a statement that names nothing is ski
 The build says how many were skipped, warning past a tenth of them.
 Recording needs a display: the driver opens a real window.
 
-**Set `workload = :none` before you record, and put it back after.** A trace
-reports what actually had to be COMPILED, and a `:recorded` build already holds
-the old list in its image — so those methods never compile, never reach the
-trace, and never reach the new list. Recording on top of `:recorded` therefore
-yields the *residue*: measured on 2026-09-10, 6963 statements sharing 174 entries
-with the 12760 it would have replaced. It looks like a recording and it is a
-downgrade, and each repeat shrinks the list again.
+**The recorder builds the leaf at `workload = :none`.** A trace reports what
+actually had to be COMPILED, and a `:recorded` build already holds the old list
+in its image — so those methods never compile, never reach the trace, and never
+reach the new list. Recording on top of `:recorded` yields the *residue*:
+measured on 2026-09-10, 6963 statements sharing 174 entries with the 12760 it
+would have replaced. It looks like a recording and it is a downgrade, and each
+repeat shrinks the list again. So `trace_precompile_statements` takes the leaf as
+`leaf`, and runs its process with a temporary environment first on the load
+path, whose `LocalPreferences.toml` sets `workload = "none"` for the leaf. That
+preference wins over the one of the active project, so the level of the session
+does not matter, and the image of `:none` is cached apart from the others.
 
 The same run at `:none` gave 12342 statements. Of the 7485 the old list held and
 it dropped, 7033 — 94 % — no longer resolved at all, so the old list was more
@@ -211,9 +215,7 @@ than half dead. 452 still resolved: a recording replaces, it does not merge, and
 that is the price of a generated file that stays reproducible from its driver.
 
 ```julia
-julia> set_workload!(:none)        # then restart
-julia> record_precompile_statements()
-julia> set_workload!(:recorded)    # then restart; the next build replays the new list
+julia> record_precompile_statements()   # the next build replays the new list
 ```
 
 **Check a new recording before you keep it.** Compare its files with the ones in git: a

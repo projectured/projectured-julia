@@ -85,15 +85,16 @@ replay_precompile_statements(; warn::Bool = true) =
     record_precompile_statements(recording = "examples"; threads) -> Vector{String}
 
 Run the driver of the recording named `recording` (see
-[`PRECOMPILE_RECORDINGS`](@ref)) under `--trace-compile`, in its environment, and
-write what it compiled into the statement files of the packages, as
-[`write_precompile_statement_files`](@ref) does. Answers the paths that it wrote.
+[`PRECOMPILE_RECORDINGS`](@ref)) under `--trace-compile`, in its environment, with
+this leaf built at the level `:none`, and write what it compiled into the
+statement files of the packages, as [`write_precompile_statement_files`](@ref)
+does. Answers the paths that it wrote.
 Needs a display: the driver opens a real window, so that what it records is the
 whole stack down to SDL.
 """
 function record_precompile_statements(recording::AbstractString = "examples"; kwargs...)
     entry = PRECOMPILE_RECORDINGS[recording]
-    statements = ProjecturedExample.trace_precompile_statements(entry.driver;
+    statements = ProjecturedExample.trace_precompile_statements(entry.driver; leaf = @__MODULE__,
                                                                 project = entry.project, kwargs...)
     write_precompile_statement_files(recording, statements)
 end

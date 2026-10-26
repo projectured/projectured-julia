@@ -100,7 +100,7 @@ function replay_precompile_statements(statements::AbstractVector{<:AbstractStrin
 end
 
 """
-    trace_precompile_statements(driver; project, threads) -> Vector{String}
+    trace_precompile_statements(driver; leaf, project, threads) -> Vector{String}
 
 Run `driver` in a fresh process under `--trace-compile`, and answer what it
 compiled, as [`clean_precompile_trace`](@ref) keeps it.
@@ -110,31 +110,58 @@ rather than something a running session can turn on. It is also a person's step
 rather than a build's, which is what lets a driver open a real window and take
 as long as it likes.
 
+`leaf` is the package whose image the driver loads and whose preference
+`workload` chooses what its build compiles: `ProjecturedREPL`, or the repl leaf of
+a downstream repository. The process builds it at the level `:none`. A trace
+holds only what the process had to compile, and at `:recorded` the image holds
+the old list already, so the trace would miss every statement of it that still
+works. The image of `:none` is cached apart, so the images of the other levels
+stay as they are.
+
 `project` is the environment to run in, and defaults to the active one.
 """
 function trace_precompile_statements(driver::AbstractString;
+                                     leaf::Module,
                                      project::AbstractString = dirname(Base.active_project()),
                                      threads::Integer = 4)
     trace = tempname() * ".jl"
-    command = `$(Base.julia_cmd()) --project=$project --threads=$threads --trace-compile=$trace $driver`
+    preferences = _write_none_workload_environment!(mktempdir(), leaf)
+    load_path = join([preferences; LOAD_PATH], Sys.iswindows() ? ';' : ':')
+    command = addenv(`$(Base.julia_cmd()) --project=$project --threads=$threads --trace-compile=$trace $driver`,
+                     "JULIA_LOAD_PATH" => load_path)
     @info "recording — the driver opens a window and drives it" driver project
     run(command)
     statements = clean_precompile_trace(trace)
     rm(trace; force = true)
+    rm(preferences; recursive = true, force = true)
     statements
 end
 
-"""
-    record_precompile_statements(driver, output; project, threads) -> output
+# Write into `directory` an environment that sets the preference `workload` of the
+# package of `leaf` to `none`, and answer `directory`. First on the load path of a
+# process, its preference wins over the one of the active project. It names the
+# leaf under `[extras]` only, which a preference needs and which loads nothing.
+function _write_none_workload_environment!(directory::AbstractString, leaf::Module)
+    id = Base.PkgId(Base.moduleroot(leaf))
+    write(joinpath(directory, "Project.toml"),
+          string("[extras]\n", id.name, " = \"", id.uuid, "\"\n"))
+    write(joinpath(directory, "LocalPreferences.toml"),
+          string("[", id.name, "]\nworkload = \"none\"\n"))
+    directory
+end
 
-Run `driver` as [`trace_precompile_statements`](@ref) does, and write what it
-compiled to `output` as a list [`replay_precompile_statements`](@ref) can replay.
-Answers the path it wrote.
+"""
+    record_precompile_statements(driver, output; leaf, project, threads) -> output
+
+Run `driver` as [`trace_precompile_statements`](@ref) does, with `leaf` at the
+level `:none`, and write what it compiled to `output` as a list
+[`replay_precompile_statements`](@ref) can replay. Answers the path it wrote.
 """
 function record_precompile_statements(driver::AbstractString, output::AbstractString;
+                                      leaf::Module,
                                       project::AbstractString = dirname(Base.active_project()),
                                       threads::Integer = 4)
-    statements = trace_precompile_statements(driver; project, threads)
+    statements = trace_precompile_statements(driver; leaf, project, threads)
     write_precompile_statements(output, statements)
     @info "recorded" statements = length(statements) output
     output
