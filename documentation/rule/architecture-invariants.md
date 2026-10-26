@@ -149,6 +149,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-PER-EDITOR-STATE](#par-per-editor-state) | No process-global state in the editor or the machinery it drives; one process must run many editors at once |
 | [PAR-LOOP-RUNS-NO-USER-CODE](#par-loop-runs-no-user-code) | The loop runs no code of a person or a model; it waits for a code unit only in held frames |
 | [PAR-DRAIN-MOVES-PREPARED-DATA](#par-drain-moves-prepared-data) | A feed drain moves only data that its producer prepared off the loop |
+| [PAR-PRODUCER-CARRIES-THE-PART](#par-producer-carries-the-part) | A producer of outside state gets the part of the editor that shows it when it starts, and a feed copies into that part on the editor's task |
 | [PAR-REPORT-NEVER-THROWS](#par-report-never-throws) | A fault report never throws, and a barrier never swallows a fault in silence |
 
 **Package, layer, slice, and module structure**
@@ -1297,6 +1298,28 @@ document that no computation reads yet:
   loop, and the next drain applies it. A cell value is read on the loop, because
   only the owner of the cells reads them (rule d of
   `PAR-LOOP-RUNS-NO-USER-CODE`).
+
+### PAR-PRODUCER-CARRIES-THE-PART
+
+**A producer of outside state gets the part of the editor that shows it when it
+starts, and a feed copies into that part on the editor's task.** A producer is a
+task, a run or a watcher: it writes only its own plain state. The code that
+starts it holds the part of the editor that shows it, and gives that part to the
+entry of the producer in its store. The drain of the editor writes into that
+part, on the editor's task (`PAR-STORE-THEN-DRAIN`, `PAR-SINGLE-WRITER`). A part
+that the code makes for outside state, such as a document that shows a folder
+of results, gets from its maker the reference to what it reads.
+
+No reader searches the documents for the part that belongs to outside state, and
+no table of the process maps outside state to the parts of an editor. Such a
+table gives one part to every editor of the process (`PAR-PER-EDITOR-STATE`), and
+such a search costs a walk of the window at each read. Examples:
+
+- the task feed: `register_task_execution!` takes the execution, its shadow, its
+  owner (the document that shows the task) and the editor of the evaluation that
+  starts it, and the `TaskFeed` of that editor syncs the shadow;
+- a run of a simulation downstream: the run task writes its native state, and the
+  watch of the window copies it into the shadow of the run in each image.
 
 ### PAR-REPORT-NEVER-THROWS
 
