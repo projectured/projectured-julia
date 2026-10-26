@@ -599,6 +599,48 @@ end
     @test count(e -> e isa GraphicsSpline, collect(canvas.elements)) == 2
 end
 
+@testset "the text of a vertex and the label of an edge can be edited" begin
+    # A key at each place of each text changes that text and moves the caret, as
+    # the type-in sweep of the examples checks it.
+    text(value) = TextBlock(TextLine(TextString(value, StyleFont("Ubuntu", 13), color_default)))
+    a, b = GraphVertex(text("orders")), GraphVertex(text("queue"))
+    graph = GraphGraph([a, b], [GraphEdge(a, b; directed = true, label = text("publishes"))])
+    measure = FixedMeasure(10, 15, 5, 0)
+    projection = make_graph_projection_example(; measure, content = NaturalToGraphics(; measure))
+    results = ProjecturedPlatformTest.walk_typein(graph, projection)
+    @test count(r -> occursin(".edges", string(r.ref)), results) > 0
+    @test count(r -> occursin(".vertices", string(r.ref)), results) > 0
+    @test all(r -> r.ok, results)
+
+    # A point on the label maps to a place in the label.
+    iomap = print_document(projection, graph)
+    drawing = _gvd_find_drawing(iomap)
+    box = drawing.label_boxes[1]
+    back = map_reference_backward(projection, iomap, PointReferenceStep(box[1] + 2, box[2] + box[4] ÷ 2))
+    @test back !== nothing
+    back === nothing ||
+        @test collect(get_reference_steps(strip_reference_types(back)))[1:3] ==
+              collect(get_reference_steps(strip_reference_types(@reference(graph, edges[1].label))))
+end
+
+@testset "a click on the label of an edge puts the caret in the label" begin
+    text(value) = TextBlock(TextLine(TextString(value, StyleFont("Ubuntu", 13), color_default)))
+    a, b = GraphVertex(text("orders")), GraphVertex(text("queue"))
+    graph = GraphGraph([a, b], [GraphEdge(a, b; directed = true, label = text("publishes"))])
+    measure = _gvd_measure()
+    editor, backend, _ = _gvd_editor(graph; projection = make_graph_projection_example(; measure,
+                                                                                         content = NaturalToGraphics(; measure)))
+    drawing = _gvd_find_drawing(editor.iomap)
+    origin = _gvd_place_of(editor, drawing.output)
+    box = drawing.label_boxes[1]
+    x, y = origin[1] + box[1] + 2, origin[2] + box[2] + box[4] ÷ 2
+    _gvd_down!(editor, backend, x, y, 1.0)
+    _gvd_up!(editor, backend, x, y, 1.05)
+    steps = collect(get_reference_steps(strip_reference_types(something(get_selection(graph), EmptyReference()))))
+    @test length(steps) >= 3 &&
+          steps[1:3] == collect(get_reference_steps(strip_reference_types(@reference(graph, edges[1].label))))
+end
+
 end # test_graph_projection
 
 # The drawing of `graph` by the grid engine, as its IO map.

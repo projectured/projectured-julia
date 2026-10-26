@@ -42,6 +42,18 @@ The facts at `main` `31b19cda3`. Find each function by its name.
   and "publishes". Its edges are curves. It is larger than a window when zoomed
   in, so it shows the scroll too.
 
+- **The texts of the example are editable.** `test_example` types into every
+  text of an example. Two gaps made the texts of a graph not editable, and the
+  owner chose on 2026-10-26 to fix them ("it's B, we need to be able to edit
+  these, they should be fairly trivial"):
+  - A text block that is the value of a field gets its caret from a parent as a
+    flat `PositionReferenceStep`, which the text printer and reader do not read.
+    `_text_flat_selection` reads it as the same flat caret.
+  - The graph gives a key to the contents of the vertices only, and the stages do
+    not map the path of an edge. The drawing gives a key and a click to the label
+    of an edge as to the content of a vertex, and both stages map
+    `edges[j]` ↔ `edge_layouts[j].edge`.
+
 ## Steps
 
 Do the work in the worktree. Commit each step. Do not land on `main` before the
@@ -61,10 +73,36 @@ fonts and look at it before a step is done.
    - The research suite passes (377). A render of the concluded study in the map
      view, 900 × 700 px with real fonts, shows curved edges; a plain turn of the
      wheel scrolls the map while the title and the switch stay; no fault.
-2. **The larger example.** Add `make_graph_services_document_example`,
+2. **Editable texts.** Read a flat `PositionReferenceStep` in
+   `_text_flat_selection`. Route a key and a click to the label of an edge, map the
+   path of an edge in both stages, and map a point on a label to the label. Tests:
+   the type-in sweep of a graph whose vertex and edge label are text blocks, and
+   of `graph_example`, has no failure; a click on a label puts the caret there.
+
+   **Done.** The facts of the implementation:
+   - `_text_flat_selection` reads a range step right on a text block as a place
+     of its flat text.
+   - The drawing keeps the IO map and the box of each label
+     (`label_iomaps`, `label_boxes`). A key goes to the labels after the contents
+     of the vertices (`_forward_to_selected`), a click and a point go to the label
+     at their place when no vertex is there (`_find_label_at`), and a path into a
+     label maps forward. `_reroot_part_answer` reroots the answer of a vertex
+     content and of a label by one set of rules, with the path builder of each.
+   - A span edit leaves the caret of a text block in its structural spelling,
+     `.elements[i].elements[j].content{k}`, which names the same place as the
+     flat `{k}`. The type-in sweep compared the spelling, so for a text-block
+     target (`:texttext`) it now compares the flat place (`_get_text_block_caret`).
+   - `test_example(graph_example)` has no type-in failure left; 4 failures of its
+     REPL test stay, which were on `main` before: a key at the child of the XML
+     vertex selects `children[2]`, which does not exist
+     (`SelectionMismatchException`). The services example passes all its
+     example tests.
+   - The graph suite, the FSM and process diagram tests and the text tests pass
+     (751).
+3. **The larger example.** Add `make_graph_services_document_example`,
    `make_graph_services_projection_example` and `graph_services_example`, and
    register them as `fsm_toggle_example` is. Run `test_example` for it and the
    graph suite. Render it at zoom 1, zoomed in and scrolled.
-3. **The guides.** Write the map in the guide of the research domain and the new
+4. **The guides.** Write the map in the guide of the research domain and the new
    example in [graph.md](../../documentation/package/domain/graph/graph.md).
    Move this plan to `plan/done/`.

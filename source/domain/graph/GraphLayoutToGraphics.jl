@@ -20,8 +20,10 @@
 # owns and delegate the tail through the stored child IO maps). The
 # `GraphToGraphLayout` stage above maps `vertices[i].content.…` ↔
 # `vertex_layouts[i].vertex.content.…`, so a selection into vertex content
-# round-trips through the whole graph pipeline. Edges are decorations in v1
-# (selectable later via the Phase 1 polyline hit-test).
+# round-trips through the whole graph pipeline. An edge is a decoration, but its
+# label is a part, as the content of a vertex is: a path
+# `edge_layouts[j].edge.label.…` routes into the label, and a key and a click reach
+# it the same way.
 #
 # The highlight (`GraphLayout.highlight_vertex` / `highlight_edge`) is a ring
 # just outside the node's box, and a re-stroke over the edge's own line. Both
@@ -358,6 +360,8 @@ end
     child_iomaps::Cell      # vector of (x, y, content_iomap) per vertex layout
     node_elements::Cell     # index into `output.elements` of each vertex's box
     drawn_boxes::Cell       # (x, y, w, h) of the content of each vertex, as drawn
+    label_iomaps::Cell      # the IO map of the label of each edge, or nothing
+    label_boxes::Cell       # (x, y, w, h) of the label of each edge, as drawn, or nothing
 end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
@@ -384,8 +388,8 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         entries
     end)
 
-    # Recurse each edge's optional label into a canvas. A decoration, like the
-    # edges themselves — not selectable in v1, so no per-label iomap delegation.
+    # Recurse each edge's optional label into a canvas, which a path, a key and a
+    # click reach as they reach the content of a vertex.
     edge_label_iomaps = Cell(@computation begin
         m = length(layout.edge_layouts)
         out = Any[]
@@ -424,6 +428,9 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                              _get_edge_shape(p, layout))
     end)
 
+    # The box of the label of each edge, at the middle of its line.
+    drawn_labels = Cell(@computation _compute_label_boxes(drawn_edges[], edge_label_iomaps[]))
+
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
@@ -448,6 +455,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         # Edges first (behind the nodes), each with its optional label centred on
         # the route midpoint.
         labels = edge_label_iomaps[]
+        label_boxes = drawn_labels[]
         edges = drawn_edges[]
         edge_shape = _get_edge_shape(p, layout)
         for i in 1:length(layout.edge_layouts)
@@ -472,14 +480,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                     color = style.highlight, width = style.highlight_width,
                     end_arrow = directed, arrow_size = style.arrow_size))
             end
-            lim = i <= length(labels) ? labels[i] : nothing
-            if lim !== nothing
-                lo = lim.output
-                lw = lo isa GraphicsCanvas ? Int(lo.w) : 0
-                lh = lo isa GraphicsCanvas ? Int(lo.h) : 0
-                mx, my = _route_midpoint(drawn_edge.path)
-                push!(result, GraphicsCanvas(CellVector(Cell[Cell(lo)]);
-                                             x = mx - lw ÷ 2, y = my - lh ÷ 2))
+            label_box = i <= length(label_boxes) ? label_boxes[i] : nothing
+            if label_box !== nothing
+                push!(result, GraphicsCanvas(CellVector(Cell[Cell(labels[i].output)]);
+                                             x = label_box[1], y = label_box[2]))
             end
         end
         # Node boxes + content on top, and the dragged one over every other.
@@ -568,7 +572,8 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                             Cell(@computation Int32(extent[][1])),
                             Cell(@computation Int32(extent[][2])),
                             elements, layout_none, true, Cell(nothing))
-    GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps, node_elements, drawn_boxes)
+    GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps, node_elements, drawn_boxes,
+                                     edge_label_iomaps, drawn_labels)
 end
 
 # A GraphicsCanvas is not a selectable container, so we never forward a selection
@@ -597,6 +602,15 @@ function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayou
             outer = find_node_reference(iomap.output, unwrap_cell(cim.output); depth = 4)
             outer === nothing ? nothing : concat_references(outer, inner)
         end
+        ::GraphLayout.edge_layouts[i].edge.label.rest... => begin
+            labels = iomap.label_iomaps
+            (i < 1 || i > length(labels) || labels[i] === nothing) && return nothing
+            lim = labels[i]
+            inner = map_reference_forward(lim.projection, lim, rest)
+            inner === nothing && return nothing
+            outer = find_node_reference(iomap.output, unwrap_cell(lim.output); depth = 4)
+            outer === nothing ? nothing : concat_references(outer, inner)
+        end
         __ => nothing
     end
 end
@@ -609,7 +623,7 @@ function map_reference_backward(::GraphLayoutToGraphicsCanvas,
     point = find_reference_point(reference)
     point === nothing && return nothing
     hit = _find_vertex_at(iomap, point.x, point.y)
-    hit === nothing && return nothing
+    hit === nothing && return _map_label_point_backward(iomap, point)
     (i, cim, x, y) = hit
     inner = cim === nothing ? nothing :
             map_reference_backward(cim.projection, cim, PointReferenceStep(x, y))
@@ -634,7 +648,8 @@ end
 
 # The IO maps of the contents of the vertices, which a route reaches.
 get_child_iomaps(iomap::GraphLayoutToGraphicsCanvasIoMap) =
-    Any[entry[3] for entry in iomap.child_iomaps if entry isa Tuple && entry[3] !== nothing]
+    Any[Any[entry[3] for entry in iomap.child_iomaps if entry isa Tuple && entry[3] !== nothing]...,
+        Any[label for label in iomap.label_iomaps if label !== nothing]...]
 
 read_child_by_route(::GraphLayoutToGraphicsCanvas, recursion, change::Intent,
                     iomap::GraphLayoutToGraphicsCanvasIoMap, child) =
@@ -643,8 +658,10 @@ read_child_by_route(::GraphLayoutToGraphicsCanvas, recursion, change::Intent,
 # The content of each vertex at the corner where the drawing draws it, as the
 # entries `(x, y, content_iomap)` of a container.
 _collect_drawn_entries(iomap::GraphLayoutToGraphicsCanvasIoMap) =
-    Any[box === nothing ? entry : (box[1], box[2], entry[3])
-        for (box, entry) in zip(iomap.drawn_boxes, iomap.child_iomaps)]
+    Any[Any[box === nothing ? entry : (box[1], box[2], entry[3])
+            for (box, entry) in zip(iomap.drawn_boxes, iomap.child_iomaps)]...,
+        Any[(box[1], box[2], label) for (box, label) in zip(iomap.label_boxes, iomap.label_iomaps)
+            if box !== nothing && label !== nothing]...]
 
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics). A
@@ -696,6 +713,57 @@ function _read_ctrl_wheel(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseS
     notches == 0 && return nothing
     zoom = _compute_next_zoom(iomap.input, notches)
     zoom === nothing ? nothing : _write_layout_zoom(iomap.input, zoom)
+end
+
+# The box `(x, y, w, h)` of the label of each edge, by its index in
+# `edge_layouts`: the canvas of the label, centred on the middle of the line of the
+# edge, or `nothing` for an edge that is not drawn or has no label.
+function _compute_label_boxes(edges, labels)
+    boxes = Union{Nothing,NTuple{4,Int}}[]
+    for i in eachindex(edges)
+        label = i <= length(labels) ? labels[i] : nothing
+        if edges[i] === nothing || label === nothing
+            push!(boxes, nothing)
+            continue
+        end
+        canvas = label.output
+        w = canvas isa GraphicsCanvas ? Int(canvas.w) : 0
+        h = canvas isa GraphicsCanvas ? Int(canvas.h) : 0
+        x, y = _route_midpoint(edges[i].path)
+        push!(boxes, (x - w ÷ 2, y - h ÷ 2, w, h))
+    end
+    boxes
+end
+
+# The edge whose label holds the point `(px, py)`: its index, the IO map of the
+# label and the point in the frame of the canvas of the label, or `nothing`. The
+# label drawn last is on top, so the search goes from the end.
+function _find_label_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
+    boxes = iomap.label_boxes
+    labels = iomap.label_iomaps
+    for j in length(boxes):-1:1
+        box = boxes[j]
+        (box === nothing || j > length(labels) || labels[j] === nothing) && continue
+        x, y, w, h = box
+        (x <= px < x + w && y <= py < y + h) || continue
+        label = labels[j]
+        canvas = label.output
+        ox = canvas isa GraphicsCanvas ? Int(canvas.x) : 0
+        oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
+        return (j, label, px - x - ox, py - y - oy)
+    end
+    nothing
+end
+
+# A point on the label of an edge maps into the label, and a point on the label but
+# on no part of it is the label itself. A point on no label maps to nothing.
+function _map_label_point_backward(iomap::GraphLayoutToGraphicsCanvasIoMap, point)
+    hit = _find_label_at(iomap, point.x, point.y)
+    hit === nothing && return nothing
+    (j, label, x, y) = hit
+    inner = map_reference_backward(label.projection, label, PointReferenceStep(x, y))
+    inner === nothing && return @reference iomap.input edge_layouts[j].edge.label
+    @reference iomap.input edge_layouts[j].edge.label.^(inner)
 end
 
 # The vertex whose box holds the point `(px, py)`: its index, the IO map of its
@@ -763,26 +831,36 @@ end
 # of a part, gets the same steps. An operation that carries its own subject
 # travels, and any other operation is dropped: an operation that no reader can
 # place is worse than no answer.
-_reroot_vertex_answer(::Nothing, i::Int, content) = nothing
-_reroot_vertex_answer(op::CompoundOperation, i::Int, content) =
-    join_move_answers((_reroot_vertex_answer(member, i, content) for member in op.operations)...)
+_reroot_vertex_answer(answer, i::Int, content) =
+    _reroot_part_answer(answer, (part, path) -> _make_vertex_content_reference(i, part, path), content)
+
+# The answer of `label`, the label of edge `i`, in the graph's own space, by the
+# rules of the content of a vertex.
+_reroot_label_answer(answer, i::Int, label) =
+    _reroot_part_answer(answer, (part, path) -> _make_edge_label_reference(i, part, path), label)
+
+# The answer of `part`, a part of the graph that `place(part, path)` places: a path
+# in `part` becomes a path from the layout.
+_reroot_part_answer(::Nothing, place, part) = nothing
+_reroot_part_answer(op::CompoundOperation, place, part) =
+    join_move_answers((_reroot_part_answer(member, place, part) for member in op.operations)...)
 # A wrapper, such as a write of view state, travels with what it holds.
-function _reroot_vertex_answer(op::WrappingOperation, i::Int, content)
-    inner = _reroot_vertex_answer(get_wrapped_operation(op), i, content)
+function _reroot_part_answer(op::WrappingOperation, place, part)
+    inner = _reroot_part_answer(get_wrapped_operation(op), place, part)
     inner === nothing ? nothing : rewrap_operation(op, inner)
 end
 # A write that carries its own document travels as it is, such as the knob of a
 # slider that is held.
-_reroot_vertex_answer(op::ReplaceReferencedValueOperation, i::Int, content) =
+_reroot_part_answer(op::ReplaceReferencedValueOperation, place, part) =
     op.document === nothing ? nothing : op
-function _reroot_vertex_answer(op, i::Int, content)
+function _reroot_part_answer(op, place, part)
     if !(op isa ReplacePathOperation)
         is_self_contained_operation(op) && return op
         reference = operation_reference(op)
         reference === nothing && return nothing
-        return retarget_operation(op, _make_vertex_content_reference(i, content, reference))
+        return retarget_operation(op, place(part, reference))
     end
-    make_path_operation(op, _make_vertex_content_reference(i, content, get_operation_path(op)))
+    make_path_operation(op, place(part, get_operation_path(op)))
 end
 
 # The path `path` in the content of vertex `i` as a path from the layout, with the
@@ -791,6 +869,13 @@ function _make_vertex_content_reference(i::Int, content, path)
     is_fully_typed_reference(path) ||
         (path = annotate_reference_types(content, strip_reference_types(path)))
     @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(path)
+end
+
+# The path `path` in the label of edge `i` as a path from the layout.
+function _make_edge_label_reference(i::Int, label, path)
+    is_fully_typed_reference(path) ||
+        (path = annotate_reference_types(label, strip_reference_types(path)))
+    @reference ::GraphLayout.edge_layouts::CellVector[i]::EdgeLayout.edge::GraphEdge.label.^(path)
 end
 
 # The vertex `i` that the mouse target of `layout` names, a path that begins
@@ -981,7 +1066,14 @@ _get_dragged_corner(corner, offset, margin) =
 
 function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     hit = _find_vertex_at(iomap, g.x, g.y)
-    hit === nothing && return nothing
+    if hit === nothing
+        # A click on the label of an edge goes to the label, in its own frame.
+        label = _find_label_at(iomap, g.x, g.y)
+        label === nothing && return nothing
+        (j, lim, lx, ly) = label
+        op = read_intent(lim.projection, lim, MouseClick(g.button, lx, ly, g.count, g.modifiers; time = g.time))
+        return op === nothing ? nothing : _reroot_label_answer(op, j, lim.input)
+    end
     (i, cim, x, y) = hit
     cim === nothing && return nothing
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
@@ -1007,8 +1099,9 @@ _get_vertex_content_steps(i::Integer) =
     (FieldReferenceStep("vertex_layouts"), RangeReferenceStep(i - 1, i),
      FieldReferenceStep("vertex"), FieldReferenceStep("content"))
 
-# Dispatch a coordless event to every node's content reader; the active node (the
-# one whose content carries the cursor) answers. Mirrors TableToGraphics.
+# Dispatch a coordless event to every node's content reader, and then to the reader
+# of each edge label; the part that carries the cursor answers. Mirrors
+# TableToGraphics.
 function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     entries = iomap.child_iomaps
     for i in 1:length(entries)
@@ -1018,6 +1111,15 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         op = read_intent(cim.projection, cim, event)
         op === nothing && continue
         answer = _reroot_vertex_answer(op, i, cim.input)
+        answer === nothing || return answer
+    end
+    labels = iomap.label_iomaps
+    for j in 1:length(labels)
+        lim = labels[j]
+        lim === nothing && continue
+        op = read_intent(lim.projection, lim, event)
+        op === nothing && continue
+        answer = _reroot_label_answer(op, j, lim.input)
         answer === nothing || return answer
     end
     nothing

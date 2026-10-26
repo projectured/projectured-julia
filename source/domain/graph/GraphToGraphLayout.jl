@@ -167,13 +167,15 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
     iomap
 end
 
-# vertices[i].rest... ↔ vertex_layouts[i].vertex.rest...
+# vertices[i].rest... ↔ vertex_layouts[i].vertex.rest..., and the same for an edge:
+# edges[i].rest... ↔ edge_layouts[i].edge.rest...
 # The content sub-tree rides unchanged under `.vertex`, so no per-child iomap
 # delegation is needed here.
 function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphLayout
         ::GraphGraph.vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.^(rest))
+        ::GraphGraph.edges[i].rest... => (@reference ::GraphLayout.edge_layouts::CellVector[i]::EdgeLayout.edge.^(rest))
         __ => nothing
     end
 end
@@ -182,6 +184,7 @@ function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphGraph
         ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
+        ::GraphLayout.edge_layouts[i].edge.rest... => (@reference ::GraphGraph.edges::CellVector[i].^(rest))
         __ => nothing
     end
 end

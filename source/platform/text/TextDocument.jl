@@ -931,6 +931,12 @@ function _text_flat_selection(text::TextBlock, selection)
     if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return (sel.head.start, sel.head.stop)
     end
+    # A position or a range right on the block is a place of its flat text, because
+    # its elements are under the field `elements`. A document whose field holds the
+    # block hands a caret down so: `.label{k}` of the document is `{k}` of the block.
+    if sel isa ConcreteReference && sel.head isa RangeReferenceStep && sel.tail isa EmptyReference
+        return (sel.head.start, sel.head.stop)
+    end
     # A structural `.elements[i].content{a:b}` caret — e.g. the one a value edit's
     # `evaluate_operation` leaves behind, before a re-projection re-flattens it —
     # denotes a flat range too. Canonicalise it so the flat readers (motion, edit)

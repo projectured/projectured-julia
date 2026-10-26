@@ -256,6 +256,10 @@ end # @testset "append_text! adds a text at the end of a block and keeps its lin
     @test get_flat_range(block, TextModule.make_flat_caret_reference(2)) == (2, 2)
     @test get_flat_range(block, structural(2, 0, 2)) == (3, 5)
     @test get_flat_range(block, structural(2, 1, 1)) == (4, 4)
+    # A place right on the block, as a document whose field holds the block hands
+    # a caret down, is a place of the flat text.
+    @test get_flat_range(block, ConcreteReference(RangeReferenceStep(4, 4), EmptyReference())) == (4, 4)
+    @test get_flat_range(block, ConcreteReference(RangeReferenceStep(1, 4), EmptyReference())) == (1, 4)
     @test get_flat_caret(block, structural(2, 1, 1)) == 4
     @test get_flat_caret(block, structural(2, 0, 2)) === nothing
     @test get_flat_range(block, EmptyReference()) === nothing
