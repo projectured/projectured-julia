@@ -398,7 +398,7 @@ function _mvp_test_turn_writes_on_editor_task()
         a = Assistant(; llm = ScriptedLlm([_tool_use_script("tu_1", "mark", Dict{String,Any}()),
                                             _final_text_script("Done.")]))
         editor = Editor(a, make_assistant_projection_example(); backend = HeadlessBackend(),
-                        devices = Device[], tools = tools)
+                        devices = Device[], tools = tools, feeds = Feed[AgentEventFeed()])
         editor.loop_task = current_task()
         _mvp_type!(a, "Hello")
         evaluate_operation(editor, SubmitDraftTurnOperation(a))

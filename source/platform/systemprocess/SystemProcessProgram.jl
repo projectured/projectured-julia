@@ -28,20 +28,20 @@ function show_system_process_tree!(root_process_ids; title::AbstractString = _fo
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_system_process_tree!") do
         tree = SystemProcessTree(root_process_ids; title)
-        feed = _get_system_process_feed!(editor)
-        push!(feed.trees, tree)
+        push!(_get_system_process_feed(editor).trees, tree)
         show_document_tree!(tree; title, editor)
     end
 end
 
-# The feed of the trees of processes of `editor`, which the first tree adds.
-function _get_system_process_feed!(editor)
+# The feed of the trees of processes of `editor`, which the editor got when it
+# was made.
+function _get_system_process_feed(editor)
     for feed in editor.feeds
         feed isa SystemProcessFeed && return feed
     end
-    feed = SystemProcessFeed()
-    push!(editor.feeds, feed)
-    feed
+    throw(ArgumentError("The editor has no SystemProcessFeed, so a tree would not follow " *
+                        "its processes. Make it with build_editor, whose wrapper " *
+                        "system_process gives the feed."))
 end
 
 """

@@ -112,6 +112,66 @@ function test_task_document()
             @test drain_task_feed!(store) == 0
         end
 
+        @testset "a drain of an editor syncs only the executions of its editor" begin
+            store = TaskFeedStore()
+            make_editor_of(text) = Editor(PrimitiveString(text), IdentityProjection();
+                                          backend = HeadlessBackend(), devices = Device[])
+            (first_editor, second_editor) = (make_editor_of("a"), make_editor_of("b"))
+            first_owner = _TaskDocumentFeedOwner(Tuple{Symbol,Bool}[])
+            second_owner = _TaskDocumentFeedOwner(Tuple{Symbol,Bool}[])
+            register_task_execution!(store, TaskExecution(_TaskGroupProbeTask("one", "exit 0")),
+                                     first_owner; editor = first_editor)
+            register_task_execution!(store, TaskExecution(_TaskGroupProbeTask("two", "exit 0")),
+                                     second_owner; editor = second_editor)
+            # A caller with no window watches no execution of an editor.
+            @test !has_task_feed_entries(store)
+            @test drain_task_feed!(store) == 0
+            @test has_task_feed_entries(store; editor = first_editor)
+            @test drain_task_feed!(store; editor = first_editor) == 1
+            @test length(first_owner.syncs) == 1 && isempty(second_owner.syncs)
+            @test drain_task_feed!(store; editor = second_editor) == 1
+            @test length(second_owner.syncs) == 1
+            # The feed of an editor drains the executions of its editor, and an
+            # editor with no execution asks for no frame.
+            (first_feed, second_feed) = (TaskFeed(; store, flush_interval = 0.0),
+                                         TaskFeed(; store, flush_interval = 0.0))
+            third = TaskExecution(_TaskGroupProbeTask("three", "exit 0"))
+            register_task_execution!(store, third, first_owner; editor = first_editor)
+            @test _TaskDocumentFeed.compute_wake_deadline(second_feed, make_editor_of("c")) === nothing
+            @test _TaskDocumentFeed.drain_changes!(second_feed, second_editor) == 0
+            @test _TaskDocumentFeed.drain_changes!(first_feed, first_editor) == 1
+            # The executions of an editor whose loop ended are let go at the next
+            # drain of any editor, and nothing syncs them.
+            update_task_execution!(e -> (e.progress = 0.5), third)
+            first_editor.has_loop_ended = true
+            @test drain_task_feed!(store; editor = second_editor) == 0
+            @test !has_task_feed_entries(store; editor = first_editor)
+            @test length(first_owner.syncs) == 2
+        end
+
+        @testset "a window gets its feeds when it is made, and a group follows its tasks there" begin
+            window = build_editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend = HeadlessBackend(), devices = Device[], window = false,
+                                  appearance = false, settings = false)
+            @test count(feed -> feed isa TaskFeed, window.feeds) == 1
+            @test count(feed -> feed isa ProjecturedPlatform.SystemProcessModule.SystemProcessFeed,
+                        window.feeds) == 1
+            @test count(feed -> feed isa ProjecturedPlatform.AssistantModule.AgentEventFeed,
+                        window.feeds) == 1
+            # A verb starts a group in the window, which has no assistant: the
+            # frames of the window bring what the tasks say into their documents.
+            document = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); jobs = 2))
+            start_task_group_document!(document; editor = window)
+            deadline = time() + 20
+            while get_task_group_document_status(document) !== :finished && time() < deadline
+                drain_feeds!(window)
+                run_frame!(window)
+                sleep(0.05)
+            end
+            @test get_task_group_document_status(document) === :finished
+            @test build_task_group_document_counts(document)[:done] == 4
+        end
+
         @testset "a group document keeps its counts and its summary" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(0.0); name = "probe", jobs = 2))
@@ -137,12 +197,12 @@ function test_task_document()
             named = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "named"))
             start_task_group_document!(named; editor)
             @test last(get_session_task_group_list(; editor).groups) === named
-            wait_task_group_document(named)
+            wait_task_group_document(named; editor)
             # The end of a group posts its end operation to its editor.
             ended = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); name = "ended"))
             probe = _TaskEndProbe(Int[])
             start_task_group_document!(ended; editor, end_operation = probe)
-            wait_task_group_document(ended)
+            wait_task_group_document(ended; editor)
             deadline = time() + 10
             while isempty(probe.ran) && time() < deadline
                 drain_operations!(editor)
@@ -158,7 +218,9 @@ function test_task_document()
                                       tabs = true, appearance = false, settings = false)
                 @test get_session_task_group_list(; editor = window) === shown
             end
-            wait_task_group_document(document)
+            # The group started in an evaluation of `editor`, so its tasks report
+            # through the feed of that editor.
+            wait_task_group_document(document; editor)
             @test get_task_group_document_status(document) === :finished
             counts = build_task_group_document_counts(document)
             @test counts[:done] == 4 && counts[:error] == 1 && counts[:total] == 5
@@ -216,7 +278,7 @@ function test_task_document()
             editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
                             backend = HeadlessBackend(), devices = Device[])
             run_with_evaluation_editor(() -> start_task_group_document!(document), editor)
-            wait_task_group_document(document)
+            wait_task_group_document(document; editor)
             @test get_task_group_document_status(document) === :finished
             @test get_task_group_document_summary(document).total == 10
             @test get_task_group_document_counts(document).finished == 10

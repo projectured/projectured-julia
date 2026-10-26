@@ -27,6 +27,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..EditorModule
 using ..FeedModule
 using ..FocusModule
 using ..GraphicsModule
@@ -45,6 +46,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet

@@ -629,10 +629,11 @@ processes of the work of an agent that a view reads. The queue of a session
 leaves the feed at the drain after its session closed, its connection stopped or
 its assistant ended it; the queue of a turn leaves it when its turn ends.
 
-The assistant adds the feed to the `feeds` of the editor when the window opens
-its first session or runs its first turn, and a `TaskFeed` with the first session
-when the window has none, which syncs the background tasks of the agents. An
-event of a prompt or of a turn asks for a frame itself.
+The wrapper `agent_event` of `build_editor` gives the feed, and is on by
+default; the `TaskFeed` of the wrapper `task` syncs the background tasks of the
+agents. An editor whose loop runs needs the feed to apply the events; with no
+loop, as in a test, the events apply at once. An event of a prompt or of a turn
+asks for a frame itself.
 Between two prompts the window wakes four times a second while an agent has a
 subagent or a background task that runs, and for five seconds after a prompt
 ends, because an agent reports more after its answer; it wakes for the next
@@ -650,29 +651,26 @@ AgentEventFeed() = AgentEventFeed(Any[])
 const _AGENT_EVENT_INTERVAL = 0.25
 const _AGENT_EVENT_LINGER = 5.0
 
-# The queue of a session of `a` joins the feed of the editor, with a feed of the
-# tasks when the window has none, which syncs the background tasks of the agent.
-function _register_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSession,
-                                      queue::AgentEventQueue)
-    hasproperty(editor, :feeds) || return nothing
+# The queue of a session of `a` joins the feed of the editor.
+_register_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSession,
+                             queue::AgentEventQueue) =
     _add_agent_event_source!(editor, (assistant = a, session = session, queue = queue))
-    feeds = editor.feeds
-    any(feed -> feed isa TaskFeed, feeds) || push!(feeds, TaskFeed())
-    nothing
-end
 
-# `source` joins the feed of the editor, which the first source of the window adds.
-# An editor with no feeds, as in a test, applies the events of a prompt or a turn
-# at once and drains no queue between two prompts.
+# `source` joins the feed of the editor, which the editor got when it was made. An
+# editor with no feed and no loop, as in a test, applies the events of a prompt or
+# a turn at once and drains no queue between two prompts. An editor whose loop
+# runs applies an event only through the feed, so it must have one.
 function _add_agent_event_source!(editor, source)
     hasproperty(editor, :feeds) || return nothing
-    feeds = editor.feeds
-    index = findfirst(feed -> feed isa AgentEventFeed, feeds)
+    index = findfirst(feed -> feed isa AgentEventFeed, editor.feeds)
     if index === nothing
-        push!(feeds, AgentEventFeed())
-        index = length(feeds)
+        editor isa Editor && is_editor_loop_running(editor) &&
+            throw(ArgumentError("The editor has no AgentEventFeed, so no event of the " *
+                                "agent reaches its window. Make it with build_editor, " *
+                                "whose wrapper agent_event gives the feed."))
+        return nothing
     end
-    push!(feeds[index].sources, source)
+    push!(editor.feeds[index].sources, source)
     nothing
 end
 
@@ -739,6 +737,22 @@ function compute_wake_deadline(feed::AgentEventFeed, editor)
     end
     deadline
 end
+
+"""
+    agent_event = true
+
+The wrapper of `build_editor` that gives the editor an [`AgentEventFeed`](@ref),
+so the events of each session of an agent and of each turn of the built-in
+assistant reach the window. It is on by default: a feed with no source asks for
+no frame.
+"""
+function wrap_editor!(::Val{:agent_event}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.feeds, AgentEventFeed())
+    parts
+end
+
+get_wrapper_layers(::Val{:agent_event}) = (:screen => 20,)
+is_wrapper_default(::Val{:agent_event}) = true
 
 # Each tree of the processes of the work and of its subagents takes its sample,
 # and the count of the reads that were synced.

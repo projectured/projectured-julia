@@ -278,7 +278,7 @@ function wait_for_task_group!(editor, group::TaskGroupDocument; timeout::Union{R
     if is_task_group_running(group)
         run_on_editor_task!(() -> _sync_task_group_shadow!(group), editor)
     else
-        run_on_editor_task!(() -> wait_task_group_document(group), editor)
+        run_on_editor_task!(() -> wait_task_group_document(group; editor), editor)
     end
     group
 end

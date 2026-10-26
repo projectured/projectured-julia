@@ -275,32 +275,33 @@ function collect_task_document_lines(document::TaskDocument, stream::Symbol = :o
 end
 
 """
-    start_task!(document; options...) -> document
+    start_task!(document; editor = find_evaluation_editor(), options...) -> document
 
 Start the task of `document` and answer at once. `options` go to the
 [`start_task`](@ref) of its kind. The execution and its shadow are the current
-ones at once, and the session `TaskFeedStore` syncs the shadow: a window a few
-times a second, and a caller with no window after
+ones at once, and the session `TaskFeedStore` syncs the shadow: the window of
+`editor` a few times a second, and a caller with no window after
 [`wait_task_document`](@ref).
 """
-function start_task!(document::TaskDocument; options...)
+function start_task!(document::TaskDocument; editor = find_evaluation_editor(), options...)
     execution = start_task(getfield(document, :task)[]; options...)
     shadow = make_task_execution_shadow(execution)
     add_task_execution!(document, execution, shadow)
-    register_task_execution!(get_session_task_feed_store(), execution, document; shadow)
+    register_task_execution!(get_session_task_feed_store(), execution, document; shadow, editor)
     document
 end
 
 """
-    wait_task_document(document) -> document
+    wait_task_document(document; editor = find_evaluation_editor()) -> document
 
 Wait for the current execution of the task to end, and sync what it said into
-its shadow. For a caller with no window, on the task that reads the document.
+its shadow. For a caller with no window, on the task that reads the document;
+`editor` is the editor that started the task, if any.
 """
-function wait_task_document(document::TaskDocument)
+function wait_task_document(document::TaskDocument; editor = find_evaluation_editor())
     execution = getfield(document, :running)[]
     execution === nothing || wait_task_execution(execution)
-    drain_task_feed!()
+    drain_task_feed!(; editor)
     document
 end
 

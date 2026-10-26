@@ -54,7 +54,8 @@ end
 
 _stream_make_editor(a::Assistant, backend; fault_policy = make_strict_fault_policy()) =
     Editor(a, make_assistant_projection_example(); backend, devices = Device[],
-           tools = register_default_tools!(ToolSet()), fault_policy)
+           tools = register_default_tools!(ToolSet()), fault_policy,
+           feeds = Feed[AgentEventFeed()])
 
 # The queues of turns that the feeds of `editor` still hold.
 _stream_count_turn_sources(editor) =

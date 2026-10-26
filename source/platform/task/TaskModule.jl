@@ -47,6 +47,7 @@ import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_it
 import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,
                        make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..NavigatorModule: find_navigator_address

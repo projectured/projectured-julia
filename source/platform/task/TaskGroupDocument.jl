@@ -327,11 +327,12 @@ end
     start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing) -> doc
 
 Start every task of the group, `doc.jobs` at a time, and answer at once. Each
-task reports into its own document while it goes. The group joins the end of the
-list of the session of `editor`, which the Tasks pane shows
-([`get_session_task_group_list`](@ref)); with no editor, it joins no list. A verb
-that names its editor passes it, because a call that runs at once binds no
-editor of the evaluation.
+task reports into its own document while it goes, through the feed of `editor`.
+The group joins the end of the list of the session of `editor`, which the Tasks
+pane shows ([`get_session_task_group_list`](@ref)); with no editor, it joins no
+list, and a caller with no window drains the feed itself
+([`wait_task_group_document`](@ref)). A verb that names its editor passes it,
+because a call that runs at once binds no editor of the evaluation.
 
 `end_operation` is an operation that `editor` evaluates when the group ends:
 its tasks ended, or it stopped. A build passes the operation that reads again
@@ -347,12 +348,18 @@ function start_task_group_document!(doc::TaskGroupDocument; editor = find_evalua
     group.jobs = max(1, getfield(doc, :jobs)[])
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, eachindex(group.tasks))
-    start_task_group!(group)
+    _run_with_task_group_editor(() -> start_task_group!(group), editor)
     _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(; editor), doc)
     _post_at_group_end!(editor, group, end_operation)
     doc
 end
+
+# Run `f`, which starts tasks of a group, as an evaluation of `editor`. The
+# scheduler of the group and each task that it starts inherit the editor, so each
+# execution registers for the feed of `editor`, at any depth of the group.
+_run_with_task_group_editor(f, editor) =
+    editor === nothing ? f() : run_with_evaluation_editor(f, editor)
 
 # Post `operation` to `editor` when the scheduler of `group` ends: its tasks
 # ended, or it stopped. A waiter task waits for the scheduler, so nothing stores
@@ -393,7 +400,7 @@ function rerun_task_group_document!(doc::TaskGroupDocument, which = :failed; edi
     isempty(indices) && return doc
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, indices)
-    rerun_task_group!(group, indices)
+    _run_with_task_group_editor(() -> rerun_task_group!(group, indices), editor)
     _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(; editor), doc)
     doc
@@ -412,14 +419,15 @@ function stop_task_group_document!(doc::TaskGroupDocument)
 end
 
 """
-    wait_task_group_document(doc) -> doc
+    wait_task_group_document(doc; editor = find_evaluation_editor()) -> doc
 
 Wait for the group to end, and copy what its tasks said into their documents.
-For a caller with no window, on the task that reads the documents.
+For a caller with no window, on the task that reads the documents; `editor` is
+the editor that started the group, if any.
 """
-function wait_task_group_document(doc::TaskGroupDocument)
+function wait_task_group_document(doc::TaskGroupDocument; editor = find_evaluation_editor())
     wait_task_group(get_task_group(doc))
-    drain_task_feed!()
+    drain_task_feed!(; editor)
     _sync_task_group_shadow!(doc)
     doc
 end

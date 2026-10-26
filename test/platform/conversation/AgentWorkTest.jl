@@ -400,7 +400,8 @@ function test_agent_work()
             @test is_permission_request_open(request)
             @test compute_wake_deadline(feed, editor) == 0.25
             stop_external_agent!(a)
-            drain_task_feed!()
+            # The background task joined the feed in a drain of the window.
+            drain_task_feed!(; editor)
             document = only(collect(a.agent_work.background_tasks))
             result = get_task_document_result(document)
             @test (result.result, result.reason) == ("CANCEL", "The agent ended.")
@@ -493,9 +494,11 @@ function test_agent_work()
     end
 end
 
-# An editor with no loop, on the assistant, whose feeds a test drains.
+# An editor with no loop, on the assistant, whose feeds a test drains. It has the
+# feeds that the wrappers of `build_editor` give a window.
 _work_editor(a::Assistant) =
-    Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+    Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+           feeds = Feed[AgentEventFeed(), TaskFeed()])
 
 # The text of a part of a transcript.
 _work_text(part) = AssistantModule._part_text(part)

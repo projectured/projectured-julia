@@ -433,7 +433,9 @@ end
 # put the gesture tracker around both, and make the editor on `backend`, printed
 # once. The shared start of `make_example_editor` and `run_file_editor`. A bare
 # Escape that nothing took quits an example window, so the projection is an
-# `EscapeQuittingProjection` around everything.
+# `EscapeQuittingProjection` around everything. The editor gets the feeds that the
+# default wrappers of `build_editor` give a window: the events of the agents, the
+# trees of processes and the tasks, before the feeds of the caller.
 function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
                                    content_unwrap::Vector{Symbol}=Symbol[],
                                    feeds::Vector{Feed}=Feed[])
@@ -442,7 +444,8 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
         compose(projs, backend);
         inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])
     make_editor(screen, EscapeQuittingProjection(inner = composed); backend = backend,
-                feeds = feeds, fault_policy = FaultPolicy())
+                feeds = Feed[AgentEventFeed(), SystemProcessFeed(), TaskFeed(), feeds...],
+                fault_policy = FaultPolicy())
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.

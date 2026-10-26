@@ -9,16 +9,21 @@
 # Each execution has an owner: the document that shows it. A drain tells the
 # owner what it synced ([`record_task_execution_sync!`](@ref)), so a document
 # that adds the shadow to its executions, or a group that counts the states of
-# its tasks, follows it. A window gives its editor a `TaskFeed` in its `feeds`. A
-# caller with no window drains the store itself, with `drain_task_feed!`, on the
-# one task that reads the documents.
+# its tasks, follows it.
+#
+# Each execution also belongs to an editor: the editor of the evaluation that
+# started it, or none. The `TaskFeed` of an editor syncs only the executions of
+# its editor, so each editor writes only its own documents. A caller with no
+# window drains the executions of no editor itself, with `drain_task_feed!`, on
+# the one task that reads the documents.
 
-# One execution, its shadow, its owner, and the count of the writes of the
-# execution that the shadow holds.
+# One execution, its shadow, its owner, the editor that it belongs to, and the
+# count of the writes of the execution that the shadow holds.
 mutable struct TaskFeedEntry
     execution::TaskExecution
     shadow::Any
     owner::Any
+    editor::Any             # ::Editor, or nothing for a caller with no window
     version::Int
 end
 
@@ -45,16 +50,21 @@ const SESSION_TASK_FEED_STORE = TaskFeedStore()
 get_session_task_feed_store() = SESSION_TASK_FEED_STORE
 
 """
-    register_task_execution!(store, execution, owner; shadow = nothing) -> execution
+    register_task_execution!(store, execution, owner; shadow = nothing,
+                             editor = find_evaluation_editor()) -> execution
 
-Watch `execution` for `owner`. Each drain that finds it changed syncs its shadow
-and calls [`record_task_execution_sync!`](@ref) with the owner. The first drain
-makes the shadow when the caller gave none, and any task can register; a caller
-on the editor task that made the shadow itself gives it.
+Watch `execution` for `owner`, in the documents of `editor`. Each drain of
+`editor` that finds it changed syncs its shadow and calls
+[`record_task_execution_sync!`](@ref) with the owner. The first drain makes the
+shadow when the caller gave none, and any task can register; a caller on the
+editor task that made the shadow itself gives it. A task that a start of a group
+starts inherits the editor of the evaluation, so the default names the editor of
+the start. An editor that is not an `Editor`, such as the stand-in of a test, has
+no feed, so its executions belong to no editor.
 """
 function register_task_execution!(store::TaskFeedStore, execution::TaskExecution, owner;
-                                  shadow = nothing)
-    entry = TaskFeedEntry(execution, shadow, owner, -1)
+                                  shadow = nothing, editor = find_evaluation_editor())
+    entry = TaskFeedEntry(execution, shadow, owner, _get_task_feed_editor(editor), -1)
     lock(store.lock) do
         push!(store.entries, entry)
         push!(store.changed, entry)
@@ -87,31 +97,53 @@ record_task_execution_sync!(owner, execution, shadow, before::Symbol, made::Bool
 # none.
 _drain_task_process_tree!(owner, now) = nothing
 
-"""Whether the store watches an execution that has not had its end synced."""
-has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store()) =
-    lock(() -> !isempty(store.entries), store.lock)
+# @optional: the store is what the call asks, and a caller with no window asks
+# the store of the session.
+"""
+    has_task_feed_entries(store = get_session_task_feed_store(); editor = find_evaluation_editor()) -> Bool
+
+Whether the store watches an execution of `editor` that has not had its end
+synced.
+"""
+has_task_feed_entries(store::TaskFeedStore = get_session_task_feed_store();
+                      editor = find_evaluation_editor()) =
+    (editor = _get_task_feed_editor(editor);
+     lock(() -> any(entry -> entry.editor === editor, store.entries), store.lock))
+
+# The editor whose feed syncs an execution: an `Editor`, or nothing.
+_get_task_feed_editor(editor) = editor isa Editor ? editor : nothing
+
+# An entry whose editor ended: no drain syncs it again, so the store lets it go.
+_is_task_feed_entry_orphan(entry::TaskFeedEntry) =
+    entry.editor isa Editor && entry.editor.has_loop_ended
 
 # @optional: the store is what the call drains, and a caller with no window
 # drains the store of the session.
 """
-    drain_task_feed!(store = get_session_task_feed_store()) -> Int
+    drain_task_feed!(store = get_session_task_feed_store(); editor = find_evaluation_editor()) -> Int
 
-Sync the shadow of every execution that changed since the last drain, and answer
-how many were synced. The sampler of a process that runs writes its processor
-load and its memory, so a drain reads no file. An execution whose end is synced
-is let go. The tree of the processes of the document of each execution that
-changed, while a view reads it, takes its step here too
-([`drain_system_process_tree!`](@ref)), and its read runs off the loop. The
-sampler writes the execution of a process that runs at each sample, so the tree
-of a running task takes its step at each drain.
+Sync the shadow of every execution of `editor` that changed since the last
+drain, and answer how many were synced. The executions of another editor wait
+for the drain of their editor. The sampler of a process that runs writes its
+processor load and its memory, so a drain reads no file. An execution whose end
+is synced is let go, and so is an execution whose editor ended. The tree of the
+processes of the document of each execution that changed, while a view reads it,
+takes its step here too ([`drain_system_process_tree!`](@ref)), and its read
+runs off the loop. The sampler writes the execution of a process that runs at
+each sample, so the tree of a running task takes its step at each drain.
 
-Call it on the task that reads the documents: the task of the editor, which a
-[`TaskFeed`](@ref) does, or the one task of a caller with no window.
+Call it on the task that reads the documents of `editor`: the task of the
+editor, which its [`TaskFeed`](@ref) does, or the one task of a caller with no
+window, where the default is no editor.
 """
-function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store())
+function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store();
+                          editor = find_evaluation_editor())
+    editor = _get_task_feed_editor(editor)
     entries = lock(store.lock) do
-        changed = copy(store.changed)
-        empty!(store.changed)
+        filter!(!_is_task_feed_entry_orphan, store.entries)
+        changed = filter(entry -> entry.editor === editor, store.changed)
+        filter!(entry -> entry.editor !== editor && !_is_task_feed_entry_orphan(entry),
+                store.changed)
         changed
     end
     synced = 0
@@ -143,11 +175,12 @@ end
 """
     TaskFeed(; store = get_session_task_feed_store(), flush_interval = 0.25, now = time)
 
-The feed of a window that shows tasks: give it to the editor in its `feeds`,
-and each document that shows a task follows it. It syncs at most once in each
+The feed of a window that shows tasks: each document of its editor that shows a
+task follows it. The wrapper `task` of `build_editor` gives it, and is on by
+default. It syncs only the executions of its editor, at most once in each
 `flush_interval`, by the clock `now`, and asks for a frame at that interval
-while it watches an execution, and never when it watches none, so an idle window
-draws nothing.
+while it watches an execution of its editor, and never when it watches none, so
+an idle window draws nothing.
 """
 mutable struct TaskFeed <: Feed
     store::TaskFeedStore
@@ -163,18 +196,34 @@ TaskFeed(; store::TaskFeedStore = get_session_task_feed_store(), flush_interval:
 function drain_changes!(feed::TaskFeed, editor)
     now = feed.now()
     now - feed.flushed_at >= feed.flush_interval || return 0
-    has_task_feed_entries(feed.store) || return 0
+    has_task_feed_entries(feed.store; editor) || return 0
     feed.flushed_at = now
-    drain_task_feed!(feed.store)
+    drain_task_feed!(feed.store; editor)
 end
 
 compute_wake_deadline(feed::TaskFeed, editor) =
-    has_task_feed_entries(feed.store) ? feed.flush_interval : nothing
+    has_task_feed_entries(feed.store; editor) ? feed.flush_interval : nothing
+
+"""
+    task = true
+
+The wrapper of `build_editor` that gives the editor a [`TaskFeed`](@ref), so each
+document of the editor that shows a task follows it. It is on by default: a feed
+that watches no execution asks for no frame.
+"""
+function wrap_editor!(::Val{:task}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.feeds, TaskFeed())
+    parts
+end
+
+get_wrapper_layers(::Val{:task}) = (:screen => 20,)
+is_wrapper_default(::Val{:task}) = true
 
 """
     make_task_feeds() -> Vector{Feed}
 
-The `feeds` of a window that shows tasks: one [`TaskFeed`](@ref) over the store
-of the session. `build_editor(…; feeds = make_task_feeds())`.
+The `feeds` of an editor that shows tasks and is made with no wrappers, as
+`Editor(…; feeds = make_task_feeds())` makes it: one [`TaskFeed`](@ref) over the
+store of the session. `build_editor` gives the feed with its wrapper `task`.
 """
 make_task_feeds() = Feed[TaskFeed()]
