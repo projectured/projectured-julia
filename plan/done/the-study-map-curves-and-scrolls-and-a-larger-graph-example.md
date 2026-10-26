@@ -1,7 +1,8 @@
 # The study map curves and scrolls, and a larger graph example
 
-Status: IN PROGRESS, 2026-10-26, on the branch `graph-examples`, in the worktree
-`projectured-julia-graph-examples`. The owner asked for both parts on 2026-10-26.
+Status: DONE, 2026-10-26, on the branch `graph-examples`, in the worktree
+`projectured-julia-graph-examples`. Not landed on `main`. The owner asked for both
+parts on 2026-10-26.
 
 ## The ask
 
@@ -115,3 +116,17 @@ fonts and look at it before a step is done.
 4. **The guides.** Write the map in the guide of the research domain and the new
    example in [graph.md](../../documentation/package/domain/graph/graph.md).
    Move this plan to `plan/done/`.
+
+   **Done.** `research.md` says that the map curves and scrolls in the map view;
+   `graph.md` names the example, the mapping of the edges and the label as a
+   part that a person edits. The book suite (33), the markdown suite (274) and
+   the example tests of `book_example` and `markdown_example` pass. The platform
+   suite, run in a process that also loaded the umbrella tests, fails only in
+   the sets that fail on `main` in such a process: the agent and MCP log tests,
+   the interface vocabulary, the work plan, the split-pane drag, the anchor
+   point and the layering of the shell.
+
+## Open items
+
+- `test_example(graph_example)` keeps 4 failures of its REPL test, which were on
+  `main` before: a key at the child of the XML vertex selects `children[2]`.
