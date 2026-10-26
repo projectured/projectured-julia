@@ -673,10 +673,10 @@ plain Julia function draws, but the saved plot leaves it out.
 
 #### Step O1 — the view holds its curves (D11)
 
-- [ ] `LegacyPlotCurve`; `curves` of `LegacyResultPlotView`, of
+- [x] `LegacyPlotCurve`; `curves` of `LegacyResultPlotView`, of
       `make_result_plot_view` and of `LegacySimulationPlotDocument`;
       `pred_arguments` and `make_pred_document` of the view.
-- [ ] Test: `test_result_summaries()`: a view with a formula curve and a
+- [x] Test: `test_result_summaries()`: a view with a formula curve and a
       function curve writes `curves = [LegacyPlotCurve(…)]` with the formula
       curve only, and reads back with its label and formula name; a view with
       none writes no `curves`; a duplicate of a view with a function curve
@@ -684,17 +684,17 @@ plain Julia function draws, but the saved plot leaves it out.
 
 #### Step O2 — the print hands the curves to the chart (D12)
 
-- [ ] `_read_plot` gives the plot document the curves; `_chart_of` appends a
+- [x] `_read_plot` gives the plot document the curves; `_chart_of` appends a
       `ChartFunctionSeries` for each.
-- [ ] Test: `test_result_summaries()`: the chart of the plot of the Step 3
+- [x] Test: `test_result_summaries()`: the chart of the plot of the Step 3
       frame with a sheet `S_{pure}(G) = G exp(-2G)` and a Julia function has two
       more series, each a `ChartFunctionSeries` with its label and callable; the
       chart prints through `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`.
 
 #### Step O3 — the verb, and the folder
 
-- [ ] `curves` of `make_result_plot`, its refusals and its docstring.
-- [ ] Test: `test_result_summaries()`: the verb with a formula, a referenced
+- [x] `curves` of `make_result_plot`, its refusals and its docstring.
+- [x] Test: `test_result_summaries()`: the verb with a formula, a referenced
       formula and a Julia function; the two refusals. `test_study_verbs()`: a
       study whose report holds the plot saves; `study.pred` writes the formula
       once and the file of the plot holds a marker and no function curve;
@@ -703,13 +703,30 @@ plain Julia function draws, but the saved plot leaves it out.
 
 #### Step O4 — the documents
 
-- [ ] `documentation/package/study/study.md`: a curve of a plot holds a
+- [x] `documentation/package/study/study.md`: a curve of a plot holds a
       marker, as an expectation does; a curve of a Julia function is not saved.
-- [ ] `documentation/guide/assistant-guide.md`: the closed form section shows
+- [x] `documentation/guide/assistant-guide.md`: the closed form section shows
       `S_{pure}(G)`, its call, `e`, and the plot with a curve.
-- [ ] The sibling plan: Step 4 "A curve samples a formula of the sheet" done,
+- [x] The sibling plan: Step 4 "A curve samples a formula of the sheet" done,
       with an **As built** note; the two gaps of the run of Step 9 closed.
-- [ ] Test: `test_ide_documentation()`.
+- [x] Test: `test_ide_documentation()`.
+
+#### As built (omnet main `a56669531`..`981b03b0b`, 2026-10-26)
+
+- `_read_plot` pushes the curves of the view onto the plot after the merge of
+  the selections, so one curve list serves every selection.
+- The peaks that the checks use are formulas that call the functions:
+  `P_{pure} = S_{pure}(1/2)` and `P_{slotted} = S_{slotted}(1)`. A name with a
+  comma, such as `S_{pure,max}`, draws as raw text on the sheet.
+- `make_result_api()` holds `ChartModule => (:ChartFunctionSeries,)`, for a
+  model that builds its own `Chart`.
+- The legend of a result plot stands above the plot area. Inside the plot, a
+  legend of 8 entries wrapped into two rows and hid the peak of slotted Aloha
+  with 5 hosts.
+- Tests on the last commit: `test_result_summaries()` 80/80,
+  `test_result_views()` 55/55, `test_result_verbs()` 68/68,
+  `test_study_verbs()` 64/64, `test_aloha_study_script()` 20/20,
+  `test_aloha_study_by_hand()` 52/52, `test_ide_documentation()` 107/107.
 
 ## 8. The owner's answers (2026-10-26)
 
