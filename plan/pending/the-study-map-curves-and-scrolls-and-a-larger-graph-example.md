@@ -51,6 +51,16 @@ fonts and look at it before a step is done.
 1. **The study map.** Change `make_research_map_projection` and the map view of
    `_build_study_view`. Run the tests of the research domain. Render a study in
    the map view.
+
+   **Done.** The facts of the implementation:
+   - The map view prints its rows as a `GridLayout` whose last row is `Fill`.
+     The natural row of a study ended with a fixed `VerticalLayoutToGraphicsCanvas`,
+     so it now dispatches on the type of the view: a vertical layout or a grid.
+   - The test of the light of the map counts the rings inside the viewport of the
+     pane too.
+   - The research suite passes (377). A render of the concluded study in the map
+     view, 900 × 700 px with real fonts, shows curved edges; a plain turn of the
+     wheel scrolls the map while the title and the switch stay; no fault.
 2. **The larger example.** Add `make_graph_services_document_example`,
    `make_graph_services_projection_example` and `graph_services_example`, and
    register them as `fsm_toggle_example` is. Run `test_example` for it and the

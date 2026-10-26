@@ -47,8 +47,10 @@ function test_research_map_to_graph()
             projection = make_research_map_projection(; measure = FixedMeasure(10, 18, 6, 0))
             iomap = print_document(projection, nothing, research_map, PrinterContext())
             light = get_theme_defaults(GraphTheme).light
+            # The map is in a scroll pane, whose viewport holds the drawing.
             lit_rings(canvas) = sum((element isa GraphicsRect && element.color == unwrap_cell(light) ? 1 :
-                                     element isa GraphicsCanvas ? lit_rings(element) : 0
+                                     element isa GraphicsCanvas ? lit_rings(element) :
+                                     element isa GraphicsViewport ? lit_rings(element.content) : 0
                                      for element in canvas.elements); init = 0)
             @test lit_rings(iomap.output) == 0
             decision = study.decisions[2]

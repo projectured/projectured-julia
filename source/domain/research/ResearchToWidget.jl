@@ -70,7 +70,11 @@ study through `make_research_map_projection`. The styles are those of the
 function make_research_graphics_entries(; measure, appearance)
     projections = make_research_projections(; theme = get_scaled_theme!(appearance, OutlineTheme))
     item = ChainingProjection(projections.item, VerticalLayoutToGraphicsCanvas())
-    entries = Pair{Type,Any}[ResearchStudy => ChainingProjection(projections.study, VerticalLayoutToGraphicsCanvas())]
+    # The view of a study is a vertical layout, and in the map view a grid that gives
+    # the map the rest of the height.
+    view = TypeDispatchingProjection(VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+                                     GridLayout => GridLayoutToGraphicsCanvas())
+    entries = Pair{Type,Any}[ResearchStudy => ChainingProjection(projections.study, view)]
     for kind in RESEARCH_KINDS
         push!(entries, kind.type => item)
     end
@@ -864,7 +868,13 @@ function _build_study_view(p::ResearchStudyToWidget, study::ResearchStudy)
         _push_study_rows!(rows, slots, embedded, outline, study, next_place; by_time = view === :time)
     end
 
-    output = VerticalLayout(rows; child_width = Fill)
+    # The map takes the rest of the height of the view, so its own pane scrolls it
+    # while the title and the switch of the views stay. A grid keeps its children
+    # in `children`, as the vertical layout does, so a path into a row is the same.
+    output = view === :map ?
+        GridLayout(rows, 1; column_policy = Fill,
+                   row_policies = Any[fill(Content, length(rows) - 1)..., Fill]) :
+        VerticalLayout(rows; child_width = Fill)
     _route_research_paths!(p, study, slots, output, embedded)
     (; output, slots)
 end

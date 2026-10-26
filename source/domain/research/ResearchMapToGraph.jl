@@ -221,7 +221,9 @@ The projection that draws a `ResearchMap`: `ResearchMapToGraph` with the values 
 the `OutlineTheme` `outline_theme`, then the stages of the Graph domain with the
 layout `engine`, which draw the row of each vertex and the label of each edge
 through the layout and widget projections with the font of the `ResearchTheme`
-`theme`, so a vertex needs no other row of the renderer.
+`theme`, so a vertex needs no other row of the renderer. The edges are curves, and
+the map is in a scroll pane of its own, which scrolls a map that is larger than
+the room that its host gives it.
 """
 function make_research_map_projection(; measure, theme = nothing, outline_theme = nothing,
                                       engine = make_deferred_layout_engine())
@@ -229,12 +231,9 @@ function make_research_map_projection(; measure, theme = nothing, outline_theme 
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
-    drawing = GraphLayoutToGraphicsCanvas()
-    # The drawing paints the box and the ring of a vertex outside its place, so the
-    # layout leaves that much room at the top and the left edge of the map.
-    style = unwrap_cell(drawing.style)
-    border = round(Int, style.node_padding + style.highlight_gap + style.highlight_width)
+    stages = ChainingProjection(GraphGraphToGraphLayout(engine),
+                                GraphLayoutToGraphicsCanvas(edge_shape = :curved))
     ChainingProjection(ResearchMapToGraph(; outline = make_theme_values_field(OutlineTheme, outline_theme)),
-                       NestingProjection(ChainingProjection(GraphGraphToGraphLayout(engine; border), drawing);
+                       NestingProjection(make_scrolling_graph_projection(stages; measure);
                                          recursion = widgets))
 end
