@@ -1,7 +1,8 @@
 # A scroll costs what comes into view
 
-Status: PENDING, 2026-10-26. Not started. The way of the change is my
-recommendation, and it is open.
+Status: DONE, 2026-10-26. The owner took the way of the change ("let's do
+this"), and steps 1 to 5 are done on the branch `scroll-work`; see
+[As built](#as-built).
 
 ## The ask
 
@@ -136,7 +137,8 @@ on `main` before the owner approves.
    walk of a scroll frame fall to the rows of the strip and the edges; the test
    names the numbers. Run `test_sdl()` and `test_video()` with the offscreen
    driver. Commit.
-5. [ ] **The measurement, the guides and the end.** On the word of the owner,
+5. [x] **The measurement, the guides and the end.** Done; see
+   [As built](#as-built). On the word of the owner,
    time the three scenes in real windows, with the moves on and off in turns, as
    in this plan. Describe the moved records and the guards in
    [sdl.md](../../documentation/package/backend/sdl/sdl.md); the guide is done:
@@ -292,3 +294,43 @@ check of random scenes: 0 of 1200 seeds differ at three settings, with 14109
 boxes copied. `test_sdl()`, `test_scroll_work()` and `test_video()` with the
 offscreen driver: 1176 of 1176 pass.
 
+### Step 5: the timing in real windows, 2026-10-26
+
+On the word of the owner, with the machine idle, the timing of the first
+investigation ran again in real SDL windows on the screen: 1600 × 1000 pixels,
+density 1, supersample 2, notches of 48 pixels. The scenes are the Julia file of
+4999 lines in a focused tab, the Files pane over 50 folders and 450 files, and a
+data frame of 1000 rows. In one process for each code, the moves are on and off
+in six blocks of 15 notches, after a warm-up of both. `main` (`c60e0fc06`, whose
+SDL and text code is that of `eb4d80fb0`) ran first, and then the branch, in the
+lane `taskset -c 28,30,31` through `bounded-run`. The load was 1.2 to 1.5 in
+both runs. Each number is the median of 45 notches, in milliseconds; the wait is
+the rest of the paint of the window, mostly the wait for the refresh of the
+screen at 60 Hz.
+
+| Scene | Code, moves | Frame | Walk | Paint | Wait | Leaves drawn | Records | Guards |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Julia file | `main`, on | 295.0 | 234.8 | 58.5 | 0.5 | 9873 | | |
+| Julia file | branch, on | 15.7 | 2.0 | 0.56 | 12.8 | 95 | 48 | 32 |
+| Julia file | branch, off | 15.8 | 4.2 | 0.84 | 10.3 | 307 | 856 | 511 |
+| Files pane | `main`, on | 16.5 | 1.76 | 0.42 | 13.8 | 105 | | |
+| Files pane | branch, on | 16.4 | 0.87 | 0.43 | 14.4 | 39 | 14 | 5 |
+| Files pane | branch, off | 16.3 | 2.12 | 0.54 | 13.1 | 251 | 299 | 52 |
+| Data frame | `main`, on | 66.9 | 61.4 | 3.0 | 0.5 | 1114 | | |
+| Data frame | `main`, off | 78.4 | 71.4 | 4.1 | 0.5 | 1397 | | |
+| Data frame | branch, on | 26.1 | 21.7 | 2.4 | 0.2 | 337 | 193 | 130 |
+| Data frame | branch, off | 80.5 | 74.1 | 3.9 | 0.5 | 1181 | 12454 | 6978 |
+
+`main` with the moves off gives the same Julia file and Files pane as with them
+on, because it copies no box there. The branch copies 2 boxes in each notch of
+the Julia file and of the data frame, and 1 in the Files pane.
+
+- **The Julia file** costs 2.6 ms of work in a notch, where `main` costs 293 ms.
+  The gutter rows take it to 5 ms, and the copy halves the rest. The frame waits
+  for the screen.
+- **The Files pane** waits for the screen with or without the copy. The copy
+  takes its walk from 2.1 to 0.9 ms and its leaves drawn from 251 to 39.
+- **The data frame** gains most from the copy, 80.5 to 26.1 ms, and it is the
+  only scene whose frame passes the refresh. Its walk still takes 21.7 ms, while
+  it records 193 graphics and makes 130 guards; what else the walk does there is
+  not measured.

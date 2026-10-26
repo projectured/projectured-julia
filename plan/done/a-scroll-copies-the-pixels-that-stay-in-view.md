@@ -2,7 +2,7 @@
 
 Status: DONE, 2026-10-26. Steps 1 to 5 landed on `main`; the timing of step 5
 found no gain. The work goes on in
-[a-scroll-costs-what-comes-into-view.md](../pending/a-scroll-costs-what-comes-into-view.md).
+[a-scroll-costs-what-comes-into-view.md](a-scroll-costs-what-comes-into-view.md).
 
 ## The ask
 
