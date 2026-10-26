@@ -251,9 +251,13 @@ end
 
 # The menu in `answer`, and what is left of `answer` without it.
 _take_context_menu(answer::OpenContextMenuOperation) = (answer, nothing)
-_take_context_menu(answer::ReplaceViewStateOperation) =
-    get_wrapped_operation(answer) isa OpenContextMenuOperation ?
-        (get_wrapped_operation(answer), nothing) : (nothing, answer)
+# A wrapper, such as a write of view state or the record of an undo step: the menu
+# inside it, and the wrapper around what is left.
+function _take_context_menu(answer::WrappingOperation)
+    menu, left = _take_context_menu(get_wrapped_operation(answer))
+    menu === nothing && return (nothing, answer)
+    (menu, left === nothing ? nothing : rewrap_operation(answer, left))
+end
 function _take_context_menu(answer::CompoundOperation)
     menu, rest = nothing, Any[]
     for operation in answer.operations

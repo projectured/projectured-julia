@@ -289,5 +289,28 @@ end
     @test scene.windows[1].content === insertion && insertion.value == "t"
 end
 
+# The undo buffer of an editor records the key as one step, with the list inside
+# the record: the window takes the list out of it, and the step keeps the text.
+@testset "the kinds of an insertion in an undo buffer open, and the buffer records the text" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    buffer = UndoBuffer(insertion)
+    set_selection!(buffer, annotate_reference_types(buffer,
+        ConcreteReference(FieldReferenceStep("content"), strip_reference_types(get_selection(insertion)))))
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        UndoBuffer => UndoBufferToAnyProjection(), Any => NaturalToGraphics(; measure = _cm_measure())))
+    editor, backend, scene = _cm_editor(buffer; projection)
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test insertion.value == "t"
+    @test length(buffer.undo_entries) == 1
+    list = only(_cm_menus(scene)).content
+    @test list isa WidgetChoiceList && list.query == "t"
+    _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
+    @test list.query == "te" && insertion.value == "te"
+    expected = list.find("te")
+    _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))
+    @test isempty(_cm_menus(scene))
+    @test buffer.content isa expected[1].value
+end
+
 end # @testset
 end # function
