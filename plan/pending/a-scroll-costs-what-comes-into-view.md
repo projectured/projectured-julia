@@ -90,15 +90,15 @@ The guard of this plan counts work, not time, so it holds on a busy machine:
   of the partial paint into an offscreen renderer. For each notch it asserts:
   - the pixels equal a full paint;
   - each moved viewport is copied;
-  - the paint draws less than half of the leaves that a paint of the whole
+  - the paint draws less than 60% of the leaves that a paint of the whole
     window draws (see [As built](#as-built));
   - the counts of the walk are the same for a file of 1000 lines and of 4000
     lines, so no part of the view costs the whole file again.
 - The same test asserts that no canvas in these scenes holds more than 200
   elements with no layout, so the next gutter is found where it is made.
-- The data frame copies nothing while its grid stays where it is
-  (`_make_part_region`). Its assertion of the copy is `@test_broken`, with a
-  `# @broken:` comment that names the grid.
+- The data frame copied nothing while its grid stayed where it is
+  (`_make_part_region`). Its assertion of the copy was `@test_broken` until step
+  3, which made the thin rules of the grid give only their ends.
 
 ## Keep
 
@@ -128,7 +128,7 @@ on `main` before the owner approves.
 2. [x] **The gutter rows in a laid-out canvas.** Done; see [As built](#as-built). The counts no longer grow with
    the file; promote those assertions. Run the tests of the text, the Julia domain
    and the gutter. Commit.
-3. [ ] **A rectangle gives its border.** Add pixel tests: a ring over a pane that
+3. [x] **A rectangle gives its border.** Done; see [As built](#as-built). Add pixel tests: a ring over a pane that
    scrolls, and a filled rectangle that covers a part of the box. The focused pane
    copies; promote that assertion. Commit.
 4. [ ] **A move records and guards only what comes into view.** The counts of the
@@ -143,7 +143,6 @@ on `main` before the owner approves.
 
 ## Not in this plan
 
-- The grid of the table of a data frame, which stays while the cells move.
 - A strip cut to the bounds of what the content draws, which would save paint on
   the software renderer when the lines are short.
 - The walk of a data frame does more work at each notch: 1831 records at the first
@@ -197,4 +196,41 @@ assertions are promoted. `test_scroll_work`, `test_text_gutter`,
 `test_text_folding`, `test_text_line_numbering`, `test_scroll_pane_parts` and
 `test_julia_file_view`: 142 pass, 4 broken (the copy and the leaves drawn of the
 Julia file and of the data frame).
+
+### Step 3: a rectangle gives its border, 2026-10-26
+
+The rule for a rectangle outside a moved content (`_add_rect_cover_rects!`) took
+three tries, and the tests found the fault of each:
+
+- Bands from the record widened by the pad made two bands of full height along
+  each of 15 stripes, so a frame passed 32 rectangles, the paint merged them into
+  one over the box, and the hidden window copied nothing. A rectangle draws
+  nothing outside its box, so the bands come from its record without the pad.
+- A side band along the move gave nothing at all, and the pixel tests failed at
+  each setting with a move: near its ends the copy brings pixels from outside the
+  rectangle. A part with one colour along the move gives its ends, the part minus
+  the part moved by the offset and back (`_add_move_ends!`): the fill and, for a
+  move up or down, the side bands. The top and the bottom band, which hold the
+  corners, give their place and their moved place (`_add_moved_place!`).
+
+With the rule right, the Julia file copied both boxes but still drew 133 to 294
+of about 418 leaves. Two facts made it so, and step 3 changes both:
+
+- **A graphic that draws no pixel drew in every rectangle.** It has no record, and
+  the paint draws a graphic with no record. A transparent hit target and a
+  pointer shape so cost a visit, a count and, for a hit target, a fill with alpha
+  0 in each rectangle. A pointer shape is now invisible (`_is_invisible_graphic`),
+  and a partial paint skips an invisible graphic.
+- **Each token of a row that an edge cuts gave a rectangle,** and the paint drew
+  the row once for each rectangle that met it. The rectangles of a copied group
+  that cross one edge line, an edge of the box across the move or the same edge
+  moved by the offset, merge into one band (`_merge_edge_rects`), when the band
+  is at most a quarter of the box thick along the move.
+
+Then the Julia file draws 87 to 101 leaves in a notch, in 7 or 8 rectangles. The
+data frame copies too, because the thin rules of its grid give only their ends
+now, and its paint draws less than 60% of its window. The bound of the leaves
+drawn is 60% of a paint of the whole window: a paint of the boxes draws about
+89%. Every assertion that `main` failed in step 1 passes:
+`test_scroll_work` and `test_partial_paint`, 87 of 87.
 

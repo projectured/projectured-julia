@@ -2130,15 +2130,19 @@ _render_elem_y(elem) = hasfield(typeof(elem), :y) ? Int(elem.y) : nothing
 # Outside such a paint the exception goes on, so a test sees it.
 #
 # In a partial paint, an element placed at `key` whose record misses the
-# rectangle in paint is not drawn, and each leaf that is drawn counts.
+# rectangle in paint is not drawn, nor is a graphic that draws no pixel, and each
+# leaf that is drawn counts.
 function _render_element_guarded!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
                                   edges::_ClipEdges, ratio::Float64;
                                   paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
-    if paint !== nothing
-        _is_outside_partial_paint(paint, key) && return nothing
-        _is_leaf_graphic(elem) && (paint.drawn += 1)
-    end
+    paint === nothing || !_is_outside_partial_paint(paint, key) || return nothing
     try
+        if paint !== nothing
+            # A graphic that draws no pixel has no record, and it would draw in
+            # every rectangle.
+            _is_invisible_graphic(elem) && return nothing
+            _is_leaf_graphic(elem) && (paint.drawn += 1)
+        end
         _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio; paint, key)
     catch exception
         record_paint_fault!(exception; origin = typeof(elem)) || rethrow()
@@ -2339,11 +2343,14 @@ function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Floa
     get_content_box(bounds)
 end
 
-# True for a rectangle with a transparent fill and no visible border, such as the
-# hit target of a widget: SDL draws no pixel of it, so it has no bounds to paint.
+# True for a graphic that SDL draws no pixel of, so it has no bounds to paint: a
+# rectangle with a transparent fill and no visible border, such as the hit target
+# of a widget, and a pointer shape, which only says how the pointer looks over its
+# box, such as the arrow over the whole gutter of a text.
 _is_invisible_graphic(elem) =
-    elem isa GraphicsRect && elem.color.alpha == 0 &&
-    (Int(elem.border_width) == 0 || elem.border_color.alpha == 0)
+    elem isa GraphicsPointerShape ||
+    (elem isa GraphicsRect && elem.color.alpha == 0 &&
+     (Int(elem.border_width) == 0 || elem.border_color.alpha == 0))
 
 # Extend the bounds by what SDL draws for `elem` at the content origin.
 function _extend_drawn_bounds!(bounds::ContentBounds, elem, origin::NTuple{2,Int},
@@ -3537,19 +3544,47 @@ function _settle_content_moves!(res::SdlWindowResources, canvas::GraphicsCanvas,
                 push!(rects, _intersect_boxes(_move_box(_intersect_boxes(r, top.box), top.offset), top.box))
         end
         _collect_cover_rects!(rects, res, canvas, top, nested)
-        foreach(r -> _add_dirty_rect!(walk.region, r), rects)
+        foreach(r -> _add_dirty_rect!(walk.region, r), _merge_edge_rects(rects, top.box, top.offset))
         push!(copies, (top.box, top.offset))
     end
     copies
 end
 
+# The rectangles of a copied box `box`, merged into one band for each edge line
+# that they cross: the edges of the box across the move, and the same edges moved
+# by `offset`. Each token of a row that an edge cuts gives a rectangle, and a band
+# paints the row once, where the rectangles would paint it once for each one that
+# meets it. A band is kept only where it is at most a quarter of the box thick along
+# the move, so a tall line across an edge does not stretch it over the box.
+function _merge_edge_rects(rects::Vector{NTuple{4,Int}}, box::NTuple{4,Int}, offset::NTuple{2,Int})
+    (dx, dy) = offset
+    lines = Tuple{Int,Int}[]   # (axis, place): 2 for a row, 1 for a column
+    dy == 0 || append!(lines, ((2, box[2]), (2, box[4]), (2, box[2] + dy), (2, box[4] + dy)))
+    dx == 0 || append!(lines, ((1, box[1]), (1, box[3]), (1, box[1] + dx), (1, box[3] + dx)))
+    groups = [NTuple{4,Int}[] for _ in lines]
+    merged = NTuple{4,Int}[]
+    for r in rects
+        _is_empty_box(r) && continue
+        line = findfirst(((axis, place),) -> r[axis] <= place <= r[axis + 2], lines)
+        line === nothing ? push!(merged, r) : push!(groups[line], r)
+    end
+    for (group, (axis, _)) in zip(groups, lines)
+        isempty(group) && continue
+        band = (minimum(r[1] for r in group), minimum(r[2] for r in group),
+                maximum(r[3] for r in group), maximum(r[4] for r in group))
+        thin = 4 * (band[axis + 2] - band[axis]) <= box[axis + 2] - box[axis]
+        thin ? push!(merged, band) : append!(merged, group)
+    end
+    merged
+end
+
 # Add to `rects` what a copy of the box of `move` makes wrong in the graphics that
 # are not in its content. The copy moves their pixels too, so each one whose
 # record, widened by the pad, meets the box gives that place and the place that
-# the copy moved it to, cut to the box. The walk goes down from the window by the records, as a partial
-# paint does. A filled rectangle whose inside covers the box gives nothing, and
-# a viewport in `nested`, whose content moved by the same offset, gives its own
-# strips in `_settle_content_moves!`.
+# the copy moved it to, cut to the box. The walk goes down from the window by the
+# records, as a partial paint does. A rectangle gives only its border and the edges
+# of its fill (`_add_rect_cover_rects!`), and a viewport in `nested`, whose content
+# moved by the same offset, gives its own strips in `_settle_content_moves!`.
 function _collect_cover_rects!(rects::Vector{NTuple{4,Int}}, res::SdlWindowResources,
                                canvas::GraphicsCanvas, move::_ContentMove, nested::Dict{UInt,_ContentMove})
     _collect_cover_canvas!(rects, res, canvas, _make_placement_key(canvas, UInt(0)), 0, 0,
@@ -3599,23 +3634,58 @@ function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowRes
             return _collect_cover_canvas!(rects, res, content, _make_placement_key(content, key), cox, coy,
                                           cedges, move, nested)
         end
-    elseif _covers_box_with_one_color(elem, ox, oy, move.box)
-        return nothing
+    elseif elem isa GraphicsRect
+        return _add_rect_cover_rects!(rects, elem, ox, oy, record, move)
     end
     cut = _intersect_boxes(padded, move.box)
     push!(rects, cut, _intersect_boxes(_move_box(cut, move.offset), move.box))
     nothing
 end
 
-# True for a filled rectangle whose inside, within its border and its corners,
-# covers `box`: each pixel of it in the box has the one color of its fill, so a
-# copy inside the box leaves it as it is.
-function _covers_box_with_one_color(elem, ox::Int, oy::Int, box::NTuple{4,Int})
-    elem isa GraphicsRect || return false
+# A rectangle outside the content of a move, with the record `record`; it draws
+# nothing outside its box. Where a part of it has one colour along the move, the
+# copy keeps that part and only its ends change, the part minus the part moved by
+# the offset and back (`_add_move_ends!`): the fill, inside the border and the
+# corners, and, for a move up or down, the left and the right band of the border.
+# Any other band, which holds a corner, gives its place and the place that the copy
+# moved it to (`_add_moved_place!`). Each is cut to the box. A focus ring, with no
+# fill, so gives its top and bottom band and the ends of its sides.
+function _add_rect_cover_rects!(rects::Vector{NTuple{4,Int}}, elem::GraphicsRect, ox::Int, oy::Int,
+                                record::NTuple{4,Int}, move::_ContentMove)
+    x, y = ox + Int(elem.x), oy + Int(elem.y)
     border = elem.border_color.alpha == 0 ? 0 : Int(elem.border_width)
     inset = border + max(Int(elem.radius_tl), Int(elem.radius_tr), Int(elem.radius_br), Int(elem.radius_bl))
-    x, y = ox + Int(elem.x), oy + Int(elem.y)
-    _is_rect_covered(box, (x + inset, y + inset, x + Int(elem.w) - inset, y + Int(elem.h) - inset))
+    inner = (x + inset, y + inset, x + Int(elem.w) - inset, y + Int(elem.h) - inset)
+    _is_empty_box(inner) && return _add_moved_place!(rects, record, move)
+    _add_moved_place!(rects, (record[1], record[2], record[3], inner[2]), move)
+    _add_moved_place!(rects, (record[1], inner[4], record[3], record[4]), move)
+    for side in ((record[1], inner[2], inner[1], inner[4]), (inner[3], inner[2], record[3], inner[4]))
+        move.offset[1] == 0 ? _add_move_ends!(rects, side, move) : _add_moved_place!(rects, side, move)
+    end
+    elem.color.alpha == 0 || _add_move_ends!(rects, inner, move)
+    nothing
+end
+
+# Add the place of `part`, a part of a graphic outside the content of `move`, and
+# the place that the copy moved it to, each cut to the box of the move.
+function _add_moved_place!(rects::Vector{NTuple{4,Int}}, part::NTuple{4,Int}, move::_ContentMove)
+    cut = _intersect_boxes(part, move.box)
+    _is_empty_box(cut) && return nothing
+    push!(rects, cut, _intersect_boxes(_move_box(cut, move.offset), move.box))
+    nothing
+end
+
+# Add the ends of `part`, a part with one colour along the move of `move`: the part
+# minus the part moved by the offset, and the part moved by the offset minus the
+# part, each cut to the box of the move. Every other pixel of the box has the
+# colour of the part, or not, on both sides of the move.
+function _add_move_ends!(rects::Vector{NTuple{4,Int}}, part::NTuple{4,Int}, move::_ContentMove)
+    _is_empty_box(part) && return nothing
+    back = (-move.offset[1], -move.offset[2])
+    for strip in vcat(_compute_move_strips(part, move.offset), _compute_move_strips(_move_box(part, move.offset), back))
+        push!(rects, _intersect_boxes(strip, move.box))
+    end
+    nothing
 end
 
 # Compute what changed in `canvas` (the whole window content): the walk, the new

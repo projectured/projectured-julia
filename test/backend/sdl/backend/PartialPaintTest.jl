@@ -236,6 +236,24 @@ end
     end
 end
 
+@testset "a scroll under a focus ring and over a filled rectangle" begin
+    for (supersample, density) in scroll_settings
+        # A ring of 2 pixels with corners of 3 around the pane and no fill, as a
+        # focused pane has it; under the pane a filled rectangle with a border and
+        # round corners over a part of its box; over the pane a translucent one.
+        rows, _ = make_scroll_rows(200, 16, font)
+        scroll = Cell(0)
+        under = GraphicsRect(60, 50, 150, 120; color = StyleColor(0.9, 0.8, 0.6, 1.0), radius = 6,
+                             border_width = 1, border_color = black)
+        ring = GraphicsRect(20, 20, 300, 200; color = color_transparent, radius = 3, border_width = 2,
+                            border_color = translucent)
+        over = GraphicsRect(200, 40, 80, 90; color = translucent, radius = 4)
+        canvas = GraphicsCanvas(Any[under, make_pane((20, 20, 300, 200), [rows], Cell(0), scroll), ring, over];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(scroll, [16, 85, 62, 63]); supersample, density))
+    end
+end
+
 @testset "two viewports, one in the box of the other, that scroll together" begin
     # The shape of the table of a data frame: the rules of the rows in one
     # viewport, and the cells in a viewport inside its box, which scroll by the
@@ -466,6 +484,21 @@ end
     finally
         SDL.close_offscreen_renderer(off)
     end
+end
+
+@testset "a focus ring does not stop the copy of the box that it holds" begin
+    rows, _ = make_scroll_rows(200, 16, font)
+    scroll = Cell(0)
+    ring = GraphicsRect(20, 20, 300, 200; color = color_transparent, radius = 3, border_width = 2,
+                        border_color = black)
+    canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [rows], Cell(0), scroll), ring];
+                            w = width, h = height)
+    resources = make_resources()
+    SDL._compute_dirty_change(resources, canvas)
+    scroll[] = 16
+    rects, moves = SDL._compute_dirty_change(resources, canvas)
+    @test moves == [((20, 20, 320, 220), (0, -16))]
+    @test !any(r -> SDL._is_rect_covered((20, 20, 320, 220), r), rects)
 end
 
 @testset "two viewports that scroll together are one copy" begin
