@@ -1,6 +1,11 @@
 # A gesture in a text costs only the lines it touches
 
-Status: IN PROGRESS, 2026-10-21. Branch `text-gestures` from `frame-guards`, worktree `projectured-julia-text-gestures`. No decision is open.
+Status: IN PROGRESS, started 2026-10-21. Branch `text-gestures` from `frame-guards`,
+worktree `projectured-julia-text-gestures`. No decision is open.
+
+Step 7, the folding, came after step 3. The owner, 2026-10-26, to "add that step
+and continue with step 4, or continue with step 4 and keep the folding for a later
+plan?": "add that step and continue".
 
 ## The ask
 
@@ -142,7 +147,17 @@ approves.
    no overlap for a vertical and a horizontal layout, and the place of each child
    from sums of aligned blocks. Run `test_platform()`, `test_sdl()`, the partial paint
    test (`test_partial_paint()`), and the window guards. Commit.
-7. [ ] **The measurement and the guides.** The window guards on the branch and on its
+7. [ ] **The folding maps a selection through the lines it touches.** `TextFolding`
+   maps a flat offset through the line that holds it: the output line of the
+   offset, its input line by `kept`, and the flat starts of both lines from sums of
+   aligned blocks of the flat lengths of the kept lines and of the input lines. The
+   forward map, the backward map and `_find_clicked_fold` read only those lines. A
+   guard in `test/platform/projection/TextFoldingTest.jl`: the bytes of a forward map
+   and of a backward map of a caret are flat from 100 to 10_000 lines. The window
+   guards of the caret move and of the click in the Julia file pass. Run
+   `test_text_folding()`, the 34 text parts of `test_platform()`,
+   `test_position_navigations()` and the window guards. Commit.
+8. [ ] **The measurement and the guides.** The window guards on the branch and on its
    base, A/B/A; the broken markers of the gestures come off where a guard passes.
    Write the table in [As built](#as-built). Record the compile workload again
    (`ProjecturedREPL.record_precompile_statements("examples")`), because the new
@@ -162,6 +177,9 @@ approves.
   needs a plan of its own: a print of the lines that the view shows.
 - The other documents of step 5 of the guards plan: the data frame, the Explorer,
   the chart, the tabs, the transcript and the MCP log view.
+- The other text stages that map flat runs over every line (`WordWrapping`,
+  `TextLineNumbering`, `FilteredTextToText`, `HighlightedTextToText`), until a
+  measure shows them in a gesture.
 
 ## Wait on long jobs
 
