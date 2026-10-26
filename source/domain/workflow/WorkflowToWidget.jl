@@ -425,6 +425,50 @@ function _make_workflow_row_keys(row)
     ]
 end
 
+# The count of the entries of the journal of `node`, a chip that shows or hides
+# them, and the time of the last entry; nothing for a node with no entry.
+function _make_journal_facts(outline, node, shows_date::Bool)
+    entries = length(node.journal)
+    entries == 0 && return Any[]
+    shown = node.journal_shown
+    count = make_outline_chip(outline, string(entries), shown ? "Hide the journal" : "Show the journal",
+                              () -> _make_show_journal_operation(node, !shown))
+    Any[HorizontalLayout(Any[WidgetIcon(:message_square; size = outline.fold_size), count];
+                         gap = outline.meta_gap, vertical_align = :center),
+        make_outline_label(outline, _format_workflow_when(node.journal[entries].time, shows_date), :time_text)]
+end
+
+# The entries of the journal of `node` while it is shown, the oldest first, each
+# through the view of an entry, and then the elements of `node`, each through the
+# view of its own domain in a light inset with a menu of its own. Each goes into
+# `rows` at the place that `next_place()` gives, with its slots; `prefix` is the
+# path of `node` from the root.
+function _push_journal_and_elements!(slots, embedded, outline, node, prefix, rows, next_place)
+    if node.journal_shown
+        for (entry_index, entry) in enumerate(node.journal)
+            push!(slots, OutlineSlot(vcat(prefix, Any[_make_field_step("journal"), _make_element_step(entry_index)]),
+                                     next_place()))
+            push!(embedded, entry)
+            push!(rows, entry)
+        end
+    end
+    for (element_index, element) in enumerate(node.elements)
+        block_place = next_place()
+        element_path = vcat(prefix, Any[_make_field_step("elements"), _make_element_step(element_index)])
+        push!(slots, OutlineSlot(element_path, vcat(block_place, get_outline_element_steps())))
+        push!(slots, OutlineSlot(element_path, block_place; whole = true))
+        element isa Document && push!(embedded, element)
+        kind = string(nameof(typeof(element)))
+        control = make_outline_control(outline, :ellipsis, "The menu of the element",
+                                       () -> make_outline_menu_operation(kind,
+                                                 () -> make_element_menu(node, element_index));
+                                       size = :avatar_size)
+        push!(rows, make_outline_element(outline; content = element, menu = control,
+                                         revealed = Any[control]))
+    end
+    rows
+end
+
 # The row at `place` of a node of the outline, with its slots. `row` holds the
 # node, its parent, its index in its parent, its depth and its path from the root.
 function _make_workflow_row!(slots, embedded, outline, row, place, shows_date::Bool)
@@ -468,45 +512,11 @@ function _make_workflow_row!(slots, embedded, outline, row, place, shows_date::B
     end
     node isa WorkflowDecision &&
         push!(line, make_outline_label(outline, _is_decided(node) ? "decided" : "undecided", :relation_text))
-    entries = length(node.journal)
-    if entries > 0
-        shown = node.journal_shown
-        count = make_outline_chip(outline, string(entries), shown ? "Hide the journal" : "Show the journal",
-                                  () -> _make_show_journal_operation(node, !shown))
-        push!(line, HorizontalLayout(Any[WidgetIcon(:message_square; size = outline.fold_size), count];
-                                     gap = outline.meta_gap, vertical_align = :center))
-        push!(line, make_outline_label(outline, _format_workflow_when(node.journal[entries].time, shows_date),
-                                       :time_text))
-    end
+    append!(line, _make_journal_facts(outline, node, shows_date))
     push!(body_rows, FlowLayout(line; horizontal_gap = outline.column_gap, vertical_align = :center))
 
-    # The entries of the journal, the oldest first, each through the view of an entry.
-    if node.journal_shown && !node.collapsed
-        for (entry_index, entry) in enumerate(node.journal)
-            push!(slots, OutlineSlot(vcat(prefix, Any[_make_field_step("journal"), _make_element_step(entry_index)]),
-                                     next_body_place()))
-            push!(embedded, entry)
-            push!(body_rows, entry)
-        end
-    end
-
-    # The elements, each through the view of its own domain, in a light inset.
-    if !node.collapsed
-        for (element_index, element) in enumerate(node.elements)
-            block_place = next_body_place()
-            element_path = vcat(prefix, Any[_make_field_step("elements"), _make_element_step(element_index)])
-            push!(slots, OutlineSlot(element_path, vcat(block_place, get_outline_element_steps())))
-            push!(slots, OutlineSlot(element_path, block_place; whole = true))
-            element isa Document && push!(embedded, element)
-            kind = string(nameof(typeof(element)))
-            control = make_outline_control(outline, :ellipsis, "The menu of the element",
-                                           () -> make_outline_menu_operation(kind,
-                                                     () -> make_element_menu(node, element_index));
-                                           size = :avatar_size)
-            push!(body_rows, make_outline_element(outline; content = element, menu = control,
-                                                  revealed = Any[control]))
-        end
-    end
+    node.collapsed || _push_journal_and_elements!(slots, embedded, outline, node, prefix, body_rows,
+                                                  next_body_place)
 
     menu = make_outline_control(outline, :ellipsis, "The menu of " * name,
                                 () -> make_outline_menu_operation(_get_workflow_node_name(node), compute_menu);
@@ -543,7 +553,11 @@ function _build_node_view(p::WorkflowNodeToWidget, root)
     # header belongs to the root.
     push!(slots, OutlineSlot(Any[], next_place(); whole = true))
     push!(rows, FlowLayout(Any[make_outline_label(outline, () -> _describe_workflow_progress(root), :relation_text),
-                               header_menu]; horizontal_gap = outline.column_gap, vertical_align = :center))
+                               _make_journal_facts(outline, root, true)..., header_menu];
+                           horizontal_gap = outline.column_gap, vertical_align = :center))
+    # The journal and the elements of the root stand under its header, as those of
+    # a node stand under its row, because its menu adds both.
+    _push_journal_and_elements!(slots, embedded, outline, root, Any[], rows, next_place)
 
     listed = _collect_workflow_rows(root)
     days = [length(row.node.journal) == 0 ? nothing : _get_workflow_day(row.node.journal[end].time)

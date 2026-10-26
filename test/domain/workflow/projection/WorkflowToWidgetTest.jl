@@ -218,6 +218,24 @@ function test_workflow_to_widget()
             @test any(text -> occursin(first(said, 12), text), _collect_workflow_texts(editor.iomap.output))
         end
 
+        @testset "the goal shows its elements, and its journal when it is opened, under its header" begin
+            workflow = make_workflow_document_example()
+            push!(workflow.elements, PrimitiveString("A note on the goal."))
+            editor = _make_workflow_view_editor(workflow)
+            @test any(text -> occursin("A note on the goal", text), _collect_workflow_texts(editor.iomap.output))
+            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, ".elements[1].value{2}")) !== nothing
+            entry = ".journal[1].text.value{2}"
+            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, entry)) === nothing
+            show = _find_workflow_click(editor, operation -> operation isa ReplaceViewStateOperation &&
+                                                             operation.operation isa ReplaceReferencedValueOperation &&
+                                                             operation.operation.document === workflow &&
+                                                             operation.operation.value === true)
+            @test show !== nothing
+            _apply_workflow_operation!(editor, show[3])
+            @test workflow.journal_shown
+            @test _find_workflow_click(editor, operation -> _is_workflow_selection(operation, entry)) !== nothing
+        end
+
         @testset "an empty workflow shows a quiet row, and the first key makes the first step" begin
             workflow = WorkflowStep(title = PrimitiveString("Ship the view"))
             editor = _make_workflow_view_editor(workflow)
