@@ -13,7 +13,7 @@ The help slice has five document types:
 - **`DocumentTypeList`** is the tree of every document type that an empty tab can make.
 - **`ProjectionList`** is the tree of every concrete projection: the views a window draws a document with, and the projections that combine other projections.
 - **`HelpGroup(name, count, description, children)`** is a package or a module in a tree.
-- **`HelpEntry(name, type, typed, description, text)`** is one type in a tree.
+- **`HelpEntry(name, type, typed, description, text, supertypes, fields)`** is one type in a tree.
 - **`AboutPage`** holds `name`, `summary`, `version` and `homepage`. It says what a program is.
 
 A tree holds `children`, its groups, and `world`, the world counter at its last build. A new tree holds no group, and its constructor walks nothing.
@@ -47,6 +47,13 @@ The `description` of a group is the first paragraph of the docstring of the pack
 The types of `DocumentTypeList` are `get_insertion_candidates(Document)`, and the types of `ProjectionList` are [`compute_concrete_subtypes(Projection)`](../domain/domain.md#completion-by-reflection). `HelpGroup` and `HelpEntry` answer `insertable` with `false`, so no empty tab makes one. With the packages of `ProjecturedAll` loaded on 2026-10-22, the Documents tree held 268 types in 21 packages, and the Projections tree about 520 types in 21 packages.
 
 An entry stores what its page shows. `typed` holds the names that a person types into an empty tab to make the type, from `get_insertion_names` without the name of the type, joined by ", ". It is empty for a projection. `description` is `compute_docstring_summary(T)`, and `text` is the whole docstring, `find_docstring_text(T)`, or `""`.
+
+The shape of the type is in two more fields. `supertypes` names the supertypes of `T`, nearest first, joined by " <: ", without the family type `A<Name>` that `@document` makes and without `Any`. `fields` holds a named tuple `(name, type, description)` for each field that a person can set:
+
+- Every document holds `selection` and `mouse_target`, the view state that a save does not keep, so `fields` leaves them out. A field that `get_view_state_fields(T)` names has "View state, which a save does not keep." before its description.
+- The type of a document field is the type that `@document` records (`find_declared_field_type`). A projection keeps each field in a cell, so the type of a projection field is the value type of that cell.
+- The type shows as Julia prints it, with no module path, so an alias such as `ThemeText` keeps its name. A cell layout `AC<Name>{…}` shows as the document `<Name>`, such as `StyleFont`.
+- The description is the docstring of the field on one line (`collect_field_docstrings(T)`), or `""`. The themes and the settings groups have a docstring on each field; most other types describe their fields in the docstring of the type.
 
 ### The build
 
@@ -89,8 +96,10 @@ The maps lead the node `children[k]`, and any path inside it, to the row `k` of 
 
 1. the name of the type;
 2. the module that defines it, such as `ProjecturedPlatform.HelpModule`;
-3. for a document type, "Names to type in an empty tab:" and the typed names;
-4. the whole docstring, one line of the page for each line of the text, or "No description.".
+3. the type with its supertypes, such as `AboutPage <: Document`;
+4. for a document type, "Names to type in an empty tab:" and the typed names;
+5. the whole docstring, one line of the page for each line of the text, or "No description.";
+6. a table of the fields, with the columns field, type and description: the field and the type as wide as their widest cell, and the description in the rest of the width. A type with no field to set shows "No fields.".
 
 The page is read only.
 
@@ -104,7 +113,7 @@ The page is read only.
 
 ## How it fits
 
-The help slice uses the collection, domain, layout, natural, projection, serialization, style, syntax, text, tooltip, tree and widget slices, and the kernel. The tool layer of the kernel gives `compute_docstring_summary` and `find_docstring_text`.
+The help slice uses the collection, domain, layout, natural, projection, serialization, style, syntax, text, tooltip, tree and widget slices, and the kernel. The tool layer of the kernel gives `compute_docstring_summary`, `find_docstring_text` and `collect_field_docstrings`.
 
 A tree and a group draw through `make_graphics_projection` of their type, chained to `GridLayoutToGraphicsCanvas`, and an entry draws chained to `VerticalLayoutToGraphicsCanvas`. The `__init__` of the slice registers `AboutPageToSyntax` for the page about the program with `register_natural_syntax!(:help, …)`.
 
@@ -147,3 +156,4 @@ make_window_help_menu(; about = editor -> AboutPage(name = "My editor",
 - **Many projections have no docstring.** About 380 of the projections show "No description." on their page.
 - **The page of a type shows the docstring as its raw Markdown,** one line of the page for each line of the text, with the marks as they are written.
 - **No link joins a document type and the projections that draw it.**
+- **The table of the fields shows no default value.** The keyword constructor of a type holds the defaults, and the code records none that the help can read.

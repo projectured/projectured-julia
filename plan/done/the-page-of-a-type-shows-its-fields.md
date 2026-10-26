@@ -1,6 +1,6 @@
 # The page of a type shows its fields
 
-Status: IN PROGRESS, 2026-10-26. Branch `help-fields`, worktree
+Status: DONE, 2026-10-26, on the branch `help-fields`, not landed. Branch `help-fields`, worktree
 `/home/projectured/workspace/projectured-julia-help-fields`, off main `eb4d80fb0`.
 
 ## The ask
@@ -57,8 +57,9 @@ struct, the owner answered: "I agree, use the table".
 2. [x] **The shape of an entry and its table.** Add `supertypes` and `fields` to
    `HelpEntry`, their build, and the line and the table on the page. Test: new
    cases in `test_help_tree()` and `test_help_pages()`: `HelpTheme` has the
-   field `font` of type `StyleFont` with its docstring; `HelpGroup` has four
-   fields and no `selection`; `HelpGroupToWidget` has `gap` of type `Int64`; the
+   field `font` of type `StyleFont` with its docstring; `DocumentTypeList` has
+   the fields `children` and `world` and no `selection` (`HelpGroup` is no type
+   of the Documents tree); `HelpGroupToWidget` has `gap` of type `Int64`; the
    page of `HelpTheme` draws the table. Done: `test_help()` 92 of 92,
    `test_help_themes()` 108 of 108, and `test_platform_layering()` shows only
    the baseline of main (two files with a symbol list on a `using`).
@@ -68,8 +69,13 @@ struct, the owner answered: "I agree, use the table".
      a union by its alias, such as `ThemeText`, and rebuilds the text only when
      it shows a cell layout. A name counts as a cell layout only when the module
      defines the name without `AC`, so `ACPSession` stays.
-3. [ ] **The guide and a picture.** Update help.md. Draw the page of a theme and
-   of a projection in a live window. Move this plan to `plan/done/`.
+3. [x] **The guide and a picture.** Update help.md. Draw the page of a theme and
+   of a projection in a live window. Move this plan to `plan/done/`. Done:
+   help.md describes the shape and names the missing default value as a limit.
+   In a live window, real SDL double clicks reached the pages of `HelpTheme`
+   (`HelpTheme <: Theme <: Document`, 7 fields with docstrings) and of
+   `HelpGroupToWidget` (`HelpGroupToWidget <: Projection`, `gap::Int64`,
+   `line::StyleText`, no docstrings).
 
 ## Not in this plan
 
