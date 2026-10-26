@@ -101,6 +101,7 @@ The docstring of each verb says when to use it: at an important point of the wor
 - **A plan is a resource, not a program.** No state is enforced: a person skips, repeats and reorders steps, and the journal records it.
 - **No new operation type.** Each edit is a builder over the generic write, as [operation.md](../../kernel/operation.md) asks.
 - **Verbs, not tools.** A domain offers names to the assistant with `register_assistant_api!`; no seam adds a tool to the tool set of an editor.
+- **A verb names its node.** Each verb takes the node that it acts on as its first argument, and the `workflow` of an assistant does not stand in for a node that a call leaves out. A verb does not know which assistant calls it, and an explicit node works the same for the built-in assistant and for an external agent that reaches the editor through MCP. The plan of the domain records the choice.
 - **The list holds files, and a press shows the file.** A navigator page prints only the document at its address, so the history of a file does not record an edit on a page below it ([navigator.md](../../platform/navigator/navigator.md)). The nodes of the list are the open files, so a press shows the page of the file, with its history. The plan is `plan/pending/the-explorer-shows-the-open-workflows.md`.
 - **The list holds the open file list of its editor.** A source that finds the open file list through the editor of the evaluation caches an empty answer when a read outside the loop computes it first.
 - **The header is in the content of the card.** A `WidgetCard` gives a key only to its content, so a title in the title slot of a card would take no key.
@@ -125,4 +126,3 @@ evaluate_operation(nothing, make_workflow_state_operation(workflow.children[1], 
 - The list holds a workflow only while its file is open. A new workflow comes from the explorer: `WorkflowStep` is an entry of a section with the alias "workflow", and a new one has the goal "New workflow".
 - A double click on a row of the table of the list opens the page of the workflow below the history of its file, so the history of the file does not record an edit there. A press on the file in the tree shows the page of the file.
 - The table of the list does not keep its arrangement when its last entry goes, so the next filter starts a new one.
-- A verb takes its node as an argument: the `workflow` of an assistant is not the node that a verb acts on when a call names none, because a verb does not know which assistant calls it.
