@@ -180,6 +180,33 @@ end
     @test get_formula_dependencies(cells.formulas[2], cells) == [cells.formulas[1]]
 end
 
+@testset "keys that turn the name of a formula into a function name compute it" begin
+    platform = ProjecturedPlatformTest
+    sheet = FormulaEnvironment([
+        FormulaFormula("f", parse_julia("3")),
+        FormulaFormula("g", parse_julia("f(2)")),
+    ])
+    f, g = sheet.formulas
+    _compute_formula_sheet!(sheet)
+    backend = HeadlessBackend()
+    projection = make_formula_projection_example(; measure = FixedMeasure(8, 12, 4, 0))
+    editor = build_editor(sheet, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false,
+                          undo = true)
+    run_frame!(editor)
+    @test g.result isa FormulaError
+    for (index, key) in enumerate(('(', 'x', ')'))
+        set_selection!(sheet, @reference(sheet, formulas[1].name{index}))
+        run_frame!(editor)
+        platform._nav_press!(editor, backend, KeyPress(key; time = 0.0))
+        # The use keeps its key on the way: `f(` reads as no name.
+        @test print_natural_text(g.code) == "f(2)"
+    end
+    @test f.name == "f(x)"
+    @test get_formula_value(g) == 3
+    @test g.result == 3
+end
+
 @testset "math code prints in its linear form, and the keys walk past it" begin
     sheet = FormulaEnvironment([FormulaFormula("C", parse_julia("55")),
                                 FormulaFormula("D", parse_math("C/2")),

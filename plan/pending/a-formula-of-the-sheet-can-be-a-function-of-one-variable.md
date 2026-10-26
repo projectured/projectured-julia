@@ -444,17 +444,17 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 2 — a formula with a parameter computes a function (D1, D3, D13)
 
-- [ ] `get_formula_key` reads a name that parses as the node with one name in
+- [x] `get_formula_key` reads a name that parses as the node with one name in
       parentheses as the name of the node; `_find_formula_parameter(formula)`
       answers the argument.
-- [ ] `get_formula_names(formula::FormulaFormula)` walks the code with the
+- [x] `get_formula_names(formula::FormulaFormula)` walks the code with the
       parameter bound; every walk that starts at a formula takes it (§3.3).
-- [ ] `convert_formula_to_expr(formula::FormulaFormula, env)` wraps a lambda,
+- [x] `convert_formula_to_expr(formula::FormulaFormula, env)` wraps a lambda,
       and its math reading passes the function names of `env` (§3.2);
       `compute_formula_key` hashes the parameter.
-- [ ] `_read_rename` adds the computation of the formula when its parameter
+- [x] `_read_rename` adds the computation of the formula when its parameter
       changes, and writes no use when the new key is no identifier (§3.10).
-- [ ] Test: `test_formula_names()`: the key and the parameter of each name of
+- [x] Test: `test_formula_names()`: the key and the parameter of each name of
       the table of §3.1; the names of `S_{pure}(G) = G exp(-2G)` hold no `G`,
       also when the sheet holds a formula `G`. `test_formula_evaluation()`:
       `get_formula_value(S_pure)` is a function whose value at `0.5` is
@@ -468,6 +468,19 @@ Each step is one commit with its own test. The projectured steps land on
       use on the way, and `g` holds `3` after the last key (no loop: the
       computation runs at once). `test_formula_file()`: a sheet with
       `S_{pure}(G)` writes the name as it is and reads back to a function.
+- **As built:** `_find_formula_parameter(name_or_formula)` answers the parameter
+  (a variable, a symbol or a word in the parentheses), `_find_function_keys(env)`
+  the keys of the function formulas that the math reading takes as `functions`.
+  `get_formula_names(::FormulaFormula)` binds the parameter; `_find_readable_names`
+  now takes a formula, `_find_identifier_scopes` too, and `_find_free_identifiers`
+  takes the bound set. `convert_formula_to_expr(::FormulaFormula, env)` wraps the
+  `Expr` in `Expr(:->, Symbol(parameter), body)`. `_read_rename` appends
+  `ComputeFormulasOperation(env, [formula])` when the old and the new name differ in
+  their parameter, also when no use is written. A use is written only when the
+  new name reads in the math notation (`_is_readable_name`): `f(` writes none,
+  while a name that reads as a number (`1`) still writes its key, as before.
+  The rename of a formula that a math formula names is refused as before, so
+  the test of the keys uses a Julia `g = f(2)`.
 
 ### Step 3 — the sheet draws a function as its equation (D4)
 

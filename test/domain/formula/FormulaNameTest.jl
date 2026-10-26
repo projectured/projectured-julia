@@ -51,5 +51,28 @@ function test_formula_names()
         @test get_formula_names(S.code) == ["sum", "A"]
         @test get_formula_dependencies(S, sheet) == [A]
     end
+
+    @testset "the name of a function formula holds its key and its parameter" begin
+        parameter(name) = ProjecturedFormula.FormulaModule._find_formula_parameter(name)
+        for (name, key, argument) in (("S_{pure}(G)", "S_pure", "G"), ("f(x)", "f", "x"),
+                                      ("P_{block}(ρ)", "P_block", "rho"), ("S_{pure}", "S_pure", nothing),
+                                      ("f(x, y)", "f(x, y)", nothing))
+            @test get_formula_key(name) == key
+            @test parameter(name) == argument
+        end
+    end
+
+    @testset "the parameter of a function formula is no name of the sheet" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("G", parse_julia("3")),
+            FormulaFormula("T", parse_julia("2")),
+            FormulaFormula("S_{pure}(G)", parse_math("G exp(-2G) T")),
+        ])
+        G, T, S = sheet.formulas
+        @test get_formula_names(S) == ["exp", "T"]
+        @test get_formula_names(S.code) == ["G", "exp", "T"]
+        @test get_formula_dependencies(S, sheet) == [T]
+        @test resolve(sheet, "S_pure") === S && resolve(sheet, "S_{pure}(G)") === S
+    end
 end
 end

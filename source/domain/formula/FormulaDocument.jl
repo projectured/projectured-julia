@@ -90,13 +90,17 @@ end
 The name a formula binds under: its own name when that is an identifier, and
 otherwise the identifier its name reads as in the math notation, so `ρ` and
 `rho` are one name and `p_{block}` is `p_block`. A name that reads as neither
-is itself.
+is itself. A name with one name in parentheses, `S_{pure}(G)`, is the name of a
+function of one variable, and its key is the name before the parentheses,
+`S_pure`; the name in the parentheses is its parameter
+([`_find_formula_parameter`](@ref)).
 """
 function get_formula_key(name::AbstractString)
     text = String(name)
     try
         # A name that reads as a number, such as `1`, is no math tree.
         tree = parse_math(text)
+        _is_function_name(tree) && return _function_key(tree)
         tree isa MathDocument && (read = convert_math_to_julia(tree)) isa JuliaIdentifier &&
             return read.name
     catch e
@@ -104,6 +108,27 @@ function get_formula_key(name::AbstractString)
     end
     text
 end
+
+# Whether a tree is a name with one name in parentheses.
+_is_function_name(tree) = tree isa MathFunction &&
+    (tree.argument isa MathVariable || tree.argument isa MathSymbol || tree.argument isa MathText)
+
+# The name that a formula takes as its parameter, `rho` for `S_{pure}(ρ)`, or
+# `nothing` when its name names none.
+function _find_formula_parameter(name::AbstractString)
+    try
+        tree = parse_math(String(name))
+        _is_function_name(tree) && return _name_of_node(tree.argument)
+    catch e
+        e isa MathReadingException || e isa ErrorException || rethrow()
+    end
+    nothing
+end
+_find_formula_parameter(formula::FormulaFormula) = _find_formula_parameter(formula.name)
+
+# The keys of the formulas of `env` whose name names a parameter.
+_find_function_keys(env::FormulaEnvironment) =
+    String[get_formula_key(f.name) for f in env.formulas if _find_formula_parameter(f) !== nothing]
 
 """
     get_column_letter(col::Int) -> String
@@ -141,7 +166,7 @@ formula `rho` of the same sheet.
 """
 function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironment)
     deps = FormulaFormula[]
-    for name in get_formula_names(formula.code)
+    for name in get_formula_names(formula)
         target = resolve(env, name)
         target === nothing && continue
         target === formula && continue
@@ -166,13 +191,26 @@ variable of a `catch`, and the target of an `=` in the statements after it.
 get_formula_names(code) =
     unique!(String[identifier.name for identifier in _find_free_identifiers(code)])
 
+"""
+    get_formula_names(formula::FormulaFormula) -> Vector{String}
+
+The free names of the code of `formula`, with its parameter bound: the parameter
+of `S_{pure}(G)` is no name of the sheet, and it shadows a formula `G`, as the
+parameter of a lambda does.
+"""
+function get_formula_names(formula::FormulaFormula)
+    parameter = _find_formula_parameter(formula)
+    parameter === nothing && return get_formula_names(formula.code)
+    unique!(String[identifier.name for identifier in
+                   _find_free_identifiers(formula.code, Set{String}([parameter]))])
+end
+
 # Each free identifier of `code`, every place it stands. A math tree gives those of
 # its Julia reading.
-_find_free_identifiers(code::PrimitiveNumber) = JuliaIdentifier[]
-function _find_free_identifiers(code)
+_find_free_identifiers(code::PrimitiveNumber, bound::Set{String} = Set{String}()) = JuliaIdentifier[]
+function _find_free_identifiers(code, bound::Set{String} = Set{String}())
     found = JuliaIdentifier[]
-    _collect_free_identifiers!(found, code isa MathDocument ? convert_math_to_julia(code) : code,
-                               Set{String}())
+    _collect_free_identifiers!(found, code isa MathDocument ? convert_math_to_julia(code) : code, bound)
     found
 end
 
@@ -375,11 +413,13 @@ function _collect_target_identifiers!(found, node::Union{JuliaTuple,JuliaNamedTu
     end
 end
 
-# Each identifier of the Julia `code`, with the names that a binding of the code
-# covers where it stands.
-function _find_identifier_scopes(code::JuliaDocument)
+# Each identifier of the Julia code of `formula`, with the names that a binding of
+# the code, or the parameter of the formula, covers where it stands.
+function _find_identifier_scopes(formula::FormulaFormula)
     scopes = IdDict{Any,Set{String}}()
-    _collect_free_identifiers!(scopes, code, Set{String}())
+    parameter = _find_formula_parameter(formula)
+    _collect_free_identifiers!(scopes, formula.code,
+                               parameter === nothing ? Set{String}() : Set{String}([parameter]))
     scopes
 end
 
@@ -390,7 +430,8 @@ function _find_reference_identifiers(formula::FormulaFormula, env::FormulaEnviro
     references = Base.IdSet{Any}()
     code = formula.code
     code isa JuliaDocument || return references
-    for identifier in _find_free_identifiers(code)
+    parameter = _find_formula_parameter(formula)
+    for identifier in _find_free_identifiers(code, parameter === nothing ? Set{String}() : Set{String}([parameter]))
         resolve(env, identifier.name) === nothing || push!(references, identifier)
     end
     references
@@ -471,17 +512,26 @@ Base.show(io::IO, error::FormulaError) = print(io, error.text)
 
 """
     convert_formula_to_expr(code, env) -> Expr | literal
+    convert_formula_to_expr(formula, env) -> Expr | literal
 
 The Julia `Expr` of the code of a formula, which `evaluate_formula` runs inside
 a `let` that binds the names of its dependencies to their values. Julia code
 gives the `Expr` that `make_julia_expression` builds, math code the `Expr` of
-its Julia reading, and a bare number its value.
+its Julia reading with the functions of `env` ([`convert_math_to_julia`](@ref)),
+and a bare number its value. The `Expr` of a formula with a parameter is a
+lambda of the parameter whose body is the `Expr` of the code.
 """
 convert_formula_to_expr(code::JuliaDocument, env::FormulaEnvironment) =
     Expr(:block, make_julia_expression(code).args...)
 convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
-    convert_formula_to_expr(convert_math_to_julia(code), env)
+    convert_formula_to_expr(convert_math_to_julia(code; functions = _find_function_keys(env)), env)
 convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.value
+
+function convert_formula_to_expr(formula::FormulaFormula, env::FormulaEnvironment)
+    body = convert_formula_to_expr(formula.code, env)
+    parameter = _find_formula_parameter(formula)
+    parameter === nothing ? body : Expr(:->, Symbol(parameter), body)
+end
 
 """
     evaluate_formula(formula, env; scratch = Module(:FormulaScratch)) -> value
@@ -502,14 +552,14 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
     _depends_on_itself(formula, env) && return FormulaError("#CYCLE!")
     try
         bindings = Pair{Symbol,Any}[]
-        for name in get_formula_names(formula.code)
+        for name in get_formula_names(formula)
             dependency = resolve(env, name)
             dependency === nothing && continue
             value = get_formula_value(dependency)
             value isa FormulaError && return value
             push!(bindings, Symbol(name) => value)
         end
-        _run_formula_code(scratch, convert_formula_to_expr(formula.code, env), bindings)
+        _run_formula_code(scratch, convert_formula_to_expr(formula, env), bindings)
     catch e
         FormulaError("#ERROR! " * sprint(showerror, e))
     end
@@ -537,7 +587,7 @@ function _depends_on_itself(formula::FormulaFormula, env::FormulaEnvironment)
         node = pop!(pending)
         node in visited && continue
         push!(visited, node)
-        for name in _find_readable_names(node.code)
+        for name in _find_readable_names(node)
             target = resolve(env, name)
             target === formula && return true
             target === nothing || push!(pending, target)
@@ -546,11 +596,11 @@ function _depends_on_itself(formula::FormulaFormula, env::FormulaEnvironment)
     false
 end
 
-# The free names of a code that the evaluation can read. A math tree with no
+# The free names of a formula that the evaluation can read. A math tree with no
 # reading has none, and its own evaluation says why.
-function _find_readable_names(code)
+function _find_readable_names(formula::FormulaFormula)
     try
-        return get_formula_names(code)
+        return get_formula_names(formula)
     catch e
         e isa MathReadingException || e isa ErrorException || rethrow()
     end

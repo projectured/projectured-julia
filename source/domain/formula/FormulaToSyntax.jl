@@ -357,9 +357,25 @@ function _read_rename(env::FormulaEnvironment, answer::Intent)
     name = splice_string(formula.name, steps[4].start, steps[4].stop, edit.replacement)
     writes, reason = _make_rename_writes(env, formula, name)
     reason === nothing || return Intent(answer.gesture, nothing, reason, "formula")
-    isempty(writes) && return answer
-    Intent(answer.gesture, CompoundOperation(Any[edit, writes...]),
+    # A name that adds, removes or changes the parameter changes what the formula
+    # and the formulas that name it mean, so the formula computes again.
+    changes_parameter = _find_formula_parameter(formula) != _find_formula_parameter(name)
+    isempty(writes) && !changes_parameter && return answer
+    operations = Any[edit, writes...]
+    changes_parameter && push!(operations, ComputeFormulasOperation(env, FormulaFormula[formula]))
+    Intent(answer.gesture, CompoundOperation(operations),
            "Rename the formula and its uses", "formula")
+end
+
+# Whether the math notation reads a name; `f(` is half a name and reads as none.
+function _is_readable_name(name::AbstractString)
+    try
+        parse_math(String(name))
+        return true
+    catch e
+        e isa ErrorException || rethrow()
+    end
+    false
 end
 
 # The writes that give each use of `formula` the name `name`, and `nothing`; or no
@@ -371,7 +387,7 @@ function _make_rename_writes(env::FormulaEnvironment, formula::FormulaFormula, n
     holder = resolve(env, name)
     for (index, user) in enumerate(env.formulas)
         if !(user.code isa JuliaDocument)
-            any(used -> resolve(env, used) === formula, _find_readable_names(user.code)) &&
+            any(used -> resolve(env, used) === formula, _find_readable_names(user)) &&
                 return (Any[], "The math formula $(user.name) uses the name, and a rename " *
                                "does not rewrite math")
             continue
@@ -381,10 +397,12 @@ function _make_rename_writes(env::FormulaEnvironment, formula::FormulaFormula, n
         isempty(uses) && continue
         holder === nothing || holder === formula ||
             return (Any[], "The formula $(holder.name) has the name $name")
-        scopes = _find_identifier_scopes(user.code)
+        scopes = _find_identifier_scopes(user)
         places = _collect_node_steps!(IdDict{Any,Vector{Any}}(), user.code, uses, Any[])
         for use in uses
             spelling = use.name == formula.name ? name : get_formula_key(name)
+            # A name that does not read yet, such as `f(`, gives the use no name.
+            _is_readable_name(name) || continue
             spelling in scopes[use] &&
                 return (Any[], "A local $spelling of $(user.name) would take the use")
             reference = Reference(FieldReferenceStep("formulas"), ElementReferenceStep(index),

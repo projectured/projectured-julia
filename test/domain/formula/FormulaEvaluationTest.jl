@@ -34,6 +34,37 @@ function test_formula_evaluation()
         @test get_formula_value(G) == 4
     end
 
+    @testset "a formula with a parameter in its name is a function" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("T", parse_julia("2")),
+            FormulaFormula("S_{pure}(G)", parse_math("G exp(-2G)")),
+            FormulaFormula("S_{peak}", parse_math("S_{pure}(0.5)")),
+            FormulaFormula("ρ", parse_julia("0.8")),
+            FormulaFormula("B", parse_math("ρ(1 - ρ)")),
+            FormulaFormula("f", parse_julia("3")),
+            FormulaFormula("g", parse_math("f(2)")),
+            FormulaFormula("G", parse_julia("100")),
+            FormulaFormula("H(u)", parse_math("u T")),
+            FormulaFormula("K", parse_math("H(5)")),
+        ])
+        T, S_pure, S_peak, rho, B, f, g, G, H, K = sheet.formulas
+        @test get_formula_value(S_pure) isa Function
+        @test Base.invokelatest(get_formula_value(S_pure), 0.5) ≈ 0.5 * exp(-1)
+        @test get_formula_value(S_peak) ≈ 0.5 * exp(-1)
+        order = ProjecturedFormula.FormulaModule._order_formulas(sheet, [S_peak, S_pure])
+        @test findfirst(==(S_pure), order) < findfirst(==(S_peak), order)
+        @test get_formula_value(B) ≈ 0.16
+        @test get_formula_value(g) == 6
+        f.name = "f(x)"; f.code = parse_julia("x^2")
+        @test get_formula_value(g) == 4
+        # A formula named like the parameter changes nothing.
+        @test Base.invokelatest(get_formula_value(S_pure), 0.5) ≈ 0.5 * exp(-1)
+        # A new value of an input computes the function and its caller again.
+        @test get_formula_value(K) == 10
+        T.code = parse_julia("3")
+        @test get_formula_value(K) == 15
+    end
+
     @testset "a local name does not refer to the formula of that name" begin
         sheet = _formula_sheet("A" => "42", "x" => "1000", "S" => "sum(x -> x * A, 1:3)")
         @test get_formula_value(sheet.formulas[3]) == 252

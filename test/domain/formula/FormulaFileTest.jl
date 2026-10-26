@@ -58,6 +58,24 @@ function test_formula_file()
         @test_throws Exception parse_pred_text("FormulaFormula(name = \"rho\", code = 1)")
     end
 
+    @testset "a function formula keeps its name in the file and reads back to a function" begin
+        directory = mktempdir()
+        sheet = FormulaEnvironment([
+            FormulaFormula("S_{pure}(G)", parse_math("G exp(-2G)")),
+            FormulaFormula("S_{peak}", parse_math("S_{pure}(0.5)")),
+        ])
+        project = FileProject(directory, [PredFile("study.pred", sheet)])
+        @test save_project!(project) === true
+        text = read(joinpath(directory, "study.pred"), String)
+        @test occursin("name = \"S_{pure}(G)\"", text)
+        back = get_file_content(load_project(directory, ["study.pred"]).files[1])
+        pure, peak = back.formulas
+        @test pure.name == "S_{pure}(G)"
+        @test Base.invokelatest(get_formula_value(pure), 0.5) ≈ 0.5 * exp(-1)
+        @test get_formula_value(peak) ≈ 0.5 * exp(-1)
+        rm(directory; recursive = true, force = true)
+    end
+
     @testset "a sheet saves as a file, and a reference into it splices back" begin
         # The code of a formula is a Julia tree the file writes as text, so the
         # save must not walk it: a node of the Julia domain that no file writes
