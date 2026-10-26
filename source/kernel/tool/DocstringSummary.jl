@@ -1,6 +1,7 @@
 # Fragment of `ToolModule` — the docstring of a type or a module: its first
 # paragraph, which a list of types and a card of a tab show as its description,
-# and its whole text, which the page of a type in the help shows.
+# its whole text and the docstrings of its fields, which the page of a type in
+# the help shows.
 
 """
     compute_docstring_summary(T::Type) -> String
@@ -39,6 +40,32 @@ function find_docstring_text(@nospecialize(subject::Union{Type, Module}))
         return String(rstrip(lstrip(==('\n'), text)))
     end
     nothing
+end
+
+"""
+    collect_field_docstrings(T::Type) -> Dict{Symbol,String}
+
+The docstring of each field of `T` that has one, by the name of the field: the
+string that stands before the field in the declaration of the struct. A type
+with no field docstring answers an empty dictionary.
+"""
+function collect_field_docstrings(@nospecialize(T::Type))
+    found = Dict{Symbol,String}()
+    body = Base.unwrap_unionall(T)
+    body isa DataType || return found
+    binding = Base.Docs.Binding(body.name.module, body.name.name)
+    for m in Base.Docs.modules
+        multidoc = get(Base.Docs.meta(m), binding, nothing)
+        multidoc === nothing && continue
+        for signature in multidoc.order
+            fields = get(multidoc.docs[signature].data, :fields, nothing)
+            fields isa AbstractDict || continue
+            for (name, text) in fields
+                found[Symbol(name)] = String(strip(string(text)))
+            end
+        end
+    end
+    found
 end
 
 # The raw texts of the docstrings of a type: the one of the type first, then the

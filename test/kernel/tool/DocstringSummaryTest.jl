@@ -60,6 +60,17 @@ The text of the constructor alone.
 _SummaryConstructorOnly() = _SummaryConstructorOnly(0)
 
 """
+    _SummaryFields
+
+A struct with a docstring on one of its fields.
+"""
+struct _SummaryFields
+    "The first field."
+    a::Int
+    b::String
+end
+
+"""
     _SummaryModule
 
 The text of the module.
@@ -96,6 +107,10 @@ function test_docstring_summary()
     @test find_docstring_text(_SummaryTypeAndConstructor) == "The text of the type."
     @test endswith(find_docstring_text(_SummaryConstructorOnly), "The text of the constructor alone.")
     @test endswith(find_docstring_text(_SummaryModule), "The second paragraph of the module.")
+    # The docstring of a field is the string before it, and a field with none
+    # has no entry.
+    @test collect_field_docstrings(_SummaryFields) == Dict(:a => "The first field.")
+    @test isempty(collect_field_docstrings(_SummaryNoDocstring))
     # A view for a person drops the code marks.
     @test strip_code_marks("The keywords: `on`, `when` and `<:`.") == "The keywords: on, when and <:."
 end
