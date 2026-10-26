@@ -123,8 +123,11 @@ function test_text_gutter()
                     ConcreteReference(FieldReferenceStep("number"), EmptyReference()))))
         forward = map_reference_forward(iomap.projection, iomap, number)
         @test forward !== nothing
-        @test _gt_steps(forward)[1:3] ==
-              Any[FieldReferenceStep("left"), FieldReferenceStep("elements"), RangeReferenceStep(1, 2)]
+        # The left edge holds the canvas of the rows first; the row of the second
+        # line is its second element.
+        @test _gt_steps(forward)[1:5] ==
+              Any[FieldReferenceStep("left"), FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                  FieldReferenceStep("elements"), RangeReferenceStep(1, 2)]
         back = strip_reference_types(map_reference_backward(iomap.projection, iomap, forward))
         @test back == number
         # A caret in the text maps through the lines to the center.

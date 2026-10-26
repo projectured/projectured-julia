@@ -131,10 +131,8 @@ function test_scroll_work()
         # @broken: the focus ring makes the paint draw both boxes; plan/pending/a-scroll-costs-what-comes-into-view.md
         @test_broken all(f -> 2 * f.drawn <= f.whole, frames)
         # A file four times as long costs the same work.
-        # @broken: the gutter rows lie in a canvas with no layout, so the walk visits each; plan/pending/a-scroll-costs-what-comes-into-view.md
-        @test_broken [f.work for f in frames] == [f.work for f in short_frames]
-        # @broken: the gutter rows lie in a canvas with no layout; plan/pending/a-scroll-costs-what-comes-into-view.md
-        @test_broken isempty(unlaid)
+        @test [f.work for f in frames] == [f.work for f in short_frames]
+        @test isempty(unlaid)
     end
     @testset "the Files pane" begin
         folder = mktempdir()

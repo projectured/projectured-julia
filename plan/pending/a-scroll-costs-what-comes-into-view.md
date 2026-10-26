@@ -125,7 +125,7 @@ on `main` before the owner approves.
    the focused pane, the copy of the data frame. Move
    `a-scroll-copies-the-pixels-that-stay-in-view.md` to `plan/done/`, with a line
    that points here. Commit.
-2. [ ] **The gutter rows in a laid-out canvas.** The counts no longer grow with
+2. [x] **The gutter rows in a laid-out canvas.** Done; see [As built](#as-built). The counts no longer grow with
    the file; promote those assertions. Run the tests of the text, the Julia domain
    and the gutter. Commit.
 3. [ ] **A rectangle gives its border.** Add pixel tests: a ring over a pane that
@@ -183,4 +183,18 @@ Two decisions from this run:
 - Six assertions fail on `main` and are `@test_broken` with their reason: for the
   Julia file, the copy, the leaves drawn, the work that grows with the file and
   the canvas with no layout; for the data frame, the copy and the leaves drawn.
+
+### Step 2: the gutter rows, 2026-10-26
+
+`TextBlockToScrollLayout` puts the rows of the gutter into a canvas of their own
+with a vertical layout and no overlap, and the arrow of the pointer over the whole
+gutter beside that canvas. A reference into a gutter so has one more step,
+`left.elements[0:1]`, before the row; the forward and the backward map follow it,
+and `test_text_gutter` asserts the new path. A walk and a paint stop at the edges
+of the view now. The work of the walk is the same for a file of 999 lines and of
+3999 lines, and no drawn canvas holds more than 200 elements with no layout; both
+assertions are promoted. `test_scroll_work`, `test_text_gutter`,
+`test_text_folding`, `test_text_line_numbering`, `test_scroll_pane_parts` and
+`test_julia_file_view`: 142 pass, 4 broken (the copy and the leaves drawn of the
+Julia file and of the data frame).
 
