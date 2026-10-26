@@ -1393,8 +1393,8 @@ function test_application()
                     file = selected()
                     @test file isa JsonFile
                     @test copy_reference!() isa CopyReferenceOperation
-                    @test startswith(buffer[], "evaluate_reference(editor.document, @reference(editor.document, ")
-                    code = buffer[]
+                    code = read_os_clipboard()
+                    @test startswith(code, "evaluate_reference(editor.document, @reference(editor.document, ")
                     # Ctrl+V at the caret of a form types the code, and Enter gives the
                     # file itself.
                     toolbar = only(search_documents(document, node -> node isa WidgetToolbar))

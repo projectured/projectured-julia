@@ -176,12 +176,88 @@ function _maybe_os_mirror!(ops, p, obj)
     ops
 end
 
+# ── The text of the system clipboard ──────────────────────────────────────────
+# A reader reads nothing outside the document, so a paste that needs the text of
+# the system clipboard answers `PasteOsClipboardOperation`, and its evaluation
+# reads the text off the task of the editor. The paste functions below take that
+# text as `os`: `UNREAD_OS_TEXT` in a reader, and the text read, or `nothing`
+# when the clipboard has none, in the evaluation.
+
+struct UnreadOsText end
+const UNREAD_OS_TEXT = UnreadOsText()
+
+"""
+    PasteOsClipboardOperation(place, projection, copy)
+
+A paste that takes the text of the system clipboard. Its evaluation reads the
+clipboard on a task of its own, after the writes started before it, and pastes
+at `place`, the clipboard document that the gesture landed in: at once when the
+read ends inside a short wait, which is the usual case, else when the text comes,
+if the place still exists. `copy` is the paste of a fresh copy.
+
+The start of the paste writes no document, so undo steps over it.
+"""
+struct PasteOsClipboardOperation <: Operation
+    place::Reference        # the clipboard document, from where the operation stands
+    projection::Any         # ::ClipboardSliceToAnyProjection
+    copy::Bool
+end
+
+OperationModule.operation_reference(op::PasteOsClipboardOperation) = op.place
+OperationModule.retarget_operation(op::PasteOsClipboardOperation, place::Reference) =
+    PasteOsClipboardOperation(place, op.projection, op.copy)
+make_inverse_operation(document, ::PasteOsClipboardOperation) = DoNothingOperation()
+
+# What a reader answers for a paste that needs the text of the system clipboard.
+_paste_os_text(p; copy::Bool = false) =
+    ReplaceViewStateOperation(PasteOsClipboardOperation(EmptyReference(), p, copy))
+
+function evaluate_operation(editor, op::PasteOsClipboardOperation)
+    start_document_read!(editor, read_os_clipboard,
+                         text -> ApplyOsClipboardPasteOperation(op.place, op.projection,
+                                                                op.copy, text))
+    nothing
+end
+
+"""
+    ApplyOsClipboardPasteOperation(place, projection, copy, text)
+
+The paste of `PasteOsClipboardOperation`, once the text of the system clipboard
+is read. It makes the edit of the paste at `place` and evaluates it as an
+operation from the root: each reader between the place and the root lifts it, as
+it lifts the answer to a gesture. A place that holds no clipboard document pastes
+nothing.
+"""
+struct ApplyOsClipboardPasteOperation <: Operation
+    place::Reference
+    projection::Any
+    copy::Bool
+    text::Any               # ::String, nothing, or the exception of the read
+end
+
+OperationModule.is_self_contained_operation(::ApplyOsClipboardPasteOperation) = true
+make_inverse_operation(document, ::ApplyOsClipboardPasteOperation) = DoNothingOperation()
+
+function evaluate_operation(editor, op::ApplyOsClipboardPasteOperation)
+    text = op.text isa AbstractString ? String(op.text) : nothing
+    input = try_evaluate_reference(editor.document, op.place, nothing)
+    if !(input isa ClipboardSlice)
+        @warn("The paste came after its place was gone, so it pastes nothing.", place = op.place)
+        return nothing
+    end
+    edit = op.copy ? _clipboard_paste_copy(op.projection, input; os = text) :
+                     _clipboard_paste(op.projection, input; os = text)
+    edit === nothing && return nothing
+    rooted = read_rooted_operation(editor, op.place, edit; description = "Paste")
+    rooted === nothing || evaluate_operation(editor, rooted)
+    nothing
+end
+
 # Build a Document from the OS clipboard text via the projection's `from_text`
-# converter, or `nothing` when there is no converter, no readable OS text, or the
-# converter declines / errors. Used as the empty-slice paste fallback.
-function _os_paste_document(p)
+# converter, or `nothing` when there is no converter, no OS text, or the converter
+# declines / errors. Used as the empty-slice paste fallback.
+function _os_paste_document(p, text)
     p.from_text === nothing && return nothing
-    text = read_os_clipboard()
     text === nothing && return nothing
     doc = try p.from_text(text) catch; nothing end
     doc isa Document ? doc : nothing
@@ -227,11 +303,14 @@ function _text_clipboard_cut(p, input)
     ])
 end
 
-function _text_clipboard_paste(p, input)
+function _text_clipboard_paste(p, input; os = UNREAD_OS_TEXT)
     content = input.content
     content isa TextBlock || return nothing
     str = _slice_text(input.slice)                 # primary: the ProjecturEd clipboard
-    str === nothing && (str = read_os_clipboard())  # fallback: the OS clipboard
+    if str === nothing                             # fallback: the OS clipboard
+        os === UNREAD_OS_TEXT && return _paste_os_text(p)
+        str = os
+    end
     str === nothing && return nothing
     op = make_text_insert_operation(content, str)
     op === nothing && return nothing
@@ -283,7 +362,7 @@ function evaluate_operation(editor, op::CopyReferenceOperation)
     isempty(steps) && return nothing
     text = make_reference_code(_make_steps_path(steps))
     op.clipboard.slice = PrimitiveString(text)
-    write_os_clipboard!(text)
+    start_os_clipboard_write!(text)
     nothing
 end
 
@@ -298,10 +377,11 @@ make_reference_code(reference) =
     "evaluate_reference(editor.document, @reference(editor.document, " *
     lstrip(sprint(show, reference), '.') * "))"
 
-function _text_target_paste(p, input)
+function _text_target_paste(p, input; os = UNREAD_OS_TEXT, copy::Bool = false)
     target = _find_text_target(input; writes = true)
     target === nothing && return nothing
-    text = read_os_clipboard()
+    os === UNREAD_OS_TEXT && return _paste_os_text(p; copy)
+    text = os
     (text === nothing || isempty(text)) && (text = _slice_text(input.slice))
     text === nothing && return nothing
     pasted = _make_pasted_text(target, text)
@@ -383,16 +463,19 @@ end
 # Paste: replace the selection target with the stored slice. The trailing
 # ReplaceSelectionOperation pins the selection to the pasted target (rather than
 # letting it follow the slice's stale inner selection). When the internal slice is
-# empty, fall back to the OS clipboard via the projection's `from_text` converter.
-function _clipboard_paste(p, input)
-    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+# empty, fall back to the OS clipboard via the projection's `from_text` converter:
+# in a reader that is a `PasteOsClipboardOperation`, whose evaluation reads it.
+function _clipboard_paste(p, input; os = UNREAD_OS_TEXT)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice)
     taken === nothing || return taken
-    text = _text_target_paste(p, input)
+    text = _text_target_paste(p, input; os)
     text === nothing || return text
     slice = input.slice
     if !(slice isa Document)
-        doc = _os_paste_document(p)
+        p.from_text === nothing && return nothing
+        os === UNREAD_OS_TEXT && return _paste_os_text(p)
+        doc = _os_paste_document(p, os)
         doc === nothing && return nothing
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing
@@ -434,15 +517,17 @@ end
 # Paste-copy: like paste, but a fresh deep copy each time. The OS fallback already
 # produces a fresh document per read, so it needs no extra copy. In text mode it is
 # identical to paste (splicing a string needs no copy).
-function _clipboard_paste_copy(p, input)
-    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+function _clipboard_paste_copy(p, input; os = UNREAD_OS_TEXT)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice; copy = true)
     taken === nothing || return taken
-    text = _text_target_paste(p, input)
+    text = _text_target_paste(p, input; os, copy = true)
     text === nothing || return text
     slice = input.slice
     if !(slice isa Document)
-        doc = _os_paste_document(p)
+        p.from_text === nothing && return nothing
+        os === UNREAD_OS_TEXT && return _paste_os_text(p; copy = true)
+        doc = _os_paste_document(p, os)
         doc === nothing && return nothing
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing

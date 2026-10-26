@@ -4,10 +4,32 @@
 
 _prog(cmd::Cmd) = first(cmd.exec)
 
-# Read a command's stdout as a String, or `nothing` if it errors.
+"""
+    CLIPBOARD_TOOL_SECONDS
+
+How long a clipboard tool may take to read or to write before it is stopped. A
+tool that waits for the owner of the clipboard can wait for ever.
+"""
+const CLIPBOARD_TOOL_SECONDS = 2.0
+
+# Whether `process` ended inside the time limit; else it is stopped.
+function _wait_for_tool(process)
+    timedwait(() -> !process_running(process), CLIPBOARD_TOOL_SECONDS;
+              pollint = 0.01) === :ok && return true
+    kill(process)
+    @warn("The clipboard tool did not end in time, so it is stopped.",
+          tool = _prog(process.cmd), seconds = CLIPBOARD_TOOL_SECONDS)
+    false
+end
+
+# Read a command's stdout as a String, or `nothing` if it errors or takes too long.
 function _shell_read(cmd::Cmd)::Union{String,Nothing}
     try
-        return read(cmd, String)
+        process = open(cmd, "r")
+        text = @async read(process, String)
+        _wait_for_tool(process) || return nothing
+        output = fetch(text)
+        return success(process) ? output : nothing
     catch
         return nothing
     end
@@ -16,10 +38,10 @@ end
 # Pipe `text` into a command's stdin, returning `true` on success.
 function _shell_write(cmd::Cmd, text::AbstractString)::Bool
     try
-        open(cmd, "w") do io
-            print(io, text)
-        end
-        return true
+        process = open(cmd, "w")
+        print(process, text)
+        close(process.in)
+        return _wait_for_tool(process) && success(process)
     catch
         return false
     end
@@ -79,13 +101,14 @@ See also `write_os_clipboard!`, `parse_natural_text`.
 """
 function read_os_clipboard end
 
-read_os_clipboard()::Union{String,Nothing} = _READER[]()
+read_os_clipboard()::Union{String,Nothing} = (_wait_for_os_clipboard_writes(); _READER[]())
 
 """
     write_os_clipboard!(text) -> Bool
 
-Write `text` to the OS clipboard. Returns `true` on success, `false` when no
-clipboard tool is available or the write fails.
+Write `text` to the OS clipboard, after the writes that an edit started before.
+Returns `true` on success, `false` when no clipboard tool is available or the
+write fails.
 
 Use it to give the person a text to paste elsewhere, such as the text of a part
 or a line of code.
@@ -98,7 +121,8 @@ See also `read_os_clipboard`, `print_natural_text`.
 """
 function write_os_clipboard! end
 
-write_os_clipboard!(text::AbstractString)::Bool = _WRITER[](text)
+write_os_clipboard!(text::AbstractString)::Bool =
+    (_wait_for_os_clipboard_writes(); _WRITER[](text))
 
 """
     set_os_clipboard_backend!(; read=_default_read, write=_default_write)
@@ -118,20 +142,51 @@ end
 reset_os_clipboard_backend!() = set_os_clipboard_backend!()
 
 
+# The writes that an edit started, in order: one task after the other, and a read
+# waits for the last one, so a copy and a paste at once paste what was copied. One
+# chain for the process, because the system clipboard is one.
+const _CLIPBOARD_WRITES_LOCK = ReentrantLock()
+const _LAST_CLIPBOARD_WRITE = Ref{Any}(nothing)
+
+"""
+    start_os_clipboard_write!(text) -> Task
+
+Write `text` to the OS clipboard on a task of its own, after the writes started
+before it, so the task that asks never waits for a clipboard tool. The write goes
+to the backend that is set when it starts.
+"""
+function start_os_clipboard_write!(text::AbstractString)
+    write = _WRITER[]
+    lock(_CLIPBOARD_WRITES_LOCK) do
+        before = _LAST_CLIPBOARD_WRITE[]
+        _LAST_CLIPBOARD_WRITE[] = Threads.@spawn begin
+            before === nothing || _wait_quietly(before)
+            write(text)
+        end
+    end
+end
+
+_wait_for_os_clipboard_writes() =
+    (last = lock(() -> _LAST_CLIPBOARD_WRITE[], _CLIPBOARD_WRITES_LOCK);
+     last === nothing || _wait_quietly(last); nothing)
+
+_wait_quietly(task) = (try wait(task) catch end; nothing)
+
 """
     WriteOsClipboardOperation(text)
 
 Side-effecting operation that writes `text` to the OS clipboard at evaluate time.
 It is appended to the copy/cut/note compound when the clipboard projection has a
 `to_text` converter, so a ProjecturEd copy is mirrored to the system clipboard.
-Best-effort: `write_os_clipboard!` degrades to a no-op (returns `false`) when no
-clipboard tool is available, so this never fails an edit.
+The tool runs on a task of its own (`start_os_clipboard_write!`), so the editor
+never waits for it. Best-effort: the write degrades to a no-op when no clipboard
+tool is available, so this never fails an edit.
 """
 struct WriteOsClipboardOperation <: Operation
     text::String
 end
 
-evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!(op.text); nothing)
+evaluate_operation(editor, op::WriteOsClipboardOperation) = (start_os_clipboard_write!(op.text); nothing)
 
 # The clipboard of the operating system changes, the document does not, so the
 # way back is to do nothing. A history steps over it rather than stopping at it.

@@ -58,7 +58,9 @@ export ClipboardDocument
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
        ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,
-       WriteOsClipboardOperation, CopyReferenceOperation, make_reference_code
+       WriteOsClipboardOperation, CopyReferenceOperation, make_reference_code,
+       PasteOsClipboardOperation, ApplyOsClipboardPasteOperation,
+       start_os_clipboard_write!, CLIPBOARD_TOOL_SECONDS
 export ClipboardSlice, ClipboardCollection
 export CLIPBOARD_GESTURES
 export make_clipboard_document, make_clipboard_projection

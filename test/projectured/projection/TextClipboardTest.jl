@@ -26,7 +26,7 @@ function test_text_clipboard()
             # A copy at a caret takes nothing.
             buf[] = "kept"
             _tr_press!(editor, backend, KeyDown(:c, ctrl; time = 0.0))
-            @test buf[] == "kept"
+            @test read_os_clipboard() == "kept"
             @test json.entries[1].value.value == "AlZZice"
         end
 
@@ -44,7 +44,7 @@ function test_text_clipboard()
             _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
             buf[] = ""
             _tr_press!(editor, backend, KeyDown(:c, ctrl; time = 0.0))
-            @test buf[] == "lo"
+            @test read_os_clipboard() == "lo"
             @test s.value == "hello world"
             @test _tr_range(s) == (3, 5)
             buf[] = "p!"
