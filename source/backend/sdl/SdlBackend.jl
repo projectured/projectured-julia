@@ -137,7 +137,7 @@ mutable struct _PaintedGeometry
     guards::Dict{UInt,Any}
     guard_places::Dict{UInt,Any}
     visits::Int        # the elements that the last walk tested
-    recordings::Int    # the records of bounds that the last walk wrote
+    recordings::Int    # the graphics that the last walk recorded from their cells
     new_guards::Int    # the guards that the last walk made
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
@@ -2431,6 +2431,7 @@ _make_placement_key(elem, parent::UInt) = hash(objectid(elem), parent)
 function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
                                   edges::_ClipEdges)
     elem isa GraphicsFence && return nothing
+    res.painted.recordings += 1
     elem isa GraphicsCanvas &&
         return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy)
@@ -2540,7 +2541,6 @@ _compute_viewport_content_place(box::NTuple{4,Int}, content::GraphicsCanvas, M::
                                 Int(content.x), Int(content.y), M)
 
 function _record_bounds!(res::SdlWindowResources, key::UInt, b::Union{Nothing,NTuple{4,Int}})
-    res.painted.recordings += 1
     b === nothing ? delete!(res.dirty_bounds, key) : (res.dirty_bounds[key] = b)
     b
 end
@@ -2947,7 +2947,7 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
         push!(walk.moves, move)
         old_edges = _move_clip_edges(cedges, move.offset)
         _defer!(walk, () -> _record_moved_canvas!(res, content, content_key, cox, coy, cedges, old_edges,
-                                                  move.rects))
+                                                  move.offset, move.rects))
         return false
     end
     # The content can answer that nothing changed in its bounds while a viewport
@@ -3026,38 +3026,47 @@ function _clip_inner_moves!(walk::_DirtyWalk, inner::_DirtyWalk, box::NTuple{4,I
 end
 
 # Record a canvas of the content of a move at its new content origin `(ox, oy)`,
-# and answer the bounds of what it draws. `edges` are the box of the viewport. The
-# content did not change, so the last paint drew the elements between
-# `old_edges`, the edges moved by the offset of the move. An element between both
-# edges is recorded at its new place. One between `edges` only came into view,
-# and one between `old_edges` only left it: each adds its bounds to `rects`, and
-# one that left is forgotten.
+# and answer the bounds of what it draws and whether a guard below it must be made
+# again. `edges` are the box of the viewport, and the content moved by `offset`.
+# The content did not change, so the last paint drew the elements between
+# `old_edges`: the edges moved by the offset, or the same edges inside a viewport
+# that moved with the content. An element between both edges keeps its records,
+# moved by the offset, and reads no cell for them. One between `edges` only came
+# into view and is recorded; one between `old_edges` only left it and is
+# forgotten; each adds its bounds to `rects`.
 #
 # An element between both edges that is not a canvas also adds its bounds when
 # they cross an edge of the box at its new place or at its old one. The software
 # renderer of SDL samples a scaled texture that a clip cuts on another grid, so
 # a text that the edge cuts by another amount draws other pixels.
+#
+# A guard reads the elements between its edges. A canvas that draws other elements
+# than the last paint drew has its guard made again at the end of the walk, and so
+# has each canvas around it, whose guard reads that one. Any other guard keeps its
+# cell, at the new place: a line of a text shows the same tokens when its view
+# moves up, and only the list of the lines shows other lines.
 function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
                                ox::Int, oy::Int, edges::_ClipEdges, old_edges::_ClipEdges,
-                               rects::Vector{NTuple{4,Int}})
+                               offset::NTuple{2,Int}, rects::Vector{NTuple{4,Int}})
     res.painted.origins[key] = (ox, oy)
     elements = canvas.elements
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
+    remade = false
     acc = _DirtyAcc()
     if elements isa ListNode
-        early || return _record_bounds!(res, key, nothing)
+        early || return (_record_bounds!(res, key, nothing), false)
         drawn = _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
         drawn_before = _collect_drawn_nodes(elements, ox, oy, old_edges, layout, early)
         kept = Base.IdSet{ListNode}(drawn_before)
         for node in drawn
+            node_key = _make_placement_key(node, key)
             if node in kept
-                node_key = _make_placement_key(node, key)
-                res.painted.origins[node_key] = (ox, oy)
+                _move_records!(res, node_key, offset)
                 value = node.value
-                b = _record_bounds!(res, node_key,
-                                    _record_moved_element!(res, value, _make_placement_key(value, node_key),
-                                                           ox, oy, edges, old_edges, rects))
+                b, below = _record_moved_element!(res, value, _make_placement_key(value, node_key),
+                                                  ox, oy, edges, old_edges, offset, rects)
+                remade |= below
                 value isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
             else
                 b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
@@ -3065,21 +3074,23 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
             end
             b === nothing || _acc_extend!(acc, b)
         end
+        remade |= length(drawn) != length(drawn_before) || any(a !== b for (a, b) in zip(drawn, drawn_before))
         shown = Base.IdSet{ListNode}(drawn)
         for node in drawn_before
             node in shown && continue
             node_key = _make_placement_key(node, key)
             value = node.value
-            _clear_moved_left_view!(res, rects, node_key, edges, old_edges) do
+            _clear_moved_left_view!(res, rects, node_key, offset) do
                 _forget_painted!(res, node_key)
                 _forget_recorded_element!(res, value, _make_placement_key(value, node_key), ox, oy, old_edges)
             end
         end
-        return _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
+        return (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade), remade)
     end
     first_now = _compute_first_drawn_index(canvas, ox, oy, edges)
     first_before = _compute_first_drawn_index(canvas, ox, oy, old_edges)
     members = UInt[]
+    members_before = UInt[]
     past_now = past_before = false
     for i in min(first_now, first_before):length(elements)
         elem = elements[i]
@@ -3090,10 +3101,12 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
         now = i >= first_now && !past_now
         before = i >= first_before && !past_before
         elem_key = _make_placement_key(elem, key)
+        before && push!(members_before, elem_key)
         if now
             push!(members, elem_key)
             if before
-                b = _record_moved_element!(res, elem, elem_key, ox, oy, edges, old_edges, rects)
+                b, below = _record_moved_element!(res, elem, elem_key, ox, oy, edges, old_edges, offset, rects)
+                remade |= below
                 elem isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
             else
                 b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
@@ -3101,13 +3114,41 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
             end
             b === nothing || _acc_extend!(acc, b)
         elseif before
-            _clear_moved_left_view!(res, rects, elem_key, edges, old_edges) do
+            _clear_moved_left_view!(res, rects, elem_key, offset) do
                 _forget_recorded_element!(res, elem, elem_key, ox, oy, old_edges)
             end
         end
     end
     res.painted.members[key] = members
+    remade |= members != members_before
+    (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade), remade)
+end
+
+# Record the bounds of a canvas of a moved content, from what it draws, and its
+# guard: forgotten when it is `remade`, so the walk makes it again at its end, and
+# else kept at the new place `(ox, oy, edges)`.
+function _record_moved_canvas_bounds!(res::SdlWindowResources, key::UInt, ox::Int, oy::Int,
+                                      edges::_ClipEdges, acc::_DirtyAcc, remade::Bool)
+    if remade
+        delete!(res.painted.guards, key)
+        delete!(res.painted.guard_places, key)
+    elseif haskey(res.painted.guards, key)
+        res.painted.guard_places[key] = (ox, oy, edges)
+    end
     _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
+end
+
+# Move the records of the graphic placed at `key` by `offset`: its place, the box
+# of a viewport and its bounds. Answer its bounds at the new place.
+function _move_records!(res::SdlWindowResources, key::UInt, offset::NTuple{2,Int})
+    origin = get(res.painted.origins, key, nothing)
+    origin === nothing || (res.painted.origins[key] = (origin[1] + offset[1], origin[2] + offset[2]))
+    geometry = get(res.painted.viewports, key, nothing)
+    geometry === nothing ||
+        (res.painted.viewports[key] = (_move_box(geometry[1], offset), geometry[2], geometry[3]))
+    bounds = get(res.dirty_bounds, key, nothing)
+    bounds === nothing && return nothing
+    res.dirty_bounds[key] = _move_box(bounds, offset)
 end
 
 _get_edges_box(edges::_ClipEdges) = (edges.left, edges.top, edges.right, edges.bottom)
@@ -3127,16 +3168,19 @@ function _add_crossing_bounds!(rects::Vector{NTuple{4,Int}}, bounds, edges::_Cli
     nothing
 end
 
-# An element of the content of a move that the render draws in both frames: a
-# canvas can show other elements between the new edges, so it is recorded as a
-# moved canvas, and a viewport as a moved viewport; anything else draws the same,
-# at its new place.
+# An element of the content of a move that the render draws in both frames, and
+# whether a guard below it must be made again: a canvas can show other elements
+# between the new edges, so it is recorded as a moved canvas, and a viewport as a
+# moved viewport; anything else draws the same, and its records move.
 function _record_moved_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
-                                edges::_ClipEdges, old_edges::_ClipEdges, rects::Vector{NTuple{4,Int}})
+                                edges::_ClipEdges, old_edges::_ClipEdges, offset::NTuple{2,Int},
+                                rects::Vector{NTuple{4,Int}})
     elem isa GraphicsCanvas &&
-        return _record_moved_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, old_edges, rects)
-    elem isa GraphicsViewport && return _record_moved_viewport!(res, elem, key, ox, oy, edges, old_edges, rects)
-    _record_painted_element!(res, elem, key, ox, oy, edges)
+        return _record_moved_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, old_edges,
+                                     offset, rects)
+    elem isa GraphicsViewport &&
+        return _record_moved_viewport!(res, elem, key, ox, oy, edges, old_edges, offset, rects)
+    (_move_records!(res, key, offset), false)
 end
 
 # A viewport in the content of a move that the render draws in both frames. Its
@@ -3145,30 +3189,32 @@ end
 # its own units, which a move does not keep, and the edge of the box that cuts a
 # viewport cuts it by another amount: each of them adds its box to `rects`.
 function _record_moved_viewport!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt, ox::Int, oy::Int,
-                                 edges::_ClipEdges, old_edges::_ClipEdges, rects::Vector{NTuple{4,Int}})
+                                 edges::_ClipEdges, old_edges::_ClipEdges, offset::NTuple{2,Int},
+                                 rects::Vector{NTuple{4,Int}})
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     if !_is_plain_viewport_transform(transform) ||
        (edges != old_edges && (_is_crossing_box(box, _get_edges_box(edges)) ||
                                _is_crossing_box(box, _get_edges_box(old_edges))))
+        # Recorded again at its new place, so the guards of its content are made
+        # again too.
         b = _record_painted_viewport!(res, vp, key, ox, oy)
         b === nothing || push!(rects, b)
-        return b
+        return (b, true)
     end
-    res.painted.origins[key] = (ox, oy)
-    res.painted.viewports[key] = (box, objectid(content), transform)
+    _move_records!(res, key, offset)
     cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
-    _record_moved_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges, cedges, rects)
-    _record_bounds!(res, key, _is_empty_box(box) ? nothing : box)
+    _, below = _record_moved_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges, cedges,
+                                     offset, rects)
+    (_is_empty_box(box) ? nothing : box, below)
 end
 
 # An element of the content of a move, placed at `key`, that the last paint drew
-# between `old_edges` and that the render no longer reaches. After the copy its
-# old pixels lie where its record moves by the offset of the move, so that place
-# goes into `rects`. Then `forget` forgets its records.
+# and that the render no longer reaches. After the copy its old pixels lie where
+# its record moves by `offset`, so that place goes into `rects`. Then `forget`
+# forgets its records.
 function _clear_moved_left_view!(forget::Function, res::SdlWindowResources, rects::Vector{NTuple{4,Int}},
-                                 key::UInt, edges::_ClipEdges, old_edges::_ClipEdges)
+                                 key::UInt, offset::NTuple{2,Int})
     old = get(res.dirty_bounds, key, nothing)
-    offset = (old_edges.left - edges.left, old_edges.top - edges.top)
     old === nothing || push!(rects, _move_box(old, offset))
     forget()
     nothing
@@ -3395,14 +3441,19 @@ function _is_guard_valid(res::SdlWindowResources, key::UInt, ox::Int, oy::Int, e
 end
 
 # Read the guard of `canvas` at `key` for the place `(ox, oy, edges)`, and make it
-# first when the canvas has none for that place.
+# first when the canvas has none for that place. A guard reads its place when it
+# computes, so a move keeps the cell of a guard whose reads stay the same and
+# moves its place (`_record_moved_canvas_bounds!`).
 function _read_guard!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int,
                       edges::_ClipEdges)
     place = (ox, oy, edges)
     guard = get(res.painted.guards, key, nothing)
     if guard === nothing || get(res.painted.guard_places, key, nothing) != place
         res.painted.guard_places[key] = place
-        guard = Cell(Computation(() -> _read_guarded_cells(res, canvas, key, ox, oy, edges)))
+        guard = Cell(Computation(function ()
+            (x, y, at) = get(res.painted.guard_places, key, place)
+            _read_guarded_cells(res, canvas, key, x, y, at)
+        end))
         res.painted.guards[key] = guard
         res.painted.new_guards += 1
     end

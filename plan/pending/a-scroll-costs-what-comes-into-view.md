@@ -131,7 +131,8 @@ on `main` before the owner approves.
 3. [x] **A rectangle gives its border.** Done; see [As built](#as-built). Add pixel tests: a ring over a pane that
    scrolls, and a filled rectangle that covers a part of the box. The focused pane
    copies; promote that assertion. Commit.
-4. [ ] **A move records and guards only what comes into view.** The counts of the
+4. [x] **A move records and guards only what comes into view.** Done; see
+   [As built](#as-built). The counts of the
    walk of a scroll frame fall to the rows of the strip and the edges; the test
    names the numbers. Run `test_sdl()` and `test_video()` with the offscreen
    driver. Commit.
@@ -145,8 +146,6 @@ on `main` before the owner approves.
 
 - A strip cut to the bounds of what the content draws, which would save paint on
   the software renderer when the lines are short.
-- The walk of a data frame does more work at each notch: 1831 records at the first
-  notch and 2308 at the sixth.
 
 ## As built
 
@@ -233,4 +232,36 @@ now, and its paint draws less than 60% of its window. The bound of the leaves
 drawn is 60% of a paint of the whole window: a paint of the boxes draws about
 89%. Every assertion that `main` failed in step 1 passes:
 `test_scroll_work` and `test_partial_paint`, 87 of 87.
+
+### Step 4: a move records and guards what comes into view, 2026-10-26
+
+A profile of the walk of a scroll frame of the Julia file, after step 3, at
+7.9 ms: about 53% of the samples recorded the moved content again, with the
+bounds of each leaf, and about 41% made its guards again at the new place.
+
+The records stay in window coordinates. A graphic that the render draws in both
+frames keeps its records, moved by the offset (`_move_records!`): its place, its
+bounds and the box of a viewport, with no read of a cell. Only a graphic that
+comes into view is recorded from its cells, and one that leaves is forgotten.
+`recordings` counts the graphics recorded from their cells, in
+`_record_painted_element!`.
+
+A guard reads its place when it computes (`_read_guard!`), so its cell can stay
+while its place moves. The walk of a move remakes a guard only where its reads
+change: a canvas that draws other elements than the last paint drew, and each
+canvas above it in the moved content, whose guard reads that one. Two tries came
+before: a guard made again for each canvas with a layout made 282 to 297 guards
+in a notch, because each line of the text holds a canvas with a vertical layout
+and one element, and a test by the axis of the layout gave the same. The test by
+the elements drawn before and now is exact, and the walk has both.
+
+| Scene, one notch | Records before | Records now | Guards before | Guards now |
+| --- | --- | --- | --- | --- |
+| Julia file | 860 | 29 to 60 | 504 | 24 to 39 |
+| Files pane | 306 | 14 to 20 | 52 | 5 to 6 |
+| Data frame | 1831, growing | 86 to 170 | 824, growing | 54 to 120 |
+
+`test_scroll_work` asserts these counts under bounds of 80 and 60, 30 and 12,
+and 200 and 150. `test_scroll_work`, `test_sdl()` and `test_video()` with the
+offscreen driver: 1172 of 1172 pass.
 

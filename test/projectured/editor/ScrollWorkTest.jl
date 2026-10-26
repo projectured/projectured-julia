@@ -130,6 +130,10 @@ function test_scroll_work()
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
         # A file four times as long costs the same work.
         @test [f.work for f in frames] == [f.work for f in short_frames]
+        # A move records only the graphics that come into view, and makes only the
+        # guards whose reads change: 29 to 60 records and 24 to 39 guards in a
+        # notch, where a record of the moved content wrote 860 and made 504.
+        @test all(f -> f.work[2] <= 80 && f.work[3] <= 60, frames)
         @test isempty(unlaid)
     end
     @testset "the Files pane" begin
@@ -145,6 +149,9 @@ function test_scroll_work()
         @test all(f -> f.same, frames)
         @test all(f -> f.copies == 1, frames)
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
+        # 14 to 20 records and 5 or 6 guards in a notch, where a record of the moved
+        # content wrote 306 and made 52.
+        @test all(f -> f.work[2] <= 30 && f.work[3] <= 12, frames)
         @test isempty(unlaid)
     end
     @testset "a data frame" begin
@@ -157,6 +164,9 @@ function test_scroll_work()
         @test all(f -> f.same, frames)
         @test all(f -> f.copies >= 1, frames)
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
+        # 86 to 170 records and 54 to 120 guards in a notch, where a record of the
+        # moved content wrote 1831 at the first notch and more at each one after.
+        @test all(f -> f.work[2] <= 200 && f.work[3] <= 150, frames)
         @test isempty(unlaid)
     end
 end
