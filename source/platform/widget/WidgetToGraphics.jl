@@ -6331,7 +6331,8 @@ end
 # end and ignores `scroll_position` — so a reader who scrolls back through a
 # transcript must first take the pane off the pin, and the pin goes back on when
 # they reach the end again. Without that, the wheel writes a cell that nothing
-# reads, and the transcript does not scroll.
+# reads, and the transcript does not scroll. A pane whose `follow_end` is
+# `nothing` never follows its end.
 function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
     w = iomap.input
     room = _scroll_room(p, iomap)
@@ -6767,10 +6768,11 @@ function _scroll_pane_to_bar_value(p, iomap, field::AbstractString, value::Float
         return _write_view_state(w, "scroll_position", Point2D(x, Int(old.y[])))
     end
     y = round(Int, clamp(value, 0.0, 1.0) * room[2])
-    following = getfield(w, :follow_end)[] === true
+    following = getfield(w, :follow_end)[]
     operations = Any[_write_view_state(w, "scroll_position", Point2D(Int(old.x[]), y))]
-    following && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
-    !following && room[2] > 0 && y == room[2] && push!(operations, _write_view_state(w, "follow_end", true))
+    following === true && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
+    following === false && room[2] > 0 && y == room[2] &&
+        push!(operations, _write_view_state(w, "follow_end", true))
     length(operations) == 1 ? operations[1] : CompoundOperation(operations)
 end
 
@@ -10069,7 +10071,7 @@ function _print_rows_pane(p, recursion, w, ctx)
     # Positional: content, position, size, scroll_position, follow_end,
     # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
-    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(false),
+    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(nothing),
                             Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),

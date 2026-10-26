@@ -1515,6 +1515,13 @@ Use it to show a long table or a long text inside a bounded `size`. With
 `follow_end = true` the pane keeps the end of its content in view as content is
 added, which is what a log or a transcript wants.
 
+`follow_end` is `true` while a pane that follows its end shows the end, `false`
+while such a pane is scrolled away from its end, and `nothing` for a pane that
+never follows its end, which is the default. A turn of the wheel or a drag of a
+bar changes it between `true` and `false`, and never from `nothing`, so the
+content of a pane such as a table or a graph can grow under a view at its end and
+the view stays where it is.
+
 # Example
 
     table = WidgetTable(["run", "delay"], [[n, "1.5 s"] for n in 1:100])
@@ -1540,7 +1547,7 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
     position::Union{Point2D, Nothing}
     size::Union{Point2D, Nothing}
     scroll_position::Point2D
-    follow_end::Bool
+    follow_end::Union{Bool,Nothing}
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
@@ -1556,7 +1563,7 @@ function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
                           scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
-                          follow_end::Union{Bool,AbstractCell}=false,
+                          follow_end::Union{Bool,Nothing,AbstractCell}=nothing,
                           vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,

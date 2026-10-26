@@ -45,7 +45,8 @@ and a `WidgetScrollBar` of a maker is drawn as it is and keeps its writes. A
 click on the track of a bar scrolls the pane one view, Shift and a click jump,
 and a drag of the thumb scrolls the pane wherever the pointer goes and goes back
 on Escape. A pane that follows its end stops following when its bar leaves the
-end, and follows again at the end. The pointer on a bar names the bar as the part
+end, and follows again at the end; a pane that is not made to follow its end
+never follows it. The pointer on a bar names the bar as the part
 under it and lights it, and a click there does not reach the content.
 """
 function test_scroll_pane_bar()
@@ -169,6 +170,33 @@ function test_scroll_pane_bar()
         down = read_intent(projection, iomap, MouseClick(:left, x, 199, 1, shift; time = 0.0))
         @test _bar_test_xy(_bar_test_written(down, pane, "scroll_position")) == (0, room)
         @test _bar_test_written(down, pane, "follow_end") == true
+    end
+
+    @testset "a pane that is not made to follow its end never follows it" begin
+        pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
+        @test getfield(pane, :follow_end)[] === nothing
+        iomap = print_document(projection, pane)
+        room = Int(iomap.content_iomap.output.h) - 200
+        # Every write of an answer, with each compound opened.
+        writes(op) = op isa CompoundOperation ? reduce(vcat, writes.(op.operations); init = Any[]) :
+                     op isa ReplaceViewStateOperation ? writes(get_wrapped_operation(op)) :
+                     op === nothing ? Any[] : Any[op]
+        writes_follow_end(op) = any(o -> o isa ReplaceReferencedValueOperation &&
+                                         o.reference.head == FieldReferenceStep("follow_end"), writes(op))
+        # Shift and a click at the end of the bar jumps to the end.
+        down = read_intent(projection, iomap, MouseClick(:left, 200 - 2, 199, 1, shift; time = 0.0))
+        @test _bar_test_xy(_bar_test_written(down, pane, "scroll_position")) == (0, room)
+        @test !writes_follow_end(down)
+        _bar_test_apply!(down)
+        # A turn of the wheel up and one back down to the end.
+        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100; time = 1.0))
+        foreach(o -> o isa ReplaceReferencedValueOperation && evaluate_operation(nothing, o), writes(up))
+        @test Int(pane.scroll_position.y[]) < room
+        back = read_intent(projection, iomap, MouseScroll(0, -1, 100, 100; time = 3.0))
+        @test Int(only(o.value for o in writes(back)
+                       if o.reference.head == FieldReferenceStep("scroll_position")).y[]) == room
+        @test !writes_follow_end(back)
+        @test getfield(pane, :follow_end)[] === nothing
     end
 
     @testset "a touchpad scrolls the pane by the fraction of a notch" begin

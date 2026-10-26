@@ -32,7 +32,7 @@ function print_document(p::GraphGraphToWidgetScrollPane, recursion, graph::Graph
     # Positional: content, position, size, scroll_position, follow_end, wheel_run,
     # vertical_scroll_bar, horizontal_scroll_bar, visible, margin, border, padding,
     # style, tooltip, selection, mouse_target.
-    pane = WidgetScrollPane(Cell(graph), Cell(nothing), Cell(nothing), Cell(Point2D(0, 0)), Cell(false),
+    pane = WidgetScrollPane(Cell(graph), Cell(nothing), Cell(nothing), Cell(Point2D(0, 0)), Cell(nothing),
                             Cell(nothing), Cell(:auto), Cell(:auto), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(nothing),
                             Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
