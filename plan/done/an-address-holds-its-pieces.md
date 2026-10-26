@@ -1,6 +1,6 @@
 # An address holds its pieces
 
-Status: DONE, 2026-10-25, on the branch `url-pieces`. Not landed.
+Status: DONE, 2026-10-25. Landed on main at `1ea4f4411`.
 
 ## The ask
 
