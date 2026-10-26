@@ -24,6 +24,27 @@ _glz_get_box(drawing, i) =
 
 _glz_get_centre(box) = (box[1] + box[3] / 2, box[2] + box[4] / 2)
 
+# The point of the window `W` where the drawing draws its point `point`.
+_glz_window_point(editor, drawing, point) = _gvd_place_of(editor, drawing.output) .+ point
+
+# The point of the layout that the drawing draws at its point `point`.
+function _glz_layout_point(drawing, point)
+    style = unwrap_cell(drawing.projection.style)
+    drawing_map = ProjecturedGraph.GraphModule._compute_drawing_map(drawing.input, style)
+    (point .- drawing_map.shift) ./ drawing_map.scale
+end
+
+# The index of the first box whose top-left corner the window of 360 × 300 px
+# shows, away from its edges.
+function _glz_find_shown_box(editor, drawing)
+    for (i, box) in enumerate(drawing.drawn_boxes)
+        box === nothing && continue
+        x, y = _glz_window_point(editor, drawing, box[1:2])
+        (10 <= x <= 340 && 10 <= y <= 280) && return i
+    end
+    nothing
+end
+
 function test_graph_layout_zoom()
 @testset "the zoom of the layout" begin
 
@@ -110,6 +131,54 @@ end
     dropped = _glz_get_box(drawing, 3)
     @test all(abs.(dropped[1:2] .- (before[3][1:2] .+ (70, 30))) .<= ceil(Int, scale / 2))
     @test [_glz_get_box(drawing, i) for i in 1:2] == before[1:2]
+end
+
+@testset "a notch over a box keeps the box under the pointer" begin
+    editor, backend, graph = _gvd_editor(; width = 360, height = 300)
+    drawing = _gvd_find_drawing(editor.iomap)
+    @test Int(drawing.output.w) > 360 && Int(drawing.output.h) > 300
+    i = _glz_find_shown_box(editor, drawing)
+    @test i !== nothing
+    place() = _glz_window_point(editor, drawing, drawing.drawn_boxes[i][1:2])
+    start = place()
+    x, y = start .+ (4, 4)
+    # Four notches in and two out; the pane scrolls with each, and the box stays.
+    for (k, notches) in enumerate((1, 1, 1, 1, -1, -1))
+        _gvd_send!(editor, backend, MouseScroll(0, notches, x, y, ModifierKeys(ctrl = true);
+                                                time = 1.0 + k))
+        @test all(abs.(place() .- start) .<= 1)
+    end
+    @test drawing.input.zoom.scale ≈ 1.15^2
+    # The box stays because the pane scrolled, not because the zoom left it.
+    scroll = getfield(_gsp_find_pane(editor.iomap, graph).input, :scroll_position)[]
+    @test Int(scroll.x[]) + Int(scroll.y[]) >= 10
+end
+
+@testset "a notch over empty room keeps the point of the layout under the pointer" begin
+    editor, backend, graph = _gvd_editor(; width = 360, height = 300)
+    drawing = _gvd_find_drawing(editor.iomap)
+    origin = _gvd_place_of(editor, drawing.output)
+    # A point of the window that is on no box.
+    x, y = first((x, y) for y in 150:10:280, x in 180:10:340
+                 if ProjecturedGraph.GraphModule._find_node_at(drawing, x - origin[1], y - origin[2]) == 0)
+    under(x, y) = _glz_layout_point(drawing, (x, y) .- _gvd_place_of(editor, drawing.output))
+    start = under(x, y)
+    for (k, notches) in enumerate((1, 1, 1, -1))
+        _gvd_send!(editor, backend, MouseScroll(0, notches, x, y, ModifierKeys(ctrl = true);
+                                                time = 1.0 + k))
+        @test all(abs.(under(x, y) .- start) .<= 1)
+    end
+end
+
+@testset "with no scroll pane around the graph, the zoom applies alone" begin
+    graph = _gsp_make_graph()
+    projection = _gsp_make_projection(; scrolling = false)
+    iomap = print_document(projection, graph)
+    drawing = _gvd_find_drawing(iomap)
+    answer = read_intent(projection, iomap, _glz_notch(1, 1))
+    @test answer isa KeepPointOperation
+    evaluate_operation(_GraphVertexDragTestEditor(graph), answer)
+    @test drawing.input.zoom.scale == 1.15
 end
 
 @testset "Ctrl and the wheel in a window zoom the graph" begin

@@ -190,10 +190,10 @@ end
 # inside the canvas, and a host that clips the canvas cuts no frame.
 _get_drawing_margin(style) = style.node_padding + style.highlight_gap + style.highlight_width
 
-# The map from the layout to the drawing: the zoom, moved right and down by the
-# margin, with the margin itself.
-function _compute_drawing_map(layout::GraphLayout, style)
-    zoom_map = _compute_zoom_map(layout)
+# The map from the layout to the drawing at the zoom `zoom`: the zoom, moved right
+# and down by the margin, with the margin itself.
+function _compute_drawing_map(layout::GraphLayout, style, zoom = layout.zoom)
+    zoom_map = _compute_zoom_map(layout, zoom)
     margin = _get_drawing_margin(style)
     (scale = zoom_map.scale, shift = zoom_map.shift .+ margin, margin = margin)
 end
@@ -699,7 +699,8 @@ end
 
 # Ctrl and the wheel. The content of the vertex under the point reads the turn
 # first, in the frame of its canvas, so a part of the content that zooms keeps
-# it. A turn that the content does not take zooms the layout.
+# it. A turn that the content does not take zooms the layout, and asks a scroll
+# pane around the drawing to keep the point under the pointer.
 function _read_ctrl_wheel(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseScroll)
     hit = _find_vertex_at(iomap, event.x, event.y)
     if hit !== nothing && hit[2] !== nothing
@@ -711,7 +712,28 @@ function _read_ctrl_wheel(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseS
     notches = event.dy != 0 ? event.dy : event.dx
     notches == 0 && return nothing
     zoom = _compute_next_zoom(iomap.input, notches)
-    zoom === nothing ? nothing : _write_layout_zoom(iomap.input, zoom)
+    zoom === nothing && return nothing
+    KeepPointOperation(_write_layout_zoom(iomap.input, zoom),
+                       _compute_zoom_move(iomap, zoom, event.x, event.y))
+end
+
+# How far the zoom `zoom` moves the point `(x, y)` of the drawing. A point on the
+# box of a vertex moves with the box, as the box keeps its size; any other point
+# moves with the point of the layout under it.
+function _compute_zoom_move(iomap::GraphLayoutToGraphicsCanvasIoMap, zoom, x, y)
+    layout = iomap.input
+    style = unwrap_cell(iomap.projection.style)
+    old_map = _compute_drawing_map(layout, style)
+    new_map = _compute_drawing_map(layout, style, zoom)
+    i = _find_node_at(iomap, x, y)
+    point = if i > 0 && layout.vertex_layouts[i] isa VertexLayout
+        vertex_layout = layout.vertex_layouts[i]
+        _get_box_centre((Int(vertex_layout.x), Int(vertex_layout.y),
+                         Int(vertex_layout.w), Int(vertex_layout.h)))
+    else
+        ((x - old_map.shift[1]) / old_map.scale, (y - old_map.shift[2]) / old_map.scale)
+    end
+    round.(Int, _apply_zoom_map(new_map, point) .- _apply_zoom_map(old_map, point))
 end
 
 # The box `(x, y, w, h)` of the label of each edge, by its index in

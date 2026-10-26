@@ -5698,13 +5698,15 @@ function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::In
     clamp(y, 0, room)
 end
 
-# How far to the side a pane shows its content, in pixels. A content with an
-# extent is clamped as it is scrolled, not as it is read. A list that runs to the
-# side stops at its ends as it is read, as a list that runs down does.
+# How far to the side a pane shows its content, in pixels. A stored offset is
+# clamped as it is read, as the offset down is, because the content can shrink
+# under it, as a graph does when its zoom goes out. A list that runs to the side
+# stops at its ends as it is read, as a list that runs down does.
 function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer)
     x = Int((getfield(w, :scroll_position)[]::Point2D).x[])
-    (is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing) || return x
-    _clamp_to_list_ends(content, x, Int(view_w), :x)
+    is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing &&
+        return _clamp_to_list_ends(content, x, Int(view_w), :x)
+    clamp(x, 0, max(0, Int(content.w) - Int(view_w)))
 end
 
 # The canvas whose elements are a list that runs along `axis` (`:y` down, `:x`
@@ -6520,9 +6522,15 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
 end
 
 # The answer of the content of a pane in the input of the pane, with the scroll
-# that brings into view the part that it selects to show. A selection of a
-# document that the content holds, which no reader below it named, is named here.
+# that brings into view the part that it selects to show, or the scroll that keeps
+# under the pointer the point that it moves. A selection of a document that the
+# content holds, which no reader below it named, is named here.
 function _show_pane_selection(p, iomap, operation)
+    if operation isa KeepPointOperation
+        inner = _show_pane_selection(p, iomap, get_wrapped_operation(operation))
+        scroll = inner === nothing ? nothing : _scroll_pane_with_point(p, iomap, operation.move)
+        return scroll === nothing ? inner : CompoundOperation(Any[inner, scroll])
+    end
     if operation isa SelectDocumentOperation
         input = get_iomap_input(iomap.content_iomap)
         path = find_document_path(input, operation.document)
@@ -6535,6 +6543,24 @@ function _show_pane_selection(p, iomap, operation)
     (retargeted === nothing || path === nothing) && return retargeted
     scroll = _scroll_pane_to_show(p, iomap, path)
     scroll === nothing ? retargeted : CompoundOperation(Any[retargeted, scroll])
+end
+
+# The scroll of a pane by `move` from the offset that it draws with, so a point of
+# the content that an operation moves by `move` stays under the pointer. The
+# offset is clamped at 0 only: the operation changes the content, and the pane
+# clamps the offset to the new content as it reads it. `nothing` for a pane that
+# scrolls parts that keep their own places, or when nothing moves.
+function _scroll_pane_with_point(p, iomap, move::Tuple{Int,Int})
+    iomap.parts === nothing || return nothing
+    content = _get_pane_scroll_canvas(iomap)
+    content isa GraphicsCanvas || return nothing
+    w = iomap.input
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
+    x = max(0, _pane_scroll_x(w, content, view_w) + move[1])
+    y = max(0, _pane_scroll_y(w, content, view_h) + move[2])
+    old = getfield(w, :scroll_position)[]::Point2D
+    (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
+    _write_view_state(w, "scroll_position", Point2D(x, y))
 end
 
 # The path of the selection that `operation` asks to show, or `nothing`.

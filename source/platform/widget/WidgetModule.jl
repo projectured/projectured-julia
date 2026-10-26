@@ -47,7 +47,8 @@ import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gestu
 import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
                           is_collecting_operation, join_collected_operations,
-                          operation_reference, retarget_operation, describe_operation
+                          operation_reference, retarget_operation, describe_operation,
+                          get_wrapped_operation, rewrap_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
 
@@ -101,6 +102,7 @@ export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, mak
        make_context_menu_binding, make_menu_button_binding
 export OpenPageOperation, make_open_page_gestures, make_target_open_operation
 export OpenFileOperation
+export KeepPointOperation
 export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
@@ -122,6 +124,7 @@ include("WidgetDocument.jl")
 include("WidgetValueSlot.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
+include("KeepPointOperation.jl")
 include("WidgetToGraphics.jl")
 include("WidgetDecoration.jl")
 include("FaultToWidget.jl")

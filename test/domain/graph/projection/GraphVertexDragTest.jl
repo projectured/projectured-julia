@@ -11,8 +11,9 @@ _gvd_force(value) = value isa AbstractCell ? _gvd_force(value[]) : value
 # A graph in the window `W` of a drag tracking screen, and the editor that shows
 # it: the graph of the example, unless the caller gives one and its projection.
 function _gvd_editor(graph = make_graph_document_example();
-                     projection = make_graph_projection_example(measure = _gvd_measure()))
-    scene = make_window_scene(graph, "W"; width = 900, height = 700)
+                     projection = make_graph_projection_example(measure = _gvd_measure()),
+                     width = 900, height = 700)
+    scene = make_window_scene(graph, "W"; width, height)
     opened = make_opened_window_projections(; measure = _gvd_measure())
     composed = make_window_scene_projection(projection; opened_window_projections = opened)
     document, projection = make_tracking_screen(scene, composed)

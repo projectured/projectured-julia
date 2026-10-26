@@ -199,6 +199,29 @@ function test_scroll_pane_bar()
         @test getfield(pane, :follow_end)[] === nothing
     end
 
+    @testset "a pane keeps a point that its content moves, and a pane further out does not scroll" begin
+        inner = WidgetScrollPane(_make_bar_test_content(; width = 400); size = Point2D(300, 300))
+        outer = WidgetScrollPane(inner; size = Point2D(200, 200))
+        iomap = print_document(projection, outer)
+        inner_iomap = iomap.content_iomap
+        @test inner_iomap.input === inner
+        show(map, operation) = WidgetModule._show_pane_selection(map.projection, map, operation)
+        zoom = ReplaceViewStateOperation(ReplaceReferencedValueOperation(inner, "wheel_run", nothing))
+        answer = show(inner_iomap, KeepPointOperation(zoom, (30, 40)))
+        @test _bar_test_xy(_bar_test_written(answer, inner, "scroll_position")) == (30, 40)
+        @test any(o -> o === get_wrapped_operation(zoom), _bar_test_writes(answer))
+        @test _bar_test_written(show(iomap, answer), outer, "scroll_position") === nothing
+        # A move to the left or up stops at 0, and a move that moves nothing is no scroll.
+        @test show(inner_iomap, KeepPointOperation(zoom, (-30, -40))) === zoom
+        # An offset to the side that is larger than the room shows the end of the room.
+        evaluate_operation(nothing, ReplaceReferencedValueOperation(inner, "scroll_position",
+                                                                    Point2D(10_000, 0)))
+        content = WidgetModule._get_pane_scroll_canvas(inner_iomap)
+        view_w, _ = WidgetModule._get_pane_scroll_view(inner_iomap.projection, inner_iomap)
+        @test Int(content.w) > view_w
+        @test WidgetModule._pane_scroll_x(inner, content, view_w) == Int(content.w) - view_w
+    end
+
     @testset "a touchpad scrolls the pane by the fraction of a notch" begin
         pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
         iomap = print_document(projection, pane)

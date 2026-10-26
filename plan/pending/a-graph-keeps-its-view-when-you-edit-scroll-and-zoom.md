@@ -98,7 +98,7 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    failed). The pass that removes overlaps moves both boxes of a pair that hold a
    start by half each, so the test asserts that the two are apart and that a box
    which the grown box does not reach stays. Graph suite: 568 pass.
-2. ⬜ **Only a pane that is made to follow its end follows it.** `WidgetScrollPane`:
+2. ✅ **Only a pane that is made to follow its end follows it.** `WidgetScrollPane`:
    the type and the default of `follow_end`, the docstring. `_scroll_pane_by` and
    the reader of the bar: the change between `true` and `false` only. The
    positional makers (`GraphGraphToWidgetScrollPane`, the panes of a table, the
@@ -106,7 +106,13 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    does not follow its end after a turn to the end, and its content can grow under
    it; a pane made with `follow_end = true` keeps its three rules. Run the scroll
    pane tests, `test_platform()`, and `test_dataframes()`, because tables change.
-3. ⬜ **A zoom keeps the point under the pointer.** `KeepPointOperation` with
+
+   Done. The wheel already re-pinned only at `follow_end === false`; the bar
+   re-pinned at `!following`, which now reads `=== false`. The scroll pane tests,
+   the evaluator test (250 pass) and the assistant test (191 pass, 4 broken as on
+   `main`) pass. `test_platform()` and `test_dataframes()` run after step 3,
+   because step 3 changes the platform too.
+3. ✅ **A zoom keeps the point under the pointer.** `KeepPointOperation` with
    `get_wrapped_operation`, `rewrap_operation` and `evaluate_operation`, in the
    widget slice of the platform. The scroll pane turns it into its inner operation
    and a scroll, beside `ShowSelectionOperation`. `_pane_scroll_x` clamps as it
@@ -115,6 +121,13 @@ the wheel over the JSON box, 3 turns of the wheel down, a click into the key
    over empty room they keep the point of the layout; in nested panes only the
    inner one scrolls; without a pane, the zoom works as before. Run the scroll pane
    tests and `test_graph()`.
+
+   Done. `KeepPointOperation.jl` in the widget slice. `_show_pane_selection`
+   takes the wrapper off and adds `_scroll_pane_with_point`, which scrolls from
+   the offset that the pane draws with and clamps at 0 only. `_compute_zoom_move`
+   finds the box under the pointer with its padding (`_find_node_at`). The test of
+   a box runs in a window of 360 × 300 px, so the drawing is larger than the view,
+   and checks that the pane scrolled. The zoom tests: 38 pass.
 4. ⬜ **The example works when you do all of it together.** A headless test in the
    graph suite that does the steps of the problem: the zoom, the scroll to the
    end, the click, the text, one more turn and one more notch. After each step the
