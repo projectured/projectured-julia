@@ -84,6 +84,18 @@ function test_math_parser()
         @test parse_math("f(x)") isa MathFunction
         @test parse_math("f (x)") isa MathRow
         @test parse_math("log_{2}(1 + x)") isa MathFunction && parse_math("log_{2}(1 + x)").base !== nothing
+        # A name of any spelling directly before `(` is the one neutral node and prints the same line.
+        for line in ("ρ(1 - ρ)", "S_{pure}(0.5)", "f(2)", "exp(1)", "\\rho_{a}(x)")
+            tree = parse_math(line)
+            @test tree isa MathFunction
+            @test _linear(parse_math(_linear(tree))) == _linear(tree)
+        end
+        @test _linear(parse_math("ρ(1 - ρ)")) == "ρ(1 - ρ)"
+        @test _linear(parse_math("S_{pure}(0.5)")) == "S_{pure}(0.5)"
+        @test parse_math("S_{pure}(0.5)").name == "S" && parse_math("S_{pure}(0.5)").base !== nothing
+        @test parse_math("ρ (1 - ρ)") isa MathRow
+        @test parse_math("S_{pure} (0.5)") isa MathRow
+        @test parse_math("S_{pure}") isa MathScript
         # The printer's own parentheses read back as a node.
         @test parse_math("(a + b)^{2}").base isa MathParenthesized
         # A negative number is a number.

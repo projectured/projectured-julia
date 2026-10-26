@@ -21,33 +21,35 @@ _refuse_reading(what::AbstractString) =
     throw(MathReadingException(what * " has no value here"))
 
 """
-    convert_math_to_julia(tree::MathDocument) -> JuliaDocument
+    convert_math_to_julia(tree::MathDocument; functions = ()) -> JuliaDocument
 
 The Julia expression a math tree stands for. A variable, a symbol and a word
 are identifiers; a subscript on a name is part of the name, `p_{block}` is
 `p_block`; a superscript is a power; a fraction is a division; a row is a
-product; a radical is `sqrt` or a fractional power; a function is a call,
-`log_{2}(x)` is `log(2, x)`; a sum or a product with limits is `sum(k -> body,
+product; a radical is `sqrt` or a fractional power; a name before `(` is a
+call when it is in `functions`, the keys of the functions of the sheet, or one
+of the functions of the notation, `exp(1)`, and a product otherwise, `f(2)` is
+`f * 2`; `log_{2}(x)` is `log(2, x)`; a sum or a product with limits is `sum(k -> body,
 a:b)`; a case list is a chain of `ifelse`; an assignment answers its value
 side. Every other node throws a [`MathReadingException`](@ref).
 """
-convert_math_to_julia(tree::MathDocument) = _julia_of(tree)
+convert_math_to_julia(tree::MathDocument; functions = ()) = _julia_of(tree, functions)
 
-_julia_of(node::MathVariable) = JuliaIdentifier(_name_of(node.name, "the variable"))
-_julia_of(node::MathSymbol) = JuliaIdentifier(_symbol_name(node.name))
-_julia_of(node::MathText) = JuliaIdentifier(_name_of(node.content, "the text"))
-_julia_of(node::PrimitiveNumber) = _julia_number(node.value)
-_julia_of(node::MathParenthesized) = _julia_of(node.content)
-_julia_of(node::MathAssignment) = _julia_of(node.value)
-_julia_of(node::MathFraction) =
-    JuliaBinaryOperation(:/, _julia_of(node.numerator), _julia_of(node.denominator))
+_julia_of(node::MathVariable, functions) = JuliaIdentifier(_name_of(node.name, "the variable"))
+_julia_of(node::MathSymbol, functions) = JuliaIdentifier(_symbol_name(node.name))
+_julia_of(node::MathText, functions) = JuliaIdentifier(_name_of(node.content, "the text"))
+_julia_of(node::PrimitiveNumber, functions) = _julia_number(node.value)
+_julia_of(node::MathParenthesized, functions) = _julia_of(node.content, functions)
+_julia_of(node::MathAssignment, functions) = _julia_of(node.value, functions)
+_julia_of(node::MathFraction, functions) =
+    JuliaBinaryOperation(:/, _julia_of(node.numerator, functions), _julia_of(node.denominator, functions))
 
-function _julia_of(node::MathRow)
+function _julia_of(node::MathRow, functions)
     elements = collect(node.elements)
     isempty(elements) && _refuse_reading("an empty row")
-    product = _julia_of(first(elements))
+    product = _julia_of(first(elements), functions)
     for element in elements[2:end]
-        product = JuliaBinaryOperation(:*, product, _julia_of(element))
+        product = JuliaBinaryOperation(:*, product, _julia_of(element, functions))
     end
     product
 end
@@ -59,22 +61,22 @@ const _JULIA_OPERATORS = Dict{Symbol,Symbol}(
     :(=) => :(==), :ne => :(!=), :lt => :<, :gt => :>, :le => :<=, :ge => :>=,
 )
 
-function _julia_of(node::MathBinaryOperation)
+function _julia_of(node::MathBinaryOperation, functions)
     operator = get(_JULIA_OPERATORS, node.operator, nothing)
     operator === nothing && _refuse_reading("the operator " * get_math_operator_glyph(node.operator))
-    JuliaBinaryOperation(operator, _julia_of(node.left), _julia_of(node.right))
+    JuliaBinaryOperation(operator, _julia_of(node.left, functions), _julia_of(node.right, functions))
 end
 
-function _julia_of(node::MathUnaryOperation)
+function _julia_of(node::MathUnaryOperation, functions)
     operator = node.operator
-    operator === :- && return JuliaUnaryOperation(:-, _julia_of(node.operand))
-    operator === :not && return JuliaUnaryOperation(:!, _julia_of(node.operand))
+    operator === :- && return JuliaUnaryOperation(:-, _julia_of(node.operand, functions))
+    operator === :not && return JuliaUnaryOperation(:!, _julia_of(node.operand, functions))
     operator === :factorial &&
-        return JuliaCall(JuliaIdentifier("factorial"), Any[_julia_of(node.operand)])
+        return JuliaCall(JuliaIdentifier("factorial"), Any[_julia_of(node.operand, functions)])
     _refuse_reading("the operator " * get_math_operator_glyph(operator))
 end
 
-function _julia_of(node::MathScript)
+function _julia_of(node::MathScript, functions)
     base = node.base
     subscript = node.subscript
     superscript = node.superscript
@@ -82,76 +84,95 @@ function _julia_of(node::MathScript)
         name = _subscripted_name(base, subscript)
         base = JuliaIdentifier(name)
     else
-        base = _julia_of(base)
+        base = _julia_of(base, functions)
     end
     superscript === nothing && return base
-    JuliaBinaryOperation(:^, base, _julia_of(superscript))
+    JuliaBinaryOperation(:^, base, _julia_of(superscript, functions))
 end
 
-function _julia_of(node::MathRadical)
-    radicand = _julia_of(node.radicand)
+function _julia_of(node::MathRadical, functions)
+    radicand = _julia_of(node.radicand, functions)
     index = node.index
     index === nothing && return JuliaCall(JuliaIdentifier("sqrt"), Any[radicand])
-    JuliaBinaryOperation(:^, radicand, JuliaBinaryOperation(:/, JuliaInteger(1), _julia_of(index)))
+    JuliaBinaryOperation(:^, radicand, JuliaBinaryOperation(:/, JuliaInteger(1), _julia_of(index, functions)))
 end
 
-function _julia_of(node::MathFunction)
-    argument = _julia_of(node.argument)
+function _julia_of(node::MathFunction, functions)
+    argument = _julia_of(node.argument, functions)
     base = node.base
-    base === nothing && return JuliaCall(JuliaIdentifier(_name_of(node.name, "the function")), Any[argument])
-    node.name == "log" && return JuliaCall(JuliaIdentifier("log"), Any[_julia_of(base), argument])
-    _refuse_reading("the function " * node.name * " with a base")
+    node.name == "log" && base !== nothing &&
+        return JuliaCall(JuliaIdentifier("log"), Any[_julia_of(base, functions), argument])
+    key = _function_key(node)
+    if key in functions || (base === nothing && key in _NOTATION_FUNCTIONS)
+        return JuliaCall(JuliaIdentifier(key), Any[argument])
+    end
+    JuliaBinaryOperation(:*, JuliaIdentifier(key), argument)
 end
 
-function _julia_of(node::MathBigOperator)
+# The functions of the notation: a name before `(` that no formula of the sheet
+# takes is a call when it is one of these, and a product otherwise.
+const _NOTATION_FUNCTIONS = Set{String}([
+    "exp", "log", "log2", "log10", "sqrt", "cbrt", "sin", "cos", "tan", "asin", "acos", "atan",
+    "sinh", "cosh", "tanh", "abs", "sign", "floor", "ceil", "round", "factorial", "min", "max"])
+
+# The name a function node has alone: a Greek letter is its symbol, `ρ` is
+# `rho`, and a subscript is part of the name, `S_{pure}` is `S_pure`.
+function _function_key(node::MathFunction)
+    name = node.name
+    symbol = length(name) == 1 && !isascii(first(name)) ? find_math_symbol_name(name) : nothing
+    key = _name_of(symbol === nothing ? name : String(symbol), "the function")
+    node.base === nothing ? key : key * "_" * _name_of_node(node.base)
+end
+
+function _julia_of(node::MathBigOperator, functions)
     operator = node.operator
     operator in (:sum, :prod) || _refuse_reading("the operator " * get_math_big_operator_name(operator))
     lower = node.lower
     upper = node.upper
     (lower === nothing || upper === nothing) &&
         _refuse_reading("a " * String(operator) * " without limits")
-    (variable, start) = _bound_variable(lower)
-    body = JuliaLambda(Any[JuliaIdentifier(variable)], _julia_of(node.body))
-    range = JuliaRange(start, nothing, _julia_of(upper))
+    (variable, start) = _bound_variable(lower, functions)
+    body = JuliaLambda(Any[JuliaIdentifier(variable)], _julia_of(node.body, functions))
+    range = JuliaRange(start, nothing, _julia_of(upper, functions))
     JuliaCall(JuliaIdentifier(String(operator)), Any[body, range])
 end
 
 # The lower limit of a sum: `k = 0`, as an assignment or as a relation.
-function _bound_variable(lower)
+function _bound_variable(lower, functions)
     if lower isa MathAssignment
-        return (_name_of_node(lower.target), _julia_of(lower.value))
+        return (_name_of_node(lower.target), _julia_of(lower.value, functions))
     elseif lower isa MathBinaryOperation && lower.operator === :(=)
-        return (_name_of_node(lower.left), _julia_of(lower.right))
+        return (_name_of_node(lower.left), _julia_of(lower.right, functions))
     end
     _refuse_reading("a sum whose lower limit names no start, like k = 0,")
 end
 
-function _julia_of(node::MathCases)
+function _julia_of(node::MathCases, functions)
     cases = collect(node.cases)
     isempty(cases) && _refuse_reading("an empty case list")
     otherwise = nothing
     conditioned = Any[]
     for case in cases
-        case.condition === nothing ? (otherwise = _julia_of(case.value)) :
+        case.condition === nothing ? (otherwise = _julia_of(case.value, functions)) :
                                      push!(conditioned, case)
     end
     otherwise === nothing && _refuse_reading("a case list without an otherwise")
     result = otherwise
     for case in reverse(conditioned)
         result = JuliaCall(JuliaIdentifier("ifelse"),
-                           Any[_julia_of(case.condition), _julia_of(case.value), result])
+                           Any[_julia_of(case.condition, functions), _julia_of(case.value, functions), result])
     end
     result
 end
 
-_julia_of(::MathDifferential) = _refuse_reading("a differential")
-_julia_of(::MathDerivative) = _refuse_reading("a derivative")
-_julia_of(::MathAccent) = _refuse_reading("an accent")
-_julia_of(::MathMatrix) = _refuse_reading("a matrix")
-_julia_of(::MathSpace) = _refuse_reading("a space")
-_julia_of(::MathInsertion) = _refuse_reading("an empty slot")
-_julia_of(::MathCase) = _refuse_reading("a case outside a case list")
-_julia_of(node) = _refuse_reading("a " * String(nameof(typeof(node))))
+_julia_of(::MathDifferential, functions) = _refuse_reading("a differential")
+_julia_of(::MathDerivative, functions) = _refuse_reading("a derivative")
+_julia_of(::MathAccent, functions) = _refuse_reading("an accent")
+_julia_of(::MathMatrix, functions) = _refuse_reading("a matrix")
+_julia_of(::MathSpace, functions) = _refuse_reading("a space")
+_julia_of(::MathInsertion, functions) = _refuse_reading("an empty slot")
+_julia_of(::MathCase, functions) = _refuse_reading("a case outside a case list")
+_julia_of(node, functions) = _refuse_reading("a " * String(nameof(typeof(node))))
 
 # ── Names ────────────────────────────────────────────────────────────────────
 

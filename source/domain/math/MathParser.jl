@@ -284,6 +284,8 @@ end
 function _parse_scripted(p::_MathCursor)
     base = _parse_atom(p)
     base isa MathFunction && base.base !== nothing && return _parse_superscript(p, base)
+    call = _parse_subscripted_call(p, base)
+    call === nothing || return _parse_superscript(p, call)
     subscript = nothing
     superscript = nothing
     if _at(p, :operator, "_")
@@ -296,6 +298,23 @@ function _parse_scripted(p::_MathCursor)
     end
     (subscript === nothing && superscript === nothing) && return base
     MathScript(base; subscript = subscript, superscript = superscript)
+end
+
+# A letter or a symbol with a braced subscript and `(` directly after it,
+# `S_{pure}(G)`, is a call as a word with a base is; the cursor stays where it
+# was when the subscript is not followed by `(`.
+function _parse_subscripted_call(p::_MathCursor, base)
+    base isa MathVariable || (base isa MathSymbol && _is_letter_glyph(get_math_symbol_glyph(base.name))) ||
+        return nothing
+    _at(p, :operator, "_") && _peek(p, 1).kind === :open && _peek(p, 1).text == "{" || return nothing
+    index = p.index
+    _next!(p)
+    subscript = _parse_script(p)
+    if _at(p, :open, "(") && !_peek(p).space_before
+        return _parse_call(p, base isa MathVariable ? base.name : get_math_symbol_glyph(base.name), subscript)
+    end
+    p.index = index
+    nothing
 end
 
 # A function with a base, `log_{2}(x)`, has spent its subscript; a superscript may follow.
@@ -337,6 +356,7 @@ function _parse_atom(p::_MathCursor)
         return _parse_word(p, token)
     elseif kind === :glyph
         _next!(p)
+        _at(p, :open, "(") && !_peek(p).space_before && return _parse_call(p, token.text, nothing)
         return MathSymbol(_MATH_GLYPH_NAMES[token.text])
     elseif kind === :command
         _next!(p)
@@ -366,6 +386,16 @@ function _parse_atom(p::_MathCursor)
     end
     _refuse(p, "an operand")
 end
+
+# A symbol that is a letter, `ρ`, is a call when `(` follows it directly.
+function _parse_symbol(p::_MathCursor, name::Symbol)
+    glyph = get_math_symbol_glyph(name)
+    _is_letter_glyph(glyph) && _at(p, :open, "(") && !_peek(p).space_before &&
+        return _parse_call(p, glyph, nothing)
+    MathSymbol(name)
+end
+
+_is_letter_glyph(glyph::AbstractString) = length(glyph) == 1 && isletter(first(glyph))
 
 function _number(token::_MathToken)
     text = token.text
@@ -509,7 +539,7 @@ function _parse_command(p::_MathCursor, token::_MathToken)
         _expect!(p, :close, "}")
         return MathCases(cases)
     end
-    haskey(_MATH_SYMBOLS, Symbol(name)) && return MathSymbol(Symbol(name))
+    haskey(_MATH_SYMBOLS, Symbol(name)) && return _parse_symbol(p, Symbol(name))
     haskey(_MATH_OPERATOR_NAMES, name) &&
         error("math: the operator \\", name, " needs an operand before it, at position ", token.position)
     error("math: unknown command \\", name, " at position ", token.position)

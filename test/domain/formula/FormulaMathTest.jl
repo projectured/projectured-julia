@@ -58,6 +58,23 @@ function test_formula_math()
         @test _math_reading(MathSymbol(:infty)) == "Inf"
     end
 
+    @testset "a name before parentheses is a call or a product by what the name is" begin
+        reading(line; functions = ()) = strip(print_natural_text(convert_math_to_julia(parse_math(line); functions)))
+        @test reading("ρ(1 - ρ)") == "rho * (1 - rho)"
+        @test reading("f(2)") == "f * 2"
+        @test reading("f(2)"; functions = ["f", "S_pure"]) == "f(2)"
+        @test reading("S_{pure}(0.5)"; functions = ["f", "S_pure"]) == "S_pure(0.5)"
+        @test reading("S_{pure}(0.5)") == "S_pure * 0.5"
+        @test reading("ρ(2)"; functions = ["rho"]) == "rho(2)"
+        @test reading("exp(1)") == "exp(1)"
+        @test reading("exp(1)"; functions = ["f"]) == "exp(1)"
+        @test reading("exp(1)"; functions = ["exp"]) == "exp(1)"
+        @test reading("erf(x)") == "erf * x"
+        @test reading("log_{2}(8)") == "log(2, 8)"
+        @test get_formula_names(convert_math_to_julia(parse_math("f(2)"))) == ["f"]
+        @test get_formula_names(convert_math_to_julia(parse_math("f(2)"); functions = ["f"])) == ["f"]
+    end
+
     @testset "what is refused says why" begin
         @test_throws MathReadingException convert_math_to_julia(MathDerivative(MathVariable("P"), MathVariable("t"), 1, :partial))
         @test_throws MathReadingException convert_math_to_julia(MathBigOperator(:int, MathVariable("x")))

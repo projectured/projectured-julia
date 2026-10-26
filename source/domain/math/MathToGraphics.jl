@@ -1326,6 +1326,12 @@ struct MathFunctionToGraphics <: MathProjection
 end
 MathFunctionToGraphics(c::MathConfig) = MathFunctionToGraphics(c, :display)
 
+function _function_name_font(name::AbstractString, m::MathMetrics)
+    length(name) == 1 || return m.upright
+    letter = first(name)
+    (isascii(letter) && isletter(letter)) || 0x3B1 <= UInt32(letter) <= 0x3C9 ? m.slanted : m.upright
+end
+
 function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction, ctx)
     style = _style_of(p, ctx)
     c = p.config
@@ -1337,8 +1343,9 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
                               _with_style(make_child_context(ctx, doc, @reference_step base),
                                           _script_style(style)))
         metrics = () -> compute_math_metrics(c, style)
-        # The name is upright: `log`, not the product of l, o and g.
-        name = _glyph_box(c, () -> doc.name, () -> metrics().upright)
+        # A word is upright, `log`, not the product of l, o and g; a letter and a
+        # lowercase Greek letter are slanted, as a variable is.
+        name = _glyph_box(c, () -> doc.name, () -> _function_name_font(doc.name, metrics()))
 
         boxes = Any[name]
         spaces = Symbol[:none]

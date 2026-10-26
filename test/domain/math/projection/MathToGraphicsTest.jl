@@ -122,6 +122,14 @@ end
     @test _first_text(_content(outer, 2)).font == scriptscript.upright
 end
 
+@testset "the name of a function draws as the name alone" begin
+    m = _metrics()
+    name_font(name) = _first_text(_print(MathFunction(name, MathVariable("x"))).output).font
+    @test name_font("ρ") == m.slanted
+    @test name_font("f") == m.slanted
+    @test name_font("exp") == m.upright
+end
+
 @testset "a large operator centers on the axis and takes its limits" begin
     m = _metrics()
     sum = _print(MathBigOperator(:sum, MathVariable("x");

@@ -414,16 +414,16 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 1 — a name with an argument is one node, and the reading decides (D2)
 
-- [ ] `MathParser.jl`: a Greek letter, and a letter followed by `_{…}`, directly
+- [x] `MathParser.jl`: a Greek letter, and a letter followed by `_{…}`, directly
       before `(` give `MathFunction(name, argument; base = subscript)`, as a
       letter and a word do, with the look-ahead and the step back of
       `_parse_word`. The docstring of `MathFunction` says that the node is
       neutral.
-- [ ] `MathToGraphics.jl`: the name of the node draws as the name alone, a
+- [x] `MathToGraphics.jl`: the name of the node draws as the name alone, a
       letter and a lowercase Greek letter slanted, a word upright.
-- [ ] `MathToJulia.jl`: `convert_math_to_julia(tree; functions = ())` and the
+- [x] `MathToJulia.jl`: `convert_math_to_julia(tree; functions = ())` and the
       table of §3.2, with the list of the functions of the notation.
-- [ ] Test: `test_math_parser()`: `ρ(1 - ρ)`, `S_{pure}(0.5)`, `f(2)` and
+- [x] Test: `test_math_parser()`: `ρ(1 - ρ)`, `S_{pure}(0.5)`, `f(2)` and
       `exp(1)` each read as the node and print back the same line; `ρ (1 - ρ)`
       reads as a row. `test_math_to_graphics()`: the name of `ρ(1 - ρ)` draws
       slanted, the name of `exp(1)` upright. `test_formula_math()`: with no
@@ -432,6 +432,15 @@ Each step is one commit with its own test. The projectured steps land on
       `S_{pure}(0.5)` as `S_pure(0.5)`; `exp(1)` is a call with or without
       `functions`; `log_{2}(8)` reads as `log(2, 8)`;
       both readings of `f(2)` give the names `["f"]`.
+- **As built:** the node is `MathFunction`; `_parse_subscripted_call` (letter or
+  letter symbol with `_{…}` and `(` directly after) and `_parse_symbol` (a letter
+  symbol, glyph or `\rho`, with `(` directly after) make it, and a Greek letter
+  is stored as its glyph in `name`. `_function_name_font` slants a one-letter and
+  a lowercase Greek name. `convert_math_to_julia(tree; functions = ())` threads
+  `functions` through every `_julia_of`; the new exported
+  `find_math_symbol_name(glyph)` answers `:rho` for `ρ`, so the reading finds the
+  key of a Greek name. A word with a base other than `log` that is no function of
+  the sheet reads as a product (`foo_{2}(x)` is `foo_2 * x`), where it refused.
 
 ### Step 2 — a formula with a parameter computes a function (D1, D3, D13)
 

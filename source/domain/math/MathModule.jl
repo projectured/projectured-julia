@@ -25,7 +25,7 @@ using ..PlatformModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export MathDocument, _operator_string, get_math_operator_glyph, get_math_operator_class,
-       get_math_symbol_glyph, get_math_big_operator_glyph, get_math_big_operator_name,
+       get_math_symbol_glyph, find_math_symbol_name, get_math_big_operator_glyph, get_math_big_operator_name,
        is_math_big_operator_text,
        get_math_delimiter_strings, is_math_accent_wide, MathSubscript, MathSuperscript
 export MathTheme, ScaledMathTheme
