@@ -35,6 +35,28 @@ _ft_mark_text(line, lane) = get_flat_string(getproperty(line.gutter, lane))
 # The text of the spans of `line`.
 _ft_line_text(line) = join(span.content for span in line.elements)
 
+# The bytes of a forward map and of a backward map of a caret on the sixth line of
+# a text of `size` lines, through a fold that hides the third line. Each map runs
+# three times before it is measured, so the measure counts no compilation.
+function _ft_measure_map_bytes(size::Int)
+    fold = TextFold(; line_count = 1)
+    lines = TextDocument[_ft_line(string("line ", k); fold = k == 2 ? fold : nothing) for k in 1:size]
+    block = TextBlock(lines)
+    fold.collapsed = true
+    projection = TextFolding()
+    iomap = print_document(projection, block)
+    input_caret = make_flat_caret_reference(get_flat_offsets(block)[6] + 2)
+    output_caret = make_flat_caret_reference(get_flat_offsets(iomap.output)[5] + 2)
+    for _ in 1:3
+        map_reference_forward(projection, iomap, input_caret)
+        map_reference_backward(projection, iomap, output_caret)
+    end
+    @assert map_reference_forward(projection, iomap, input_caret) == output_caret
+    @assert map_reference_backward(projection, iomap, output_caret) == input_caret
+    (forward = @allocated(map_reference_forward(projection, iomap, input_caret)),
+     backward = @allocated(map_reference_backward(projection, iomap, output_caret)))
+end
+
 function test_text_folding()
 @testset "a text folds a region of its lines" begin
     outer = TextFold(; line_count = 2)
@@ -119,6 +141,16 @@ function test_text_folding()
         @test answer isa ToggleCollapseOperation
         # The fold shares the `collapsed` cell of the node, so the toggle folds the node.
         @test getfield(answer.target, :collapsed) === getfield(body, :collapsed)
+    end
+
+    # A caret maps through the folding by the line that holds it: the forward map and
+    # the backward map cost the same bytes in a text of 100 lines and in a text of
+    # 10_000 lines.
+    @testset "a caret maps through the folding by its own line" begin
+        small = _ft_measure_map_bytes(100)
+        large = _ft_measure_map_bytes(10_000)
+        @test large.forward <= FLAT_ALLOCATION_RATIO * max(small.forward, 4096)
+        @test large.backward <= FLAT_ALLOCATION_RATIO * max(small.backward, 4096)
     end
 end
 end

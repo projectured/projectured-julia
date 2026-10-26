@@ -43,13 +43,24 @@ TextFolding(; field::Symbol = :fold, gutter_type = TextGutter, open_mark::String
     TextFoldingIoMap
 
 The IO map of `TextFolding`: `kept`, a cell of the input index of each output
-element.
+element, and `places`, the places of the lines of the input and of the output.
 """
 @iomap struct TextFoldingIoMap
     projection::Any
     input::TextBlock
     output::TextBlock
     kept::Cell
+    places::Any
+end
+
+# The places of the lines of a fold: `kept`, and the flat start of each line of the
+# input and of the output from the sums of aligned blocks of their flat lengths
+# (`_LineSums`). A flat offset maps through the line that holds it, so a map reads
+# that line and the line after it.
+struct _FoldPlaces
+    kept::Cell
+    input::_LineSums
+    output::_LineSums
 end
 
 # The elements of `text` that stay in view: every element but the lines that a
@@ -124,16 +135,50 @@ function print_document(p::TextFolding, recursion, text::TextBlock, ctx)
         end
         out
     end))
-    paths = make_output_path_cells(text, path ->
-        _forward_folded(kept[], text, TextBlock(elements, Cell(nothing)), path))
-    TextFoldingIoMap(p, text, TextBlock(elements, paths.selection, paths.mouse_target), kept)
+    places = _FoldPlaces(kept,
+        _LineSums(PlaceBlocks{Int}(i -> get_flat_length(text.elements[i]) + 1, +), () -> length(text.elements)),
+        _LineSums(PlaceBlocks{Int}(k -> get_flat_length(elements[k]) + 1, +), () -> length(elements)))
+    paths = make_output_path_cells(text, path -> _forward_folded(places, text, path))
+    TextFoldingIoMap(p, text, TextBlock(elements, paths.selection, paths.mouse_target), kept, places)
 end
 
 # The runs of flat offsets that the fold keeps: one for each line shown, as long as
 # the line is in the input. A hidden line is in no run, and the placeholder of a
-# closed line lies past the end of its run.
-_make_fold_runs(kept::Vector{Int}, input::TextBlock, output::TextBlock) =
-    _make_flat_runs(input, output, [(i, 0, k, get_flat_length(input.elements[i])) for (k, i) in enumerate(kept)])
+# closed line lies past the end of its run. The run of the kept line `k` starts
+# where the input line `kept[k]` starts and where the output line `k` starts.
+function _get_fold_run(places::_FoldPlaces, input::TextBlock, kept::Vector{Int}, k::Int)
+    i = kept[k]
+    (from = _get_flat_line_start(places.input, i), to = _get_flat_line_start(places.output, k),
+     length = get_flat_length(input.elements[i]))
+end
+
+# A flat offset of the input carried to the output over the runs of the fold. The
+# answer of `_map_flat_over_runs` depends only on the run of the last kept line at
+# or before the line of the offset, and on the run after it: each run before ends
+# before the offset, and each run after starts after the next one. So only those
+# two runs are made.
+function _map_folded_offset(places::_FoldPlaces, input::TextBlock, kept::Vector{Int}, flat::Int, opens::Bool)
+    found = _find_flat_line(places.input, flat)
+    k = found === nothing ? 0 : searchsortedlast(kept, found[1])
+    runs = [_get_fold_run(places, input, kept, j) for j in max(k, 1):min(k + 1, length(kept))]
+    _map_flat_over_runs(runs, flat, opens)
+end
+
+# A flat offset of the output carried back to the input: the run of the output line
+# of the offset and the run after it decide, by the same rule.
+function _map_unfolded_offset(places::_FoldPlaces, input::TextBlock, kept::Vector{Int}, flat::Int, opens::Bool)
+    found = _find_flat_line(places.output, flat)
+    k = found === nothing ? 1 : found[1]
+    runs = [(run = _get_fold_run(places, input, kept, j); (from = run.to, to = run.from, length = run.length))
+            for j in k:min(k + 1, length(kept))]
+    _map_flat_over_runs(runs, flat, opens)
+end
+
+# The output line of the input line `i`, or `nothing` for a hidden line.
+function _find_kept_line(kept::Vector{Int}, i::Int)
+    k = searchsortedfirst(kept, i)
+    k <= length(kept) && kept[k] == i ? k : nothing
+end
 
 # A path that names an element, `.elements[i]…`, with `i` replaced by `index(i)`,
 # or `nothing` when that is `nothing`.
@@ -149,15 +194,17 @@ end
 
 # A text selection maps over the runs; any other path into a line, such as one
 # into its gutter, maps to the same line.
-function _forward_folded(kept::Vector{Int}, input::TextBlock, output::TextBlock, reference)
+function _forward_folded(places::_FoldPlaces, input::TextBlock, reference)
     reference isa EmptyReference && return reference
-    mapped = _map_selection_over_runs(_make_fold_runs(kept, input, output), input, reference)
+    kept = places.kept[]
+    mapped = _map_text_selection((flat, opens) -> _map_folded_offset(places, input, kept, flat, opens),
+                                 input, reference, places.input)
     mapped === nothing || return mapped
-    _remap_element_path(strip_reference_types(reference), i -> findfirst(==(i), kept))
+    _remap_element_path(strip_reference_types(reference), i -> _find_kept_line(kept, i))
 end
 
 map_reference_forward(::TextFolding, iomap::TextFoldingIoMap, reference) =
-    _forward_folded(unwrap_cell(iomap.kept), iomap.input, iomap.output, reference)
+    _forward_folded(iomap.places, iomap.input, reference)
 
 # The output line `k` as the input line, or `nothing`.
 _get_kept_line(kept::Vector{Int}) = k -> 1 <= k <= length(kept) ? kept[k] : nothing
@@ -178,8 +225,9 @@ function map_reference_backward(p::TextFolding, iomap::TextFoldingIoMap, referen
     # The triangle has no pre-image.
     _find_fold_mark_line(p, reference) === nothing || return nothing
     kept = unwrap_cell(iomap.kept)
-    runs = _reverse_flat_runs(_make_fold_runs(kept, iomap.input, iomap.output))
-    mapped = _map_selection_over_runs(runs, iomap.output, reference)
+    places = iomap.places
+    mapped = _map_text_selection((flat, opens) -> _map_unfolded_offset(places, iomap.input, kept, flat, opens),
+                                 iomap.output, reference, places.output)
     mapped === nothing || return mapped
     _remap_element_path(strip_reference_types(reference), _get_kept_line(kept))
 end
@@ -196,17 +244,16 @@ function _find_clicked_fold(p::TextFolding, iomap::TextFoldingIoMap, path)
         return line isa TextLine && line.fold isa TextFold ? line.fold : nothing
     end
     path isa Reference || return nothing
-    caret = get_flat_caret(output, path)
+    caret = get_flat_caret(output, path, iomap.places.output)
     caret === nothing && return nothing
-    offsets = get_flat_offsets(output)
-    for (k, start) in enumerate(offsets)
-        caret < start && break
-        caret <= start + get_flat_length(output.elements[k]) || continue
-        line = input.elements[kept[k]]
-        (line isa TextLine && line.fold isa TextFold && line.fold.collapsed) || return nothing
-        return caret > start + get_flat_length(line) ? line.fold : nothing
-    end
-    nothing
+    # The output line that holds the caret: the last one that starts at or before it.
+    found = _find_flat_line(iomap.places.output, caret)
+    found === nothing && return nothing
+    k, start = found
+    caret <= start + get_flat_length(output.elements[k]) || return nothing
+    line = input.elements[kept[k]]
+    (line isa TextLine && line.fold isa TextFold && line.fold.collapsed) || return nothing
+    caret > start + get_flat_length(line) ? line.fold : nothing
 end
 
 function read_intent(p::TextFolding, iomap::TextFoldingIoMap, op::ReplacePathOperation)
@@ -282,7 +329,7 @@ read_intent(::TextFolding, ::TextFoldingIoMap, op::CompoundOperation) =
 # A key is read against the output, so a motion steps over a closed fold, and its
 # answer maps back as an answer of the stages after this one does.
 function read_intent(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPress, KeyDown})
-    op = _read_lowered_gesture(iomap.output, evt)
+    op = _read_lowered_gesture(iomap.output, evt, iomap.places.output)
     op isa Operation ? read_intent(p, iomap, op) : nothing
 end
 

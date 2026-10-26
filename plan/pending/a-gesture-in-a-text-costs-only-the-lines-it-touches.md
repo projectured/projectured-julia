@@ -147,7 +147,7 @@ approves.
    no overlap for a vertical and a horizontal layout, and the place of each child
    from sums of aligned blocks. Run `test_platform()`, `test_sdl()`, the partial paint
    test (`test_partial_paint()`), and the window guards. Commit.
-7. [ ] **The folding maps a selection through the lines it touches.** `TextFolding`
+7. [x] **The folding maps a selection through the lines it touches.** `TextFolding`
    maps a flat offset through the line that holds it: the output line of the
    offset, its input line by `kept`, and the flat starts of both lines from sums of
    aligned blocks of the flat lengths of the kept lines and of the input lines. The
@@ -512,4 +512,52 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
 
   The click still grows: its read stage finds the child at the point by a search of
   every child of the column (`_route_to_children`), 9.4 ms of the 10.4.
+
+### Step 7: the folding maps a selection through the lines it touches
+
+- **The places of a fold.** `_FoldPlaces`: `kept`, and an index of the lines of the
+  input and of the output, each a `_LineSums`: the sums of aligned blocks of the flat
+  length of each line with the break after it, and the count of the lines.
+  `_LineSums` is the third kind of line index of the flat lookups (`_find_flat_line`,
+  `_get_flat_line_start`), beside the offsets of a block and `_TextPlaces`.
+- **One offset through the runs.** The answer of `_map_flat_over_runs` depends only on
+  the run of the last kept line at or before the line of the offset, and on the run
+  after it: each run before ends before the offset, and each run after starts after
+  the next one. So `_map_folded_offset` makes those two runs (`_get_fold_run`) and
+  asks `_map_flat_over_runs` with them, with the same answer as over every run.
+  `_map_unfolded_offset` does the same from the output line of an offset. A hidden
+  line of a path is found in `kept` by halves (`_find_kept_line`).
+- **The selection map takes a function.** `_map_text_selection(map_flat, block,
+  selection, line_index)` carries a selection by a function that carries one offset,
+  with the line index of the block for a caret in the structural form.
+  `_map_selection_over_runs` is that function over a table of runs, for the other
+  stages. `_map_text_box` takes the function too. `get_flat_caret` takes an optional
+  line index.
+- **The readers.** The forward map and the backward map use the two functions.
+  `_find_clicked_fold` finds the output line of the caret by the index. A key read
+  against the output lowers its edit with the index of the output.
+  `_make_fold_runs` had no caller left, and went. `_find_innermost_fold`, which only
+  Ctrl+. calls, still reads the offsets of every line.
+- **The guard** in `test/platform/projection/TextFoldingTest.jl`: a caret on the sixth
+  line, through a fold that hides the third line (`_ft_measure_map_bytes`):
+
+  | Lines | Forward, `frame-guards` | Forward, step 7 | Backward, `frame-guards` | Backward, step 7 |
+  |---|---|---|---|---|
+  | 100 | 103 kB | 1.7 kB | 106 kB | 2.3 kB |
+  | 10_000 | 11.8 MB | 1.7 kB | 12.0 MB | 2.3 kB |
+
+  The base was measured with the same function (`/var/tmp/text-gestures/fold_base.jl`).
+- **Tests.** `test_text_folding()`, `test_text()` and `test_text_to_graphics()`: 311 pass.
+  The 34 text parts of `test_platform()`: the counts of `frame-guards`, and the new
+  guards. `test_position_navigations()`, `test_click_roundtrips()` and
+  `test_typeins()`: 14229 pass, 25 broken, the counts of step 3. `test_julia()` and
+  `test_json()`: 921 pass. The window guards: 37 pass, 4 broken; the markers of the
+  caret move, the click and the move of the pointer in the Julia file came off. The
+  minimum frame in the Julia file of 1_000 lines:
+
+  | Gesture | `frame-guards` | Step 3 | Step 7 |
+  |---|---|---|---|
+  | A caret move by a line | 382 ms | 36 ms | 1.7 ms |
+  | A click on a line | 331 ms | 41 ms | 2.1 ms |
+  | A move of the pointer | 12 ms | 9.9 ms | 1.1 ms |
 

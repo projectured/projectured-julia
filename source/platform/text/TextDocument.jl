@@ -1013,7 +1013,7 @@ make_flat_range_reference(start::Int, stop::Int; direction::Symbol = :forward) =
                       EmptyReference())
 
 """
-    get_flat_caret(block, ref) -> Int | nothing
+    get_flat_caret(block, ref, line_index = nothing) -> Int | nothing
 
 The flat caret offset a selection reference denotes over `block`, resolved from
 **either** representation a text caret takes: the flat `TextRangeReferenceStep{k}` form
@@ -1026,8 +1026,11 @@ The text→text decorators (`WordWrapping`, `LineNumbering`, `FilteredTextToText
 `HighlightedTextToText`, `SelectionInverting`) forward-map the cursor through this, so the
 caret renders no matter which representation the last operation left on the block —
 without it, a structural caret maps to nothing and the cursor disappears after an edit.
+
+A stage that keeps the places of the lines of `block` passes them as `line_index`, so
+the flat base of a structural caret reads its line and not every line before it.
 """
-function get_flat_caret(block::TextBlock, ref)
+function get_flat_caret(block::TextBlock, ref, line_index = nothing)
     sel = strip_reference_types(ref)
     if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return sel.head.start == sel.head.stop ? sel.head.start::Int : nothing
@@ -1036,7 +1039,7 @@ function get_flat_caret(block::TextBlock, ref)
     rng === nothing && return nothing
     path, a, b = rng
     a == b || return nothing                       # a range has no single caret offset
-    base = get_flat_base(block, path)
+    base = line_index === nothing ? get_flat_base(block, path) : get_flat_base(block, path, line_index)
     base === nothing ? nothing : base + a
 end
 
@@ -1532,6 +1535,22 @@ end
 
 _get_flat_line_start(offsets::Vector{Int}, i::Int) = offsets[i]
 
+# An index of the lines of a block from the sums of aligned blocks of the flat
+# length of each line with the break after it (`PlaceBlocks`), as a stage keeps it
+# of the lines that it maps; `count()` is the count of the lines.
+struct _LineSums
+    lengths::PlaceBlocks{Int}
+    count::Function
+end
+
+function _find_flat_line(index::_LineSums, flat::Int)
+    count = index.count()
+    (flat < 0 || count == 0) && return nothing
+    find_place_at(index.lengths, flat, count)
+end
+
+_get_flat_line_start(index::_LineSums, i::Int) = get_total_before(index.lengths, i)
+
 # The `TextLine` that holds the flat offset `flat` by `line_index`, as
 # `(i, line, start)`: its index, the line, and the flat offset where its first span
 # starts, past its indentation. `nothing` before the first element, or when the
@@ -1650,30 +1669,39 @@ function _get_text_box(reference)
     r.head
 end
 
-# A whole-element box carried over `runs`. Its start opens a run and its stop
-# closes one, so a box that ends at a soft break stays on its line. `nothing`
-# when no part of the box has an image.
-function _map_text_box(runs, box::TextSpanReferenceStep)
-    start = _map_flat_over_runs(runs, box.start, true)
+# A whole-element box carried by `map_flat(flat, opens)`, which carries one flat
+# offset as `_map_flat_over_runs` does. Its start opens a run and its stop closes
+# one, so a box that ends at a soft break stays on its line. `nothing` when no part
+# of the box has an image.
+function _map_text_box(map_flat::Function, box::TextSpanReferenceStep)
+    start = map_flat(box.start, true)
     start === nothing && return nothing
     box.stop == box.start && return ConcreteReference(TextSpanReferenceStep(start, start), EmptyReference())
-    stop = _map_flat_over_runs(runs, box.stop, false)
+    stop = map_flat(box.stop, false)
     (stop === nothing || stop <= start) && return nothing
     ConcreteReference(TextSpanReferenceStep(start, stop), EmptyReference())
 end
 
 # A selection of `block` carried over `runs`: a caret or a range in either caret
 # form, which comes out flat, or a whole-element box. `∅` passes through.
-function _map_selection_over_runs(runs, block::TextBlock, selection)
+_map_selection_over_runs(runs, block::TextBlock, selection) =
+    _map_text_selection((flat, opens) -> _map_flat_over_runs(runs, flat, opens), block, selection, nothing)
+
+# A selection of `block` carried by `map_flat(flat, opens)`, which carries one flat
+# offset as `_map_flat_over_runs` does: a stage that keeps the places of its lines
+# carries an offset through the lines that hold it, and gives `line_index`, the
+# index of the lines of `block` (see `_find_flat_line`), for a caret in the
+# structural form.
+function _map_text_selection(map_flat::Function, block::TextBlock, selection, line_index)
     selection isa EmptyReference && return selection
     box = _get_text_box(selection)
-    box === nothing || return _map_text_box(runs, box)
-    pair = _text_flat_selection(block, selection)
+    box === nothing || return _map_text_box(map_flat, box)
+    pair = _text_flat_selection(block, selection, line_index)
     pair === nothing && return nothing
-    start = _map_flat_over_runs(runs, pair[1], true)
+    start = map_flat(pair[1], true)
     start === nothing && return nothing
     pair[1] == pair[2] && return make_flat_caret_reference(start)
-    stop = _map_flat_over_runs(runs, pair[2], false)
+    stop = map_flat(pair[2], false)
     (stop === nothing || stop < start) && return nothing
     make_flat_range_reference(start, stop; direction = get_range_direction(selection))
 end
