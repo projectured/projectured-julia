@@ -449,3 +449,44 @@ copies nothing and paints the whole table. The pixels are right. A merge of the
 rectangles at each edge into one band did not lower the count, and the change
 does not keep it.
 
+### Step 5: the timing, 2026-10-26
+
+On the word of the owner, in a clean worktree at `main` `31b19cda3`, in the lane
+`taskset -c 28,30,31`, at a load of about 1.6 that rose to 2.3 during the
+compile and fell again. Real SDL windows of 1600 × 1000 pixels, the density 1, the
+supersample 2, the accelerated `opengl` renderer. In each window the moves
+switched on and off in six blocks of 15 notches (on, off, on, off, on, off) in one
+process, after a warm-up of 24 notches. A frame is the first `run_frame!` after a
+notch. The medians, in milliseconds:
+
+| Pane | Moves | Frame | Walk | Copy | Paint | Rest of the paint of the window | Boxes copied |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Julia source | on | 299.2 | 238.0 | 0.0 | 60.0 | 0.5 | 0 |
+| Julia source | off | 298.7 | 235.8 | 0.0 | 59.7 | 0.5 | 0 |
+| Files pane | on | 16.5 | 1.7 | 0.01 | 0.45 | 13.7 | 45 |
+| Files pane | off | 16.5 | 1.6 | 0.0 | 0.39 | 14.0 | 0 |
+| Data frame | on | 75.5 | 69.4 | 0.0 | 4.2 | 0.5 | 0 |
+| Data frame | off | 86.6 | 78.2 | 0.0 | 4.9 | 0.5 | 0 |
+
+What the numbers show:
+
+- **The Files pane copies, and the copy saves no time that the processor
+  measures.** Its paint costs about 0.4 ms in both modes. The rest of the frame
+  is the copy to the window and the present, which waits for the refresh of the
+  screen, about 14 ms.
+- **The Julia source copies nothing.** Its walk finds both moves, and the
+  rectangles cover both boxes. Rule 3 meets the focus ring of the pane, a
+  `GraphicsRect` at `(8, 90)` of 1584 × 879 with a transparent fill, a border of
+  2 pixels and corners of 3 pixels. Rule 3 skips only a filled rectangle whose
+  inside covers the whole box, so it adds the whole ring, and the paint paints
+  both boxes. The ring draws only its border, so the rule can give the band of
+  the border and the edges of a visible fill instead. The live check of
+  2026-10-21 copied 56 boxes in the same scene; this ring was not there then.
+- **The walk of the Julia source costs 238 ms.** The walk keeps about 116,000
+  records for its window now, against 1667 on 2026-10-21. A change on `main`
+  after 2026-10-21 makes this view draw far more graphics. It is not a cost of
+  the copy, and it is the largest cost of the frame.
+- **The data frame copies nothing**, as the live check found, and its walk takes
+  about 9 ms less with the moves on. The walk of a move records the content
+  instead of the unit of the content.
+
