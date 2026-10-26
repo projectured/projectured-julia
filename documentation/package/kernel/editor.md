@@ -306,8 +306,11 @@ is new into a target document, on the editor task, once per frame, before
 embedder, so a person opens views on it like on any document. The contract is
 `FeedModule` (`Feed`, `drain_changes!`, `compute_wake_deadline`,
 `attach_wake_callback!`); feeds are given at construction
-(`Editor(...; feeds = Feed[…])`). The system process slice and the assistant add
-their feed to a running editor at the first use.
+(`Editor(...; feeds = Feed[…])`), and the list is fixed when the editor is made.
+A slice gives its feed through a wrapper of `build_editor`. The wrappers `task`,
+`system_process` and `agent_event` are on by default, because a feed with
+nothing to watch asks for no frame. An editor made with `make_editor` or
+`Editor` gets only the feeds that its caller gives.
 
 A producer wakes the editor through `wake_editor!` — thread-safe, coalescing,
 handed to each store as a callback at registration. A feed whose data arrives
@@ -323,7 +326,7 @@ The concrete feeds:
 | `FrameStatisticsFeed` (the statistics slice) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
 | `McpLogFeed` (the mcplog slice) | the MCP server, for each request | numbered calls, which each feed copies from its own cursor | the `McpLog` of the session of the editor |
 | `ReflectionFeed` (the reflection slice) | a read of the value along its open paths, on a task of the default pool, which a drain starts | the snapshot of the last read | the reflected tree of the value: the next drain writes only what changed |
-| `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, and the set of those that changed | the rows of the task groups: a drain writes only the changed set |
+| `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, each with the editor that started it, and the set of those that changed | the rows of the task groups of its editor: a drain writes only the changed set of its editor |
 | `FileChangeFeed` (the filechange slice) | a watcher of each open file, which reads and parses the file after it settles | the parsed content of each changed file | the file document: the drain applies a `ReloadFileOperation` with the parsed content, or, for a document with edits that are not saved, logs that its file changed |
 | `SystemProcessFeed` (the systemprocess slice) | a read of `/proc` on a task of the default pool, which a drain starts at most once a second while a view reads the tree | the records of the last read | the tree of processes: a drain writes only what changed |
 | `AgentEventFeed` (the assistant slice) | the connection to an agent over ACP, which puts each event into an `AgentEventQueue` and wakes the editor | the events in order | the transcript of the assistant |

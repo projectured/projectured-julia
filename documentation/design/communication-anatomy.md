@@ -115,7 +115,7 @@ A feed is one registered inflow of the editor. Its producer writes a plain store
 | `SystemProcessFeed` | A sampler of `/proc`, at most once a second | A deadline | The tree of processes |
 | `AgentEventFeed` | The connection to an agent over ACP, and a turn of the built-in assistant | The wake and a deadline | The transcript of the assistant |
 
-The application gives most feeds when it makes the editor. The system process slice and the assistant add their feed to a running editor at the first use.
+Each feed meets its editor when the editor is made, and the list of the feeds does not change after that. A slice gives its feed through a wrapper of `build_editor`; the wrappers of the tasks, the trees of processes and the events of the agents are on by default.
 
 ### The background cell
 
@@ -213,7 +213,7 @@ A post during a frame shows in the next frame. A demand that the print records s
 
 One process can run many editors (`PAR-PER-EDITOR-STATE`). Each editor has its own inbox, feeds, fault store and session documents (`get_session_document!`). No document is owned, read or written by two editors. When two editors show the same data, a feed copies it into a document of each editor.
 
-Three producer stores are constants of the process: the store of the log, the store of the MCP log, and the store of the task feed. Each store keeps numbered entries, and each feed reads from its own cursor, so each editor gets its own copy. The store of the MCP log takes the calls of every MCP server of the process, so the MCP log of each editor shows all of them. The list of owner tasks that the cell writer check reads holds the owner tasks of all editors.
+Three producer stores are constants of the process: the store of the log, the store of the MCP log, and the store of the task feed. The store of the log and the store of the MCP log keep numbered entries, and each feed reads from its own cursor, so each editor gets its own copy. Each execution in the store of the task feed records the editor that started it, and the `TaskFeed` of an editor copies only the executions of its editor. The store of the MCP log takes the calls of every MCP server of the process, so the MCP log of each editor shows all of them. The list of owner tasks that the cell writer check reads holds the owner tasks of all editors.
 
 ## Choose a means for a new part
 

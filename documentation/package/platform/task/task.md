@@ -269,14 +269,25 @@ adds at most those lines for each task that ran again, until the group is
 closed.
 
 No reader of a process writes a cell. A `TaskFeedStore` holds each execution
-that runs with its shadow and its owner, the document that shows it, and
-`drain_task_feed!` syncs each shadow whose execution changed, on the task that
-reads the documents. After a sync it calls `record_task_execution_sync!` with the
-owner: a group counts the change of the state there, and a document adds a
-shadow that the drain made. A window gives its editor a `TaskFeed`, which drains
-at most once in its interval and asks for a frame only while an execution runs.
-A caller with no window drains the store itself: `wait_task_document` and
-`wait_task_group_document` do.
+that runs with its shadow, its owner, the document that shows it, and its
+editor. `drain_task_feed!(store; editor)` syncs each shadow of `editor` whose
+execution changed, on the task that reads the documents of that editor. After a
+sync it calls `record_task_execution_sync!` with the owner: a group counts the
+change of the state there, and a document adds a shadow that the drain made.
+
+The editor of an execution is the editor of the evaluation that starts it. A
+start of a group runs its start as an evaluation of its editor, so the scheduler
+of the group and each task that it starts, at any depth, inherit the editor and
+register with it. The store is one for the process, and each editor copies only
+its own executions into its own documents. A drain also lets go the executions
+of an editor whose loop ended.
+
+The wrapper `task` of `build_editor` gives the editor a `TaskFeed`, and is on by
+default. The feed drains at most once in its interval, and asks for a frame only
+while an execution of its editor runs. A caller with no window drains the
+executions of no editor itself: `wait_task_document` and
+`wait_task_group_document` do. A caller that waits for a group that an editor
+started names that editor: `wait_task_group_document(doc; editor)`.
 
 `TaskGroupDocument` is a group on the screen: the native `TaskGroup`, its
 shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
