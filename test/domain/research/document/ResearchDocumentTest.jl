@@ -128,6 +128,24 @@ function test_research_document()
             end
         end
 
+        @testset "a study that enters the window computes the values of its sheets" begin
+            directory = mktempdir()
+            try
+                study = ResearchStudy()
+                add_study_formula!(study, "S_{pure}(G)", "G e^{-2G}"; editor = nothing)
+                add_study_formula!(study, "S_{peak}", "S_{pure}(0.5)"; editor = nothing)
+                @test save_file!(PredFile("study.pred", study), directory)
+                back = get_file_content(load_file(directory, "study.pred"))
+                pure, peak = back.analyses[1].method.formulas
+                @test pure.result === nothing && peak.result === nothing
+                add_document_holder!(nothing, back)
+                @test pure.result isa Function
+                @test peak.result ≈ 0.5 * exp(-1)
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "a study in a project writes a Markdown summary into its own file" begin
             directory = mktempdir()
             try

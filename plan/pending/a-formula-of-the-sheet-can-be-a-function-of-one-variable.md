@@ -526,10 +526,15 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 5 — a study computes its sheets when it enters the window (D7)
 
-- [ ] `acquire_document!` and `release_document!` for `ResearchStudy`.
-- [ ] Test: `test_research_document()`: a study read back from its folder holds
+- [x] `acquire_document!` and `release_document!` for `ResearchStudy`.
+- [x] Test: `test_research_document()`: a study read back from its folder holds
       no stored value; after `add_document_holder!` with the stand-in editor of
       a test (which computes at once) each formula of its sheet holds its value.
+- **As built:** both methods are in `ResearchDocument.jl` beside the struct, with
+  `_collect_study_sheets(study)`; `ResearchModule` imports `acquire_document!` and
+  `release_document!` from `DomainModule`. The test uses `add_document_holder!(nothing, back)`,
+  where the stand-in editor acquires at once and `ComputeFormulasOperation` computes
+  with no loop. `test_research_assistant_api()` passes with the new docstring.
 
 ### Step 6 — a chart draws a function (D9, D10)
 

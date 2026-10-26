@@ -411,6 +411,18 @@ See also `start_study!`, `describe_study`, `find_study_item`.
     time::String = ""
 end
 
+# The formula sheets that the analyses of a study hold as their method.
+_collect_study_sheets(study::ResearchStudy) =
+    Any[analysis.method for analysis in study.analyses if analysis.method isa FormulaEnvironment]
+
+# A study that enters the window holds its sheets, so each computes the values it
+# does not hold yet and a chart that calls a formula of the study finds its function.
+acquire_document!(editor, study::ResearchStudy) =
+    hold_documents!(editor, study, _collect_study_sheets(study))
+
+release_document!(editor, study::ResearchStudy) =
+    release_held_documents!(editor, study, _collect_study_sheets(study))
+
 # Which rows an outline shows folded, the decision that a row writes and how the
 # outline shows the study are state of the view, not things the study says: the
 # file and a search leave them out.

@@ -34,7 +34,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
-import ..DomainModule: get_document_decoration, get_insertion_aliases, make_insertion_document,
+import ..DomainModule: acquire_document!, release_document!, get_document_decoration, get_insertion_aliases, make_insertion_document,
                        make_pasted_document_operation, insertable
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
