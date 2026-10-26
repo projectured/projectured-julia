@@ -484,13 +484,22 @@ Each step is one commit with its own test. The projectured steps land on
 
 ### Step 3 — the sheet draws a function as its equation (D4)
 
-- [ ] `_formula_value_text` of a function is empty; the `:both` layout of
+- [x] `_formula_value_text` of a function is empty; the `:both` layout of
       `FormulaFormulaToSyntaxNode` and the row of `FormulaFormulaToLayout` leave
       out `⇒` or `=` and the value for a function, and keep the mark `⋯` while a
       computation runs.
-- [ ] Test: `test_formula_to_syntax()`: `S_{pure}(G) = G exp(-2 G)` with no `⇒`,
+- [x] Test: `test_formula_to_syntax()`: `S_{pure}(G) = G exp(-2 G)` with no `⇒`,
       and with `⋯` while it computes; a number formula keeps `⇒ value`.
       `test_example(formula_example)`, because `F = x -> x^2` changes its row.
+- **As built:** `_formula_value_text(::Function)` is empty and
+  `_has_function_value(formula)` tells a row to leave out the value. The `:both`
+  layout of `FormulaFormulaToSyntaxNode` has the children `[name, =, code]` for a
+  function and adds the leaf `⋯` while it computes; `FormulaFormulaToLayout` draws
+  the assignment alone, plus the label `⋯` while it computes. A cell of the grid
+  that holds a function is empty, because it shows `_format_stored_formula_value`.
+  The type-in sweep of `formula_example` (`test_typein`) fails 489 assertions on
+  `main` at `03e5d58c1` too (74 pass, 489 fail, 1 broken, the same counts), so
+  it is not a regression of this plan.
 
 ### Step 4 — a formula is callable; `e`; a referenced formula (D5, D6, D8)
 

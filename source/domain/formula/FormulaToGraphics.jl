@@ -22,11 +22,14 @@ function print_document(p::FormulaFormulaToLayout, recursion, formula::FormulaFo
     name = formula.name
     code = formula.code
     value = _format_stored_formula_value(formula)
+    # A function shows its equation and no value, and the mark while it computes.
+    is_function = _has_function_value(formula)
     children = if is_math_code(code)
-        Any[MathAssignment(_formula_name_tree(name), code),
-            WidgetLabel( "= " * value)]
+        tail = is_function ? value : "= " * value
+        Any[MathAssignment(_formula_name_tree(name), code), (isempty(tail) ? () : (WidgetLabel(tail),))...]
     else
-        Any[WidgetLabel( name * " = " * print_natural_text(code) * " = " * value)]
+        line = name * " = " * print_natural_text(code)
+        Any[WidgetLabel(is_function ? (isempty(value) ? line : line * " " * value) : line * " = " * value)]
     end
     SimpleIoMap(p, formula, HorizontalLayout(children))
 end

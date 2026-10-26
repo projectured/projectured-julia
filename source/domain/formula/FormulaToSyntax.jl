@@ -76,6 +76,7 @@ read_intent(p::FormulaIdentifierToSyntaxLeaf, recursion, change::Intent, iomap) 
 #   :code   → recurse into `code`                         → children [code]
 #   :result → recurse into `result`                       → children [result]
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
+#             (a function shows no value: name " = " code, and the mark "⋯" while it computes)
 #
 # In edit mode the draft takes the place of the code, and no value shows, because
 # the stored value belongs to the code: `:both` is name " = " draft.
@@ -118,6 +119,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     # The stored value, and a mark while a computation of it runs. A print runs no
     # code of the formula.
     result_leaf = SyntaxLeaf(TextString(() -> _format_stored_formula_value(f), p.result))
+    mark_leaf = SyntaxLeaf(TextString("⋯", p.result); open=TextString(" ", p.op.font))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(f, path -> begin
@@ -133,6 +135,9 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                 SyntaxDocument[result_leaf]
             elseif f.draft !== nothing  # :both, in edit mode
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output]
+            elseif _has_function_value(f)  # :both, a function: its equation
+                f.is_computing ? SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output, mark_leaf] :
+                                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output]
             else  # :both (default)
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]

@@ -641,6 +641,10 @@ The value that the last computation of `formula` stored, which a view shows, or
 """
 get_formula_result(formula::FormulaFormula) = formula.result
 
+# Whether the stored value of a formula is a function, which a row shows as its
+# equation and no value.
+_has_function_value(formula::FormulaFormula) = formula.result isa Function
+
 # The value of a formula as one line of text, short enough to read beside its
 # code: a float to six digits, nothing as no text, and any other value in its
 # `text/plain` form, or in its compact form when that form takes more lines.
@@ -653,6 +657,8 @@ end
 
 _formula_value_text(value::AbstractFloat) = string(round(value; sigdigits = 6))
 _formula_value_text(::Nothing) = ""
+# A function has no one-line text: a row shows its equation and no value.
+_formula_value_text(::Function) = ""
 function _formula_value_text(value)
     text = sprint(show, MIME("text/plain"), value)
     occursin('\n', text) && (text = sprint(show, value; context = :compact => true))

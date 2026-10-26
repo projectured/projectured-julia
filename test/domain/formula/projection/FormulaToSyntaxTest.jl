@@ -219,6 +219,19 @@ end
     @test isempty(walk.errors)
 end
 
+@testset "a function formula shows its equation and no value" begin
+    sheet = FormulaEnvironment([FormulaFormula("T", parse_julia("2")),
+                                FormulaFormula("S_{pure}(G)", parse_math("G exp(-2 G)"))])
+    _compute_formula_sheet!(sheet)
+    show_sheet() = render(print_document(RecursiveProjection(FormulaToSyntax()), sheet).output)
+    rendered = show_sheet()
+    @test occursin("S_{pure}(G) = G exp(-2 G)", rendered)
+    @test !occursin("⇒ ", split(rendered, '\n')[2]) && !occursin("generic function", rendered)
+    @test occursin("T = 2 ⇒ 2", rendered)
+    sheet.formulas[2].is_computing = true
+    @test occursin("G exp(-2 G) ⋯", show_sheet())
+end
+
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
     env = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))]))
