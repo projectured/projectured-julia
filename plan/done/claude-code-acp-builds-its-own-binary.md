@@ -1,8 +1,7 @@
 # ClaudeCodeACP builds its own binary
 
-> **Status:** steps 1 and 2 are done, on the branches `agent-build` of both
-> repositories. Step 3, the landing, waits for the owner. The owner agreed to
-> the move on 2026-10-27.
+> **Status:** done. The owner agreed to the move on 2026-10-27, and said to
+> land it on the same day.
 
 ## Goal
 
@@ -13,7 +12,7 @@ that repository to build it. projectured-julia keeps no code that builds it.
 ## Why
 
 The plan
-[acp-is-a-julia-package-and-claude-runs-without-node.md](../done/acp-is-a-julia-package-and-claude-runs-without-node.md)
+[acp-is-a-julia-package-and-claude-runs-without-node.md](acp-is-a-julia-package-and-claude-runs-without-node.md)
 made ClaudeCodeACP a package of its own, which "also serves programs other
 than ProjecturEd". Its step B.10 put the compiled program into the builder of
 ProjecturEd, because that builder existed. So the dependency points the wrong
@@ -68,6 +67,8 @@ option.
    Run `test_builder()`.
    Done: `test_builder()` passes 553 of 553. `--backends` has its old help text
    again, without "Only for projectured". omnet-julia uses no one-package root.
-3. [ ] **Landing**, with the owner's word: push ClaudeCodeACP.jl `main` first,
+3. [x] **Landing**, with the owner's word: push ClaudeCodeACP.jl `main` first,
    because the build guide names its README; then land projectured-julia, and
    move this plan to `plan/done/`.
+   Done on 2026-10-27: ClaudeCodeACP.jl `main` is `ccae6b5`, pushed. The branch
+   of projectured-julia landed on `main` as a fast-forward.
