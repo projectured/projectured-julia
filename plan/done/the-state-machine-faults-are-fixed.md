@@ -75,4 +75,6 @@ them.
      cause: inet-julia's files come from an older printer (`+(a, b, c)`, a break
      after `=` of a short function, blank lines with spaces), and the scripts
      hold comments that the files do not.
-4. ⬜ Land on `main`, push, remove the worktree and the branch.
+4. ✅ Land on `main`, push, remove the worktree and the branch.
+   - Before the landing `test_printers()` passed 987076 of 987076 on the branch.
+     `main` had not moved, so the landing is a fast-forward.
