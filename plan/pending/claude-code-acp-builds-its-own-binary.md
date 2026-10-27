@@ -1,7 +1,8 @@
 # ClaudeCodeACP builds its own binary
 
-> **Status:** step 2 is done. Step 1 is open. The owner agreed to the move on
-> 2026-10-27.
+> **Status:** steps 1 and 2 are done, on the branches `agent-build` of both
+> repositories. Step 3, the landing, waits for the owner. The owner agreed to
+> the move on 2026-10-27.
 
 ## Goal
 
@@ -43,9 +44,22 @@ option.
 
 ## Steps
 
-1. [ ] **ClaudeCodeACP.jl**, branch `agent-build`: `compile/`, `/build/` in
+1. [x] **ClaudeCodeACP.jl**, branch `agent-build`: `compile/`, `/build/` in
    `.gitignore`, the README section. Build once and check `--help` and
    `initialize` on the binary.
+   Done in `ccae6b5`, on Julia 1.13.1 and PackageCompiler 2.4.3:
+   - The build takes about 2 minutes, with a peak of 9.0 to 9.5 GB. A cap of
+     8 GB ends it with an out-of-memory kill in the compile of the system
+     image. The bundle is 595 MB; the old build gave 573 MB.
+   - The binary answers `--help` and `initialize` in 0.23 to 0.44 s. The old
+     binary took 0.23 s and 1.7 s. `SIGTERM` ends it with nothing on the
+     standard error.
+   - The bundle holds the `libstdc++` of Julia (6.0.34), not the newer one of
+     the machine (6.0.35).
+   - The script resolves the app before `create_app` and does not delete its
+     manifest. Without a manifest, PackageCompiler warns "it is not
+     recommended to create an app/library without a preexisting manifest".
+   - No version of ClaudeCodeACP is needed: `src/` does not change.
 2. [x] **projectured-julia**, branch `agent-build`: remove
    `bin/build_claude_code_acp`, `source/tool/builder/ClaudeCodeAcpProgram.jl`,
    its exports and include, its row and branch in `BuildCommand.jl`, the
