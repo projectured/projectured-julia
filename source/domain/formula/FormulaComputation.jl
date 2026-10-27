@@ -117,6 +117,10 @@ end
 
 # The formula task: one formula after the other, until none waits. The loop
 # prepares each job and writes each value, through the door; the code runs here.
+# A call to the editor has no time limit: nothing waits for this task, a value
+# that a call drops is lost, and the end of the editor loop answers a call that
+# waits. So a long frame, such as the first print of a large document, only
+# delays the values.
 function _run_formula_task!(editor, computer::_FormulaComputer)
     while true
         item = lock(computer.lock) do
@@ -126,19 +130,18 @@ function _run_formula_task!(editor, computer::_FormulaComputer)
         item === nothing && return nothing
         (env, formula) = item
         try
-            job = run_on_editor_task!(editor; description = "prepare a formula") do
+            job = run_on_editor_task!(editor; description = "prepare a formula", timeout = Inf) do
                 job = _make_formula_job(formula, env)
                 job === nothing && (formula.is_computing = false)
                 job
             end
             job === nothing && continue
             value = _run_formula_job(computer.scratch, job)
-            run_on_editor_task!(editor; description = "store the value of a formula") do
+            run_on_editor_task!(editor; description = "store the value of a formula", timeout = Inf) do
                 evaluate_operation(editor, ReplaceFormulaResultOperation(formula, env, value, job.key))
             end
         catch exception
-            # The editor ended, or did not take the call: no formula of this queue
-            # can come back.
+            # The editor ended, or a call to it failed: the task stops.
             @warn "the formula task of the editor stops" exception
             lock(() -> (empty!(computer.queue); computer.task = nothing), computer.lock)
             return nothing

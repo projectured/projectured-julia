@@ -242,3 +242,38 @@ function test_formula_task()
     end
 end
 end
+
+# The formula task waits for an editor that is busy longer than the time limit of
+# a call, as with the first print of a large document, and the values still come
+# back. The test waits past that limit, so it takes more than 30 seconds.
+function test_formula_task_waits_for_a_busy_editor()
+@testset "the formula task waits for a busy editor" begin
+    sheet = _formula_sheet("A" => "(sleep(1.0); 2)", "B" => "A + 1")
+    A, B = sheet.formulas
+    editor = run_editor!(() -> Editor(sheet, RecursiveProjection(FormulaToSyntax());
+                                      backend = HeadlessBackend(), devices = Device[]); wait = false)
+    loop = editor.loop_task
+    gate = Channel{Nothing}(1)
+    try
+        run_on_editor_task!(() -> evaluate_operation(editor, ComputeFormulasOperation(sheet)), editor)
+        # A long unit holds the editor while the code of A runs, so the next call
+        # of the formula task waits for it.
+        run_on_editor_task!(() -> take!(gate), editor; wait = false)
+        sleep(EDITOR_CALL_TIMEOUT_SECONDS + 2)
+        put!(gate, nothing)
+        read_stored() = run_on_editor_task!(() -> (get_formula_result(B), B.is_computing), editor)
+        deadline = time() + 30
+        while time() < deadline
+            (value, computing) = read_stored()
+            value !== nothing && !computing && break
+            sleep(0.05)
+        end
+        @test read_stored() == (3, false)
+        @test run_on_editor_task!(() -> get_formula_result(A), editor) == 2
+    finally
+        isready(gate) || put!(gate, nothing)
+        post_operation!(editor, QuitEditorOperation())
+        wait(loop)
+    end
+end
+end
