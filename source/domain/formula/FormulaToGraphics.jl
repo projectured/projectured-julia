@@ -26,7 +26,8 @@ function print_document(p::FormulaFormulaToLayout, recursion, formula::FormulaFo
     is_function = _has_function_value(formula)
     children = if is_math_code(code)
         tail = is_function ? value : "= " * value
-        Any[MathAssignment(_formula_name_tree(name), code), (isempty(tail) ? () : (WidgetLabel(tail),))...]
+        # A word space parts the label from the equation, as it parts `=` from the value.
+        Any[MathAssignment(_formula_name_tree(name), code), (isempty(tail) ? () : (WidgetLabel(" " * tail),))...]
     else
         line = name * " = " * print_natural_text(code)
         Any[WidgetLabel(is_function ? (isempty(value) ? line : line * " " * value) : line * " = " * value)]

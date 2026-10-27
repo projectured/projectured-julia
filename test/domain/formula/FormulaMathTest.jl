@@ -167,6 +167,8 @@ function test_formula_math()
         @test baseline(equation_y, equation) == baseline(label_y, label)
         # The baseline is the axis of the fraction, below its numerator.
         @test Int(unwrap_cell(label_y)) > Int(unwrap_cell(equation_y))
+        # A word space parts the value from the equation.
+        @test get_content_iomap(label).input.content == " = 0.0991667"
     end
 end
 end
