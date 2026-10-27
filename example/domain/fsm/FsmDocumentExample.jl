@@ -65,6 +65,76 @@ function make_fsm_toggle_document_example()
 end
 
 """
+A traffic light with a button for the pedestrians. The cars have green until a
+pedestrian presses the button, and for at least `MIN_GREEN_TIME` seconds. Then
+the light goes through yellow and all red to walk, flashes, and gives the cars
+green again.
+
+`min_green_timer` is no trigger: the condition-only transition of `CARS_GREEN`
+reads it with `is_scheduled`, so the light changes at the press when the minimum
+green is over, and at the end of the minimum green when a press came before.
+Each other timer is the trigger of the timeout that ends its state.
+"""
+function make_fsm_crossing_document_example()
+    button = FsmEvent("BUTTON")
+    min_green_timer = FsmTimer("min_green_timer")
+    yellow_timer = FsmTimer("yellow_timer")
+    all_red_timer = FsmTimer("all_red_timer")
+    walk_timer = FsmTimer("walk_timer")
+    flashing_timer = FsmTimer("flashing_timer")
+
+    start = FsmState("START")
+    cars_green = FsmState("CARS_GREEN"; entry = parse_julia(
+        "start_timer!(ctx, m, m.min_green_timer, MIN_GREEN_TIME, expire_min_green_timer!)"))
+    cars_yellow = FsmState("CARS_YELLOW"; entry = parse_julia(
+        "start_timer!(ctx, m, m.yellow_timer, YELLOW_TIME, expire_yellow_timer!)"))
+    all_red = FsmState("ALL_RED"; entry = parse_julia(
+        "start_timer!(ctx, m, m.all_red_timer, ALL_RED_TIME, expire_all_red_timer!)"))
+    walk = FsmState("WALK"; entry = parse_julia("""
+        m.requested = false
+        start_timer!(ctx, m, m.walk_timer, WALK_TIME, expire_walk_timer!)
+        """))
+    walk_flashing = FsmState("WALK_FLASHING"; entry = parse_julia(
+        "start_timer!(ctx, m, m.flashing_timer, FLASHING_TIME, expire_flashing_timer!)"))
+
+    tr(state; kwargs...) = push!(state.transitions, FsmTransition(; kwargs...))
+
+    # The entry of the initial state does not run at startup. The dispatch of
+    # event 0 that starts the machine fires this transition, so the entry of
+    # CARS_GREEN starts the minimum green.
+    tr(start, target = cars_green)
+    tr(cars_green, trigger = button, action = parse_julia("m.requested = true"))
+    tr(cars_green, guard = parse_julia("m.requested && !is_scheduled(m.min_green_timer)"),
+                   target = cars_yellow)
+    tr(cars_yellow, trigger = yellow_timer, target = all_red)
+    tr(all_red, trigger = all_red_timer, target = walk)
+    tr(walk, trigger = walk_timer, target = walk_flashing)
+    # A press while the walk signal flashes is for the next cycle.
+    tr(walk_flashing, trigger = button, action = parse_julia("m.requested = true"))
+    tr(walk_flashing, trigger = flashing_timer, target = cars_green)
+
+    # A press in CARS_YELLOW, ALL_RED or WALK changes nothing.
+    machine = FsmMachine("Light"; initial = start,
+                         states = [start, cars_green, cars_yellow, all_red, walk, walk_flashing],
+                         on_unhandled = :ignore)
+
+    FsmComponent("Crossing";
+        variables = [FsmVariable("module_id"; type = parse_julia("Int"), default = parse_julia("0")),
+                     FsmVariable("requested"; type = parse_julia("Bool"), default = parse_julia("false"))],
+        timers = [min_green_timer, yellow_timer, all_red_timer, walk_timer, flashing_timer],
+        events = [button],
+        machines = [machine],
+        helpers = [
+            parse_julia("const MIN_GREEN_TIME = 20.0"),
+            parse_julia("const YELLOW_TIME = 3.0"),
+            parse_julia("const ALL_RED_TIME = 2.0"),
+            parse_julia("const WALK_TIME = 10.0"),
+            parse_julia("const FLASHING_TIME = 5.0"),
+            parse_julia("start_timer!(ctx, m, timer, delay, action) = schedule_timer!(ctx, delay, m.module_id, timer, action, m)"),
+        ])
+end
+
+"""
 The TCP connection state machine of RFC 793, as INET implements it
 (`TcpConnectionBase.cc`): twelve states, application commands, segment-derived
 events and three FSM-visible timers.
@@ -241,5 +311,5 @@ end
 "The registered document example: the TCP connection machine."
 make_fsm_document_example() = make_fsm_tcp_document_example()
 
-"The diagram example document: the toggle machine (a diagram shows one machine)."
-make_fsm_diagram_document_example() = make_fsm_toggle_document_example().machines[1]
+"The diagram example document: the machine of the traffic light (a diagram shows one machine)."
+make_fsm_diagram_document_example() = make_fsm_crossing_document_example().machines[1]

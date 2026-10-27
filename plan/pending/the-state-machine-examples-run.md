@@ -118,6 +118,22 @@ The work is on the branch `fsm-examples`, in a worktree.
    the cycle comes back to `CARS_GREEN` with `m.requested` false. The diagram test
    counts six boxes and six edges. Run `test_fsm()` and `test_example` for
    `fsm_crossing` and `fsm_diagram`.
+
+   ✅ Done. Found in the work: with `GridEmbedding()`, the default engine of
+   `make_fsm_diagram_projection_example`, the six boxes stand in a grid and the
+   labels of the edges lie under the boxes. The default engine is now
+   `FruchtermanReingoldLayout(spacing = 100)`: the states form a ring, and each
+   label stands between two boxes. The force layout does not measure the labels,
+   so the wide gap gives them room. No code calls the function with its default
+   engine. `AdaptagramsLayout` is not built on this machine, so
+   `make_deferred_layout_engine()` gives the same force layout with its narrow
+   gap. A transition with no trigger and no guard has the label `always`.
+   Results: `test_fsm()` 212 pass. `test_example(fsm_crossing_example)`: the
+   printer (19674), the reader, the REPL and the navigation (1518, 1m46s) pass;
+   the type-in fails 1929 of 2274, with the two kinds of step 1.
+   `test_example(fsm_diagram_example)`: the REPL fails 1 of 230, a `,` that
+   throws `SelectionMismatchException`, and the type-in fails; `main` has the same
+   REPL failure (1 of 230) and the same kinds in the type-in.
 3. **The alternating bit.** The document, `fsm_alternating_bit` and
    `fsm_alternating_bit_diagram`. A run test sends three items with one dropped
    frame and one dropped acknowledgement: the receiver delivers each item once,

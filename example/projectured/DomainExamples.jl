@@ -63,6 +63,7 @@ const sequencechart_inspector_example = Example("sequencechart_inspector", make_
 const sequencechart_pair_example = Example("sequencechart_pair", make_sequencechart_pair_document_example, make_sequencechart_pair_projection_example)
 const fsm_example            = Example("fsm",            make_fsm_document_example,            make_fsm_projection_example)
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
+const fsm_crossing_example   = Example("fsm_crossing",   make_fsm_crossing_document_example,   make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
 const pivot_example          = Example("pivot",          make_pivot_pane_document_example,     make_pivot_projection_example)
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
@@ -231,6 +232,7 @@ const domain_examples = Example[
     process_drain_example,
     process_diagram_example,
     fsm_toggle_example,
+    fsm_crossing_example,
     fsm_diagram_example,
     pivot_example,
     pane_json_example,

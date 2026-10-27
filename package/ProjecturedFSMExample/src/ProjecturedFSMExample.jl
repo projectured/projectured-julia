@@ -50,6 +50,7 @@ include("../../../example/domain/fsm/FsmProjectionExample.jl")
 export make_fsm_variable_document_example, make_fsm_timer_document_example, make_fsm_event_document_example
 export make_fsm_state_document_example, make_fsm_transition_document_example, make_fsm_insertion_document_example
 export make_fsm_machine_document_example, make_fsm_component_document_example, make_fsm_toggle_document_example
+export make_fsm_crossing_document_example
 export make_fsm_tcp_document_example, make_fsm_document_example, make_fsm_diagram_document_example
 export make_fsm_projection_example, make_fsm_diagram_projection_example
 

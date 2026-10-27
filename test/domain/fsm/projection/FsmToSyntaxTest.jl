@@ -28,8 +28,19 @@ _render(doc) = print_document(
     # An entry of two statements prints as indented lines under `entry /`.
     @test occursin(r"entry / *\n +m\.switch_ons = m\.switch_ons \+ 1\n +schedule_timer!\(", text)
 
+    crossing = _render(make_fsm_crossing_document_example())
+    # A stay has no target and keeps its action.
+    @test occursin("on BUTTON stay / m.requested = true", crossing)
+    # A condition-only transition has no trigger, so its line starts at `when`.
+    @test occursin("when m.requested && !is_scheduled(m.min_green_timer) -> CARS_YELLOW", crossing)
+    # With no guard either, the line is the target alone.
+    @test occursin(r"state START\n +-> CARS_GREEN\n", crossing)
+    # A one-statement entry stays on the line of `entry /`.
+    @test occursin("entry / start_timer!(ctx, m, m.yellow_timer, YELLOW_TIME, expire_yellow_timer!)", crossing)
+
     # `:error` is the default policy and stays unwritten; `:ignore` is spelled.
     @test !occursin("ignoring unhandled", text)
+    @test occursin("machine Light initial START ignoring unhandled", crossing)
     @test occursin("ignoring unhandled", _render(make_fsm_tcp_document_example()))
 end
 

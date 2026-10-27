@@ -133,11 +133,12 @@ export chart_example, chart_line_example, chart_bar_example,
 export sequencechart_example, sequencechart_vertical_example,
        sequencechart_linear_example, sequencechart_large_example,
        sequencechart_inspector_example, sequencechart_pair_example
-export fsm_example, fsm_toggle_example, fsm_diagram_example
+export fsm_example, fsm_toggle_example, fsm_crossing_example, fsm_diagram_example
 export pivot_example
 export process_example, process_drain_example, process_diagram_example
 export make_fsm_document_example, make_fsm_projection_example,
        make_fsm_tcp_document_example, make_fsm_toggle_document_example,
+       make_fsm_crossing_document_example,
        make_fsm_variable_document_example, make_fsm_timer_document_example,
        make_fsm_event_document_example, make_fsm_state_document_example,
        make_fsm_transition_document_example, make_fsm_insertion_document_example,
