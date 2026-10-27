@@ -1,6 +1,6 @@
 # A highlight paints the box, and a label stands on the lines
 
-Status: IN PROGRESS on the branch `graph-highlight`. The owner agreed on 2026-10-27, and asked for the plan and its
+Status: DONE, 2026-10-27, on the branch `graph-highlight`; not landed on `main`. The owner agreed on 2026-10-27, and asked for the plan and its
 work.
 
 ## The ask
@@ -73,10 +73,22 @@ The facts at `main` `b48b06fc8`. Find each function by its name.
    the top-left is drawn at 8 px, so the test now takes a corner at 0 px or more.
    Results: `test_graph()` 634 pass, `test_fsm()` 179 pass, `test_process()` 316
    pass.
-3. **Pictures, suites and guides.** Pictures of `graph_services_example` with and
+3. ✅ **Pictures, suites and guides.** Pictures of `graph_services_example` with and
    without the light, and of the study map. Run `test_research()` and
    `test_example` for `graph_example` and `graph_services_example`. The guides:
    `graph.md`, `fsm.md`, `process.md`. Then the plan moves to `plan/done/`.
+
+   Done. Found in the work: the research test of the light counted the rings in
+   the color of the light; the cards of the items have a border in the color of
+   `light_edge` of their own, so the test now counts the boxes that the light adds
+   (5 for the decision and the items it joins) and the one filled box. Results:
+   `test_research()` 382 pass; `test_example(graph_services_example)` 14 559
+   pass; `test_example(graph_example)` 13 206 pass and the 4 REPL failures of
+   `main` (`SelectionMismatchException` at the XML child). The pictures of
+   `graph_services_example` show each label breaking its line, and with the light
+   on `api` the borders of 6 boxes in the light, the fill of `api`, and the edges
+   as they are without the light; the study map shows its label on the color of
+   the page; no fault.
 
 ## Notes
 

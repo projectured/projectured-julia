@@ -46,13 +46,21 @@ function test_research_map_to_graph()
             research_map = ResearchMap(study = study)
             projection = make_research_map_projection(; measure = FixedMeasure(10, 18, 6, 0))
             iomap = print_document(projection, nothing, research_map, PrinterContext())
-            light = get_theme_defaults(GraphTheme).light
-            # The map is in a scroll pane, whose viewport holds the drawing.
-            lit_rings(canvas) = sum((element isa GraphicsRect && element.color == unwrap_cell(light) ? 1 :
-                                     element isa GraphicsCanvas ? lit_rings(element) :
-                                     element isa GraphicsViewport ? lit_rings(element.content) : 0
-                                     for element in canvas.elements); init = 0)
-            @test lit_rings(iomap.output) == 0
+            defaults = get_theme_defaults(GraphTheme)
+            # The boxes that `is_lit` takes. The map is in a scroll pane, whose
+            # viewport holds the drawing.
+            count_boxes(is_lit, canvas) =
+                sum((element isa GraphicsRect && is_lit(element) ? 1 :
+                     element isa GraphicsCanvas ? count_boxes(is_lit, element) :
+                     element isa GraphicsViewport ? count_boxes(is_lit, element.content) : 0
+                     for element in canvas.elements); init = 0)
+            # A lit box has the border of the light; the box under the pointer also
+            # has the fill of the light. The card of an item has a border of that
+            # color of its own, so the test counts the boxes that the light adds.
+            lit_boxes(canvas) = count_boxes(box -> box.border_color == unwrap_cell(defaults.light_edge), canvas)
+            filled_boxes(canvas) = count_boxes(box -> box.color == unwrap_cell(defaults.light), canvas)
+            unlit = lit_boxes(iomap.output)
+            @test filled_boxes(iomap.output) == 0
             decision = study.decisions[2]
             replace_mouse_target!(research_map, Reference(FieldReferenceStep("study"), FieldReferenceStep("decisions"),
                                                           RangeReferenceStep(1, 2)))
@@ -62,7 +70,8 @@ function test_research_map_to_graph()
             for item in collect_study_items(study), (_, linked) in collect_research_links(item)
                 linked === decision && push!(joined, item)
             end
-            @test lit_rings(iomap.output) == length(joined) + 1
+            @test lit_boxes(iomap.output) - unlit == length(joined) + 1
+            @test filled_boxes(iomap.output) == 1
         end
 
         @testset "an edge follows a new link" begin

@@ -86,7 +86,7 @@ ProcessModel ──ProcessToProcessDiagram──▶ ProcessDiagram ──Process
 | `foreach` | the same two exits, with the labels `next` and `done` |
 | `break`, `continue`, `return` | to the exit of the loop, to its header, to the stop oval |
 
-The highlights of the graph follow the session: the current node gets a ring, and the edge from the previous node to the current one is drawn again. The runtime reports only node indices, and the stage finds the edge from the pair; see [graph.md](../graph/graph.md#the-highlight).
+The highlights of the graph follow the session: the box of the current node gets the border of the highlight, and the edge from the previous node to the current one is drawn again. The runtime reports only node indices, and the stage finds the edge from the pair; see [graph.md](../graph/graph.md#the-highlight).
 
 The example names `make_deferred_layout_engine(orthogonal = true)`. With `ProjecturedAdaptagrams` loaded, libcola places the boxes and libavoid draws right-angled routes that avoid the boxes. Without it, `FruchtermanReingoldLayout` places the flowchart and draws straight lines. No engine uses the reading direction of a flowchart, so the picture does not always run from top to bottom.
 
@@ -122,7 +122,7 @@ The debugger has three parts, and an embedder that runs realized code in its own
 
 **Call the bridge from the refresh hook of the editor, never from a cell.** It writes document cells, and the threads stay safe without locks only because the task of the editor is the one writer of cells. A command then takes effect within one refresh.
 
-Both views read the session. The flowchart draws the ring and the edge. The notation draws the keyword of the current node in the live colour, and the keyword of a node with a breakpoint in another colour. It changes only the style of a keyword that it prints anyway, so the live position never moves the caret of a person who types.
+Both views read the session. The flowchart draws the border and the edge. The notation draws the keyword of the current node in the live colour, and the keyword of a node with a breakpoint in another colour. It changes only the style of a keyword that it prints anyway, so the live position never moves the caret of a person who types.
 
 **Staleness.** A session records `node_count` when the code is realized. When the tree has a different count, the bridge sets `status = :stale` and clears the position, and both views draw no highlight: a wrong box that looks right is worse than none. An edit of an embedded Julia expression renumbers nothing, so the node count is enough as a stamp.
 
