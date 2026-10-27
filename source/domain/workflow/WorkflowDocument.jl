@@ -166,6 +166,10 @@ get_insertion_aliases(::Type{WorkflowStep}) = ["workflow"]
 make_insertion_document(::Type{WorkflowStep}) = WorkflowStep(title = PrimitiveString("New workflow"))
 is_explorer_entry_type(::Type{WorkflowStep}) = true
 
+# A plan of work is a side area, as an explorer is: a pane that a program opens
+# goes to the documents, and not into the group of the plan.
+accepts_opened_file(::WorkflowStep) = false
+
 # The name of a tab that shows a node of a workflow or its journal: the text that
 # names the node.
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =

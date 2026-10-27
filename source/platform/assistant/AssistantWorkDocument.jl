@@ -107,13 +107,15 @@ function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
             title = "Work · " * compute_assistant_overview_title(a)
             tab = open_pane!(Navigator(work); title, editor)
             route = get_reference_steps(strip_reference_types(get_reference(tab)))
+            show = make_show_pane_operation(get_reference(tab); editor)
+            show === nothing || evaluate_operation(editor, show)
         else
             work, route = shown
-            # The operation of the focus alone: `focus_pane!` would also print the
+            # The operation of the show alone: `show_pane!` would also print the
             # layout of the window, which walks it.
             tab_path = annotate_reference_types(root, Reference(route...))
-            focus = make_focus_pane_operation(tab_path; editor)
-            focus === nothing || evaluate_operation(editor, focus)
+            show = make_show_pane_operation(tab_path; editor)
+            show === nothing || evaluate_operation(editor, show)
         end
         # The work is the content of the navigator that the tab holds.
         content = FieldReferenceStep("content")

@@ -458,7 +458,9 @@ const EDITOR_SYSTEM =
     "find_explorer_content().entries]` lists them. " *
     "Example: `part_1 = find_selected_part(); println(print_natural_text(part_1))`.\n\n" *
     "TELL the person with a document in a tab: `open_pane!(document; title, " *
-    "target, side)` puts it in a tab, beside or under another tab. WidgetModule " *
+    "target, side)` puts it in a tab, beside or under another tab, behind the tab " *
+    "that its group shows, and `show_pane!(tab)` brings it to the front when the " *
+    "person must look at it; the focus of the person stays where it is. WidgetModule " *
     "and LayoutModule build what a tab shows: a card, a button, a table, a row or " *
     "a column of them. To draw, put shapes and text on a canvas: " *
     "`GraphicsCanvas`, `GraphicsRect`, `GraphicsText`, `GraphicsLine`, " *
@@ -481,12 +483,14 @@ const EDITOR_SYSTEM =
     "`describe_system_process_tree(process_ids)` show processes, and " *
     "`show_assistant_work!(assistant)` shows the work of the agent of an assistant. " *
     # @style: the example is text for the agent; it shows how a canvas is written, and draws nothing
-    "Example: `open_pane!(GraphicsCanvas([GraphicsRect(10, 10, 120, 40; " *
+    "Example: `sketch_1 = open_pane!(GraphicsCanvas([GraphicsRect(10, 10, 120, 40; " *
     "color = StyleColor(0.2, 0.4, 0.8, 1.0)), GraphicsText(\"hello\", 20, 34; " *
-    "font = StyleFont(\"DejaVu Sans\", 14))]; w = 200, h = 80); title = \"Sketch\")`.\n\n" *
+    "font = StyleFont(\"DejaVu Sans\", 14))]; w = 200, h = 80); title = \"Sketch\"); " *
+    "show_pane!(sketch_1)`.\n\n" *
     "CONTROL the window: `get_parent(editor, tab)` answers the group that holds a " *
-    "tab; `focus_pane!`, `move_pane!` and `close_pane!` bring a tab forward, move it " *
-    "and close it. `filter_collection!`, `sort_collection!`, `group_collection!` " *
+    "tab; `show_pane!`, `move_pane!` and `close_pane!` bring a tab forward, move it " *
+    "and close it. `focus_pane!` also moves the focus of the person, so do not call " *
+    "it: the person moves their focus. `filter_collection!`, `sort_collection!`, `group_collection!` " *
     "and `limit_collection!` change the rows that `show_roster!` answers. " *
     "`change_setting!(name, value)` changes a setting of the window. " *
     "`make_file_tab_content(path)` opens a path as the content of a tab, " *

@@ -79,7 +79,7 @@ function test_tabs_wrapper()
         ).windows[1].content === tree
     end
 
-    @testset "show_document! opens a tab, and focuses it when it is shown already" begin
+    @testset "show_document! opens a tab, and shows the tab that shows the document already" begin
         editor = build_editor(WidgetLabel("hi"), TabsCountingProjection();
                               backend = TabsProbeBackend(), devices = Device[])
         second = WidgetLabel("second")
@@ -100,8 +100,9 @@ function test_tabs_wrapper()
         show_document!(second; title = "same", editor)
         @test _count_tabs(editor) == 3
         tree = get_wrapped_document(editor.document).windows[1].content
-        group, index = get_pane_focus(tree)
-        @test group.tabs[index].content === second
+        shown = [group.tabs[get_pane_shown_tab_index(group)].content
+                 for group in get_pane_groups(tree) if !isempty(group.tabs)]
+        @test any(content -> content === second, shown)
     end
 
     @testset "with no tabs, show_document! opens a window of its own" begin

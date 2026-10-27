@@ -172,7 +172,7 @@ function test_roster_table()
         run_frame!(editor)
         roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], title = "Runs"),
                               editor.document)
-        open_pane!(roster; title = "Runs", editor)
+        show_pane!(open_pane!(roster; title = "Runs", editor); editor)
         drain_operations!(editor)
         run_frame!(editor)
         window = first(editor.iomap.output.windows)
@@ -238,7 +238,7 @@ function test_roster_table()
         # The first column is a link, so the press that selects a row is on its id.
         roster = link_roster!(Roster(CollectionItems(runs); columns = ["status", "id"], title = "Runs"),
                               editor.document)
-        open_pane!(roster; title = "Runs", editor)
+        show_pane!(open_pane!(roster; title = "Runs", editor); editor)
         drain_operations!(editor)
         run_frame!(editor)
         window = first(editor.iomap.output.windows)

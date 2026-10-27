@@ -24,7 +24,7 @@ using ..PlatformModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..DocumentModule: get_document_title, get_view_state_fields, has_document_duplicate, is_walk_opaque
 import ..DomainModule: make_pasted_document_operation, get_insertion_aliases, make_insertion_document,
-                       get_document_decoration, accepts_pasted_document
+                       get_document_decoration, accepts_pasted_document, accepts_opened_file
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..RosterModule: get_item_facets, compute_item_facet, collect_roster_parts, collect_roster_items,
                        get_roster_item_type

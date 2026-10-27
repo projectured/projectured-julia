@@ -119,8 +119,10 @@ insert_elements!(items_1, length(items_1) + 1, [item_1])
 Each of the three records the edit in the history of the file, so Ctrl+Z in the
 tab of the file takes it back.
 
-`open_pane!` puts the new tab where the focus is. To put it before a tab, or at
-the end of a group, give that tab or group as `target`. To put it in a new pane
+`open_pane!` puts the new tab in the group of the documents, behind the tab that
+the group shows, and the focus of the person stays where it is. `show_pane!(tab)`
+brings the tab to the front when the person must look at it. To put it before a
+tab, or at the end of a group, give that tab or group as `target`. To put it in a new pane
 beside or under the group of the target, add `side`: `:left`, `:right`, `:above`
 or `:below`. The new pane is always next to one group.
 `get_parent(editor, items_tab_1)` answers the group that holds the tab, so this
@@ -222,8 +224,9 @@ open_pane!(orbit_1; title = "Orbit")
 
 ### Control the window
 
-`show_layout()` prints what is where, and `focus_pane!`, `move_pane!` and
-`close_pane!` arrange the tabs. `describe_settings()` lists the settings of the
+`show_layout()` prints what is where, and `show_pane!`, `move_pane!` and
+`close_pane!` arrange the tabs. `focus_pane!` also moves the focus of the person,
+so a program does not call it. `describe_settings()` lists the settings of the
 window, and `change_setting!` changes one:
 
 ```julia

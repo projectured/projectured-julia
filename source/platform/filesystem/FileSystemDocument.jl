@@ -178,7 +178,8 @@ function evaluate_operation(editor, op::OpenFileOperation)
     open = find_open_file_document(op.path; editor)
     if open !== nothing
         _focus_open_file!(editor, open) ||
-            post_pane_operation!(editor, make_open_pane_operation(open; group = get_pane_file_group(; editor), editor))
+            post_pane_operation!(editor, make_open_pane_operation(open; group = get_pane_file_group(; editor),
+                                                                  focus = true, editor))
         return nothing
     end
     settings = find_editor_settings(; editor)
@@ -186,7 +187,9 @@ function evaluate_operation(editor, op::OpenFileOperation)
     tab = op.file_wrap === identity ?
           make_file_tab_content(op.path, document -> history(op.wrap(document))) :
           make_file_page(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)))))
-    post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor), editor))
+    # A file opens as a person opens it: the new tab takes the focus.
+    post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor),
+                                                          focus = true, editor))
     nothing
 end
 

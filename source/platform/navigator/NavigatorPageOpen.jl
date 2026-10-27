@@ -46,8 +46,10 @@ function evaluate_operation(editor, operation::OpenPageOperation)
         address isa Reference || return nothing
         address = annotate_reference_types(content, strip_reference_types(address))
     end
+    # A page opens as a person opens it: the new tab takes the focus.
     post_pane_operation!(editor, make_open_pane_operation(Navigator(content, address);
-                                                          group = get_pane_file_group(; editor), editor))
+                                                          group = get_pane_file_group(; editor),
+                                                          focus = true, editor))
     nothing
 end
 

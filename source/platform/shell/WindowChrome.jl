@@ -404,7 +404,7 @@ function _reach_tool!(editor, type::Type, make)
     tool = _find_tool_tab(tree, type)
     if tool === nothing
         # A tab is titled by what it shows, and a navigator by its page.
-        post_pane_operation!(editor, make_open_pane_operation(make(editor); editor))
+        post_pane_operation!(editor, make_open_pane_operation(make(editor); focus = true, editor))
     else
         group, index = tool
         _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),

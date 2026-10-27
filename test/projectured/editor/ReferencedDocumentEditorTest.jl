@@ -113,11 +113,16 @@ function test_referenced_document_editor()
 
         groups = length(get_pane_groups(tree))
         steps = length(history.undo_entries)
+        focused = focused_title()
         beside = open_pane!(PrimitiveString("beside"); title = "Beside",
                             target = find_pane("people.json"; editor), side = :right, editor)
         @test length(get_pane_groups(tree)) == groups + 1
         @test !any(t -> t === get_referenced_value(beside; editor), group.tabs)
-        @test focused_title() == "Beside"
+        # The new group shows its one tab, and the focus stays where it was.
+        new_group = only(g for g in get_pane_groups(tree)
+                         if any(t -> t === get_referenced_value(beside; editor), g.tabs))
+        @test new_group.tabs[get_pane_shown_tab_index(new_group)] === get_referenced_value(beside; editor)
+        @test focused_title() == focused
         @test length(history.undo_entries) == steps + 1
 
         @test_throws ArgumentError open_pane!(PrimitiveString("x");

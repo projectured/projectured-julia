@@ -100,30 +100,49 @@ selection of the person.
 
 ### Step 3 — the gestures and the callers
 
-- [ ] The four callers of `make_open_pane_operation` compose the place and the
-      focus. The 21 files of projectured and the 7 of omnet that name
-      `open_pane!`: each call keeps the place only, or adds `show_pane!` where
-      showing is the purpose of the call, as in an example of a docstring that
-      ends in a look at the tab.
-- [ ] `accepts_opened_file(::WorkflowStep) = false`: the plan of work is a side
-      area, as the Explorer is.
-- [ ] omnet `_open_study_pane!` shows the tab of the study with
-      `show_pane!`'s operation, in place of a focus and a focus back.
+- [x] Done (projectured `see the commit of steps 3 and 4`, omnet `6b549650f`):
+  - A press of a person passes `focus = true` to `make_open_pane_operation`:
+    the page of a navigator, the two opens of a file, the tool of the window
+    chrome (projectured), and the new runner, the Open buttons of the project
+    page, the project page of a runner and the run card of a result file
+    (omnet).
+  - A verb whose name says that it shows opens when no tab shows its document
+    and then shows, with no focus: `show_document!` (the seam of the `show_…`
+    verbs), `show_assistant_work!`, and omnet `open_project_page!`.
+  - The verbs that place only: `start_study!`, `start_workflow!`, and the
+    examples of the docstrings that place a document. `open_page!` runs the
+    command "Open as a page" of a person through `OpenPageOperation`, and its
+    tab opens a frame later, so it keeps the focus of that command; a form
+    that answers the tab, for a program, is an open item.
+  - `accepts_opened_file(::WorkflowStep) = false`.
+  - omnet `_open_study_pane!`: the new group shows its first tab, the study,
+    with no focus; the focus goes back to its tab, or, when that tab is in the
+    new group, the show moves it to the study. The other branch places the two
+    tabs and shows the study.
 
 ### Step 4 — the guides and the agent
 
-- [ ] pane.md, the docstrings of `open_pane!`, `focus_pane!` and `show_pane!`,
-      and the list of the interface (`make_pane_api`, `InterfaceApiTest`).
-- [ ] The guide of the assistant and the system text of the IDE: place with
-      `open_pane!`, show with `show_pane!` what the person must look at, never
-      `focus_pane!`.
+- [x] Done: pane.md (the focus, the table of builders, the verbs, the
+      placement, the example), the docstrings of `open_pane!`, `focus_pane!` and
+      `show_pane!`, `make_pane_api`; `InterfaceApiTest` counts the interface
+      names only, so it does not change. The orientation guide, the workflow
+      guide and the omnet assistant guide; the system text of the assistant of
+      every window (`Application.jl`) and of the IDE (`IdeWindow.jl`).
 
 ### Step 5 — check
 
-- [ ] `test_platform()`, `test_workflow()`, the omnet suites of the IDE
-      (`test_study_verbs`, the assistant study window), and the scripted Aloha
-      pictures in the scratch environment: the plots go to the group of the
-      study, and the conversation keeps its column.
+- [x] The suites (2026-10-27). `test_platform()`: 173 615 pass, the three
+      failures of main (the layering guard, now also naming `ShellModule.jl`,
+      and the two of `InterfaceApiTest`), 7 broken; three tests read the old
+      behaviour and now show what they open or read the shown tab (the two
+      roster tests, the test of `show_document!`, and in the umbrella the
+      split of `open_pane!`). `test_workflow()` 314/314; `test_assistant_verbs`
+      79/79, `test_referenced_document_editor` 112/112, `test_search_corpus`
+      6/6, `test_search_ranking` 27/27, `test_call_site` 20/20; omnet
+      `test_study_verbs` 68/68, `test_assistant_study_window` 21/21,
+      `test_task_verbs` 85/85.
+- [ ] The scripted Aloha pictures in the scratch environment: the plots go to
+      the group of the study, and the conversation keeps its column.
 
 ## 5. Not in this plan
 
