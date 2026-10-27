@@ -1,6 +1,6 @@
 # An arrowhead sits on its line
 
-Status: IN PROGRESS on the branch `arrowheads`. The owner agreed to option A on 2026-10-27, and asked for a short
+Status: DONE, 2026-10-27, on the branch `arrowheads`; not landed on `main`. The owner agreed to option A on 2026-10-27, and asked for a short
 plan and its work.
 
 ## The ask
@@ -62,16 +62,29 @@ arrow and draws the arrow on the piece that it cut.
    from a tip and the place of the next point; both functions use it, so the line
    ends exactly on the axis. `test_graphics()`: the new testset 13 pass, and the
    other testsets pass.
-2. **The three backends.** SDL `_stroke_polyline!` and PDF
+2. ✅ **The three backends.** SDL `_stroke_polyline!` and PDF
    `_paint_polyline_points!` stroke the shortened line. The web server sends
    `"pts"` shortened and `"heads"`, the triangles, and `client.js` fills them.
    Pictures of `graph_services_example` with the measure of the angles and the
    enlarged tips. Run `test_graphics()`, `test_graph()`, the test of the web
    backend, the test of the PDF writer, and `test_example` for
    `graph_services_example`.
-3. **The guides.** `graphics.md`: the arrowhead and the shortened line; the guide
+
+   Done. The web server encodes a polyline and a spline by one function,
+   `_serialize_line`; the node holds no `sa`, `ea` and `as` now. The PDF writer
+   and the web backend had no check of a polyline; the web test now checks the
+   triangle and the end of the line. Results: the web and the PDF tests 198 pass;
+   `test_graph()` 625 pass; `test_example(graph_services_example)` 14 335 pass.
+   The angle between the arrowhead and the chord of the curve under it is 0° on
+   all 16 edges of `graph_services_example` (13° to 21° on 6 edges before). The
+   enlarged tips show each arrowhead on its curve; a straight end looks as before.
+   `client.js` was read, not run: no `node` is on this machine.
+3. ✅ **The guides.** `graphics.md`: the arrowhead and the shortened line; the guide
    of the web backend if it names the element encoding. Then the plan moves to
    `plan/done/`.
+
+   Done. `graphics.md`: the axis of the arrowhead and the shortened line;
+   `web.md`: the line and `heads` of the encoding.
 
 ## Notes
 

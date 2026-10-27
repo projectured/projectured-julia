@@ -30,7 +30,9 @@ An arc covers the same ring as a `GraphicsCircle` with the same radius and a bor
 
 `y` of a `GraphicsText` is the top of its box, and the baseline is `y` plus the ascent that [`compute_text_extent`](../style/style.md) gives for `text` and `font`. The box is the ascent plus the descent high. Every backend draws the baseline there, and a layout that puts texts of different fonts on one baseline sets each `y` to the baseline minus that text's own ascent.
 
-The spline and arrowhead geometry is computed here, by `tessellate_spline` and `build_polyline_arrowhead`, so each backend draws the same points. The backends draw only the translation and the scale of a viewport transform.
+The spline and arrowhead geometry is computed here, by `tessellate_spline`, `build_polyline_arrowhead` and `compute_polyline_before_arrowheads`, so each backend draws the same points. The backends draw only the translation and the scale of a viewport transform.
+
+An arrowhead points along the last `arrow_size` pixels of its line: its axis goes from the point of the line that far back from the tip, by length along the line, to the tip. So the arrowhead of a curve that still bends near its tip sits on the curve, and not only on its last sample. The line that a backend strokes is `compute_polyline_before_arrowheads`: the line without those pixels at each end with an arrowhead. It ends on the axis, inside the base of the arrowhead, so a bent line does not show beside the arrowhead and a thick line does not show past its tip. The SDL and the PDF backends stroke that line and fill the triangles; the web backend sends both to its client, which fills the triangles that it gets.
 
 ### The canvas and the hit test
 
