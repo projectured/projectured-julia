@@ -34,7 +34,7 @@ A layout that can hold a selection draws the ring around a whole-selected child 
 
 ### The size that a parent offers
 
-A layout sizes itself to its content by default. A parent gives a range on each axis through the printer context: an exact range, a slot (`with_exact_size`); a bounded range, an edge with no slot (`with_bounded_size`, or `with_size_range` with a minimum); or a free axis (`with_free_axis`). If a layout has an edge on its main axis, exact or bounded, and at least one child has a weight, the layout divides the edge among the weighted children:
+A layout sizes itself to its content by default. A parent gives a range on each axis through the printer context: an exact range, a slot (`with_exact_size`); a bounded range, an edge with no slot (`with_bounded_size`, or `with_size_range` with a minimum); or a free axis (`with_free_axis`). If a layout has an edge on its main axis and at least one child has a weight, the layout divides the edge among the weighted children. For a row the edge can be exact or bounded; for a column it must be exact, because the bounded height that a page gives a block is a limit and not an amount, and in it a column sums its children (see [layout-rules.md](../../../rule/layout-rules.md) §4):
 
 - `SizePolicy(min, preferred, max, weight)` describes a child on one axis. The named forms are `Fixed(n)`, `Content` (the default), `Relative(w)` and `Fill`, which is `Relative(1.0)`.
 - `allocate_axis` is the one allocator for rows, columns, grids and the split pane. It gives each child its preferred size, then gives the rest to the weighted children in proportion to their weights, and repeats while a child reaches its minimum or maximum.

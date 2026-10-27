@@ -233,14 +233,26 @@ A stack sums its children on its main axis. It **distributes** its edge instead
 when both of these hold:
 
 ```
-the stack has an edge on its main axis        (ctx.maximum_* !== nothing, exact or bounded)
+the stack has an edge on its main axis        a row: ctx.maximum_width !== nothing, exact or bounded
+                                              a column: get_exact_height(ctx) !== nothing, exact only
 and some child carries a weight on that axis  (Fill or Relative)
 ```
 
 Nothing is declared on the stack. A child asking for a share can only have one
 when the stack has something to share, and a share of a sum of its own children is
 the cycle of §3. The edge is what the stack is offered, so a row with a `Fill`
-child fills the room its parent gives it, even when that parent gives only an edge.
+child fills the room its parent gives it, even when that parent gives only an edge:
+a page gives every block the width of its view, as CSS gives a block the width of
+its container.
+
+A column shares only an exact height, such as the height of a tab. A bounded
+height is a limit and not an amount: the room that a page leaves a block below the
+others is what the view has left, not what the page has, because a page grows down
+with its blocks. In a bounded height a column sums its children, as it does with no
+edge, and a weighted child draws its content, as a CSS flex column with a
+`max-height` and no `height` gives `flex-grow` nothing to share. So a view that
+fills a tab with a table that scrolls in it (a card over a `Fill` pane) is as tall
+as its content in a page, and the page scrolls.
 
 **Only a weighted child gets a slot.** Every other child gets the room the others
 leave, as a bounded range, and draws its content up to it:

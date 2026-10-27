@@ -1103,13 +1103,18 @@ function _vl_build(recursion, doc, ctx)
     # because `outer_w` (below) reads child widths while each child reads the
     # *parent-supplied* edge, never `outer_w`.
     # A child that carries a weight on the main axis is asking for a share of this
-    # layout's height. It can have one only when this layout has an edge on that
-    # axis, exact or bounded — a share of a sum of its own children is the reactive
-    # cycle the comment above describes. So the two conditions together decide, and nothing
-    # has to be declared on the layout.
-    # The space a column divides is the edge of its range, exact or bounded:
-    # `Fill` takes all of what is offered, and the edge is what is offered.
-    avail_h  = ctx.maximum_height
+    # layout's height. It can have one only when this layout has an exact height —
+    # a share of a sum of its own children is the reactive cycle the comment above
+    # describes. So the two conditions together decide, and nothing has to be
+    # declared on the layout.
+    # The space a column divides is an exact height, such as the height of a tab:
+    # `Fill` takes all of it. A bounded height is a limit and not an amount: the
+    # room that a page leaves a block below the others is what the view has left,
+    # not what the page has, because a page grows down with its blocks. There the
+    # column sums its children, as it does with no range, and a weighted child
+    # draws its content. A row keeps a bounded width as its edge, because a page
+    # gives every block the width of its view.
+    avail_h  = get_exact_height(ctx)
     default  = getfield(doc, :child_height)[]
     weighted = [layout_weight(doc.children[i], :y; default) > 0 for i in 1:n]
     filling  = avail_h !== nothing && any(weighted)

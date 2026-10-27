@@ -8,6 +8,17 @@ function _range_layout_child_widths(layout, width)
     [Int(last(entry).output.w[]) for entry in getfield(iomap, :child_iomaps)[]]
 end
 
+# A column printed 400 pixels wide with the height range `height`, and the height
+# that it draws with the height that each of its children draws, in order.
+function _range_column_heights(column, height)
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    ctx = with_size_range(PrinterContext(EmptyReference(), Cell(400), nothing, Dict{Symbol,Any}());
+                          height = height)
+    iomap = print_document(projection, nothing, column, ctx)
+    (Int(iomap.output.h[]), [Int(last(entry).output.h[]) for entry in getfield(iomap, :child_iomaps)[]])
+end
+
 # The width that `document` draws alone, with no edge.
 _range_natural_width(document) = only(_range_layout_child_widths(VerticalLayout(Any[document]), 100_000))
 
@@ -75,5 +86,23 @@ end
     @test widths[1] == widths[3] == short
     @test 300 < widths[2] <= 500 - 10 - short
     @test 300 < widths[4] <= 500 - 10 - short
+end
+
+@testset "a column shares an exact height, and sums its children in a bounded one" begin
+    # A card above a pane of thirty lines that takes the rest, as a view of a
+    # table is made.
+    column() = VerticalLayout(Any[WidgetLabel("Title"),
+                                  LayoutConstraint(WidgetScrollPane(VerticalLayout(Any[WidgetLabel("line $i")
+                                                                                       for i in 1:30]));
+                                                   height = Fill)]; gap = 4)
+    title = _range_column_heights(VerticalLayout(Any[WidgetLabel("Title")]), (nothing, nothing))[1]
+    # A tab gives an exact height: the pane takes what the title leaves.
+    exact = Cell(Int32(200))
+    @test _range_column_heights(column(), (exact, exact)) == (200, [title, 200 - 4 - title])
+    # A page gives the room that the blocks above leave, a limit: the column is
+    # as tall as its content, so the block after it is placed below all of it.
+    height, children = _range_column_heights(column(), (nothing, Cell(Int32(0))))
+    @test children[2] > 200 && height == title + 4 + children[2]
+    @test _range_column_heights(column(), (nothing, Cell(Int32(5000)))) == (height, children)
 end
 end # test_size_range_main_axis
