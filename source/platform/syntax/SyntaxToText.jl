@@ -800,10 +800,15 @@ end
 _make_leaf_chrome_lines(output::TextBlock) = Bool[k > 1 for k in eachindex(output.elements)]
 
 # The `TextLine` of `line`, the same object as the last layout when its spans and
-# its indentation are the same.
-function _make_output_line(deco, line::_LineRecord)
+# its indentation are the same. Lines with no span and one indentation have one
+# key, so `counts` counts the lines of each key in the layout, and the count is a
+# part of the key: each line is its own object, as `TextToGraphics` keeps the
+# cells of a line by the identity of its `TextLine`.
+function _make_output_line(deco, line::_LineRecord, counts::Dict{Any,Int})
     key = (:line, line.indentation, objectid(line.fold), map(objectid, line.spans)...)
-    _deco_span(deco, key, () -> TextLine(line.spans; indentation = line.indentation, fold = line.fold))
+    count = counts[key] = get(counts, key, 0) + 1
+    _deco_span(deco, (key..., count),
+               () -> TextLine(line.spans; indentation = line.indentation, fold = line.fold))
 end
 
 # The entry of span `k` of line `i` in the flat list `entries`, or `nothing`.
@@ -999,7 +1004,8 @@ end
 # What the printer hands to the IoMap.
 function _splice_result(buf::SpliceBuffer)
     lines = buf.lines
-    (elements = TextLine[_make_output_line(buf.deco, line) for line in lines],
+    counts = Dict{Any,Int}()
+    (elements = TextLine[_make_output_line(buf.deco, line, counts) for line in lines],
      flat_elements = _build_flat_entries(lines),
      chrome_lines = Bool[line.is_chrome for line in lines],
      child_elem_ranges = buf.child_elem_ranges, own_spans = buf.own_spans,

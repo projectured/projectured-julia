@@ -199,6 +199,18 @@ end
     @test after[1] === before[1]
     @test after[2] === before[2]
 end
+
+@testset "each empty line is a line of its own" begin
+    # A separator of two breaks leaves an empty line between the children, at one
+    # indentation, so the empty lines have the same spans and the same indentation.
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:3];
+                      open="[\n", close="\n]", sep=",\n\n", indentation=1)
+    output = print_document(pipe, node).output
+    lines = collect(output.elements)
+    @test _line_texts(output) == ["[", "  1,", "  ", "  2,", "  ", "  3", "]"]
+    @test lines[3] !== lines[5]
+    @test length(Base.IdSet{Any}(lines)) == length(lines)
+end
 end # let
 end # @testset "SyntaxToText lines"
 

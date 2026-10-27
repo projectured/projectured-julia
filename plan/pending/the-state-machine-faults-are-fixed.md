@@ -36,9 +36,16 @@ them.
 
 ## Steps
 
-1. ⬜ Syntax: each line of a compound is its own `TextLine`. Count the lines of each
+1. ✅ Syntax: each line of a compound is its own `TextLine`. Count the lines of each
    key in one layout, and put the count in the key. Test in `SyntaxToTextTest.jl`.
    Make `fsm.png` again, now that the cap draws the whole page.
+   - Done. A line keeps its object from one layout to the next, as before; only
+     lines with one key get a count. `test_syntax_to_text()`,
+     `test_text_to_graphics()`, `test_syntax()`, `test_fsm()` (266) and
+     `test_julia()` (694) pass. The JSON text had no shared line; the FSM
+     notation had two shared objects (indentation 0 and 4) at 5 and 18 places.
+   - `fsm.png` now shows the TCP notation down to the height cap of the
+     screenshot (1080), as each other tall example does.
 2. ⬜ Graph: a write into the content of a vertex or a label goes back with the steps
    to that part, and a compound that is no move goes back whole or not at all.
    Remove the `repl_broken` entry of the two diagram examples. Run `test_repl` on
