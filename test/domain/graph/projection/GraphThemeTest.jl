@@ -1,5 +1,5 @@
 # The graph drawing follows the scales of the appearance: the box of a node, the
-# line of an edge and the ring of a highlight take the values of the scaled
+# line of an edge and the border of a highlight take the values of the scaled
 # `GraphTheme`, and a drawing with no theme has the default values.
 
 function test_graph_theme()
@@ -19,15 +19,17 @@ function test_graph_theme()
     end
 
     plain = draw(nothing)
-    ring, box = plain.rects[1], plain.rects[2]
-    # The box is the vertex and the padding of 8 on each side; the ring is 3
-    # outside it and 3 wide. The drawing moves the layout right and down by the
-    # padding and the ring, 14.
-    @test (box.x, box.y, box.w, box.h) == (16, 16, 96, 46)
+    highlighted, box = plain.rects[1], plain.rects[2]
+    # The box is the vertex and the padding of 8 on each side. The drawing moves
+    # the layout right and down by the padding, 8. The highlight paints the border
+    # of its box, 3 wide, and the box keeps its size: no ring.
+    @test length(plain.rects) == 2
+    @test (box.x, box.y, box.w, box.h) == (10, 100, 96, 46)
+    @test (highlighted.x, highlighted.y, highlighted.w, highlighted.h) == (10, 10, 96, 46)
     @test box.border_width == 2
+    @test highlighted.border_width == 3
     @test is_color_equal(box.color, get_theme_value(GraphTheme(), :node_fill))
-    @test (ring.x, ring.w) == (10, 108)
-    @test is_color_equal(ring.color, get_theme_value(GraphTheme(), :highlight))
+    @test is_color_equal(highlighted.border_color, get_theme_value(GraphTheme(), :highlight))
     @test plain.lines[1].width == 2
     @test plain.lines[1].arrow_size == 10
     # The line and the arrowhead of an edge are almost black, the color of a
@@ -38,17 +40,17 @@ function test_graph_theme()
     theme = get_scaled_theme!(Appearance(spacing_scale = 2.0, line_scale = 2.0,
                                          control_scale = 1.5), GraphTheme)
     scaled = draw(theme)
-    ring, box = scaled.rects[1], scaled.rects[2]
-    # Scaled, the margin is 16 + 6 + 6.
-    @test (box.x, box.y, box.w, box.h) == (22, 22, 112, 62)
+    highlighted, box = scaled.rects[1], scaled.rects[2]
+    # Scaled, the margin is the padding, 16.
+    @test (box.x, box.y, box.w, box.h) == (10, 100, 112, 62)
     @test box.border_width == 4
-    @test (ring.x, ring.w) == (22 - 12, 112 + 24)
+    @test highlighted.border_width == 6
     @test scaled.lines[1].width == 4
     @test scaled.lines[1].arrow_size == 15
-    # The extent reaches the ring of the lower box: its bottom, 130, moved by the
-    # margin, and the padding, the gap and the width of the ring.
-    @test Int(plain.canvas.h[]) == 14 + 130 + 8 + 3 + 3
-    @test Int(scaled.canvas.h[]) == 28 + 130 + 16 + 6 + 6
+    # The extent reaches the box of the lower vertex: its bottom, 130, moved by the
+    # margin, and the padding.
+    @test Int(plain.canvas.h[]) == 8 + 130 + 8
+    @test Int(scaled.canvas.h[]) == 16 + 130 + 16
 end
 
 @testset "a theme color reaches the drawing" begin

@@ -81,7 +81,7 @@ _gvd_corners(layout) = [(Int(vl.x), Int(vl.y)) for vl in layout.vertex_layouts]
 # and the margin by which the drawing moves the layout right and down.
 _gvd_drawn_box(drawing, i) = drawing.drawn_boxes[i]
 _gvd_margin(drawing) = (style = unwrap_cell(drawing.projection.style);
-                        style.node_padding + style.highlight_gap + style.highlight_width)
+                        style.node_padding)
 
 # The operations in an answer, with each compound opened.
 _gvd_operations(operation) = operation isa CompoundOperation ?

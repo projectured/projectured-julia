@@ -2,6 +2,10 @@ function test_process_diagram()
 @testset "ProcessDiagram" begin
 
 _count(canvas, T) = count(e -> e isa T, canvas.elements)
+# The boxes whose border has the color of the highlight.
+_count_highlighted(canvas) =
+    count(e -> e isa GraphicsRect && is_color_equal(e.border_color, get_theme_value(GraphTheme(), :highlight)),
+          canvas.elements)
 
 # The label of the node a vertex draws, for readable assertions about shape.
 _content(vertex) = vertex.content
@@ -126,16 +130,17 @@ end
 
     loop = model.body.steps[2]
     at(loop)
-    @test _count(canvas, GraphicsRect) == boxes + 1        # the ring
+    @test _count(canvas, GraphicsRect) == boxes            # no element is added
+    @test _count_highlighted(canvas) == 1                  # the border of the box
 
     # A position naming a node with no box (a sequence), and an index out of
-    # range, both mean no ring rather than a wrong one.
+    # range, both mean no highlight rather than a wrong one.
     at(model.body)
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
     set_process_position!(session, model; node = 9999, previous = 0)
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
     set_process_position!(session, model; node = 0, previous = 0)
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
 
     # The arrow just taken is derived from the (previous, current) pair.
     guard = loop.body.steps[1]

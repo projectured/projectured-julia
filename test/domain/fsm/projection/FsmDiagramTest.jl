@@ -2,6 +2,10 @@ function test_fsm_diagram()
 @testset "FsmDiagram" begin
 
 _count(canvas, T) = count(e -> e isa T, canvas.elements)
+# The boxes whose border has the color of the highlight.
+_count_highlighted(canvas) =
+    count(e -> e isa GraphicsRect && is_color_equal(e.border_color, get_theme_value(GraphTheme(), :highlight)),
+          canvas.elements)
 
 # ── the pipeline ─────────────────────────────────────────────────────────
 @testset "a machine draws as a graph" begin
@@ -41,16 +45,18 @@ end
     boxes = _count(canvas, GraphicsRect)
     lines = _count(canvas, GraphicsPolyline)
 
-    # The current state adds a ring behind its box.
+    # The current state paints the border of its box, and adds no element.
+    @test _count_highlighted(canvas) == 0
     diagram.live_state = 2
-    @test _count(canvas, GraphicsRect) == boxes + 1
+    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 1
     diagram.live_state = 1
-    @test _count(canvas, GraphicsRect) == boxes + 1
-    # Out-of-range (and 0, "not running") means no ring.
+    @test _count_highlighted(canvas) == 1
+    # Out-of-range (and 0, "not running") means no highlight.
     diagram.live_state = 0
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
     diagram.live_state = 99
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
 
     # The last transition re-strokes its edge.
     diagram.live_transition = 1

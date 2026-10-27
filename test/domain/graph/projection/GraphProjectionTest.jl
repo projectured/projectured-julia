@@ -528,7 +528,7 @@ end
                                                           VertexLayout(b, 10, 500, 80, 30)]),
                            edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 40), (50, 500)])]))
     canvas = print_document(GraphLayoutToGraphicsCanvas(), layout).output
-    # Tall enough for the lower box (y 500 + h 30) plus the box padding and ring.
+    # Tall enough for the lower box (y 500 + h 30) plus the box padding.
     @test Int(canvas.h[]) >= 530
     @test Int(canvas.w[]) >= 90
 
@@ -551,10 +551,10 @@ end
     layout = drawing.input
     style = unwrap_cell(drawing.projection.style)
     source, target = _gpt_get_node_rect(drawing, 1), _gpt_get_node_rect(drawing, 2)
-    # The drawing moves the layout right and down by its margin: the padding and
-    # the ring.
-    margin = style.node_padding + style.highlight_gap + style.highlight_width
-    @test Int(target.x) == Int(layout.vertex_layouts[2].x) + margin - style.node_padding
+    # The drawing moves the layout right and down by its margin, the padding, so
+    # the painted box of a vertex at x 0 starts at x 0.
+    margin = style.node_padding
+    @test Int(target.x) == Int(layout.vertex_layouts[2].x)
 
     # The grid puts the two boxes side by side, so the edge is level. It leaves the
     # right side of the painted source box, and its arrowhead touches the left side
@@ -565,11 +565,11 @@ end
     @test edge.end_arrow
     @test collect(edge.points) == [(Int(source.x) + Int(source.w), y), (Int(target.x), y)]
 
-    # The ring of a highlighted vertex is painted around its box, so the arrowhead
-    # stops at the ring.
+    # A highlighted vertex has the border of the highlight inside its box, so the
+    # arrowhead still touches the box.
     getfield(graph, :highlight_vertex)[] = v2
-    ring = style.highlight_gap + style.highlight_width
-    @test last(collect(only(_gpt_collect_lines(drawing)).points)) == (Int(target.x) - ring, y)
+    @test last(collect(only(_gpt_collect_lines(drawing)).points)) == (Int(target.x), y)
+    @test is_color_equal(_gpt_get_node_rect(drawing, 2).border_color, style.highlight)
     getfield(graph, :highlight_vertex)[] = nothing
 
     # The edge of a dragged vertex ends at the rim of the box where the pointer
@@ -597,7 +597,7 @@ end
     canvas = print_document(projection, content, layout, _gctx()).output
     lines() = filter(e -> e isa GraphicsPolyline, collect(canvas.elements))
     # The drawing moves the layout and the bend right and down by its margin.
-    margin = pad + style.highlight_gap + style.highlight_width
+    margin = pad
     @test collect(only(lines()).points) ==
           map(point -> point .+ margin, [(10 + 80 + pad, 25), (340, 25), (340, 200 - pad)])
 
@@ -630,7 +630,7 @@ end
     # line crosses them. The curve leaves downward and arrives downward, so each
     # control point is straight below or above its end.
     style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
-    margin = style.node_padding + style.highlight_gap + style.highlight_width
+    margin = style.node_padding
     pad = style.node_padding
     points = collect(curve.points)
     @test length(points) == 4
@@ -692,7 +692,7 @@ end
     # Two spans: the ends of step one and the bend, with two control points each,
     # moved by the margin of the drawing.
     style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
-    margin = style.node_padding + style.highlight_gap + style.highlight_width
+    margin = style.node_padding
     @test points[[1, 4, 7]] == map(point -> point .+ margin, [(98, 25), (340, 25), (340, 192)])
     # It leaves the right side to the right, and enters the top side downward.
     @test points[2][2] == 25 + margin && points[2][1] > 98 + margin
@@ -710,10 +710,9 @@ end
     @test count(e -> e isa GraphicsSpline, collect(canvas.elements)) == 2
 end
 
-@testset "the light and the highlight cut an edge at the ring and move no part of it" begin
-    # A curve calculated from a wider rim would leave from another point and take
-    # another shape. A ring only cuts the curve, so each cut end is on the curve
-    # without the ring.
+@testset "the light and the highlight paint the border of a box and change no edge" begin
+    # A highlight paints inside the box, so each edge keeps its points, each box
+    # its place and its size, and each label its place.
     a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
     edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
     layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
@@ -722,41 +721,68 @@ end
     content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
     drawing = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout, _gctx())
     style = unwrap_cell(drawing.projection.style)
-    ring = style.highlight_gap + style.highlight_width
     curves() = filter(e -> e isa GraphicsSpline, collect(drawing.output.elements))
     label_place() = (label = first(filter(e -> e isa GraphicsCanvas, collect(drawing.output.elements)));
                      (Int(label.x), Int(label.y)))
-    plain = collect(first(curves()).points)
-    path = tessellate_spline(plain, :bezier, Int(first(curves()).segments))
-    place = label_place()
+    rect(i) = _gpt_get_node_rect(drawing, i)
+    boxes() = [(Int(rect(i).x), Int(rect(i).y), Int(rect(i).w), Int(rect(i).h)) for i in 1:2]
+    plain, plain_boxes, place = collect(first(curves()).points), boxes(), label_place()
     label_boxes = getfield(drawing, :label_boxes)[]
-    is_on_curve(point) = is_point_near_polyline(path, point[1], point[2], 2)
 
-    # The highlight of the target: the arrowhead stops at its ring, on the same
-    # curve, and the source end stays.
+    # The highlight of the target: its border takes the color and the width of the
+    # highlight, and the other box keeps its border.
     getfield(layout, :highlight_vertex)[] = b
-    cut = collect(first(curves()).points)
-    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 2), ring, last(cut))
-    @test is_on_curve(last(cut))
-    @test first(cut) == first(plain)
+    @test collect(first(curves()).points) == plain
+    @test boxes() == plain_boxes
+    @test is_color_equal(rect(2).border_color, style.highlight)
+    @test Int(rect(2).border_width) == style.highlight_width
+    @test is_color_equal(rect(1).border_color, style.node_border)
     @test label_place() == place
     getfield(layout, :highlight_vertex)[] = nothing
-    @test collect(first(curves()).points) == plain
 
-    # The light of the target also lights the source, so both ends stop at a ring,
-    # and the lit line covers the same cut line. The label and the edges that the
-    # drawing calculated stay as they are.
+    # The light of the target lights the source too: both borders take the color
+    # of the light, the box under the pointer is filled with it, and the lit line
+    # covers the same line. The edges that the drawing calculated stay as they are.
     replace_mouse_target!(layout, extend_reference(EmptyReference(), FieldReferenceStep("vertex_layouts"),
                                                    ElementReferenceStep(2), FieldReferenceStep("vertex")))
     lines = curves()
     @test length(lines) == 2
-    cut = collect(first(lines).points)
-    @test collect(last(lines).points) == cut
-    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 1), ring, first(cut))
-    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 2), ring, last(cut))
-    @test is_on_curve(first(cut)) && is_on_curve(last(cut))
+    @test collect(first(lines).points) == plain && collect(last(lines).points) == plain
+    @test boxes() == plain_boxes
+    @test all(i -> is_color_equal(rect(i).border_color, style.light_edge), 1:2)
+    @test is_color_equal(rect(2).color, style.light) && is_color_equal(rect(1).color, style.node_fill)
     @test label_place() == place
     @test getfield(drawing, :label_boxes)[] === label_boxes
+end
+
+@testset "a label stands on the lines, on a rectangle of the color of the page" begin
+    # The second edge crosses the label of the first one. The label comes after
+    # every line, on a rectangle of `label_fill` that is `label_padding` larger on
+    # each side, so no line crosses its text.
+    a, b, c, d = (GraphVertex(JsonString(name)) for name in ("a", "b", "c", "d"))
+    labelled, crossing = GraphEdge(a, b; label = JsonString("x")), GraphEdge(c, d)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 100, 40, 20),
+                                                          VertexLayout(b, 400, 100, 40, 20),
+                                                          VertexLayout(c, 200, 10, 40, 20),
+                                                          VertexLayout(d, 200, 300, 40, 20)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(labelled, [(30, 110), (420, 110)]),
+                                                          EdgeLayout(crossing, [(220, 20), (220, 310)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(), content, layout, _gctx())
+    style = unwrap_cell(drawing.projection.style)
+    elements = collect(drawing.output.elements)
+    label = findfirst(e -> e isa GraphicsCanvas, elements)
+    @test label > findlast(e -> e isa GraphicsPolyline, elements)
+    background = elements[label - 1]
+    @test background isa GraphicsRect && is_color_equal(background.color, style.label_fill)
+    g = style.label_padding
+    box = first(getfield(drawing, :label_boxes)[])
+    @test (Int(background.x), Int(background.y), Int(background.w), Int(background.h)) ==
+          (box[1] - g, box[2] - g, box[3] + 2g, box[4] + 2g)
+    @test (Int(elements[label].x), Int(elements[label].y)) == (box[1], box[2])
+    # The crossing line passes under the label.
+    vertical = elements[findlast(e -> e isa GraphicsPolyline, elements)]
+    @test box[1] <= first(first(collect(vertical.points))) <= box[1] + box[3]
 end
 
 @testset "the text of a vertex and the label of an edge can be edited" begin
@@ -821,15 +847,4 @@ function _gpt_is_on_rim(rect, point)
     x, y, w, h = Int(rect.x), Int(rect.y), Int(rect.w), Int(rect.h)
     px, py = point
     (px in (x, x + w) && y <= py <= y + h) || (py in (y, y + h) && x <= px <= x + w)
-end
-
-# Whether `point` lies on the rim of the ring `ring` px around the rectangle
-# `rect`, within one pixel.
-function _gpt_is_on_ring(rect, ring, point)
-    x, y = Int(rect.x) - ring, Int(rect.y) - ring
-    w, h = Int(rect.w) + 2ring, Int(rect.h) + 2ring
-    px, py = point
-    is_near(u, v) = abs(u - v) <= 1
-    ((is_near(px, x) || is_near(px, x + w)) && y - 1 <= py <= y + h + 1) ||
-        ((is_near(py, y) || is_near(py, y + h)) && x - 1 <= px <= x + w + 1)
 end

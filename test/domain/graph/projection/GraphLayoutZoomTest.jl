@@ -35,12 +35,12 @@ function _glz_layout_point(drawing, point)
 end
 
 # The index of the first box whose top-left corner the window of 360 × 300 px
-# shows, away from its edges.
+# shows, away from its right and bottom edges.
 function _glz_find_shown_box(editor, drawing)
     for (i, box) in enumerate(drawing.drawn_boxes)
         box === nothing && continue
         x, y = _glz_window_point(editor, drawing, box[1:2])
-        (10 <= x <= 340 && 10 <= y <= 280) && return i
+        (0 <= x <= 340 && 0 <= y <= 280) && return i
     end
     nothing
 end

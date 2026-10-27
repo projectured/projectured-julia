@@ -51,7 +51,7 @@ The facts at `main` `b48b06fc8`. Find each function by its name.
 
 ## The steps
 
-1. **A highlight paints the box.** `GraphLayoutToGraphics.jl`: the border of the
+1. ✅ **A highlight paints the box.** `GraphLayoutToGraphics.jl`: the border of the
    box, no ring, no cut, the margin and the extent; `GraphTheme.jl`: no
    `highlight_gap`, and the docstrings of `highlight`, `highlight_width`, `light`
    and `light_edge`. Tests: with the highlight and with the light, each edge keeps
@@ -59,11 +59,20 @@ The facts at `main` `b48b06fc8`. Find each function by its name.
    the width; the margins in the graph tests are the padding; the theme test, the
    state machine test and the process test count and measure no ring. Run
    `test_graph()`, `test_fsm()` and `test_process()`.
-2. **A label stands on the lines.** The order of the drawing, the rectangle behind
+2. ✅ **A label stands on the lines.** The order of the drawing, the rectangle behind
    each label, and `label_fill` and `label_padding` in `GraphTheme`. Tests: each
    label comes after every line, on a rectangle of `label_fill` that is larger by
    `label_padding`; a click on a label still puts the caret in it. Run
    `test_graph()`.
+
+   Done, steps 1 and 2 in one commit, because both change the one paint loop. The
+   drawn edges no longer hold the index of their boxes, which only the ring cut
+   read. The existing test "a click on the label of an edge puts the caret in the
+   label" covers the click. Found in the work: the zoom test chose a box whose
+   corner is at least 10 px inside the window; with the margin of 8 px the box at
+   the top-left is drawn at 8 px, so the test now takes a corner at 0 px or more.
+   Results: `test_graph()` 634 pass, `test_fsm()` 179 pass, `test_process()` 316
+   pass.
 3. **Pictures, suites and guides.** Pictures of `graph_services_example` with and
    without the light, and of the study map. Run `test_research()` and
    `test_example` for `graph_example` and `graph_services_example`. The guides:
