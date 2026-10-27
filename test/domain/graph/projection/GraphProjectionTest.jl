@@ -670,6 +670,54 @@ end
     @test count(e -> e isa GraphicsSpline, collect(canvas.elements)) == 2
 end
 
+@testset "the light and the highlight cut an edge at the ring and move no part of it" begin
+    # The line between the centres leaves the bottom side of the first box near
+    # its corner, so a curve that a wider rim cut would leave at another point.
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout, _gctx())
+    style = unwrap_cell(drawing.projection.style)
+    ring = style.highlight_gap + style.highlight_width
+    curves() = filter(e -> e isa GraphicsSpline, collect(drawing.output.elements))
+    label_place() = (label = first(filter(e -> e isa GraphicsCanvas, collect(drawing.output.elements)));
+                     (Int(label.x), Int(label.y)))
+    plain = collect(first(curves()).points)
+    path = tessellate_spline(plain, :bezier, Int(first(curves()).segments))
+    place = label_place()
+    label_boxes = drawing.label_boxes[]
+    is_on_curve(point) = is_point_near_polyline(path, point[1], point[2], 2)
+
+    # The highlight of the target: the arrowhead stops at its ring, on the same
+    # curve, and the source end stays.
+    getfield(layout, :highlight_vertex)[] = b
+    cut = collect(first(curves()).points)
+    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 2), ring, last(cut))
+    @test is_on_curve(last(cut))
+    @test first(cut) == first(plain)
+    @test label_place() == place
+    getfield(layout, :highlight_vertex)[] = nothing
+    @test collect(first(curves()).points) == plain
+
+    # The light of the target also lights the source, so both ends stop at a ring,
+    # and the lit line covers the same cut line. The label and the edges that the
+    # drawing calculated stay as they are.
+    replace_mouse_target!(layout, extend_reference(EmptyReference(), FieldReferenceStep("vertex_layouts"),
+                                                   ElementReferenceStep(2), FieldReferenceStep("vertex")))
+    lines = curves()
+    @test length(lines) == 2
+    cut = collect(first(lines).points)
+    @test collect(last(lines).points) == cut
+    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 1), ring, first(cut))
+    @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 2), ring, last(cut))
+    @test is_on_curve(first(cut)) && is_on_curve(last(cut))
+    @test label_place() == place
+    @test drawing.label_boxes[] === label_boxes
+end
+
 @testset "the text of a vertex and the label of an edge can be edited" begin
     # A key at each place of each text changes that text and moves the caret, as
     # the type-in sweep of the examples checks it.
@@ -732,4 +780,15 @@ function _gpt_is_on_rim(rect, point)
     x, y, w, h = Int(rect.x), Int(rect.y), Int(rect.w), Int(rect.h)
     px, py = point
     (px in (x, x + w) && y <= py <= y + h) || (py in (y, y + h) && x <= px <= x + w)
+end
+
+# Whether `point` lies on the rim of the ring `ring` px around the rectangle
+# `rect`, within one pixel.
+function _gpt_is_on_ring(rect, ring, point)
+    x, y = Int(rect.x) - ring, Int(rect.y) - ring
+    w, h = Int(rect.w) + 2ring, Int(rect.h) + 2ring
+    px, py = point
+    is_near(u, v) = abs(u - v) <= 1
+    ((is_near(px, x) || is_near(px, x + w)) && y - 1 <= py <= y + h + 1) ||
+        ((is_near(py, y) || is_near(py, y + h)) && x - 1 <= px <= x + w + 1)
 end

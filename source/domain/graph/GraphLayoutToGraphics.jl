@@ -271,28 +271,29 @@ function _compute_curve_points(points, start, finish)
 end
 
 # The edges as the drawing draws them, by their index in `edge_layouts`: for each
-# edge the points of its element, and the polyline that a backend strokes for
-# them, or `nothing` for an edge that the drawing does not draw. A straight edge
-# has the same points in both. A curved edge has the points of a chain of Bézier
-# curves, which leaves each box at a right angle to the side that it crosses.
-# An edge ends at the ring of a vertex in `joined`, which the drawing lights.
-function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, joined, style,
+# edge the points of its element, the polyline that a backend strokes for them,
+# and the index of the box at its source and at its target, 0 for none; or
+# `nothing` for an edge that the drawing does not draw. A straight edge has the
+# same points in both. A curved edge has the points of a chain of Bézier curves,
+# which leaves each box at a right angle to the side that it crosses. An edge ends
+# at the rim of the box with its padding. A ring of a highlight or of the light
+# does not change the edge: the drawing cuts the line at the ring as it paints it
+# (`_cut_edge_at_rings`), so the line and its label stay where they are.
+function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, style,
                               edge_shape::Symbol)
-    highlight_vertex = layout.highlight_vertex
     index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
                               for (i, vertex_layout) in enumerate(layout.vertex_layouts)
                               if vertex_layout isa VertexLayout)
-    rim(i) = _get_drawn_rim(boxes[i], style,
-                            (highlight_vertex !== nothing &&
-                             getfield(layout.vertex_layouts[i], :vertex)[] === highlight_vertex) ||
-                            getfield(layout.vertex_layouts[i], :vertex)[] in joined)
+    rim(i) = _get_drawn_rim(boxes[i], style, false)
     edges = Any[]
     for edge_layout in layout.edge_layouts
         edge = edge_layout isa EdgeLayout ? getfield(edge_layout, :edge)[] : nothing
         source = edge isa GraphEdge ? get(index_of, objectid(edge.source), 0) : 0
         target = edge isa GraphEdge ? get(index_of, objectid(edge.target), 0) : 0
         boxed = source != 0 && target != 0
-        # An edge whose ends have no box is drawn along its route as it is.
+        # An edge whose ends have no box is drawn along its route as it is, and no
+        # ring cuts it.
+        boxed || (source = target = 0)
         route = !(edge_layout isa EdgeLayout) ? nothing :
                 !boxed ? Tuple{Int,Int}[(Int(point[1]), Int(point[2])) for point in edge_layout.route] :
                 _make_drawn_route(edge_layout.route, boxes[source], boxes[target],
@@ -301,7 +302,7 @@ function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, joi
         if route === nothing || length(route) < 2
             push!(edges, nothing)
         elseif edge_shape === :straight
-            push!(edges, (points = route, path = route, segments = 0))
+            push!(edges, (points = route, path = route, segments = 0, source, target))
         else
             start = boxed ? _get_rim_normal(rim(source), route[1]) :
                             _get_unit_vector(route[2] .- route[1])
@@ -310,10 +311,68 @@ function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, joi
             curve = _compute_curve_points(route, start, finish)
             segments = _get_curve_segments(curve)
             push!(edges, (points = curve, path = tessellate_spline(curve, :bezier, segments),
-                          segments = segments))
+                          segments = segments, source, target))
         end
     end
     edges
+end
+
+# A rim that holds no point, for an end of an edge with no ring.
+const _NO_RIM = (0, 0, 0, 0)
+
+# The edge `drawn_edge` cut where it enters the ring of a box. `source_ring` and
+# `target_ring` are the rims of the rings at its two ends, or `nothing` for an end
+# with no ring. The rest of the line stays as it is, and so does `path`, which
+# places the label. `nothing` when no part of the line is outside the rings.
+function _cut_edge_at_rings(edge_shape::Symbol, drawn_edge, source_ring, target_ring)
+    source_ring === nothing && target_ring === nothing && return drawn_edge
+    points = edge_shape === :straight ?
+             _clip_route(drawn_edge.points, something(source_ring, _NO_RIM),
+                         something(target_ring, _NO_RIM)) :
+             _cut_curve_at_rings(drawn_edge.points, source_ring, target_ring)
+    points === nothing ? nothing : merge(drawn_edge, (points = points,))
+end
+
+# The chain of Bézier curves `curve` cut at the rings: its first span from where
+# it leaves `source_ring`, and its last span up to where it enters `target_ring`,
+# each split there, so the rest of the curve is the same. An end with the ring
+# `nothing` stays. `nothing` when a span that is cut ends inside its ring.
+function _cut_curve_at_rings(curve, source_ring, target_ring)
+    points = Tuple{Float64,Float64}[Float64.(point) for point in curve]
+    n = length(points)
+    if source_ring !== nothing
+        span = points[1:4]
+        _is_inside_rim(source_ring, span[4]...) && return nothing
+        points[1:4] = _split_bezier(span, _find_rim_crossing(span, source_ring, true))[2]
+    end
+    if target_ring !== nothing
+        span = points[(n - 3):n]
+        _is_inside_rim(target_ring, span[1]...) && return nothing
+        points[(n - 3):n] = _split_bezier(span, _find_rim_crossing(span, target_ring, false))[1]
+    end
+    Tuple{Int,Int}[round.(Int, point) for point in points]
+end
+
+# The cubic Bézier curve `span`, four points, split at the parameter `t` into the
+# two curves before and after it (de Casteljau). The last point of the first is
+# the point of `span` at `t`.
+function _split_bezier(span, t)
+    p0, p1, p2, p3 = span
+    a, b, c = _get_point_between(p0, p1, t), _get_point_between(p1, p2, t), _get_point_between(p2, p3, t)
+    d, e = _get_point_between(a, b, t), _get_point_between(b, c, t)
+    f = _get_point_between(d, e, t)
+    ([p0, a, d, f], [f, e, c, p3])
+end
+
+# The parameter where the cubic Bézier curve `span` crosses `rim`: where it leaves
+# the rim when `leaving`, else where it enters it. The span crosses it once.
+function _find_rim_crossing(span, rim, leaving::Bool)
+    inside, outside = leaving ? (0.0, 1.0) : (1.0, 0.0)
+    for _ in 1:24
+        t = (inside + outside) / 2
+        _is_inside_rim(rim, _split_bezier(span, t)[1][4]...) ? (inside = t) : (outside = t)
+    end
+    outside
 end
 
 # The element that draws the edge `drawn_edge`: a polyline, or a curve.
@@ -419,13 +478,11 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # The box of the content of each vertex, where the drawing draws it.
     drawn_boxes = Cell(@computation _compute_drawn_boxes(layout, drawing_map[], started_drag[]))
 
-    # Each edge, where the drawing draws it.
-    drawn_edges = Cell(@computation begin
-        lit_vertex = lit[] == 0 ? nothing : getfield(layout.vertex_layouts[lit[]], :vertex)[]
-        _compute_drawn_edges(layout, drawn_boxes[], drawing_map[], started_drag[],
-                             _collect_joined_vertices(layout, lit_vertex), style,
-                             _get_edge_shape(p, layout))
-    end)
+    # Each edge, where the drawing draws it. It reads no highlight and no light, so
+    # a move of the light calculates no edge and no label again.
+    drawn_edges = Cell(@computation _compute_drawn_edges(layout, drawn_boxes[], drawing_map[],
+                                                         started_drag[], style,
+                                                         _get_edge_shape(p, layout)))
 
     # The box of the label of each edge, at the middle of its line.
     drawn_labels = Cell(@computation _compute_label_boxes(drawn_edges[], edge_label_iomaps[]))
@@ -457,6 +514,11 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         label_boxes = drawn_labels[]
         edges = drawn_edges[]
         edge_shape = _get_edge_shape(p, layout)
+        # The rim of the ring around the box `i`, or `nothing` for a box with no
+        # ring: the ring of the highlight, or of the light.
+        ring_rim(i) = i != 0 && (v = getfield(layout.vertex_layouts[i], :vertex)[];
+                                 (highlight_vertex !== nothing && v === highlight_vertex) || v in joined) ?
+                      _get_drawn_rim(boxes[i], style, true) : nothing
         for i in 1:length(layout.edge_layouts)
             drawn_edge = edges[i]
             drawn_edge === nothing && continue
@@ -464,20 +526,26 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             # An edge that is not visible joins its vertices and draws nothing.
             e isa GraphEdge && !e.visible && continue
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, _make_edge_element(edge_shape, drawn_edge; color = style.edge,
-                width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
-            # An edge of the vertex under the pointer is lit over its own line.
-            if lit_vertex !== nothing && e isa GraphEdge && (e.source === lit_vertex || e.target === lit_vertex)
-                push!(result, _make_edge_element(edge_shape, drawn_edge;
-                    color = style.light_edge, width = style.highlight_width,
-                    end_arrow = directed, arrow_size = style.arrow_size))
-            end
-            # The highlighted edge is re-stroked over its own line, keeping the
-            # arrowhead it already drew.
-            if highlight_edge !== nothing && e === highlight_edge
-                push!(result, _make_edge_element(edge_shape, drawn_edge;
-                    color = style.highlight, width = style.highlight_width,
-                    end_arrow = directed, arrow_size = style.arrow_size))
+            # The ring of a box is painted over the end of the line, so the line
+            # stops where it enters the ring.
+            line = _cut_edge_at_rings(edge_shape, drawn_edge, ring_rim(drawn_edge.source),
+                                      ring_rim(drawn_edge.target))
+            if line !== nothing
+                push!(result, _make_edge_element(edge_shape, line; color = style.edge,
+                    width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
+                # An edge of the vertex under the pointer is lit over its own line.
+                if lit_vertex !== nothing && e isa GraphEdge && (e.source === lit_vertex || e.target === lit_vertex)
+                    push!(result, _make_edge_element(edge_shape, line;
+                        color = style.light_edge, width = style.highlight_width,
+                        end_arrow = directed, arrow_size = style.arrow_size))
+                end
+                # The highlighted edge is re-stroked over its own line, keeping the
+                # arrowhead it already drew.
+                if highlight_edge !== nothing && e === highlight_edge
+                    push!(result, _make_edge_element(edge_shape, line;
+                        color = style.highlight, width = style.highlight_width,
+                        end_arrow = directed, arrow_size = style.arrow_size))
+                end
             end
             label_box = i <= length(label_boxes) ? label_boxes[i] : nothing
             if label_box !== nothing

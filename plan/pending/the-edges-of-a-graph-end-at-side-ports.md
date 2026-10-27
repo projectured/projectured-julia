@@ -1,6 +1,6 @@
 # The edges of a graph end at side ports, and the light moves no edge
 
-Status: PENDING. The owner agreed to the three fixes on 2026-10-27.
+Status: IN PROGRESS on the branch `graph-ports`. The owner agreed to the three fixes on 2026-10-27, and asked to implement the plan.
 
 ## The ask
 
@@ -75,7 +75,7 @@ The facts at `main` `728307d08`. Find each function by its name.
 
 ## The steps
 
-1. **The light and the highlight move no edge.** `GraphLayoutToGraphics.jl`:
+1. ✅ **The light and the highlight move no edge.** `GraphLayoutToGraphics.jl`:
    `_compute_drawn_edges` takes no `joined` and reads no highlight; the drawing
    cuts each line of a vertex with a ring at the ring as it paints it, and draws
    the lit and the highlighted line over the same cut line. Tests in the graph
@@ -84,6 +84,15 @@ The facts at `main` `728307d08`. Find each function by its name.
    arrowhead stops at the ring; the value of `drawn_edges` is the same object
    after a move of the light. The test "an edge ends at the rim of the box that
    the drawing paints" keeps its check of the ring. Run `test_graph()`.
+
+   Done. Each drawn edge holds the index of the box at each end (0 for an edge
+   whose ends have no box, so no ring cuts it). `_cut_edge_at_rings` cuts a
+   straight line with `_clip_route` at the ring rims, and a curve by
+   `_cut_curve_at_rings`: a bisection on the first and the last span
+   (`_find_rim_crossing`), then a split of the span there (`_split_bezier`). The
+   cut line keeps the `path` of the uncut line, so the label stays. The value of
+   `drawn_edges` is not visible from the IO map, so the test checks that
+   `label_boxes`, which reads it, keeps its value. Graph projection tests: 336 pass.
 2. **A curved edge ends at a side port.** `_compute_drawn_edges`: the sides, the
    sort and the ports for a curved edge; the start and the finish of the curve
    from the normal of the side of the port. Tests: one end on a side is at its
