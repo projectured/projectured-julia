@@ -729,7 +729,7 @@ end
     plain = collect(first(curves()).points)
     path = tessellate_spline(plain, :bezier, Int(first(curves()).segments))
     place = label_place()
-    label_boxes = drawing.label_boxes[]
+    label_boxes = getfield(drawing, :label_boxes)[]
     is_on_curve(point) = is_point_near_polyline(path, point[1], point[2], 2)
 
     # The highlight of the target: the arrowhead stops at its ring, on the same
@@ -756,7 +756,7 @@ end
     @test _gpt_is_on_ring(_gpt_get_node_rect(drawing, 2), ring, last(cut))
     @test is_on_curve(first(cut)) && is_on_curve(last(cut))
     @test label_place() == place
-    @test drawing.label_boxes[] === label_boxes
+    @test getfield(drawing, :label_boxes)[] === label_boxes
 end
 
 @testset "the text of a vertex and the label of an edge can be edited" begin

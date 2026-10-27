@@ -1,6 +1,6 @@
 # The edges of a graph end at side ports, and the light moves no edge
 
-Status: IN PROGRESS on the branch `graph-ports`. The owner agreed to the three fixes on 2026-10-27, and asked to implement the plan.
+Status: DONE, 2026-10-27, on the branch `graph-ports`. The owner agreed to the three fixes on 2026-10-27, and asked to implement the plan. Not landed on `main`.
 
 ## The ask
 
@@ -93,6 +93,9 @@ The facts at `main` `728307d08`. Find each function by its name.
    cut line keeps the `path` of the uncut line, so the label stays. The value of
    `drawn_edges` is not visible from the IO map, so the test checks that
    `label_boxes`, which reads it, keeps its value. Graph projection tests: 336 pass.
+   Found later: a field of the IO map reads the value of its cell, so the test
+   reads the cell with `getfield`; `v[]` of a vector with one element answers that
+   element, and the first form of the check compared two equal tuples.
 2. ✅ **A curved edge ends at a side port.** `_compute_drawn_edges`: the sides, the
    sort and the ports for a curved edge; the start and the finish of the curve
    from the normal of the side of the port. Tests: one end on a side is at its
@@ -111,16 +114,36 @@ The facts at `main` `728307d08`. Find each function by its name.
    test "a curved edge passes through the bends of its route" keeps its points,
    because its bend is at the height of the centre. Graph projection tests: 347
    pass. The suites, the examples and the pictures run once after step 3.
-3. **The tooltip frame fills its window.** `TooltipContentToVerticalLayout` reads
+3. ✅ **The tooltip frame fills its window.** `TooltipContentToVerticalLayout` reads
    `minimum_size` from its theme and gives it to the column around the frame.
    Tests in the tooltip tests of the platform: the frame of a short note is as
    wide as the least width of the window; the frame of a long note keeps the width
    of what it holds. Run the tooltip tests (`TooltipNoteTest.jl`,
    `TooltipProjectionTest.jl`, `WidgetTooltipTest.jl`) and the tooltip window
    test of the Julia domain.
-4. **The guides.** `graph.md`: the ports, and the ring that only cuts a line.
+
+   Done. The column around the frame takes `child_width = SizePolicy(least,
+   nothing, nothing, 0.0)`; the cross axis of a vertical layout gives the frame a
+   range with that least, and `WidgetComposite` grows to it. Tooltip tests: 132
+   pass (`test_tooltip_note`, `test_tooltip`, `test_widget_tooltip`), and
+   `test_tooltip_window()` 55 pass. The note of a vertex of the services example,
+   printed with the real fonts, is 120 px wide, the width of its window.
+4. ✅ **The guides.** `graph.md`: the ports, and the ring that only cuts a line.
    `tooltip.md`: the frame and the least size. Then the plan
    moves to `plan/done/`.
+
+   Done. `graph.md`: the rule of the ring, the side ports, and two decisions;
+   `tooltip.md`: the least width of the frame; the head comment of
+   `GraphLayoutToGraphics.jl`.
+
+   Results after all steps: `test_graph()` 625 pass; `test_research()` 381 pass;
+   `test_example(graph_services_example)` 14 335 pass;
+   `test_example(graph_example)` 13 192 pass and the 4 REPL failures of `main`
+   (`SelectionMismatchException` at the XML child). The pictures of
+   `graph_services_example` show each end at the middle of a side, or spread on a
+   side with more ends; with the light on `api` (5 edges), the curves keep their
+   shape, the labels keep their places, and no fault occurs. The study map shows
+   its edges at the middles of the sides and no fault.
 
 ## Notes
 

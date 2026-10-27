@@ -117,7 +117,7 @@ TooltipNote(; title = "Refresh", keys = find_bound_keys(DataFrameView, "Read the
             text = "Read the frame again.", facts = ["Rows" => "12480"])
 ```
 
-**The window fits what it says.** The wrapper gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of `TooltipWindowProjection`. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.
+**The window fits what it says.** The wrapper gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of `TooltipWindowProjection`. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut. The frame is at least as wide as the least width of the window: `TooltipContentToVerticalLayout` reads `minimum_size` of the `TooltipTheme` and gives it to the frame as the least of its width. So a short note does not leave the surface of the window beside its frame. A frame of one line is higher than the least height, so the height needs no least.
 
 - Tests: `test_tooltip_window()` for the window and its frame, through a real editor; `test_tooltip_note()` for the drawing of a note; `test_widget_tooltip()`, `test_julia_tooltip()` and `test_document_decoration()` for the notes that parts answer; `test_tooltip()` for the decorator.
 

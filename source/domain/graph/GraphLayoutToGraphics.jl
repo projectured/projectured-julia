@@ -9,11 +9,13 @@
 #
 # The drawing paints a box larger than the box that the engine places: the padding
 # and, for the highlighted vertex, the ring. So the drawing, not the engine, cuts
-# each edge at the rim of what it paints. An edge runs from the centre of its
-# source box, through the bends of its route, to the centre of its target box,
-# and is cut where it leaves the one and where it enters the other. One rule
-# serves a route that ends on the border of a box, a route that ends at its
-# centre, and a dragged box.
+# each edge at the rim of the box with its padding. A straight edge runs from the
+# centre of its source box, through the bends of its route, to the centre of its
+# target box, and is cut where it leaves the one and where it enters the other. A
+# curved edge runs between two side ports on those rims. One rule serves a route
+# that ends on the border of a box, a route that ends at its centre, and a dragged
+# box. A ring only cuts the line shorter as the drawing paints it, so the edges and
+# their labels do not change when a ring comes or goes.
 #
 # Selection: a path `vertex_layouts[i].vertex.content.…` routes into the i-th
 # node's content sub-pipeline (tutorial School A — peel the steps this projection
