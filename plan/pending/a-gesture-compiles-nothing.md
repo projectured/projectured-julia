@@ -281,6 +281,54 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      turn of the list uses it.
    - A test in `ProjecturedPlatformTest` runs a list and asserts that each
      gesture found its target.
+
+   As built (`source/platform/application/ApplicationWorkload.jl`):
+   - The steps are `WorkloadClick(target; button)`, `WorkloadKey(key; ctrl,
+     shift, alt)`, `WorkloadTyping(text)` and `WorkloadWait(target)`, under
+     `WorkloadStep`. A target is `DrawnText(text; pick)` (a `String` matches a
+     whole drawn text, a `Regex` a part; `pick` is `:first`, `:leftmost` or
+     `:topmost`) or `DrawnPart(predicate)` (the drawing of the first view
+     whose input passes the predicate, such as a tool of the toolbar). The
+     word "gesture" stays out of the type names, because `Gesture` is the
+     kernel type of `MouseClick` and `KeyChord`.
+   - The backend does not find the targets. `run_application_workload` finds
+     each target with a call on the task of the loop (`run_on_editor_task!`),
+     between two frames, and gives the inputs with
+     `send_workload_inputs!(backend, inputs)` in the display slice. The reason:
+     step 3 gives the same steps to `SdlBackend`, which then needs only a
+     method of `send_workload_inputs!`.
+   - `WorkloadBackend` gives one queued input in each frame, as a hand does:
+     a click is a move, a down and an up in three frames. A key gives its
+     down, its character (Return and Tab, as SDL does) and its up.
+   - The window is quiet when, for 0.25 s of looks, the last frame applied no
+     input, no wake waits, and the backend holds no input. A look is an inbox
+     call, and an inbox operation does not set `editor.operation`, so a look
+     does not make the window busy.
+   - `run_application` and the workload build the window with one function,
+     `_make_application_editor`. The workload reads no settings file and no
+     appearance file, names no assistant backend (`:none`, with the `llm` of
+     the caller), and starts no MCP server.
+   - The workload runs with the fault barriers of the application, so that
+     the image holds the code of the barriers (`make_inverse_operation`). At
+     the end it throws an error that names each step whose target was not
+     drawn in `timeout` seconds, the step before which the loop ended, and
+     each fault that a barrier caught (D6).
+   - A `ChildrenIoMap` builds its `child_iomaps` only when a reader asks, so
+     no print computes it. The walk of a `DrawnPart` takes the children of a
+     view from `get_child_iomaps`, as a reader does, and reads the other
+     fields of a view only when their cell holds a value.
+   - `WorkloadBackend` answers `shows_held_frames = false`: it shows no
+     window, so a code unit runs on the thread of the loop, and the window
+     gives no notice about the threads of a tool call.
+   - A fact for step 3: in a fresh process, each first gesture makes a frame
+     slower than a second, and the editor writes a warning for each (13 in
+     the test). A `@compile_workload` prints them into the build output.
+
+   Done: the machinery and its test (`test_application_workload`, 6 of 6,
+   70 s in a fresh process). Open: the move of `ScriptedLlm` (D7) and the
+   assistant turn of the list. The move breaks the rule
+   `PAR-NO-TEST-DOUBLES-IN-MAIN`, which keeps every scripted stand-in out of
+   a `main` package, so it waits for the decision of the owner.
 3. [ ] **The workloads of the platform and SDL (D3).**
    - The platform runs the window gestures of D3 over a `.txt` file and a
      `.pred` file. The list includes a new tab with Ctrl+T and Insert, so that

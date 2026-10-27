@@ -125,7 +125,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "backgroundwork" => ["arrangement", "collection", "domain", "layout", "projection", "roster",
                          "serialization", "style", "tooltip", "widget"],
     "application" => ["appearance", "arrangement", "assistant", "backgroundwork", "clipboard", "collection",
-                      "conversation",
+                      "conversation", "display",
                       "domain", "explorer", "fault", "fileformat", "filesystem", "focus", "gesturehelp",
                       "gesturelog", "graphics", "help", "inspector", "log", "mcplog",
                       "natural", "navigator", "pane", "primitive", "projection", "roster",
@@ -381,6 +381,7 @@ function test_platform()
         test_widget_popup_example()
         # generic drivers over visual examples
         test_collapse_roundtrip()
+        test_application_workload()
 
 
         # the suites of the slices that had a test package of their own
@@ -452,7 +453,8 @@ export test_clipboard, test_tooltip, test_tooltip_note, test_window_fit, test_wi
        test_widget_round_trip,
        test_scroll_pane_hover, test_scroll_pane_show, test_scroll_pane_bar, test_widget_table_bar,
        test_widget_rows_scroll,
-       test_widget_popup_example, test_collapse_roundtrip
+       test_widget_popup_example, test_collapse_roundtrip,
+       test_application_workload
 export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,
        explore_tree_selections, test_tree_navigation

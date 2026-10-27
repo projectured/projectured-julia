@@ -20,7 +20,9 @@ The module lives in two fragments:
   `display_in_editor`, `close_display_editor!` and the session of the editor.
 - [`DisplayWorkload.jl`](DisplayWorkload.jl) — `run_display_workload`,
   `WorkloadBackend`, `make_workload_events` and `make_workload_table`: the first
-  window and a first look at it, run by the `@compile_workload` of a package.
+  window and a first look at it, run by the `@compile_workload` of a package;
+  `send_workload_inputs!`, which gives a workload backend the inputs of a
+  workload.
 """
 module DisplayModule
 
@@ -42,11 +44,12 @@ using ..ScreenModule
 using ..StyleModule
 using ..WidgetModule
 
-import ..BackendModule: initialize_backend!, quit_backend!, take_from_devices!, write_to_devices!
+import ..BackendModule: initialize_backend!, quit_backend!, take_from_devices!, write_to_devices!,
+                        shows_held_frames
 
 export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 export WorkloadBackend, make_workload_events, make_workload_table, run_display_workload,
-       run_natural_rows_workload
+       run_natural_rows_workload, send_workload_inputs!, has_workload_inputs
 
 include("EditorDisplay.jl")
 include("DisplayWorkload.jl")

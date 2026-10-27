@@ -14,6 +14,10 @@ that a session loads, and a session decides what it holds by what it loads:
 
     using Projectured, ProjecturedPlatform, ProjecturedSDL, ProjecturedOllama
     run_application("data.json")
+
+[`run_application_workload`](@ref) runs the same window on a backend with no
+device and gives it a list of clicks, keys and typed texts, so that the
+`@compile_workload` of a package compiles the code that a person runs first.
 """
 module ApplicationModule
 
@@ -25,6 +29,7 @@ using ..AssistantModule
 using ..ClipboardModule
 using ..CollectionModule
 using ..ConversationModule
+using ..DisplayModule
 using ..DomainModule
 using ..ExplorerModule
 using ..FileFormatModule
@@ -71,6 +76,8 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        run_application, parse_application_arguments, restart_with_window_threads!,
        run_application_command,
        evaluate_reachable_cells!, warm_application, register_editor_tools!, start_application!
+export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadTyping, WorkloadWait,
+       run_application_workload
 export StartSettings
 export make_editor_explorer_content
 
@@ -78,5 +85,6 @@ include("DefaultBackend.jl")
 include("Application.jl")
 include("StartSettings.jl")
 include("ApplicationExplorer.jl")
+include("ApplicationWorkload.jl")
 
 end # module ApplicationModule

@@ -668,17 +668,36 @@ function run_application(paths::AbstractString...;
                          settings_file::Union{AbstractString,Nothing} = get_settings_file())
     settings = make_application_settings(settings_file; fault_policy, assistant, model,
                                          context, mcp, agent_command)
+    backend === nothing && (backend = default_backend())
+    editor = _make_application_editor(collect(String, paths), settings; backend, root,
+                                      width, height, measure, appearance)
+    # The Explorer shows what the last window of this folder showed, and keeps it
+    # for the next start when the window closes.
+    file = get_explorer_content_file(root)
+    _restore_explorer_content!(editor, file)
+    mcp = get_settings_group!(settings, StartSettings).mcp
+    result = run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    save_explorer_content!(get_session_explorer_content(; editor), file; editor)
+    result
+end
+
+# The editor of the application window with the files at `paths` and the
+# settings `settings`, built and started as `run_application` runs it. `llm`
+# is the model of the assistant in place of the one that the settings name.
+function _make_application_editor(paths::Vector{String}, settings; backend,
+                                  root::AbstractString, width = nothing, height = nothing,
+                                  measure = FontFileMeasure(), appearance::Appearance,
+                                  llm = nothing)
     start = get_settings_group!(settings, StartSettings)
-    assistant, model, mcp = start.assistant, start.model, start.mcp
-    chat = make_application_assistant(assistant; model, context = start.context,
+    chat = make_application_assistant(start.assistant; model = start.model,
+                                      context = start.context, llm,
                                       agent_command = start.agent_command,
                                       agent_session_meta = start.agent_session_meta)
-    backend === nothing && (backend = default_backend())
     # The root is the application's own pane tree, so the tabs leave it as it is.
     # The settings carry the fault policy of the command line, and the first print
     # runs under it already.
     policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
-    document = make_application_document(collect(String, paths); root, assistant = chat, settings)
+    document = make_application_document(paths; root, assistant = chat, settings)
     editor = build_editor(document,
                           make_application_projection(; measure, appearance);
                           backend, appearance, settings, fault_policy = policy,
@@ -691,14 +710,8 @@ function run_application(paths::AbstractString...;
                                         make_application_content_projections(; measure, appearance))),
                           make_application_wrappers(; root, assistant = chat, measure, appearance,
                                                       document)...)
-    start_application!(editor; mcp, assistant, model)
-    # The Explorer shows what the last window of this folder showed, and keeps it
-    # for the next start when the window closes.
-    file = get_explorer_content_file(root)
-    _restore_explorer_content!(editor, file)
-    result = run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
-    save_explorer_content!(get_session_explorer_content(; editor), file; editor)
-    result
+    start_application!(editor; mcp = start.mcp, assistant = start.assistant, model = start.model)
+    editor
 end
 
 # ── The command line ─────────────────────────────────────────────────────────

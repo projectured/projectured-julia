@@ -308,6 +308,7 @@ include("../../../test/platform/editor/ClickRoundtripTest.jl")
 # _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
 include("../../../test/platform/editor/CollapseRoundtripTest.jl")
 include("../../../test/platform/editor/PaneConstructTest.jl")
+include("../../../test/platform/application/ApplicationWorkloadTest.jl")
 include("../../../test/platform/PlatformSuite.jl")
 
 

@@ -9,16 +9,42 @@ that draws reads it, so that every view of the window prints. After its first
 output, it gives `events` to the window of that output, one for each read, as a
 hand gives them. [`run_display_workload`](@ref) runs the editor with it where no
 window opens.
+
+It also gives the inputs that [`send_workload_inputs!`](@ref) queues, each to
+the window that the input names, one in each frame, before `events`.
 """
 mutable struct WorkloadBackend <: Backend
     events::Vector{Event}
+    inputs::Vector{WindowInput}
     window_id::Union{Nothing,Symbol}
     writes::Int
     writes_at_last_event::Int
 end
 
 WorkloadBackend(; events::Vector{Event} = make_workload_events()) =
-    WorkloadBackend(events, nothing, 0, 0)
+    WorkloadBackend(events, WindowInput[], nothing, 0, 0)
+
+"""
+    send_workload_inputs!(backend, inputs::Vector{WindowInput}) -> Nothing
+
+Give `inputs` to the editor of `backend`, in their order, as the devices of the
+backend give them. A workload calls it on the task of the loop of the editor.
+"""
+function send_workload_inputs! end
+
+function send_workload_inputs!(backend::WorkloadBackend, inputs::Vector{WindowInput})
+    append!(backend.inputs, inputs)
+    nothing
+end
+
+"""
+    has_workload_inputs(backend) -> Bool
+
+Whether `backend` holds inputs that it did not give to its editor yet.
+"""
+function has_workload_inputs end
+
+has_workload_inputs(backend::WorkloadBackend) = !isempty(backend.inputs) || !isempty(backend.events)
 
 """
     make_workload_events() -> Vector{Event}
@@ -39,8 +65,18 @@ make_workload_events() = Event[
 
 initialize_backend!(::WorkloadBackend) = nothing
 quit_backend!(::WorkloadBackend) = nothing
+# It shows no window, so a code unit runs on the thread of the loop.
+shows_held_frames(::WorkloadBackend) = false
 
 function take_from_devices!(backend::WorkloadBackend, devices)
+    if !isempty(backend.inputs)
+        # A hand gives one input in a frame, so the frame of each input prints
+        # before the next input arrives.
+        backend.writes_at_last_event == backend.writes && return nothing
+        backend.writes_at_last_event = backend.writes
+        input = popfirst!(backend.inputs)
+        return WindowInput(input.window_id, _stamp_event(input.event, time()))
+    end
     (backend.window_id === nothing || isempty(backend.events)) && return nothing
     backend.writes_at_last_event = backend.writes
     WindowInput(backend.window_id, _stamp_event(popfirst!(backend.events), time()))
