@@ -435,7 +435,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    alone takes 236 s with the workload and 19 s without it; the build of
    `ProjecturedSDL` takes 2 min 12 s and peaks at 7.8 GB. Both builds write no
    warning. Step 9 measures the costs on an idle machine.
-4. [ ] **The domain packages and the language server (D3).**
+4. [x] **The domain packages and the language server (D3).**
    `run_file_workload(name, text)` of the platform opens a file in the
    application window and runs the gestures of a file.
    - A domain package with a file type calls it with a file of its format,
@@ -446,6 +446,53 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - ProjecturedLanguageServer opens a `.c` file with no server.
    - Each of these workloads also opens the name buffer (Ctrl+T, Insert), so
      that its image holds the constructors of the types of its package.
+
+   As built:
+   - `make_workload_file(type)` in `DisplayWorkload.jl` answers the file of a
+     workload, `(; name, text, shown)`. Each domain adds one method in the
+     module file of its slice: for its file type (`JsonFile`, `YamlFile`,
+     `XmlFile`, `MarkdownFile`, `RstFile`, `MathFile`, `JuliaFile`, `SqlFile`),
+     or for a type of its documents, whose `.pred` text `print_pred_text`
+     writes (`BookDocument`, `Chart`, `GraphGraph`, `WorkflowStep`,
+     `ResearchQuestion`). The platform has the
+     method of `TextFile`.
+   - `run_file_workload(type)` in `ApplicationWorkload.jl` opens that file from
+     the Files pane, clicks `shown`, types a key, saves, undoes, opens a new tab,
+     types a key in the name buffer, cancels and closes the tab.
+   - The entry file of each of the 13 packages keeps the line
+     `@compile_workload run_natural_rows_workload(<Domain>Module)`, which
+     `PackageGraphTest.jl` reads, and gets a second `@compile_workload` that
+     calls `run_file_workload(<Domain>Module.<Type>)` in a `try` with `@warn`
+     (D6). The first block runs each `__init__` of the domain, where it
+     registers its file type.
+   - The test of D6 is one test in `ProjecturedTest`, `test_file_workloads`,
+     which loads every domain and runs each method of `make_workload_file`. The
+     platform has `test_file_workload` for its text file. Step 5 runs the same
+     list for the app package (D10) and the guard (D9).
+   - ProjecturedFormula and ProjecturedPivot get no file workload in this
+     step; each keeps its workload of natural rows. Formula: a sheet computes
+     its values by an evaluation into `Module(:FormulaScratch)`, a new module
+     under `Main`, and a build refuses an evaluation into a module that it
+     closed, so the open of a sheet records a fault in a build (in a normal
+     process it works). A workload of Formula needs a sheet that a build does
+     not compute. Pivot: a `PivotTable` holds a `PivotCrossTable` in
+     `cross_table`, which the `.pred` notation does not hold, so no `.pred`
+     file can carry a pivot. Both are open for the owner.
+   - ProjecturedLanguageServer gets no workload in this step. The open of a
+     `.c` file starts `clangd` at the first work of its background cell, and
+     `clangd` is installed on this machine, so a build would start a process.
+     Its workload comes with the imitation of a process (D8) in step 7.
+   - A fact for the owner: a build of a domain image with a window workload
+     uses several GB, and `Pkg.precompile` builds several packages at once.
+     The verification ran with `JULIA_NUM_PRECOMPILE_TASKS=3`.
+
+   Results (2026-10-28): `test_file_workloads` passes 28 of 28 (14 types, the
+   text file of the platform and 13 domains) in 2 min 39 s in the environment
+   `environment/all`; the build of that environment with the new workloads took
+   8.5 min and wrote no warning after Formula and Pivot left the list;
+   `test_package_graph` passes 417 of 417, and the layering guards of the 13
+   domains pass. Done with three domains open: Formula and Pivot (above) and
+   the language server (step 7).
 5. [ ] **The app package, the guard and the rules (D9, D10).**
    - `warm_application` runs the list of the binary.
    - The guard `test_gestures_compile_little` goes into `ProjecturedTest`,

@@ -29,6 +29,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..DisplayModule: make_workload_file
 
 export ChartSampleReferenceStep
 export ChartTheme, ScaledChartTheme
@@ -73,5 +74,12 @@ function __init__()
         description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
                       "a series of each kind, and `open_pane!` draws it.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{Chart}) =
+    (; name = "a.pred",
+     text = print_pred_text(Chart("Queue delay", [ChartLineSeries("q1", collect(0.0:1.0:10.0),
+                                                                  collect(10.0:-1.0:0.0))])),
+     shown = r"Queue delay")
 
 end # module

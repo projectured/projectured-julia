@@ -16,6 +16,7 @@ import ..FileFormatModule: make_document_seed
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..DisplayModule: make_workload_file
 
 export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
@@ -47,5 +48,9 @@ include("SqlParser.jl")
 include("SqlTheme.jl")
 include("SqlToSyntax.jl")
 include("SqlFile.jl")
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{SqlFile}) =
+    (; name = "a.sql", text = "SELECT name FROM people;\n", shown = r"people")
 
 end # module

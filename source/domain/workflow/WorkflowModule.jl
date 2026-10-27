@@ -29,6 +29,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..RosterModule: get_item_facets, compute_item_facet, collect_roster_parts, collect_roster_items,
                        get_roster_item_type
 import ..TreeModule: get_tree_children_steps, is_explorer_entry_type, is_session_explorer_entry_type
+import ..DisplayModule: make_workload_file
 
 export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry,
        WorkflowJournal, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
@@ -76,5 +77,14 @@ function __init__()
                       "`collect_workflow_entries` reads its journal. `get_session_workflow_list` " *
                       "answers the workflows of the open files.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{WorkflowStep}) =
+    (; name = "a.pred",
+     text = print_pred_text(WorkflowStep(title = PrimitiveString("Survey the literature"), state = :done,
+                                         journal = [WorkflowEntry(time = "2026-10-27T10:00:00",
+                                             author = :person, kind = :comment,
+                                             text = PrimitiveString("Keep the records readable."))])),
+     shown = r"Survey the literature")
 
 end # module

@@ -18,6 +18,7 @@ using ..PlatformModule
 import ..FileFormatModule: make_document_seed
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export parse_xml, parse_xml_file
 export XmlTheme, ScaledXmlTheme
@@ -49,5 +50,9 @@ function __init__()
 
     register_file_document_type!(".xml", XmlFile)
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{XmlFile}) =
+    (; name = "a.xml", text = "<person><name>Alice</name></person>\n", shown = r"Alice")
 
 end # module

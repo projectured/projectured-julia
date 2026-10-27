@@ -19,6 +19,7 @@ using ..PlatformModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
     get_child_iomaps, read_child_by_route
 import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..DisplayModule: make_workload_file
 
 export GraphDocument
 export GraphLayoutDocument
@@ -49,5 +50,13 @@ include("GraphToGraphLayout.jl")
 include("GraphTheme.jl")
 include("GraphLayoutToGraphics.jl")
 include("GraphToWidgetScrollPane.jl")
+
+# The file that a workload of the window opens (`run_file_workload`).
+function make_workload_file(::Type{GraphGraph})
+    first, second = GraphVertex(PrimitiveString("alpha")), GraphVertex(PrimitiveString("beta"))
+    (; name = "a.pred",
+     text = print_pred_text(GraphGraph([first, second], [GraphEdge(first, second; directed = true)])),
+     shown = r"alpha")
+end
 
 end # module

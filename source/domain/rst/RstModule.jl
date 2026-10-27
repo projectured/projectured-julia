@@ -37,6 +37,7 @@ import ..NavigatorModule: find_navigator_target
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export RstDocument, set_cell_computation!
 export parse_rst, parse_rst_file
@@ -110,5 +111,9 @@ function __init__()
         ]
     end)
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{RstFile}) =
+    (; name = "a.rst", text = "Title\n=====\n\nAlice writes a text.\n", shown = r"Alice")
 
 end # module

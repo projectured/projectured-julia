@@ -216,3 +216,15 @@ function _wait_for_workload(session::_EditorSession, backend::Backend, frames::I
     end
     nothing
 end
+
+"""
+    make_workload_file(type::Type) -> NamedTuple
+
+The file that a workload opens for the documents of `type`: `(; name, text,
+shown)`, the name of the file with its extension, its text, and a text that the
+window draws when it shows the file, a `String` for a whole drawn text or a
+`Regex` for a part of one. A domain adds a method for the type of its files, or,
+for a domain with no file of its own, for a type of its documents, whose `.pred`
+file the text is. `run_file_workload` of the application opens it.
+"""
+function make_workload_file end

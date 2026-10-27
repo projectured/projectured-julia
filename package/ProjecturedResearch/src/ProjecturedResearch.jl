@@ -45,6 +45,14 @@ end
 # The natural rows of this domain, which every first window of the display builds.
 using PrecompileTools: @compile_workload
 @compile_workload run_natural_rows_workload(ResearchModule)
+# The open of a file of this domain in the application window, a click, a key, a
+# save, an undo and the name buffer. A failed workload makes a smaller image and
+# never stops the load, so it only warns.
+@compile_workload try
+    run_file_workload(ResearchModule.ResearchQuestion)
+catch exception
+    @warn "The file workload of ProjecturedResearch failed, so its image holds less" exception
+end
 
 
 end # module ProjecturedResearch

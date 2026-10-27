@@ -30,6 +30,7 @@ import ..FileFormatModule: make_document_seed
 import ..PrimitiveModule: make_incomplete_number_document
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
@@ -65,5 +66,9 @@ function __init__()
                       "`parse_natural_text(:json, \"[1, 2]\")` makes one, for a verb such " *
                       "as `replace_referenced_value!`.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{JsonFile}) =
+    (; name = "a.json", text = "{\"name\": \"Alice\", \"age\": 7}\n", shown = r"Alice")
 
 end # module

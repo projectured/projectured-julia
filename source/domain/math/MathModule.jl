@@ -24,6 +24,7 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..GraphicsModule: find_first_baseline
+import ..DisplayModule: make_workload_file
 
 export MathDocument, _operator_string, get_math_operator_glyph, get_math_operator_class,
        get_math_symbol_glyph, find_math_symbol_name, get_math_big_operator_glyph, get_math_big_operator_name,
@@ -61,5 +62,8 @@ include("MathTheme.jl")
 include("MathToSyntax.jl")
 include("MathToGraphics.jl")
 include("MathFile.jl")
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{MathFile}) = (; name = "a.math", text = "a + b", shown = "b")
 
 end # module

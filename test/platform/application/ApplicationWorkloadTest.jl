@@ -101,3 +101,19 @@ function test_window_workload()
         @test run_window_workload() === nothing
     end
 end
+
+"""
+    test_file_workload()
+
+The gestures of a file, on the text file of the platform, each find their target:
+the open from the Files pane, a click, a key, a save, an undo and the name
+buffer.
+"""
+function test_file_workload()
+    @testset "the gestures of a file" begin
+        file = make_workload_file(TextFile)
+        @test endswith(file.name, ".txt")
+        @test occursin(file.shown, file.text)
+        @test run_file_workload(TextFile) === nothing
+    end
+end

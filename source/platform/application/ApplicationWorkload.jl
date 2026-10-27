@@ -480,15 +480,11 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
     files = ["a.txt" => "one two three\nfour\n",
              "b.pred" => print_pred_text(CellVector(Any[PrimitiveString("first"),
                                                          PrimitiveString("second")]))]
-    tool(label) = DrawnPart(input -> input isa WidgetToolbarItem &&
-                                     string(input.action.label) == label)
+    tool = _make_tool_target
     menu(title, item) = WorkloadStep[WorkloadClick(DrawnText(title; pick = :topmost)),
                                      WorkloadClick(DrawnText(item))]
-    open_file(name, shown) = WorkloadStep[WorkloadClick(tool("Files")),
-                                          WorkloadClick(DrawnText(name; pick = :leftmost)),
-                                          WorkloadKey(:return), WorkloadWait(DrawnText(shown))]
-    edit(shown) = WorkloadStep[WorkloadClick(DrawnText(shown)), WorkloadTyping("x"),
-                               WorkloadKey(:s; ctrl = true), WorkloadKey(:z; ctrl = true)]
+    open_file = _make_file_open_steps
+    edit = _make_file_edit_steps
     steps = WorkloadStep[
         menu("Help", "About")...,
         menu("View", "Split vertically")...,
@@ -515,4 +511,47 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
         WorkloadKey(:w; ctrl = true)]
     run_application_workload(files; steps, backend,
                              llm = make_workload_llm("1 + 1"; answer = "The sum is two."))
+end
+
+# The tool of the toolbar whose label is `label`.
+_make_tool_target(label::AbstractString) =
+    DrawnPart(input -> input isa WidgetToolbarItem && string(input.action.label) == label)
+
+# The Files pane, a click on the row of the file `name`, Enter, and a wait until
+# the window draws `shown`, a text of the file.
+_make_file_open_steps(name::AbstractString, shown) =
+    WorkloadStep[WorkloadClick(_make_tool_target("Files")),
+                 WorkloadClick(DrawnText(name; pick = :leftmost)),
+                 WorkloadKey(:return), WorkloadWait(DrawnText(shown))]
+
+# A click on `shown`, a key, a save and an undo.
+_make_file_edit_steps(shown) =
+    WorkloadStep[WorkloadClick(DrawnText(shown)), WorkloadTyping("x"),
+                 WorkloadKey(:s; ctrl = true), WorkloadKey(:z; ctrl = true)]
+
+# The text file of the platform, for `run_file_workload`.
+make_workload_file(::Type{TextFile}) =
+    (; name = "a.txt", text = "one two three\nfour\n", shown = r"four")
+
+"""
+    run_file_workload(type::Type; backend = WorkloadBackend(; events = Event[])) -> Nothing
+
+Run the gestures of a file of `type` in the application window with
+[`run_application_workload`](@ref): open the file of [`make_workload_file`](@ref)
+from the Files pane, click the text that it draws, type a key, save, undo; then
+open a new tab, turn it into the name buffer and type a key, which lists every
+type of document that the session can make, cancel, and close the tab.
+
+The package of a domain calls it in its `@compile_workload`, so that its image
+holds the code of these gestures on its documents.
+"""
+function run_file_workload(type::Type; backend::Backend = WorkloadBackend(; events = Event[]))
+    file = make_workload_file(type)
+    steps = WorkloadStep[_make_file_open_steps(file.name, file.shown)...,
+                         _make_file_edit_steps(file.shown)...,
+                         # The first key of the name buffer lists every type of
+                         # document, and the list builds each one that it can.
+                         WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("a"),
+                         WorkloadKey(:escape), WorkloadKey(:w; ctrl = true)]
+    run_application_workload([file.name => file.text]; steps, backend)
 end

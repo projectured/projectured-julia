@@ -383,6 +383,7 @@ function test_platform()
         test_collapse_roundtrip()
         test_application_workload()
         test_window_workload()
+        test_file_workload()
 
 
         # the suites of the slices that had a test package of their own
@@ -455,7 +456,7 @@ export test_clipboard, test_tooltip, test_tooltip_note, test_window_fit, test_wi
        test_scroll_pane_hover, test_scroll_pane_show, test_scroll_pane_bar, test_widget_table_bar,
        test_widget_rows_scroll,
        test_widget_popup_example, test_collapse_roundtrip,
-       test_application_workload, test_window_workload
+       test_application_workload, test_window_workload, test_file_workload
 export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,
        explore_tree_selections, test_tree_navigation

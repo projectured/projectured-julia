@@ -36,6 +36,7 @@ import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_it
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 import ..DomainModule: acquire_document!, release_document!, get_document_decoration, get_insertion_aliases, make_insertion_document,
                        make_pasted_document_operation, insertable
+import ..DisplayModule: make_workload_file
 
 export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, ResearchSource,
        ResearchHypothesis, ResearchEvidence, ResearchDecision, ResearchAnswer, ResearchExperiment,
@@ -87,5 +88,14 @@ function __init__()
                       "`describe_study` reads it, and `show_roster!(StudyItems(study); sort = [\"time\"])` " *
                       "shows its timeline.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{ResearchQuestion}) =
+    (; name = "a.pred",
+     text = print_pred_text(ResearchQuestion(id = "Q1",
+         statement = PrimitiveString("Which queue capacity keeps the drop rate low?"),
+         criterion = PrimitiveString("the drop rate"), purpose = PrimitiveString("the capacity"),
+         author = :person, time = "2026-10-27T10:00:00Z")),
+     shown = r"queue capacity")
 
 end # module

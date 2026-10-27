@@ -20,6 +20,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: emit_text,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 import ..WidgetModule: compute_code_pieces, make_graphics_projection
+import ..DisplayModule: make_workload_file
 
 export _julia_operator_string
 export parse_julia, parse_julia_file
@@ -138,5 +139,9 @@ function __init__()
                            line_spacing = make_style_field(TextTheme, get_scaled_theme!(appearance, TextTheme),
                                                            LineSpacing; name = :code_line_spacing)))])
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{JuliaFile}) =
+    (; name = "a.jl", text = "alice = 1 + 2\n", shown = r"alice")
 
 end # module
