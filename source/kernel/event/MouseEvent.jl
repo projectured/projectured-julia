@@ -136,18 +136,18 @@ struct MouseScroll <: Event
     x::Int
     y::Int
     modifiers::ModifierKeys
-    time::Float64
     precise_dx::Float64
     precise_dy::Float64
+    time::Float64
 end
 
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys, time::Real) =
-    MouseScroll(dx, dy, x, y, modifiers, Float64(time), Float64(dx), Float64(dy))
+    MouseScroll(dx, dy, x, y, modifiers, Float64(dx), Float64(dy), Float64(time))
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int; time::Real,
             precise_dx::Real = dx, precise_dy::Real = dy) =
-    MouseScroll(dx, dy, x, y, ModifierKeys(), Float64(time), Float64(precise_dx), Float64(precise_dy))
+    MouseScroll(dx, dy, x, y, ModifierKeys(), Float64(precise_dx), Float64(precise_dy), Float64(time))
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys; time::Real,
             precise_dx::Real = dx, precise_dy::Real = dy) =
-    MouseScroll(dx, dy, x, y, modifiers, Float64(time), Float64(precise_dx), Float64(precise_dy))
+    MouseScroll(dx, dy, x, y, modifiers, Float64(precise_dx), Float64(precise_dy), Float64(time))
 
 get_modifier_keys(event::Union{MouseDown,MouseUp,MouseMove,MouseScroll}) = event.modifiers
