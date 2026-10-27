@@ -66,27 +66,37 @@ selection of the person.
 
 ### Step 1 — place only
 
-- [ ] `make_open_pane_operation` and `open_pane!` insert the tab and move no
-      selection; a group that the open makes, by `side` or empty, selects its
-      tab as a dormant selection, so it shows it. The surgery operation
-      `make_pane_open_tab_operation` keeps its focus move for the gestures that
-      use it, such as a drop of a dragged tab.
-- [ ] `_find_placement_group` by role, as in section 3.
-- [ ] Tests: a placed tab does not show and leaves the selection; a placed tab in
-      a new group shows; with the focus in a side group (the plan of work), the
-      tab goes into the group of documents; with no group of documents, the rule
-      of today.
+- [x] `make_pane_open_tab_operation` and `make_pane_split_operation` take
+      `focus = true`; `_make_open_pane` passes it; `open_pane!` passes `false`,
+      and `make_open_pane_operation` takes `focus = false` for the callers of
+      step 3. A new group needs no selection: a group with none shows its first
+      tab.
+- [x] A fact found on the way: a selection names a tab or an element of a split
+      by its index, so an insert before it makes it name another one. With
+      `focus = false` the surgery keeps each selection on what it named:
+      `_make_insert_selection_shifts` moves the focus (a root
+      `ReplaceSelectionOperation`) or the dormant selection of the owner one
+      element on, and `_make_wrap_selection_moves` gives the focus its path
+      through a split that takes the slot of its group.
+- [x] `_find_placement_group` by role: a group of documents is empty or holds a
+      tab that `accepts_opened_file`; the focused one, else the first in the
+      tree; with none, the rule of before.
+- [x] Tests in `test_pane_surgery`: an open with no focus, before and after the
+      focused tab; a split with no focus, as a sibling and as a wrap; the
+      placement with the focus in a side area. 122/122.
 
 ### Step 2 — show
 
-- [ ] `make_show_pane_operation(reference)` and `show_pane!(tab)`: one operation
-      of the pane slice that writes the selection of the group of the tab, as a
-      dormant one when the live selection is not in the group, and as a
-      `ReplaceSelectionOperation` of the root when it is. No step of the undo,
-      as a focus move is none.
-- [ ] Tests: a show in a group without the focus changes what it shows and not
-      the selection of the window; a show in the focused group moves the
-      selection; the frame draws the shown tab.
+- [x] `make_pane_show_operation(tree, group, index)` in the surgery,
+      `make_show_pane_operation(reference)` and `show_pane!(tab)` in the
+      program. No new operation type, as the surgery file requires: the show is
+      `ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
+      <group>.selection, SelectionDocument(primary = .tabs[i], live = false)))`,
+      a view state and no step of the undo. In the focused group it is the
+      focus move. `show_pane!` is in `make_pane_api`.
+- [x] Tests: a show in a group without the focus, a tab placed before the shown
+      one, a show in the focused group. The frame of a show is checked in
+      step 5.
 
 ### Step 3 — the gestures and the callers
 

@@ -374,20 +374,94 @@ function make_pane_focus_operation(tree::PaneTree, group::PaneGroup, index::Inte
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
 
+"""
+    make_pane_show_operation(tree, group, index) -> Operation | Nothing
+
+Make `group` show its tab `index`, and leave the focus where it is. The group
+keeps a dormant selection that names the tab, because a group shows the tab that
+its selection names, and the tab keeps the place inside it that it had. When the
+focus is in `group`, the group can show only the tab that the focus names, so the
+focus moves to the tab, as `make_pane_focus_operation` moves it. A tab that shows
+is a view state, so it is no step of the undo.
+"""
+function make_pane_show_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    (1 <= index <= length(group.tabs)) || return nothing
+    focus = get_pane_focus(tree)
+    (focus !== nothing && focus[1] === group) && return make_pane_focus_operation(tree, group, index)
+    _make_dormant_selection_write(tree, group, Reference(FieldReferenceStep("tabs"), ElementReferenceStep(index)))
+end
+
+# The write of the dormant selection `path`, from `node`, into the selection of
+# `node`: what the node keeps and shows while the focus is elsewhere. `node_path`
+# is the path of a node that an edit is about to put into the tree.
+function _make_dormant_selection_write(tree::PaneTree, node, path; node_path = get_pane_path(tree, node))
+    node_path === nothing && return nothing
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
+        concat_references(node_path, Reference(FieldReferenceStep("selection"))),
+        SelectionDocument(; primary = path, live = false)))
+end
+
+# The path after `prefix` in `path`, both without their types, or `nothing` when
+# `path` does not start with `prefix`.
+function _find_path_after(path, prefix)
+    while prefix isa ConcreteReference
+        (path isa ConcreteReference && path.head == prefix.head) || return nothing
+        path, prefix = path.tail, prefix.tail
+    end
+    path
+end
+
+# The operations that keep a selection on the element that it names when an
+# insert puts a new element at `at` of the collection `field` of `owner`: a
+# selection names an element by its index, so each one that names the element
+# `at` or a later one names the next one after the insert. The focus moves on
+# by a selection of the root; a dormant selection of `owner` by a write of it.
+function _make_insert_selection_shifts(tree::PaneTree, owner, field::Symbol, at::Integer)
+    collection = getproperty(owner, field)
+    shifts = Any[]
+    owner_path = get_pane_path(tree, owner)
+    owner_path === nothing && return shifts
+    live = get_selection(tree)
+    inside = live === nothing ? nothing :
+        _find_path_after(strip_reference_types(live), strip_reference_types(owner_path))
+    index, tail = _head_index(_after_field(inside, String(field)))
+    if index !== nothing && at <= index <= length(collection)
+        pairs = _pairs_to(tree, owner)
+        push!(pairs, (owner, FieldReferenceStep(String(field))))
+        push!(pairs, (collection, ElementReferenceStep(index + 1)))
+        moved = _reference_from(pairs, collection[index])
+        push!(shifts, ReplaceSelectionOperation(tail isa ConcreteReference ?
+                                                concat_references(moved, copy_reference(tail)) : moved))
+        return shifts
+    end
+    stored = get_stored_selection(owner)
+    index, tail = _head_index(_after_field(stored, String(field)))
+    if index !== nothing && at <= index <= length(collection)
+        moved = Reference(FieldReferenceStep(String(field)), ElementReferenceStep(index + 1))
+        tail isa ConcreteReference && (moved = concat_references(moved, copy_reference(tail)))
+        write = _make_dormant_selection_write(tree, owner, moved)
+        write === nothing || push!(shifts, write)
+    end
+    shifts
+end
+
 # ── Open a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
+    make_pane_open_tab_operation(tree, group, tab; index, focus = true) -> Operation | Nothing
 
-Insert `tab` into `group` at the 1-based `index` (the end by default) and focus it. One
-`make_insert_elements_operation` splice with its cursor move, and the acquire of what the
-tab shows (`AcquireDocumentOperation`). A tab whose content is the
-empty placeholder takes the selection on that content, as a whole, so a paste fills it. A
-tab whose content holds a selection of its own, such as the caret of a new evaluator,
-takes the focus along that selection, so the root holds the selection the document had.
+Insert `tab` into `group` at the 1-based `index` (the end by default), and with
+`focus` focus it. One `make_insert_elements_operation` splice, and the acquire of what
+the tab shows (`AcquireDocumentOperation`). A focused tab whose content is the empty
+placeholder takes the selection on that content, as a whole, so a paste fills it. A
+focused tab whose content holds a selection of its own, such as the caret of a new
+evaluator, takes the focus along that selection, so the root holds the selection the
+document had. With `focus = false` the focus and the tab that the group shows stay:
+each selection that names a tab after the new one names the same tab after the
+insert, and an empty group shows its first tab.
 """
 function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
-                                 index = nothing)
+                                 index = nothing, focus::Bool = true)
     tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     n = length(group.tabs)
@@ -396,6 +470,9 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     pairs === nothing && return nothing
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
+    focus || return CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab]),
+                                          _make_insert_selection_shifts(tree, group, :tabs, at)...,
+                                          AcquireDocumentOperation(tab)])
     CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
                                                          selection = _make_new_tab_cursor(pairs, tab)),
                           AcquireDocumentOperation(tab)])
@@ -576,7 +653,7 @@ end
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """
-    make_pane_split_operation(tree, group; orientation, side, tab) -> Operation | Nothing
+    make_pane_split_operation(tree, group; orientation, side, tab, focus = true) -> Operation | Nothing
 
 Split `group` and put `tab` in the new pane. `orientation` is `:vertical` (the
 new pane sits beside) or `:horizontal` (it sits above or below); `side` is
@@ -587,9 +664,12 @@ each, so the rest of the layout does not move. When the parent split already has
 this orientation the group is not wrapped — the new group joins the parent as a
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
+
+With `focus` the new tab takes the focus. With `focus = false` the focus stays on
+what it names, along its new path, and the new group shows its one tab.
 """
 function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation::Symbol,
-                                   side::Symbol, tab::PaneTab)
+                                   side::Symbol, tab::PaneTab, focus::Bool = true)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)
@@ -611,11 +691,12 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
         push!(pairs, (owner.elements, ElementReferenceStep(at)))
         push!(pairs, (new_group, FieldReferenceStep("tabs")))
         push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-        cursor = _make_new_tab_cursor(pairs, tab)
+        moves = focus ? Any[ReplaceSelectionOperation(_make_new_tab_cursor(pairs, tab))] :
+                        _make_insert_selection_shifts(tree, owner, :elements, at)
         return CompoundOperation(Any[
             make_insert_elements_operation(elements_path, at, Any[new_group]),
             _write_weights(tree, owner, weights),
-            ReplaceSelectionOperation(cursor),
+            moves...,
             AcquireDocumentOperation(tab)])
     end
 
@@ -627,8 +708,36 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
     pairs === nothing && return nothing
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
+    focus || return CompoundOperation(Any[write, _make_wrap_selection_moves(tree, group, split)...,
+                                          AcquireDocumentOperation(tab)])
     cursor = _make_new_tab_cursor(pairs, tab)
     CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)])
+end
+
+# The operations that keep the selections of `group` when `split` takes its slot
+# and holds it: the focus inside the group goes on along its new path, through the
+# split, and a dormant selection of the group gets a dormant selection of the split
+# that leads to it, so the focus that comes back finds it.
+function _make_wrap_selection_moves(tree::PaneTree, group::PaneGroup, split::PaneSplit)
+    old_path = get_pane_path(tree, group)
+    old_path === nothing && return Any[]
+    inner = _pairs_to(tree, group; from = group, to = split)
+    inner === nothing && return Any[]
+    live = get_selection(tree)
+    tail = live === nothing ? nothing :
+        _find_path_after(strip_reference_types(live), strip_reference_types(old_path))
+    if tail !== nothing
+        moved = _reference_from(inner, group)
+        return Any[ReplaceSelectionOperation(tail isa ConcreteReference ?
+                                             concat_references(moved, copy_reference(tail)) : moved)]
+    end
+    get_stored_selection(group) === nothing && return Any[]
+    slot = _pairs_to(tree, split; from = group, to = split)
+    slot === nothing && return Any[]
+    index = findfirst(element -> element === group, split.elements)
+    Any[_make_dormant_selection_write(tree, split,
+            Reference(FieldReferenceStep("elements"), ElementReferenceStep(index));
+            node_path = _reference_from(slot, split))]
 end
 
 # ── Move a tab ─────────────────────────────────────────────────────────────

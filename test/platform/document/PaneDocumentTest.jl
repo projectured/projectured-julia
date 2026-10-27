@@ -16,6 +16,10 @@ ProjecturedPlatform.DomainModule.acquire_document!(editor, probe::_PaneAcquirePr
 ProjecturedPlatform.DomainModule.release_document!(editor, probe::_PaneAcquireProbe) =
     (push!(probe.released, editor); nothing)
 
+# A document of a side area, such as an explorer: a new tab does not go beside it.
+struct _PaneSideProbe <: Document end
+ProjecturedPlatform.DomainModule.accepts_opened_file(::_PaneSideProbe) = false
+
 function test_pane_surgery()
 @testset "PaneTree surgery" begin
 
@@ -83,6 +87,73 @@ end
     # Every other tab is the same object — an insert is a splice, not a rebuild.
     @test group.tabs[1] === tabs[1]
     @test group.tabs[3] === tabs[2]
+end
+
+@testset "open a tab without the focus: the focus and the shown tab stay" begin
+    tree, group, tabs = _flat(3)
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, 2))
+    _apply!(editor, make_pane_open_tab_operation(tree, group, _tab("z"); focus = false))
+    @test length(group.tabs) == 4
+    @test get_pane_focus(tree) == (group, 2)
+    # An insert before the focused tab: the focus names the same tab, one further.
+    _apply!(editor, make_pane_open_tab_operation(tree, group, _tab("y"); index = 1, focus = false))
+    @test group.tabs[3] === tabs[2]
+    @test get_pane_focus(tree) == (group, 3)
+    @test get_pane_shown_tab_index(group) == 3
+end
+
+@testset "show a tab: the group shows it, and the focus stays" begin
+    left = PaneGroup(PaneTab[_tab("a"), _tab("b"), _tab("c")])
+    right = PaneGroup(PaneTab[_tab("x"), _tab("y")])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, right, 2))
+    _apply!(editor, make_pane_show_operation(tree, left, 3))
+    @test get_pane_shown_tab_index(left) == 3
+    @test get_pane_focus(tree) == (right, 2)
+    # A tab placed before the shown one: the group shows the same tab.
+    shown = left.tabs[3]
+    _apply!(editor, make_pane_open_tab_operation(tree, left, _tab("n"); index = 1, focus = false))
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    @test get_pane_focus(tree) == (right, 2)
+    # In the focused group, the group shows what the focus names: the focus moves.
+    _apply!(editor, make_pane_show_operation(tree, right, 1))
+    @test get_pane_focus(tree) == (right, 1)
+end
+
+@testset "split without the focus: the focus stays on its tab" begin
+    # The new group joins the parent split before the focused one.
+    left = PaneGroup(PaneTab[_tab("a")])
+    right = PaneGroup(PaneTab[_tab("x"), _tab("y")])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, right, 2))
+    _apply!(editor, make_pane_split_operation(tree, left; orientation = :vertical, side = :right,
+                                              tab = _tab("p"), focus = false))
+    @test length(tree.root.elements) == 3 && tree.root.elements[3] === right
+    @test get_pane_focus(tree) == (right, 2)
+    # A new split takes the slot of the focused group.
+    tree, group, tabs = _flat(2)
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, 2))
+    _apply!(editor, make_pane_split_operation(tree, group; orientation = :horizontal, side = :below,
+                                              tab = _tab("q"), focus = false))
+    @test tree.root isa PaneSplit
+    @test get_pane_focus(tree) == (group, 2)
+    @test get_pane_shown_tab_index(tree.root.elements[2]) == 1
+end
+
+@testset "a pane that no caller placed goes to the documents, not to a side area" begin
+    documents = PaneGroup(PaneTab[_tab("study")])
+    side = PaneGroup(PaneTab[PaneTab("plan", _PaneSideProbe())])
+    tree = PaneTree(PaneSplit(:vertical, Any[documents, side]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, side, 1))
+    @test ProjecturedPlatform.PaneModule._find_placement_group(tree) === documents
+    # With no group of documents, the focused group.
+    only_side = PaneTree(PaneGroup(PaneTab[PaneTab("plan", _PaneSideProbe())]))
+    @test ProjecturedPlatform.PaneModule._find_placement_group(only_side) === only_side.root
 end
 
 @testset "duplicate a tab" begin

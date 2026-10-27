@@ -93,7 +93,7 @@ make_pane_api() = Any[
     # `get_window_tree` is not declared: it answers the first window's tree, and
     # a model names a part by a complete reference from the root.
     PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
-                          :open_pane!, :focus_pane!, :close_pane!, :move_pane!,
+                          :open_pane!, :show_pane!, :focus_pane!, :close_pane!, :move_pane!,
                           :duplicate_pane!, :find_pane, :find_focused_pane, :find_pane_reference,
                           :find_pane_tree_reference, :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
@@ -274,31 +274,35 @@ pane_group_to_avoid(tree) = nothing
                editor = get_evaluation_editor()) -> ReferencedDocument
 
 Put `document` in a new tab, and answer the tab it made, as a `ReferencedDocument`.
+The tab goes behind the tab that its group shows, and the focus stays where it
+is; [`show_pane!`](@ref) brings the tab to the front.
 
-Use it to show, display or place a value on the screen: a table, a plot, a set
-of runs, a layout of widgets, any document, in a tab of its own: in the group of
-another tab, in a new pane beside or under one group, or in the group that has the
-focus. It answers the new tab with its reference, which the other pane verbs take.
+Use it to place a value on the screen: a table, a plot, a set of runs, a layout
+of widgets, any document, in a tab of its own: in the group of the documents, in
+the group of another tab, or in a new pane beside or under one group. It answers
+the new tab with its reference, which the other pane verbs take.
 
 # Example
 
     delay_tab_1 = open_pane!(make_result_plot(frame); title = "Delay")
-    runs_tab_1 = open_pane!(runs; title = "Runs", target = delay_tab_1, side = :below)
-    focus_pane!(delay_tab_1)
+    runs_tab_1 = open_pane!(runs; title = "Runs", target = delay_tab_1)
+    show_pane!(delay_tab_1)
 
-See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,
-`show_layout`.
+See also `show_pane!`, `focus_pane!`, `replace_referenced_value!` to close or
+change a pane, `show_layout`.
 
-**This is the placement verb of a new document.** The other verbs change a
-layout that exists: [`focus_pane!`](@ref), [`move_pane!`](@ref) and
-[`close_pane!`](@ref), and [`replace_referenced_value!`](@ref) at a reference for
-what no verb says, such as the weights of a split. What they cannot say without
-naming a group by hand is *where a new pane goes*, and that policy is this verb:
-the focused group, never the one [`pane_group_to_avoid`](@ref) names, and never
-a group with a tab that declines [`accepts_opened_file`](@ref), such as an
-explorer, while another group exists. [`duplicate_pane!`](@ref) places a
-duplicate beside its original, by the same policy when the original is in that
-group.
+**This is the placement verb of a new document, and it only places.** The other
+verbs change a layout that exists: [`show_pane!`](@ref) brings a pane to the
+front, [`focus_pane!`](@ref) also moves the focus, [`move_pane!`](@ref) and
+[`close_pane!`](@ref) move and close, and [`replace_referenced_value!`](@ref)
+writes at a reference what no verb says, such as the weights of a split. What
+they cannot say without naming a group by hand is *where a new pane goes*, and
+that policy is this verb: a group of documents, one that is empty or holds a tab
+that [`accepts_opened_file`](@ref), the focused one first; never the one
+[`pane_group_to_avoid`](@ref) names, and never a side area, such as an explorer
+or a plan of work, while a group of documents exists. A split happens only when
+the caller gives `side`. [`duplicate_pane!`](@ref) places a duplicate beside its
+original, by the same policy when the original is in that group.
 
 **It answers the tab and its reference, not a title.** A reference names any part
 of any document and a title names a tab, so the referenced tab is what the next
@@ -306,7 +310,7 @@ call takes, and `get_reference` gives its reference:
 
 ```julia
 chart_tab_1 = open_pane!(chart)
-focus_pane!(chart_tab_1)
+show_pane!(chart_tab_1)
 replace_referenced_value!(chart_tab_1, PaneTab(other, "something else"))
 ```
 
@@ -331,7 +335,7 @@ group and holds the two groups, each with half of its place; when the split that
 holds the group already runs in that direction, the new group joins that split
 next to the group instead, and takes half of the group's place. The new group is
 always next to one group: a pane beside or under several groups at once is not a
-placement `open_pane!` makes.
+placement `open_pane!` makes. A new group shows its one tab.
 
 `group` is a group of the window to open the tab in, as a value and not as a
 reference. An application uses it when it knows better than the focus, for
@@ -346,7 +350,8 @@ function open_pane! end
 function open_pane!(document; title = nothing, group = nothing, target = nothing,
                     side = nothing, editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_pane!") do
-        operation, route, tree, tab = _make_open_pane(editor, document; title, group, target, side)
+        operation, route, tree, tab = _make_open_pane(editor, document; title, group, target, side,
+                                                      focus = false)
         _evaluate_pane_operation!(editor, operation)
         reference = _reference_of_tab(tree, tab)
         reference === nothing &&
@@ -360,15 +365,18 @@ open_pane!(document::ReferencedDocument; keywords...) =
 
 """
     make_open_pane_operation(document; title = nothing, group = nothing, target = nothing,
-                             side = nothing, editor = get_evaluation_editor()) -> Operation
+                             side = nothing, focus = false,
+                             editor = get_evaluation_editor()) -> Operation
 
 The operation that puts `document` in a new tab, as [`open_pane!`](@ref) places
-it, from the root of the editor's document. It evaluates nothing: a caller that
-runs inside another evaluation posts it with `post_operation!`.
+it, from the root of the editor's document. With `focus` the new tab also takes
+the focus, as a person who opens a file or a page expects. It evaluates nothing:
+a caller that runs inside another evaluation posts it with `post_operation!`.
 """
 make_open_pane_operation(document; title = nothing, group = nothing, target = nothing,
-                         side = nothing, editor = get_evaluation_editor()) =
-    run_on_editor_task!(() -> first(_make_open_pane(editor, document; title, group, target, side)), editor; description = "make_open_pane_operation")
+                         side = nothing, focus::Bool = false, editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> first(_make_open_pane(editor, document; title, group, target, side, focus)),
+                        editor; description = "make_open_pane_operation")
 
 # A title like `title` with the name `name`: the same cells for its other parts,
 # so the tab follows what they follow.
@@ -376,7 +384,7 @@ _make_named_title(title::PaneTabTitle, name::AbstractString) =
     PaneTabTitle(name; icon = getfield(title, :icon), icon_role = getfield(title, :icon_role),
                  badges = getfield(title, :badges), tooltip = getfield(title, :tooltip))
 
-function _make_open_pane(editor, document; title, group, target, side)
+function _make_open_pane(editor, document; title, group, target, side, focus::Bool)
     (group === nothing || target === nothing) ||
         throw(ArgumentError("open_pane!: give `group` or `target`, not both."))
     (side === nothing || side in (:left, :right, :above, :below)) ||
@@ -409,8 +417,8 @@ function _make_open_pane(editor, document; title, group, target, side)
     name = _unique_pane_title(tree, wanted)
     tab = PaneTab(title isa PaneTabTitle ? _make_named_title(title, name) :
                                            make_pane_tab_title(document, name), document)
-    placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index) :
-                make_pane_split_operation(tree, group; tab, side,
+    placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index, focus) :
+                make_pane_split_operation(tree, group; tab, side, focus,
                                           orientation = side in (:left, :right) ? :vertical : :horizontal)
     operation = _make_rooted_pane_operation(editor, route, tree, placement,
                                             "Open the pane " * name)
@@ -432,22 +440,36 @@ function _find_open_target(root, target::Reference)
     (route, tree, destination, nothing)
 end
 
-# The group a new pane goes to: the focused group, and never the one
-# `pane_group_to_avoid` names while another group exists. Of the rest, only a
-# group every tab of which `accepts_opened_file` while one exists, so a pane
-# opened with the focus in an explorer goes beside the files, as a file does.
+# The group a new pane goes to: a group of documents, never the one
+# `pane_group_to_avoid` names while another group exists. A group of documents
+# is empty, or holds a tab that `accepts_opened_file`; a side area, such as an
+# explorer or a plan of work, holds none. Of these, the focused group, else the
+# first in the order of the tree, so a pane that a program opens while the focus
+# is in a side area goes to the documents. With no group of documents, the
+# focused group, and only a group every tab of which `accepts_opened_file`
+# while one exists, so a pane opened with the focus in an explorer goes beside
+# the files, as a file does.
 function _find_placement_group(tree::PaneTree)
     groups = get_pane_groups(tree)
     isempty(groups) && error("The window has no group to open a pane in.")
     avoid = pane_group_to_avoid(tree)
     elsewhere = avoid === nothing ? groups : [g for g in groups if g !== avoid]
     isempty(elsewhere) && (elsewhere = groups)
+    focused = get_pane_focused_group(tree)
+    documents = [g for g in elsewhere if _holds_documents(g)]
+    if !isempty(documents)
+        return any(g -> g === focused, documents) ? focused : first(documents)
+    end
     free = [g for g in elsewhere if _is_free_group(g)]
     isempty(free) || (elsewhere = free)
-    group = get_pane_focused_group(tree)
-    (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
+    group = focused
+    (group === nothing || !any(g -> g === group, elsewhere)) && (group = first(elsewhere))
     group
 end
+
+# Whether `group` is a group of documents: it is empty, or one of its tabs
+# `accepts_opened_file`.
+_holds_documents(group::PaneGroup) = isempty(group.tabs) || any(tab -> accepts_opened_file(tab.content), group.tabs)
 
 """
     _reference_of_tab(tree, tab) -> Reference or nothing
@@ -770,8 +792,9 @@ end
 Show the pane `reference` names and give it the focus, and answer the new
 layout, as [`show_layout`](@ref) prints it.
 
-Use it to bring a pane to the front, select its tab, or show the person a pane
-that is open behind another.
+Use it to move the focus of the person to a pane, as a person moves it: where
+the keys go next. To show a pane and leave the focus where it is, use
+[`show_pane!`](@ref); a program shows, and leaves the focus to the person.
 
 `reference` can also be a `ReferencedDocument`, such as the tab that
 [`find_pane`](@ref) answers.
@@ -780,7 +803,7 @@ that is open behind another.
 
     focus_pane!(find_pane_reference("Files"))
 
-See also `find_pane_reference`, `open_pane!`, `show_layout`.
+See also `show_pane!`, `find_pane_reference`, `open_pane!`, `show_layout`.
 
 **Focus is a thing a replace cannot say.** A change to a layout is a value
 written at a reference — a pane moved, a split resized, a tab closed, what a
@@ -832,6 +855,72 @@ function make_focus_pane_operation(reference::Reference; editor = get_evaluation
         group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
         _make_rooted_pane_operation(editor, route, tree, make_pane_focus_operation(tree, group, index),
                                     "Focus the pane " * get_pane_tab_title_string(group.tabs[index]))
+    end
+end
+
+"""
+    show_pane!(reference; editor = get_evaluation_editor()) -> Text
+
+Bring the pane `reference` names to the front of its group, and answer the new
+layout, as [`show_layout`](@ref) prints it. The focus of the person stays where
+it is: the person goes on typing where they type, and sees the pane. Only when
+the focus is in the same group does it move to the pane, because a group shows
+the pane that the focus names there.
+
+Use it to show the person a pane: a plot that you made, the report after you
+wrote to it, a table that answers the question. A pane that [`open_pane!`](@ref)
+placed stays behind the pane that its group shows until something shows it.
+
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`open_pane!`](@ref) or [`find_pane`](@ref) answers.
+
+# Example
+
+    plot_tab_1 = open_pane!(make_result_plot(frame); title = "Delay")
+    show_pane!(plot_tab_1)
+
+See also `open_pane!`, `focus_pane!`, `find_pane`, `show_layout`.
+
+**Showing is a step of its own.** A verb that places or changes a pane shows
+nothing, because what the person looks at is theirs; a program shows a pane
+when it wants the person to look. [`focus_pane!`](@ref) also moves the focus,
+which is a step for a person, never for a program.
+"""
+function show_pane! end
+
+function show_pane!(reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "show_pane!") do
+        _refuse_stale(reference)
+        operation = make_show_pane_operation(reference; editor)
+        operation === nothing &&
+            throw(ArgumentError("The window can not show that pane."))
+        _evaluate_pane_operation!(editor, operation)
+        show_layout(; editor)
+    end
+end
+
+show_pane!(pane::ReferencedDocument; keywords...) = show_pane!(get_reference(pane); keywords...)
+
+show_pane!(::Nothing; keywords...) =
+    throw(ArgumentError("No pane has that name, so there is no pane to show."))
+
+"""
+    make_show_pane_operation(reference::Reference; editor = get_evaluation_editor()) -> Operation | Nothing
+
+The operation that brings the pane `reference` names to the front of its group,
+from the root of the editor's document, as [`show_pane!`](@ref) does. It
+evaluates nothing. `nothing` when the window can not show that pane.
+"""
+function make_show_pane_operation(reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_show_pane_operation") do
+        root = _get_root_document(editor)
+        found = _find_pane_tree_route(root, reference)
+        found === nothing &&
+            throw(ArgumentError("That reference names nothing inside a pane tree."))
+        route, tree = found
+        group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+        _make_rooted_pane_operation(editor, route, tree, make_pane_show_operation(tree, group, index),
+                                    "Show the pane " * get_pane_tab_title_string(group.tabs[index]))
     end
 end
 
