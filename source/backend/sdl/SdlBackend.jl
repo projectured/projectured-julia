@@ -1685,24 +1685,27 @@ end
 # Draw a connected polyline of (x,y) floats with stroke width `wdt`, plus
 # optional arrowheads and an optional (on, off) dash pattern. Each solid
 # segment is a filled quad (anti-aliased by the supersample downsample),
-# matching the diagonal-GraphicsLine path. Arrowheads are always solid.
+# matching the diagonal-GraphicsLine path. Arrowheads are always solid. The
+# stroke stops inside the base of each arrowhead
+# (`compute_polyline_before_arrowheads`).
 function _stroke_polyline!(renderer::Ptr{SDL_Renderer}, pts, wdt::Int,
                            r::UInt8, g::UInt8, b::UInt8, a::UInt8,
                            start_arrow::Bool, end_arrow::Bool, arrow_size::Int,
                            dash=nothing)
-    n = length(pts)
-    n == 0 && return
+    length(pts) == 0 && return
+    line = compute_polyline_before_arrowheads(pts, arrow_size; start_arrow, end_arrow)
+    n = length(line)
     SDL_SetRenderDrawColor(renderer, r, g, b, a)
     w = Float64(max(1, wdt))
     if dash === nothing
         for i in 1:(n-1)
-            x1, y1 = Float64(pts[i][1]), Float64(pts[i][2])
-            x2, y2 = Float64(pts[i+1][1]), Float64(pts[i+1][2])
+            x1, y1 = line[i]
+            x2, y2 = line[i+1]
             _fill_thick_line!(renderer, x1, y1, x2, y2, w, r, g, b, a)
         end
-    else
+    elseif n >= 2
         on, off = max(1, Int(dash[1])), max(1, Int(dash[2]))
-        _stroke_polyline_dashed!(renderer, pts, w, r, g, b, a, on, off)
+        _stroke_polyline_dashed!(renderer, line, w, r, g, b, a, on, off)
     end
     if end_arrow
         tri = build_polyline_arrowhead(pts, arrow_size; at_end=true)

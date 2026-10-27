@@ -19,6 +19,23 @@ end
 function test_web_backend()
 @testset "WebBackend" begin
 
+    @testset "a line with an arrowhead goes as the line before the arrowhead and its triangle" begin
+        # The client fills the triangle that the server computed, so the browser
+        # draws the arrowhead and the line that the other backends draw.
+        points = [(0, 0), (30, 0), (40, 0), (40, 12)]
+        node = _WEB._serialize_node(GraphicsSpline(points; kind = :bezier, end_arrow = true,
+                                                   arrow_size = 10, segments = 24))
+        path = tessellate_spline(points, :bezier, 24)
+        triangle = build_polyline_arrowhead(path, 10)
+        @test node["heads"] == [[[round(corner[1]; digits = 2), round(corner[2]; digits = 2)]
+                                 for corner in triangle]]
+        stop = last(compute_polyline_before_arrowheads(path, 10; end_arrow = true))
+        @test node["pts"][end] == [round(Int, stop[1]), round(Int, stop[2])]
+        @test !haskey(node, "ea")
+        plain = _WEB._serialize_node(GraphicsPolyline([(0, 0), (100, 0)]))
+        @test isempty(plain["heads"]) && plain["pts"] == [[0, 0], [100, 0]]
+    end
+
     @testset "a text goes to the browser as the layout measured it" begin
         # The browser draws each character at its pen position on the baseline,
         # so the node carries the ascent of the box, one offset per character,

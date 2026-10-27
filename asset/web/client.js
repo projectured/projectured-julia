@@ -518,10 +518,11 @@
 
   // A routed connector: a stroked polyline path plus optional filled-triangle
   // arrowheads. Splines are tessellated to a polyline server-side, so this op
-  // covers both GraphicsPolyline and GraphicsSpline.
+  // covers both GraphicsPolyline and GraphicsSpline. The server computes the
+  // arrowheads, `heads`, and sends the line without the part under them, so
+  // every backend draws the same points.
   function drawPolyline(ctx, e) {
     const pts = e.pts || [];
-    if (pts.length < 1) return;
     const wdt = Math.max(1, e.w | 0);
     const c = col(e.c);
     const dash = e.dash;
@@ -540,27 +541,15 @@
       ctx.stroke();
       if (dash) ctx.setLineDash([]);
     }
-    const sz = e.as | 0;
-    const head = (atEnd) => {
-      const n = pts.length;
-      if (n < 2) return;
-      const tip = atEnd ? pts[n - 1] : pts[0];
-      const prev = atEnd ? pts[n - 2] : pts[1];
-      let dx = tip[0] - prev[0], dy = tip[1] - prev[1];
-      const len = Math.hypot(dx, dy);
-      if (len === 0) return;
-      const ux = dx / len, uy = dy / len, px = -uy, py = ux;
-      const bx = tip[0] - ux * sz, by = tip[1] - uy * sz, half = sz / 2;
+    for (const tri of e.heads || []) {
       ctx.beginPath();
-      ctx.moveTo(tip[0], tip[1]);
-      ctx.lineTo(bx + px * half, by + py * half);
-      ctx.lineTo(bx - px * half, by - py * half);
+      ctx.moveTo(tri[0][0], tri[0][1]);
+      ctx.lineTo(tri[1][0], tri[1][1]);
+      ctx.lineTo(tri[2][0], tri[2][1]);
       ctx.closePath();
       ctx.fillStyle = c;
       ctx.fill();
-    };
-    if (e.ea) head(true);
-    if (e.sa) head(false);
+    }
   }
 
   // A closed filled shape, the filled counterpart of drawPolyline. The canvas
