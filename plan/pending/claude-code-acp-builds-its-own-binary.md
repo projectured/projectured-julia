@@ -1,6 +1,6 @@
 # ClaudeCodeACP builds its own binary
 
-> **Status:** step 1 and step 2 are open. The owner agreed to the move on
+> **Status:** step 2 is done. Step 1 is open. The owner agreed to the move on
 > 2026-10-27.
 
 ## Goal
@@ -46,12 +46,14 @@ option.
 1. [ ] **ClaudeCodeACP.jl**, branch `agent-build`: `compile/`, `/build/` in
    `.gitignore`, the README section. Build once and check `--help` and
    `initialize` on the binary.
-2. [ ] **projectured-julia**, branch `agent-build`: remove
+2. [x] **projectured-julia**, branch `agent-build`: remove
    `bin/build_claude_code_acp`, `source/tool/builder/ClaudeCodeAcpProgram.jl`,
    its exports and include, its row and branch in `BuildCommand.jl`, the
    one-package root of `BuildContext.jl` (only this build used it), its tests,
    and its section of the build guide. The build guide names the new place.
    Run `test_builder()`.
+   Done: `test_builder()` passes 553 of 553. `--backends` has its old help text
+   again, without "Only for projectured". omnet-julia uses no one-package root.
 3. [ ] **Landing**, with the owner's word: push ClaudeCodeACP.jl `main` first,
    because the build guide names its README; then land projectured-julia, and
    move this plan to `plan/done/`.
