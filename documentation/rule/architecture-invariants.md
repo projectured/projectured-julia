@@ -1759,6 +1759,14 @@ still be *defined* in an example package the executable bundles, but because no
 `ProjecturedKernelExample`, and `Assistant` dropped its `FakeLlm`
 fallback.
 
+One exception: the model of a compile workload. `make_workload_llm` of
+`ProjecturedPlatform` (`ApplicationWorkload.jl`) makes a model that answers each
+turn with a tool call and a line of text, so that a compile workload runs an
+assistant turn and the package image holds the code of a turn. A workload of
+another package, such as the window of a program built on the platform, gives
+it to its own window. Only a compile workload makes one. No path that a person
+starts makes one, and the assistant never falls back to it.
+
 ### PAR-NO-CONSUMER-DOCS
 
 **A module's documentation describes its own contract, never its consumers.** A

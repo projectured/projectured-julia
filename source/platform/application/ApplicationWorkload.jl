@@ -1,7 +1,8 @@
 # Fragment of `ApplicationModule` — the workload of the application window: a list
 # of clicks, keys and typed texts that the loop of the window reads as it reads the
-# hand of a person. A package runs it in its `@compile_workload`, so that its
-# package image holds the code that these steps run.
+# hand of a person, and a model that answers an assistant turn of the list. A
+# package runs it in its `@compile_workload`, so that its package image holds the
+# code that these steps run.
 
 """
     DrawnText(text; pick = :first)
@@ -26,10 +27,11 @@ end
 """
     DrawnPart(predicate)
 
-A target of a workload step: the middle of the drawing of the first part of a
-document for which `predicate` answers `true`, such as a tool of the toolbar or
-the draft of the assistant. `predicate` gets the input of each view of the
-window.
+A target of a workload step: the drawing of the first part of a document for
+which `predicate` answers `true`, such as a tool of the toolbar or the draft of
+the assistant. `predicate` gets the input of each view of the window. A click
+presses at half the height of the drawing, near its left edge, where a field
+draws its first character.
 """
 struct DrawnPart
     predicate::Function
@@ -91,6 +93,48 @@ struct WorkloadWait <: WorkloadStep
     target::Union{DrawnText,DrawnPart}
 end
 
+"""
+    make_workload_llm(code; answer = "The code ran.") -> Llm
+
+A model for the assistant turn of a workload. A workload gives it to a window as
+the model of its assistant, such as the keyword `llm` of
+[`run_application_workload`](@ref). Each turn of the model has the two rounds of
+a turn with a tool call: the first thinks, says a line, and asks the tool
+`execute_julia_code` to run `code`; the second says `answer`. So the window shows
+each kind of part that a turn shows, and a workload waits for `answer` to know
+that the turn ended.
+
+Only a compile workload makes one. No path that a person starts makes one, and
+the assistant does not fall back to it.
+"""
+make_workload_llm(code::AbstractString; answer::AbstractString = "The code ran.") =
+    _WorkloadLlm(String(code), String(answer), 0)
+
+# The model of `make_workload_llm`. `round` counts the rounds that it streamed, so
+# that an odd round asks for the tool and an even round answers.
+mutable struct _WorkloadLlm <: Llm
+    code::String
+    answer::String
+    round::Int
+end
+
+function stream_turn(model::_WorkloadLlm, ::LlmRequest; on_event::Function)
+    model.round += 1
+    events = if isodd(model.round)
+        tool_id = string("workload_", model.round)
+        call = LlmToolUse(tool_id, "execute_julia_code", Dict{String,Any}("code" => model.code))
+        LlmEvent[LlmThinkingStart(), LlmThinkingDelta("The code gives the answer."),
+                 LlmThinkingSignature("workload"), LlmThinkingStop(),
+                 LlmTextStart(), LlmTextDelta("I run the code."), LlmTextStop(),
+                 LlmToolUseStart(tool_id, "execute_julia_code"), LlmToolUseStop(call),
+                 LlmTurnEnd(:tool_use)]
+    else
+        LlmEvent[LlmTextStart(), LlmTextDelta(model.answer), LlmTextStop(), LlmTurnEnd(:end_turn)]
+    end
+    foreach(on_event, events)
+    nothing
+end
+
 # How long the window stays quiet before a workload gives the next step, in
 # seconds. A gesture that takes several events, such as a click, ends in this time.
 const _QUIET_WINDOW_SECONDS = 0.25
@@ -106,7 +150,7 @@ assistant; with `nothing`, a turn of the assistant fails, as it does when no
 model is named.
 
 Before each step, the window becomes quiet: no frame applies an input, and no
-input waits. A step with a target waits until the window draws the target, for
+input or timer waits. A step with a target waits until the window draws the target, for
 at most `timeout` seconds. After the last step, the loop stops, and the folder
 is removed.
 
@@ -165,7 +209,8 @@ function _run_workload_step!(editor, step::WorkloadStep, deadline::Float64)
     while !editor.has_loop_ended
         _wait_for_quiet_window(editor, deadline)
         editor.has_loop_ended && break
-        _call_on_loop(() -> _give_workload_step!(editor, step), editor, deadline) && return true
+        _call_on_loop(() -> _give_workload_step!(editor, step), editor, deadline) === true &&
+            return true
         time() >= deadline && break
         sleep(0.05)
     end
@@ -178,21 +223,34 @@ end
 function _wait_for_quiet_window(editor, deadline::Float64)
     quiet_since = time()
     while time() < deadline && !editor.has_loop_ended
-        _call_on_loop(() -> _is_window_busy(editor), editor, deadline) && (quiet_since = time())
+        _call_on_loop(() -> _is_window_busy(editor), editor, deadline) === false ||
+            (quiet_since = time())
         time() - quiet_since >= _QUIET_WINDOW_SECONDS && return true
         sleep(0.005)
     end
     false
 end
 
-# Whether the last frame applied an input, a wake waits, or the backend holds an
-# input that it did not give.
+# Whether the last frame applied an input, a wake waits, a timer waits, or the
+# backend holds an input that it did not give. A timer is a gesture that is not
+# read yet: a click waits for a second click, and a rest of the pointer for a
+# tooltip.
 _is_window_busy(editor) =
-    editor.operation !== nothing || editor.wake_pending[] || has_workload_inputs(editor.backend)
+    editor.operation !== nothing || editor.wake_pending[] || !isempty(editor.timers) ||
+    has_workload_inputs(editor.backend)
 
-_call_on_loop(function_, editor, deadline::Float64) =
-    run_on_editor_task!(function_, editor; description = "a step of a workload",
-                        timeout = max(1.0, deadline - time()))
+# The answer of `function_` on the task of the loop, or `nothing` when the editor
+# was too busy to start the call before `deadline`: a frame that compiles a first
+# gesture can take seconds.
+function _call_on_loop(function_, editor, deadline::Float64)
+    try
+        run_on_editor_task!(function_, editor; description = "a step of a workload",
+                            timeout = max(1.0, deadline - time()))
+    catch exception
+        exception isa EditorCallTimeoutException || rethrow()
+        nothing
+    end
+end
 
 # The quit goes through the inbox, as a close of the display does. A loop that
 # ended with an exception gives the exception here.
@@ -285,7 +343,7 @@ function _find_target_place(editor, target::DrawnPart)
     isempty(outputs) && return nothing
     for window in Iterators.reverse(collect(get_iomap_output(editor.iomap).windows))
         for output in outputs
-            point = _find_node_middle(window.content, output, 0, 0)
+            point = _find_node_point(window.content, output, 0, 0)
             point === nothing || return (window.id, point...)
         end
     end
@@ -327,27 +385,29 @@ function _collect_drawn_text_places!(places::Vector{Tuple{Int,Int}}, node, text,
     places
 end
 
-# The middle of `target`, a node of the drawing below `node`, in the frame of its
-# window, or `nothing` when `node` does not hold it.
-function _find_node_middle(node, target, x0::Int, y0::Int)
+# The point of `target`, a node of the drawing below `node`, in the frame of its
+# window, or `nothing` when `node` does not hold it. The point is at half the
+# height of the box and at most 12 units from its left edge, where a field draws
+# its first character: a press in the empty part of a field can place no caret.
+function _find_node_point(node, target, x0::Int, y0::Int)
     node = _get_drawn_node(node)
     node === nothing && return nothing
     (x, y) = _get_drawn_place(node, x0, y0)
     if node === target
         w = hasproperty(node, :w) ? round(Int, something(node.w, 4)) : 4
         h = hasproperty(node, :h) ? round(Int, something(node.h, 4)) : 4
-        return (x + w ÷ 2, y + h ÷ 2)
+        return (x + min(w ÷ 2, 12), y + h ÷ 2)
     elseif hasproperty(node, :elements)
         for element in node.elements
-            point = _find_node_middle(element, target, x, y)
+            point = _find_node_point(element, target, x, y)
             point === nothing || return point
         end
     elseif node isa GraphicsViewport
         transform = node.transform
-        return _find_node_middle(node.content, target,
-                                 x + round(Int, transform.e), y + round(Int, transform.f))
+        return _find_node_point(node.content, target,
+                                x + round(Int, transform.e), y + round(Int, transform.f))
     elseif hasproperty(node, :content)
-        return _find_node_middle(node.content, target, x, y)
+        return _find_node_point(node.content, target, x, y)
     end
     nothing
 end

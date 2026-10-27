@@ -10,8 +10,10 @@ _toolbar_tool(label::AbstractString) =
     test_application_workload()
 
 `run_application_workload` gives a menu, a popup, a tool of the toolbar, a row of
-the Files pane, a tab, a context menu, keys and typed text to the application
-window, and each step finds its target. A step whose target the window never
+the Files pane, a tab, a context menu, keys, typed text and an assistant turn to
+the application window, and each step finds its target. The model of
+`make_workload_llm` asks for the tool in the first round of a turn and answers in
+the second. A step whose target the window never
 draws, and a step after the end of the loop, make it throw an error that names
 the step.
 """
@@ -37,8 +39,32 @@ function test_application_workload()
                 WorkloadKey(:f1),
                 WorkloadKey(:p; ctrl = true, shift = true),
                 WorkloadTyping("ab"),
-                WorkloadKey(:escape)]
-            @test run_application_workload(files; steps) === nothing
+                WorkloadKey(:escape),
+                WorkloadClick(_toolbar_tool("Assistant")),
+                WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
+                WorkloadTyping("hi"),
+                WorkloadKey(:return),
+                WorkloadWait(DrawnText("The sum is two."))]
+            llm = make_workload_llm("1 + 1"; answer = "The sum is two.")
+            @test run_application_workload(files; steps, llm) === nothing
+        end
+
+        @testset "the model of a workload asks for the tool, then answers" begin
+            model = make_workload_llm("1 + 1"; answer = "Two.")
+            rounds = [LlmEvent[], LlmEvent[], LlmEvent[]]
+            for events in rounds
+                stream_turn(model, LlmRequest(); on_event = event -> push!(events, event))
+            end
+            calls = [event.tool_use for event in rounds[1] if event isa LlmToolUseStop]
+            @test length(calls) == 1
+            @test calls[1].name == "execute_julia_code"
+            @test calls[1].input == Dict{String,Any}("code" => "1 + 1")
+            @test any(event -> event isa LlmThinkingDelta, rounds[1])
+            @test last(rounds[1]) == LlmTurnEnd(:tool_use)
+            @test [event.text for event in rounds[2] if event isa LlmTextDelta] == ["Two."]
+            @test last(rounds[2]) == LlmTurnEnd(:end_turn)
+            # A second turn asks for the tool again.
+            @test any(event -> event isa LlmToolUseStop, rounds[3])
         end
 
         @testset "a target that the window never draws is an error" begin

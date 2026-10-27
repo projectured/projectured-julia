@@ -64,6 +64,7 @@ using ..TreeModule
 using ..UndoModule
 using ..WidgetModule
 
+import ..LlmModule: stream_turn
 import ..SettingsModule: is_settings_group_read_at_start
 import ..TaskModule: make_task_api
 
@@ -77,7 +78,7 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        run_application_command,
        evaluate_reachable_cells!, warm_application, register_editor_tools!, start_application!
 export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadTyping, WorkloadWait,
-       run_application_workload
+       run_application_workload, make_workload_llm
 export StartSettings
 export make_editor_explorer_content
 

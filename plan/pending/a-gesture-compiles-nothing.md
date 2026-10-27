@@ -168,16 +168,22 @@ The drivers and the results are in `/var/tmp/gesture-compiles/`: the drivers
   body in a normal process and asserts that each gesture found its target. Only
   the `@compile_workload` site catches, with `@warn`, so that a failed workload
   never stops a package from loading.
-- **D7** (the owner, 2026-10-27: "yes, I agree"): `ScriptedLlm` and its
-  builders (`make_scripted_turn`, `make_scripted_think`, `make_scripted_say`,
-  `make_scripted_run`) move from `example/kernel/LlmScripted.jl` into the slice
-  of the model protocol (`source/kernel/llm/`), as a model that replays given
-  rounds. The workload of the platform runs an assistant turn with it. The
-  assistant turn costs 236 statements in projectured and 296 in omnet_ide. The
-  comment that it lives in the example package "so no fake reaches a
-  production build" goes. `ProjecturedKernelExample` stops including the file;
-  its tests and tools take the name from the kernel. No file of
-  `source/kernel/llm/` is sealed (checked 2026-10-27).
+- **D7** (the owner, 2026-10-27: "I'd put this into the ApplicationWorkload.jl
+  and make a minimal interface that can be used by the omnet IDE to make it
+  work"): the model of a workload turn lives in
+  `source/platform/application/ApplicationWorkload.jl`.
+  `make_workload_llm(code; answer)` makes it. Each turn of the model has a
+  first round that thinks, says a line and asks `execute_julia_code` to run
+  `code`, and a second round that says `answer`. The workload of the platform
+  gives it to `run_application_workload` (keyword `llm`), and the workload of
+  omnet_ide gives it to its own window (`run_omnet_ide` takes `llm`). The
+  assistant turn costs 236 statements in projectured and 296 in omnet_ide.
+  `ScriptedLlm` stays in `ProjecturedKernelExample` for the tests and the
+  tools, and the kernel does not change. The rule `PAR-NO-TEST-DOUBLES-IN-MAIN`
+  states this model as its one exception: only a compile workload makes one.
+  An earlier form of D7, a move of `ScriptedLlm` into `source/kernel/llm/`,
+  was dropped: it broke that rule for a public kernel name, and a model in the
+  platform alone would have needed a second copy for omnet.
 - **D8** (the owner, 2026-10-27: "can't we imitate starting a process from pure
   Julia?", and "yes" to the mechanism below): a workload imitates a process in
   Julia, so that a build starts no process. Run costs 281 statements. Each task that
@@ -270,15 +276,15 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    `test_pred_file` 45, `test_context_menu_window` 60, `test_explorer` 294; no
    fail, error or broken. The probe is `/var/tmp/gesture-compiles/shape/probe.jl`
    with `count.py`.
-2. [ ] **The gesture machinery of the platform (D2).**
+2. [x] **The gesture machinery of the platform (D2).**
    - `WorkloadBackend` takes gestures that name their target: a drawn text, a
      part of a document, a key, or a typed text. It finds the target in the
      screen that it read last.
    - `run_application_workload(files; gestures)` starts the application window
      as `run_application` does (`build_editor`, `start_application!`, the
      loop). It waits until each gesture ran and the window is quiet.
-   - `ScriptedLlm` moves into `source/kernel/llm/` (D7), and the assistant
-     turn of the list uses it.
+   - The model of a workload turn (D7), and the assistant turn of the list
+     uses it.
    - A test in `ProjecturedPlatformTest` runs a list and asserts that each
      gesture found its target.
 
@@ -301,9 +307,19 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      a click is a move, a down and an up in three frames. A key gives its
      down, its character (Return and Tab, as SDL does) and its up.
    - The window is quiet when, for 0.25 s of looks, the last frame applied no
-     input, no wake waits, and the backend holds no input. A look is an inbox
-     call, and an inbox operation does not set `editor.operation`, so a look
-     does not make the window busy.
+     input, no wake waits, no timer of the editor waits (`editor.timers`), and
+     the backend holds no input. A look is an inbox call, and an inbox
+     operation does not set `editor.operation`, so a look does not make the
+     window busy. The timers matter: gesture tracking holds a click until its
+     timer shows that no second click follows, and keys typed before that
+     timer fires are lost. Only gesture tracking sets a timer, and each timer
+     comes from an input and fires once, so the window does become quiet.
+   - A call on the loop that the editor does not start in time, because a
+     frame compiles a first gesture, counts as busy, not as a fault.
+   - A click on a `DrawnPart` presses at half the height of its drawing and at
+     most 12 units from its left edge, where a field draws its first
+     character. A press in the middle of the empty draft of the assistant is
+     read as "do nothing" (see "Not in this plan").
    - `run_application` and the workload build the window with one function,
      `_make_application_editor`. The workload reads no settings file and no
      appearance file, names no assistant backend (`:none`, with the `llm` of
@@ -324,11 +340,17 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      slower than a second, and the editor writes a warning for each (13 in
      the test). A `@compile_workload` prints them into the build output.
 
-   Done: the machinery and its test (`test_application_workload`, 6 of 6,
-   70 s in a fresh process). Open: the move of `ScriptedLlm` (D7) and the
-   assistant turn of the list. The move breaks the rule
-   `PAR-NO-TEST-DOUBLES-IN-MAIN`, which keeps every scripted stand-in out of
-   a `main` package, so it waits for the decision of the owner.
+   Done: the machinery, `make_workload_llm`, and their test
+   (`test_application_workload`, 14 of 14, 75 s in a fresh process; the list
+   runs a menu and its popup, a tool of the toolbar, a row of the Files pane
+   with Enter, a click and typing in the opened text, Ctrl+S, Ctrl+Z, a tab,
+   a context menu, F1, the palette and an assistant turn with a tool call).
+   - `make_workload_llm` (D7) streams no `LlmToolInputDelta`, because no
+     reader of the platform reads one; so it needs no JSON writer.
+   - A fact for step 8: omnet_ide builds its own window (`run_omnet_ide` →
+     `run_campaign_window`), so its workload needs the steps of an editor that
+     it started. That step takes the loop of the steps out of
+     `run_application_workload` into a function of an editor.
 3. [ ] **The workloads of the platform and SDL (D3).**
    - The platform runs the window gestures of D3 over a `.txt` file and a
      `.pred` file. The list includes a new tab with Ctrl+T and Insert, so that
@@ -411,4 +433,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
 The statement replay of the REPL leaves (`:recorded`) and the 39 statement
 files; the HTTP and JSON code of the real model backends, which a scripted
 model skips; the start of an ACP agent; a fault seen once in omnet_ide: after
-the open of a `.sql` file fails, the mouse does nothing.
+the open of a `.sql` file fails, the mouse does nothing; a fault seen in the
+workload of step 2: a press in the empty draft of the assistant, to the right
+of its text, is read as "do nothing", so the draft gets no caret (a press at
+its left end gives the caret).

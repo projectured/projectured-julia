@@ -246,7 +246,9 @@ can express them.
   or deterministic behaviour belongs in the example that needs it:
   pass an explicit fake `llm`; a `main` path with no real backend fails
   loudly instead. `FakeLlm` / `ScriptedLlm` live in `ProjecturedKernelExample`,
-  not in kernel `main`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
+  not in kernel `main`. The one exception is the model of
+  `make_workload_llm` in the platform, which only a compile workload makes. See
+  architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
 
 ## Content documents and view documents
 
