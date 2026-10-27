@@ -167,6 +167,11 @@ function repl_broken(name)
     # (`open_pane!` throws). A window of `run_example` has none either.
     name in ("document_tree", "system_process_tree") &&
         return (ev, msg) -> occursin("no pane tree has the focus", msg)
+    # @broken: `,` in a state machine diagram inserts a transition into a state,
+    # and the selection that the operation names does not match the machine
+    # (SelectionMismatchException). The notation examples insert one.
+    name in ("fsm_diagram", "fsm_alternating_bit_diagram") &&
+        return (ev, msg) -> occursin("SelectionMismatchException", msg)
     nothing
 end
 
@@ -265,12 +270,16 @@ function test_position_navigations()
                              # `fsm` is the twelve-state TCP machine. It
                              # navigates correctly — it is simply far too big
                              # for an exhaustive caret walk (tens of minutes,
-                             # where every other example is seconds).
+                             # where every other example is seconds). The walk
+                             # of `fsm_crossing` takes 1m42s and that of
+                             # `fsm_alternating_bit` 4m55s.
                              # `fsm_toggle` exercises the same notation on a
                              # small machine and stays in the sweep.
-                             # `fsm_diagram` is a graph pipeline, here for the
+                             # `fsm_diagram` and `fsm_alternating_bit_diagram`
+                             # are graph pipelines, here for the
                              # widget/graphics keyboard-routing reason above.
-                             "fsm", "fsm_diagram",
+                             "fsm", "fsm_crossing", "fsm_alternating_bit",
+                             "fsm_diagram", "fsm_alternating_bit_diagram",
                              # The pane trees print through `PaneToWidget`, so
                              # they are here for the widget-container reason
                              # above: the strip and the split pane hold the
@@ -483,7 +492,7 @@ function test_click_roundtrips()
                               # and a click reads the whole text (about a
                               # second), so a click per character takes hours;
                               # its navigation sweeps cover the carets.
-                              "fsm", "fsm_toggle") && continue
+                              "fsm", "fsm_toggle", "fsm_crossing", "fsm_alternating_bit") && continue
             @testset "$(example.name)" begin
                 test_click_roundtrip(example.name, example.document, example.projection;
                                      broken=click_broken(example.name))
@@ -566,8 +575,10 @@ function test_text_navigation_invariants_all()
                               "sql_nested_syntax",
                               # the FSM example prints 4432 characters, and a walk
                               # prints the whole text again for each of them (half
-                              # an hour); fsm_toggle walks the same notation.
-                              "fsm") && continue
+                              # an hour); the walk of fsm_crossing takes 1m15s and
+                              # that of fsm_alternating_bit 3m37s. fsm_toggle walks
+                              # the same notation.
+                              "fsm", "fsm_crossing", "fsm_alternating_bit") && continue
             @testset "$(example.name)" begin
                 # Walk a FRESH document, not the cached `example.document`: the
                 # repl sweep mutates the shared instance in place, and a mutated

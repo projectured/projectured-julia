@@ -34,7 +34,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 
 **Charts and diagrams.** `chart`, `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip`, `chart_inspector`, `graph`, `sequencechart` and its four variants. A chart is a document, and a data point is selectable.
 
-**Models that run.** `fsm`, `fsm_toggle`, `fsm_diagram` — a state machine that produces Julia code. `rotating_vector` — a document that drives itself.
+**Models that run.** `fsm_toggle`, `fsm_crossing`, `fsm_alternating_bit` and `fsm`, the TCP connection — state machines that produce Julia code that runs; `fsm_diagram` and `fsm_alternating_bit_diagram` draw a machine. `rotating_vector` — a document that drives itself.
 
 **The general steps.** `collection`, `reversing`, `filtering`, `searching`, `sorting`, `focusing`, `dragging`. One step in front of any data: a filter, a sort, a search. They work for every domain, which is what makes them worth reading.
 

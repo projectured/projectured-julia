@@ -1,7 +1,8 @@
 # The state machine examples run
 
-Status: pending. Written 2026-10-27. The scope is the owner's; the machines, the
-names and the steps are proposed.
+Status: DONE, 2026-10-27, on the branch `fsm-examples`; not landed on `main`.
+The scope is the owner's, and the owner asked to implement the plan; the
+machines, the names and the steps are proposed.
 
 ## The ask
 
@@ -182,8 +183,40 @@ The work is on the branch `fsm-examples`, in a worktree.
    `generate_example_screenshots` for the FSM examples. The guides: `fsm.md` and
    `examples-tour.md`. Then the plan moves to `plan/done/`.
 
+   ✅ Done. The walks, measured the way each sweep calls them:
+
+   | Example | position navigation | text navigation |
+   | --- | --- | --- |
+   | `fsm_toggle` | 34 s | 28 s |
+   | `fsm_crossing` | 1m42s | 1m15s |
+   | `fsm_alternating_bit` | 4m55s | 3m37s |
+
+   So `fsm_crossing` and `fsm_alternating_bit` join `fsm` in the skip lists of
+   the two navigation sweeps and of the click sweep, and `fsm_toggle` stays.
+   `fsm_alternating_bit_diagram` joins `fsm_diagram` in the skip list of the
+   position navigation; both pass the text navigation (11) and the click (1).
+   Found in the work: `fsm_diagram` fails 1 of 230 in the REPL sweep on `main`,
+   unmarked, on `,`. `repl_broken` now marks that `SelectionMismatchException`
+   for both diagram examples, so the REPL sweep shows 1 Broken for each and no
+   Fail.
+
+   The pictures: `fsm-toggle`, `fsm-crossing`, `fsm-alternating-bit`,
+   `fsm-diagram` and `fsm-alternating-bit-diagram`, made in a fresh process (a
+   REPL walk in the same process edits the cached example document first). Found
+   in the work: a picture of a text taller than the height cap draws only its
+   first lines. `write_image` prints the document a second time with the cap as
+   the offered height, and that print draws only the variables of TCP. `main`
+   gives the same picture of its own TCP. So `fsm.png` stays the picture of
+   2026-09-18, and `fsm.md` shows `fsm-diagram.png` first. The guides: `fsm.md`
+   (the notation of `fsm_crossing`, the label `always`, the layout of the
+   diagram, no branch for a state with no transition, the timer calls of the
+   runtime, the examples and the tests), `examples-tour.md`, and `adaptagrams.md`,
+   whose sentence about which example names which engine was wrong for the graph
+   example and the natural row too.
+
 Not in this plan: a live run of a machine in the gallery; a diagram of TCP; the
 names that the generator calls (`fsm_drain!`, `fsm_enter!`) differ from the real
 runtime (`drain_fsm!`, `enter_fsm!`); the recorded precompile statements of the
 new examples; a Julia `if` with an empty body prints its `else` on the line of
-its condition.
+its condition; a picture of a text taller than the height cap of `write_image`
+draws only its first lines, on `main` too.

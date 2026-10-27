@@ -58,7 +58,7 @@ The code is the slice `AdaptagramsModule`, in `source/adapter/adaptagrams/`: `Ad
 
 `ProjecturedAdaptagrams` depends on `ProjecturedGraph` and on the standard library `Libdl`. No package of the editor depends on it.
 
-Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart is the one example that names a deferred engine. The graph example, the fsm diagram and the natural row of `GraphGraph` name `GridEmbedding`.
+Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart, the graph example and the natural row of `GraphGraph` name a deferred engine. The fsm diagram names `FruchtermanReingoldLayout`, so this package does not change it.
 
 `ProjecturedAdaptagramsExample` holds the examples that name `AdaptagramsLayout` directly, so the other example packages do not depend on the native library.
 

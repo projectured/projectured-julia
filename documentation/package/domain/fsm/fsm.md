@@ -4,7 +4,7 @@
 
 `ProjecturedFSM` holds extended state machines: named states with entry code, transitions on events, timers or conditions, and variables, with all code as embedded Julia documents. A component prints as a notation, draws as a live diagram, and generates a complete Julia module. This document says how the three work, which contract the generated code keeps with a runtime that the embedder supplies, and what the domain leaves out.
 
-<img width="396" alt="State machine example" src="../../../asset/image/example/fsm.png">
+<img width="500" alt="State machine diagram example" src="../../../asset/image/example/fsm-diagram.png">
 
 ## How it works
 
@@ -36,23 +36,22 @@ The transitions of a state are tried in document order, and the first with a mat
 
 ### The notation
 
-`FsmToSyntax()` is the main edit surface. It copies the dispatch table of `JuliaToSyntax()` and adds the rules of this domain, so the embedded code prints through the same recursion, as in the formula domain. The toggle example prints as:
+`FsmToSyntax()` is the main edit surface. It copies the dispatch table of `JuliaToSyntax()` and adds the rules of this domain, so the embedded code prints through the same recursion, as in the formula domain. The machine of the traffic light example, `fsm_crossing`, starts as:
 
 ```
-component Toggle
-  variable blinks::Int = 0
-  timer blink_timer
-  event PRESSED
-  machine Toggle initial OFF
-    state OFF
-      on PRESSED -> ON
-    state ON
-      entry / m.blinks = m.blinks + 1
-      on PRESSED stay / m.blinks = m.blinks + 1
-      on timeout(blink_timer) when m.blinks > 3 -> OFF
+machine Light initial START ignoring unhandled
+  state START
+    -> CARS_GREEN
+  state CARS_GREEN
+    entry / start_timer!(ctx, m, m.min_green_timer, MIN_GREEN_TIME, expire_min_green_timer!)
+    on BUTTON stay / m.requested = true
+    when m.requested && !is_scheduled(m.min_green_timer) -> CARS_YELLOW
+  state CARS_YELLOW
+    entry / start_timer!(ctx, m, m.yellow_timer, YELLOW_TIME, expire_yellow_timer!)
+    on timeout(yellow_timer) -> ALL_RED
 ```
 
-A transition line is `[on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | stay | ignore) [/ ACTION]`. The action comes last because it is the one part that can have many lines: a block action prints as indented lines below its transition. A machine with `on_unhandled = :ignore` prints `ignoring unhandled` after its initial state.
+A transition line is `[on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | stay | ignore) [/ ACTION]`. A transition with no trigger and no guard is the target alone. The action comes last because it is the one part that can have many lines: a block action prints as indented lines below its transition, and the statements of a `;` line stay on the line of the transition. A machine with `on_unhandled = :ignore` prints `ignoring unhandled` after its initial state. The `helpers` print as Julia after the machines.
 
 The trigger, the target and the initial state print as a leaf that reads the name of the referent. The rule never recurses into the referent, because a target printed in full would contain its own transitions, and a self-loop would not end. These names and the keywords are text that the projection adds. The template names a caret on them by the rule's own introduced step, which holds the path of the part in the rule's output, and the forward map gives that path back.
 
@@ -68,7 +67,9 @@ FsmMachine ──FsmToFsmDiagram──▶ FsmDiagram ──FsmDiagramToGraph─�
 
 `FsmDiagramToGraph` builds a `GraphGraph`: one vertex for each state, with the `FsmState` itself as content, and one directed edge for each transition that has a target, with the `FsmTransition` itself as label. A stay has no edge. The two highlights of the graph are computed cells that turn `live_state` and `live_transition` into the vertex and the edge. The graph stages then draw everything; see [graph.md](../graph/graph.md#the-highlight). A new live state repaints the border of its box and runs no layout.
 
-The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state, and `FsmTransitionToSyntaxLabel` prints the trigger, the guard and the action. `FsmToSyntaxLabel` builds the table of the two, with the full notation as its fallback. A click on a box selects the real state.
+The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state, and `FsmTransitionToSyntaxLabel` prints the trigger, the guard and the action, and `always` for a transition with no trigger and no guard. `FsmToSyntaxLabel` builds the table of the two, with the full notation as its fallback. A click on a box selects the real state.
+
+`make_fsm_diagram_projection_example` lays the machine out with `FruchtermanReingoldLayout(spacing = 100)`. The layout does not measure the labels, and the wide gap gives a label room between two boxes.
 
 ### The generated code
 
@@ -78,11 +79,11 @@ The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state
 - a constant for each state of each machine, such as `MAC_S_IDLE`, and a tuple of state names for each machine. **The state values are 0-based document order.** They go into recorded statistics and are compared with a reference implementation, so the numbers are part of the contract;
 - a constant for each event, from 1, and one for each timer after them. `0` means no event;
 - the host struct `FooState`: one `Fsm` for each machine, one `TimerHandle` for each timer, one field for each variable; and a constructor with no arguments that fills in the initial states and the declared defaults;
-- one dispatch function for each machine, `<machine>_dispatch!(ctx, m, event::Int32, payload)`, in straight-line branches;
+- one dispatch function for each machine, `<machine>_dispatch!(ctx, m, event::Int32, payload)`, in straight-line branches. A state with no transition has no branch;
 - one expiry function for each timer, `expire_<timer>!(ctx, m)`;
 - the `helpers`, unchanged.
 
-The generated code and the actions in it call names that the domain does not define: `Fsm`, `TimerHandle`, `FSM_CASCADE_LIMIT`, `fsm_state`, `fsm_enter!`, `fsm_leave!`, `fsm_goto!`, `fsm_defer!`, `fsm_drain!`, `fsm_cascade_error` and `fsm_unhandled_error`. The embedder supplies a runtime module that defines them. `test/domain/fsm/projection/FsmToJuliaCodeTest.jl` holds a small stand-in, `ProbeRuntime`, and runs generated code against it.
+The generated code and the actions in it call names that the domain does not define: `Fsm`, `TimerHandle`, `FSM_CASCADE_LIMIT`, `fsm_state`, `fsm_enter!`, `fsm_leave!`, `fsm_goto!`, `fsm_defer!`, `fsm_drain!`, `fsm_cascade_error` and `fsm_unhandled_error`. The embedder supplies a runtime module that defines them, and the timer calls that the code of a machine uses: `schedule_timer!(ctx, delay, module_id, timer, action, argument)`, `cancel_timer!(ctx, timer)` and `is_scheduled(timer)`. `test/domain/fsm/projection/FsmToJuliaCodeTest.jl` holds a small stand-in, `ProbeRuntime`, and runs generated code against it. `FsmExampleRunTest.jl` runs each example on it: the test fires a timer when it calls the action of the timer.
 
 ### The execution contract
 
@@ -125,17 +126,23 @@ It has no `__init__` and registers nothing: no natural row, no file type, no par
 
 ```julia
 pressed = FsmEvent("PRESSED")
-off, on = FsmState("OFF"), FsmState("ON"; entry = parse_julia("m.blinks = m.blinks + 1"))
+off, on = FsmState("OFF"), FsmState("ON"; entry = parse_julia("m.switch_ons = m.switch_ons + 1"))
 push!(off.transitions, FsmTransition(trigger = pressed, target = on))
 push!(on.transitions, FsmTransition(trigger = pressed, target = off))
 component = FsmComponent("Toggle";
-    variables = [FsmVariable("blinks"; type = parse_julia("Int"), default = parse_julia("0"))],
+    variables = [FsmVariable("switch_ons"; type = parse_julia("Int"), default = parse_julia("0"))],
     events = [pressed], machines = [FsmMachine("Toggle"; initial = off, states = [off, on])])
 print(generate_component_text(component))
 ```
 
-- Examples: `fsm`, the TCP connection machine; `fsm_toggle`; and `fsm_diagram`, the toggle machine as a diagram, in `example/domain/fsm/`. `make_fsm_diagram_projection_example(; engine)` builds the diagram chain. The atomic catalog has an entry for each of the seven content types.
-- Test: `test_fsm()` runs the layering guard, `test_fsm_document()`, `test_fsm_diagram()`, `test_fsm_to_julia_code()` and `test_fsm_to_syntax()`.
+- Examples, in `example/domain/fsm/`:
+  - `fsm_toggle`: a lamp with a button and a timer;
+  - `fsm_crossing`: a traffic light with a button for the pedestrians, and `fsm_diagram`, its machine as a diagram;
+  - `fsm_alternating_bit`: the alternating bit protocol, a sender and a receiver in one component, and `fsm_alternating_bit_diagram`, the sender as a diagram;
+  - `fsm`: the TCP connection machine.
+
+  `make_fsm_diagram_projection_example(; engine)` builds the diagram chain. The atomic catalog has an entry for each of the seven content types.
+- Test: `test_fsm()` runs the layering guard, `test_fsm_document()`, `test_fsm_diagram()`, `test_fsm_to_julia_code()`, `test_fsm_example_run()`, `test_fsm_to_syntax()` and `test_fsm_theme()`.
 
 ## Limits
 
