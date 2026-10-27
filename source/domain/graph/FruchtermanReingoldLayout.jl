@@ -3,8 +3,9 @@
 # `FruchtermanReingoldLayout`, the force-directed placement of Fruchterman and
 # Reingold ("Graph Drawing by Force-directed Placement", Software — Practice and
 # Experience 21(11), 1991), written from the paper. An edge pulls its two ends
-# together with `d²/k`, every pair of bodies pushes apart with `k²/d`, and a
-# temperature that falls each round caps how far a body moves.
+# together with `d²/k`, every pair of bodies closer than `2k` pushes apart with
+# `k²/d`, as in the grid variant of the paper, and a temperature that falls each
+# round caps how far a body moves.
 #
 # Four things are added for the boxes that this package draws, and each one is
 # named where it is done:
@@ -17,7 +18,8 @@
 #   removes overlaps and the rule of the extent move it. A cluster is one body
 #   that carries its members at their offsets.
 # - **Parts that are not connected** feel a weak pull to the centre of the
-#   drawing, so no part drifts away from the others.
+#   drawing. The push reaches only `2k`, so the pull holds every part beside the
+#   others, a vertex with no edge among them.
 # - **No overlap.** After the simulation, each pair of boxes that still overlap
 #   is pushed apart along the axis where they overlap less.
 #
@@ -216,10 +218,10 @@ function _collect_body_edges(graph, vertices, body_of)
     edges
 end
 
-# The simulation of the paper: repulsion between every pair of bodies,
-# attraction along every edge, and a displacement capped by a temperature that
-# falls to nothing. The distances are measured between the rims of two bodies,
-# and a weak pull to the centre keeps the parts of a graph together. A body with
+# The simulation of the paper: repulsion between every pair of bodies closer
+# than `2k`, attraction along every edge, and a displacement capped by a
+# temperature that falls to nothing. The distances are measured between the rims
+# of two bodies, and a weak pull to the centre keeps the parts of a graph together. A body with
 # a start position pushes and pulls the others, and the forces do not move it.
 function _simulate_forces!(x, y, bodies, edges, k, iterations, body_starts)
     m = length(bodies)
@@ -236,7 +238,11 @@ function _simulate_forces!(x, y, bodies, edges, k, iterations, body_starts)
             # Two bodies on one point are pushed apart along the order of their
             # indices, so the result stays a function of the input.
             distance == 0 && ((ex, ey, distance) = (1.0 * (b - a), 0.0, 1.0 * (b - a)))
-            force = k^2 / rim(a, b, distance)
+            gap = rim(a, b, distance)
+            # The grid variant of the paper: two bodies farther apart than 2k do
+            # not push each other.
+            gap > 2k && continue
+            force = k^2 / gap
             dx[a] += ex / distance * force; dy[a] += ey / distance * force
             dx[b] -= ex / distance * force; dy[b] -= ey / distance * force
         end
