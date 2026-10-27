@@ -103,6 +103,24 @@ function test_fruchterman_reingold_layout()
         @test span < 20 * 60
     end
 
+    @testset "a vertex with no edge stays beside a large tree, and the tree stays close" begin
+        # A tree of 40 cards and one card with no edge, as a map of a study has.
+        vertices = [GraphVertex(JsonString("v$i")) for i in 1:41]
+        graph = GraphGraph(vertices, [GraphEdge(vertices[i], vertices[i ÷ 2]) for i in 2:40])
+        sizes = Dict(objectid(v) => (228, 150) for v in vertices)
+        positions, _ = layout_graph(engine, graph, sizes, [])
+        boxes = [positions[objectid(v)] for v in vertices]
+        @test _are_boxes_disjoint(positions)
+        # The gap between the lone card and the nearest card of the tree.
+        gap(a, b) = max(a[1] - b[1] - b[3], b[1] - a[1] - a[3], a[2] - b[2] - b[4], b[2] - a[2] - a[4], 0)
+        k = sqrt(228 * 150) + 20
+        @test minimum(gap(boxes[41], box) for box in boxes[1:40]) <= 2k
+        # The drawing covers at most 20 times the area of its cards.
+        width = maximum(box[1] + box[3] for box in boxes) - minimum(box[1] for box in boxes)
+        height = maximum(box[2] + box[4] for box in boxes) - minimum(box[2] for box in boxes)
+        @test width * height < 20 * 41 * 228 * 150
+    end
+
     @testset "a placement is deterministic" begin
         vertices = [GraphVertex(JsonString("v$i")) for i in 1:12]
         graph = GraphGraph(vertices, [GraphEdge(vertices[i], vertices[i+1])

@@ -51,9 +51,12 @@ reproduces the pictures of another program.
 ## The force-directed engine
 
 `FruchtermanReingoldLayout` follows the paper: an edge pulls its two ends
-together with `d²/k`, every pair of bodies pushes apart with `k²/d`, and a
-temperature that falls each round caps how far a body moves. Four things are
-added for the boxes that this package draws:
+together with `d²/k`, every pair of bodies closer than `2k` pushes apart with
+`k²/d`, as in the grid variant of the paper, and a temperature that falls each
+round caps how far a body moves. Two bodies farther apart do not push each
+other, so a large group keeps the room of its neighbours only: a tree of 40 cards
+of 228 × 150 px takes about 3600 × 4300 px. Four things are added for the boxes
+that this package draws:
 
 - **Sizes.** `k`, the ideal distance, is the mean size of a box plus `spacing`,
   and the forces read the distance between the rims of two bodies, so a large
@@ -61,7 +64,8 @@ added for the boxes that this package draws:
 - **Constraints.** A pinned vertex is a body that does not move. A cluster is
   one body that carries its members at their offsets.
 - **Parts that are not connected** feel a weak pull to the centre of the
-  drawing, so no part drifts away from the others.
+  drawing. The push reaches only `2k`, so the pull holds every part beside the
+  others, a vertex with no edge among them.
 - **No overlap.** After the simulation, a pass pushes each two boxes that still
   overlap apart, along the axis where they overlap less.
 

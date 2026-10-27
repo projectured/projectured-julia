@@ -65,15 +65,18 @@ its 5775 × 6952 px, and a vertex that an edit adds to a kept layout still drift
 
 ### Step 2 — the tests
 
-- [ ] A testset in `test/domain/graph/projection/FruchtermanReingoldLayoutTest.jl`:
-      a vertex with no edge lies within `2k` of the nearest box, and a tree of
-      40 boxes lies inside a bound that a spread drawing breaks.
-- [ ] `test_graph()`, and the suites of the domains that draw with this engine:
-      fsm, process, research.
+- [x] A testset in `test/domain/graph/projection/FruchtermanReingoldLayoutTest.jl`:
+      a vertex with no edge lies within `2k` of the nearest box, and the drawing
+      of a tree of 40 cards and one lone card covers less than 20 times the area
+      of its cards. Before the change the lone card lay at least 4690 px from the tree,
+      more than `2k` (410 px), and the drawing covered about 92 million px²,
+      more than the bound of 28 million.
+- [x] 2026-10-27: `test_graph()` 638 pass, `test_fsm()` 179, `test_process()`
+      316, `test_research()` 382; no failure, no error.
 
 ### Step 3 — the guides and the map
 
-- [ ] `documentation/package/domain/graph/graph-layout.md`: the forces.
+- [x] `documentation/package/domain/graph/graph-layout.md`: the forces.
 - [ ] The map of the study of take 4 in the window: every box is near the
       others. A map of 41 cards is about four times the width of a pane, so the
       take of the Aloha video moves across it; a zoom of the layout keeps the
