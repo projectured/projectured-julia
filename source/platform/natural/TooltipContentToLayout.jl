@@ -13,8 +13,9 @@ tooltip is read, never edited, so the column maps no reference of its own.
 
 The frame is the surface, the line and the padding of `theme`, a `TooltipTheme`
 scaled or not, or of the default theme, and the column takes its gap. The frame
-fits what it holds, so the window, which takes the extent of what it printed,
-fits it too.
+fits what it holds, and it is at least as wide as the least width of the window,
+`minimum_size` of the theme. So the window, which takes the extent of what it
+printed and at least that width, is as wide as the frame.
 """
 # Each field is a value of a `TooltipTheme`: a value, or a cell that reads the
 # theme. The drawing reads them when it prints, so a change of the appearance
@@ -26,12 +27,14 @@ struct TooltipContentToVerticalLayout <: Projection
     line_width::Any
     padding::Any
     layer_text::Any
+    minimum_size::Any
 end
 
 TooltipContentToVerticalLayout(; theme = nothing) =
     TooltipContentToVerticalLayout(get_tooltip_style(theme, :gap), get_tooltip_style(theme, :surface),
                                    get_tooltip_style(theme, :line), get_tooltip_style(theme, :line_width),
-                                   get_tooltip_style(theme, :padding), get_tooltip_style(theme, :layer_text))
+                                   get_tooltip_style(theme, :padding), get_tooltip_style(theme, :layer_text),
+                                   get_tooltip_style(theme, :minimum_size))
 
 function print_document(p::TooltipContentToVerticalLayout, recursion, content::TooltipContent, ctx)
     layers = content.layers
@@ -46,7 +49,12 @@ function print_document(p::TooltipContentToVerticalLayout, recursion, content::T
     keys = describe_layer_keys(shown, count)
     keys === nothing || push!(children, WidgetLabel(keys; text_style = layer_text))
     column = VerticalLayout(children; gap = unwrap_cell(p.gap))
-    SimpleIoMap(p, content, VerticalLayout(Any[_make_tooltip_frame(p, column)]))
+    # The least width of the window is the least width of the frame. A frame of
+    # one line is higher than the least height of the window, so the height needs
+    # no least.
+    least_width = Int(unwrap_cell(p.minimum_size).x[])
+    SimpleIoMap(p, content, VerticalLayout(Any[_make_tooltip_frame(p, column)];
+                                           child_width = SizePolicy(least_width, nothing, nothing, 0.0)))
 end
 
 # The frame around what a tooltip says: the line, then the padding, both on the

@@ -43,6 +43,30 @@ _tn_place(texts, text) = only(place[2:3] for place in texts if place[1] == text)
 
 _tn_style(name) = unwrap_cell(get_tooltip_style(get_scaled_theme!(_TN_APPEARANCE, TooltipTheme), name))
 
+# A tooltip window that shows `note`, printed as the screen prints the window: at
+# its largest size.
+function _tn_print_window(note)
+    projection = NaturalToGraphics(measure = FixedMeasure(10, 18, 6, 0), appearance = _TN_APPEARANCE)
+    largest = _tn_style(:maximum_size)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(largest.x[])),
+                              height = Cell(Int32(largest.y[])))
+    content = TooltipContent(; layers = [("Note", note)], shown = 1)
+    get_iomap_output(print_document(projection, nothing, content, context))
+end
+
+# The width of the first rectangle of a drawing, which is the frame of a tooltip.
+function _tn_find_frame_width(node)
+    node = _tn_force(node)
+    node isa GraphicsRect && return Int(_tn_force(node.w))
+    elements = node isa GraphicsViewport ? Any[node.content] :
+               node isa GraphicsCanvas ? collect(_tn_force(node.elements)) : Any[]
+    for element in elements
+        width = _tn_find_frame_width(element)
+        width === nothing || return width
+    end
+    nothing
+end
+
 function test_tooltip_note()
 @testset "a tooltip note" begin
 
@@ -169,6 +193,19 @@ end
 @testset "a piece that is a document stands as it is" begin
     texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
     @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]
+end
+
+@testset "the frame of a tooltip window is as wide as the window" begin
+    # The window is at least `minimum_size` wide, so the frame of a short note is
+    # that wide, with no surface of the window beside it. The frame of a long note
+    # keeps the width of what it says, and the window takes it.
+    least = Int(_tn_style(:minimum_size).x[])
+    short = _tn_print_window(TooltipNote(; title = "Vertex"))
+    @test _tn_find_frame_width(short) == least
+    @test Int(_tn_force(short.w)) == least
+    long = _tn_print_window(TooltipNote(; title = "Vertex", text = "a text much wider than the least width"))
+    @test _tn_find_frame_width(long) > least
+    @test Int(_tn_force(long.w)) == _tn_find_frame_width(long)
 end
 
 end # @testset
