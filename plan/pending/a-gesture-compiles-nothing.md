@@ -283,7 +283,9 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      gesture found its target.
 3. [ ] **The workloads of the platform and SDL (D3).**
    - The platform runs the window gestures of D3 over a `.txt` file and a
-     `.pred` file.
+     `.pred` file. The list includes a new tab with Ctrl+T and Insert, so that
+     the image holds the constructors of the platform types, which the insertion
+     list calls to test each type (step 1).
    - SDL runs the same list on `SdlBackend` under the dummy driver, with the
      events through the event queue of SDL.
    - A fact for SDL: the dummy and the offscreen drivers give the focus to each
@@ -299,6 +301,8 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - A domain package with no file type opens a `.pred` file that holds one of
      its documents: Book, Chart, Formula, Graph, Pivot, Workflow, Research.
    - ProjecturedLanguageServer opens a `.c` file with no server.
+   - Each of these workloads also opens the name buffer (Ctrl+T, Insert), so
+     that its image holds the constructors of the types of its package.
 5. [ ] **The app package, the guard and the rules (D9, D10).**
    - `warm_application` runs the list of the binary.
    - The guard `test_gestures_compile_little` goes into `ProjecturedTest`,
