@@ -289,9 +289,12 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
     flat_index = Dict{FsmTransition,Int}(t => i for (i, t) in enumerate(flat))
     fsm = _field("m", get_fsm_field_name(machine))
 
-    # The state dispatch inside the cascade loop.
+    # The state dispatch inside the cascade loop. A state with no transition has
+    # no branch: nothing fires there, and the pass settles as it does when no
+    # branch fires.
     state_branch = nothing
     for state in reverse(get_fsm_states(machine))
+        any(t -> t isa FsmTransition, state.transitions) || continue
         condition = JuliaBinaryOperation(:(==), _call("fsm_state", fsm),
                                   _id(get_fsm_state_constant_name(machine, state)))
         body = _state_branch(component, machine, state, flat_index)

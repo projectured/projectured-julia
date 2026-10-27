@@ -152,6 +152,29 @@ The work is on the branch `fsm-examples`, in a worktree.
 4. **TCP runs.** The helpers and the corrected names. A run test plays the active
    open and the active close to `CLOSED` through `TIME_WAIT`, and the passive open
    and the passive close. Run `test_fsm()` and `test_example(fsm_example)`.
+
+   ✅ Done. Found in the work: the generated TCP code on `main` holds the line
+   `if fsm_state(m.fsm_connection) == CONNECTION_S_CLOSEDelse`. `CLOSED` has no
+   transition, so the generator gave it a branch with an empty body, and the
+   syntax domain prints an empty block as nothing, so `else` follows the
+   condition. The text parses, as one name, so the old code test did not see it.
+   The generator now gives a state with no transition no branch, and the code test
+   checks the TCP text for it. Also decided in the work:
+   - `ack_acceptable` is `is_ack_acceptable`, by the naming rule of a predicate.
+   - The entry of `ESTABLISHED` cancels `conn_estab_timer` before
+     `indicate_established!`.
+   - `LISTEN` chooses the initial sequence number on a SYN, as INET does, and a
+     SYN and a SYN-ACK take it as their number.
+   - `analyse_segment` takes the acknowledgement first: it moves `snd_una`, and
+     it sets `fin_ack_rcvd` when the segment acknowledges the FIN of this side. A
+     FIN in that same segment is `RCV_FIN_ACK`; a FIN after it is `RCV_FIN`.
+   - The segment is the helper struct `Segment` with `sequence_number` and
+     `ack_number`, made by `make_segment`.
+   The run test also plays a FIN that acknowledges the FIN of this side, and an
+   ACK of a number that this side did not send. Results: `test_fsm()` 266 pass.
+   The full `test_example(fsm_example)` walks the navigation of TCP for about half
+   an hour, which the sweeps skip, so I ran its printer, reader and REPL: 105349
+   pass.
 5. **Sweeps, pictures and guides.** The example sweeps in
    `test/projectured/editor/ExampleSweeps.jl`: each new notation example stays in
    the navigation sweep if its walk takes less than a minute, and the diagram
@@ -162,4 +185,5 @@ The work is on the branch `fsm-examples`, in a worktree.
 Not in this plan: a live run of a machine in the gallery; a diagram of TCP; the
 names that the generator calls (`fsm_drain!`, `fsm_enter!`) differ from the real
 runtime (`drain_fsm!`, `enter_fsm!`); the recorded precompile statements of the
-new examples.
+new examples; a Julia `if` with an empty body prints its `else` on the line of
+its condition.

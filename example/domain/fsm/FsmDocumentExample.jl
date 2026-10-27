@@ -1,11 +1,20 @@
 # ── Fsm domain examples ─────────────────────────────────────────────────────
 #
-# The showcase is the TCP connection state machine (RFC 793): twelve states,
-# the three event families (application commands, segment-derived events,
-# timeouts), guards over extended state, entry actions, guard-dependent targets
-# and the `:ignore` unhandled policy — the machine INET builds by hand out of
-# nested switches, expressed as a document. It needs no simulator: everything
-# it references lives in its own `helpers`.
+# Four components, from small to large:
+#
+# - the toggle: a lamp with a button and a timer;
+# - the crossing: a traffic light with a button for the pedestrians, which is
+#   also the diagram example;
+# - the alternating bit protocol: two machines in one component;
+# - the TCP connection state machine (RFC 793), the registered `fsm` example:
+#   twelve states, the three event families (application commands,
+#   segment-derived events, timeouts), guards over extended state, entry
+#   actions, guard-dependent targets and the `:ignore` unhandled policy — the
+#   machine INET builds by hand out of nested switches, expressed as a document.
+#
+# Each component runs as generated code with no simulator: its `helpers` define
+# every function that its code calls, apart from the runtime that an embedder
+# supplies (`Fsm`, `schedule_timer!`, `fsm_defer!` and the others of fsm.md).
 #
 # Embedded guards and actions are real Julia subtrees, written here as source
 # and parsed once (`parse_julia`) rather than hand-assembled node by node.
@@ -241,6 +250,10 @@ deliberately *not* modeled as machine structure — it is `analyse_segment`
 among the helpers, because it must stay ordinary Julia: stateful, able to
 swallow input, and able to relabel one raw input as two different symbolic
 events depending on extended state (`fin_ack_rcvd`).
+
+The helpers define every function that the code of the machine calls. A send
+helper puts its `Segment` in `m.outbox`, and an indication to the application
+goes into `m.indications`, so the machine runs with no network.
 """
 function make_fsm_tcp_document_example()
     # ── events ───────────────────────────────────────────────────────────
@@ -270,13 +283,15 @@ function make_fsm_tcp_document_example()
     listen       = FsmState("LISTEN")
     syn_sent     = FsmState("SYN_SENT")
     syn_rcvd     = FsmState("SYN_RCVD")
-    established  = FsmState("ESTABLISHED"; entry = parse_julia("connection_established!(ctx, m)"))
+    established  = FsmState("ESTABLISHED"; entry = parse_julia(
+                       "cancel_timer!(ctx, m.conn_estab_timer); indicate_established!(ctx, m)"))
     close_wait   = FsmState("CLOSE_WAIT")
     last_ack     = FsmState("LAST_ACK")
     fin_wait_1   = FsmState("FIN_WAIT_1")
     fin_wait_2_s = FsmState("FIN_WAIT_2")
     closing      = FsmState("CLOSING")
-    time_wait    = FsmState("TIME_WAIT"; entry = parse_julia("schedule_timer!(ctx, 2 * MSL, m.module_id, m.msl2_timer, expire_msl2)"))
+    time_wait    = FsmState("TIME_WAIT"; entry = parse_julia(
+                       "schedule_timer!(ctx, 2 * MSL, m.module_id, m.msl2_timer, expire_msl2_timer!, m)"))
 
     states = [init, closed, listen, syn_sent, syn_rcvd, established,
               close_wait, last_ack, fin_wait_1, fin_wait_2_s, closing, time_wait]
@@ -285,13 +300,13 @@ function make_fsm_tcp_document_example()
 
     # INIT — the two OPEN commands.
     tr(init, trigger = open_active,
-             action = parse_julia("select_initial_seq_num!(m); send_syn!(ctx, m); start_conn_estab_timer!(ctx, m)"),
+             action = parse_julia("select_initial_sequence_number!(m); send_syn!(ctx, m); start_conn_estab_timer!(ctx, m)"),
              target = syn_sent)
     tr(init, trigger = open_passive, action = parse_julia("m.active = false"), target = listen)
 
     # LISTEN — a SYN opens the connection; a CLOSE just tears the socket down.
     tr(listen, trigger = rcv_syn,
-               action = parse_julia("accept_syn!(ctx, m, payload); send_syn_ack!(ctx, m)"),
+               action = parse_julia("accept_syn!(ctx, m, payload); select_initial_sequence_number!(m); send_syn_ack!(ctx, m)"),
                target = syn_rcvd)
     tr(listen, trigger = close, target = closed)
 
@@ -310,7 +325,7 @@ function make_fsm_tcp_document_example()
     # SYN_RCVD — the acceptable-ACK guard, and the timeout whose *target*
     # depends on extended state: an active open closes, a passive one goes
     # back to listening.
-    tr(syn_rcvd, trigger = rcv_ack, guard = parse_julia("ack_acceptable(m, payload)"),
+    tr(syn_rcvd, trigger = rcv_ack, guard = parse_julia("is_ack_acceptable(m, payload)"),
                  target = established)
     tr(syn_rcvd, trigger = rcv_ack, action = parse_julia("send_rst!(ctx, m, payload)"))
     tr(syn_rcvd, trigger = conn_estab, guard = parse_julia("m.active"),
@@ -366,38 +381,131 @@ function make_fsm_tcp_document_example()
         FsmVariable("snd_una"; type = parse_julia("Int"), default = parse_julia("0")),
         FsmVariable("snd_nxt"; type = parse_julia("Int"), default = parse_julia("0")),
         FsmVariable("rcv_nxt"; type = parse_julia("Int"), default = parse_julia("0")),
+        FsmVariable("fin_sent"; type = parse_julia("Bool"), default = parse_julia("false")),
         FsmVariable("fin_ack_rcvd"; type = parse_julia("Bool"), default = parse_julia("false")),
+        FsmVariable("outbox"; type = parse_julia("Vector{Any}"), default = parse_julia("Any[]")),
+        FsmVariable("indications"; type = parse_julia("Vector{String}"), default = parse_julia("String[]")),
     ]
 
     helpers = [
         parse_julia("const MSL = 120.0"),
-        # The event-distillation seam: raw segment → symbolic event. Stateful
-        # by nature — the same arriving FIN is RCV_FIN or RCV_FIN_ACK
-        # depending on what has already been acknowledged.
+        parse_julia("const CONNECTION_ESTABLISHMENT_TIME = 75.0"),
+        parse_julia("const FIN_WAIT_2_TIME = 600.0"),
+        parse_julia("const INITIAL_SEQUENCE_NUMBER = 1000"),
+        # A segment as the classifier and the send helpers see it: the four
+        # flags and the two numbers of the header, and the data.
         parse_julia("""
-                   function analyse_segment(m, seg)
-                       if seg.rst
-                           return RCV_RST
-                       end
-                       if seg.syn && seg.ack
-                           return RCV_SYN_ACK
-                       end
-                       if seg.syn
-                           return RCV_SYN
-                       end
-                       if seg.fin && m.fin_ack_rcvd
-                           return RCV_FIN_ACK
-                       end
-                       if seg.fin
-                           return RCV_FIN
-                       end
-                       if seg.ack
-                           return RCV_ACK
-                       end
-                       return IGNORE
+                   struct Segment
+                       syn::Bool
+                       ack::Bool
+                       fin::Bool
+                       rst::Bool
+                       sequence_number::Int
+                       ack_number::Int
+                       data::Any
                    end
                    """),
-        parse_julia("ack_acceptable(m, seg) = m.snd_una <= seg.ack && seg.ack <= m.snd_nxt"),
+        parse_julia("""
+                   make_segment(; syn = false, ack = false, fin = false, rst = false,
+                                sequence_number = 0, ack_number = 0, data = nothing) =
+                       Segment(syn, ack, fin, rst, sequence_number, ack_number, data)
+                   """),
+        # The event-distillation seam: raw segment → symbolic event. Stateful
+        # by nature — it takes the acknowledgement of the segment first, so the
+        # same arriving FIN is RCV_FIN_ACK when it acknowledges the FIN of this
+        # side, and RCV_FIN when that FIN was acknowledged before or not sent.
+        parse_julia("""
+                   function analyse_segment(m, segment)
+                       acks_fin = false
+                       if segment.ack && m.snd_una < segment.ack_number && segment.ack_number <= m.snd_nxt
+                           m.snd_una = segment.ack_number
+                           if m.fin_sent && !m.fin_ack_rcvd && segment.ack_number == m.snd_nxt
+                               m.fin_ack_rcvd = true
+                               acks_fin = true
+                           end
+                       end
+                       if segment.rst
+                           return E_RCV_RST
+                       end
+                       if segment.syn && segment.ack
+                           return E_RCV_SYN_ACK
+                       end
+                       if segment.syn
+                           return E_RCV_SYN
+                       end
+                       if segment.fin && acks_fin
+                           return E_RCV_FIN_ACK
+                       end
+                       if segment.fin
+                           return E_RCV_FIN
+                       end
+                       if segment.ack
+                           return E_RCV_ACK
+                       end
+                       return Int32(0)
+                   end
+                   """),
+        parse_julia("is_ack_acceptable(m, segment) = m.snd_una <= segment.ack_number && segment.ack_number <= m.snd_nxt"),
+        parse_julia("""
+                   function select_initial_sequence_number!(m)
+                       m.snd_una = INITIAL_SEQUENCE_NUMBER
+                       m.snd_nxt = INITIAL_SEQUENCE_NUMBER
+                   end
+                   """),
+        # A SYN takes one sequence number, the initial one. It stays
+        # unacknowledged until the handshake ends, so the SYN of a simultaneous
+        # open has the number of the first SYN.
+        parse_julia("""
+                   function send_syn!(ctx, m)
+                       push!(m.outbox, make_segment(syn = true, sequence_number = m.snd_una))
+                       m.snd_nxt = m.snd_una + 1
+                   end
+                   """),
+        parse_julia("""
+                   function send_syn_ack!(ctx, m)
+                       push!(m.outbox, make_segment(syn = true, ack = true, sequence_number = m.snd_una,
+                                                    ack_number = m.rcv_nxt))
+                       m.snd_nxt = m.snd_una + 1
+                   end
+                   """),
+        parse_julia("send_ack!(ctx, m) = push!(m.outbox, make_segment(ack = true, sequence_number = m.snd_nxt, ack_number = m.rcv_nxt))"),
+        # A FIN takes one sequence number.
+        parse_julia("""
+                   function send_fin!(ctx, m)
+                       push!(m.outbox, make_segment(fin = true, ack = true, sequence_number = m.snd_nxt,
+                                                    ack_number = m.rcv_nxt))
+                       m.snd_nxt = m.snd_nxt + 1
+                       m.fin_sent = true
+                   end
+                   """),
+        parse_julia("send_rst!(ctx, m, segment) = push!(m.outbox, make_segment(rst = true, sequence_number = m.snd_nxt))"),
+        parse_julia("""
+                   function send_data!(ctx, m, data)
+                       push!(m.outbox, make_segment(ack = true, sequence_number = m.snd_nxt,
+                                                    ack_number = m.rcv_nxt, data = data))
+                       m.snd_nxt = m.snd_nxt + length(data)
+                   end
+                   """),
+        parse_julia("""
+                   function accept_syn!(ctx, m, segment)
+                       m.rcv_nxt = segment.sequence_number + 1
+                       if segment.ack
+                           m.snd_una = segment.ack_number
+                       end
+                   end
+                   """),
+        parse_julia("start_conn_estab_timer!(ctx, m) = schedule_timer!(ctx, CONNECTION_ESTABLISHMENT_TIME, m.module_id, m.conn_estab_timer, expire_conn_estab_timer!, m)"),
+        parse_julia("start_fin_wait_2_timer!(ctx, m) = schedule_timer!(ctx, FIN_WAIT_2_TIME, m.module_id, m.fin_wait_2_timer, expire_fin_wait_2_timer!, m)"),
+        parse_julia("""
+                   function cancel_all_timers!(ctx, m)
+                       cancel_timer!(ctx, m.conn_estab_timer)
+                       cancel_timer!(ctx, m.fin_wait_2_timer)
+                       cancel_timer!(ctx, m.msl2_timer)
+                   end
+                   """),
+        parse_julia("indicate_established!(ctx, m) = push!(m.indications, \"established\")"),
+        parse_julia("indicate_timed_out!(ctx, m) = push!(m.indications, \"timed out\")"),
+        parse_julia("indicate_reset!(ctx, m) = push!(m.indications, \"reset\")"),
     ]
 
     FsmComponent("TcpConnection";

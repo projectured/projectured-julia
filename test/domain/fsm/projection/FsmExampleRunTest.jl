@@ -121,6 +121,84 @@ end
     @test sender() == "WAIT_SEND_1"
 end
 
+@testset "a TCP connection opens and closes" begin
+    # A segment arrives as the embedder gives it: the classifier names its
+    # event, and the dispatch gets the segment as its payload.
+    function arrive!(tcp, segment)
+        event = Base.invokelatest(_binding(tcp.mod, :analyse_segment), tcp.host, segment)
+        _dispatch!(tcp, "Connection", event, segment)
+    end
+    make_segment(tcp; kwargs...) = Base.invokelatest(_binding(tcp.mod, :make_segment); kwargs...)
+    timers = (:conn_estab_timer, :fin_wait_2_timer, :msl2_timer)
+
+    # The active open and the active close.
+    tcp = _load_example(make_fsm_tcp_document_example(), :TcpActiveRun)
+    state() = _get_state_name(tcp, "Connection")
+    sent() = tcp.host.outbox[end]
+    _dispatch!(tcp, "Connection", :E_OPEN_ACTIVE)
+    @test state() == "SYN_SENT"
+    @test sent().syn && !sent().ack
+    @test _is_timer_scheduled(tcp, :conn_estab_timer)
+    arrive!(tcp, make_segment(tcp; syn = true, ack = true, sequence_number = 5000,
+                              ack_number = sent().sequence_number + 1))
+    @test state() == "ESTABLISHED"
+    @test tcp.host.indications == ["established"]
+    @test !_is_timer_scheduled(tcp, :conn_estab_timer)
+    @test sent().ack && sent().ack_number == 5001
+    _dispatch!(tcp, "Connection", :E_SEND, "hello")
+    @test sent().data == "hello"
+
+    _dispatch!(tcp, "Connection", :E_CLOSE)
+    @test state() == "FIN_WAIT_1"
+    @test sent().fin
+    arrive!(tcp, make_segment(tcp; ack = true, sequence_number = 5001, ack_number = tcp.host.snd_nxt))
+    @test state() == "FIN_WAIT_2"
+    @test _is_timer_scheduled(tcp, :fin_wait_2_timer)
+    # The FIN of the other side comes after the acknowledgement of this FIN.
+    arrive!(tcp, make_segment(tcp; fin = true, ack = true, sequence_number = 5001,
+                              ack_number = tcp.host.snd_nxt))
+    @test state() == "TIME_WAIT"
+    @test sent().ack && sent().ack_number == 5002
+    _fire_timer!(tcp, :msl2_timer)
+    @test state() == "CLOSED"
+    @test !any(timer -> _is_timer_scheduled(tcp, timer), timers)
+
+    # A FIN that also acknowledges this FIN: the two sides close at once.
+    tcp = _load_example(make_fsm_tcp_document_example(), :TcpBothCloseRun)
+    _dispatch!(tcp, "Connection", :E_OPEN_ACTIVE)
+    arrive!(tcp, make_segment(tcp; syn = true, ack = true, sequence_number = 5000,
+                              ack_number = sent().sequence_number + 1))
+    _dispatch!(tcp, "Connection", :E_CLOSE)
+    arrive!(tcp, make_segment(tcp; fin = true, ack = true, sequence_number = 5001,
+                              ack_number = tcp.host.snd_nxt))
+    @test state() == "TIME_WAIT"
+
+    # The passive open and the passive close.
+    tcp = _load_example(make_fsm_tcp_document_example(), :TcpPassiveRun)
+    _dispatch!(tcp, "Connection", :E_OPEN_PASSIVE)
+    @test state() == "LISTEN"
+    arrive!(tcp, make_segment(tcp; syn = true, sequence_number = 7000))
+    @test state() == "SYN_RCVD"
+    @test sent().syn && sent().ack && sent().ack_number == 7001
+    # An ACK of a number that this side did not send gets a reset, and the
+    # state stays.
+    arrive!(tcp, make_segment(tcp; ack = true, sequence_number = 7001, ack_number = tcp.host.snd_nxt + 10))
+    @test state() == "SYN_RCVD"
+    @test sent().rst
+    arrive!(tcp, make_segment(tcp; ack = true, sequence_number = 7001, ack_number = tcp.host.snd_nxt))
+    @test state() == "ESTABLISHED"
+    arrive!(tcp, make_segment(tcp; fin = true, ack = true, sequence_number = 7001,
+                              ack_number = tcp.host.snd_nxt))
+    @test state() == "CLOSE_WAIT"
+    @test sent().ack && sent().ack_number == 7002
+    _dispatch!(tcp, "Connection", :E_CLOSE)
+    @test state() == "LAST_ACK"
+    @test sent().fin
+    arrive!(tcp, make_segment(tcp; ack = true, sequence_number = 7002, ack_number = tcp.host.snd_nxt))
+    @test state() == "CLOSED"
+    @test !any(timer -> _is_timer_scheduled(tcp, timer), timers)
+end
+
 end # @testset "the examples run"
 end # test_fsm_example_run
 

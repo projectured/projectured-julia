@@ -55,7 +55,11 @@ end
     text = generate_component_text(make_fsm_tcp_document_example())
     @test occursin("const MSL = 120.0", text)
     @test occursin("function analyse_segment", text)
-    @test occursin("ack_acceptable(m, seg)", text)
+    @test occursin("is_ack_acceptable(m, segment)", text)
+    # CLOSED has no transition, so the dispatch has no branch for it. An empty
+    # branch would print its `else` on the line of its condition.
+    @test !occursin("== CONNECTION_S_CLOSED", text)
+    @test !occursin(r"CLOSED\w", text)
     # The `:ignore` policy writes no unhandled check at all: an unlisted
     # (state, event) pair is legal, which is what TCP means by an empty
     # `default:` arm.
