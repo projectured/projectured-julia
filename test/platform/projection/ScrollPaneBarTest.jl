@@ -31,6 +31,32 @@ end
 # The coordinates of a point, or `nothing`.
 _bar_test_xy(point) = point === nothing ? nothing : (Int(point.x[]), Int(point.y[]))
 
+# A projection that prints a label as one text a line, in a new canvas each
+# time the text of the label changes, as a content behind a `NestingProjection`
+# does when its document grows.
+struct _NewCanvasTestProjection <: Projection end
+
+ProjecturedKernel.ProjectionModule.print_document(p::_NewCanvasTestProjection, recursion, label::WidgetLabel, ctx) =
+    SimpleIoMap(p, label, Cell(@computation begin
+        lines = split(string(label.content), '\n')
+        GraphicsCanvas(Any[GraphicsText(String(line), 0, 20 * (i - 1); font = StyleFont("Ubuntu Mono", 20))
+                            for (i, line) in enumerate(lines)];
+                       w = 180, h = 20 * length(lines))
+    end))
+
+# Every text that a canvas draws, through its viewports.
+function _bar_test_texts(node, found = String[])
+    node = unwrap_cell(node)
+    if node isa GraphicsText
+        push!(found, String(node.text))
+    elseif node isa GraphicsViewport
+        _bar_test_texts(node.content, found)
+    elseif node isa GraphicsCanvas
+        foreach(element -> _bar_test_texts(element, found), node.elements)
+    end
+    found
+end
+
 # Evaluate the writes of an answer: the start of the drag and the shape of the
 # pointer need an editor, so they are left out.
 _bar_test_apply!(op) = foreach(o -> o isa ReplaceReferencedValueOperation && evaluate_operation(nothing, o),
@@ -47,7 +73,9 @@ and a drag of the thumb scrolls the pane wherever the pointer goes and goes back
 on Escape. A pane that follows its end stops following when its bar leaves the
 end, and follows again at the end; a pane that is not made to follow its end
 never follows it. The pointer on a bar names the bar as the part
-under it and lights it, and a click there does not reach the content.
+under it and lights it, and a click there does not reach the content. A content
+that prints a new canvas as it grows shows the new canvas, and the bar follows
+its extent.
 """
 function test_scroll_pane_bar()
     projection = _scroll_pane_projection()
@@ -308,5 +336,21 @@ function test_scroll_pane_bar()
         @test thumb.color == found.iomap.projection.thumb_scrolled_color
         ProjecturedKernel.ClockModule.set_clock_time!(clock, 1.0)
         @test thumb.color == rest
+    end
+
+    @testset "a pane shows a content that prints a new canvas as it grows" begin
+        new_canvas = RecursiveProjection(TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[WidgetLabel => _NewCanvasTestProjection()],
+            WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure()).dispatch)))
+        label = WidgetLabel("line 1")
+        pane = WidgetScrollPane(label; size = Point2D(200, 100))
+        iomap = print_document(new_canvas, pane)
+        first_canvas = iomap.content_iomap.output
+        @test "line 1" in _bar_test_texts(iomap.output)
+        label.content = join(("line $i" for i in 1:10), "\n")
+        @test iomap.content_iomap.output !== first_canvas
+        @test "line 10" in _bar_test_texts(iomap.output)
+        # The bar compares the new extent with the view: 200 pixels in 100.
+        @test _find_test_pane_bar(iomap, "vertical_scroll_bar").document.thumb_size ≈ 100 / 200
     end
 end

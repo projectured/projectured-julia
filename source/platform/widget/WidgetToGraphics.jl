@@ -6036,20 +6036,26 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
             inner_canvas = output::GraphicsCanvas
         end
     end
+    # The canvas of the content now. A content can print a new canvas as its
+    # document grows, as one behind a `NestingProjection` does, and its IO map
+    # then answers the new one; the extent, the offsets, the viewport and the
+    # bars read it through this cell, and the pane does not print again.
+    content_canvas = inner_canvas === nothing ? nothing :
+        Cell(@computation content_iomap.output::GraphicsCanvas)
     # The content's extent cells and not their values: a value read here would
     # make the pane's own print depend on it, and a content that grows would
     # print the pane and everything in it again. The extent of parts is the
     # extent of the layout that puts them together.
     content_w = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][1]))) :
-                inner_canvas === nothing ? nothing : getfield(inner_canvas, :w)
+                content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
     content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
-                inner_canvas === nothing ? nothing : getfield(inner_canvas, :h)
+                content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
     vw_cell = _pane_extent(offer_w, content_w)
     vh_cell = _pane_extent(offer_h, content_h)
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
-    inner_x = Cell(@computation Int32(-(inner_canvas === nothing ?
-        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, inner_canvas, vw_cell[]))))
+    inner_x = Cell(@computation Int32(-(content_canvas === nothing ?
+        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, content_canvas[], vw_cell[]))))
     elems = Any[]
     # The margin, the border and the padding follow the viewport extent; the
     # viewport is the content part. A transparent part draws no element.
@@ -6064,22 +6070,23 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(Int32(0)),
                               Cell(color_transparent),
                               Cell(nothing)))
-    if inner_canvas !== nothing
+    if content_canvas !== nothing
+        # Vertical offset of the content inside the viewport. With `follow_end`
+        # the pane sticks to the bottom of its content, so newly appended content
+        # (a streaming chat) stays in view as the content grows.
+        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, content_canvas[], vh_cell[])))
         # A content whose elements are a collection is drawn element by element.
         # A content that holds its elements in a cell — a layout of a list — is
         # drawn as its canvas, so a new list in that cell reaches the viewport
         # and the pane reads no cell of its content as it prints.
-        inner_elems_cv = getfield(inner_canvas, :elements)
-        # Vertical offset of the content inside the viewport. With `follow_end`
-        # the pane sticks to the bottom of its content, so newly appended content
-        # (a streaming chat) stays in view as the content grows.
-        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[])))
-        held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
+        viewed = Cell(@computation begin
+            canvas = content_canvas[]
+            inner_elems_cv = getfield(canvas, :elements)
+            held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(canvas)])
+            GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0), held, layout_none, true, Cell(nothing))
+        end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                      vw_cell, vh_cell,
-                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                          held,
-                                                          layout_none, true, Cell(nothing))),
+                                      vw_cell, vh_cell, viewed,
                                       Cell(affine_identity),
                                       Cell(nothing)))
     elseif parts !== nothing
@@ -6088,7 +6095,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # The bars lie over the content, so they come after it. They scroll the
     # center of parts, in the view of the center.
     bars = parts === nothing ?
-        _print_pane_bars(p, recursion, w, ctx, inner_canvas, vw_cell, vh_cell) :
+        _print_pane_bars(p, recursion, w, ctx, content_canvas, vw_cell, vh_cell) :
         _print_pane_bars(p, recursion, w, ctx, parts.canvases[_PANE_CENTER], vw_cell, vh_cell;
                          scroll_view_w = parts.view_w, scroll_view_h = parts.view_h)
     for bar in bars
@@ -6643,9 +6650,11 @@ end
 
 # The bar of `field` that a pane makes. It is lit while the mouse target of the
 # pane names it, as a row of a list is lit by the mouse target of the list.
-function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content::GraphicsCanvas,
-                        view_w::Cell, view_h::Cell)
-    numbers = Cell(@computation _compute_pane_bar_numbers(w, field, content, view_w[], view_h[]))
+# `content` is the canvas that the pane scrolls, or a cell of the canvas of a
+# content that can print a new one, which the numbers read as they compute.
+function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w::Cell, view_h::Cell)
+    numbers = Cell(@computation _compute_pane_bar_numbers(w, field, unwrap_cell(content)::GraphicsCanvas,
+                                                          view_w[], view_h[]))
     target = Cell(@computation _is_mouse_target_in_field(w, field) ? EmptyReference() : nothing)
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection, mouse_target.
@@ -6659,7 +6668,7 @@ end
 function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h)
     asked = getfield(w, Symbol(field))[]
     asked isa WidgetScrollBar && return asked
-    (asked === :auto && content isa GraphicsCanvas) || return nothing
+    (asked === :auto && (content isa GraphicsCanvas || content isa Cell)) || return nothing
     _make_pane_bar(w, field, content, view_w, view_h)
 end
 
