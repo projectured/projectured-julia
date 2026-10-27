@@ -1,6 +1,6 @@
 # A pane is placed, shown and focused by three verbs
 
-> Status: pending. Branch `aloha-video`, worktree `projectured-julia-aloha-video`,
+> Status: done (2026-10-27), on the branch `aloha-video`, not landed. Branch `aloha-video`, worktree `projectured-julia-aloha-video`,
 > with the omnet worktree `omnet-julia-aloha-video` for the verbs of a study.
 > The Aloha video (omnet `plan/pending/the-video-of-the-aloha-study-by-a-real-agent.md`)
 > waits for it: its take 2 runs on this model.
@@ -141,10 +141,21 @@ selection of the person.
       6/6, `test_search_ranking` 27/27, `test_call_site` 20/20; omnet
       `test_study_verbs` 68/68, `test_assistant_study_window` 21/21,
       `test_task_verbs` 85/85.
-- [ ] The scripted Aloha pictures in the scratch environment: the plots go to
-      the group of the study, and the conversation keeps its column.
+- [x] The layout of take 1 as a test, in place of the scripted Aloha pictures,
+      whose script opens no plot: omnet `test_assistant_study_window` (`7b373a976`)
+      puts a `WorkflowStep` above the conversation, gives it the focus, and
+      opens a pane with `open_pane!`. The pane goes to the group of the study,
+      behind the study; the column keeps the plan and the conversation; the
+      focus stays in the plan; `show_pane!` brings the pane to the front and
+      leaves the focus. 27/27.
 
-## 5. Not in this plan
+## 5. Open items
+
+- `open_page!` runs the command "Open as a page" of a person through
+  `OpenPageOperation`, and its tab opens a frame later, so it moves the focus. A
+  form for a program that places the page and answers its tab is not built.
+
+## 6. Not in this plan
 
 A rule that shows a tab when a verb changes its document (the owner refused an
 automatic show); a minimum share of the conversation in its column; a person's
