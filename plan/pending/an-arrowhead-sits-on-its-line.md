@@ -50,13 +50,18 @@ arrow and draws the arrow on the piece that it cut.
 
 ## The steps
 
-1. **The shared rule.** `GraphicsDocument.jl`: `build_polyline_arrowhead` along
+1. ✅ **The shared rule.** `GraphicsDocument.jl`: `build_polyline_arrowhead` along
    the last `size` px; `compute_polyline_before_arrowheads`; both exported where
    `build_polyline_arrowhead` is. Tests in `test_graphics()`: a straight line
    keeps its triangle and stops at the base; a line that bends within the
    arrowhead has the axis through the point `size` back along it; a curve that
    bends near its tip has its arrowhead on the chord; a line shorter than its
    arrowheads gives no line.
+
+   Done. A private walk, `_compute_point_back_along`, finds the point `size` back
+   from a tip and the place of the next point; both functions use it, so the line
+   ends exactly on the axis. `test_graphics()`: the new testset 13 pass, and the
+   other testsets pass.
 2. **The three backends.** SDL `_stroke_polyline!` and PDF
    `_paint_polyline_points!` stroke the shortened line. The web server sends
    `"pts"` shortened and `"heads"`, the triangles, and `client.js` fills them.

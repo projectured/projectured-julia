@@ -506,23 +506,43 @@ function tessellate_spline(points, kind::Symbol, segments)
     out
 end
 
+_get_float_point(point) = (Float64(point[1]), Float64(point[2]))
+
+# The point of the polyline `points` that is `distance` from its tip by length
+# along it, with the place of the first point past it in the walk from the tip:
+# the tip is the last point when `at_end`, else the first. A polyline shorter than
+# `distance` gives its other end, with the place past that end.
+function _compute_point_back_along(points, distance::Real, at_end::Bool)
+    n = length(points)
+    order = at_end ? (n:-1:1) : (1:n)
+    walked = 0.0
+    for k in 2:n
+        p, q = _get_float_point(points[order[k - 1]]), _get_float_point(points[order[k]])
+        step = hypot(q[1] - p[1], q[2] - p[2])
+        if walked + step >= distance
+            t = step == 0 ? 0.0 : (distance - walked) / step
+            return ((p[1] + t * (q[1] - p[1]), p[2] + t * (q[2] - p[2])), k)
+        end
+        walked += step
+    end
+    (_get_float_point(points[order[n]]), n + 1)
+end
+
 """
     build_polyline_arrowhead(points, size; at_end=true) -> Vector{Tuple{Float64,Float64}}
 
 The three vertices of a filled triangle arrowhead of `size` pixels at the end
-(`at_end=true`) or start of the polyline `points`, oriented along the adjacent
-segment. Returns an empty vector when there is no segment to orient along.
+(`at_end=true`) or start of the polyline `points`. Its axis goes from the point of
+the polyline that is `size` back from the tip, by length along the polyline, to
+the tip, so the arrowhead sits on a line that bends under it, as the tessellated
+end of a curve does. A polyline shorter than `size` takes its other end. Returns
+an empty vector when there is no direction to orient along.
 """
 function build_polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bool=true)
     n = length(points)
     n < 2 && return Tuple{Float64,Float64}[]
-    if at_end
-        tip = (Float64(points[n][1]), Float64(points[n][2]))
-        prev = (Float64(points[n-1][1]), Float64(points[n-1][2]))
-    else
-        tip = (Float64(points[1][1]), Float64(points[1][2]))
-        prev = (Float64(points[2][1]), Float64(points[2][2]))
-    end
+    tip = _get_float_point(at_end ? points[n] : points[1])
+    prev = first(_compute_point_back_along(points, size, at_end))
     dx = tip[1] - prev[1]; dy = tip[2] - prev[2]
     len = sqrt(dx*dx + dy*dy)
     len == 0 && return Tuple{Float64,Float64}[]
@@ -532,6 +552,36 @@ function build_polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bo
     bx = tip[1] - ux*sz; by = tip[2] - uy*sz   # base center, `sz` back from the tip
     half = sz*0.5
     [tip, (bx + px*half, by + py*half), (bx - px*half, by - py*half)]
+end
+
+"""
+    compute_polyline_before_arrowheads(points, size; start_arrow=false, end_arrow=false)
+        -> Vector{Tuple{Float64,Float64}}
+
+The polyline `points` without its last `size` pixels, by length along it, at each
+end that has an arrowhead: the line that a backend strokes. It ends on the axis of
+the arrowhead of [`build_polyline_arrowhead`](@ref), inside its base, so a line
+that bends under the arrowhead does not show beside it, and a thick line does not
+show past the tip. An end with no arrowhead keeps its point. Empty when the
+arrowheads cover the whole polyline.
+"""
+function compute_polyline_before_arrowheads(points::AbstractVector, size::Real;
+                                            start_arrow::Bool=false, end_arrow::Bool=false)
+    line = Tuple{Float64,Float64}[_get_float_point(point) for point in points]
+    n = length(line)
+    (n < 2 || !(start_arrow || end_arrow)) && return line
+    total = sum(hypot(line[k + 1][1] - line[k][1], line[k + 1][2] - line[k][2]) for k in 1:(n - 1))
+    total <= size * (start_arrow + end_arrow) && return Tuple{Float64,Float64}[]
+    if end_arrow
+        point, k = _compute_point_back_along(line, size, true)
+        line = vcat(line[1:(n - k + 1)], [point])
+        n = length(line)
+    end
+    if start_arrow
+        point, k = _compute_point_back_along(line, size, false)
+        line = vcat([point], line[k:n])
+    end
+    line
 end
 
 # ── Canvas ───────────────────────────────────────────────────────────────

@@ -36,7 +36,7 @@ export compute_part_at_point, is_outward_gesture, read_child_part_gesture,
        read_container_gesture, read_child_move, read_child_leave, get_child_frame_offset,
        read_routed_child_in_frame, read_routed_entry_child
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
+       set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead, compute_polyline_before_arrowheads,
        is_point_near_polyline, is_point_in_polygon
 export GraphicsCanvasToGraphicsImage, GraphicsCaching, GraphicsToGraphics
 export is_infinite_canvas, compute_first_visible_index, has_declared_extent, check_list_canvas
