@@ -81,15 +81,25 @@ struct MathGlyphBox
     descent::Cell
 end
 
-# The three metrics of anything a parent can place. A foreign box (a document
-# from another domain, rendered through the outer recursion) reports no
-# baseline, so it centers on the axis — which is what an unknown box wants.
+# The three metrics of anything a parent can place. A child that a wrapper holds,
+# such as the fault barrier of each child of a page, has the metrics of the box
+# that it shows through. A foreign box (a document from another domain, rendered
+# through the outer recursion) reports no baseline, so it centers on the axis —
+# which is what an unknown box wants.
 _box_width(b::Union{MathIoMap, MathGlyphBox}, m) = Int(b.width[])
 _box_ascent(b::Union{MathIoMap, MathGlyphBox}, m) = Int(b.ascent[])
 _box_descent(b::Union{MathIoMap, MathGlyphBox}, m) = Int(b.descent[])
 
-_box_width(b, m) = _foreign_size(b)[1]
-_box_descent(b, m) = (h = _foreign_size(b)[2]; max(0, h - _box_ascent(b, m)))
+function _box_width(b, m)
+    content = get_content_iomap(b)
+    content isa MathIoMap ? _box_width(content, m) : _foreign_size(b)[1]
+end
+
+function _box_descent(b, m)
+    content = get_content_iomap(b)
+    content isa MathIoMap && return _box_descent(content, m)
+    max(0, _foreign_size(b)[2] - _box_ascent(b, m))
+end
 
 # A foreign box — a document of another domain, rendered through the outer
 # recursion — reports no baseline of its own. When it draws text, the first run
@@ -98,6 +108,8 @@ _box_descent(b, m) = (h = _foreign_size(b)[2]; max(0, h - _box_ascent(b, m)))
 # renderer on the same line as the variables beside it. A box that draws no text
 # has no baseline to find and centers on the axis instead.
 function _box_ascent(b, m)
+    content = get_content_iomap(b)
+    content isa MathIoMap && return _box_ascent(content, m)
     text = _first_text_baseline(_box_output(b))
     text === nothing || return text
     h = _foreign_size(b)[2]
@@ -123,6 +135,11 @@ end
 
 _box_output(b::MathGlyphBox) = b.output
 _box_output(b) = b.output
+
+# The baseline of a formula is the baseline of its box, so a row on the baseline
+# sets a label beside a fraction on the line of the rule's axis, not on the
+# line of its numerator.
+find_first_baseline(iomap::MathIoMap) = Int(iomap.ascent[])
 
 # ════════════════════════════════════════════════════════════════════════════
 # Configuration and metrics

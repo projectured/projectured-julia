@@ -84,6 +84,22 @@ end
     @test _at(canvas, 2)[2] > Int(rule.y[])
 end
 
+@testset "a box inside a fault barrier keeps its place" begin
+    # A page wraps each child in a barrier, which shows the box of the child while
+    # it prints, so the formula sets as it sets with no barrier.
+    barrier = RecursiveProjection(FaultCatchingProjection(inner = MathToGraphics(measure = FontFileMeasure()),
+                                                          substitute = FaultToGraphics()))
+    doc = MathAssignment(MathVariable("S"),
+                         MathParenthesized(MathFraction(MathVariable("T"), PrimitiveNumber(0.1))))
+    plain = _print(doc)
+    wrapped = get_content_iomap(print_document(barrier, doc))
+    @test (Int(wrapped.width[]), Int(wrapped.ascent[]), Int(wrapped.descent[])) ==
+          (Int(plain.width[]), Int(plain.ascent[]), Int(plain.descent[]))
+    @test [_at(wrapped.output, i) for i in 1:3] == [_at(plain.output, i) for i in 1:3]
+    # The baseline of the formula is the baseline of its box.
+    @test find_first_baseline(wrapped) == Int(plain.ascent[])
+end
+
 @testset "a script rises and falls by a baseline shift" begin
     m = _metrics()
     inner = compute_math_metrics(_config(), :script)

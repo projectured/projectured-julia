@@ -23,6 +23,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..GraphicsModule: find_first_baseline
 
 export MathDocument, _operator_string, get_math_operator_glyph, get_math_operator_class,
        get_math_symbol_glyph, find_math_symbol_name, get_math_big_operator_glyph, get_math_big_operator_name,

@@ -31,7 +31,8 @@ function print_document(p::FormulaFormulaToLayout, recursion, formula::FormulaFo
         line = name * " = " * print_natural_text(code)
         Any[WidgetLabel(is_function ? (isempty(value) ? line : line * " " * value) : line * " = " * value)]
     end
-    SimpleIoMap(p, formula, HorizontalLayout(children))
+    # The value stands on the baseline of the equation, beside a tall fraction too.
+    SimpleIoMap(p, formula, HorizontalLayout(children; vertical_align = :baseline))
 end
 
 """

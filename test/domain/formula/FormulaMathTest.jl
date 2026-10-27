@@ -154,6 +154,20 @@ function test_formula_math()
         canvas = print_document(renderer, nothing, sheet, context).output
         @test any(t -> occursin("0.007874", t), _formula_texts(canvas))
     end
+
+    @testset "the value stands on the baseline of the equation" begin
+        sheet = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("T", parse_math("952/9600"))]))
+        iomap = print_document(NaturalToGraphics(measure = FontFileMeasure()), nothing, only(sheet.formulas),
+                               PrinterContext())
+        # The row of the formula is the last stage of its chain: the equation and
+        # the label of its value, each at its place.
+        row = unwrap_cell(last(get_content_iomap(iomap).step_iomaps))
+        (_, equation_y, equation), (_, label_y, label) = unwrap_cell(row.child_iomaps)
+        baseline(y, child) = Int(unwrap_cell(y)) + find_first_baseline(child)
+        @test baseline(equation_y, equation) == baseline(label_y, label)
+        # The baseline is the axis of the fraction, below its numerator.
+        @test Int(unwrap_cell(label_y)) > Int(unwrap_cell(equation_y))
+    end
 end
 end
 
