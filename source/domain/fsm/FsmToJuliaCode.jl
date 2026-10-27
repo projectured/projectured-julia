@@ -237,7 +237,7 @@ function _transition_body(machine::FsmMachine, state::FsmState,
     action === nothing || append!(statements, _statements(action))
     target = transition.target
     if target isa FsmState
-        push!(statements, _call("fsm_goto!", _field("m", get_fsm_field_name(machine)),
+        push!(statements, _call("record_fsm_transition!", _field("m", get_fsm_field_name(machine)),
                                 _id(get_fsm_state_constant_name(machine, target)), JuliaInteger(Int(index))))
         entry = target.entry
         if entry !== nothing
@@ -295,7 +295,7 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
     state_branch = nothing
     for state in reverse(get_fsm_states(machine))
         any(t -> t isa FsmTransition, state.transitions) || continue
-        condition = JuliaBinaryOperation(:(==), _call("fsm_state", fsm),
+        condition = JuliaBinaryOperation(:(==), _call("get_fsm_state", fsm),
                                   _id(get_fsm_state_constant_name(machine, state)))
         body = _state_branch(component, machine, state, flat_index)
         state_branch = JuliaIf(condition, _block(body),
@@ -304,7 +304,7 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
 
     loop_body = JuliaBlock(JuliaDocument[
         JuliaAssignment(_id("_fired"), JuliaBool(false)),
-        JuliaAssignment(_id("_from"), _call("fsm_state", fsm)),
+        JuliaAssignment(_id("_from"), _call("get_fsm_state", fsm)),
         state_branch === nothing ? JuliaBlock(JuliaDocument[]) : state_branch,
         # Nothing fired: the machine has settled.
         JuliaIf(JuliaUnaryOperation(:!, _id("_fired")),
@@ -317,26 +317,26 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
         JuliaAssignment(_id("_is_event"), JuliaBool(false)),
         JuliaAssignment(_id("_steps"), JuliaBinaryOperation(:+, _id("_steps"), JuliaInteger(1))),
         JuliaIf(JuliaBinaryOperation(:(>), _id("_steps"), _id("FSM_CASCADE_LIMIT")),
-                JuliaBlock(JuliaDocument[_call("fsm_cascade_error", fsm)]),
+                JuliaBlock(JuliaDocument[_call("make_fsm_cascade_error", fsm)]),
                 JuliaBlock(JuliaDocument[])),
     ])
 
     statements = JuliaDocument[
-        _call("fsm_enter!", fsm),
+        _call("enter_fsm!", fsm),
         JuliaAssignment(_id("_is_event"), JuliaBinaryOperation(:(!=), _id("event"), _int32(0))),
         JuliaAssignment(_id("_consumed"), JuliaUnaryOperation(:!, _id("_is_event"))),
         JuliaAssignment(_id("_steps"), JuliaInteger(0)),
         JuliaWhile(JuliaBool(true), loop_body),
-        _call("fsm_leave!", fsm),
+        _call("leave_fsm!", fsm),
     ]
     # The unhandled policy. `:ignore` writes nothing at all — an unlisted
     # (state, event) pair is legal, which is what TCP's empty `default:` means.
     if machine.on_unhandled !== :ignore
         push!(statements, JuliaIf(JuliaCall(_id("!"), JuliaDocument[_id("_consumed")]),
-            JuliaBlock(JuliaDocument[_call("fsm_unhandled_error", fsm, _id("event"))]),
+            JuliaBlock(JuliaDocument[_call("make_fsm_unhandled_error", fsm, _id("event"))]),
             JuliaBlock(JuliaDocument[])))
     end
-    push!(statements, _call("fsm_drain!", fsm))
+    push!(statements, _call("drain_fsm!", fsm))
     push!(statements, JuliaReturn(JuliaNothing()))
 
     JuliaFunction(_id(dispatch_function_name(machine)),

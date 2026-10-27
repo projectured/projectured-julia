@@ -60,7 +60,19 @@ them.
      `FsmInsertion` into its transitions and selects it. `test_fsm()` (271),
      `test_repl` on `fsm_diagram` and `fsm_alternating_bit_diagram` (460, no
      broken entry) and `test_graph()` (634) pass.
-3. ⬜ FSM generator: emit the runtime names of omnet-julia. Change `ProbeRuntime`,
+3. ✅ FSM generator: emit the runtime names of omnet-julia. Change `ProbeRuntime`,
    the examples, the tests and `fsm.md`. Check that the generator of inet-julia
    gives its two files without a change.
+   - Done. The names stand in strings (`_call("…")`, the code of the examples and
+     the source of `ProbeRuntime`), which `julia-rename.jl` skips, so one exact
+     substitution with word limits changed the four files. `test_fsm()` (271)
+     passes. `fsm-alternating-bit.png` is made again, because it shows
+     `defer_fsm_action!`.
+   - The generator of inet-julia (its two scripts in `source/tool/generate`, run
+     on this branch) gives the runtime names at the same count as its files: 26
+     in `MacFsm.jl` and 78 in `PlcaFsm.jl`, and no old name except one comment of
+     the PLCA script. The files differ in other ways that this branch does not
+     cause: inet-julia's files come from an older printer (`+(a, b, c)`, a break
+     after `=` of a short function, blank lines with spaces), and the scripts
+     hold comments that the files do not.
 4. ⬜ Land on `main`, push, remove the worktree and the branch.

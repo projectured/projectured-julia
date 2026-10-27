@@ -63,7 +63,7 @@ end
     # The `:ignore` policy writes no unhandled check at all: an unlisted
     # (state, event) pair is legal, which is what TCP means by an empty
     # `default:` arm.
-    @test !occursin("fsm_unhandled_error", text)
+    @test !occursin("make_fsm_unhandled_error", text)
     @test (Meta.parseall(text); true)
 end
 
@@ -153,7 +153,7 @@ function _fsm_semantics_component()
     busy = FsmState("BUSY"; entry = parse_julia("m.entries = m.entries + 1"))
     done = FsmState("DONE"; entry = parse_julia("""
         m.entries = m.entries + 1
-        fsm_defer!(m.fsm_probe, () -> begin
+        defer_fsm_action!(m.fsm_probe, () -> begin
             m.deferred_runs = m.deferred_runs + 1
         end)
         """))
@@ -175,7 +175,7 @@ function _fsm_semantics_component()
     machine = FsmMachine("Probe"; initial = idle, states = [idle, busy, done])
 
     FsmComponent("Probe";
-        # Where the generated module gets `Fsm`, `fsm_goto!` and the rest —
+        # Where the generated module gets `Fsm`, `record_fsm_transition!` and the rest —
         # the component says so itself, exactly as a real one names the
         # simulator's runtime module.
         usings = [JuliaUsing(:using, "..ProbeRuntime")],
@@ -194,7 +194,7 @@ end
 _binding(mod::Module, name::Symbol) = Base.invokelatest(getfield, mod, name)
 
 # Load a generated component as a real module. The runtime it calls
-# (`Fsm`, `fsm_goto!`, …) lives in an embedder, which this package does not
+# (`Fsm`, `record_fsm_transition!`, …) lives in an embedder, which this package does not
 # depend on — so the probe module is given a local stand-in with the same
 # contract. That the generated code compiles and runs against *an*
 # implementation of the contract is what is being checked here; the real
@@ -214,8 +214,9 @@ end
 
 const _PROBE_RUNTIME_SOURCE = """
 module ProbeRuntime
-export Fsm, TimerHandle, FSM_CASCADE_LIMIT, fsm_state, fsm_enter!, fsm_leave!,
-       fsm_goto!, fsm_defer!, fsm_drain!, fsm_cascade_error, fsm_unhandled_error,
+export Fsm, TimerHandle, FSM_CASCADE_LIMIT, get_fsm_state, enter_fsm!, leave_fsm!,
+       record_fsm_transition!, defer_fsm_action!, drain_fsm!,
+       make_fsm_cascade_error, make_fsm_unhandled_error,
        schedule_timer!, cancel_timer!, is_scheduled
 mutable struct Fsm
     name::Symbol
@@ -243,25 +244,25 @@ end
 cancel_timer!(ctx, h) = (h.active = false; nothing)
 is_scheduled(h) = h.active
 const FSM_CASCADE_LIMIT = 32
-fsm_state(f) = f.state
-function fsm_enter!(f)
+get_fsm_state(f) = f.state
+function enter_fsm!(f)
     f.busy && error("fsm \$(f.name): re-entrant dispatch")
     f.busy = true
     nothing
 end
-fsm_leave!(f) = (f.busy = false; nothing)
-function fsm_goto!(f, s, i)
+leave_fsm!(f) = (f.busy = false; nothing)
+function record_fsm_transition!(f, s, i)
     f.state = Int32(s); f.transition_count += 1; f.last_transition = Int32(i); nothing
 end
-fsm_defer!(f, g) = (push!(f.deferred, g); nothing)
-function fsm_drain!(f)
+defer_fsm_action!(f, g) = (push!(f.deferred, g); nothing)
+function drain_fsm!(f)
     while !isempty(f.deferred)
         pending = copy(f.deferred); empty!(f.deferred)
         for g in pending; g(); end
     end
     nothing
 end
-fsm_cascade_error(f) = error("fsm \$(f.name): cascade did not settle")
-fsm_unhandled_error(f, e) = error("fsm \$(f.name): unhandled event \$e in state \$(f.state)")
+make_fsm_cascade_error(f) = error("fsm \$(f.name): cascade did not settle")
+make_fsm_unhandled_error(f, e) = error("fsm \$(f.name): unhandled event \$e in state \$(f.state)")
 end # module ProbeRuntime
 """

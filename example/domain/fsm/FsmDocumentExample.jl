@@ -14,7 +14,7 @@
 #
 # Each component runs as generated code with no simulator: its `helpers` define
 # every function that its code calls, apart from the runtime that an embedder
-# supplies (`Fsm`, `schedule_timer!`, `fsm_defer!` and the others of fsm.md).
+# supplies (`Fsm`, `schedule_timer!`, `defer_fsm_action!` and the others of fsm.md).
 #
 # Embedded guards and actions are real Julia subtrees, written here as source
 # and parsed once (`parse_julia`) rather than hand-assembled node by node.
@@ -151,9 +151,9 @@ comes. The receiver delivers a frame with the bit that it waits for, and
 acknowledges each frame, so a copy of a frame gets its acknowledgement again.
 
 `send_frame!` and `send_ack!` give the frame and the acknowledgement to the
-other machine with `fsm_defer!`, so each dispatch ends before the other machine
-starts. They lose one frame or one acknowledgement when `m.drop_next_frame` or
-`m.drop_next_ack` is set. Both machines handle each event in each state: a
+other machine with `defer_fsm_action!`, so each dispatch ends before the other
+machine starts. They lose one frame or one acknowledgement when
+`m.drop_next_frame` or `m.drop_next_ack` is set. Both machines handle each event in each state: a
 `SEND` while the sender waits for an acknowledgement is an error of the user of
 the component.
 """
@@ -223,7 +223,7 @@ function make_fsm_alternating_bit_document_example()
                         m.drop_next_frame = false
                     else
                         frame = Frame(bit, m.buffer)
-                        fsm_defer!(m.fsm_sender, () -> receiver_dispatch!(ctx, m, E_FRAME, frame))
+                        defer_fsm_action!(m.fsm_sender, () -> receiver_dispatch!(ctx, m, E_FRAME, frame))
                     end
                 end
                 """),
@@ -232,7 +232,7 @@ function make_fsm_alternating_bit_document_example()
                     if m.drop_next_ack
                         m.drop_next_ack = false
                     else
-                        fsm_defer!(m.fsm_receiver, () -> sender_dispatch!(ctx, m, E_ACK, bit))
+                        defer_fsm_action!(m.fsm_receiver, () -> sender_dispatch!(ctx, m, E_ACK, bit))
                     end
                 end
                 """),
