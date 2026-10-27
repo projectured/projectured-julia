@@ -135,6 +135,103 @@ function make_fsm_crossing_document_example()
 end
 
 """
+The alternating bit protocol: a sender and a receiver, two machines of one
+component. The sender gives each frame the bit 0 or 1, in turn, and sends it
+again when `retransmit_timer` expires before the acknowledgement of that bit
+comes. The receiver delivers a frame with the bit that it waits for, and
+acknowledges each frame, so a copy of a frame gets its acknowledgement again.
+
+`send_frame!` and `send_ack!` give the frame and the acknowledgement to the
+other machine with `fsm_defer!`, so each dispatch ends before the other machine
+starts. They lose one frame or one acknowledgement when `m.drop_next_frame` or
+`m.drop_next_ack` is set. Both machines handle each event in each state: a
+`SEND` while the sender waits for an acknowledgement is an error of the user of
+the component.
+"""
+function make_fsm_alternating_bit_document_example()
+    send = FsmEvent("SEND")
+    frame = FsmEvent("FRAME")
+    ack = FsmEvent("ACK")
+    retransmit_timer = FsmTimer("retransmit_timer")
+
+    tr(state; kwargs...) = push!(state.transitions, FsmTransition(; kwargs...))
+
+    wait_send_0 = FsmState("WAIT_SEND_0")
+    wait_ack_0 = FsmState("WAIT_ACK_0")
+    wait_send_1 = FsmState("WAIT_SEND_1")
+    wait_ack_1 = FsmState("WAIT_ACK_1")
+    for (bit, wait_send, wait_ack, next) in ((0, wait_send_0, wait_ack_0, wait_send_1),
+                                            (1, wait_send_1, wait_ack_1, wait_send_0))
+        tr(wait_send, trigger = send,
+                      action = parse_julia("m.buffer = payload; send_frame!(ctx, m, $bit)"),
+                      target = wait_ack)
+        # A late acknowledgement of the frame before.
+        tr(wait_send, trigger = ack)
+        tr(wait_ack, trigger = ack, guard = parse_julia("payload == $bit"),
+                     action = parse_julia("cancel_timer!(ctx, m.retransmit_timer)"),
+                     target = next)
+        # An acknowledgement of the other bit is a copy.
+        tr(wait_ack, trigger = ack)
+        tr(wait_ack, trigger = retransmit_timer, action = parse_julia("send_frame!(ctx, m, $bit)"))
+    end
+    sender = FsmMachine("Sender"; initial = wait_send_0,
+                        states = [wait_send_0, wait_ack_0, wait_send_1, wait_ack_1])
+
+    wait_frame_0 = FsmState("WAIT_FRAME_0")
+    wait_frame_1 = FsmState("WAIT_FRAME_1")
+    for (bit, wait_frame, next) in ((0, wait_frame_0, wait_frame_1), (1, wait_frame_1, wait_frame_0))
+        tr(wait_frame, trigger = frame, guard = parse_julia("payload.bit == $bit"),
+                       action = parse_julia("deliver_data!(m, payload.data); send_ack!(ctx, m, $bit)"),
+                       target = next)
+        # A frame with the other bit is a copy: its acknowledgement got lost.
+        tr(wait_frame, trigger = frame, action = parse_julia("send_ack!(ctx, m, $(1 - bit))"))
+    end
+    receiver = FsmMachine("Receiver"; initial = wait_frame_0, states = [wait_frame_0, wait_frame_1])
+
+    FsmComponent("AlternatingBit";
+        variables = [
+            FsmVariable("module_id"; type = parse_julia("Int"), default = parse_julia("0")),
+            FsmVariable("buffer"; default = parse_julia("nothing")),
+            FsmVariable("delivered"; type = parse_julia("Vector{Any}"), default = parse_julia("Any[]")),
+            FsmVariable("drop_next_frame"; type = parse_julia("Bool"), default = parse_julia("false")),
+            FsmVariable("drop_next_ack"; type = parse_julia("Bool"), default = parse_julia("false")),
+        ],
+        timers = [retransmit_timer],
+        events = [send, frame, ack],
+        machines = [sender, receiver],
+        helpers = [
+            parse_julia("const RETRANSMIT_TIME = 1.0"),
+            parse_julia("""
+                struct Frame
+                    bit::Int
+                    data::Any
+                end
+                """),
+            parse_julia("""
+                function send_frame!(ctx, m, bit)
+                    schedule_timer!(ctx, RETRANSMIT_TIME, m.module_id, m.retransmit_timer, expire_retransmit_timer!, m)
+                    if m.drop_next_frame
+                        m.drop_next_frame = false
+                    else
+                        frame = Frame(bit, m.buffer)
+                        fsm_defer!(m.fsm_sender, () -> receiver_dispatch!(ctx, m, E_FRAME, frame))
+                    end
+                end
+                """),
+            parse_julia("""
+                function send_ack!(ctx, m, bit)
+                    if m.drop_next_ack
+                        m.drop_next_ack = false
+                    else
+                        fsm_defer!(m.fsm_receiver, () -> sender_dispatch!(ctx, m, E_ACK, bit))
+                    end
+                end
+                """),
+            parse_julia("deliver_data!(m, data) = push!(m.delivered, data)"),
+        ])
+end
+
+"""
 The TCP connection state machine of RFC 793, as INET implements it
 (`TcpConnectionBase.cc`): twelve states, application commands, segment-derived
 events and three FSM-visible timers.
@@ -313,3 +410,6 @@ make_fsm_document_example() = make_fsm_tcp_document_example()
 
 "The diagram example document: the machine of the traffic light (a diagram shows one machine)."
 make_fsm_diagram_document_example() = make_fsm_crossing_document_example().machines[1]
+
+"The sender of the alternating bit protocol, as a diagram."
+make_fsm_alternating_bit_diagram_document_example() = make_fsm_alternating_bit_document_example().machines[1]

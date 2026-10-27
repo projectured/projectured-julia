@@ -139,6 +139,16 @@ The work is on the branch `fsm-examples`, in a worktree.
    frame and one dropped acknowledgement: the receiver delivers each item once,
    in order, and a `SEND` in `WAIT_ACK_0` throws. Run `test_fsm()` and
    `test_example` for the two examples.
+
+   ✅ Done. The frame is a helper struct `Frame(bit, data)`, and the receiver
+   delivers into `m.delivered`. The test sends `a`, `b` with a lost frame and `c`
+   with a lost acknowledgement; the `SEND` that throws comes in `WAIT_ACK_1`.
+   Results: `test_fsm()` 235 pass. `test_example(fsm_alternating_bit_example)`:
+   the printer (32414), the reader, the REPL and the navigation (2005, 4m44s)
+   pass; the type-in fails with the two kinds of step 1.
+   `test_example(fsm_alternating_bit_diagram_example)`: the REPL fails 1 of 230
+   on `,`, and the type-in fails, as for `fsm_diagram`. In the diagram, one label
+   touches the box of `WAIT_SEND_0`.
 4. **TCP runs.** The helpers and the corrected names. A run test plays the active
    open and the active close to `CLOSED` through `TIME_WAIT`, and the passive open
    and the passive close. Run `test_fsm()` and `test_example(fsm_example)`.

@@ -78,6 +78,49 @@ end
     @test state() == "CARS_YELLOW"
 end
 
+@testset "the alternating bit protocol delivers each item once" begin
+    link = _load_example(make_fsm_alternating_bit_document_example(), :AlternatingBitRun)
+    sender() = _get_state_name(link, "Sender")
+    receiver() = _get_state_name(link, "Receiver")
+    send!(data) = _dispatch!(link, "Sender", :E_SEND, data)
+
+    # One SEND runs both machines: the frame goes to the receiver and its
+    # acknowledgement comes back, each in the drain of the machine before.
+    send!("a")
+    @test sender() == "WAIT_SEND_1"
+    @test receiver() == "WAIT_FRAME_1"
+    @test link.host.delivered == ["a"]
+    @test !_is_timer_scheduled(link, :retransmit_timer)
+
+    # A lost frame: the sender waits, and its timer sends the frame again.
+    link.host.drop_next_frame = true
+    send!("b")
+    @test sender() == "WAIT_ACK_1"
+    @test link.host.delivered == ["a"]
+    # A SEND before the acknowledgement is an error of the user of the component.
+    @test_throws ErrorException send!("c")
+    _fire_timer!(link, :retransmit_timer)
+    @test sender() == "WAIT_SEND_0"
+    @test receiver() == "WAIT_FRAME_0"
+    @test link.host.delivered == ["a", "b"]
+
+    # A lost acknowledgement: the receiver gets a copy of the frame, does not
+    # deliver it again, and sends the acknowledgement again.
+    link.host.drop_next_ack = true
+    send!("c")
+    @test sender() == "WAIT_ACK_0"
+    @test receiver() == "WAIT_FRAME_1"
+    @test link.host.delivered == ["a", "b", "c"]
+    _fire_timer!(link, :retransmit_timer)
+    @test sender() == "WAIT_SEND_1"
+    @test receiver() == "WAIT_FRAME_1"
+    @test link.host.delivered == ["a", "b", "c"]
+
+    # A late acknowledgement changes nothing.
+    _dispatch!(link, "Sender", :E_ACK, 0)
+    @test sender() == "WAIT_SEND_1"
+end
+
 end # @testset "the examples run"
 end # test_fsm_example_run
 

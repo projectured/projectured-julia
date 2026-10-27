@@ -64,7 +64,9 @@ const sequencechart_pair_example = Example("sequencechart_pair", make_sequencech
 const fsm_example            = Example("fsm",            make_fsm_document_example,            make_fsm_projection_example)
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
 const fsm_crossing_example   = Example("fsm_crossing",   make_fsm_crossing_document_example,   make_fsm_projection_example)
+const fsm_alternating_bit_example = Example("fsm_alternating_bit", make_fsm_alternating_bit_document_example, make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
+const fsm_alternating_bit_diagram_example = Example("fsm_alternating_bit_diagram", make_fsm_alternating_bit_diagram_document_example, make_fsm_diagram_projection_example)
 const pivot_example          = Example("pivot",          make_pivot_pane_document_example,     make_pivot_projection_example)
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
@@ -233,7 +235,9 @@ const domain_examples = Example[
     process_diagram_example,
     fsm_toggle_example,
     fsm_crossing_example,
+    fsm_alternating_bit_example,
     fsm_diagram_example,
+    fsm_alternating_bit_diagram_example,
     pivot_example,
     pane_json_example,
     widget_tabs_example,

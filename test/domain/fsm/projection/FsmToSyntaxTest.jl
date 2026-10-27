@@ -38,6 +38,18 @@ _render(doc) = print_document(
     # A one-statement entry stays on the line of `entry /`.
     @test occursin("entry / start_timer!(ctx, m, m.yellow_timer, YELLOW_TIME, expire_yellow_timer!)", crossing)
 
+    protocol = _render(make_fsm_alternating_bit_document_example())
+    # All four parts of a transition: trigger, guard, target, action.
+    @test occursin("on ACK when payload == 0 -> WAIT_SEND_1 / cancel_timer!(ctx, m.retransmit_timer)", protocol)
+    # An ignore has no target and no action.
+    @test occursin("on ACK ignore", protocol)
+    @test occursin("on timeout(retransmit_timer) stay / send_frame!(ctx, m, 0)", protocol)
+    # The statements of a `;` line stay on the line of their transition.
+    @test occursin("on SEND -> WAIT_ACK_0 / m.buffer = payload; send_frame!(ctx, m, 0)", protocol)
+    # Each machine of the component prints its own header.
+    @test occursin("machine Sender initial WAIT_SEND_0", protocol)
+    @test occursin("machine Receiver initial WAIT_FRAME_0", protocol)
+
     # `:error` is the default policy and stays unwritten; `:ignore` is spelled.
     @test !occursin("ignoring unhandled", text)
     @test occursin("machine Light initial START ignoring unhandled", crossing)
