@@ -97,10 +97,22 @@ The facts at `main` `0319c78cb`. Find each function by its name in
 
 The work is on the branch `fsm-examples`, in a worktree.
 
-1. **The run test and the toggle.** `ProbeRuntime` gets the three timer
+1. ✅ **The run test and the toggle.** `ProbeRuntime` gets the three timer
    functions. The toggle becomes the lamp, and a test plays `PRESSED`,
    `PRESSED`, `PRESSED` and the expiry of `off_timer`. The notation test and the
    code test read the new toggle. Run `test_fsm()`.
+
+   Done. The run test is `test_fsm_example_run()` in
+   `test/domain/fsm/projection/FsmExampleRunTest.jl`; it uses `_load_generated`
+   of the code test, and its own `_fire_timer!` clears a timer and calls its
+   action, so `ProbeRuntime` has no event loop. The diagram test counts three
+   edges for the toggle until step 2. Results: `test_fsm()` 188 pass.
+   `test_example(fsm_toggle_example)`: the printer, the reader, the REPL and the
+   navigation pass; the type-in fails 488 of 651. On `main` the type-in of the
+   old toggle fails 167 of 294, with the same two kinds of failure: "no cursor in
+   Graphics image" on a name in Julia code, and a caret in the name of a state.
+   The new toggle has more Julia names. The type-in sweep (`test_typeins`) does
+   not walk the FSM examples.
 2. **The crossing.** The document, `fsm_crossing`, and `fsm_diagram` draws its
    machine. A run test: a press in `CARS_GREEN` waits for the minimum green, and
    the cycle comes back to `CARS_GREEN` with `m.requested` false. The diagram test

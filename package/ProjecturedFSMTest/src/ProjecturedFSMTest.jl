@@ -50,6 +50,7 @@ end
 include("../../../test/domain/fsm/document/FsmDocumentTest.jl")
 include("../../../test/domain/fsm/projection/FsmDiagramTest.jl")
 include("../../../test/domain/fsm/projection/FsmToJuliaCodeTest.jl")
+include("../../../test/domain/fsm/projection/FsmExampleRunTest.jl")
 include("../../../test/domain/fsm/projection/FsmToSyntaxTest.jl")
 include("../../../test/domain/fsm/projection/FsmThemeTest.jl")
 

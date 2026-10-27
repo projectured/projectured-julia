@@ -29,15 +29,15 @@ end
     @test occursin("const E_PRESSED = Int32(1)", text)
     # A timer's event is numbered after the declared events, so a timeout and
     # an event never collide.
-    @test occursin("const T_BLINK_TIMER = Int32(2)", text)
+    @test occursin("const T_OFF_TIMER = Int32(2)", text)
     @test occursin("mutable struct ToggleState", text)
     @test occursin("fsm_toggle::Fsm", text)
-    @test occursin("blink_timer::TimerHandle", text)
-    @test occursin("blinks::Int", text)
+    @test occursin("off_timer::TimerHandle", text)
+    @test occursin("switch_ons::Int", text)
     @test occursin("function toggle_dispatch!", text)
-    @test occursin("function expire_blink_timer!", text)
+    @test occursin("function expire_off_timer!", text)
     # The author's code is spliced verbatim, never stringified and rewritten.
-    @test occursin("m.blinks = m.blinks + 1", text)
+    @test occursin("m.switch_ons = m.switch_ons + 1", text)
 
     # It is real Julia.
     @test (Meta.parseall(text); true)
@@ -211,7 +211,8 @@ end
 const _PROBE_RUNTIME_SOURCE = """
 module ProbeRuntime
 export Fsm, TimerHandle, FSM_CASCADE_LIMIT, fsm_state, fsm_enter!, fsm_leave!,
-       fsm_goto!, fsm_defer!, fsm_drain!, fsm_cascade_error, fsm_unhandled_error
+       fsm_goto!, fsm_defer!, fsm_drain!, fsm_cascade_error, fsm_unhandled_error,
+       schedule_timer!, cancel_timer!, is_scheduled
 mutable struct Fsm
     name::Symbol
     state::Int32
@@ -225,8 +226,18 @@ Fsm(name::Symbol, initial::Integer) = Fsm(name, Int32(initial), 0, Int32(0), fal
 mutable struct TimerHandle
     gen::Int
     active::Bool
+    delay::Any
+    action::Any
+    argument::Any
 end
-TimerHandle() = TimerHandle(0, false)
+TimerHandle() = TimerHandle(0, false, nothing, nothing, nothing)
+# The timer calls of the real runtime. No event loop runs: a scheduled timer
+# fires only when a test fires it (`_fire_timer!` in `FsmExampleRunTest.jl`).
+function schedule_timer!(ctx, delay, module_id, h, action, argument)
+    h.gen += 1; h.active = true; h.delay = delay; h.action = action; h.argument = argument; nothing
+end
+cancel_timer!(ctx, h) = (h.active = false; nothing)
+is_scheduled(h) = h.active
 const FSM_CASCADE_LIMIT = 32
 fsm_state(f) = f.state
 function fsm_enter!(f)

@@ -13,19 +13,20 @@ _render(doc) = print_document(
 
     # Declarations, one keyword each.
     @test occursin("component Toggle", text)
-    @test occursin("variable blinks::Int = 0", text)
-    @test occursin("timer blink_timer", text)
+    @test occursin("variable switch_ons::Int = 0", text)
+    @test occursin("timer off_timer", text)
     @test occursin("event PRESSED", text)
     @test occursin("machine Toggle initial OFF", text)
     @test occursin("state OFF", text)
+    # A helper prints as Julia after the machines.
+    @test occursin("const AUTO_OFF_TIME = 60.0", text)
 
-    # Transition grammar: trigger, guard, ending, action.
+    # Transition grammar: trigger, ending, action.
     @test occursin("on PRESSED -> ON", text)
-    @test occursin("on timeout(blink_timer) when m.blinks > 3 -> OFF", text)
-    # A stay has no target and keeps its action.
-    @test occursin("on PRESSED stay / m.blinks = m.blinks + 1", text)
-    # An entry action is its own indented line under the state.
-    @test occursin("entry / m.blinks = m.blinks + 1", text)
+    @test occursin("on PRESSED -> OFF / cancel_timer!(ctx, m.off_timer)", text)
+    @test occursin("on timeout(off_timer) -> OFF", text)
+    # An entry of two statements prints as indented lines under `entry /`.
+    @test occursin(r"entry / *\n +m\.switch_ons = m\.switch_ons \+ 1\n +schedule_timer!\(", text)
 
     # `:error` is the default policy and stays unwritten; `:ignore` is spelled.
     @test !occursin("ignoring unhandled", text)

@@ -14,15 +14,14 @@ _count_highlighted(canvas) =
     canvas = iomap.output
     @test canvas isa GraphicsCanvas
 
-    # The toggle machine: two states, two transitions with a target (the stay
-    # has none), so two node boxes and two edges.
+    # The toggle machine: two states and three transitions, each with a
+    # target, so two node boxes and three edges.
     diagram = iomap.step_iomaps[1][].output
     @test diagram isa FsmDiagram
     @test diagram.machine === machine
     graph = iomap.step_iomaps[2][].output
     @test length(graph.vertices) == 2
-    @test length(graph.edges) == 2
-    # A stay contributes no edge — it is visible in the notation, not here.
+    @test length(graph.edges) == 3
     @test length(get_fsm_transitions(machine)) == 3
 
     # Each vertex holds the real state by identity, so a click on a node
@@ -62,9 +61,6 @@ end
     diagram.live_transition = 1
     @test _count(canvas, GraphicsPolyline) == lines + 1
     diagram.live_transition = 0
-    @test _count(canvas, GraphicsPolyline) == lines
-    # A stay has no edge, so highlighting it draws nothing — and does not throw.
-    diagram.live_transition = 2
     @test _count(canvas, GraphicsPolyline) == lines
 
     # The layout is untouched by any of it: the node boxes stay exactly where

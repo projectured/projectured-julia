@@ -32,31 +32,36 @@ make_fsm_component_document_example() =
         machines  = [make_fsm_machine_document_example()])
 
 """
-A two-state toggle: the smallest complete component — one variable, one timer,
-one event, one machine with an entry action, a guard, a stay and a timeout.
+A lamp with a button: the smallest complete component. `PRESSED` turns the
+lamp on and off, and the lamp turns itself off after `AUTO_OFF_TIME` seconds.
+The entry of `ON` counts the switch-ons and starts the timer, and a press in
+`ON` cancels it.
 """
 function make_fsm_toggle_document_example()
     pressed = FsmEvent("PRESSED")
-    blink = FsmTimer("blink_timer")
+    off_timer = FsmTimer("off_timer")
 
     off = FsmState("OFF")
-    on = FsmState("ON"; entry = parse_julia("m.blinks = m.blinks + 1"))
+    on = FsmState("ON"; entry = parse_julia("""
+        m.switch_ons = m.switch_ons + 1
+        schedule_timer!(ctx, AUTO_OFF_TIME, m.module_id, m.off_timer, expire_off_timer!, m)
+        """))
 
     push!(off.transitions, FsmTransition(trigger = pressed, target = on))
-    # A stay: count the press without leaving the state.
     push!(on.transitions, FsmTransition(trigger = pressed,
-                                        action = parse_julia("m.blinks = m.blinks + 1")))
-    push!(on.transitions, FsmTransition(trigger = blink,
-                                        guard = parse_julia("m.blinks > 3"),
+                                        action = parse_julia("cancel_timer!(ctx, m.off_timer)"),
                                         target = off))
+    push!(on.transitions, FsmTransition(trigger = off_timer, target = off))
 
     machine = FsmMachine("Toggle"; initial = off, states = [off, on])
 
     FsmComponent("Toggle";
-        variables = [FsmVariable("blinks"; type = parse_julia("Int"), default = parse_julia("0"))],
-        timers = [blink],
+        variables = [FsmVariable("module_id"; type = parse_julia("Int"), default = parse_julia("0")),
+                     FsmVariable("switch_ons"; type = parse_julia("Int"), default = parse_julia("0"))],
+        timers = [off_timer],
         events = [pressed],
-        machines = [machine])
+        machines = [machine],
+        helpers = [parse_julia("const AUTO_OFF_TIME = 60.0")])
 end
 
 """
