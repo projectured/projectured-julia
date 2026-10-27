@@ -77,7 +77,8 @@ its 5775 × 6952 px, and a vertex that an edit adds to a kept layout still drift
 ### Step 3 — the guides and the map
 
 - [x] `documentation/package/domain/graph/graph-layout.md`: the forces.
-- [ ] The map of the study of take 4 in the window: every box is near the
-      others. A map of 41 cards is about four times the width of a pane, so the
+- [x] The map of the study of take 4 in the window: every box is near the
+      others (a probe of the window, 2026-10-27: the dense middle holds the
+      hypotheses, the evidence and their links). A map of 41 cards is about four times the width of a pane, so the
       take of the Aloha video moves across it; a zoom of the layout keeps the
       size of each box, so it can not fit the map into the pane.
