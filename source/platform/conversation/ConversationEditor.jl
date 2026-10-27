@@ -663,10 +663,20 @@ function _make_draft_part_card(p, d::ConversationDraft, iomap_ref::Ref, i::Int, 
                       title = tag === nothing ? nothing :
                               WidgetLabel(tag; text_style = p.kind_text),
                       content = body,
-                      variant = variant)
+                      variant = variant,
+                      gestures = editable ? GestureBinding[_DRAFT_CARD_PRESS] : GestureBinding[])
     # A card passes a key to its content only while it holds a selection.
     editable ? _follow_draft!(card, d, p, iomap_ref, lead; dormant = false) : card
 end
+
+# The card of the active typein fills the width of the composer, and its text is
+# as wide as what is written. A press on the card beside the text selects the
+# content of the card with no offset, which the backward map turns into the caret
+# at the end of what is written, as a press anywhere in an empty field expects.
+const _DRAFT_CARD_PRESS = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]),
+    (_, _) -> ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"),
+                                                          EmptyReference()));
+    description = "Type at the end", domain = "composer")
 
 function print_document(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
     # The draft is always a user message, so it renders as just its stack of part

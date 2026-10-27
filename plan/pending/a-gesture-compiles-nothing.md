@@ -316,10 +316,15 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      comes from an input and fires once, so the window does become quiet.
    - A call on the loop that the editor does not start in time, because a
      frame compiles a first gesture, counts as busy, not as a fault.
-   - A click on a `DrawnPart` presses at half the height of its drawing and at
-     most 12 units from its left edge, where a field draws its first
-     character. A press in the middle of the empty draft of the assistant is
-     read as "do nothing" (see "Not in this plan").
+   - A click on a `DrawnPart` presses the middle of its drawing. The test
+     found a defect there: a press on the draft of the assistant beside its
+     text was read as "do nothing". A card is a solid surface (2026-10-08), and
+     the text of the draft is only as wide as what is written. Fixed on the
+     owner's word ("fix it and continue"): a plain left click that nothing
+     inside a card uses reads the bindings of the card before the solid
+     surface, and the card of the active typein binds it to the caret at the
+     end of what is written (`test_draft_press`, and a test of the binding in
+     `test_widget_card_fold`).
    - `run_application` and the workload build the window with one function,
      `_make_application_editor`. The workload reads no settings file and no
      appearance file, names no assistant backend (`:none`, with the `llm` of
@@ -433,7 +438,4 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
 The statement replay of the REPL leaves (`:recorded`) and the 39 statement
 files; the HTTP and JSON code of the real model backends, which a scripted
 model skips; the start of an ACP agent; a fault seen once in omnet_ide: after
-the open of a `.sql` file fails, the mouse does nothing; a fault seen in the
-workload of step 2: a press in the empty draft of the assistant, to the right
-of its text, is read as "do nothing", so the draft gets no caret (a press at
-its left end gives the caret).
+the open of a `.sql` file fails, the mouse does nothing.

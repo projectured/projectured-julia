@@ -1922,7 +1922,9 @@ then, such as the menu of the row, reads the same two cells
 
 `gestures` are the bindings of the card itself. A right click and a dwell on the
 card read them after its content, and a key that its content does not take
-reads them while the selection is in the card, so a row can open its menu.
+reads them while the selection is in the card, so a row can open its menu. A
+plain left click that nothing inside the card uses reads them too, before the
+card takes the click as a solid surface.
 
 A quiet variant is for a surface that groups without announcing itself — one
 band of a transcript, where a border around every message would be noise. It is

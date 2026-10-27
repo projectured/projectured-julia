@@ -30,8 +30,7 @@ end
 A target of a workload step: the drawing of the first part of a document for
 which `predicate` answers `true`, such as a tool of the toolbar or the draft of
 the assistant. `predicate` gets the input of each view of the window. A click
-presses at half the height of the drawing, near its left edge, where a field
-draws its first character.
+presses the middle of the drawing.
 """
 struct DrawnPart
     predicate::Function
@@ -343,7 +342,7 @@ function _find_target_place(editor, target::DrawnPart)
     isempty(outputs) && return nothing
     for window in Iterators.reverse(collect(get_iomap_output(editor.iomap).windows))
         for output in outputs
-            point = _find_node_point(window.content, output, 0, 0)
+            point = _find_node_middle(window.content, output, 0, 0)
             point === nothing || return (window.id, point...)
         end
     end
@@ -385,29 +384,27 @@ function _collect_drawn_text_places!(places::Vector{Tuple{Int,Int}}, node, text,
     places
 end
 
-# The point of `target`, a node of the drawing below `node`, in the frame of its
-# window, or `nothing` when `node` does not hold it. The point is at half the
-# height of the box and at most 12 units from its left edge, where a field draws
-# its first character: a press in the empty part of a field can place no caret.
-function _find_node_point(node, target, x0::Int, y0::Int)
+# The middle of `target`, a node of the drawing below `node`, in the frame of its
+# window, or `nothing` when `node` does not hold it.
+function _find_node_middle(node, target, x0::Int, y0::Int)
     node = _get_drawn_node(node)
     node === nothing && return nothing
     (x, y) = _get_drawn_place(node, x0, y0)
     if node === target
         w = hasproperty(node, :w) ? round(Int, something(node.w, 4)) : 4
         h = hasproperty(node, :h) ? round(Int, something(node.h, 4)) : 4
-        return (x + min(w ÷ 2, 12), y + h ÷ 2)
+        return (x + w ÷ 2, y + h ÷ 2)
     elseif hasproperty(node, :elements)
         for element in node.elements
-            point = _find_node_point(element, target, x, y)
+            point = _find_node_middle(element, target, x, y)
             point === nothing || return point
         end
     elseif node isa GraphicsViewport
         transform = node.transform
-        return _find_node_point(node.content, target,
+        return _find_node_middle(node.content, target,
                                 x + round(Int, transform.e), y + round(Int, transform.f))
     elseif hasproperty(node, :content)
-        return _find_node_point(node.content, target, x, y)
+        return _find_node_middle(node.content, target, x, y)
     end
     nothing
 end

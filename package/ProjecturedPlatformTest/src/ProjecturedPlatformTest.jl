@@ -447,6 +447,7 @@ include("../../../test/platform/conversation/AssistantWorkTest.jl")
 include("../../../test/platform/conversation/AssistantRoundsTest.jl")
 include("../../../test/platform/conversation/AssistantWakeTest.jl")
 include("../../../test/platform/conversation/ConversationTreeTest.jl")
+include("../../../test/platform/conversation/ConversationEditorTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests

@@ -233,4 +233,22 @@ function test_widget_card_fold()
         @test !(click(:left, 4, 4; modifiers = ModifierKeys(alt = true)) isa DoNothingOperation)
         @test click(:left, 500, 500) === nothing                  # off the card
     end
+
+    # A binding of the card answers a plain left click that nothing inside the
+    # card uses, before the card takes it as a solid surface.
+    @testset "a binding of a card answers a plain left click on its own area" begin
+        proj = _fold_proj()
+        selected = (_, _) -> ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), selected;
+                                 description = "Select the content", domain = "test")
+        card = WidgetCard(; content = "abc", variant = :plain, gestures = GestureBinding[binding])
+        iomap = print_document(proj, proj, card, PrinterContext())
+        click(x, y) = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        answer = click(4, 4)                                      # the padding
+        @test answer isa ReplaceSelectionOperation
+        @test strip_reference_types(answer.path) ==
+              ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+        @test click(500, 500) === nothing                         # off the card
+    end
 end
