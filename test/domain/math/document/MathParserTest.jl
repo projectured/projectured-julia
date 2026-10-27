@@ -101,6 +101,16 @@ function test_math_parser()
         # A negative number is a number.
         @test parse_math("-2") isa PrimitiveNumber && parse_math("-2").value == -2
         @test parse_math("-x") isa MathUnaryOperation
+        # A comma in braces lists the parts of a script, from the left.
+        script = parse_math("U_{slotted,5}")
+        @test script isa MathScript && script.subscript isa MathBinaryOperation
+        @test script.subscript.operator === :comma
+        @test _linear(script.subscript.left) == "slotted" && script.subscript.right isa PrimitiveNumber
+        @test parse_math("x_{i,j,k}").subscript.left.operator === :comma
+        @test parse_math("U_{slotted,5}(G)") isa MathFunction
+        for line in ("U_{slotted,5}", "U_{slotted,5}(G)", "x_{i,j,k}")
+            @test _linear(parse_math(_linear(parse_math(line)))) == _linear(parse_math(line))
+        end
     end
 
     @testset "a read is wider than a print" begin

@@ -324,11 +324,17 @@ function _parse_superscript(p::_MathCursor, base)
     MathScript(base; superscript = _parse_script(p))
 end
 
-# `{…}` holds any expression; without braces a script is one atom.
+# `{…}` holds any expression, or a list of them with a comma between two, which
+# reads as `:comma` operations from the left: `U_{slotted,5}`. Without braces a
+# script is one atom.
 function _parse_script(p::_MathCursor)
     if _at(p, :open, "{")
         _next!(p)
         content = _parse_assignment(p)
+        while _at(p, :comma)
+            _next!(p)
+            content = MathBinaryOperation(:comma, content, _parse_assignment(p))
+        end
         _expect!(p, :close, "}")
         return content
     end

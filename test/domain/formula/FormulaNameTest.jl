@@ -56,7 +56,8 @@ function test_formula_names()
         parameter(name) = ProjecturedFormula.FormulaModule._find_formula_parameter(name)
         for (name, key, argument) in (("S_{pure}(G)", "S_pure", "G"), ("f(x)", "f", "x"),
                                       ("P_{block}(ρ)", "P_block", "rho"), ("S_{pure}", "S_pure", nothing),
-                                      ("f(x, y)", "f(x, y)", nothing))
+                                      ("f(x, y)", "f(x, y)", nothing), ("U_{slotted,5}(G)", "U_slotted_5", "G"),
+                                      ("U_{slotted,5}", "U_slotted_5", nothing))
             @test get_formula_key(name) == key
             @test parameter(name) == argument
         end

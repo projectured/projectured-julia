@@ -121,7 +121,7 @@ function _get_function_key(node::MathFunction)
     name = node.name
     symbol = length(name) == 1 && !isascii(first(name)) ? find_math_symbol_name(name) : nothing
     key = _name_of(symbol === nothing ? name : String(symbol), "the function")
-    node.base === nothing ? key : key * "_" * _name_of_node(node.base)
+    node.base === nothing ? key : key * "_" * _subscript_name(node.base)
 end
 
 function _julia_of(node::MathBigOperator, functions)
@@ -196,5 +196,10 @@ _name_of_node(node::MathText) = _name_of(node.content, "the text")
 _name_of_node(node::PrimitiveNumber) = string(node.value)
 _name_of_node(node) = _refuse_reading("a " * String(nameof(typeof(node))) * " as a name")
 
-# `p_{block}` is one name, `p_block`; `x_{i}` is `x_i`.
-_subscripted_name(base, subscript) = _name_of_node(base) * "_" * _name_of_node(subscript)
+# `p_{block}` is one name, `p_block`; `x_{i}` is `x_i`; `U_{slotted,5}` is `U_slotted_5`.
+_subscripted_name(base, subscript) = _name_of_node(base) * "_" * _subscript_name(subscript)
+
+# The name a subscript is: a comma list is the names of its parts joined by `_`.
+_subscript_name(node::MathBinaryOperation) = node.operator === :comma ?
+    _subscript_name(node.left) * "_" * _subscript_name(node.right) : _name_of_node(node)
+_subscript_name(node) = _name_of_node(node)

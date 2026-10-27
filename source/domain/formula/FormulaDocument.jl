@@ -89,8 +89,8 @@ end
 
 The name a formula binds under: its own name when that is an identifier, and
 otherwise the identifier its name reads as in the math notation, so `ρ` and
-`rho` are one name and `p_{block}` is `p_block`. A name that reads as neither
-is itself. A name with one name in parentheses, `S_{pure}(G)`, is the name of a
+`rho` are one name, `p_{block}` is `p_block` and `U_{slotted,5}` is
+`U_slotted_5`. A name that reads as neither is itself. A name with one name in parentheses, `S_{pure}(G)`, is the name of a
 function of one variable, and its key is the name before the parentheses,
 `S_pure`; the name in the parentheses is its parameter
 ([`_find_formula_parameter`](@ref)).
@@ -525,7 +525,9 @@ a `let` that binds the names of its dependencies to their values. Julia code
 gives the `Expr` that `make_julia_expression` builds, math code the `Expr` of
 its Julia reading with the functions of `env` ([`convert_math_to_julia`](@ref)),
 and a bare number its value. The `Expr` of a formula with a parameter is a
-lambda of the parameter whose body is the `Expr` of the code.
+lambda of the parameter whose body is the `Expr` of the code. A formula whose
+name ends in `(X)`, where `X` is a name of its code, and does not read in the
+math notation gives an error that says why the name does not read.
 """
 convert_formula_to_expr(code::JuliaDocument, env::FormulaEnvironment) =
     Expr(:block, make_julia_expression(code).args...)
@@ -536,7 +538,25 @@ convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.v
 function convert_formula_to_expr(formula::FormulaFormula, env::FormulaEnvironment)
     body = convert_formula_to_expr(formula.code, env)
     parameter = _find_formula_parameter(formula)
-    parameter === nothing ? body : Expr(:->, Symbol(parameter), body)
+    parameter === nothing || return Expr(:->, Symbol(parameter), body)
+    _check_function_name(formula)
+    body
+end
+
+# A name that ends in `(X)`, where `X` is a name of the code, is the name of a
+# function of `X`. When it does not read, its code would run with no `X`, so the
+# error says why the name does not read, and not that `X` is not defined.
+function _check_function_name(formula::FormulaFormula)
+    found = match(r"\(\s*([^()]+?)\s*\)\s*$", formula.name)
+    (found === nothing || !(found[1] in get_formula_names(formula.code))) && return
+    try
+        parse_math(formula.name)
+    catch e
+        e isa MathReadingException || e isa ErrorException || rethrow()
+        error("the name ", repr(formula.name), " does not read as a function of ", found[1], ": ",
+              sprint(showerror, e))
+    end
+    nothing
 end
 
 """

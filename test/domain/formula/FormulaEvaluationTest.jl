@@ -65,6 +65,21 @@ function test_formula_evaluation()
         @test get_formula_value(K) == 15
     end
 
+    @testset "a comma in the subscript of a function name is part of its name" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("U_{slotted,5}(G)", parse_math("G (1 - G/5)^{4}")),
+            FormulaFormula("U_{peak}", parse_math("U_{slotted,5}(1)")),
+            FormulaFormula("V_{slotted;5}(G)", parse_math("2G")),
+        ])
+        U, U_peak, V = sheet.formulas
+        @test Base.invokelatest(get_formula_value(U), 1) ≈ (1 - 1 / 5)^4
+        @test get_formula_value(U_peak) ≈ (1 - 1 / 5)^4
+        # A name that does not read says why, and not that its parameter is not defined.
+        failure = get_formula_value(V)
+        @test failure isa FormulaError
+        @test startswith(failure.text, "#ERROR! the name \"V_{slotted;5}(G)\" does not read as a function of G: math:")
+    end
+
     @testset "a function formula is callable, in code and in a computation" begin
         sheet = FormulaEnvironment([
             FormulaFormula("S_{pure}(G)", parse_math("G e^{-2G}")),
