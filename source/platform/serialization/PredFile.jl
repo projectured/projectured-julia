@@ -129,10 +129,14 @@ its format, and a `.pred` file writes a reference to that file.
 """
 is_pred_document(document) = document isa Document && !_is_format_node(document)
 
-# Whether `node` is in the domain of a registered format other than `.pred`.
+# Whether `node` is in the domain of a registered format other than `.pred`. The
+# domain passes an inference barrier: inference merges the domain `Union{}` of a
+# text file with another domain `D` into a subtype of `D`, and folds the `isa` to
+# the answer for `D` (Julia 1.11 to 1.13), so with no other format a `.pred` file
+# would take every document for a node of a text file.
 _is_format_node(node) =
     any(values(_FILE_DOCUMENT_TYPES)) do T
-        domain = get_file_domain(T)
+        domain = Base.inferencebarrier(get_file_domain(T))
         domain !== Document && node isa domain
     end
 
