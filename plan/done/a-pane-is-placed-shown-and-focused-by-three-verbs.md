@@ -100,7 +100,7 @@ selection of the person.
 
 ### Step 3 — the gestures and the callers
 
-- [x] Done (projectured `3646aa816`, omnet `50edf9eff`):
+- [x] Done (projectured `d6d711e62`, omnet `50edf9eff`):
   - A press of a person passes `focus = true` to `make_open_pane_operation`:
     the page of a navigator, the two opens of a file, the tool of the window
     chrome (projectured), and the new runner, the Open buttons of the project
