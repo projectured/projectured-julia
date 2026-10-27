@@ -42,11 +42,11 @@ caller's business, and what `:pin` means to an algorithm is this package's.
 | `AdaptagramsLayout` | libcola placement and libavoid routing, through a C shim | carried | native |
 | `DeferredLayout` | becomes one of the above, or a registered engine, when the layout runs | — | — |
 
-`AdaptagramsLayout` has a native dependency, so it lives in its own package and
-reaches this one through `register_layout_engine!`. When its shim is not built
+`AdaptagramsLayout` has a native dependency, so it lives in its own package. A
+projection that wants it names it as its engine. When its shim is not built
 it says so once and hands each layout to the engine of this package. A package
-can register any engine the same way, for example one that reproduces the
-pictures of another program.
+can register any engine with `register_layout_engine!`, for example one that
+reproduces the pictures of another program.
 
 ## The force-directed engine
 

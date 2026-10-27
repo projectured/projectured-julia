@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [graph.md](../../domain/graph/graph.md), [graph-layout.md](../../domain/graph/graph-layout.md), [package-rules.md](../../../rule/package-rules.md)
 
-`ProjecturedAdaptagrams` is an opt-in package with one graph layout engine, `AdaptagramsLayout`. It places vertices with libcola and routes edges with libavoid, two C++ libraries of [Adaptagrams](https://github.com/mjwybrow/adaptagrams), through a small C shim. This document says how the shim is built and found, what happens when it is missing, and how the package becomes the engine of every deferred layout.
+`ProjecturedAdaptagrams` is an opt-in package with one graph layout engine, `AdaptagramsLayout`. It places vertices with libcola and routes edges with libavoid, two C++ libraries of [Adaptagrams](https://github.com/mjwybrow/adaptagrams), through a small C shim. This document says how the shim is built and found, what happens when it is missing, and how a projection uses the engine.
 
 ## How it works
 
@@ -58,7 +58,7 @@ The code is the slice `AdaptagramsModule`, in `source/adapter/adaptagrams/`: `Ad
 
 `ProjecturedAdaptagrams` depends on `ProjecturedGraph` and on the standard library `Libdl`. No package of the editor depends on it.
 
-Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart, the graph example and the natural row of `GraphGraph` name a deferred engine. The fsm diagram names `FruchtermanReingoldLayout`, so this package does not change it.
+The package registers nothing, and loading it changes no default. A `DeferredLayout` resolves to `FruchtermanReingoldLayout` unless another package registers a factory; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that wants this engine names `AdaptagramsLayout(...)`. In this repository the process flowchart, the graph example and the natural row of `GraphGraph` name a deferred engine, so they draw with `FruchtermanReingoldLayout`. The fsm diagram names `FruchtermanReingoldLayout` itself.
 
 `ProjecturedAdaptagramsExample` holds the examples that name `AdaptagramsLayout` directly, so the other example packages do not depend on the native library.
 
@@ -77,7 +77,7 @@ Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayou
 using Pkg; Pkg.build("ProjecturedAdaptagrams")
 using ProjecturedExample, ProjecturedAdaptagrams
 projection = make_graph_projection_example(engine = AdaptagramsLayout(orthogonal = true))
-run_example("process_diagram")        # its deferred engine now resolves to AdaptagramsLayout
+run_example("process_diagram")        # its deferred engine resolves to FruchtermanReingoldLayout; name AdaptagramsLayout to use libcola
 ```
 
 - Examples: `graph_adaptagrams_example` in `example/adapter/adaptagrams/`. `make_dvdrental_relationship_example()` draws the tables of a live dvdrental database, so no sweep runs it; call it at the prompt.

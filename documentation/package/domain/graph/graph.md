@@ -156,7 +156,7 @@ A graph says, for a vertex under the pointer, its edges out and in, and its labe
 
 ## How it fits
 
-`ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
+`ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine that a projection names.
 
 The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `DeferredLayout`, in a scroll pane of their own, so a tab draws a graph as a diagram that scrolls when it is large. The package registers no natural domain row: a graph has no text form, no parser and no file type.
 
@@ -204,6 +204,6 @@ run_example(graph, projection; name = "graph")
 - A layout corner is an integer, so at a zoom a dropped vertex is drawn at most `scale / 2` px from the place of the release.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
 - A self-loop edge has no part outside its box, so the drawing draws no line for it.
-- The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before `ProjecturedAdaptagrams` loads keeps its layout until its vertices, edges, sizes or constraints change.
+- The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before a package registers a factory keeps its layout until its vertices, edges, sizes or constraints change.
 - The constraint kinds `:align`, `:same_rank` and `:min_separation` have a name and no engine that implements them.
 - The atom `graph/layout` is in the broken sets of `test/projectured/projection/CatalogTest.jl`. A `GraphLayout` printed alone has no recursion for the content of its vertices.

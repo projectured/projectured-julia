@@ -27,6 +27,9 @@ engine really placed it, so the substitution is visible rather than silent.
 
 ## Use
 
+Loading the package changes no default: a deferred layout stays the pure-Julia
+engine, and a projection that wants this one names it.
+
     using ProjecturedExample, ProjecturedAdaptagrams
     proj = make_graph_projection_example(engine = AdaptagramsLayout())
 """

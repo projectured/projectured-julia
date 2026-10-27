@@ -51,9 +51,9 @@ function layout_graph end
     layout_engine_name(engine) -> Symbol
 
 Which algorithm this engine is, as a name a view can print and a test can
-assert: `:grid`, `:fruchterman_reingold`, or the name of an engine that a
-package registered, such as `:adaptagrams`. An
-engine that stands in for another answers the name of whatever really ran.
+assert: `:grid`, `:fruchterman_reingold`, or the name of an engine of another
+package, such as `:adaptagrams`. An engine that stands in for another answers
+the name of whatever really ran.
 """
 function layout_engine_name end
 
