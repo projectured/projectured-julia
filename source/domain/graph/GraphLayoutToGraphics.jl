@@ -904,9 +904,9 @@ end
 # node and only the graph holds the place of that node. A widget that holds its
 # parts answers a path without types, which gets them from the content. An
 # operation that names its part by a path of its own, such as the open of the menu
-# of a part, gets the same steps. An operation that carries its own subject
-# travels, and any other operation is dropped: an operation that no reader can
-# place is worse than no answer.
+# of a part or a write into the content, gets the same steps. An operation that
+# carries its own subject travels, and any other operation is dropped: an
+# operation that no reader can place is worse than no answer.
 _reroot_vertex_answer(answer, i::Int, content) =
     _reroot_part_answer(answer, (part, path) -> _make_vertex_content_reference(i, part, path), content)
 
@@ -918,17 +918,25 @@ _reroot_label_answer(answer, i::Int, label) =
 # The answer of `part`, a part of the graph that `place(part, path)` places: a path
 # in `part` becomes a path from the layout.
 _reroot_part_answer(::Nothing, place, part) = nothing
-_reroot_part_answer(op::CompoundOperation, place, part) =
-    join_move_answers((_reroot_part_answer(member, place, part) for member in op.operations)...)
+# A move answers every part that it reached: each goes back alone, and a part
+# that has no place here is left out. Any other compound goes back whole or not at
+# all, so an edit never goes back without a member, such as a selection of an
+# element that it did not insert.
+function _reroot_part_answer(op::CompoundOperation, place, part)
+    members = Any[_reroot_part_answer(member, place, part) for member in op.operations]
+    has_mouse_target(op) && return join_move_answers(members...)
+    any(isnothing, members) ? nothing : CompoundOperation(members)
+end
 # A wrapper, such as a write of view state, travels with what it holds.
 function _reroot_part_answer(op::WrappingOperation, place, part)
     inner = _reroot_part_answer(get_wrapped_operation(op), place, part)
     inner === nothing ? nothing : rewrap_operation(op, inner)
 end
 # A write that carries its own document travels as it is, such as the knob of a
-# slider that is held.
+# slider that is held. A write into the part, such as an insert of an element,
+# gets the steps to the part.
 _reroot_part_answer(op::ReplaceReferencedValueOperation, place, part) =
-    op.document === nothing ? nothing : op
+    op.document === nothing ? retarget_operation(op, place(part, op.reference)) : op
 function _reroot_part_answer(op, place, part)
     if !(op isa ReplacePathOperation)
         is_self_contained_operation(op) && return op

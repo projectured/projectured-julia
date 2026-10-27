@@ -167,11 +167,6 @@ function repl_broken(name)
     # (`open_pane!` throws). A window of `run_example` has none either.
     name in ("document_tree", "system_process_tree") &&
         return (ev, msg) -> occursin("no pane tree has the focus", msg)
-    # @broken: `,` in a state machine diagram inserts a transition into a state,
-    # and the selection that the operation names does not match the machine
-    # (SelectionMismatchException). The notation examples insert one.
-    name in ("fsm_diagram", "fsm_alternating_bit_diagram") &&
-        return (ev, msg) -> occursin("SelectionMismatchException", msg)
     nothing
 end
 

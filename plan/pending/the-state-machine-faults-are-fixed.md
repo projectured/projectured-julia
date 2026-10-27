@@ -43,13 +43,23 @@ them.
      lines with one key get a count. `test_syntax_to_text()`,
      `test_text_to_graphics()`, `test_syntax()`, `test_fsm()` (266) and
      `test_julia()` (694) pass. The JSON text had no shared line; the FSM
-     notation had two shared objects (indentation 0 and 4) at 5 and 18 places.
+     notation had two shared objects: the empty line of indentation 0 at 5
+     places, and the empty line of indentation 4 at more than 6 places.
    - `fsm.png` now shows the TCP notation down to the height cap of the
      screenshot (1080), as each other tall example does.
-2. ⬜ Graph: a write into the content of a vertex or a label goes back with the steps
+2. ✅ Graph: a write into the content of a vertex or a label goes back with the steps
    to that part, and a compound that is no move goes back whole or not at all.
    Remove the `repl_broken` entry of the two diagram examples. Run `test_repl` on
    both and `test_graph()`.
+   - Done in `_reroot_part_answer`: a `ReplaceReferencedValueOperation` with no
+     document gets `retarget_operation` with the path of the part, as the generic
+     path does. A compound maps each member; a move answer joins the members
+     that map, as before, and any other compound is `nothing` when one member
+     does not map. `graph.md` states both rules.
+   - `FsmDiagramTest.jl` has a test: `,` on a selected state inserts an
+     `FsmInsertion` into its transitions and selects it. `test_fsm()` (271),
+     `test_repl` on `fsm_diagram` and `fsm_alternating_bit_diagram` (460, no
+     broken entry) and `test_graph()` (634) pass.
 3. ⬜ FSM generator: emit the runtime names of omnet-julia. Change `ProbeRuntime`,
    the examples, the tests and `fsm.md`. Check that the generator of inet-julia
    gives its two files without a change.

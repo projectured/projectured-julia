@@ -1,3 +1,8 @@
+# The editor that an operation of the diagram runs on: the machine alone.
+mutable struct _FsmDiagramTestEditor
+    document::Any
+end
+
 function test_fsm_diagram()
 @testset "FsmDiagram" begin
 
@@ -95,6 +100,26 @@ end
     back2 = map_reference_backward(stage2, io2, forward2)
     @test back2 !== nothing
     @test is_reference_equal(strip_reference_types(back2), strip_reference_types(forward1))
+end
+
+# ── an edit in the diagram ───────────────────────────────────────────────
+# The key reaches the label of the selected state, and the insert of the state
+# goes back through the graph stages with the selection of the new transition.
+@testset "`,` on a selected state inserts a transition into it" begin
+    machine = make_fsm_diagram_document_example()
+    projection = make_fsm_diagram_projection_example()
+    state = machine.states[1]
+    count = length(state.transitions)
+    replace_selection!(machine, @reference(machine, states[1]))
+    iomap = print_document(projection, machine)
+    operation = read_intent(projection, iomap, KeyPress(','; time = 0.0))
+    @test operation isa CompoundOperation
+    evaluate_operation(_FsmDiagramTestEditor(machine), operation)
+    @test length(state.transitions) == count + 1
+    @test state.transitions[end] isa FsmInsertion
+    @test try_evaluate_reference(machine, get_selection(machine), missing) === state.transitions[end]
+    # The diagram prints the machine with the new transition.
+    @test print_document(projection, machine).output isa GraphicsCanvas
 end
 
 # ── the graph slice's highlight fields ───────────────────────────────────
