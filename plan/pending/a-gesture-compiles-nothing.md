@@ -341,9 +341,10 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - `WorkloadBackend` answers `shows_held_frames = false`: it shows no
      window, so a code unit runs on the thread of the loop, and the window
      gives no notice about the threads of a tool call.
-   - A fact for step 3: in a fresh process, each first gesture makes a frame
-     slower than a second, and the editor writes a warning for each (13 in
-     the test). A `@compile_workload` prints them into the build output.
+   - In a fresh process, each first gesture makes a frame slower than a
+     second, and the editor writes a warning for each (13 in the test). A
+     precompile writes none: `_report_slow_frame!` skips them while
+     `Base.generating_output()`.
 
    Done: the machinery, `make_workload_llm`, and their test
    (`test_application_workload`, 14 of 14, 75 s in a fresh process; the list
@@ -356,7 +357,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      `run_campaign_window`), so its workload needs the steps of an editor that
      it started. That step takes the loop of the steps out of
      `run_application_workload` into a function of an editor.
-3. [ ] **The workloads of the platform and SDL (D3).**
+3. [x] **The workloads of the platform and SDL (D3).**
    - The platform runs the window gestures of D3 over a `.txt` file and a
      `.pred` file. The list includes a new tab with Ctrl+T and Insert, so that
      the image holds the constructors of the platform types, which the insertion
@@ -367,6 +368,73 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      new window. The main window then loses the focus, and the editor closes
      each popup. The workload drops the focus events, as a window manager does
      for a popup.
+
+   As built:
+   - `run_window_workload(; backend)` in `ApplicationWorkload.jl` holds the
+     list: Help › About, View › Split vertically, Help › Documents; the open
+     of `a.txt` and of `b.pred` (a `CellVector` of two `PrimitiveString`s) from
+     the Files pane, each with a click, a key, Ctrl+S and Ctrl+Z; a tab; the
+     Explorer and its context menu; Ctrl+T, Insert and a typed name; F1 twice;
+     the palette; each other tool of the toolbar (Evaluator, Selection,
+     Appearance, Settings, Assistants, the four record tools); an assistant
+     turn; Ctrl+W. `test_window_workload` passes, 3 min 22 s in a fresh
+     process.
+   - `run_application_workload` takes `backend`. The platform workload calls
+     `__init__()` first, because the text rows that the open of `a.txt` needs
+     are registered there, and a precompile runs the workload before it.
+   - SDL: `send_workload_inputs!(::SdlBackend)` in
+     `source/backend/sdl/SdlWorkload.jl` makes the SDL event of each input
+     (motion, button, key with the code that `sdl_keysym_to_symbol` reads
+     back, text input) and pushes it with `SDL_PushEvent`; it skips the
+     `KeyPress` of Return and Tab, which SDL types from the key. It sets an
+     event filter that drops the focus events; `run_sdl_window_workload`
+     clears the filter at the end. `has_workload_inputs(::SdlBackend)` reads
+     the inputs that the backend holds and the queue of SDL.
+
+   Facts found on the way, and what they changed:
+   - A build runs no `__init__`, also not the `__init__` of a submodule. 19
+     slices of the platform register their rows there, so the first build
+     showed the assistant and the Explorer as reflected structs, whose print
+     did not end (the build hit its 1 h bound). `run_module_initializers!(root)`
+     in `DisplayWorkload.jl` runs each `__init__` of a module tree;
+     `run_natural_rows_workload` uses it too.
+   - A bug of Julia (1.11.9, 1.12.7 and 1.13.1): inference merges `Union{}`
+     and another type `D`, returned by one call, into a subtype of `D`, and
+     folds `x isa` it to the answer for `D`. Five lines show it:
+     `f(::Type{Int}) = Float64; f(::Type{String}) = Union{}; g(x, T::Type) =
+     x isa f(T); g(1.0, String)` answers `true`. In a session with the
+     platform alone, `_is_format_node` of `PredFile.jl` (text files have the
+     domain `Union{}`) answered `true` for every document, so a `.pred` file
+     saved nothing. The domain now passes `Base.inferencebarrier`. A session
+     that loads one more format, as the test environment does, never showed
+     it, so the build of the platform alone is its check.
+   - The editor runs each call of `run_on_editor_task!` in a code unit. With
+     `SdlBackend` the unit runs on a thread of its own while the loop holds its
+     frames, and a held frame drops the pointer input that starts during the
+     hold. So a step finds its inputs in the call and the workload sends them
+     from its own task after the held frames end (`editor.code_unit` is
+     `nothing` again). `WorkloadBackend` locks its queue for that. SDL drops
+     each event of its queue when a filter is set, so the SDL send sets the
+     focus filter once, and it waits 2 ms after a push, because SDL counts time
+     in milliseconds and a held frame keeps only the pointer input from before
+     its start.
+   - A key with modifiers presses the key of each modifier before it and
+     releases it after it: SDL keeps the modifiers of the last key event, and
+     a Ctrl that is never released made each later click a Ctrl+click.
+   - A display update of SDL is no input that a step waits for: the chart of
+     the frame times draws a new picture in each frame, and the window was
+     never quiet.
+   - `start_application!` gives the notice about the thread of a tool call only
+     outside a build, as the slow frames are reported only outside a build.
+
+   Results (fresh processes, 2026-10-27): `test_window_workload` passes in
+   1 min 54 s with the new platform image, and in 3 min 22 s before it held
+   the list; `test_application_workload` in 23 s, before 70 s;
+   `test_sdl_workload` passes 7 of 7 (the round trip of each event, the focus
+   filter, the list on SDL) in 2 min 10 s. The build of `ProjecturedPlatform`
+   alone takes 236 s with the workload and 19 s without it; the build of
+   `ProjecturedSDL` takes 2 min 12 s and peaks at 7.8 GB. Both builds write no
+   warning. Step 9 measures the costs on an idle machine.
 4. [ ] **The domain packages and the language server (D3).**
    `run_file_workload(name, text)` of the platform opens a file in the
    application window and runs the gestures of a file.

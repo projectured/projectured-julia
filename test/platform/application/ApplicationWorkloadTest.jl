@@ -10,8 +10,8 @@ _toolbar_tool(label::AbstractString) =
     test_application_workload()
 
 `run_application_workload` gives a menu, a popup, a tool of the toolbar, a row of
-the Files pane, a tab, a context menu, keys, typed text and an assistant turn to
-the application window, and each step finds its target. The model of
+the Files pane, keys, typed text and an assistant turn to the application window,
+and each step finds its target. The model of
 `make_workload_llm` asks for the tool in the first round of a turn and answers in
 the second. A step whose target the window never
 draws, and a step after the end of the loop, make it throw an error that names
@@ -22,7 +22,7 @@ function test_application_workload()
         @testset "each step finds its target" begin
             files = ["a.txt" => "one two three\nfour\n", "b.txt" => "five\n"]
             steps = WorkloadStep[
-                WorkloadClick(DrawnText("Help")),
+                WorkloadClick(DrawnText("Help"; pick = :topmost)),
                 WorkloadClick(DrawnText("About")),
                 WorkloadClick(_toolbar_tool("Files")),
                 WorkloadClick(DrawnText("a.txt"; pick = :leftmost)),
@@ -30,16 +30,6 @@ function test_application_workload()
                 WorkloadWait(DrawnText(r"four")),
                 WorkloadClick(DrawnText(r"four")),
                 WorkloadTyping("x"),
-                WorkloadKey(:s; ctrl = true),
-                WorkloadKey(:z; ctrl = true),
-                WorkloadClick(DrawnText("Explorer"; pick = :topmost)),
-                WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
-                WorkloadClick(DrawnText("Open in a new tab")),
-                WorkloadKey(:f1),
-                WorkloadKey(:f1),
-                WorkloadKey(:p; ctrl = true, shift = true),
-                WorkloadTyping("ab"),
-                WorkloadKey(:escape),
                 WorkloadClick(_toolbar_tool("Assistant")),
                 WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
                 WorkloadTyping("hi"),
@@ -97,5 +87,17 @@ function test_application_workload()
         @testset "a pick that is not a place is refused" begin
             @test_throws ArgumentError DrawnText("a"; pick = :middle)
         end
+    end
+end
+
+"""
+    test_window_workload()
+
+The gestures of the window that the package of the platform compiles in its
+workload each find their target, and no barrier of the editor catches a fault.
+"""
+function test_window_workload()
+    @testset "the gestures of the window workload" begin
+        @test run_window_workload() === nothing
     end
 end

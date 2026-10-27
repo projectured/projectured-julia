@@ -1063,7 +1063,8 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
     editor isa Editor && _fill_explorer_content!(editor)
     editor isa Editor && post_operation!(editor, AcquireDocumentOperation(get_window_tree(editor.document)))
     # How to start Julia, when a tool call of this window has no thread of its own.
-    if editor isa Editor
+    # A build runs the window for its workload, and no person starts Julia there.
+    if editor isa Editor && !Base.generating_output()
         notice = find_code_unit_thread_notice(editor.backend)
         notice === nothing || @warn notice
     end

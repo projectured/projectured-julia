@@ -78,7 +78,7 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        run_application_command,
        evaluate_reachable_cells!, warm_application, register_editor_tools!, start_application!
 export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadTyping, WorkloadWait,
-       run_application_workload, make_workload_llm
+       run_application_workload, run_window_workload, make_workload_llm
 export StartSettings
 export make_editor_explorer_content
 

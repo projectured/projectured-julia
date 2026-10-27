@@ -16,24 +16,28 @@ the window that the input names, one in each frame, before `events`.
 mutable struct WorkloadBackend <: Backend
     events::Vector{Event}
     inputs::Vector{WindowInput}
+    # The queue of `inputs` takes a send from the task of a workload and a take
+    # from the task of the loop.
+    lock::ReentrantLock
     window_id::Union{Nothing,Symbol}
     writes::Int
     writes_at_last_event::Int
 end
 
 WorkloadBackend(; events::Vector{Event} = make_workload_events()) =
-    WorkloadBackend(events, WindowInput[], nothing, 0, 0)
+    WorkloadBackend(events, WindowInput[], ReentrantLock(), nothing, 0, 0)
 
 """
     send_workload_inputs!(backend, inputs::Vector{WindowInput}) -> Nothing
 
 Give `inputs` to the editor of `backend`, in their order, as the devices of the
-backend give them. A workload calls it on the task of the loop of the editor.
+backend give them. A workload calls it from its own task, outside each frame and
+each call on the editor, as a hand gives its input from outside the program.
 """
 function send_workload_inputs! end
 
 function send_workload_inputs!(backend::WorkloadBackend, inputs::Vector{WindowInput})
-    append!(backend.inputs, inputs)
+    lock(() -> append!(backend.inputs, inputs), backend.lock)
     nothing
 end
 
@@ -44,7 +48,8 @@ Whether `backend` holds inputs that it did not give to its editor yet.
 """
 function has_workload_inputs end
 
-has_workload_inputs(backend::WorkloadBackend) = !isempty(backend.inputs) || !isempty(backend.events)
+has_workload_inputs(backend::WorkloadBackend) =
+    lock(() -> !isempty(backend.inputs) || !isempty(backend.events), backend.lock)
 
 """
     make_workload_events() -> Vector{Event}
@@ -68,7 +73,10 @@ quit_backend!(::WorkloadBackend) = nothing
 # It shows no window, so a code unit runs on the thread of the loop.
 shows_held_frames(::WorkloadBackend) = false
 
-function take_from_devices!(backend::WorkloadBackend, devices)
+take_from_devices!(backend::WorkloadBackend, devices) =
+    lock(() -> _take_workload_input!(backend), backend.lock)
+
+function _take_workload_input!(backend::WorkloadBackend)
     if !isempty(backend.inputs)
         # A hand gives one input in a frame, so the frame of each input prints
         # before the next input arrives.
@@ -166,11 +174,32 @@ Build the natural table of the first window of the display with the rows that
 rows calls it in its `@compile_workload`, so that its package image holds the
 code of its rows, which every first window builds. A domain registers its rows
 in its `__init__`, which runs when the package loads, after its workload, so
-the workload runs it first.
+the workload runs it first ([`run_module_initializers!`](@ref)).
 """
 function run_natural_rows_workload(domain::Module)
-    isdefined(domain, :__init__) && domain.__init__()
+    run_module_initializers!(domain)
     NaturalToGraphics(; measure = FontFileMeasure(), appearance = Appearance())
+    nothing
+end
+
+"""
+    run_module_initializers!(root::Module) -> Nothing
+
+Run the `__init__` of each module that `root` defines, at any depth, and then
+the `__init__` of `root`. Julia runs them when a package loads, after its
+`@compile_workload`, so a workload that needs what they register, such as the
+rows of a view, runs them first. A slice registers by a key, so a second run
+replaces what the first registered.
+"""
+function run_module_initializers!(root::Module)
+    for name in names(root; all = true)
+        isdefined(root, name) || continue
+        value = getfield(root, name)
+        (value isa Module && value !== root && parentmodule(value) === root) &&
+            run_module_initializers!(value)
+    end
+    isdefined(root, :__init__) && parentmodule(getfield(root, :__init__)) === root &&
+        Base.invokelatest(getfield(root, :__init__))
     nothing
 end
 

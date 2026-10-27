@@ -139,14 +139,16 @@ end
 const _QUIET_WINDOW_SECONDS = 0.25
 
 """
-    run_application_workload(files; steps, llm = nothing, timeout = 300) -> Nothing
+    run_application_workload(files; steps, llm = nothing, timeout = 300,
+                             backend = WorkloadBackend(; events = Event[])) -> Nothing
 
-Run the application window as `run_application` runs it, on a
-[`WorkloadBackend`](@ref), in a temporary folder that holds `files`, and give it
-the [`WorkloadStep`](@ref)s of `steps` one after the other. `files` is a list of
-`name => text` pairs, which the Files pane lists. `llm` is the model of the
-assistant; with `nothing`, a turn of the assistant fails, as it does when no
-model is named.
+Run the application window as `run_application` runs it, on `backend`, in a
+temporary folder that holds `files`, and give it the [`WorkloadStep`](@ref)s of
+`steps` one after the other. `files` is a list of `name => text` pairs, which
+the Files pane lists. `llm` is the model of the assistant; with `nothing`, a
+turn of the assistant fails, as it does when no model is named. The backend
+takes the inputs of the steps by [`send_workload_inputs!`](@ref), and a backend
+of another package that has a method of it runs the same steps.
 
 Before each step, the window becomes quiet: no frame applies an input, and no
 input or timer waits. A step with a target waits until the window draws the target, for
@@ -159,7 +161,8 @@ editor caught. A package calls it in its
 `@compile_workload`, so that its package image holds the code of the steps.
 """
 function run_application_workload(files::AbstractVector{<:Pair}; steps::AbstractVector{<:WorkloadStep},
-                                  llm = nothing, timeout::Real = 300)
+                                  llm = nothing, timeout::Real = 300,
+                                  backend::Backend = WorkloadBackend(; events = Event[]))
     directory = mktempdir()
     try
         for (name, text) in files
@@ -168,7 +171,6 @@ function run_application_workload(files::AbstractVector{<:Pair}; steps::Abstract
         # No file and no variable of the environment starts a server, a process
         # or a connection to a model.
         settings = make_application_settings(nothing; assistant = :none, mcp = false)
-        backend = WorkloadBackend(; events = Event[])
         # The loop writes a line for each operation that it applies; the task of
         # the loop keeps the logger of the scope that starts it.
         logger = Base.CoreLogging.ConsoleLogger(stderr, Base.CoreLogging.Warn)
@@ -203,22 +205,38 @@ function run_application_workload(files::AbstractVector{<:Pair}; steps::Abstract
 end
 
 # Give `step` to the window when the window is quiet and draws the target of the
-# step. Answers whether it gave the step before `deadline` and the end of the loop.
+# step. A call on the editor finds the target, and the inputs go to the backend
+# from this task after the call, as a device gives them: the editor runs a call in
+# a code unit, and a backend that holds its frames meanwhile drops the pointer
+# input that starts during the hold. Answers whether it gave the step before
+# `deadline` and the end of the loop.
 function _run_workload_step!(editor, step::WorkloadStep, deadline::Float64)
     while !editor.has_loop_ended
         _wait_for_quiet_window(editor, deadline)
         editor.has_loop_ended && break
-        _call_on_loop(() -> _give_workload_step!(editor, step), editor, deadline) === true &&
+        inputs = _call_on_loop(() -> _find_workload_inputs(editor, step), editor, deadline)
+        if inputs isa Vector{WindowInput}
+            _wait_for_held_frames_end(editor, deadline)
+            send_workload_inputs!(editor.backend, inputs)
             return true
+        end
         time() >= deadline && break
         sleep(0.05)
     end
     false
 end
 
+# A call answers before the frames that the editor held while it ran end, and
+# the editor clears its code unit when they end.
+function _wait_for_held_frames_end(editor, deadline::Float64)
+    while (@atomic editor.code_unit) !== nothing && time() < deadline && !editor.has_loop_ended
+        sleep(0.001)
+    end
+end
+
 # Wait until the window stays quiet for `_QUIET_WINDOW_SECONDS`, or until
-# `deadline` or the end of the loop. Each look is a call on the task of the loop,
-# between two frames.
+# `deadline` or the end of the loop. Each look is a call on the editor, between
+# two frames.
 function _wait_for_quiet_window(editor, deadline::Float64)
     quiet_since = time()
     while time() < deadline && !editor.has_loop_ended
@@ -238,7 +256,7 @@ _is_window_busy(editor) =
     editor.operation !== nothing || editor.wake_pending[] || !isempty(editor.timers) ||
     has_workload_inputs(editor.backend)
 
-# The answer of `function_` on the task of the loop, or `nothing` when the editor
+# The answer of `function_` as a call on the editor, or `nothing` when the editor
 # was too busy to start the call before `deadline`: a frame that compiles a first
 # gesture can take seconds.
 function _call_on_loop(function_, editor, deadline::Float64)
@@ -275,47 +293,49 @@ function _throw_workload_problems(problems::Vector{String}, faults)
     error("The application workload failed.\n" * join(lines, "\n"))
 end
 
-# On the task of the loop: find the target of `step` in what the window drew, and
-# give the inputs of the step to the backend. Answers whether the target was found.
-function _give_workload_step!(editor, step::WorkloadClick)
+# In a call on the editor: the inputs of `step`, with its target found in what the
+# window drew, or `nothing` when the window does not draw the target.
+function _find_workload_inputs(editor, step::WorkloadClick)
     place = _find_target_place(editor, step.target)
-    place === nothing && return false
+    place === nothing && return nothing
     (window, x, y) = place
-    send_workload_inputs!(editor.backend, WindowInput[
-        WindowInput(window, MouseMove(x, y; time = 0.0)),
-        WindowInput(window, MouseDown(step.button, x, y; time = 0.0)),
-        WindowInput(window, MouseUp(step.button, x, y; time = 0.0))])
-    true
+    WindowInput[WindowInput(window, MouseMove(x, y; time = 0.0)),
+                WindowInput(window, MouseDown(step.button, x, y; time = 0.0)),
+                WindowInput(window, MouseUp(step.button, x, y; time = 0.0))]
 end
 
-function _give_workload_step!(editor, step::WorkloadKey)
-    send_workload_inputs!(editor.backend, _make_key_inputs(_get_main_window_id(editor), step.key,
-                                                           step.modifiers, nothing))
-    true
-end
+_find_workload_inputs(editor, step::WorkloadKey) =
+    _make_key_inputs(_get_main_window_id(editor), step.key, step.modifiers, nothing)
 
-function _give_workload_step!(editor, step::WorkloadTyping)
+function _find_workload_inputs(editor, step::WorkloadTyping)
     window = _get_main_window_id(editor)
     inputs = WindowInput[]
     for char in step.text
         key = 'a' <= lowercase(char) <= 'z' ? Symbol(lowercase(char)) : char == ' ' ? :space : :char
         append!(inputs, _make_key_inputs(window, key, ModifierKeys(; shift = isuppercase(char)), char))
     end
-    send_workload_inputs!(editor.backend, inputs)
-    true
+    inputs
 end
 
-_give_workload_step!(editor, step::WorkloadWait) = _find_target_place(editor, step.target) !== nothing
+_find_workload_inputs(editor, step::WorkloadWait) =
+    _find_target_place(editor, step.target) === nothing ? nothing : WindowInput[]
 
-# The down, the character and the up of a key, as a keyboard gives them: Return and
-# Tab type their character with no character given.
+# The down, the character and the up of a key, as a keyboard gives them: the key
+# of each modifier goes down before the key and up after it, and Return and Tab
+# type their character with no character given.
 function _make_key_inputs(window::Symbol, key::Symbol, modifiers::ModifierKeys,
                           char::Union{Char,Nothing})
     typed = char === nothing ? find_typed_character(key) : char
-    inputs = WindowInput[WindowInput(window, KeyDown(key, modifiers; time = 0.0))]
+    held = [name for (name, is_held) in ((:lctrl, modifiers.ctrl), (:lshift, modifiers.shift),
+                                         (:lalt, modifiers.alt)) if is_held]
+    inputs = WindowInput[WindowInput(window, KeyDown(name, modifiers; time = 0.0)) for name in held]
+    push!(inputs, WindowInput(window, KeyDown(key, modifiers; time = 0.0)))
     typed === nothing ||
         push!(inputs, WindowInput(window, KeyPress(typed, string(typed), modifiers; time = 0.0)))
     push!(inputs, WindowInput(window, KeyUp(key, modifiers; time = 0.0)))
+    for name in reverse(held)
+        push!(inputs, WindowInput(window, KeyUp(name, ModifierKeys(); time = 0.0)))
+    end
     inputs
 end
 
@@ -441,3 +461,58 @@ end
 # The value of a cell that holds one, `nothing` for a cell that holds none, and any
 # other value as it is.
 _get_held_value(value) = value isa AbstractCell ? (is_cell_valid(value) ? value[] : nothing) : value
+
+"""
+    run_window_workload(; backend = WorkloadBackend(; events = Event[])) -> Nothing
+
+Run the gestures of the application window with [`run_application_workload`](@ref)
+on `backend`: a menu and an item of each menu, each tool of the toolbar, the
+open of a text file and of a `.pred` file from the Files pane, a click, a key, a
+save and an undo in each, a tab, a split, the Explorer and its context menu, a
+new tab named in the name buffer, F1, the command palette, and an assistant
+turn with a tool call. One gesture of each kind runs the code of every gesture
+of that kind, and each tool opens a view of its own.
+
+The package of the platform calls it in its `@compile_workload`, and the package
+of a backend calls it with its own backend.
+"""
+function run_window_workload(; backend::Backend = WorkloadBackend(; events = Event[]))
+    files = ["a.txt" => "one two three\nfour\n",
+             "b.pred" => print_pred_text(CellVector(Any[PrimitiveString("first"),
+                                                         PrimitiveString("second")]))]
+    tool(label) = DrawnPart(input -> input isa WidgetToolbarItem &&
+                                     string(input.action.label) == label)
+    menu(title, item) = WorkloadStep[WorkloadClick(DrawnText(title; pick = :topmost)),
+                                     WorkloadClick(DrawnText(item))]
+    open_file(name, shown) = WorkloadStep[WorkloadClick(tool("Files")),
+                                          WorkloadClick(DrawnText(name; pick = :leftmost)),
+                                          WorkloadKey(:return), WorkloadWait(DrawnText(shown))]
+    edit(shown) = WorkloadStep[WorkloadClick(DrawnText(shown)), WorkloadTyping("x"),
+                               WorkloadKey(:s; ctrl = true), WorkloadKey(:z; ctrl = true)]
+    steps = WorkloadStep[
+        menu("Help", "About")...,
+        menu("View", "Split vertically")...,
+        menu("Help", "Documents")...,
+        open_file("a.txt", r"four")..., edit(r"four")...,
+        open_file("b.pred", "second")..., edit("second")...,
+        WorkloadClick(DrawnText("a.txt"; pick = :topmost)),
+        WorkloadClick(tool("Explorer")),
+        WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
+        WorkloadClick(DrawnText("Open in a new tab")),
+        # Ctrl+T opens a tab on an empty placeholder, Insert turns it into the
+        # name buffer, and the first key lists every type that it can make.
+        WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("evaluator"),
+        WorkloadKey(:return),
+        WorkloadKey(:f1), WorkloadKey(:f1),
+        WorkloadKey(:p; ctrl = true, shift = true), WorkloadTyping("ab"), WorkloadKey(:escape),
+        (WorkloadClick(tool(label)) for label in ("Evaluator", "Selection", "Appearance", "Settings",
+                                                  "Assistants", "Message log", "Gesture log",
+                                                  "Fault log", "Frame statistics", "Frame times"))...,
+        WorkloadClick(tool("Assistant")),
+        WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
+        WorkloadTyping("hi"), WorkloadKey(:return),
+        WorkloadWait(DrawnText("The sum is two.")),
+        WorkloadKey(:w; ctrl = true)]
+    run_application_workload(files; steps, backend,
+                             llm = make_workload_llm("1 + 1"; answer = "The sum is two."))
+end

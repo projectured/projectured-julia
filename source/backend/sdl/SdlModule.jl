@@ -5,7 +5,8 @@ The SDL backend: a native window for each window document of a screen, drawn
 with the renderer of SDL and with SDL_ttf, the input of the keyboard and the
 mouse, and an offscreen renderer that writes an image or the frames of a video.
 It extends the generic functions of `BackendModule`, so a caller reaches it
-through them.
+through them. `run_sdl_window_workload` runs the gestures of the window on it,
+with each input in the event queue of SDL.
 """
 module SdlModule
 
@@ -22,6 +23,7 @@ import ..EditorModule: get_backend_name, get_backend_output
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SettingsModule: apply_settings!, read_settings!
 import ..LinkModule: open_url!
+import ..DisplayModule: send_workload_inputs!, has_workload_inputs
 
 # A backend's public surface is the generic it extends, not the helper behind
 # it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
@@ -35,5 +37,6 @@ export SdlBackend, open_offscreen_renderer, with_offscreen_zoom, close_offscreen
 include("SdlBackend.jl")
 include("SdlHeldFrames.jl")
 include("SystemColorQuery.jl")
+include("SdlWorkload.jl")
 
 end # module SdlModule
