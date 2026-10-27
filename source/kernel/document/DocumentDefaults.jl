@@ -58,7 +58,9 @@ copy_selection_cell(policy::CopyPolicy, cell) =
 # Any name, because a walk asks it of every field name, and the fields of a tuple
 # are numbers.
 is_view_state_field(name) = name === :selection || name === :mouse_target
-is_view_state_field(::Type{T}, name) where {T} = is_view_state_field(name) || name in get_view_state_fields(T)
+# One method body for every type: a walk asks it of each type that it meets, and
+# a copy compiled for each type is a wait at the first edit of that type.
+is_view_state_field(@nospecialize(T::Type), name) = is_view_state_field(name) || name in get_view_state_fields(T)
 
 # A document holds no state of a view but its selection and its mouse target until
 # its type declares more.

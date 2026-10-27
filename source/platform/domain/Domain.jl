@@ -256,8 +256,8 @@ const _MAKE_FALLBACK = which(make_insertion_document, Tuple{Type{Document}})
 # `@document` type with a non-defaulted field still has a zero-positional-arg
 # keyword constructor that throws `UndefKeywordError` (`JsonString()`). So
 # probe the constructor once; the probe only runs from the world-age-memoized
-# candidate enumeration.
-function _zero_arg_constructible(::Type{T}) where {T}
+# candidate enumeration. One method body serves every type, as for `insertable`.
+function _zero_arg_constructible(@nospecialize(T::Type))
     hasmethod(T, Tuple{}) || return false
     try
         T()
@@ -267,15 +267,18 @@ function _zero_arg_constructible(::Type{T}) where {T}
     end
 end
 
+# The candidate list asks this of every document type that a session has loaded,
+# hundreds of them, so one method body serves every type: a copy compiled for
+# each type is a wait at the first key of a name.
 """
-    insertable(::Type{T}) -> Bool
+    insertable(T::Type) -> Bool
 
 Whether `T` belongs in a completion candidate list: it is zero-arg
 constructible or has a specific `make_insertion_document` method. `@domain`
 opts its `*Nothing` placeholders out; anything else opts out with a one-line
 method.
 """
-insertable(::Type{T}) where {T} =
+insertable(@nospecialize(T::Type)) =
     which(make_insertion_document, Tuple{Type{T}}) !== _MAKE_FALLBACK ||
     _zero_arg_constructible(T)
 

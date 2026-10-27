@@ -226,11 +226,50 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
 
 ### projectured-julia
 
-1. [ ] **The shape (D4).** `insertable` and the API table of
+1. [x] **The shape (D4).** `insertable` and the API table of
    `_refuse_declared_twice` stop their specialization for each type and each
    function. Find the other statements of the same shape in the traces.
    Expected: the start of projectured falls by about 115, and the start of
    omnet_ide by about 820.
+
+   Done on the branch `gesture-compiles`. Three generic methods compiled a copy
+   for each type or each function:
+   - `insertable` and `_zero_arg_constructible` take `@nospecialize(T::Type)`;
+   - `is_view_state_field(T, name)` takes `@nospecialize(T::Type)` (the
+     traces showed 54 copies in omnet_ide and 18 in projectured);
+   - `_refuse_declared_twice` keeps the values in a `Dict{Symbol,Any}`, whose
+     `setindex!` in Base does not specialize on the value.
+
+   The other functions with a `Type{_}` argument in the traces
+   (`get_theme_field_texts`, `make_pred_document`,
+   `get_document_gesture_bindings_own`, `get_insertion_aliases`) have a method
+   for each type. Each method compiles once, so a workload covers them.
+
+   Measured in a fresh process of the test environment of the platform (580
+   concrete document types, 116 candidates, 35 API entries), statements before
+   and after:
+
+   | Call | Before | After |
+   |---|---:|---:|
+   | insertion candidates | 297 (278 `insertable`) | 157 |
+   | declare the editor API | 105 (81 `setindex!`) | 24 |
+   | view state of 580 types | 581 | 2 |
+
+   The 157 that remain are 141 zero-argument constructors, which
+   `_zero_arg_constructible` calls as `T()` to test a type. Before, each
+   compiled inside the copy of `insertable` for its type. A constructor is a
+   method of its own type, so `@nospecialize` does not remove it.
+
+   The cost is one more dynamic dispatch for each check in
+   `is_view_state_field`: the call `get_view_state_fields(T)`. Its callers in
+   walks pass `typeof(node)` of a node of unknown type, so they dispatch at run
+   time already.
+
+   Tests: `test_declared_api` 156, `test_document_macro` 129,
+   `test_construct_oracle` 17, `test_insertion_choices` 23, `test_help_tree` 45,
+   `test_pred_file` 45, `test_context_menu_window` 60, `test_explorer` 294; no
+   fail, error or broken. The probe is `/var/tmp/gesture-compiles/shape/probe.jl`
+   with `count.py`.
 2. [ ] **The gesture machinery of the platform (D2).**
    - `WorkloadBackend` takes gestures that name their target: a drawn text, a
      part of a document, a key, or a typed text. It finds the target in the
