@@ -100,7 +100,7 @@ selection of the person.
 
 ### Step 3 — the gestures and the callers
 
-- [x] Done (projectured `1a6b85732`, omnet `6b549650f`):
+- [x] Done (projectured `3646aa816`, omnet `50edf9eff`):
   - A press of a person passes `focus = true` to `make_open_pane_operation`:
     the page of a navigator, the two opens of a file, the tool of the window
     chrome (projectured), and the new runner, the Open buttons of the project
@@ -142,7 +142,7 @@ selection of the person.
       `test_study_verbs` 68/68, `test_assistant_study_window` 21/21,
       `test_task_verbs` 85/85.
 - [x] The layout of take 1 as a test, in place of the scripted Aloha pictures,
-      whose script opens no plot: omnet `test_assistant_study_window` (`7b373a976`)
+      whose script opens no plot: omnet `test_assistant_study_window` (`55be512e9`)
       puts a `WorkflowStep` above the conversation, gives it the focus, and
       opens a pane with `open_pane!`. The pane goes to the group of the study,
       behind the study; the column keeps the plan and the conversation; the
