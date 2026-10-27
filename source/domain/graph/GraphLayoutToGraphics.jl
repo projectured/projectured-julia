@@ -270,22 +270,60 @@ function _compute_curve_points(points, start, finish)
     curve
 end
 
+# The side port of each end of each edge in `routes` that has a box at both ends,
+# by `(edge index, end)`, with the end 1 at the source and 2 at the target: the
+# point on the rim `rim(i)` of its box, and the outward direction of that side.
+# An end takes the side that its route crosses. The ends on one side are sorted by
+# the next point of their routes, from left to right on a top or a bottom side and
+# from top to bottom on a left or a right side, so two ends of one side do not
+# cross near the box. The `k` ends of one side stand at `1/(k+1)`, …, `k/(k+1)` of
+# it, so one end stands at its middle.
+function _compute_side_ports(routes, rim)
+    sides = Dict{Tuple{Int,NTuple{2,Float64}},Vector{Tuple{Float64,Int,Int}}}()
+    for (j, drawn_route) in enumerate(routes)
+        (drawn_route === nothing || drawn_route.source == 0) && continue
+        route = drawn_route.route
+        for (index, box, at, next) in ((1, drawn_route.source, route[1], route[2]),
+                                       (2, drawn_route.target, route[end], route[end - 1]))
+            normal = _get_rim_normal(rim(box), at)
+            order = normal[1] == 0 ? Float64(next[1]) : Float64(next[2])
+            push!(get!(Vector{Tuple{Float64,Int,Int}}, sides, (box, normal)), (order, j, index))
+        end
+    end
+    ports = Dict{Tuple{Int,Int},Tuple{Tuple{Int,Int},NTuple{2,Float64}}}()
+    for ((box, normal), ends) in sides
+        sort!(ends)
+        x, y, w, h = rim(box)
+        k = length(ends)
+        for (i, (_, j, index)) in enumerate(ends)
+            f = i / (k + 1)
+            point = normal == (-1.0, 0.0) ? (x, y + h * f) :
+                    normal == (1.0, 0.0)  ? (x + w, y + h * f) :
+                    normal == (0.0, -1.0) ? (x + w * f, y) : (x + w * f, y + h)
+            ports[(j, index)] = (round.(Int, point), normal)
+        end
+    end
+    ports
+end
+
 # The edges as the drawing draws them, by their index in `edge_layouts`: for each
 # edge the points of its element, the polyline that a backend strokes for them,
 # and the index of the box at its source and at its target, 0 for none; or
 # `nothing` for an edge that the drawing does not draw. A straight edge has the
-# same points in both. A curved edge has the points of a chain of Bézier curves,
-# which leaves each box at a right angle to the side that it crosses. An edge ends
-# at the rim of the box with its padding. A ring of a highlight or of the light
-# does not change the edge: the drawing cuts the line at the ring as it paints it
-# (`_cut_edge_at_rings`), so the line and its label stay where they are.
+# same points in both, and ends where the line between the centres crosses the
+# rims. A curved edge has the points of a chain of Bézier curves, which leaves
+# each box at a right angle to its side, from a side port
+# (`_compute_side_ports`). An edge ends at the rim of the box with its padding. A
+# ring of a highlight or of the light does not change the edge: the drawing cuts
+# the line at the ring as it paints it (`_cut_edge_at_rings`), so the line and its
+# label stay where they are.
 function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, style,
                               edge_shape::Symbol)
     index_of = Dict{UInt,Int}(objectid(getfield(vertex_layout, :vertex)[]) => i
                               for (i, vertex_layout) in enumerate(layout.vertex_layouts)
                               if vertex_layout isa VertexLayout)
     rim(i) = _get_drawn_rim(boxes[i], style, false)
-    edges = Any[]
+    routes = Any[]
     for edge_layout in layout.edge_layouts
         edge = edge_layout isa EdgeLayout ? getfield(edge_layout, :edge)[] : nothing
         source = edge isa GraphEdge ? get(index_of, objectid(edge.source), 0) : 0
@@ -299,20 +337,33 @@ function _compute_drawn_edges(layout::GraphLayout, boxes, drawing_map, drag, sty
                 _make_drawn_route(edge_layout.route, boxes[source], boxes[target],
                                   rim(source), rim(target), drawing_map;
                                   straight = drag !== nothing && drag.index in (source, target))
-        if route === nothing || length(route) < 2
+        push!(routes, route === nothing || length(route) < 2 ? nothing : (route = route, source, target))
+    end
+    edge_shape === :straight &&
+        return Any[drawn_route === nothing ? nothing :
+                   (points = drawn_route.route, path = drawn_route.route, segments = 0,
+                    source = drawn_route.source, target = drawn_route.target)
+                   for drawn_route in routes]
+    ports = _compute_side_ports(routes, rim)
+    edges = Any[]
+    for (j, drawn_route) in enumerate(routes)
+        if drawn_route === nothing
             push!(edges, nothing)
-        elseif edge_shape === :straight
-            push!(edges, (points = route, path = route, segments = 0, source, target))
-        else
-            start = boxed ? _get_rim_normal(rim(source), route[1]) :
-                            _get_unit_vector(route[2] .- route[1])
-            finish = boxed ? .-(_get_rim_normal(rim(target), route[end])) :
-                             _get_unit_vector(route[end] .- route[end - 1])
-            curve = _compute_curve_points(route, start, finish)
-            segments = _get_curve_segments(curve)
-            push!(edges, (points = curve, path = tessellate_spline(curve, :bezier, segments),
-                          segments = segments, source, target))
+            continue
         end
+        route = drawn_route.route
+        if drawn_route.source != 0
+            (first_port, start), (last_port, outward) = ports[(j, 1)], ports[(j, 2)]
+            route = vcat([first_port], route[2:(end - 1)], [last_port])
+            finish = .-outward
+        else
+            start = _get_unit_vector(route[2] .- route[1])
+            finish = _get_unit_vector(route[end] .- route[end - 1])
+        end
+        curve = _compute_curve_points(route, start, finish)
+        segments = _get_curve_segments(curve)
+        push!(edges, (points = curve, path = tessellate_spline(curve, :bezier, segments),
+                      segments = segments, source = drawn_route.source, target = drawn_route.target))
     end
     edges
 end

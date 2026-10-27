@@ -624,18 +624,58 @@ end
     @test curve.kind === :bezier
     @test curve.end_arrow
 
-    # The curve has the ends of the straight edge: the line between the centres
-    # leaves the bottom side of the first box and enters the top side of the
-    # second. It leaves downward and arrives downward, so each control point is
-    # straight below or above its end.
+    # The line between the centres leaves the bottom side of the first box and
+    # enters the top side of the second. The curve leaves the middle of the one
+    # side and enters the middle of the other; the straight edge ends where the
+    # line crosses them. The curve leaves downward and arrives downward, so each
+    # control point is straight below or above its end.
+    style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
+    margin = style.node_padding + style.highlight_gap + style.highlight_width
+    pad = style.node_padding
     points = collect(curve.points)
     @test length(points) == 4
-    @test (points[1], points[4]) == Tuple(collect(straight.points))
+    @test (points[1], points[4]) == ((50, 40 + pad) .+ margin, (340, 200 - pad) .+ margin)
+    ends = collect(straight.points)
+    @test first(ends)[2] == points[1][2] && first(ends)[1] != points[1][1]
+    @test last(ends)[2] == points[4][2] && last(ends)[1] != points[4][1]
     @test points[2][1] == points[1][1] && points[2][2] > points[1][2]
     @test points[3][1] == points[4][1] && points[3][2] < points[4][2]
 
     @test_throws ArgumentError GraphLayoutToGraphicsCanvas(edge_shape = :wavy)
     @test GraphToGraphics(edge_shape = :curved).projections[2].edge_shape === :curved
+end
+
+@testset "the ends of curved edges on one side of a box are spread along it in order" begin
+    # Two edges leave the bottom side of the top box: the first to a box down to
+    # the right, the second to a box down to the left. The end toward the left box
+    # stands at a third of the side and the other at two thirds, so the two do not
+    # cross. The one end on the top side of each lower box stands at its middle.
+    top, left, right = GraphVertex(JsonString("t")), GraphVertex(JsonString("l")), GraphVertex(JsonString("r"))
+    to_right, to_left = GraphEdge(top, right; directed = true), GraphEdge(top, left; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(top, 200, 10, 80, 30),
+                                                          VertexLayout(left, 20, 200, 80, 30),
+                                                          VertexLayout(right, 380, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(to_right, [(240, 25), (420, 215)]),
+                                                          EdgeLayout(to_left, [(240, 25), (60, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout, _gctx())
+    curves = filter(e -> e isa GraphicsSpline, collect(drawing.output.elements))
+    @test length(curves) == 2
+    ends(k) = (first(collect(curves[k].points)), last(collect(curves[k].points)))
+    rect(i) = (r = _gpt_get_node_rect(drawing, i); (Int(r.x), Int(r.y), Int(r.w), Int(r.h)))
+    x, y, w, h = rect(1)
+    @test first(ends(2)) == (x + w ÷ 3, y + h)
+    @test first(ends(1)) == (x + 2w ÷ 3, y + h)
+    for (k, i) in ((1, 3), (2, 2))
+        x, y, w, h = rect(i)
+        @test last(ends(k)) == (x + w ÷ 2, y)
+    end
+    # Each curve leaves straight down and arrives straight down.
+    for k in 1:2
+        points = collect(curves[k].points)
+        @test points[2][1] == points[1][1] && points[2][2] > points[1][2]
+        @test points[3][1] == points[4][1] && points[3][2] < points[4][2]
+    end
 end
 
 @testset "a curved edge passes through the bends of its route, with its label on it" begin
@@ -671,8 +711,9 @@ end
 end
 
 @testset "the light and the highlight cut an edge at the ring and move no part of it" begin
-    # The line between the centres leaves the bottom side of the first box near
-    # its corner, so a curve that a wider rim cut would leave at another point.
+    # A curve calculated from a wider rim would leave from another point and take
+    # another shape. A ring only cuts the curve, so each cut end is on the curve
+    # without the ring.
     a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
     edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
     layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),

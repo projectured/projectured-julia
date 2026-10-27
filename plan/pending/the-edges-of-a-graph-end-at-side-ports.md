@@ -93,7 +93,7 @@ The facts at `main` `728307d08`. Find each function by its name.
    cut line keeps the `path` of the uncut line, so the label stays. The value of
    `drawn_edges` is not visible from the IO map, so the test checks that
    `label_boxes`, which reads it, keeps its value. Graph projection tests: 336 pass.
-2. **A curved edge ends at a side port.** `_compute_drawn_edges`: the sides, the
+2. ✅ **A curved edge ends at a side port.** `_compute_drawn_edges`: the sides, the
    sort and the ports for a curved edge; the start and the finish of the curve
    from the normal of the side of the port. Tests: one end on a side is at its
    middle; two ends on one side are at 1/3 and 2/3, in the order of their next
@@ -103,6 +103,14 @@ The facts at `main` `728307d08`. Find each function by its name.
    `graph_services_example` and of the study map, before and after. Run
    `test_graph()`, `test_research()`, and `test_example` for `graph_example` and
    `graph_services_example`.
+
+   Done. `_compute_side_ports` groups the ends by box and side, sorts them by
+   the next point of the route, and places them; `_compute_drawn_edges` first
+   collects the clipped routes, then a straight edge keeps them and a curved edge
+   takes its ports. An edge with a bend takes its side from the first bend: the
+   test "a curved edge passes through the bends of its route" keeps its points,
+   because its bend is at the height of the centre. Graph projection tests: 347
+   pass. The suites, the examples and the pictures run once after step 3.
 3. **The tooltip frame fills its window.** `TooltipContentToVerticalLayout` reads
    `minimum_size` from its theme and gives it to the column around the frame.
    Tests in the tooltip tests of the platform: the frame of a short note is as
