@@ -677,7 +677,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      that runs a task group on it.
 
    As built (2026-10-28):
-   - projectured-julia (`ef8d46c3d`): `source/platform/task/ImitatedProcess.jl`.
+   - projectured-julia (`5d58e3462`): `source/platform/task/ImitatedProcess.jl`.
      Inside `run_with_process_imitation(f, imitation)` (a private scoped value,
      so a task that `f` starts imitates too), `start_process_task!` calls
      `imitation(command, output, error_output)` on a task of its own in place of
@@ -718,6 +718,31 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      loop for an editor that the caller starts (planned for step 8), and a
      project whose configurations are listed with no process: the discovery
      runs the executable with `-a` outside `start_process_task!`.
+
+   Results (2026-10-28):
+   - The projectured branch is rebased onto main (`ec35aadca`, 37 commits: the
+     three pane verbs, `open_page!`), because omnet main uses `show_pane!`. One
+     conflict: two imports of `MathModule.jl`, both kept. After the rebase:
+     `test_window_workload`, `test_application_workload` 14 of 14,
+     `test_file_workload` 3 of 3, `test_task_group` 84 of 84,
+     `test_sdl_workload` 7 of 7, `test_file_workloads` 29 of 29,
+     `test_package_graph` 418 of 418, `test_naming`. The build of the REPL leaf
+     warns that 10.1 % of its recorded statements no longer resolve; 3 of the
+     1592 name code that this branch changed.
+   - omnet-julia (`ec99edf12`): `OmnetLegacyFormat` builds in 45 s and
+     `OmnetLegacyResultPresentation` in 49 s, with no warning;
+     `test_legacy_file_workloads` 5 of 5, `test_ned` 79 of 79, `test_ini` 39 of
+     39, the naming law of omnet. `test_package_graph` 191 of 192: the one
+     failure, `OmnetBench` depends on `OmnetSimulatorExample`, is on main too,
+     as is the failure of the spelling check (`build_omnetpp!`). The old leaf
+     check skipped a folder `package/repl`, which does not exist, so it named
+     `OmnetRepl.jl` on main as well; the test now skips each package of
+     `_LEAVES`.
+   - The first sample of the `.elog` file waited for `host`, which the sequence
+     chart does not draw; it draws the axis `Net`. The wait took 300 s for each
+     of two steps, and the build of the package 642 s.
+   - Not done: the workload of `OmnetLegacySimulatorPresentation` (the Runner
+     and Run, above).
 8. [ ] **OmnetIde, its app package and its guard.**
    - OmnetIde gets its own `@compile_workload`: the IDE window with its
      wrappers, and the gestures of D3.
