@@ -1,6 +1,7 @@
 # A program opens a page and keeps the focus of the person
 
-> Status: pending, written 2026-10-28 from `main` at `60a915abe`. Branch
+> Status: done 2026-10-28, on the branch, not landed. Written 2026-10-28 from
+> `main` at `60a915abe`. Branch
 > `open-page-places`, worktree `projectured-julia-open-page`. The owner agreed
 > on 2026-10-28 to the change of §3 ("yes, let's do these").
 
@@ -64,6 +65,8 @@ answer its tab.
 
 ### Step 3 — check
 
-- [ ] `test_assistant_verbs()`, `test_open_page_operation()`,
-      `test_referenced_document_editor()`, `test_search_corpus()` and
-      `test_search_ranking()`.
+- [x] `test_assistant_verbs()` 83/83 (79 before: the old test had 3 checks,
+      the new one 7), `test_open_page_operation()` 93/93,
+      `test_referenced_document_editor()` 112/112, `test_search_corpus()` 6/6,
+      `test_search_ranking()` 27/27, and `test_call_site()` 20/20, which reads
+      the examples of the docstrings. One process, 2026-10-28.
