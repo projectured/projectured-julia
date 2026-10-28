@@ -190,16 +190,26 @@ function test_assistant_verbs()
         @test title_at(k) == "Dashboards" && length(content.entries) == count
     end
 
-    @testset "tell: a part opens as a page in a new tab with a navigator" begin
+    @testset "tell: a part opens as a page in a new tab with a navigator, and the focus stays" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))
-        @test open_page!(people[2]; editor) isa Text
-        # The open posts the new tab, which the loop of a window drains.
-        drain_operations!(editor)
+        selected = repr(get_selection(editor.document))
+        page_tab = open_page!(people[2]; editor)
+        tab = get_document(page_tab)
+        @test tab isa PaneTab
+        @test get_navigator_page(tab.content) === get_document(people[2])
+        @test length(search_documents(editor.document, is_page)) == before + 1
         run_frame!(editor)
-        pages = search_documents(editor.document, is_page)
-        @test length(pages) == before + 1
-        @test get_navigator_page(last(pages)) === get_document(people[2])
+        @test repr(get_selection(editor.document)) == selected
+        # The page goes behind the tab that its group shows, and `show_pane!` shows it.
+        group = only(g for g in get_pane_groups(get_window_tree(editor.document))
+                     if any(t -> t === tab, g.tabs))
+        @test group.tabs[get_pane_shown_tab_index(group)] !== tab
+        show_pane!(page_tab; editor)
+        run_frame!(editor)
+        @test group.tabs[get_pane_shown_tab_index(group)] === tab
+        nowhere = extend_reference(get_reference(people[2]), FieldReferenceStep("missing"))
+        @test_throws ArgumentError open_page!(ReferencedDocument(nothing, nowhere); editor)
     end
 
     @testset "tell: a page shows in the explorer, its row shows, and the selection stays" begin

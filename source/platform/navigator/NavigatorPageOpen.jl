@@ -54,13 +54,15 @@ function evaluate_operation(editor, operation::OpenPageOperation)
 end
 
 """
-    open_page!(part; editor = get_evaluation_editor()) -> Text
+    open_page!(part; editor = get_evaluation_editor()) -> ReferencedDocument
 
-Open `part` as a page in a new tab with a navigator, as the "Open as a page"
-command does: the page shows the part alone, its address names its place in the
-document of its tab, and Back, Forward and Parent move from it. The tab opens at
-the next frame of the window. `part` is a `ReferencedDocument` that a verb
-answered, such as a record read from `get_edited_document(tab)`.
+Open `part` as a page in a new tab with a navigator, in the group where the "Open
+as a page" command opens it: the page shows the part alone, its address names its
+place in the document of its tab, and Back, Forward and Parent move from it. As
+with `open_pane!`, the tab does not take the focus of the person, and the answer
+is the new tab, which `show_pane!` brings to the front. `part` is a
+`ReferencedDocument` that a verb answered, such as a record read from
+`get_edited_document(tab)`.
 
 Use it to show the person one part of a large document on a page of its own,
 such as one record of a table or one section of a file.
@@ -68,17 +70,20 @@ such as one record of a table or one section of a file.
 # Example
 
     people_1 = get_edited_document(find_pane("people.json"))
-    open_page!(people_1[2])
+    page_tab_1 = open_page!(people_1[2])
+    show_pane!(page_tab_1)
 
-See also `open_pane!`, `select_part!`.
+See also `open_pane!`, `show_pane!`, `select_part!`.
 """
 function open_page! end
 
 function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_page!") do
-        evaluate_operation(editor, OpenPageOperation(nothing, get_reference(part)))
+        content, address = _find_opened_content(editor.document, OpenPageOperation(nothing, get_reference(part)))
+        content === nothing &&
+            throw(ArgumentError("open_page!: the reference of the part names nothing in the window."))
+        open_pane!(Navigator(content, address); group = get_pane_file_group(; editor), editor)
     end
-    Text("The page of " * describe_document(part) * " opens in a new tab.")
 end
 
 # The navigators of the window of `root`: the content of a tab that is one, and a

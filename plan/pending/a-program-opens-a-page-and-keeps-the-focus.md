@@ -45,10 +45,15 @@ answer its tab.
 
 ### Step 1 — the verb
 
-- [ ] `NavigatorPageOpen.jl`: the new body of `open_page!` and its docstring.
-- [ ] `AssistantVerbsTest.jl`: the answer is a tab whose content is a navigator
+- [x] `NavigatorPageOpen.jl`: the new body of `open_page!` and its docstring.
+      The docstring example keeps the answer, `page_tab_1 = open_page!(…)`, and
+      shows it with `show_pane!(page_tab_1)`.
+- [x] `AssistantVerbsTest.jl`: the answer is a tab whose content is a navigator
       on the part; the page is there with no frame between; the selection of
-      the person stays; `show_pane!` shows the tab.
+      the person stays; `show_pane!` shows the tab. A reference that names a
+      key the record does not have gives the `ArgumentError`; the test builds it
+      with `extend_reference`, because `people[2]["missing"]` throws a
+      `KeyError` before the verb runs.
 
 ### Step 2 — the guides
 
