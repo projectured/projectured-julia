@@ -3,17 +3,19 @@
 # the translation of the events of SDL runs as it runs for a hand.
 
 """
-    run_sdl_window_workload() -> Nothing
+    run_sdl_window_workload(run_workload = run_window_workload) -> Nothing
 
-Run the gestures of the window of the platform (`run_window_workload`) on an
-`SdlBackend` under the dummy video driver, which opens no display and loads no
-OpenGL. The package calls it in its `@compile_workload`, so that its image holds
-the code that SDL runs for a click, a key and the windows that they open.
+Run the gestures of a window on an `SdlBackend` under the dummy video driver,
+which opens no display and loads no OpenGL: `run_workload(; backend)` runs them,
+and the default runs the window of the platform. The package calls it in its
+`@compile_workload`, so that its image holds the code that SDL runs for a click,
+a key and the windows that they open. A program with a window of its own passes
+the workload of that window.
 """
-function run_sdl_window_workload()
+function run_sdl_window_workload(run_workload::Function = run_window_workload)
     withenv("SDL_VIDEODRIVER" => "dummy") do
         try
-            run_window_workload(; backend = SdlBackend())
+            run_workload(; backend = SdlBackend())
         finally
             SDL_SetEventFilter(C_NULL, C_NULL)
         end

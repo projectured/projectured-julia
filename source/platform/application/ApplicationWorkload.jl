@@ -151,15 +151,9 @@ turn of the assistant fails, as it does when no model is named. The backend
 takes the inputs of the steps by [`send_workload_inputs!`](@ref), and a backend
 of another package that has a method of it runs the same steps.
 
-Before each step, the window becomes quiet: no frame applies an input, and no
-input or timer waits. A step with a target waits until the window draws the target, for
-at most `timeout` seconds. After the last step, the loop stops, and the folder
-is removed.
-
-It throws an error that names each step whose target the window did not draw,
-the step before which the loop ended, and each fault that a barrier of the
-editor caught. A package calls it in its
-`@compile_workload`, so that its package image holds the code of the steps.
+The steps run as [`run_workload_steps!`](@ref) runs them, and after the last
+step the folder is removed. A package calls it in its `@compile_workload`, so
+that its package image holds the code of the steps.
 """
 function run_application_workload(files::AbstractVector{<:Pair}; steps::AbstractVector{<:WorkloadStep},
                                   llm = nothing, timeout::Real = 300,
@@ -182,26 +176,47 @@ function run_application_workload(files::AbstractVector{<:Pair}; steps::Abstract
                                          llm)
             end
         end
-        loop = editor.loop_task
-        problems = String[]
-        try
-            for step in steps
-                !editor.has_loop_ended && _run_workload_step!(editor, step, time() + timeout) &&
-                    continue
-                if editor.has_loop_ended
-                    push!(problems, "The loop of the window ended before " * repr(step) * ".")
-                    break
-                end
-                push!(problems, "The window did not draw the target of " * repr(step) * ".")
-            end
-            _wait_for_quiet_window(editor, time() + timeout)
-        finally
-            _stop_workload_editor!(editor, loop)
-        end
-        _throw_workload_problems(problems, get_fault_records(editor.faults))
+        run_workload_steps!(editor, steps; timeout)
     finally
         rm(directory; recursive = true, force = true)
     end
+    nothing
+end
+
+"""
+    run_workload_steps!(editor, steps; timeout = 300) -> Nothing
+
+Give the [`WorkloadStep`](@ref)s of `steps` to the window of `editor` one after
+the other, and stop the loop of the editor after the last step. The caller
+starts the editor with `run_editor!(…; wait = false)`, on a backend that takes
+the inputs of a step by [`send_workload_inputs!`](@ref).
+
+Before each step, the window becomes quiet: no frame applies an input, and no
+input or timer waits. A step with a target waits until the window draws the
+target, for at most `timeout` seconds.
+
+It throws an error that names each step whose target the window did not draw,
+the step before which the loop ended, and each fault that a barrier of the
+editor caught.
+"""
+function run_workload_steps!(editor, steps::AbstractVector{<:WorkloadStep}; timeout::Real = 300)
+    loop = editor.loop_task
+    problems = String[]
+    try
+        for step in steps
+            !editor.has_loop_ended && _run_workload_step!(editor, step, time() + timeout) &&
+                continue
+            if editor.has_loop_ended
+                push!(problems, "The loop of the window ended before " * repr(step) * ".")
+                break
+            end
+            push!(problems, "The window did not draw the target of " * repr(step) * ".")
+        end
+        _wait_for_quiet_window(editor, time() + timeout)
+    finally
+        _stop_workload_editor!(editor, loop)
+    end
+    _throw_workload_problems(problems, get_fault_records(editor.faults))
     nothing
 end
 
@@ -302,7 +317,7 @@ end
 
 The inputs that give `step` to the window of `editor`, with the target of the
 step found in what the window drew, or `nothing` when the window does not draw
-the target yet. [`run_application_workload`](@ref) calls it on the task of the
+the target yet. [`run_workload_steps!`](@ref) calls it on the task of the
 loop, between two frames, when the window is quiet, and sends the inputs to the
 backend after the call.
 """
