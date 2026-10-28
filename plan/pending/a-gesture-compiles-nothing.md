@@ -854,11 +854,15 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      the packages of both repositories), then of the package of each binary.
      Recorded: the time of each package with a workload, the wall time, the
      peak memory, and the size of each image.
-   - M2, the `using` line: five fresh processes each for `using Projectured`
-     (the session of the README), the package of `projectured` and the
-     package of `omnet_ide`; the median.
-   - M3, the first window: the time from the start of the process to the
-     first frame of the window of each binary package, five runs, the median.
+   - M2, the `using` line: five fresh processes each for the loads of the
+     session of the README (as measured on 2026-10-08), the package of
+     `projectured` and the package of `omnet_ide`; the median.
+   - M3, the first window, in the same processes: the first frame of a data
+     frame in the session of the README, and the first frame of
+     `run_omnet_ide` over a small project, in seconds of the wall and of
+     compilation. `run_application` gives its editor back only when its
+     window closes, so the window of `projectured` has no such number; its
+     guard counts what its start compiles.
    - M4, the guards from source: both guards on the branches.
    - M5, the built binaries: the build of both binaries, on main and on the
      branches: the build time and the size of the bundle; on the branches,
@@ -867,6 +871,75 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      projectured-julia, which holds its model adapters. The package of
      `omnet_ide` builds with no model adapter (`assistant = false`), as its
      guard does.
+
+   Results (2026-10-28, a load of about 0.4 on 32 cores, Julia 1.13.1; the
+   scripts and logs are in `/var/tmp/gc9/` and `/var/tmp/bounded-run/gc9-*`):
+
+   M1, the first build of the images, the default parallel precompile:
+
+   | | main | branches |
+   |---|---:|---:|
+   | the omnet environment `all` (both repositories), wall | 665.7 s | 991.5 s |
+   | the whole job (with the two app packages), wall | 13 min 18 s | 25 min 47 s |
+   | peak memory | 17.7 GB | 16.2 GB |
+   | `ProjecturedApp` | 64.3 s | 272.8 s |
+   | `OmnetIdeMeasureApp` (`omnet_ide`, no adapters) | 49.1 s | 199.3 s |
+   | `ProjecturedPlatform` | 54.3 s | 193.4 s |
+   | `ProjecturedSDL` (each of two builds) | 10.3 s, 9.8 s | 73.4 s, 74.4 s |
+   | `OmnetIde` | 8.5 s | 132.9 s |
+   | `OmnetLegacyResultPresentation`, `OmnetLegacyFormat` | 7.3 s, 3.0 s | 47.3 s, 40.8 s |
+   | each domain package with a file workload | 6–9 s | 13–19 s |
+   | `OmnetRepl` | 333.5 s | 255.1 s |
+   | the sum over the packages of both repositories | 1079 s | 2075 s |
+   | the images of both repositories | 1381 MB | 1572 MB |
+   | of them `ProjecturedPlatform` | 144 MB | 307 MB |
+   | of them `OmnetIde` | 2 MB | 124 MB |
+   | of them `OmnetRepl` | 652 MB | 486 MB |
+   | of them `OmnetIdeMeasureApp` | 75 MB | 33 MB |
+
+   M2 and M3, five fresh processes each, the median:
+
+   | | main | branches |
+   |---|---:|---:|
+   | the README session: the `using` line | 1.62 s | 2.17 s |
+   | the README session: the first frame of a data frame (compile) | 1.13 s (0.84 s) | 0.96 s (0.64 s) |
+   | `using` of the package of `projectured` | 6.64 s | 8.71 s |
+   | `using` of the package of `omnet_ide` | 7.66 s | 10.90 s |
+   | `run_omnet_ide`: the first frame (compile) | 30.2 s (29.6 s) | 1.62 s (0.92 s) |
+
+   M4, the guards on the branches: each image of a binary builds with no
+   warning (`projectured` 4 min 44 s, `omnet_ide` 3 min 31 s), each gesture
+   finds its target, and each guard has 2 passes and 3 broken.
+
+   | Guard | the start (recompiles) | gestures | statements | recompiles | over 10 |
+   |---|---:|---:|---:|---:|---:|
+   | `projectured` | 75 (1) | 166 | 252 | 2 | 5 |
+   | `omnet_ide` | 89 (1) | 202 | 246 | 1 | 8 |
+
+   A count moves by a few statements from run to run: 241 and 3 recompiles
+   for `projectured` in step 6, 248 for `omnet_ide` in step 8.
+
+   M5, the built binaries, under the cap of 20 GB that the runner allows
+   (half of the 41 GB that the machine had free):
+
+   | | main | branches |
+   |---|---:|---:|
+   | `projectured`: the precompile of `create_app` (172 packages, its own flags) | 234 s | 886 s |
+   | `projectured`: the whole build | 1021 s, peak 17.9 GB | out of memory at 20 GB, twice |
+   | `projectured`: the bundle, of it `sys.so` | 1.82 GB, 949 MB | — |
+   | `omnet_ide` (no adapters): the whole build | 1160 s, peak 18.6 GB | not run |
+   | `omnet_ide`: the bundle, of it the executable | 1.91 GB, 1.04 GB | — |
+
+   - The branch build of `projectured` ran out of memory in the step that
+     compiles the system image, with 8 image threads and with 4. That step
+     runs the workload of the binary in one process with `--pkgimages=no`,
+     so it compiles and keeps all the code that the workload reaches; the
+     number of image threads does not decide its memory.
+   - The branch build of `omnet_ide` was not run: main already needs 18.6 GB,
+     and its step runs the larger list of the branch the same way.
+   - The omnet builder links the image into the executable, so its bundle has
+     no system image that a drive can load. The drive of a guard with the
+     system image of a binary was therefore not run.
 
 ## Hazards
 
