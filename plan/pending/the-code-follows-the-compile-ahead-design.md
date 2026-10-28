@@ -30,7 +30,7 @@ it. U1 to U14 and Decisions 1 to 10 are the ones of that document.
 Each step is one or more commits in a worktree of each repository that it
 changes. Mark a step here when it is done.
 
-1. [ ] **`ProjecturedPrecompile` (D10).** A new package, with its code in
+1. [x] **`ProjecturedPrecompile` (D10).** A new package, with its code in
    `source/tool/precompile/`:
    - The call that the entry file of a package makes. It reads the two
      preferences of that package, so that a change of a preference builds the
@@ -49,6 +49,45 @@ changes. Mark a step here when it is done.
      display.
    - Its tests, its design document in `documentation/package/`, and its place
      in `package-rules.md`.
+
+   As built (2026-10-29, worktree `projectured-julia-compile-ahead`, branch
+   `compile-ahead`):
+   - `@compile_ahead workload` in the entry file defines three names in the
+     package: `run_package_workload()`, `PRECOMPILE_FAILURE` and the module
+     `PrecompileScope`. A package with no workload writes `@compile_ahead`
+     alone, so that it still compiles the calls that an application records for
+     it. The preferences are read with `Preferences.load_preference(package,
+     …)` while the package precompiles, which makes the image depend on them.
+   - Both compiles run between `tag_newly_inferred_enable` and
+     `tag_newly_inferred_disable` of PrecompileTools, as `@compile_workload`
+     does, so the code of other packages stays in the image.
+   - A package with no folder `precompile/` depends on the list of its own
+     folder, so a first recording builds it again.
+   - At `"warning"` the package shows the failure when it loads: the
+     `__init__` of the slice reports the packages that loaded before it, and
+     a function in `Base.package_callbacks` reports each later one.
+   - The recording builds the images in a first process with no trace, and then
+     traces the workload in a second one. With a single traced process the
+     list held the calls of the build of the images (`precompilepkgs` and the
+     like).
+   - Fact: `--trace-compile` of Julia 1.13 writes only the entries of a run.
+     A call that inference resolves inside an entry, also a dynamic call that
+     inference splits over the methods of the function, compiles with the
+     entry and is not in the trace. A build that compiles the entry compiles
+     those calls again, so a list loses nothing.
+   - The recording reads a manifest, so the package also depends on the
+     standard library TOML. Decision 10 of `compile-ahead.md` names it; the
+     documents of omnet and inet follow in steps 4 and 5.
+   - `package-rules.md` moves to step 2, because it describes the entry files
+     that step 2 changes.
+   - Not run yet: `test_package_graph()`, which needs a build of every image of
+     the worktree; step 2 runs it.
+
+   Tests: `test_precompile()` 48 of 48: the layering guard, the trace, the
+   list, the graph, the owner of a call, and a probe package at `"none"`,
+   `"live"`, a failed workload at each value of `precompile_failure`,
+   `"recorded"`, a stale list, an unknown value and a recording. The naming
+   guard and the documentation check pass.
 2. [ ] **projectured: each package uses it.**
    - Each entry file with a workload calls `ProjecturedPrecompile`.
    - `ProjecturedExample` gets a workload that opens each example and sends it

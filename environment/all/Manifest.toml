@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "a665154d5440141a243a7a739a834e0c099da6c8"
+project_hash = "681c880926f4bc459f6e09907ed24a25ff891a38"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1393,6 +1393,18 @@ version = "0.1.0"
 deps = ["ProjecturedConsole", "ProjecturedJSON", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample", "Test"]
 path = "../../package/ProjecturedPlatformTest"
 uuid = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+version = "0.1.0"
+
+[[deps.ProjecturedPrecompile]]
+deps = ["PrecompileTools", "Preferences", "TOML"]
+path = "../../package/ProjecturedPrecompile"
+uuid = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+version = "0.1.0"
+
+[[deps.ProjecturedPrecompileTest]]
+deps = ["ProjecturedKernelTest", "ProjecturedPrecompile", "Test"]
+path = "../../package/ProjecturedPrecompileTest"
+uuid = "da73c6bf-4c95-4d6a-96ed-aa5aa7e33491"
 version = "0.1.0"
 
 [[deps.ProjecturedProcess]]

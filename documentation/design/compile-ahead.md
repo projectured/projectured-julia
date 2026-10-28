@@ -158,8 +158,8 @@ two preferences of the package, and then compiles its lists, runs its workload,
 or does nothing. This code is in `ProjecturedPrecompile`, a small package of
 its own whose code is in `source/tool/precompile/` of projectured-julia. It is
 at the bottom of the graph of the dependencies, and it depends only on
-PrecompileTools and Preferences. So each package of each repository can depend
-on it.
+PrecompileTools, Preferences and the standard library TOML. So each package of
+each repository can depend on it.
 
 ## The code today
 

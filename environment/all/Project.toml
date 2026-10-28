@@ -78,6 +78,8 @@ ProjecturedPDFTest = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+ProjecturedPrecompileTest = "da73c6bf-4c95-4d6a-96ed-aa5aa7e33491"
 ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 ProjecturedPivotExample = "c240cc06-6e4d-439e-be67-95ca4b8cf959"
 ProjecturedPivotTest = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
@@ -199,6 +201,8 @@ ProjecturedPDFTest = {path = "../../package/ProjecturedPDFTest"}
 ProjecturedPlatform = {path = "../../package/ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../../package/ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../../package/ProjecturedPlatformTest"}
+ProjecturedPrecompile = {path = "../../package/ProjecturedPrecompile"}
+ProjecturedPrecompileTest = {path = "../../package/ProjecturedPrecompileTest"}
 ProjecturedPivot = {path = "../../package/ProjecturedPivot"}
 ProjecturedPivotExample = {path = "../../package/ProjecturedPivotExample"}
 ProjecturedPivotTest = {path = "../../package/ProjecturedPivotTest"}

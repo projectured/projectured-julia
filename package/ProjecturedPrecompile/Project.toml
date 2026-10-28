@@ -1,0 +1,17 @@
+name = "ProjecturedPrecompile"
+uuid = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+version = "0.1.0"
+authors = []
+
+# The one mechanism that compiles a package ahead of time: the macro of the entry
+# file of a package, its two preferences, and the recording. It is at the bottom
+# of the dependencies, so each package of each repository can depend on it.
+# PrecompileTools keeps the code that a build compiles, Preferences reads the two
+# preferences of a package, and TOML reads a manifest for the recording.
+[deps]
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+
+[compat]
+julia = "1.12"
