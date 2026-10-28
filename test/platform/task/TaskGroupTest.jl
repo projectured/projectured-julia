@@ -133,6 +133,52 @@ function test_task_group()
             @test outer.runs[1].position == "5/5" && outer.runs[1].progress == 1.0
         end
 
+        @testset "an imitation runs a group and starts no program" begin
+            # The imitation answers for the script of each probe: its line, and the
+            # exit code of the last command of the script.
+            imitation = function (command, output, error_output)
+                script = last(command.exec)
+                println(output, "imitated ", script)
+                endswith(script, "exit 1") ? 1 : 0
+            end
+            group = run_with_process_imitation(imitation) do
+                run_task_group(TaskGroup(_make_task_group_probe_tasks(30); jobs = 2))
+            end
+            summary = build_task_group_summary(group)
+            @test summary.finished == 5
+            @test summary.counts["DONE"] == 4 && summary.counts["ERROR"] == 1
+            @test all(execution -> execution.runtime.process isa ImitatedProcess &&
+                                  execution.process_id === nothing, group.runs)
+            @test all(execution -> any(startswith("imitated "), collect_output_lines(execution.output)),
+                      group.runs)
+            # The imitations end at once, though each script sleeps for 30 s.
+            @test all(execution -> execution.end_time - execution.start_time < 10, group.runs)
+
+            # An exception of the imitation ends it with the code 1 and its
+            # message in the error output.
+            group = run_with_process_imitation((command, output, error_output) -> error("no program")) do
+                run_task_group(TaskGroup(_make_task_group_probe_tasks(0.0)[1:1]))
+            end
+            execution = only(group.runs)
+            @test execution.result.result == "ERROR" && execution.runtime.process.exitcode == 1
+            @test any(line -> occursin("no program", line), collect_output_lines(execution.error_output))
+
+            # A stop records the signal, and the end reports the task as cancelled.
+            release = Channel{Nothing}(1)
+            waiting = (command, output, error_output) -> (take!(release); 0)
+            group = TaskGroup(_make_task_group_probe_tasks(0.0)[1:1])
+            run_with_process_imitation(() -> start_task_group!(group), waiting)
+            deadline = time() + 10
+            while build_task_group_summary(group).running < 1 && time() < deadline
+                sleep(0.02)
+            end
+            stop_task_group!(group)
+            put!(release, nothing)
+            wait_task_group(group)
+            execution = only(group.runs)
+            @test execution.result.result == "CANCEL" && Base.process_signaled(execution.runtime.process)
+        end
+
         @testset "a stop of a group stops its inner groups" begin
             phases = [TaskGroup(_make_task_group_probe_tasks(30); name = "phase $i", jobs = 5)
                       for i in 1:2]

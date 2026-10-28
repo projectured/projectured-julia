@@ -12,6 +12,7 @@ and says what a kind adds to the views.
 """
 module TaskModule
 
+using Base.ScopedValues: ScopedValue, with
 using ..AgentModule
 using ..CellModule
 using ..CollectionModule
@@ -68,6 +69,7 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        sample_task_usage!
 export TaskStreamLines, TaskStream, make_task_stream, get_task_stream_output, collect_task_stream_rows,
        find_task_stream_matches, make_task_stream_find_operation, make_task_stream_first_error_operation
+export ImitatedProcess, run_with_process_imitation
 export get_default_job_count, start_task, TaskStartFailure, TaskNotStarted,
        TaskGroupSummary, TaskGroupTally, TaskGroupRuntime, TaskGroup, is_concurrent,
        format_task_group_description, format_task_group_close_description,
@@ -107,6 +109,7 @@ export list_task_groups, find_task_group, describe_task_group, describe_task,
        rerun_tasks!, close_task_group!, make_task_api
 
 include("TaskResult.jl")
+include("ImitatedProcess.jl")
 include("TaskExecution.jl")
 include("TaskStream.jl")
 include("TaskGroup.jl")

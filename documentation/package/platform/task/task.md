@@ -143,6 +143,21 @@ A `Cmd` starts in a process group of its own. `stop_task_execution!` sends
 the compilers of `make`, for example — and a program that catches the signal
 can still finish its work. The status says `:cancelling` until the process
 ends. A Ctrl+C at the REPL does not reach the group.
+
+**A function can imitate the program.** Inside
+`run_with_process_imitation(f, imitation)`, `start_process_task!` starts no
+program: it calls `imitation(command, output, error_output)` on a task of its
+own, and gives the execution an `ImitatedProcess`. The function writes the lines
+of the program into the two streams and answers the exit code; an exception
+that it throws goes into `error_output` and ends it with the code 1. The readers,
+`read_line`, `finish`, the stop and the group see what they see of a program:
+`wait`, `process_running`, `exitcode`, `termsignal` and `process_signaled`. An
+imitated process has no identifier, so the sampler skips it, and a stop records
+the signal that the end reports, because a function runs to its end. A task
+that starts inside `f`, such as the loop of an editor that `f` starts, imitates
+too, because the function is a scoped value. A compile workload uses it, so that
+the gestures of a task compile and a build starts no program.
+
 A sampler of each process that runs calls `sample_task_usage!` four times a
 second, on a task of the default pool, off the loop. It reads the processor time
 and the resident memory of the process with `read_system_process_usage`, which

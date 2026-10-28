@@ -161,7 +161,7 @@ execution does not hold it.
 """
 mutable struct TaskRuntime
     lock::ReentrantLock
-    process::Union{Base.Process,Nothing}
+    process::Union{Base.Process,ImitatedProcess,Nothing}
     reader::Union{Task,Nothing}
     # Counts every write, so a reader knows whether anything changed since it
     # last looked.
@@ -385,6 +385,8 @@ function _interrupt_process_group(process::Base.Process)
     end
 end
 
+_interrupt_process_group(process::ImitatedProcess) = kill(process, Base.SIGINT)
+
 """
     get_task_status(code) -> Symbol
 
@@ -446,7 +448,9 @@ with a [`TaskFinishFailure`](@ref), which goes to `on_finish`: without it the
 task would never end, and a group that waits for it would wait forever.
 
 A `Cmd` starts in a process group of its own, so a stop reaches the programs
-that it starts, and a Ctrl+C at the REPL does not reach the task.
+that it starts, and a Ctrl+C at the REPL does not reach the task. Inside
+[`run_with_process_imitation`](@ref), a function imitates the command and no
+program starts.
 """
 function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd;
                              read_line = nothing, finish, on_finish = nothing)
@@ -454,9 +458,15 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
     output = Pipe()
     error_output = Pipe()
     started = time()
-    process = run(pipeline(command; stdout = output, stderr = error_output); wait = false)
-    close(output.in)
-    close(error_output.in)
+    imitation = _PROCESS_IMITATION[]
+    process = if imitation === nothing
+        program = run(pipeline(command; stdout = output, stderr = error_output); wait = false)
+        close(output.in)
+        close(error_output.in)
+        program
+    else
+        _start_imitated_process(imitation, command, output, error_output)
+    end
     # A process that ends at once has no identifier left to ask for.
     process_id = try
         Int(getpid(process))
