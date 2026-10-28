@@ -32,11 +32,12 @@ include("../../../source/backend/sdl/SdlModule.jl")
 using .SdlModule: SdlBackend, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
                   GraphicsCanvasToImageFile, write_offscreen_frames!,
                   make_offscreen_paint_state, render_offscreen_changes!,
-                  write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
+                  write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!,
+                  run_sdl_window_workload
 export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
-       write_offscreen_picture_with_overlay!
+       write_offscreen_picture_with_overlay!, run_sdl_window_workload
 
 # A person who names this package gets the names that most users call.
 using ProjecturedPlatform.EssentialsModule

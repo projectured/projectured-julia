@@ -12,8 +12,9 @@ const _GESTURE_STATEMENT_LIMIT = 10
 
 # The drive of the gestures in a fresh process of the package of the binary. A mark
 # is a new function, compiled once, so its statement lands in the trace of the
-# compiler between the statements of two gestures. The drive prints the label of
-# each mark, and the last line says that each gesture found its target.
+# compiler between the statements of two gestures. The drive builds its list
+# before the mark of the start, because a binary builds no list. It prints the
+# label of each mark, and the last line says that each gesture found its target.
 const _GESTURE_DRIVE = raw"""
 const _MARK_COUNT = Ref(0)
 function mark_gesture(label)
@@ -25,7 +26,7 @@ function mark_gesture(label)
 end
 mark_gesture("the load")
 using ProjecturedApp
-mark_gesture("the start")
+mark_gesture("the list of the drive")
 const A = ProjecturedApp.ProjecturedPlatform.ApplicationModule
 struct GestureMark <: A.WorkloadStep
     label::String
@@ -85,6 +86,7 @@ for type in A.collect_workload_file_types()
 end
 gesture("the end")
 
+mark_gesture("the start")
 A.run_application_workload(files; steps = STEPS, backend = ProjecturedApp.ProjecturedSDL.SdlBackend(),
                            llm = A.make_workload_llm("1 + 1"; answer = "The sum is two."),
                            timeout = 120)
@@ -184,13 +186,14 @@ function test_gestures_compile_little()
                 println(stderr, rpad(label, 48), lpad(statements, 6), lpad(recompiles, 6))
             end
             start = only(filter(count -> count[1] == "the start", counts))
-            # @broken: the start compiles 159 statements; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: the start compiles 75 statements, Base methods and the held frames of SDL; plan/pending/a-gesture-compiles-nothing.md, step 6
             @test_broken start[2] <= _START_STATEMENT_LIMIT
-            gestures = filter(count -> !(count[1] in ("the load", "the start", "the end")), counts)
+            gestures = filter(count -> !(count[1] in ("the load", "the list of the drive", "the start",
+                                                      "the end")), counts)
             @test !isempty(gestures)
-            # @broken: 14 of 166 gestures compile more than 10 statements; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: 4 of 166 gestures compile more than 10 statements, the assistant turn the most; plan/pending/a-gesture-compiles-nothing.md, step 6
             @test_broken all(count -> count[2] <= _GESTURE_STATEMENT_LIMIT, gestures)
-            # @broken: the gestures compile 37 methods again; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: the gestures compile 3 methods again; plan/pending/a-gesture-compiles-nothing.md, step 6
             @test_broken sum(count -> count[3], gestures; init = 0) == 0
         end
     end

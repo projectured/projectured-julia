@@ -1067,6 +1067,8 @@ function test_build_executable()
                            "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
             @test occursin("ProjecturedPlatform.warm_application()", source)
+            # A binary with SDL also runs the gestures of the window on SDL.
+            @test occursin("ProjecturedSDL.run_sdl_window_workload()", source)
             @test occursin("--backend=sdl|web", source)
             @test occursin("--assistant=ollama|anthropic|acp|none", source)
             @test occursin("--agent-command=COMMAND", source)

@@ -290,6 +290,9 @@ function _throw_workload_problems(problems::Vector{String}, faults)
     for record in faults
         push!(lines, string("A fault at the site ", record.site, " of ", record.origin, ": ",
                             record.exception_type, ": ", record.message))
+        # The frames of the stack that the record kept, which name the place.
+        stack = findfirst("Stacktrace:", record.traceback)
+        stack === nothing || push!(lines, record.traceback[first(stack):end])
     end
     error("The application workload failed.\n" * join(lines, "\n"))
 end
@@ -379,21 +382,27 @@ function _find_target_place(editor, target::DrawnPart)
     nothing
 end
 
+# The walks of the drawing and of the views below take each node with no
+# specialization on its type: a window holds many types, and a walk that compiled a
+# copy for each would fill the image and the trace of a guard with code that no
+# gesture runs.
+
 # A node of the drawing, with the cell and the link of a lazy list around it taken
 # away.
-function _get_drawn_node(node)
+function _get_drawn_node(@nospecialize(node))
     node isa AbstractCell && (node = node[])
     node isa ListNode ? _get_drawn_node(node.value) : node
 end
 
 # The place of `node` in the frame of its window, from the place `(x0, y0)` of its
 # container.
-_get_drawn_place(node, x0::Int, y0::Int) =
+_get_drawn_place(@nospecialize(node), x0::Int, y0::Int) =
     (hasproperty(node, :x) ? x0 + round(Int, something(node.x, 0)) : x0,
      hasproperty(node, :y) ? y0 + round(Int, something(node.y, 0)) : y0)
 
 # Push to `places` the place of each drawn text below `node` that `text` matches.
-function _collect_drawn_text_places!(places::Vector{Tuple{Int,Int}}, node, text, x0::Int, y0::Int)
+function _collect_drawn_text_places!(places::Vector{Tuple{Int,Int}}, @nospecialize(node),
+                                     text::Union{String,Regex}, x0::Int, y0::Int)
     node = _get_drawn_node(node)
     node === nothing && return places
     (x, y) = _get_drawn_place(node, x0, y0)
@@ -416,7 +425,7 @@ end
 
 # The middle of `target`, a node of the drawing below `node`, in the frame of its
 # window, or `nothing` when `node` does not hold it.
-function _find_node_middle(node, target, x0::Int, y0::Int)
+function _find_node_middle(@nospecialize(node), @nospecialize(target), x0::Int, y0::Int)
     node = _get_drawn_node(node)
     node === nothing && return nothing
     (x, y) = _get_drawn_place(node, x0, y0)
@@ -443,7 +452,7 @@ end
 # gives its children as a reader reaches them (`get_child_iomaps`), which computes
 # a list of children that no print needed. A field of a view that holds a view
 # is read only when its cell holds a value, so the walk computes no other cell.
-function _collect_part_outputs(iomap, predicate)
+function _collect_part_outputs(@nospecialize(iomap), predicate::Function)
     found = Any[]
     seen = IdDict{Any,Nothing}()
     stack = Any[iomap]
@@ -470,18 +479,20 @@ end
 
 # The value of a cell that holds one, `nothing` for a cell that holds none, and any
 # other value as it is.
-_get_held_value(value) = value isa AbstractCell ? (is_cell_valid(value) ? value[] : nothing) : value
+_get_held_value(@nospecialize(value)) =
+    value isa AbstractCell ? (is_cell_valid(value) ? value[] : nothing) : value
 
 """
     run_window_workload(; backend = WorkloadBackend(; events = Event[])) -> Nothing
 
 Run the gestures of the application window with [`run_application_workload`](@ref)
-on `backend`: a menu and an item of each menu, each tool of the toolbar, the
-open of a text file and of a `.pred` file from the Files pane, a click, a key, a
-save and an undo in each, a tab, a split, the Explorer and its context menu, a
-new tab named in the name buffer, F1, the command palette, and an assistant
-turn with a tool call. One gesture of each kind runs the code of every gesture
-of that kind, and each tool opens a view of its own.
+on `backend`: each item of each menu but File › Exit, the open of a text file and
+of a `.pred` file from the Files pane with a click, a key, a save and an undo in
+each, a tab, each tool of the toolbar, an assistant turn with a tool call, the
+Explorer and its context menu, and then, with a tab of each kind open, a new tab
+named in the name buffer, F1 and the command palette. Each item and each tool
+opens a document of its own type or changes the panes, and the printers compile
+for each type, so the list presses each one.
 
 The package of the platform calls it in its `@compile_workload`, and the package
 of a backend calls it with its own backend.
@@ -496,28 +507,36 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
     open_file = _make_file_open_steps
     edit = _make_file_edit_steps
     steps = WorkloadStep[
-        menu("Help", "About")...,
-        menu("View", "Split vertically")...,
-        menu("Help", "Documents")...,
+        # The items of Help come first: the gesture help lists the bindings of the
+        # focused tab, and a binding that splits tries to duplicate that tab, which
+        # a Settings tab refuses with a warning.
+        menu("Help", "Gestures")..., WorkloadKey(:f1),
+        menu("Help", "Command palette")..., WorkloadKey(:escape),
+        menu("Help", "Documents")..., menu("Help", "Projections")..., menu("Help", "About")...,
+        menu("View", "Split vertically")..., menu("View", "Split horizontally")...,
+        menu("View", "Gesture log")..., menu("View", "Appearance")..., menu("View", "Settings")...,
+        menu("File", "New tab")..., menu("File", "Close tab")...,
         open_file("a.txt", r"four")..., edit(r"four")...,
         open_file("b.pred", "second")..., edit("second")...,
         WorkloadClick(DrawnText("a.txt"; pick = :topmost)),
+        (WorkloadClick(tool(label)) for label in ("Explorer", "Files", "Evaluator", "Message log",
+                                                  "Gesture log", "Fault log", "Frame statistics",
+                                                  "Frame times", "Selection", "Appearance", "Settings",
+                                                  "Assistants", "Assistant"))...,
+        WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
+        WorkloadTyping("hi"), WorkloadKey(:return),
+        WorkloadWait(DrawnText("The sum is two.")),
         WorkloadClick(tool("Explorer")),
         WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
         WorkloadClick(DrawnText("Open in a new tab")),
-        # Ctrl+T opens a tab on an empty placeholder, Insert turns it into the
-        # name buffer, and the first key lists every type that it can make.
+        # The name buffer, the gesture help and the palette walk the panes, which
+        # hold a tab of each kind now. Ctrl+T opens a tab on an empty placeholder,
+        # Insert turns it into the name buffer, and the first key lists every type
+        # that it can make.
         WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("evaluator"),
         WorkloadKey(:return),
         WorkloadKey(:f1), WorkloadKey(:f1),
         WorkloadKey(:p; ctrl = true, shift = true), WorkloadTyping("ab"), WorkloadKey(:escape),
-        (WorkloadClick(tool(label)) for label in ("Evaluator", "Selection", "Appearance", "Settings",
-                                                  "Assistants", "Message log", "Gesture log",
-                                                  "Fault log", "Frame statistics", "Frame times"))...,
-        WorkloadClick(tool("Assistant")),
-        WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
-        WorkloadTyping("hi"), WorkloadKey(:return),
-        WorkloadWait(DrawnText("The sum is two.")),
         WorkloadKey(:w; ctrl = true)]
     run_application_workload(files; steps, backend,
                              llm = make_workload_llm("1 + 1"; answer = "The sum is two."))

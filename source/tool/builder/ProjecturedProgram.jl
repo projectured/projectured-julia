@@ -20,6 +20,17 @@ const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSDL", :SdlBackend),
                               web = ("ProjecturedWeb", :WebBackend))
 
 """
+    PROJECTURED_BACKEND_WORKLOADS
+
+The workload of each backend of [`PROJECTURED_BACKENDS`](@ref) that has one: the
+gestures of the application window on that backend. The workload of a
+`projectured` binary runs it after `warm_application`, so that the image of the
+binary holds the code of that backend also where a package loaded later made it
+invalid in the image of the backend.
+"""
+const PROJECTURED_BACKEND_WORKLOADS = (sdl = :(ProjecturedSDL.run_sdl_window_workload()),)
+
+"""
     PROJECTURED_STAND_INS
 
 The JLL packages that a `projectured` binary does not carry, as
@@ -284,14 +295,23 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
     "ProjecturedWorkflow", "ProjecturedResearch"]
 
-# The workload of the binary, written into its package. A list that fails writes a
-# warning, and the build goes on with an image that holds less. The expression has
-# no line node, so that no path of this checkout goes into the package.
-const _PROJECTURED_WORKLOAD =
-    Expr(:try, Expr(:block, :(ProjecturedPlatform.warm_application())), :exception,
-         Expr(:block, Expr(:macrocall, Symbol("@warn"), nothing,
-                           "The workload of projectured failed, so its image holds less",
-                           :exception)))
+# The workload of a binary with `backends`, written into its package:
+# `warm_application`, and the workload of each backend that has one. A list that
+# fails writes a warning, and the build goes on with an image that holds less.
+# The expression has no line node, so that no path of this checkout goes into the
+# package.
+function _make_projectured_workload(backends)
+    calls = Any[:(ProjecturedPlatform.warm_application())]
+    for backend in backends
+        haskey(PROJECTURED_BACKEND_WORKLOADS, backend) &&
+            push!(calls, PROJECTURED_BACKEND_WORKLOADS[backend])
+    end
+    Expr(:block, (Expr(:try, Expr(:block, call), :exception,
+                       Expr(:block, Expr(:macrocall, Symbol("@warn"), nothing,
+                                         "A workload of projectured failed, so its image holds less",
+                                         :exception)))
+                  for call in calls)...)
+end
 
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
@@ -306,8 +326,9 @@ Build the ProjecturEd application, and answer the directory of the bundle,
   [`PROJECTURED_BACKENDS`](@ref). The first one is the default; with more than
   one, `--backend` chooses.
 - `workload` runs the gestures of the application window and a file of each
-  format while the image compiles (`warm_application`), so that a gesture of a
-  real start needs no compilation.
+  format while the image compiles (`warm_application`), and the gestures of the
+  window on each backend of [`PROJECTURED_BACKEND_WORKLOADS`](@ref), so that a
+  gesture of a real start needs no compilation.
 - Every other keyword goes to [`build_executable`](@ref), for example
   `compile = false` to write the package and compile nothing, or
   `incremental = false` for a fresh image.
@@ -342,7 +363,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                                      backend_packages),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
-                     workload = workload ? _PROJECTURED_WORKLOAD : nothing,
+                     workload = workload ? _make_projectured_workload(backends) : nothing,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,

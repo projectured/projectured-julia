@@ -582,11 +582,87 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - The recompiles are spread: 1 to 5 in 22 gestures, and 53 in the start.
    - The three assertions of the target are `@test_broken` until step 6. The
      log is `/var/tmp/gesture-compiles/step5/guard-2026-10-28.log`.
-6. [ ] **What still compiles at a click (D5).** After step 5, the guard shows
+6. [x] **What still compiles at a click (D5).** After step 5, the guard shows
    what the images still do not hold: the recompiles that the app package does
    not cover, and the Base methods on our types that dynamic dispatch reaches
    (the 119 of `warm_application`). Fix each where it starts, with no cost on
    `read_intent`, `print_document` or another call for each node or event.
+
+   Found in the trace of the guard (`/var/tmp/gesture-compiles/step6/`:
+   `run-guard.jl` runs the three processes of the guard into a folder that
+   stays, `analyze-guard.py` gives the home of each statement):
+   - The recompiles were SDL code: the backend protocol on `SdlBackend`, the
+     paint, the fault barrier, and `read_intent` for `DisplayUpdate`,
+     `WindowLeave` and `MouseDwell`, events that only SDL gives. The image of
+     SDL compiles them, a package loaded later makes them invalid, and the
+     workload of the binary ran only on `WorkloadBackend`.
+   - D2 was wrong that one item of each menu is enough. Each item and each
+     tool opens a document of its own type (`ProjectionList`, `Settings`, …),
+     and the printers compile for each type: Help › Projections compiled 37.
+   - The order matters: the name buffer and F1 walk the open tabs and compile
+     a method for each kind of tab (`unwrap_cell`, `is_pane_search_step`), so
+     they must come after the tools.
+   - The walk that finds a `DrawnPart` compiled a copy for each type of the
+     window; that is the workload, not the gesture.
+   - 28 statements of the start were the drive building its list.
+
+   Fixed:
+   - The workload of the binary also runs the window list on SDL:
+     `PROJECTURED_BACKEND_WORKLOADS` in the builder names
+     `ProjecturedSDL.run_sdl_window_workload()` (now exported), and the
+     generated package runs each list in its own `try`.
+   - `run_window_workload` presses each item of each menu but File › Exit and
+     each tool, and then the name buffer, F1 and the palette. The items of Help
+     come first (the warning below).
+   - The walks of the workload take `@nospecialize` arguments.
+   - The drive of the guard marks the start after it builds its list.
+   - A defect that the longer list found: Help › Gestures with the Explorer
+     focused faulted, `shift_event_position(::CollectIntents, …)`. The tree
+     reader shifts each event it gives to its rows, also the query of the
+     gesture help. `shift_event_position` now has the fallback that
+     `map_event_position` has: a value that is no event comes back unchanged.
+     `test_window_workload` covers it, because its list presses Help ›
+     Gestures with the Explorer focused.
+   - The error of a workload names the stack of a fault.
+
+   Results (fresh processes, 2026-10-28):
+
+   | | Step 5 | Step 6 |
+   |---|---:|---:|
+   | the start, statements (recompiles) | 159 (53) | 75 (1) |
+   | 166 gestures, statements | 453 | 241 |
+   | 166 gestures, recompiles | 37 | 3 |
+   | gestures over 10 statements | 14 | 4 |
+
+   The build of `ProjecturedPlatform` takes 260 s and of `ProjecturedSDL` 81 s;
+   the image of the binary builds with no warning.
+
+   What remains, and why it stays:
+   - The start (75): 4 statements of the drive; about 40 small Base methods on
+     Base types (`length(::Vector{Float64})`, `+` of four `Int`s), which a
+     dynamic call reaches and which no package image keeps; the held frames of
+     SDL (about 20), which a build never runs, because a build has one thread;
+     and the notice about the threads of a tool call.
+   - The assistant turn (25): the success path of a tool call. The kernel
+     evaluates model code in `Module(:ToolScratch)`
+     ([CodeExecution.jl](../../source/kernel/tool/CodeExecution.jl)), and a
+     build refuses an evaluation into a module that it closed, so in each build
+     the tool call fails and the scripted model answers anyway. It is the fact
+     of Formula (step 4).
+   - Help › Gestures over a Settings tab (19): the gesture help collects the
+     bindings of the focused tab, and the split bindings duplicate that tab,
+     which a Settings tab refuses with the warning "The pane has no
+     duplicate". A defect of the gesture help, outside this plan.
+   - Frame times (13): the chart draws lines only when frames were measured.
+   - The first Ctrl+S (14): the report of the file watch comes after the quiet
+     window of a workload ends.
+   - The three assertions of the target stay `@test_broken`.
+
+   Tests: `test_gestures_compile_little` 2 pass and 3 broken (the image of the
+   binary builds in 4 min 47 s with no warning; 75, 241 and 3 as above),
+   `test_window_workload`, `test_application_workload` 14 of 14,
+   `test_sdl_workload` 7 of 7, `test_build_executable` 269 of 269,
+   `test_gesture_help` 47 of 47, `test_package_graph` 418 of 418, `test_naming`.
 
 ### omnet-julia
 

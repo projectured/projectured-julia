@@ -172,7 +172,7 @@ second `@compile_workload` of its entry file:
 
 | Package | The gestures of its home |
 | --- | --- |
-| `ProjecturedPlatform` | the application window (`run_window_workload`): a menu and an item of each menu, each tool of the toolbar, a text file and a `.pred` file opened and edited, the Explorer and its context menu, a new tab named in the name buffer, F1, the command palette, and an assistant turn with a tool call |
+| `ProjecturedPlatform` | the application window (`run_window_workload`): each item of each menu but File › Exit, each tool of the toolbar, a text file and a `.pred` file opened and edited, the Explorer and its context menu, a new tab named in the name buffer, F1, the command palette, and an assistant turn with a tool call |
 | `ProjecturedSDL` | the same list on an `SdlBackend`, with each input in the event queue of SDL (`run_sdl_window_workload`) |
 | a package whose slice has a file of a workload | the gestures of a file of its format (`run_file_workload`): open it from the Files pane, click in it, type, save, undo, and the name buffer |
 
@@ -199,8 +199,10 @@ calls the body in a normal process (`test_window_workload`, `test_sdl_workload`,
 
 The package of a binary runs the list of the binary after it loads every
 package of the binary: `warm_application` runs the window list and a file of
-each format. Its image then holds the code that a package loaded later made
-invalid in the image of a package below it. `test_gestures_compile_little`
+each format, and the window list runs again on each backend of the binary that
+has a workload, such as SDL. Its image then holds the code that a package loaded
+later made invalid in the image of a package below it, also the code of a
+backend. `test_gestures_compile_little`
 drives each item of each menu, each tool of the toolbar and a file of each
 format in a fresh process of the package of the binary, and counts the
 statements that each gesture compiles.
