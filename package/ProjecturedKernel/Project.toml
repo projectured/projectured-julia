@@ -9,6 +9,10 @@ authors = []
 
 [deps]
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 
 [compat]
 Preferences = "1"
+
+[sources]
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}

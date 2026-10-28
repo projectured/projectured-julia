@@ -1,0 +1,74 @@
+name = "ProjecturedBuild"
+uuid = "0d12d704-e35e-4db7-ba28-9ff6e8d6dafd"
+version = "0.1.0"
+authors = []
+
+# The package of the binary `projectured`: every package that the binary holds,
+# both backends included, and the workload of the binary. A build writes a small
+# package with the values of that one build, which loads this one.
+
+[deps]
+ProjecturedACP = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
+ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
+ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedDBCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
+ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
+ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
+ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedLanguageServer = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
+ProjecturedMCP = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
+ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
+ProjecturedRST = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedResearch = "226d5d21-7a82-49ae-88d7-994b1059b66b"
+ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
+ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
+ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
+ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+
+[sources]
+ProjecturedACP = {path = "../ProjecturedACP"}
+ProjecturedAnthropic = {path = "../ProjecturedAnthropic"}
+ProjecturedBook = {path = "../ProjecturedBook"}
+ProjecturedChart = {path = "../ProjecturedChart"}
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedDBCatalog = {path = "../ProjecturedDBCatalog"}
+ProjecturedDatabase = {path = "../ProjecturedDatabase"}
+ProjecturedFSM = {path = "../ProjecturedFSM"}
+ProjecturedFormula = {path = "../ProjecturedFormula"}
+ProjecturedGraph = {path = "../ProjecturedGraph"}
+ProjecturedJSON = {path = "../ProjecturedJSON"}
+ProjecturedJulia = {path = "../ProjecturedJulia"}
+ProjecturedLanguageServer = {path = "../ProjecturedLanguageServer"}
+ProjecturedMCP = {path = "../ProjecturedMCP"}
+ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
+ProjecturedMath = {path = "../ProjecturedMath"}
+ProjecturedOllama = {path = "../ProjecturedOllama"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
+ProjecturedPivot = {path = "../ProjecturedPivot"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
+ProjecturedProcess = {path = "../ProjecturedProcess"}
+ProjecturedRST = {path = "../ProjecturedRST"}
+ProjecturedResearch = {path = "../ProjecturedResearch"}
+ProjecturedSDL = {path = "../ProjecturedSDL"}
+ProjecturedSQL = {path = "../ProjecturedSQL"}
+ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
+ProjecturedWeb = {path = "../ProjecturedWeb"}
+ProjecturedWorkflow = {path = "../ProjecturedWorkflow"}
+ProjecturedXML = {path = "../ProjecturedXML"}
+ProjecturedYAML = {path = "../ProjecturedYAML"}

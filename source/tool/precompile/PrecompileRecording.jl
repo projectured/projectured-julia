@@ -26,21 +26,25 @@ function _get_default_root()
 end
 
 """
+    is_compiling_package(folder) -> Bool
+
+Whether the entry file of the package in `folder`, `src/<name>.jl`, calls
+[`@compile_ahead`](@ref).
+"""
+function is_compiling_package(folder::AbstractString)
+    entry = joinpath(folder, "src", basename(normpath(folder)) * ".jl")
+    isfile(entry) && occursin(r"(?m)^\s*@compile_ahead\b", read(entry, String))
+end
+
+"""
     collect_compiling_packages(root) -> Vector{String}
 
 The packages in `root/package/` whose entry file calls
 [`@compile_ahead`](@ref), sorted by name.
 """
-function collect_compiling_packages(root::AbstractString)
-    folder = joinpath(root, "package")
-    names = String[]
-    for name in sort!(readdir(folder))
-        entry = joinpath(folder, name, "src", name * ".jl")
-        isfile(entry) && occursin(r"(?m)^\s*@compile_ahead\b", read(entry, String)) &&
-            push!(names, name)
-    end
-    names
-end
+collect_compiling_packages(root::AbstractString) =
+    [name for name in sort!(readdir(joinpath(root, "package")))
+     if is_compiling_package(joinpath(root, "package", name))]
 
 """
     collect_package_closures(environment) -> Dict{String,Set{String}}
@@ -200,7 +204,8 @@ Run `run_package_workload()` of `package` in a new process under
 not compile again and the trace would not see it. A first process with no trace
 builds the images, so that the trace holds no call of the build. With
 `display = false` the processes open no display: SDL runs on its dummy video
-driver.
+driver. When the workload fails, the recording keeps the calls that it compiled
+before the failure and shows the failure in a warning.
 
 The trace holds the calls that the run dispatched to, and each one compiles
 with the calls that inference resolved inside it, so a build that compiles the
@@ -217,13 +222,26 @@ function trace_package_calls(package::AbstractString;
     julia = `$(Base.julia_cmd()) --startup-file=no --project=$environment --threads=$threads`
     variables = Pair{String,String}["JULIA_LOAD_PATH" => load_path]
     display || push!(variables, "SDL_VIDEODRIVER" => "dummy")
+    failure = tempname()
     try
         run(addenv(`$julia -e $("import $package")`, variables...))
-        script = "import $package; $package.run_package_workload(); exit(0)"
+        script = """
+            import $package
+            try
+                $package.run_package_workload()
+            catch exception
+                write($(repr(failure)), sprint(showerror, exception))
+            end
+            exit(0)
+            """
         run(addenv(`$julia --trace-compile=$trace -e $script`, variables...))
+        isfile(failure) &&
+            @warn string("The workload of ", package, " failed, so the recording holds the ",
+                         "calls that it compiled before the failure. ", read(failure, String))
         collect_traced_calls(trace)
     finally
         rm(trace; force = true)
+        rm(failure; force = true)
         rm(preferences; recursive = true, force = true)
     end
 end

@@ -35,4 +35,9 @@ export WebBackend, get_web_asset_directory, convert_web_key_to_symbol
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
+# This package has no workload of its own. It compiles the calls that an
+# application records for it, as its preferences say.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead
+
 end # module ProjecturedWeb

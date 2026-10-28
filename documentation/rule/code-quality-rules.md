@@ -307,7 +307,7 @@ lines, `ProjecturedSDL.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at
 A test function is exempt. `test_reference_rules()` is 1049 lines, and it reads
 better as one list.
 
-The statement files `package/*/precompile/*.txt` are generated. No rule applies
+The recorded lists `package/*/precompile/*.txt` are generated. No rule applies
 to them.
 
 ## 6. The measured baseline

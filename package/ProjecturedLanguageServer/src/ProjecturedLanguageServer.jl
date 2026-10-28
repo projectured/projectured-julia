@@ -36,7 +36,11 @@ end
 
 # The view of a source file is a natural row, which every first window of the
 # display builds.
-using PrecompileTools: @compile_workload
-@compile_workload run_natural_rows_workload(LanguageServerModule)
+# The workload of this package: the natural rows of this domain, which every
+# first window of the display builds.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    run_natural_rows_workload(LanguageServerModule)
+end
 
 end # module ProjecturedLanguageServer

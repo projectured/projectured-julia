@@ -109,8 +109,9 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 
 | Package | Document | What it holds |
 | --- | --- | --- |
-| `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
+| `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads |
 | `ProjecturedBuilder` | [builder.md](tool/builder/builder.md) | the build of a native binary |
+| `ProjecturedBuild` | [builder.md](tool/builder/builder.md) | the package of the binary `projectured`: its packages and its workload |
 | `ProjecturedPrecompile` | [precompile.md](tool/precompile/precompile.md) | the one mechanism that compiles a package ahead of time, and the recording |
 
 ## AutoIntegration

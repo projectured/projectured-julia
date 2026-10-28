@@ -55,7 +55,7 @@ described in the next section.
 ## Package layout — the package graph
 
 The **kinds** of package (main, example, test, repl, build), what each may
-depend on, and where a `@compile_workload` may live, are in
+depend on, and how a package compiles ahead of time, are in
 [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of

@@ -29,4 +29,9 @@ include("../../../source/adapter/anthropic/AnthropicModule.jl")
 using .AnthropicModule: get_newest_anthropic_model, find_adaptive_model, AnthropicLlm
 export get_newest_anthropic_model, find_adaptive_model, AnthropicLlm
 
+# This package has no workload of its own. It compiles the calls that an
+# application records for it, as its preferences say.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead
+
 end # module ProjecturedAnthropic

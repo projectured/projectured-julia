@@ -32,4 +32,9 @@ using .AcpModule: AcpConnection
 using AgentClientProtocol: ProtocolException
 export AcpConnection, ProtocolException
 
+# This package has no workload of its own. It compiles the calls that an
+# application records for it, as its preferences say.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead
+
 end # module ProjecturedACP

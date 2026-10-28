@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "681c880926f4bc459f6e09907ed24a25ff891a38"
+project_hash = "367b6765e13b730ae972b40f3245e6a3943f2434"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -943,7 +943,7 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedACP]]
-deps = ["AgentClientProtocol", "Base64", "ClaudeCodeACP", "ProjecturedKernel"]
+deps = ["AgentClientProtocol", "Base64", "ClaudeCodeACP", "ProjecturedKernel", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedACP"
 uuid = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
 version = "0.1.0"
@@ -973,7 +973,7 @@ uuid = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 version = "0.1.0"
 
 [[deps.ProjecturedAnthropic]]
-deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedAnthropic"
 uuid = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
 version = "0.1.0"
@@ -991,7 +991,7 @@ uuid = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 version = "0.1.0"
 
 [[deps.ProjecturedBook]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedBook"
 uuid = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 version = "0.1.0"
@@ -1008,8 +1008,14 @@ path = "../../package/ProjecturedBookTest"
 uuid = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 version = "0.1.0"
 
+[[deps.ProjecturedBuild]]
+deps = ["ProjecturedACP", "ProjecturedAnthropic", "ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedLanguageServer", "ProjecturedMCP", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedOllama", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedPrecompile", "ProjecturedProcess", "ProjecturedRST", "ProjecturedResearch", "ProjecturedSDL", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedWeb", "ProjecturedWorkflow", "ProjecturedXML", "ProjecturedYAML"]
+path = "../../package/ProjecturedBuild"
+uuid = "0d12d704-e35e-4db7-ba28-9ff6e8d6dafd"
+version = "0.1.0"
+
 [[deps.ProjecturedBuilder]]
-deps = ["Dates", "Pkg", "Preferences", "SHA", "TOML"]
+deps = ["Dates", "Pkg", "Preferences", "ProjecturedPrecompile", "SHA", "TOML"]
 path = "../../package/ProjecturedBuilder"
 uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
@@ -1021,7 +1027,7 @@ uuid = "4b4f0ad5-ca0e-4e1f-bd3e-51e22c785921"
 version = "0.1.0"
 
 [[deps.ProjecturedChart]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedChart"
 uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 version = "0.1.0"
@@ -1039,7 +1045,7 @@ uuid = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 version = "0.1.0"
 
 [[deps.ProjecturedConsole]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedConsole"
 uuid = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 version = "0.1.0"
@@ -1057,7 +1063,7 @@ uuid = "347e843b-c443-43c2-b8df-78595927ced1"
 version = "0.1.0"
 
 [[deps.ProjecturedDBCatalog]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedSQL"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile", "ProjecturedSQL"]
 path = "../../package/ProjecturedDBCatalog"
 uuid = "b1d9ff6e-938d-43f9-b327-c16571782863"
 version = "0.1.0"
@@ -1075,7 +1081,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedDataFrames]]
-deps = ["DataFrames", "PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["DataFrames", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedDataFrames"
 uuid = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 version = "0.1.0"
@@ -1093,7 +1099,7 @@ uuid = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
 version = "0.1.0"
 
 [[deps.ProjecturedDatabase]]
-deps = ["ProjecturedKernel"]
+deps = ["ProjecturedKernel", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedDatabase"
 uuid = "a8e362de-fb06-4734-b6cc-4acfede009df"
 version = "0.1.0"
@@ -1111,13 +1117,13 @@ uuid = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["InteractiveUtils", "Profile", "ProjecturedAll", "ProjecturedAnthropic", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDBCatalogExample", "ProjecturedDatabaseExample", "ProjecturedFSMExample", "ProjecturedFormulaExample", "ProjecturedGraphExample", "ProjecturedJSONExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedPivotExample", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedProcessExample", "ProjecturedRSTExample", "ProjecturedResearchExample", "ProjecturedSQLExample", "ProjecturedSequenceChartExample", "ProjecturedWorkflowExample", "ProjecturedXMLExample", "ProjecturedYAMLExample"]
+deps = ["InteractiveUtils", "Profile", "ProjecturedAll", "ProjecturedAnthropic", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDBCatalogExample", "ProjecturedDatabaseExample", "ProjecturedFSMExample", "ProjecturedFormulaExample", "ProjecturedGraphExample", "ProjecturedJSONExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedPivotExample", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPrecompile", "ProjecturedProcessExample", "ProjecturedRSTExample", "ProjecturedResearchExample", "ProjecturedSQLExample", "ProjecturedSequenceChartExample", "ProjecturedWorkflowExample", "ProjecturedXMLExample", "ProjecturedYAMLExample"]
 path = "../../package/ProjecturedExample"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
 [[deps.ProjecturedFSM]]
-deps = ["ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedFSM"
 uuid = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 version = "0.1.0"
@@ -1141,7 +1147,7 @@ uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 version = "0.1.0"
 
 [[deps.ProjecturedFormula]]
-deps = ["PrecompileTools", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMath", "ProjecturedPlatform"]
+deps = ["ProjecturedJulia", "ProjecturedKernel", "ProjecturedMath", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedFormula"
 uuid = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 version = "0.1.0"
@@ -1159,7 +1165,7 @@ uuid = "0bc32d86-cd04-4a16-a675-273d503f220c"
 version = "0.1.0"
 
 [[deps.ProjecturedGraph]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedGraph"
 uuid = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 version = "0.1.0"
@@ -1192,7 +1198,7 @@ weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "SimpleDirec
     ProjecturedIntegrationsTulipExt = "Tulip"
 
 [[deps.ProjecturedJSON]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedJSON"
 uuid = "975d7430-285c-49f1-8705-4e3c002513ca"
 version = "0.1.0"
@@ -1210,7 +1216,7 @@ uuid = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
 version = "0.1.0"
 
 [[deps.ProjecturedJulia]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedJulia"
 uuid = "8625b742-6071-4be0-bd92-d89876019251"
 version = "0.1.0"
@@ -1228,7 +1234,7 @@ uuid = "caf9ed19-1e68-4f5e-8085-d28b12c9e002"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
-deps = ["Preferences"]
+deps = ["Preferences", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedKernel"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
@@ -1246,7 +1252,7 @@ uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"
 
 [[deps.ProjecturedLanguageServer]]
-deps = ["JSON3", "PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["JSON3", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedLanguageServer"
 uuid = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
 version = "0.1.0"
@@ -1258,7 +1264,7 @@ uuid = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
 version = "0.1.0"
 
 [[deps.ProjecturedMCP]]
-deps = ["HTTP", "ModelContextProtocol", "ProjecturedKernel", "ProjecturedPlatform", "Random", "Sockets"]
+deps = ["HTTP", "ModelContextProtocol", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile", "Random", "Sockets"]
 path = "../../package/ProjecturedMCP"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
@@ -1270,7 +1276,7 @@ uuid = "6701148d-79c0-4063-93b4-06ac75587b22"
 version = "0.1.0"
 
 [[deps.ProjecturedMarkdown]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedMarkdown"
 uuid = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 version = "0.1.0"
@@ -1288,7 +1294,7 @@ uuid = "9b6ed84a-435e-4201-b17d-e2031f977df8"
 version = "0.1.0"
 
 [[deps.ProjecturedMath]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedMath"
 uuid = "80f7b254-0441-42e3-ab4d-62a480615fad"
 version = "0.1.0"
@@ -1324,7 +1330,7 @@ uuid = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 version = "0.1.0"
 
 [[deps.ProjecturedOllama]]
-deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedOllama"
 uuid = "1e313069-2975-45bd-ba6e-35a6296eb437"
 version = "0.1.0"
@@ -1348,7 +1354,7 @@ uuid = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 version = "0.1.0"
 
 [[deps.ProjecturedPDF]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedPDF"
 uuid = "18e37c66-e2b2-4424-ab73-223891693292"
 version = "0.1.0"
@@ -1360,7 +1366,7 @@ uuid = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 version = "0.1.0"
 
 [[deps.ProjecturedPivot]]
-deps = ["Dates", "PrecompileTools", "ProjecturedChart", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["Dates", "ProjecturedChart", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedPivot"
 uuid = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 version = "0.1.0"
@@ -1378,7 +1384,7 @@ uuid = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["FileWatching", "PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
+deps = ["FileWatching", "Printf", "ProjecturedKernel", "ProjecturedPrecompile", "Serialization", "TOML"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"
@@ -1408,7 +1414,7 @@ uuid = "da73c6bf-4c95-4d6a-96ed-aa5aa7e33491"
 version = "0.1.0"
 
 [[deps.ProjecturedProcess]]
-deps = ["ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedProcess"
 uuid = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 version = "0.1.0"
@@ -1426,13 +1432,13 @@ uuid = "4e12067a-a745-4784-a5a3-977285a45110"
 version = "0.1.0"
 
 [[deps.ProjecturedREPL]]
-deps = ["PrecompileTools", "Preferences", "ProjecturedAll", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest", "TOML"]
+deps = ["ProjecturedAll", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest"]
 path = "../../package/ProjecturedREPL"
 uuid = "6b3f1e12-a33e-4b24-a01a-a986c90b1b68"
 version = "0.1.0"
 
 [[deps.ProjecturedRST]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedRST"
 uuid = "831b768c-bfea-4983-ba67-a56f379c3222"
 version = "0.1.0"
@@ -1450,7 +1456,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedResearch]]
-deps = ["Dates", "PrecompileTools", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPlatform"]
+deps = ["Dates", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedResearch"
 uuid = "226d5d21-7a82-49ae-88d7-994b1059b66b"
 version = "0.1.0"
@@ -1468,7 +1474,7 @@ uuid = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
 version = "0.1.0"
 
 [[deps.ProjecturedSDL]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
 path = "../../package/ProjecturedSDL"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
@@ -1486,7 +1492,7 @@ uuid = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 version = "0.1.0"
 
 [[deps.ProjecturedSQL]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedSQL"
 uuid = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 version = "0.1.0"
@@ -1504,7 +1510,7 @@ uuid = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 version = "0.1.0"
 
 [[deps.ProjecturedSequenceChart]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedSequenceChart"
 uuid = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
 version = "0.1.0"
@@ -1558,7 +1564,7 @@ uuid = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 version = "0.1.0"
 
 [[deps.ProjecturedWeb]]
-deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedWeb"
 uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"
@@ -1570,7 +1576,7 @@ uuid = "63227355-0b2b-40e1-bdff-9ca7f4e6ad34"
 version = "0.1.0"
 
 [[deps.ProjecturedWorkflow]]
-deps = ["Dates", "PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["Dates", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedWorkflow"
 uuid = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
 version = "0.1.0"
@@ -1588,7 +1594,7 @@ uuid = "d76d7962-22cb-410b-9735-0fe94aef2231"
 version = "0.1.0"
 
 [[deps.ProjecturedXML]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedXML"
 uuid = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 version = "0.1.0"
@@ -1606,7 +1612,7 @@ uuid = "e1c62fea-11da-4947-a567-721c2ab4f06a"
 version = "0.1.0"
 
 [[deps.ProjecturedYAML]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedYAML"
 uuid = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 version = "0.1.0"

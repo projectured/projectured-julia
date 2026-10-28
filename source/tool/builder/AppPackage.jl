@@ -37,7 +37,7 @@ a real answer to want.
 const LOG_LEVEL_NAMES = ("debug", "info", "warn", "error", "none")
 
 """
-    write_app_package(context; name, packages, imports, init, main, workload,
+    write_app_package(context; name, packages, imports, init, main,
                        info, usage, log_level, stand_ins) -> String
 
 Write the package this build compiles, and answer its directory.
@@ -55,7 +55,6 @@ Write the package this build compiles, and answer its directory.
 - `main` — an `Expr` whose value is the exit code. It becomes the body of
   `julia_main`. An `Expr` and not a string, so Julia's parser checks it while the
   build function is still running rather than minutes later.
-- `workload` — an `Expr` run under `@compile_workload`, or `nothing`.
 - `info` — what went in, as text. It becomes a constant read at module scope, so
   it is compiled into the image and cannot be separated from the binary.
 - `usage` — a [`Usage`](@ref), and then this module answers `--help` and
@@ -74,7 +73,6 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
                             main::Expr,
-                            workload::Union{Expr,Nothing} = nothing,
                             info::AbstractString = "",
                             usage::Union{Usage,Nothing} = nothing,
                             log_level::Symbol = :warn,
@@ -87,13 +85,12 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     # as comments pointing at the builder, which is where a reader of a build
     # artefact should not be sent.
     main = Base.remove_linenums!(copy(main))
-    workload = workload === nothing ? nothing : Base.remove_linenums!(copy(workload))
     init isa Expr && (init = Base.remove_linenums!(copy(init)))
     directory = joinpath(context.root, "build", "app", String(name))
     mkpath(joinpath(directory, "src"))
     module_name = get_app_module_name(name)
 
-    deps = Dict{String,Any}("PrecompileTools" => "aea7be01-6a6a-4083-8856-8a6e6704d82a")
+    deps = Dict{String,Any}()
     sources = Dict{String,Any}()
     for package in (packages..., imports...)
         package_dir = get_package_directory(context, package)
@@ -121,7 +118,6 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         println(io, "# write the same thing again leaves it alone, so that its cache holds.")
         println(io, "module ", module_name)
         println(io)
-        println(io, "using PrecompileTools")
         for package in imports
             println(io, "import ", package)
         end
@@ -224,12 +220,6 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         end
         println(io, "    ", string(main))
         println(io, "end")
-        if workload !== nothing
-            println(io)
-            println(io, "@compile_workload begin")
-            println(io, "    ", string(workload))
-            println(io, "end")
-        end
         println(io)
         println(io, "end # module ", module_name)
     end

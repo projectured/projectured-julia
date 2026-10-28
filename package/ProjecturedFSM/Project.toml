@@ -10,12 +10,14 @@ ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 
 [sources]
 ProjecturedGraph = {path = "../ProjecturedGraph"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 
 # AutoIntegration loads this package when Projectured is loaded, unless the
 # environment of the user sets it to "manual".

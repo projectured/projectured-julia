@@ -529,11 +529,11 @@ BookmarkList
   `register_natural_…!` function, or defines a method of
   `make_graphics_projection` for one of its types, every first window of a
   session that loads the package builds them. End the root module with a workload that compiles
-  them, and add `PrecompileTools` to its `[deps]`:
+  them, and add `ProjecturedPrecompile` to its `[deps]` and `[sources]`:
 
   ```julia
-  using PrecompileTools: @compile_workload
-  @compile_workload run_natural_rows_workload(BookmarkModule)
+  using ProjecturedPrecompile: @compile_ahead
+  @compile_ahead run_natural_rows_workload(BookmarkModule)
   ```
 
   [package-rules.md](../rule/package-rules.md#a-package-that-a-user-loads-compiles-its-own-first-window)

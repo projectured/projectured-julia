@@ -26,6 +26,7 @@ import Pkg
 import TOML
 using SHA: sha256
 using Preferences: set_preferences!
+using ProjecturedPrecompile: PRECOMPILE_CALLS_VALUES, is_compiling_package
 
 export BuildContext, get_package_directory, has_package_directory, collect_missing_sources,
        get_package_uuid, make_projectured_build_context

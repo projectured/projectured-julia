@@ -1,9 +1,9 @@
 # The gestures of the `projectured` binary compile little. Each package of the
-# binary runs the gestures of its home in its `@compile_workload`, and the package
-# that a build of the binary writes runs the list of the binary
+# binary compiles the gestures of its home with its `@compile_ahead`, and
+# `ProjecturedBuild`, the package of the binary, compiles the list of the binary
 # (`warm_application`), by the rules of package-rules.md under "A package
-# compiles the gestures of its home". A fresh process of that package drives each
-# gesture on SDL and counts the statements that it compiles.
+# compiles the gestures of its home". A fresh process of the package that a build
+# writes drives each gesture on SDL and counts the statements that it compiles.
 
 # The statements that the start may compile, from the load of the binary until
 # its window is quiet, and that one gesture may compile.
@@ -186,14 +186,14 @@ function test_gestures_compile_little()
                 println(stderr, rpad(label, 48), lpad(statements, 6), lpad(recompiles, 6))
             end
             start = only(filter(count -> count[1] == "the start", counts))
-            # @broken: the start compiles 75 statements, Base methods and the held frames of SDL; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: the start compiles 75 statements, Base methods and the held frames of SDL; plan/done/a-gesture-compiles-nothing.md, step 6
             @test_broken start[2] <= _START_STATEMENT_LIMIT
             gestures = filter(count -> !(count[1] in ("the load", "the list of the drive", "the start",
                                                       "the end")), counts)
             @test !isempty(gestures)
-            # @broken: 4 of 166 gestures compile more than 10 statements, the assistant turn the most; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: 4 of 166 gestures compile more than 10 statements, the assistant turn the most; plan/done/a-gesture-compiles-nothing.md, step 6
             @test_broken all(count -> count[2] <= _GESTURE_STATEMENT_LIMIT, gestures)
-            # @broken: the gestures compile 3 methods again; plan/pending/a-gesture-compiles-nothing.md, step 6
+            # @broken: the gestures compile 3 methods again; plan/done/a-gesture-compiles-nothing.md, step 6
             @test_broken sum(count -> count[3], gestures; init = 0) == 0
         end
     end

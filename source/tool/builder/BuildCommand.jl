@@ -46,10 +46,10 @@ const BUILD_OPTIONS = [
      "the backends the binary holds, comma-separated\n" *
      "(default: sdl,web). The first one is the default of\n" *
      "the binary"),
-    ("--no-workload", "--no-workload",
-     "compile no start of the application ahead of time.\n" *
-     "The build is faster, and the first window of the\n" *
-     "binary is slower"),
+    ("--precompile-calls=", "--precompile-calls=<value>",
+     "what each package compiles ahead of time: recorded,\n" *
+     "the recorded calls (default), live, a run of each\n" *
+     "workload, or none: a faster build, a slower binary"),
     ("--no-incremental", "--no-incremental",
      "compile a fresh system image, not one on top of the\n" *
      "image of this Julia"),
@@ -155,8 +155,8 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
             distribution = true
         elseif key == "--backends="
             keywords[:backends] = Tuple(Symbol.(split(_get_build_option_value(argument, key), ',')))
-        elseif key == "--no-workload"
-            keywords[:workload] = false
+        elseif key == "--precompile-calls="
+            keywords[:precompile_calls] = _get_build_option_value(argument, key)
         elseif key == "--no-incremental"
             keywords[:incremental] = false
         elseif key == "--filter-stdlibs"

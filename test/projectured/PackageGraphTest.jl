@@ -50,19 +50,17 @@ const BELOW_THE_DOMAINS = ["ProjecturedPlatform", "ProjecturedConsole", "Project
 
 
 """
-The leaves: a package nothing may depend on, and a place where a
-`@compile_workload` may live. `ProjecturedBench` is one because it loads
-`ProjecturedExample` to measure it. `ProjecturedBuilder` is not here: it is a
-tool that drives a build, not a package a session loads. The package that a
-build compiles into a binary is a leaf too, but it lives under `build/app/`,
-outside `package/`.
+The leaves: a package nothing may depend on. `ProjecturedBench` is one because it
+loads `ProjecturedExample` to measure it, and `ProjecturedBuild` is the package
+of the binary `projectured`. `ProjecturedBuilder` is not here: it is a tool that
+drives a build, not a package a session loads. The small package that a build
+writes under `build/app/`, outside `package/`, is a leaf too.
 """
-const _LEAVES = ("ProjecturedREPL", "ProjecturedBench")
+const _LEAVES = ("ProjecturedREPL", "ProjecturedBench", "ProjecturedBuild")
 
 """
-The packages that a user loads and whose first window their entry file compiles
-in a `@compile_workload`, by the rules of `package-rules.md`. Only the entry file
-holds it, so the rest of the package does not.
+The packages that a user loads and whose first window the workload of their
+`@compile_ahead` runs, by the rules of `package-rules.md`.
 """
 const _FIRST_WINDOW_PACKAGES = ("ProjecturedPlatform", "ProjecturedDataFrames", "ProjecturedSDL")
 
@@ -71,8 +69,8 @@ const _FIRST_WINDOW_PACKAGES = ("ProjecturedPlatform", "ProjecturedDataFrames", 
 
 Whether the slice of the package `name` calls a `register_natural_…!` function
 or defines a method of `make_graphics_projection` for a type, so that every
-first window builds rows of it. Such a package compiles them in a
-`@compile_workload` of its entry file, by the rules of `package-rules.md`.
+first window builds rows of it. Such a package compiles them in the workload of
+the `@compile_ahead` of its entry file, by the rules of `package-rules.md`.
 """
 function _has_natural_rows(name)
     dir = _source_dir(name)
@@ -386,30 +384,35 @@ function test_package_graph()
             end
         end
 
-        @testset "a compile workload lives in a leaf, or in the entry file of a first window package or of a package with natural rows or a file of a workload" begin
-            entries = [joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl")
-                       for name in keys(packages)
-                       if name in _FIRST_WINDOW_PACKAGES || _has_natural_rows(name) ||
-                          _has_workload_file(name)]
+        @testset "a package compiles ahead only with @compile_ahead, once, in its entry file" begin
             offenders = String[]
             # Both trees: a package is a name and an include list, and the
             # list it names lives under `source/`.
             for area in ("package", "source"),
                 (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, area))
-                (any(leaf -> occursin(joinpath("package", leaf), root), _LEAVES) ||
-                 occursin(joinpath("source", "tool", "repl"), root)) && continue
+                # The mechanism itself shows the call in its documentation.
+                occursin(joinpath("source", "tool", "precompile"), root) && continue
                 for file in files
                     endswith(file, ".jl") || continue
                     path = joinpath(root, file)
-                    path in entries && continue
+                    text = read(path, String)
                     # A call, not a mention: the macro at the head of a line.
                     # Prose about it, and this test's own message, must not count.
-                    occursin(r"(?m)^\s*@compile_workload\b", read(path, String)) &&
-                        push!(offenders, relpath(path, _PACKAGE_ROOT))
+                    occursin(r"(?m)^\s*@compile_workload\b", text) &&
+                        push!(offenders, relpath(path, _PACKAGE_ROOT) * ": @compile_workload")
+                    calls = count(r"(?m)^\s*@compile_ahead\b", text)
+                    calls == 0 && continue
+                    name = basename(dirname(dirname(path)))
+                    is_entry = area == "package" && file == "$name.jl" &&
+                               basename(dirname(path)) == "src"
+                    (is_entry && calls == 1) ||
+                        push!(offenders, relpath(path, _PACKAGE_ROOT) * ": @compile_ahead $calls times")
+                    is_entry && !("ProjecturedPrecompile" in get(packages, name, String[])) &&
+                        push!(offenders, relpath(path, _PACKAGE_ROOT) * ": no ProjecturedPrecompile in [deps]")
                 end
             end
             isempty(offenders) ||
-                println(stderr, "\n@compile_workload outside a leaf and a first window entry file:\n  ",
+                println(stderr, "\na compile ahead outside the one call of an entry file:\n  ",
                         join(offenders, "\n  "))
             @test isempty(offenders)
         end
@@ -420,11 +423,12 @@ function test_package_graph()
                 (name in _LEAVES || name in _FIRST_WINDOW_PACKAGES) && continue
                 _has_natural_rows(name) || continue
                 entry = read(joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"), String)
-                occursin(r"(?m)^@compile_workload run_natural_rows_workload\(\w+\)$", entry) ||
+                (occursin(r"(?m)^\s*@compile_ahead\b", entry) &&
+                 occursin(r"(?m)^\s*run_natural_rows_workload\(\w+\)$", entry)) ||
                     push!(missing_workload, name)
             end
             isempty(missing_workload) ||
-                println(stderr, "\nno `@compile_workload run_natural_rows_workload(…)` in the entry file of:\n  ",
+                println(stderr, "\nno `run_natural_rows_workload(…)` in the `@compile_ahead` of the entry file of:\n  ",
                         join(missing_workload, "\n  "))
             @test isempty(missing_workload)
         end
@@ -435,11 +439,12 @@ function test_package_graph()
                 (name in _LEAVES || name in _FIRST_WINDOW_PACKAGES) && continue
                 _has_workload_file(name) || continue
                 entry = read(joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"), String)
-                occursin(r"(?m)^\s*run_file_workload\(\w+\.\w+\)$", entry) ||
+                (occursin(r"(?m)^\s*@compile_ahead\b", entry) &&
+                 occursin(r"(?m)^\s*run_file_workload\(\w+\.\w+\)$", entry)) ||
                     push!(missing_workload, name)
             end
             isempty(missing_workload) ||
-                println(stderr, "\nno `run_file_workload(…)` in a `@compile_workload` of the entry file of:\n  ",
+                println(stderr, "\nno `run_file_workload(…)` in the `@compile_ahead` of the entry file of:\n  ",
                         join(missing_workload, "\n  "))
             @test isempty(missing_workload)
         end

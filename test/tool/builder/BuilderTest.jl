@@ -36,7 +36,7 @@ function _generated_source(context::BuildContext; name, usage, log_level::Symbol
     # The real record, not a fabricated one, so what the test reads back is what
     # a build writes — the build timestamp among it.
     info = build_info(; name = name, packages = [A_PACKAGE], main = main,
-                        workload = nothing, preferences = [],
+                        precompile_calls = "recorded", preferences = [],
                         optimization = 3, debug_info = 1, cpu_target = "")
     project = write_app_package(context; name = name, packages = [A_PACKAGE],
                                  main = main, info = info, usage = usage,
@@ -280,7 +280,7 @@ function test_build_executable()
             # The build record says what the binary does not carry.
             info = build_info(; name = "quiet", packages = [A_PACKAGE],
                                 main = :(begin 0 end),
-                                workload = nothing, preferences = [], optimization = 3,
+                                precompile_calls = "recorded", preferences = [], optimization = 3,
                                 debug_info = 1, cpu_target = "", stand_ins)
             @test occursin("stand-in: some_jll, which this binary does not carry; it " *
                            "keeps Kept_jll", info)
@@ -476,7 +476,7 @@ function test_build_executable()
             # A preference of a package that the build names adds nothing.
             project_toml, source, _ = write_reader_package(
                 [make_baked_preference(A_PACKAGE, "probe", 1)])
-            @test Set(keys(project_toml["deps"])) == Set(["PrecompileTools", A_PACKAGE])
+            @test Set(keys(project_toml["deps"])) == Set([A_PACKAGE])
             @test !occursin("import $A_PACKAGE", source)
         end
 
@@ -489,8 +489,14 @@ function test_build_executable()
                                                0
                                            end), compile = false, keywords...)
                 path = joinpath(project, "LocalPreferences.toml")
+                written = isfile(path) ? TOML.parsefile(path) : Dict{String,Any}()
+                # The counters only: each build also writes `precompile_calls`
+                # for each package that compiles ahead.
+                counters_only = Dict{String,Any}(package => filter(entry -> first(entry) != "precompile_calls", values)
+                                                 for (package, values) in written)
+                filter!(entry -> !isempty(last(entry)), counters_only)
                 (haskey(TOML.parsefile(joinpath(project, "Project.toml"))["deps"], "ProjecturedKernel"),
-                 isfile(path) ? TOML.parsefile(path) : Dict{String,Any}())
+                 counters_only)
             end
             counters = Dict("ProjecturedKernel" => Dict("performance_counters" => true))
             withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "true") do
@@ -742,7 +748,7 @@ function test_build_executable()
             info = build_info(; name = "d", packages = ["A"], main = :(begin
                                    0
                                end),
-                               workload = nothing, preferences = [],
+                               precompile_calls = "recorded", preferences = [],
                                optimization = 3, debug_info = 1,
                                cpu_target = "", incremental = true)
             @test occursin(INCREMENTAL_MARK, info)
@@ -774,14 +780,14 @@ function test_build_executable()
             marked = build_info(; name = "x", packages = ["A"], main = :(begin
                                      0
                                  end),
-                                 workload = nothing, preferences = [],
+                                 precompile_calls = "recorded", preferences = [],
                                  optimization = 3, debug_info = 1,
                                  cpu_target = "", incremental = true)
             @test occursin(INCREMENTAL_MARK, marked)
             plain = build_info(; name = "x", packages = ["A"], main = :(begin
                                      0
                                  end),
-                                workload = nothing, preferences = [],
+                                precompile_calls = "recorded", preferences = [],
                                 optimization = 3, debug_info = 1, cpu_target = "")
             @test !occursin(INCREMENTAL_MARK, plain)
         end
@@ -790,7 +796,7 @@ function test_build_executable()
             info = build_info(; name = "x", packages = ["A"], main = :(begin
                                    0
                                end),
-                               workload = nothing, preferences = [],
+                               precompile_calls = "recorded", preferences = [],
                                optimization = 3, debug_info = 1, cpu_target = "",
                                extra_info = "an extra line a caller wrote")
             @test endswith(strip(info), "an extra line a caller wrote")
@@ -1055,36 +1061,51 @@ function test_build_executable()
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
             # The packages of the binary, and the stand-in that keeps the sound
             # libraries out of it.
-            @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedPlatform",
+            # `ProjecturedKernel` reads the preference `precompile_calls` that the
+            # build writes, so it joins as an import.
+            @test Set(keys(deps)) == Set(["ProjecturedPlatform",
                                           PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
                                           "ProjecturedMCP", "ProjecturedACP",
                                           "ProjecturedLanguageServer", "ProjecturedSDL",
-                                          "ProjecturedWeb",
-                                          "alsa_plugins_jll"])
+                                          "ProjecturedWeb", "ProjecturedBuild",
+                                          "ProjecturedKernel", "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("ProjecturedPlatform.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
-            @test occursin("ProjecturedPlatform.warm_application()", source)
-            # A binary with SDL also runs the gestures of the window on SDL.
-            @test occursin("ProjecturedSDL.run_sdl_window_workload()", source)
+            # The workload of the binary is in `ProjecturedBuild`, not in the
+            # package that the build writes.
+            @test occursin("using ProjecturedBuild", source)
+            @test !occursin("compile_workload", source)
+            # The build chooses what each package that compiles ahead compiles.
+            preferences = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(project, "LocalPreferences.toml"))
+            @test preferences["ProjecturedBuild"]["precompile_calls"] == "recorded"
+            @test preferences["ProjecturedJSON"]["precompile_calls"] == "recorded"
+            @test preferences["ProjecturedKernel"]["precompile_calls"] == "recorded"
+            @test !haskey(preferences, "ProjecturedPrecompile")
             @test occursin("--backend=sdl|web", source)
             @test occursin("--assistant=ollama|anthropic|acp|none", source)
             @test occursin("--agent-command=COMMAND", source)
             text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
             @test all(line -> length(line) <= 80, split(text, '\n'))
 
-            # One backend: no `--backend`, and no workload.
+            # One backend: no `--backend`, and nothing compiled ahead. The binary
+            # still holds both backends, because `ProjecturedBuild` does.
             project = build_projectured_executable(; context = context, compile = false,
                                                    name = "projectured-web",
-                                                   backends = (:web,), workload = false)
+                                                   backends = (:web,), precompile_calls = "none")
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
-            @test !haskey(deps, "ProjecturedSDL") && haskey(deps, "ProjecturedWeb")
+            @test haskey(deps, "ProjecturedWeb") && haskey(deps, "ProjecturedBuild")
             source = read(joinpath(project, "src", "ProjecturedWebApp.jl"), String)
             @test occursin("(web = ProjecturedWeb.WebBackend,)", source)
             @test !occursin("--backend=", source)
-            @test !occursin("warm_application", source)
+            preferences = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(project, "LocalPreferences.toml"))
+            @test preferences["ProjecturedBuild"]["precompile_calls"] == "none"
+            @test_throws ErrorException build_projectured_executable(; context = context,
+                                            compile = false, precompile_calls = "everything")
 
             @test_throws ErrorException build_projectured_executable(; context = context,
                                             compile = false, backends = (:x11,))
@@ -1108,11 +1129,11 @@ function test_build_executable()
             binary, distribution, keywords = parse_arguments(String[])
             @test binary === nothing && !distribution && isempty(keywords)
             binary, distribution, keywords = parse_arguments(
-                ["projectured", "--backends=web,sdl", "--no-workload", "--no-incremental",
+                ["projectured", "--backends=web,sdl", "--precompile-calls=none", "--no-incremental",
                  "--filter-stdlibs", "--name=pr", "--optimization=2", "--debug-info=0",
                  "--strip-metadata", "--cpu-target=generic", "--log-level=info", "--no-compile"])
             @test binary == "projectured" && !distribution
-            @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :workload => false,
+            @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :precompile_calls => "none",
                 :incremental => false, :filter_stdlibs => true, :name => "pr",
                 :optimization => 2, :debug_info => 0, :strip_metadata => true,
                 :cpu_target => "generic", :log_level => :info, :compile => false)
@@ -1125,7 +1146,7 @@ function test_build_executable()
             @test distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
             # Every option the build function takes is a keyword of it.
             method = only(methods(build_projectured_executable))
-            for key in (:backends, :workload)
+            for key in (:backends, :precompile_calls)
                 @test key in Base.kwarg_decl(method)
             end
             method = only(methods(build_executable))

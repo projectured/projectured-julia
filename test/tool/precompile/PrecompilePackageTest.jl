@@ -162,6 +162,16 @@ function test_compile_ahead()
                 @test "Tuple{typeof($_PROBE.run_package_workload)}" in calls
                 # The images were built before the trace, so no call of a build is in it.
                 @test !any(call -> occursin("Precompilation", call), calls)
+                # A workload that fails: the list keeps the calls before the
+                # failure, and the recording shows the failure.
+                rm(list; force = true)
+                failed = _run_probe_process(environment, script; depots = [depot, shared],
+                                            variables = ["COMPILE_AHEAD_PROBE_FAILS" => "yes"])
+                @test failed.success
+                @test occursin("The workload of $_PROBE failed, so the recording holds the calls",
+                               failed.output)
+                @test occursin("the probe fails on purpose", failed.output)
+                @test "Tuple{typeof($_PROBE.run_package_workload)}" in read_recorded_calls(list)
             end
         end
     end

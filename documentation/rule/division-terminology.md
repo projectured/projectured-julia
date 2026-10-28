@@ -43,17 +43,12 @@ and no synonyms.
   API because `ProjecturedAll` re-exports every one of them, and `Projectured`
   re-exports the twelve names of the platform's essentials slice.
 
-- **Leaf** — a package **nothing depends on and nothing loads after**:
-  `ProjecturedREPL`, which the alias loads, and the package that a build writes
-  under `build/app/<name>/`, which a binary is compiled from. The word carries a rule rather than a description. A
-  package image is built with exactly its own dependencies present, so compiled
-  code survives only in a leaf; everything below one has its compiled code
-  invalidated as the session finishes loading. That is why the workload of a
-  session or of a binary lives in a leaf, and why depending on one makes it stop
-  being one. A package below a leaf compiles only its first window and the
-  gestures of its home, and the leaf compiles again what a package loaded later
-  makes invalid. `test_package_graph()` asserts where a `@compile_workload` may
-  live. See [package-rules.md](package-rules.md).
+- **Leaf** — a package **nothing depends on**: `ProjecturedREPL`, which the
+  alias loads, and the package that a build writes under `build/app/<name>/`,
+  which a binary is compiled from. Each package below a leaf compiles its own
+  code ahead of time with its `@compile_ahead`; see
+  [compile-ahead.md](../design/compile-ahead.md). `test_package_graph()` asserts
+  that nothing depends on a leaf. See [package-rules.md](package-rules.md).
 
 Files are below all of this: a file is a readability boundary only and is
 **not** part of the terminology — fragments share their aggregator module's

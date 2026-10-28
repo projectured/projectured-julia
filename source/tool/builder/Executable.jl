@@ -160,7 +160,7 @@ function resolve_app_project(project::AbstractString; precompile::Bool = true)
 end
 
 """
-    build_executable(context; name, packages, main, workload, preferences,
+    build_executable(context; name, packages, main, precompile_calls, preferences,
                        performance_counters, fonts, assets, usage, log_level, imports,
                        init, stand_ins,
                        incremental, filter_stdlibs, optimization, debug_info,
@@ -172,8 +172,11 @@ Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
 
 - `main` — an `Expr` whose value is the exit code, and the body of `julia_main`.
-- `workload` — an `Expr` compiled ahead of time, or `nothing` for a build that
-  compiles nothing beyond what loading touches.
+- `precompile_calls` — what each package of the build that compiles ahead
+  compiles into the image: `"none"`, `"recorded"` or `"live"`, as the preference
+  of the same name of `ProjecturedPrecompile` says. The build writes it for each
+  such package, so the image does not depend on the preferences of the person
+  who builds.
 - `preferences` — what the image carries, from [`make_baked_preference`](@ref)
   and [`make_exposed_preferences`](@ref). Julia reads a preference only for a
   package that the project lists, so the package of each preference joins
@@ -237,7 +240,7 @@ activate the package it wrote, and a prompt must not be left in it.
 function build_executable(context::BuildContext; name::AbstractString,
                             packages,
                             main::Expr,
-                            workload::Union{Expr,Nothing} = nothing,
+                            precompile_calls::AbstractString = "recorded",
                             preferences = Preference[],
                             performance_counters::Bool = is_performance_counters_requested(),
                             fonts::Bool = false,
@@ -268,6 +271,9 @@ function build_executable(context::BuildContext; name::AbstractString,
         error("build_executable: `debug_info` is 0 to 2, not $debug_info")
     isempty(packages) &&
         error("build_executable: a binary with no package holds nothing")
+    precompile_calls in PRECOMPILE_CALLS_VALUES ||
+        error("build_executable: `precompile_calls` is one of " *
+              join(PRECOMPILE_CALLS_VALUES, ", ") * ", not $(repr(precompile_calls))")
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
@@ -277,6 +283,12 @@ function build_executable(context::BuildContext; name::AbstractString,
         "ProjecturedKernel" in _collect_local_dependencies(context, (packages..., imports...)) &&
         (preferences = Any[preferences,
                            make_baked_preference("ProjecturedKernel", "performance_counters", true)])
+    # What each package that compiles ahead compiles into the image.
+    compiling = [package for package in _collect_local_dependencies(context, (packages..., imports...))
+                 if is_compiling_package(get_package_directory(context, package))]
+    preferences = Any[preferences;
+                      [make_baked_preference(package, "precompile_calls", String(precompile_calls))
+                       for package in sort!(collect(compiling))]]
     # The reader of each preference goes into the written package, or Julia does
     # not read the preference and the image holds the default.
     named = String[String(package) for package in (packages..., imports...)]
@@ -290,10 +302,10 @@ function build_executable(context::BuildContext; name::AbstractString,
               "[sources] of its user do not give: " *
               join(["$package needs $dependency" for (package, dependency) in missing_sources], ", "))
 
-    info = build_info(; name, packages, main, workload, preferences,
+    info = build_info(; name, packages, main, precompile_calls, preferences,
                         optimization, debug_info, cpu_target, assets, incremental,
                         log_level, extra_info, stand_ins)
-    project = write_app_package(context; name, packages, imports, init, main, workload,
+    project = write_app_package(context; name, packages, imports, init, main,
                                  info, usage, log_level, stand_ins)
     write_preferences(preferences, project)
     after_write === nothing || after_write(project)
@@ -376,7 +388,7 @@ for its project directory and opened a window, so a measurement taken with
 get_smoke_flag() = "--build-info"
 
 """
-    build_info(; name, packages, main, workload, preferences, optimization,
+    build_info(; name, packages, main, precompile_calls, preferences, optimization,
                  debug_info, cpu_target, assets, incremental, log_level,
                  extra_info, stand_ins) -> String
 
@@ -387,15 +399,14 @@ values the build used, so it cannot drift from what was built.
 `extra_info`, when given, is appended after everything this writes itself — for
 a caller whose build does something this core does not know about.
 """
-function build_info(; name, packages, main, workload, preferences,
+function build_info(; name, packages, main, precompile_calls = "recorded", preferences,
                       optimization, debug_info, cpu_target, assets = Pair{String,String}[],
                       incremental::Bool = false, log_level::Symbol = :warn,
                       extra_info::AbstractString = "", stand_ins = StandIn[])
     lines = ["$name, built $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")) by ProjecturedBuilder",
              "packages: " * join(packages, ", "),
              "main: " * string(Base.remove_linenums!(copy(main))),
-             "workload: " * (workload === nothing ? "none" :
-                             string(Base.remove_linenums!(copy(workload)))),
+             "precompile_calls: " * String(precompile_calls),
              "compiled at -O$optimization -g$debug_info" *
                  (isempty(cpu_target) ? "" : " for $cpu_target"),
              "logs from $log_level and up, unless --log-level says another"]

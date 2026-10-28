@@ -67,7 +67,7 @@ The options of the front end:
 | --- | --- |
 | `--distribution` | build for other machines, test the copy, and write an archive |
 | `--backends=<list>` | the backends in the binary (default: `sdl,web`). The first one is its default |
-| `--no-workload` | compile no start of the application ahead of time |
+| `--precompile-calls=<value>` | what each package compiles ahead: `recorded` (default), `live` or `none` |
 | `--no-incremental` | compile a fresh system image, not one on top of the image of this Julia |
 | `--filter-stdlibs` | hold only the standard libraries that the program uses. Needs `--no-incremental` |
 | `--name=<name>` | the name of the executable and of its directory under `build/` |
@@ -94,7 +94,8 @@ build_projectured_distribution()
 
 1. **A package for the binary**, under `build/app/<name>/`. It names the
    packages that go in, and its module holds the body of `julia_main`, the
-   workload, the `--help` text and the build record. A build that would write
+   `--help` text and the build record. Its `LocalPreferences.toml` says what
+   each package compiles ahead. A build that would write
    the same package again leaves it alone, so the compiler cache holds.
 2. **The bundle**, under `build/<name>/`: `bin/`, `lib/`, `libexec/` and
    `share/`. PackageCompiler writes it, and the build adds the files that the
@@ -174,8 +175,9 @@ The function calls `build_executable(context; …)` with:
 - `packages` — the packages the binary holds, as names. The build finds each one
   and writes it into the package of the binary. Nothing here loads them.
 - `main` — an expression whose value is the exit code, the body of `julia_main`.
-- `workload` — an expression that runs while the image compiles, so the first
-  frames of a real start need no compilation.
+- `precompile_calls` — what each package of the binary compiles ahead, as the
+  preference of that name says: `"recorded"`, `"live"` or `"none"`. The workload
+  of a binary is in its own package, such as `ProjecturedBuild`.
 - `usage` — a [`Usage`](../../source/tool/builder/Usage.jl): what the binary does,
   and the options it takes. **The options of the program live here**, and a test
   compares them with what the program parses.

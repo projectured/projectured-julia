@@ -52,9 +52,14 @@ changes. Mark a step here when it is done.
 
    As built (2026-10-29, worktree `projectured-julia-compile-ahead`, branch
    `compile-ahead`):
-   - `@compile_ahead workload` in the entry file defines three names in the
-     package: `run_package_workload()`, `PRECOMPILE_FAILURE` and the module
-     `PrecompileScope`. A package with no workload writes `@compile_ahead`
+   - `@compile_ahead workload` in the entry file defines two names in the
+     package: `run_package_workload()` and `PRECOMPILE_FAILURE`. A first form
+     also defined a module `PrecompileScope` to resolve a recorded call in, as
+     the REPL leaf did. Step 2 found that 84 entry files bind each submodule of
+     the packages below them under its own name, so a module of one name in each
+     package collides there. The compile now puts the module object in place of
+     the first name of each dotted name and evaluates the call in the package.
+     A package with no workload writes `@compile_ahead`
      alone, so that it still compiles the calls that an application records for
      it. The preferences are read with `Preferences.load_preference(package,
      …)` while the package precompiles, which makes the image depend on them.
@@ -100,6 +105,50 @@ changes. Mark a step here when it is done.
      `ProjecturedExample.precompile_workload()` and the levels of
      `ProjecturedREPL` go.
    - `package-rules.md`, `repl.md` and `builder.md` say the new form.
+
+   Progress (2026-10-29):
+   - Done: the 16 domain entry files, the platform, SDL and the data frames call
+     `@compile_ahead` with their workloads. 13 packages of the binary with no
+     workload call `@compile_ahead` alone (Kernel, Console, PDF, FSM,
+     SequenceChart, Process, Database, DBCatalog, Web, Ollama, Anthropic, MCP,
+     ACP), so that an application recording can give a call to the lowest
+     package that sees its types (D8). The other packages are aggregates,
+     tools, leaves, examples and tests.
+   - Done: `ProjecturedExample` runs `run_example_workload()`: each example in
+     a window of a backend with no device, sent the events of the recording
+     driver of today. An example that fails does not stop the others; the
+     workload throws at the end and names them. The atom walks stay, because
+     the catalog coverage test uses them.
+   - Done: the slice `ReplModule`, `tool/precompile/`, the 53 old files, the
+     recorder and the replay of `ProjecturedExample` and the atom workload are
+     gone. `ProjecturedREPL` keeps its exports only.
+   - Done: `test_package_graph()` checks one `@compile_ahead` in an entry file,
+     a dependency on `ProjecturedPrecompile`, and no `@compile_workload`.
+     `package-rules.md`, `repl.md`, `naming-rules.md`,
+     `division-terminology.md`, the new-domain guide and three other documents
+     say the new form.
+   - Done (the owner accepted this form of D9 on 2026-10-29: "I accept it"):
+     `ProjecturedBuild`, a real package and a leaf, holds every package of the
+     binary, both backends included, and the workload of the binary
+     (`warm_application()`, then the window on SDL). The build still writes the
+     small package under `build/app/` with the values of one build (the build
+     record, the log level, the usage text, the stand-ins), and that package
+     loads `ProjecturedBuild`. So a build that names one backend still carries
+     both; `backends` chooses what `--backend` offers.
+   - Done (U13): `build_executable` takes `precompile_calls` in place of
+     `workload`, and writes it as a preference of each package of the build
+     that compiles ahead. The command line takes `--precompile-calls=` in place
+     of `--no-workload`. The generated package has no `@compile_workload` and
+     no PrecompileTools. The builder depends on `ProjecturedPrecompile` for
+     `is_compiling_package`, which the recording uses too.
+   - Fact: the example workload drives 132 of 135 examples in 288 s. Three
+     fail, each a fault of the product: `json_sorted` writes a `CellVector` of
+     the wrong element type (`DeclaredTypeMismatchException`), and
+     `filesystem` and `files` read the fields `value` and `elements`, which
+     `FileSystemFile` and `Workspace` no longer have. The workload names them.
+   - Done: a recording whose workload fails keeps the calls compiled before the
+     failure and shows the failure in a warning, as the default of U12 does.
+   - Open: the recording of the new lists.
 3. [ ] **The measurements (U7, U5).** The guards and the measurements of U7 leave
    the test suites and run from one command. The release runs the recording and
    the measurements.

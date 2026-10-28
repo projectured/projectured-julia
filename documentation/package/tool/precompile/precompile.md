@@ -20,7 +20,9 @@ end
 
 The workload drives the package as a person does, and it throws an error when a step fails. A package with no workload of its own writes `@compile_ahead` alone, so that it still compiles the calls that an application records for it.
 
-The call defines three names in the package: `run_package_workload()`, which runs the workload; `PRECOMPILE_FAILURE`, the kept failure or `nothing`; and `PrecompileScope`, an empty module where a recorded call is resolved. The scope is a module of the package, so a build writes nothing into the image of another package.
+The call defines two names in the package: `run_package_workload()`, which runs the workload, and `PRECOMPILE_FAILURE`, the kept failure or `nothing`. It defines no module, because many entry files bind each submodule of the packages below them under its own name, and a module of the same name in each package would collide there.
+
+A recorded call names each type by the module that defines it. The compile puts the module object in place of the first name of each dotted name, the package itself included, and evaluates the expression in the package. So it defines no name, and a build writes nothing into the image of another package.
 
 ### The two preferences
 
@@ -39,7 +41,7 @@ A failed workload, or a list of which more than 10 % of the calls no longer reso
 
 ### The recording
 
-A recording runs `run_package_workload()` of a package in a new process under `--trace-compile`, with `precompile_calls = "none"` for that package. A call that the image already holds does not compile again, so a recording on top of a recorded image would write a shorter list each time. A temporary environment first on the load path sets the preference, and the image of `"none"` is cached apart from the others. With no display, SDL runs on its dummy video driver.
+A recording runs `run_package_workload()` of a package in a new process under `--trace-compile`, with `precompile_calls = "none"` for that package. A call that the image already holds does not compile again, so a recording on top of a recorded image would write a shorter list each time. A temporary environment first on the load path sets the preference, and the image of `"none"` is cached apart from the others. With no display, SDL runs on its dummy video driver. When the workload fails, the recording keeps the calls that it compiled before the failure and shows the failure in a warning, as the default of `precompile_failure` does for a build.
 
 The trace keeps each call once, sorted, and it drops a call that names `Main` or that does not parse. There are three scopes:
 
@@ -59,7 +61,7 @@ The trace keeps each call once, sorted, and it drops a call that names `Main` or
 using ProjecturedPrecompile
 record_package_calls!("ProjecturedJSON")            # one package
 record_repository_calls!()                          # each package of the repository
-record_application_calls!("ProjecturedApp", "projectured")   # one application
+record_application_calls!("ProjecturedBuild", "projectured")   # one application
 ```
 
 ```toml

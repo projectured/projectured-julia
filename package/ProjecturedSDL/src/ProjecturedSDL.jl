@@ -43,26 +43,19 @@ export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_rendere
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
-# The first window of a session in SDL, in the dummy video driver, so that this
-# image holds the code that draws a window. The dummy driver opens no display and
-# loads no OpenGL on any system. The offscreen driver is not enough: on macOS SDL
-# gives its window OpenGL, which it loads through EGL, and macOS has no EGL. Then
-# the gestures of the application window, with each input in the event queue of
-# SDL. A failed workload makes a smaller image and never stops the load, so it
-# only warns.
-using PrecompileTools: @setup_workload, @compile_workload
-@setup_workload begin
-    @compile_workload begin
-        withenv("SDL_VIDEODRIVER" => "dummy") do
-            ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
-                                                     backend = SdlBackend())
-        end
-        try
-            SdlModule.run_sdl_window_workload()
-        catch exception
-            @warn "The window workload of ProjecturedSDL failed, so its image holds less" exception
-        end
+# The workload of this package: the first window of a session in SDL, in the
+# dummy video driver, so that the image holds the code that draws a window. The
+# dummy driver opens no display and loads no OpenGL on any system. The offscreen
+# driver is not enough: on macOS SDL gives its window OpenGL, which it loads
+# through EGL, and macOS has no EGL. Then the gestures of the application window,
+# with each input in the event queue of SDL.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    withenv("SDL_VIDEODRIVER" => "dummy") do
+        ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
+                                                 backend = SdlBackend())
     end
+    SdlModule.run_sdl_window_workload()
 end
 
 end # module ProjecturedSDL

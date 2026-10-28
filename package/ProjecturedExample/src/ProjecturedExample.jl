@@ -110,11 +110,10 @@ include(joinpath(_EXAMPLE_DIR, "SearchGuideCorpus.jl"))
 export run_value_viewer, make_value_viewer, make_value_viewer_feeds
 # LiveExamples moved to the opt-in ProjecturedSDLExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
-# The workload body comes last, so it can reach everything above it. The
-# recording machinery beside it reaches nothing here — what to drive and which
-# list to replay belong to the leaf being built.
+# The walks over the atoms, and the workload of this package, which opens each
+# example: last, so that they reach everything above them.
 include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
-include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
+include(joinpath(_EXAMPLE_DIR, "ExampleWorkload.jl"))
 
 export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example,
        workflow_goal_example, workflow_steps_example, workflow_substeps_example,
@@ -286,10 +285,7 @@ export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example,
 export versioning_example, warm_file_editor, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export precompile_atoms, precompile_atom_parsers
-export precompile_workload
-export record_precompile_statements, trace_precompile_statements, replay_precompile_statements,
-       clean_precompile_trace, write_precompile_statements,
-       bind_loaded_modules!, PRECOMPILE_STALE_RATIO
+export run_example_workload
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
@@ -425,5 +421,9 @@ export SCALE_SEARCH_MODULE_NAMES, SCALE_SEARCH_QUESTIONS, get_scale_search_modul
        measure_projectured_search_scale!, GUIDE_SEARCH_QUESTIONS
 export make_dragging_document_example, make_dragging_projection_example
 export dragging_example
+
+# The workload of this package: each example, opened and driven.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead run_example_workload()
 
 end

@@ -26,15 +26,16 @@ function test_sdl_keysym()
         end
     end
 
-    # The precompile recording presses keys by name. A name that no backend reports
-    # matches no binding, so the code behind that key is not in the recording.
-    @testset "every key the precompile recording presses is one SDL reports" begin
+    # The workload of the examples presses keys by name. A name that no backend
+    # reports matches no binding, so the code behind that key is not compiled.
+    @testset "every key the workload of the examples presses is one SDL reports" begin
         reported = Set(ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(keysym))
                        for keysym in Iterators.flatten((0:255, 1073741824:1073742106)))
-        driver = joinpath(@__DIR__, "..", "..", "..", "..", "tool", "precompile",
-                          "recording-driver.jl")
-        pressed = [Symbol(m.captures[1])
-                   for m in eachmatch(r"KeyDown\(:(\w+)", read(driver, String))]
+        workload = joinpath(@__DIR__, "..", "..", "..", "..", "example", "projectured",
+                            "ExampleWorkload.jl")
+        keys = match(r"for key in \(([^)]*)\)", read(workload, String))
+        pressed = keys === nothing ? Symbol[] :
+                  [Symbol(m.captures[1]) for m in eachmatch(r":(\w+)", keys.captures[1])]
         @test !isempty(pressed)
         for key in pressed
             @test key in reported

@@ -533,8 +533,12 @@ function test_package_release()
                             startswith(result.folder, "test/") ||
                             startswith(result.folder, "example/"), results)
         @test !any(name -> isdir(joinpath(output, name, "test", "support")), names)
-        # A released package carries its statement files, which AutoPrecompile reads.
-        @test isfile(joinpath(output, "ProjecturedPlatform", "precompile", "readme-data-frame.txt"))
+        # A released package carries its recorded calls, which its `@compile_ahead`
+        # compiles from the folder of the package.
+        recorded = joinpath(get_package_directory(context, "ProjecturedPlatform"), "precompile")
+        for file in (isdir(recorded) ? readdir(recorded) : String[])
+            @test isfile(joinpath(output, "ProjecturedPlatform", "precompile", file))
+        end
         @test all(result -> result.status === :new, results)
         # Each package that has tests has a workflow of its own, on each Julia
         # version, and its job develops the packages that its test needs.
