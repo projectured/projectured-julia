@@ -46,6 +46,7 @@ In the order of the chain. The kind is the one in the document's header.
 | --- | --- | --- |
 | [product-vision.md](requirement/product-vision.md) | why | What is the long-term potential, which pain does it address, and how does it relate to other tools? |
 | [accepted-requirements.md](requirement/accepted-requirements.md) | what | What must the editor do, as capabilities observable from outside? `PR-…` |
+| [candidate-requirements.md](requirement/candidate-requirements.md) | what | Which requirements are proposed but not yet reviewed? `PR-…` |
 | [delivery-roadmap.md](requirement/delivery-roadmap.md) | what | What is delivered, what is in progress, and what is next? |
 | [architecture-decisions.md](design/architecture-decisions.md) | decision | Why is it built this way, and why not otherwise? |
 | [architecture-invariants.md](rule/architecture-invariants.md) | rule | What must every change respect, so the system stays tractable as it grows? `PAR-…` |

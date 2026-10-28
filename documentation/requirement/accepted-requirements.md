@@ -14,6 +14,10 @@ the *internal development* requirements that keep the codebase tractable — the
 invariants and conventions every change must respect — see
 [architecture-invariants.md](../rule/architecture-invariants.md).
 
+Proposed requirements that nobody has reviewed yet are in
+[candidate-requirements.md](candidate-requirements.md). A candidate moves here
+only after a review.
+
 Each requirement carries a symbolic ID — `PR-NO-INVALID-STATES`,
 `PR-UNDO-REDO` — to cite in reviews, commit messages, and plans. An ID is
 permanent and is never reused; it names the requirement, not the section it sits
