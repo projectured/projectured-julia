@@ -151,6 +151,15 @@ precompile_failure = "warning"     # "error", "warning" or "silent" (U12)
 The values shown are the defaults. The name `precompile_workload` stays free,
 because PrecompileTools reads a preference of that name from the same section.
 
+## The shared code
+
+**Decision 10.** The code that every package runs when it precompiles reads the
+two preferences of the package, and then compiles its lists, runs its workload,
+or does nothing. This code is in `ProjecturedPrecompile`, a small package of
+its own whose code is in `source/tool/precompile/` of projectured-julia. It is
+at the bottom of the graph of the dependencies, and it depends only on
+PrecompileTools and Preferences. So each package of each repository can depend on it.
+
 ## The code today
 
 The code does not follow this design yet:
