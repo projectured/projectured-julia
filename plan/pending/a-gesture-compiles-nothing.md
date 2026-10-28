@@ -838,7 +838,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
 
 ### Both
 
-9. [ ] **The measurement.** Run the guards of both binaries, from source and
+9. [x] **The measurement.** Run the guards of both binaries, from source and
    built. With the owner's approval, on an idle machine, measure the costs: the
    build time of each package that got a workload, the image sizes, the time
    of the `using` line, and the first window. The owner decides with these
@@ -919,27 +919,35 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    A count moves by a few statements from run to run: 241 and 3 recompiles
    for `projectured` in step 6, 248 for `omnet_ide` in step 8.
 
-   M5, the built binaries, under the cap of 20 GB that the runner allows
-   (half of the 41 GB that the machine had free):
+   M5, the built binaries, 8 image threads. The runner allows a cap of half
+   the free memory (20 GB of 41 GB); the owner allowed 35 GB for the builds of
+   the branches (2026-10-28: "let's try the binary build with 35GB cap"),
+   which the runs got by a raise of `MemoryMax` of their units:
 
    | | main | branches |
    |---|---:|---:|
    | `projectured`: the precompile of `create_app` (172 packages, its own flags) | 234 s | 886 s |
-   | `projectured`: the whole build | 1021 s, peak 17.9 GB | out of memory at 20 GB, twice |
-   | `projectured`: the bundle, of it `sys.so` | 1.82 GB, 949 MB | — |
-   | `omnet_ide` (no adapters): the whole build | 1160 s, peak 18.6 GB | not run |
-   | `omnet_ide`: the bundle, of it the executable | 1.91 GB, 1.04 GB | — |
+   | `projectured`: the whole build | 1021 s | about 1796 s (886 s + 910 s) |
+   | `projectured`: peak memory | 17.9 GiB | 22.7 GiB |
+   | `projectured`: the bundle, of it `sys.so` | 1.82 GB, 949 MB | 2.04 GB, 1163 MB |
+   | `omnet_ide` (no adapters): the whole build | 1160 s | 1794 s |
+   | `omnet_ide`: peak memory | 18.6 GiB | 25.7 GiB |
+   | `omnet_ide`: the bundle | 1.91 GB | 2.25 GB |
 
-   - The branch build of `projectured` ran out of memory in the step that
-     compiles the system image, with 8 image threads and with 4. That step
-     runs the workload of the binary in one process with `--pkgimages=no`,
-     so it compiles and keeps all the code that the workload reaches; the
-     number of image threads does not decide its memory.
-   - The branch build of `omnet_ide` was not run: main already needs 18.6 GB,
-     and its step runs the larger list of the branch the same way.
-   - The omnet builder links the image into the executable, so its bundle has
-     no system image that a drive can load. The drive of a guard with the
-     system image of a binary was therefore not run.
+   - Under the cap of 20 GB, the build of `projectured` of the branches ran
+     out of memory twice, with 8 and with 4 image threads, in the step that
+     compiles the system image. That step runs the workload of the binary in
+     one process with `--pkgimages=no`, so it compiles and keeps all the code
+     that the workload reaches.
+   - The whole build of `projectured` of the branches is the sum of two runs:
+     the first ran its precompile (886 s) and ran out of memory; the run with
+     35 GB built the app package again (299 s) and the rest (910 s).
+   - The guard of `projectured`, driven with the system image of the binary
+     of the branches: the start 51 statements (0 recompiles), 166 gestures
+     240 statements, 0 recompiles, 4 over 10 (Help › Gestures over a
+     Settings tab 18, Frame times 13, the assistant turn 24, the first Ctrl+S
+     14). The omnet builder links the image into the executable, so the guard
+     of `omnet_ide` has no system image to drive.
 
 ## Hazards
 
