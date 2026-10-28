@@ -1,7 +1,8 @@
 # A gesture compiles nothing
 
-Status: pending. Written 2026-10-27. D1, D5, D7 and D8 are the owner's. The
-other decisions are proposed.
+Status: done 2026-10-28. Written 2026-10-27. D1, D5, D7 and D8 are the owner's. The
+other decisions are proposed. The owner accepted the costs that step 9 measured
+(2026-10-28: "yes, I accept").
 
 Applies to projectured-julia and omnet-julia.
 
@@ -666,7 +667,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
 
 ### omnet-julia
 
-7. [ ] **The rule and the legacy packages (D1, D3, D8).**
+7. [x] **The rule and the legacy packages (D1, D3, D8).**
    - `package-rules.md` and `PackageGraph.jl` take the rule of
      projectured-julia.
    - OmnetLegacyFormat, OmnetLegacyResultPresentation and
@@ -743,7 +744,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      of two steps, and the build of the package 642 s.
    - Not done: the workload of `OmnetLegacySimulatorPresentation` (the Runner
      and Run, above). It moves into step 8 (the owner, 2026-10-28: "yes, move
-     to step 8").
+     to step 8"), and step 8 did it.
 8. [x] **OmnetIde, its app package and its guard.**
    - OmnetIde gets its own `@compile_workload`: the IDE window with its
      wrappers, and the gestures of D3.
