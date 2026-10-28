@@ -844,6 +844,30 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    of the `using` line, and the first window. The owner decides with these
    numbers.
 
+   The owner approved it on 2026-10-28 ("yes, do it"). The procedure, for main
+   (projectured `1a4f8a3c5`, omnet `9227976a2`) and for the two branches, one
+   job at a time, on the idle machine:
+   - M1, the build of the images: a scratch depot whose `compiled` folder
+     holds only the images of the packages from outside the two
+     repositories, so that only the packages of the two repositories build.
+     `Pkg.precompile(timing = true)` of the omnet environment `all` (it holds
+     the packages of both repositories), then of the package of each binary.
+     Recorded: the time of each package with a workload, the wall time, the
+     peak memory, and the size of each image.
+   - M2, the `using` line: five fresh processes each for `using Projectured`
+     (the session of the README), the package of `projectured` and the
+     package of `omnet_ide`; the median.
+   - M3, the first window: the time from the start of the process to the
+     first frame of the window of each binary package, five runs, the median.
+   - M4, the guards from source: both guards on the branches.
+   - M5, the built binaries: the build of both binaries, on main and on the
+     branches: the build time and the size of the bundle; on the branches,
+     the drive of each guard with the system image of the binary.
+   - The package of `projectured` builds in the environment `all` of
+     projectured-julia, which holds its model adapters. The package of
+     `omnet_ide` builds with no model adapter (`assistant = false`), as its
+     guard does.
+
 ## Hazards
 
 - A workload that leaves a task, a timer, a file watch or a process open makes
