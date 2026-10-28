@@ -1,6 +1,6 @@
 # A program opens a page and keeps the focus of the person
 
-> Status: done 2026-10-28, on the branch, not landed. Written 2026-10-28 from
+> Status: done 2026-10-28, landed on `main` as `31416bb2a`..`dad01a5df`. Written 2026-10-28 from
 > `main` at `60a915abe`. Branch
 > `open-page-places`, worktree `projectured-julia-open-page`. The owner agreed
 > on 2026-10-28 to the change of §3 ("yes, let's do these").
