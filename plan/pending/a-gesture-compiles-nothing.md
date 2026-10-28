@@ -675,6 +675,49 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - The imitation of a process (D8) goes into the task slice of
      ProjecturedPlatform first, in a commit of projectured-julia, with a test
      that runs a task group on it.
+
+   As built (2026-10-28):
+   - projectured-julia (`ef8d46c3d`): `source/platform/task/ImitatedProcess.jl`.
+     Inside `run_with_process_imitation(f, imitation)` (a private scoped value,
+     so a task that `f` starts imitates too), `start_process_task!` calls
+     `imitation(command, output, error_output)` on a task of its own in place of
+     `run`. `ImitatedProcess` answers `wait`, `process_running`,
+     `process_exited`, `process_signaled`, `success`, `kill`, `exitcode` and
+     `termsignal`; it has no identifier, so the sampler skips it; a stop
+     records the signal, because a function runs to its end. An exception of
+     the imitation goes into the error stream and ends it with the code 1.
+     `test_task_group` runs five probes, an imitation that throws, and a stop.
+   - projectured-julia: `run_file_workload` gives a file of a type that a person
+     does not edit (`is_editable_file_type`) a click and no key, save or undo,
+     because a result file is read-only.
+   - omnet-julia (worktree `omnet-julia-gesture-compiles`, branch
+     `gesture-compiles`): `make_workload_file` for `NedFile` (`a.ned`),
+     `IniFile` (`a.ini`), `LegacyResultFile` (`a.sca`) and
+     `LegacyEventLogFile` (`a.elog`); the entry files of `OmnetLegacyFormat` and
+     `OmnetLegacyResultPresentation` run them in a `@compile_workload` after
+     `run_module_initializers!`, and name `PrecompileTools`;
+     `test_legacy_file_workloads` in `OmnetLegacyTest` runs the four.
+   - omnet-julia rule: `package-rules.md` (the list of the rules, the section
+     "A package compiles the gestures of its home", rule 4), `CLAUDE.md` and
+     `engine-comparison-guide.md`. `PackageGraph.jl` allows a
+     `@compile_workload` in the entry file of a package that calls
+     `run_file_workload`, and asserts that each type with a method of
+     `make_workload_file` under `source/` is opened by one.
+   - The omnet side is tested in a joined environment,
+     `/var/tmp/gesture-compiles/omnet-env`: the environment of omnet-julia with
+     each path sent to the worktree of its repository, resolved offline.
+
+   Facts that change the plan:
+   - A `.vec` file opens as `LegacyResultFile`, the type of a `.sca` file, and
+     `make_workload_file` gives one file for each type; the workload opens the
+     `.sca` file only.
+   - The language server starts `clangd` with `open(pipeline(…))`, a two-way
+     pipe, not as a task, so D8 does not cover it; its workload stays open.
+   - The Runner and Run of `OmnetLegacySimulatorPresentation` live in a window
+     that `build_simulation_window` builds, so their workload needs the step
+     loop for an editor that the caller starts (planned for step 8), and a
+     project whose configurations are listed with no process: the discovery
+     runs the executable with `-a` outside `start_process_task!`.
 8. [ ] **OmnetIde, its app package and its guard.**
    - OmnetIde gets its own `@compile_workload`: the IDE window with its
      wrappers, and the gestures of D3.
