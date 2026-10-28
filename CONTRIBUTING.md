@@ -66,7 +66,7 @@ more leaf for each binary, under `build/app/`. Nothing may depend on a leaf.
 
 The packages are linked by `[sources]` path dependencies. Read
 [documentation/rule/package-rules.md](documentation/rule/package-rules.md) for
-what each kind may depend on, why a `@compile_workload` belongs only in a leaf,
+what each kind may depend on, where a `@compile_workload` may live,
 and which package a third-party dependency makes a stem of its own. The terms
 package, layer, slice, module and leaf are defined in
 [documentation/rule/division-terminology.md](documentation/rule/division-terminology.md).

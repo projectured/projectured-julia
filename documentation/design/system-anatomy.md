@@ -55,8 +55,8 @@ described in the next section.
 ## Package layout — the package graph
 
 The **kinds** of package (main, example, test, repl, build), what each may
-depend on, and why the leaf the alias loads is the only place a
-`@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
+depend on, and where a `@compile_workload` may live, are in
+[package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of
 thirty-nine slices, eighteen domain packages, five backends and eight

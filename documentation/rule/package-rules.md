@@ -49,11 +49,14 @@ says why. `test_package_graph()` asserts it, along with two more:
 - an example package is a dependency only of a leaf, an example or a test;
 - a `@compile_workload` lives in a leaf, in the entry file of a package that a
   user loads and whose first window it compiles, or in the entry file of a
-  package whose slice has natural rows (see
+  package whose slice has natural rows or a file of a workload (see
   [the next section](#why-the-leaf-matters));
 - a package whose slice has natural rows compiles them with
   `@compile_workload run_natural_rows_workload(<Domain>Module)` in its entry
-  file.
+  file;
+- a package whose slice has a file of a workload runs its gestures with
+  `run_file_workload(<Domain>Module.<Type>)` in a `@compile_workload` of its
+  entry file.
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
@@ -160,6 +163,57 @@ Measured on the session of the README, the first frame of a data frame of
 | with no workload in a package | 48.3 s |
 | with a workload in each package, and the three rules | **0.75 s** |
 
+### A package compiles the gestures of its home
+
+After the first window, a person clicks a menu, a tool of the toolbar, a file and
+the assistant. Each gesture runs code that the first window did not run. So each
+package runs the gestures whose code it holds, the gestures of its home, in a
+second `@compile_workload` of its entry file:
+
+| Package | The gestures of its home |
+| --- | --- |
+| `ProjecturedPlatform` | the application window (`run_window_workload`): a menu and an item of each menu, each tool of the toolbar, a text file and a `.pred` file opened and edited, the Explorer and its context menu, a new tab named in the name buffer, F1, the command palette, and an assistant turn with a tool call |
+| `ProjecturedSDL` | the same list on an `SdlBackend`, with each input in the event queue of SDL (`run_sdl_window_workload`) |
+| a package whose slice has a file of a workload | the gestures of a file of its format (`run_file_workload`): open it from the Files pane, click in it, type, save, undo, and the name buffer |
+
+A slice has a file of a workload when it defines a method of
+`make_workload_file`. A domain with a file format gives a file of that format; a
+domain with no file format gives a `.pred` file that holds one of its documents.
+
+```julia
+@compile_workload try
+    run_file_workload(JsonModule.JsonFile)
+catch exception
+    @warn "The file workload of ProjecturedJSON failed, so its image holds less" exception
+end
+```
+
+A gesture runs through the real loop of the editor. The workload finds each
+target in what the window drew, gives the inputs to the backend as a device gives
+them, and waits until the window is quiet. The body of a workload lets a fault
+through: it throws an error that names each step whose target the window did not
+draw and each fault that a barrier of the editor caught. A test of the package
+calls the body in a normal process (`test_window_workload`, `test_sdl_workload`,
+`test_file_workloads`). Only the `@compile_workload` catches the error, with
+`@warn`, so that a failed workload never stops a package from loading.
+
+The package of a binary runs the list of the binary after it loads every
+package of the binary: `warm_application` runs the window list and a file of
+each format. Its image then holds the code that a package loaded later made
+invalid in the image of a package below it. `test_gestures_compile_little`
+drives each item of each menu, each tool of the toolbar and a file of each
+format in a fresh process of the package of the binary, and counts the
+statements that each gesture compiles.
+
+A workload makes the build of its package slower. To turn off the workload of a
+package while you change it, set the preference of PrecompileTools for that
+package in `LocalPreferences.toml`:
+
+```toml
+[ProjecturedPlatform]
+precompile_workload = false
+```
+
 ## The session
 
 ```bash
@@ -230,8 +284,9 @@ what you no longer use.
 
 A binary makes its own choice: the `workload` keyword of `build_executable`
 is the expression that the generated package runs in its `@compile_workload`.
-The `projectured` binary runs `warm_application()`, which opens the application
-once without a window.
+The `projectured` binary runs `warm_application()`, which runs the gestures of
+the application window and of a file of each format; see
+[the section above](#a-package-compiles-the-gestures-of-its-home).
 
 ## What depends on what
 
@@ -359,7 +414,8 @@ becomes an optional stem like `ProjecturedODBC`, named in the table above.
    domain, [domain-inventory.md](../design/domain-inventory.md) has the rest.
 2. Give it the kinds it needs, with the reserved suffixes.
 3. Name every third-party dependency in the table above, with its reason.
-4. Do not depend on a leaf. Put a `@compile_workload` in a leaf, or in a
-   package that a user loads, by the rules of
+4. Do not depend on a leaf. Put a `@compile_workload` in a leaf, in a
+   package that a user loads, or in a package that is the home of gestures, by
+   the rules of
    [the section above](#a-package-that-a-user-loads-compiles-its-own-first-window).
 5. Run `test_package_graph()` — it asserts 2 and 4, and it fails loudly.

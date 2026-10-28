@@ -228,3 +228,14 @@ for a domain with no file of its own, for a type of its documents, whose `.pred`
 file the text is. `run_file_workload` of the application opens it.
 """
 function make_workload_file end
+
+"""
+    collect_workload_file_types() -> Vector{Type}
+
+Each type that has a method of [`make_workload_file`](@ref) in this session, in
+the order of the names of the types. A workload that opens the file of every
+format of a session, such as the workload of a binary, opens these.
+"""
+collect_workload_file_types() =
+    sort!(Type[method.sig.parameters[2].parameters[1] for method in methods(make_workload_file)];
+          by = string)

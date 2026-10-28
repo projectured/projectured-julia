@@ -48,10 +48,12 @@ and no synonyms.
   under `build/app/<name>/`, which a binary is compiled from. The word carries a rule rather than a description. A
   package image is built with exactly its own dependencies present, so compiled
   code survives only in a leaf; everything below one has its compiled code
-  invalidated as the session finishes loading. That is why a
-  `@compile_workload` may appear only in a leaf, and why depending on one makes
-  it stop being one. `test_package_graph()` asserts both. See
-  [package-rules.md](package-rules.md).
+  invalidated as the session finishes loading. That is why the workload of a
+  session or of a binary lives in a leaf, and why depending on one makes it stop
+  being one. A package below a leaf compiles only its first window and the
+  gestures of its home, and the leaf compiles again what a package loaded later
+  makes invalid. `test_package_graph()` asserts where a `@compile_workload` may
+  live. See [package-rules.md](package-rules.md).
 
 Files are below all of this: a file is a readability boundary only and is
 **not** part of the terminology — fragments share their aggregator module's

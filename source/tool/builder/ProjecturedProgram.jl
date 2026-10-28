@@ -284,6 +284,15 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
     "ProjecturedWorkflow", "ProjecturedResearch"]
 
+# The workload of the binary, written into its package. A list that fails writes a
+# warning, and the build goes on with an image that holds less. The expression has
+# no line node, so that no path of this checkout goes into the package.
+const _PROJECTURED_WORKLOAD =
+    Expr(:try, Expr(:block, :(ProjecturedPlatform.warm_application())), :exception,
+         Expr(:block, Expr(:macrocall, Symbol("@warn"), nothing,
+                           "The workload of projectured failed, so its image holds less",
+                           :exception)))
+
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
                                  workload = true,
@@ -296,8 +305,9 @@ Build the ProjecturEd application, and answer the directory of the bundle,
 - `backends` names the backends the binary holds, from
   [`PROJECTURED_BACKENDS`](@ref). The first one is the default; with more than
   one, `--backend` chooses.
-- `workload` runs the application once without a window while the image
-  compiles, so the first frames of a real start need no compilation.
+- `workload` runs the gestures of the application window and a file of each
+  format while the image compiles (`warm_application`), so that a gesture of a
+  real start needs no compilation.
 - Every other keyword goes to [`build_executable`](@ref), for example
   `compile = false` to write the package and compile nothing, or
   `incremental = false` for a fresh image.
@@ -332,7 +342,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                                      backend_packages),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
-                     workload = workload ? :(ProjecturedPlatform.warm_application()) : nothing,
+                     workload = workload ? _PROJECTURED_WORKLOAD : nothing,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,

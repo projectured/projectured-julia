@@ -50,7 +50,7 @@ import ..BackendModule: initialize_backend!, quit_backend!, take_from_devices!, 
 export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 export WorkloadBackend, make_workload_events, make_workload_table, run_display_workload,
        run_natural_rows_workload, run_module_initializers!, send_workload_inputs!,
-       has_workload_inputs, make_workload_file
+       has_workload_inputs, make_workload_file, collect_workload_file_types
 
 include("EditorDisplay.jl")
 include("DisplayWorkload.jl")

@@ -87,6 +87,25 @@ function _has_natural_rows(name)
 end
 
 """
+    _has_workload_file(name) -> Bool
+
+Whether the slice of the package `name` defines a method of `make_workload_file`,
+the file of its format that the application window opens in a workload. Such a
+package runs the gestures of that file in a `@compile_workload` of its entry
+file, by the rules of `package-rules.md`.
+"""
+function _has_workload_file(name)
+    dir = _source_dir(name)
+    dir === nothing && return false
+    for (root, _dirs, files) in walkdir(dir), file in files
+        endswith(file, ".jl") || continue
+        occursin(r"(?m)^make_workload_file\(::Type\{", read(joinpath(root, file), String)) &&
+            return true
+    end
+    false
+end
+
+"""
     _is_main_package(name) -> Bool
 
 A package that holds code, rather than a suite or an example gallery. `package/`
@@ -367,10 +386,11 @@ function test_package_graph()
             end
         end
 
-        @testset "a compile workload lives in a leaf, or in the entry file of a first window package or of a package with natural rows" begin
+        @testset "a compile workload lives in a leaf, or in the entry file of a first window package or of a package with natural rows or a file of a workload" begin
             entries = [joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl")
                        for name in keys(packages)
-                       if name in _FIRST_WINDOW_PACKAGES || _has_natural_rows(name)]
+                       if name in _FIRST_WINDOW_PACKAGES || _has_natural_rows(name) ||
+                          _has_workload_file(name)]
             offenders = String[]
             # Both trees: a package is a name and an include list, and the
             # list it names lives under `source/`.
@@ -405,6 +425,21 @@ function test_package_graph()
             end
             isempty(missing_workload) ||
                 println(stderr, "\nno `@compile_workload run_natural_rows_workload(…)` in the entry file of:\n  ",
+                        join(missing_workload, "\n  "))
+            @test isempty(missing_workload)
+        end
+
+        @testset "a package with a file of a workload runs its gestures in its entry file" begin
+            missing_workload = String[]
+            for name in sort(collect(keys(packages)))
+                (name in _LEAVES || name in _FIRST_WINDOW_PACKAGES) && continue
+                _has_workload_file(name) || continue
+                entry = read(joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"), String)
+                occursin(r"(?m)^\s*run_file_workload\(\w+\.\w+\)$", entry) ||
+                    push!(missing_workload, name)
+            end
+            isempty(missing_workload) ||
+                println(stderr, "\nno `run_file_workload(…)` in a `@compile_workload` of the entry file of:\n  ",
                         join(missing_workload, "\n  "))
             @test isempty(missing_workload)
         end

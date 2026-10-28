@@ -40,7 +40,8 @@ end
     WorkloadStep
 
 A step of [`run_application_workload`](@ref): a click, a key, a typed text, or a
-wait for a target.
+wait for a target. Another kind of step is a subtype with a method of
+[`find_workload_inputs`](@ref).
 """
 abstract type WorkloadStep end
 
@@ -214,7 +215,7 @@ function _run_workload_step!(editor, step::WorkloadStep, deadline::Float64)
     while !editor.has_loop_ended
         _wait_for_quiet_window(editor, deadline)
         editor.has_loop_ended && break
-        inputs = _call_on_loop(() -> _find_workload_inputs(editor, step), editor, deadline)
+        inputs = _call_on_loop(() -> find_workload_inputs(editor, step), editor, deadline)
         if inputs isa Vector{WindowInput}
             _wait_for_held_frames_end(editor, deadline)
             send_workload_inputs!(editor.backend, inputs)
@@ -293,9 +294,18 @@ function _throw_workload_problems(problems::Vector{String}, faults)
     error("The application workload failed.\n" * join(lines, "\n"))
 end
 
-# In a call on the editor: the inputs of `step`, with its target found in what the
-# window drew, or `nothing` when the window does not draw the target.
-function _find_workload_inputs(editor, step::WorkloadClick)
+"""
+    find_workload_inputs(editor, step::WorkloadStep) -> Vector{WindowInput} or nothing
+
+The inputs that give `step` to the window of `editor`, with the target of the
+step found in what the window drew, or `nothing` when the window does not draw
+the target yet. [`run_application_workload`](@ref) calls it on the task of the
+loop, between two frames, when the window is quiet, and sends the inputs to the
+backend after the call.
+"""
+function find_workload_inputs end
+
+function find_workload_inputs(editor, step::WorkloadClick)
     place = _find_target_place(editor, step.target)
     place === nothing && return nothing
     (window, x, y) = place
@@ -304,10 +314,10 @@ function _find_workload_inputs(editor, step::WorkloadClick)
                 WindowInput(window, MouseUp(step.button, x, y; time = 0.0))]
 end
 
-_find_workload_inputs(editor, step::WorkloadKey) =
+find_workload_inputs(editor, step::WorkloadKey) =
     _make_key_inputs(_get_main_window_id(editor), step.key, step.modifiers, nothing)
 
-function _find_workload_inputs(editor, step::WorkloadTyping)
+function find_workload_inputs(editor, step::WorkloadTyping)
     window = _get_main_window_id(editor)
     inputs = WindowInput[]
     for char in step.text
@@ -317,7 +327,7 @@ function _find_workload_inputs(editor, step::WorkloadTyping)
     inputs
 end
 
-_find_workload_inputs(editor, step::WorkloadWait) =
+find_workload_inputs(editor, step::WorkloadWait) =
     _find_target_place(editor, step.target) === nothing ? nothing : WindowInput[]
 
 # The down, the character and the up of a key, as a keyboard gives them: the key
@@ -554,4 +564,24 @@ function run_file_workload(type::Type; backend::Backend = WorkloadBackend(; even
                          WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("a"),
                          WorkloadKey(:escape), WorkloadKey(:w; ctrl = true)]
     run_application_workload([file.name => file.text]; steps, backend)
+end
+
+"""
+    warm_application() -> Nothing
+
+The workload of the `projectured` binary: the gestures of the application window
+([`run_window_workload`](@ref)), and then the gestures of a file of each format of
+the session ([`run_file_workload`](@ref) for each type of
+[`collect_workload_file_types`](@ref)). The package that a build of the binary
+writes runs it in its `@compile_workload`, after it loads every package of the
+binary. So its image holds the code of these gestures also where a package loaded
+later made the code in the image of a package below it invalid.
+
+It throws the error of the first list that fails; the package of the binary
+catches it and writes a warning.
+"""
+function warm_application()
+    run_window_workload()
+    foreach(run_file_workload, collect_workload_file_types())
+    nothing
 end

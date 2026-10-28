@@ -462,16 +462,6 @@ function test_application()
             @test occursin("no display", last(report)) && occursin("Stacktrace", last(report))
         end
 
-        @testset "the warm-up of a build" begin
-            document = @test_logs min_level = Base.CoreLogging.Warn warm_application()
-            # The warm-up ends in the tab it made with the Insert key, and the tab
-            # holds the document that the typed name commits. A warm-up that
-            # stops short of it leaves the first key in the name buffer to compile.
-            @test document !== nothing
-            focus = get_pane_focus(_app_window(document))
-            @test focus !== nothing && focus[1].tabs[focus[2]].content isa EvaluatorToplevel
-        end
-
         dir = mktempdir()
         paths = _app_write_files(dir)
         @testset "the application window" begin

@@ -2,13 +2,13 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md)
 
-`ProjecturedREPL` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the one `@compile_workload` of the source tree. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
+`ProjecturedREPL` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the workload of the development session. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
 
 ## How it works
 
 ### The leaf
 
-A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload is here, and in no package below.
+A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload of the session is here. A package below it compiles only its first window and the gestures of its home; [package-rules.md](../../../rule/package-rules.md#a-package-compiles-the-gestures-of-its-home) says which.
 
 `ProjecturedREPL` depends on `Projectured`, `ProjecturedExample`, `ProjecturedSDL` and `ProjecturedTest`, and on `PrecompileTools` and `Preferences` for the workload. A loop over `names(module)` exports again every name that the four export, so no list of names needs care. `test_export_collisions()` checks that two of the four do not export one name with two bindings, which would make the name ambiguous. `Revise` is not a dependency: it must load before the packages that it tracks, so the session alias loads it first.
 
@@ -35,7 +35,7 @@ A package image keeps its compiled code only when nothing depends on the package
 The driver runs three things:
 
 1. `precompile_workload()`, so the recording holds everything that `:live` compiles.
-2. `warm_application()`, the warm-up of the binary. It types a name into the name buffer of a new tab, and the first key compiles a method for every document type that the buffer can make.
+2. `warm_application()`, the workload of the binary. It runs the gestures of the application window and of a file of each format. One of them types a name into the name buffer of a new tab, and the first key compiles a method for every document type that the buffer can make.
 3. Every registered example, in one SDL window. The driver sends each one a fixed list of events: pointer motion, a left and a right press, a scroll each way, the arrow keys, Tab, Home, End, Backspace, Delete and two characters. One event of each kind is enough, because the value of a key is a run-time value. An example that throws is counted and skipped.
 
 The recording needs a display. The SDL backend needs an accelerated renderer, and the dummy video driver has none.

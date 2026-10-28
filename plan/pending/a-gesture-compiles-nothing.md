@@ -493,7 +493,7 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    `test_package_graph` passes 417 of 417, and the layering guards of the 13
    domains pass. Done with three domains open: Formula and Pivot (above) and
    the language server (step 7).
-5. [ ] **The app package, the guard and the rules (D9, D10).**
+5. [x] **The app package, the guard and the rules (D9, D10).**
    - `warm_application` runs the list of the binary.
    - The guard `test_gestures_compile_little` goes into `ProjecturedTest`,
      beside `test_first_window_compiles_little`, and asserts the target.
@@ -502,6 +502,86 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
    - The text that still says "only in a leaf": `CONTRIBUTING.md:69`,
      `division-terminology.md:50`, `repl.md:5` and `:11`. Also `builder.md` and
      `application.md`, which describe `warm_application`.
+
+   As built:
+   - `warm_application()` moved into `ApplicationWorkload.jl`. It runs
+     `run_window_workload()` and then `run_file_workload` for each type of
+     `collect_workload_file_types()` (new, in `DisplayWorkload.jl`: the types
+     that have a method of `make_workload_file`, sorted). It answers `nothing`
+     and lets a fault through (D6). The builder writes the catch: the workload
+     of `projectured` is `try ProjecturedPlatform.warm_application() catch
+     exception @warn … end`, an expression with no line node, so that no path
+     of the checkout goes into the package. The old body (a console backend, a
+     script of events, `_find_drawn_text_point`) is gone;
+     `evaluate_reachable_cells!` stays, because `example/projectured/FileEditor.jl`
+     uses it. Its test in `ApplicationTest.jl` is gone too: the two lists have
+     their own tests, and the guard builds the package that runs them.
+   - The list runs on `WorkloadBackend`, not on the first backend of the binary.
+     An `SdlBackend` in a build needs the dummy driver and the focus filter of
+     `run_sdl_window_workload`, and the platform names no backend. If the guard
+     shows recompiles in the SDL code at a click, step 6 adds the SDL list to
+     the workload of the binary. (My decision, for the owner to see.)
+   - The guard needs a mark between two steps. The method that each kind of
+     step had, `_find_workload_inputs(editor, step)`, is public now as
+     `find_workload_inputs`, and `WorkloadStep` says that another kind of step
+     is a subtype with a method of it. The drive of the guard defines a step
+     that marks the trace. No other mechanism is new.
+   - The guard `test_gestures_compile_little` (`test/projectured/GestureCompileTest.jl`,
+     in `test_integration` after the first window):
+     1. A process of the active environment writes the package of the binary
+        with `build_projectured_executable(; context, compile = false)` into a
+        temporary folder; the test gives it the manifest of the active
+        environment with absolute paths, as the first-window test does. So the
+        binary loads the images that the environment built, and only its own
+        image builds.
+     2. A fresh process builds that image (`using ProjecturedApp`), which runs
+        `warm_application`; the build must write no warning.
+     3. A fresh process with `--threads=auto,2 --trace-compile` and the
+        offscreen SDL driver runs `run_application_workload` on `SdlBackend`
+        with the full list: each item of each menu but File › Exit (12), each
+        tool of the toolbar (13), the assistant turn, the Explorer and its
+        context menu, the name buffer, F1, the palette, and the open and edit
+        of a file of each type of `collect_workload_file_types()`, each file
+        named after its type. A mark before each gesture splits the trace.
+     4. It asserts the target: the start at most 50 statements, each gesture
+        at most 10, no recompile.
+   - `PackageGraphTest.jl`: a `@compile_workload` may also live in the entry
+     file of a package whose slice defines `make_workload_file`, and such a
+     package must call `run_file_workload(<Module>.<Type>)` there (a new
+     test set). `package-rules.md` has the section "A package compiles the
+     gestures of its home", with the table of D3, the form of the entry file,
+     D6, the list of the binary and D11.
+   - The texts: `CONTRIBUTING.md`, `division-terminology.md`,
+     `system-anatomy.md`, `repl.md`, `builder.md`, `console.md`, and
+     `application.md`, which now describes the workload of the window.
+
+   Tests (2026-10-28): `test_package_graph` 418 of 418, `test_naming`,
+   `test_build_executable` 268 of 268, `test_application_workload` 14 of 14,
+   `test_file_workload` 3 of 3. The images of `environment/all` built in 11 min,
+   peak 11.5 GB, with no warning.
+
+   The guard, first run (2026-10-28, a busy machine; the counts do not depend
+   on the load): 6 min 24 s, peak 5.6 GB. The image of the binary built in
+   3 min 28 s and wrote no warning, and each of the 166 gestures found its
+   target. Compared with the measurement of 2026-10-27 on main:
+
+   | | Before (40 gestures) | After (166 gestures) |
+   |---|---:|---:|
+   | the start, statements (recompiles) | 569 (21) | 159 (53) |
+   | the gestures, statements | 4305 | 453 |
+   | the gestures, recompiles | 32 | 37 |
+   | gestures over 10 statements | most | 14 |
+
+   - The open of a file of each format compiles 0 to 5 statements; before,
+     56 to 197.
+   - Over the bound of 10: Help › Projections 37, the assistant turn 35, Help ›
+     Gestures 30, the tool Frame times 25, the Explorer again 23, Open in a new
+     tab 19, the typed name 18, the tool Evaluator 17, View › Split
+     horizontally 16, the first menu 15, Ctrl+S of the Book file 14, the tool
+     Frame statistics 13, the tool Files 11, Help › Documents 11.
+   - The recompiles are spread: 1 to 5 in 22 gestures, and 53 in the start.
+   - The three assertions of the target are `@test_broken` until step 6. The
+     log is `/var/tmp/gesture-compiles/step5/guard-2026-10-28.log`.
 6. [ ] **What still compiles at a click (D5).** After step 5, the guard shows
    what the images still do not hold: the recompiles that the app package does
    not cover, and the Base methods on our types that dynamic dispatch reaches
