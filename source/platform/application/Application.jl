@@ -470,7 +470,8 @@ const EDITOR_SYSTEM =
     "arguments for a coordinate, and one that reads " *
     "`get_reactive_clock_time(editor.clock)` moves the shape on each frame. " *
     "`open_page!(part)` opens a part as a " *
-    "page of its own, `open_explorer_page!(part)` shows its page in the explorer " *
+    "page of its own in a tab, as `open_pane!` does, " *
+    "`open_explorer_page!(part)` shows its page in the explorer " *
     "beside the tree, `select_part!(part)` selects a part to show it, and " *
     "`write_os_clipboard!(text)` gives the person a text to paste. " *
     "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *

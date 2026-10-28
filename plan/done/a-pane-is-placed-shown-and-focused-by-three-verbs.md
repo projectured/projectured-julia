@@ -154,6 +154,7 @@ selection of the person.
 - `open_page!` runs the command "Open as a page" of a person through
   `OpenPageOperation`, and its tab opens a frame later, so it moves the focus. A
   form for a program that places the page and answers its tab is not built.
+  Closed by [a-program-opens-a-page-and-keeps-the-focus.md](a-program-opens-a-page-and-keeps-the-focus.md).
 
 ## 6. Not in this plan
 

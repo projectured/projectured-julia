@@ -57,10 +57,10 @@ answer its tab.
 
 ### Step 2 — the guides
 
-- [ ] `orientation.md`, `navigator.md` and the system text of the assistant
+- [x] `orientation.md`, `navigator.md` and the system text of the assistant
       (`Application.jl`) say that `open_page!` answers the tab and moves no
       focus.
-- [ ] The open item of the plan of the three pane verbs names this plan.
+- [x] The open item of the plan of the three pane verbs names this plan.
 
 ### Step 3 — check
 

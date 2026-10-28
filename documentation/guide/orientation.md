@@ -219,7 +219,8 @@ orbit_1 = GraphicsCanvas([
 open_pane!(orbit_1; title = "Orbit")
 ```
 
-`open_page!(part)` opens one part of a large document as a page of its own, and
+`open_page!(part)` opens one part of a large document as a page of its own. As
+`open_pane!` does, it answers the new tab and leaves the focus where it is.
 `select_part!(part)` selects a part to show it to the person.
 
 ### Control the window

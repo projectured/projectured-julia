@@ -198,7 +198,7 @@ evaluate_operation(editor, make_navigator_open_operation(navigator, @reference(d
 
 A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` to its own press, and `OpenPageOperation(nothing, EmptyReference(), :new_tab)` to Ctrl+press. A view that shows a link to a part draws `WidgetLink(text, DocumentLocator(document, reference))`, which answers both.
 
-An assistant opens a page with two verbs. `open_page!(part)` opens the part in a new tab with a navigator of its own, through an open that no navigator takes. `open_explorer_page!(part)` of the explorer slice shows the part in the navigator of the explorer, beside the tree, and opens the rows above it ([explorer.md](../explorer/explorer.md#what-an-assistant-calls)). Neither moves the selection of the person.
+An assistant opens a page with two verbs. `open_page!(part)` opens the part in a new tab with a navigator of its own, in the group where an open that no navigator takes puts it, and answers the tab, as `open_pane!` does. `open_explorer_page!(part)` of the explorer slice shows the part in the navigator of the explorer, beside the tree, and opens the rows above it ([explorer.md](../explorer/explorer.md#what-an-assistant-calls)). Neither moves the selection of the person.
 
 - Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_choices()`, `test_navigator_to_widget()`, `test_open_page_operation()`, `test_navigator_gestures()`, `test_navigator_document()` and `test_navigator_address()`. The data frame case is `test_data_frame_row_page()` in `ProjecturedDataFramesTest`.
 
