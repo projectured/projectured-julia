@@ -742,14 +742,99 @@ Until the guards exist (steps 5 and 8), measure with the drivers in
      chart does not draw; it draws the axis `Net`. The wait took 300 s for each
      of two steps, and the build of the package 642 s.
    - Not done: the workload of `OmnetLegacySimulatorPresentation` (the Runner
-     and Run, above).
-8. [ ] **OmnetIde, its app package and its guard.**
+     and Run, above). It moves into step 8 (the owner, 2026-10-28: "yes, move
+     to step 8").
+8. [x] **OmnetIde, its app package and its guard.**
    - OmnetIde gets its own `@compile_workload`: the IDE window with its
      wrappers, and the gestures of D3.
    - `CampaignPrecompile.jl` and `IdePrecompile.jl` become its body, with no
      bare `catch` (D6).
    - The app workload runs the list of the binary.
    - The guard goes into `OmnetIdeTest`.
+
+   The design:
+   - projectured-julia: `run_workload_steps!(editor, steps; timeout)` gives
+     the steps to an editor that the caller started with `wait = false`,
+     stops its loop and throws the problems. `run_application_workload` calls
+     it. `run_sdl_window_workload(run_workload = run_window_workload)` runs
+     any window workload on SDL.
+   - omnet-julia: `source/ide/IdeWorkload.jl` replaces the two files.
+     `run_ide_window_workload(; backend, file_types)` writes a stub project
+     (INI, NED, results, the study of `IdePrecompile.jl` saved as a folder,
+     a stub executable), opens `run_omnet_ide` on it with a workload model,
+     and gives the steps inside `run_with_process_imitation`: each menu
+     item, each tool, the Explorer, the Runner form and Run, the results as
+     a table and a plot, the study, Help › About, an assistant turn that
+     calls an IDE verb, F1 and the palette, and a file of each of
+     `file_types`. `warm_omnet_ide()` runs it over every file type.
+   - The Runner and Run go into the workload of OmnetIde, because the
+     window projection (`build_campaign_projection`) lives there.
+   - The discovery (`-a`, `rundetails`) still runs the stub executable with
+     `run`, as the workload on main does. Only `start_process_task!` is
+     imitated: the build and the run.
+
+   Facts that change the design:
+   - `run_omnet_ide` takes an `assistant` document, so the workload gives the
+     model in it (`Assistant(; llm = make_workload_llm(…))`). The keywords of
+     `run_omnet_ide` do not change.
+   - The window of the IDE has the menus of the platform (File: New tab,
+     Close tab, Exit; View and Help with five items each) and the same 13
+     tools, so the list is the list of the platform window.
+   - `_result_code` of omnet took only a `Base.Process`, so each imitated
+     run ended in a `MethodError`. It now takes an `ImitatedProcess` too.
+   - After Run, the left pane shows the group of tasks. A click on the row
+     Results of the Explorer does not open its page, so the list has no
+     `.sca` or `.vec` in the Explorer. The study holds a result table and a
+     result plot, and `warm_omnet_ide` opens a `.sca` file from Files.
+   - Two faults of the product, outside this plan, which the list goes
+     around:
+     - A result view in a `.pred` file reads under the folder of the
+       process, because a `.pred` file does not store its `root`. The
+       workload opens the window in its project folder, as `omnet_ide`
+       does by default.
+     - After a save of a `.pred` file that holds a formula, the file watch
+       reads the file again on its own task, and the formula computes there:
+       the cell check of the kernel records a `ForeignCellWriteException`.
+   - The study of `IdePrecompile.jl` held a formula sheet. A build refuses the
+     evaluation of a formula (the closed module `FormulaScratch`, the fact of
+     Formula in step 4), so the old workload failed at its first line in each
+     build, and its bare `catch` hid it. The study of the workload holds no
+     formula, so the workload also saves it.
+   - A window with no size takes the size of the display of its backend, and
+     the SDL dummy display is narrow: the assistant pane covered the page of
+     the Explorer, and the Runner was not drawn. The workload opens the window
+     at 1280 × 800, as the application workload of the platform does.
+   - The test environment of omnet-julia does not hold `ProjecturedACP` and
+     `ProjecturedMCP`, so the guard builds its binary with `assistant =
+     false`. The workload gives the window its own model.
+
+   Results (2026-10-28, in the joined environment):
+   - The image of `OmnetIde` builds in 130 s with its workload, peak 5.0 GB,
+     with no warning. The image of the binary of the guard builds in 3 min
+     33 s with no warning; it runs `warm_omnet_ide()` over 16 file types and
+     the same window on SDL.
+   - The guard, `test_ide_gestures_compile_little`: 202 gestures, each finds
+     its target. Compared with the measurement of 2026-10-27 on omnet main:
+
+     | | Before (about 40 gestures) | After (202 gestures) |
+     |---|---:|---:|
+     | the start, statements (recompiles) | 1786 (111) | 90 (1) |
+     | the gestures, statements | about 6655 | 248 |
+     | the gestures, recompiles | about 97 | 1 |
+     | gestures over 10 statements | 10 | 8 |
+
+     145 gestures compile nothing. Over 10: Run (31), Return on `study.pred`
+     (22), the Runner (18), Return in the assistant draft (15), Help ›
+     Documents (14), Ctrl+S on the study (13), a tool (12), a click in the
+     `.sca` file (11). The three bounds stay `@test_broken`.
+   - Tests: omnet-julia `test_ide_window_workload` 1 of 1,
+     `test_result_verbs` 68 of 68, `test_package_graph` 191 of 192 (the
+     failure of main, `OmnetBench`), the naming law; projectured-julia
+     `test_window_workload`, `test_application_workload` 14 of 14,
+     `test_sdl_workload` 7 of 7, `test_naming`. Not run: `test_build` of
+     omnet-julia, whose new assertions name the two calls that the builder
+     wrote into the guard package, and the REPL leaf of omnet-julia, whose
+     `:live` workload now calls `run_ide_window_workload`.
 
 ### Both
 
