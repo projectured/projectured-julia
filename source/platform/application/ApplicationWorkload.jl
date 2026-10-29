@@ -94,6 +94,18 @@ struct WorkloadWait <: WorkloadStep
 end
 
 """
+    WorkloadAgentTurn()
+
+One turn of an external agent in the assistant that the window shows, with no
+agent: [`warm_assistant_turn!`](@ref) puts its events into the queue of a session
+of the assistant, as a connection puts them, and the frames that follow apply
+them. So the step gives the window no input of a device; it waits until the
+window shows an assistant. A [`WorkloadWait`](@ref) on the answer of the turn,
+`DrawnText(r"33\\.5")`, waits for its last part.
+"""
+struct WorkloadAgentTurn <: WorkloadStep end
+
+"""
     make_workload_llm(code; answer = "The code ran.") -> Llm
 
 A model for the assistant turn of a workload. A workload gives it to a window as
@@ -348,6 +360,13 @@ end
 find_workload_inputs(editor, step::WorkloadWait) =
     _find_target_place(editor, step.target) === nothing ? nothing : WindowInput[]
 
+function find_workload_inputs(editor, ::WorkloadAgentTurn)
+    views = _collect_part_iomaps(editor.iomap, input -> input isa Assistant)
+    isempty(views) && return nothing
+    warm_assistant_turn!(editor, _get_held_value(get_iomap_input(first(views))))
+    WindowInput[]
+end
+
 # The down, the character and the up of a key, as a keyboard gives them: the key
 # of each modifier goes down before the key and up after it, and Return and Tab
 # type their character with no character given.
@@ -463,11 +482,15 @@ function _find_node_middle(@nospecialize(node), @nospecialize(target), x0::Int, 
     nothing
 end
 
-# The outputs of the views below `iomap` whose input passes `predicate`. A view
-# gives its children as a reader reaches them (`get_child_iomaps`), which computes
-# a list of children that no print needed. A field of a view that holds a view
-# is read only when its cell holds a value, so the walk computes no other cell.
-function _collect_part_outputs(@nospecialize(iomap), predicate::Function)
+# The outputs of the views below `iomap` whose input passes `predicate`.
+_collect_part_outputs(@nospecialize(iomap), predicate::Function) =
+    Any[_get_held_value(get_iomap_output(view)) for view in _collect_part_iomaps(iomap, predicate)]
+
+# The views below `iomap` whose input passes `predicate`. A view gives its children
+# as a reader reaches them (`get_child_iomaps`), which computes a list of children
+# that no print needed. A field of a view that holds a view is read only when its
+# cell holds a value, so the walk computes no other cell.
+function _collect_part_iomaps(@nospecialize(iomap), predicate::Function)
     found = Any[]
     seen = IdDict{Any,Nothing}()
     stack = Any[iomap]
@@ -478,8 +501,7 @@ function _collect_part_outputs(@nospecialize(iomap), predicate::Function)
         seen[value] = nothing
         if value isa IoMap
             input = _get_held_value(get_iomap_input(value))
-            input !== nothing && predicate(input) &&
-                push!(found, _get_held_value(get_iomap_output(value)))
+            input !== nothing && predicate(input) && push!(found, value)
             children = get_child_iomaps(value)
             children === nothing || append!(stack, children)
             for name in fieldnames(typeof(value))
@@ -503,8 +525,9 @@ _get_held_value(@nospecialize(value)) =
 Run the gestures of the application window with [`run_application_workload`](@ref)
 on `backend`: each item of each menu but File › Exit, the open of a text file and
 of a `.pred` file from the Files pane with a click, a key, a save and an undo in
-each, a tab, each tool of the toolbar, an assistant turn with a tool call, the
-Explorer and its context menu, and then, with a tab of each kind open, a new tab
+each, a tab, each tool of the toolbar, an assistant turn with a tool call, a turn
+of an external agent ([`WorkloadAgentTurn`](@ref)) with a click in its code and on
+the option of its permission request, the Explorer and its context menu, and then, with a tab of each kind open, a new tab
 named in the name buffer, F1 and the command palette. Each item and each tool
 opens a document of its own type or changes the panes, and the printers compile
 for each type, so the list presses each one.
@@ -541,6 +564,10 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
         WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
         WorkloadTyping("hi"), WorkloadKey(:return),
         WorkloadWait(DrawnText("The sum is two.")),
+        # One turn of an external agent in the same assistant, a click in its code,
+        # and a click on the option of its permission request.
+        WorkloadAgentTurn(), WorkloadWait(DrawnText(r"33\.5")),
+        WorkloadClick(DrawnText(r"lengths_1")), WorkloadClick(DrawnText("Allow")),
         WorkloadClick(tool("Explorer")),
         WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
         WorkloadClick(DrawnText("Open in a new tab")),

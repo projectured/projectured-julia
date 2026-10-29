@@ -1,39 +1,41 @@
-# Fragment of `AssistantModule` — one turn of an external agent that a precompile
-# workload applies with no agent. Its events take the path of the feed of a window,
-# so a build compiles the parts of a turn, and the loop of a window does not
-# compile them while an agent works.
+# Fragment of `AssistantModule` — one turn of an external agent that a compile
+# workload gives the assistant of a window, with no agent. Its events take the path
+# of the events of a connection, through the queue of a session and the feed of the
+# window, so a recording sees the calls of a turn, and the loop of a window does
+# not compile them while an agent works.
 
 """
-    warm_assistant_turn!(assistant) -> assistant
+    warm_assistant_turn!(editor, assistant) -> assistant
 
-Apply one turn of an external agent to `assistant`, with no agent and no process.
+Give `assistant`, which the window of `editor` shows, one turn of an external
+agent, with no agent and no process. A session with no connection gets a queue
+that joins the feed of the window, the events of the turn go into the queue as a
+connection puts them, and the editor wakes. The frames that follow apply them
+([`apply_agent_event!`](@ref)). Call it on the task of the editor.
+
 The turn holds a thinking block, Markdown text with a list and a code block, a
 `search_api` call with a Markdown answer, a permission request to run a command,
 which stays open, an `execute_julia_code` call whose code comes in a later
-update, with its result, and the answer. The code comes last but one, because a
-pane follows the end of a turn, so the code is in view. The events take the path of the feed of a window
-([`apply_agent_event!`](@ref)), and the turn ends at the usage that the agent
-reports, as a turn that an agent starts by itself ends. The session of
-`assistant` is the same afterwards.
+update, with its result, and the answer, which says `33.5`. The code comes last
+but one, because a pane follows the end of a turn, so the code is in view. The
+turn ends at the usage that the agent reports, as a turn that an agent starts by
+itself ends. The assistant keeps the session, so only a window that its
+workload closes afterwards takes the turn.
 
-A precompile workload calls it, prints the assistant through the projection of
-its window, and can then move the pointer over the parts and click the "Allow"
-option of the request. So a build compiles the parts of a turn, and the loop of
-the window does not.
+Only a compile workload calls it, as the step `WorkloadAgentTurn` of a window
+workload. No path that a person starts calls it.
 
 # Example
 
-    warm_assistant_turn!(assistant)
+    warm_assistant_turn!(editor, assistant)
 """
-function warm_assistant_turn!(a::Assistant)
-    session = a.agent_session
-    a.agent_session = ExternalAgentSession(nothing)
-    try
-        push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(_WARM_PROMPT)]))
-        foreach(event -> apply_agent_event!(nothing, a, event), _make_warm_turn_events())
-    finally
-        a.agent_session = session
-    end
+function warm_assistant_turn!(editor, a::Assistant)
+    session = ExternalAgentSession(nothing)
+    a.agent_session = session
+    queue = _make_agent_event_queue!(editor, a, session)
+    push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(_WARM_PROMPT)]))
+    foreach(event -> put_agent_event!(queue, event), _make_warm_turn_events())
+    wake_editor!(editor)
     a
 end
 

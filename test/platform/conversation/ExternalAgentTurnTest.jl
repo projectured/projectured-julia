@@ -45,11 +45,16 @@ function test_external_agent_turn()
                   findfirst(part -> part.content isa EvaluatorForm, parts)
         end
 
-        @testset "a warm-up applies one turn with each kind of part, and no agent" begin
+        @testset "a warm-up gives the feed one turn with each kind of part, and no agent" begin
             a = Assistant(; backend = :acp)
-            @test warm_assistant_turn!(a) === a
-            # The assistant keeps its session, which was none.
-            @test a.agent_session === nothing
+            editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                            feeds = Feed[AgentEventFeed(), TaskFeed()])
+            @test warm_assistant_turn!(editor, a) === a
+            # The events wait in the queue of the session until the feed applies them.
+            @test a.agent_session.connection === nothing
+            @test editor.wake_pending[]
+            @test length(collect(a.conversation.turns)) == 1
+            drain_feeds!(editor)
             turns = collect(a.conversation.turns)
             @test [turn.role for turn in turns[end - 1:end]] == [:user, :assistant]
             @test turns[end].stop_reason === :end_turn
