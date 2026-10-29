@@ -1,7 +1,8 @@
 # A roster and its arrangement cost what changed
 
-Status: pending. Written 2026-10-29. Started 2026-10-29 on the branch
-`lazy-arrangement` (worktree `projectured-julia-lazy-arrangement`).
+Status: done. Written 2026-10-29. Started 2026-10-29 on the branch
+`lazy-arrangement` (worktree `projectured-julia-lazy-arrangement`). Landed on
+main on 2026-10-29.
 
 Applies to projectured-julia. omnet-julia uses it for the views of its tasks.
 
@@ -336,18 +337,27 @@ measures one walk alone first, and it removes what costs most there.
 - [x] **Step 8 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.
 
-  **Done, 2026-10-29, but the full suites.** The numbers are in steps 2 to 7,
-  and the roster document has a paragraph "A large roster". `test_kernel` and
-  `test_platform` did not fit in the memory that a job of another session left
-  (a 3.5 GB cap ran out in the precompile); they wait for room with a 10 GB cap.
+  **Done, 2026-10-29.** The numbers are in steps 2 to 7, and the roster document
+  has a paragraph "A large roster".
 
   **Landed on main, 2026-10-29, before the full suites.** The owner: "land it on
-  main test can be done later". The branch lands by a fast-forward. The plan
-  stays in `plan/pending/` until `test_kernel` and `test_platform` pass on main.
+  main test can be done later". The branch landed by a fast-forward.
   omnet-julia and inet-julia define none of the new methods, and the omnet call
-  `ItemsWithin(source, TaskDocument)` keeps its meaning. The task views of omnet
-  (`_make_task_view` in `source/ide/CampaignExplorer.jl`) open slower than
-  before until they pass `enter_field = is_task_search_field`.
+  `ItemsWithin(source, TaskDocument)` keeps its meaning.
+
+  **omnet follows, 2026-10-29.** omnet main `cd3bf6974`: the task views
+  (`_make_task_view` in `source/ide/CampaignExplorer.jl`) pass
+  `enter_field = is_task_search_field`. Its `test_campaign_explorer` passes 47,
+  and its precompile gives no warning.
+
+  **The full suites after the landing.** `test_kernel` passes 4974. In one call,
+  `test_platform` is OOM-killed at a 10 GB cap before its first test: Julia
+  compiles the whole suite function in one step. Its 229 parts, called one by
+  one in one process, give 173,719 pass, 3 fail and 7 broken. The 3 failures are
+  on main before this plan: the layering guard names `FileChangeModule.jl` and
+  `ShellModule.jl` for a `using` with a list of names, and `test_interface_api`
+  counts 33 widget names and finds no "Use it to" in the docstring of
+  `WidgetLink`.
 
 ## Tests
 
