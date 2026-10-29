@@ -1,6 +1,6 @@
 # The code follows the compile-ahead design
 
-Status: pending. Written 2026-10-29. Not started; the owner starts each step.
+Status: done 2026-10-29. The six steps are built on the branches of the three repositories. The landing on main waits for the owner.
 
 Applies to projectured-julia, omnet-julia and inet-julia.
 
@@ -210,7 +210,7 @@ changes. Mark a step here when it is done.
    - `record_application_calls!` records the package of the application again
      at its end, so that its list follows the new lists of the lower packages.
    - The measurement command continues when one measurement fails, and says so.
-4. [ ] **omnet: each package uses it.**
+4. [x] **omnet: each package uses it.**
    - `OmnetIde`, `OmnetLegacyFormat`, `OmnetLegacyResultPresentation`,
      `OmnetPresentationExample` and `OmnetSimulator` call
      `ProjecturedPrecompile`. `OmnetSimulator` gets a workload in place of its
@@ -274,7 +274,7 @@ changes. Mark a step here when it is done.
    - `environment/all` of omnet gains `OmnetIdeBuild` and `ProjecturedACP`.
    - Each of the twelve sample packages builds its image with the live workload
      in 18 to 22 s.
-5. [ ] **inet: each package uses it.**
+5. [x] **inet: each package uses it.**
    - `InetExample` and `InetRunner` call `ProjecturedPrecompile`. The workload
      of the binary moves from `precompile_execution_file` into the workload of
      `InetRunner`.
@@ -321,7 +321,7 @@ changes. Mark a step here when it is done.
      fail and 34 errors, the same as `main` (an ambiguous `open_page!` between
      `OmnetPresentation` and `ProjecturedAll` in `InetTest`). The builder suite
      of projectured passes 593 of 593.
-6. [ ] **The measurement and the end.** Run the measurements of U7 in each
+6. [x] **The measurement and the end.** Run the measurements of U7 in each
    repository, before step 2 and after step 5, and write both into this plan.
    Remove the section "The code today" from the three design documents.
 
