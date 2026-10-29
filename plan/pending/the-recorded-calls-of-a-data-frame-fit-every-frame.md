@@ -35,9 +35,26 @@ invalid (about 245 ms).
    the row closure has one type for every frame.
 2. [x] `_render_spline!` fills a `Vector{Tuple{Float64,Float64}}`, as
    `_render_polygon!` does.
-3. [ ] Measure the session again: the first frame, its compilation, the calls
+3. [x] Measure the session again: the first frame, its compilation, the calls
    compiled again, and the new calls that no list holds. Name each next root,
    but do not fix it.
+
+   | | main `e52478247` | this branch |
+   |---|---:|---:|
+   | the `using` line | 2.2 s | 2.1 s |
+   | the first frame | 1.08 s | 0.70 s |
+   | compilation in the first frame | 0.85 s | 0.55 s |
+   | of it, code compiled again | 0.37 s | 0.27 s |
+   | calls compiled again | 10 of 68 | 5 of 59 |
+
+   The new calls that remain take 170 ms together, and the largest takes 26 ms.
+
+   All five calls compiled again have one root: the platform adds
+   `get_document_gesture_bindings_own(::Type{WidgetShell})`, and the kernel
+   `collect_document_gesture_bindings` calls `get_document_gesture_bindings_own(S)`
+   with an abstract `Type`, which inference follows into the one kernel method.
+   The earlier rounds measured it at 10 ms only because other roots made its
+   callers invalid first. `append_fault!` does not show any more.
 4. [ ] Run the narrow tests: `test_dataframes()`, `test_sdl()`.
 
 Not in this plan:
