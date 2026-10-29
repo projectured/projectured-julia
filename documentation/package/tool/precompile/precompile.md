@@ -43,7 +43,7 @@ A failed workload, or a list of which more than 10 % of the calls no longer reso
 
 A recording runs `run_package_workload()` of a package in a new process under `--trace-compile`, with `precompile_calls = "none"` for that package. A call that the image already holds does not compile again, so a recording on top of a recorded image would write a shorter list each time. A temporary environment first on the load path sets the preference, and the image of `"none"` is cached apart from the others. With no display, SDL runs on its dummy video driver. When the workload fails, the recording keeps the calls that it compiled before the failure and shows the failure in a warning, as the default of `precompile_failure` does for a build.
 
-The trace keeps each call once, sorted, and it drops a call that names `Main` or that does not parse. There are three scopes:
+The trace keeps each call once, sorted, and it drops a call that names `Main` or that does not parse. Julia prints a value in a type parameter with the names of its fields, for example `Rational{Int64}(num=1, den=1)` in each type of Unitful, and that text does not read back. The trace removes the names, and the positional form means the same value. There are three scopes:
 
 - `record_package_calls!(package)` writes `precompile/workload.txt` of the package.
 - `record_repository_calls!()` records each package that calls `@compile_ahead`, each one after the packages that it depends on.

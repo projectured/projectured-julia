@@ -25,10 +25,12 @@ function test_precompile_recording()
                     precompile(Tuple{typeof(ProjecturedPrecompile.PrecompileModule.f), Base.PkgId})
                     precompile(Tuple{typeof(Base.length), String}) # recompile
                     #= 12.5 ms =# precompile(Tuple{typeof(Base.first), String})
+                    precompile(Tuple{typeof(Base.identity), Base.Val{Base.Rational{Int64}(num=1, den=1)}})
                     precompile(Tuple{typeof(Base.last), )
                     not a call
                     """)
                 @test collect_traced_calls(trace) == ["Tuple{typeof(Base.first), String}",
+                                                      "Tuple{typeof(Base.identity), Base.Val{Base.Rational{Int64}(1, 1)}}",
                                                       "Tuple{typeof(Base.length), String}",
                                                       "Tuple{typeof(Base.sum), Array{Int64, 1}}"]
             end

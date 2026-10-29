@@ -154,6 +154,12 @@ a new recording makes a diff that a person can read. A call that names `Main`
 belongs to the command of the recording, and a call that does not parse cannot
 be read back, so both are dropped, and so is a call of
 `ProjecturedPrecompile` itself, which belongs to no package.
+
+Julia prints a value in a type parameter with the names of its fields, for
+example `Rational{Int64}(num=1, den=1)`, and no constructor takes them as
+keywords. Each type of Unitful holds such a value. The names go, and the
+positional form that stays means the same value, because Julia prints the
+fields in the order of the declaration.
 """
 function collect_traced_calls(trace::AbstractString)
     prefix = "precompile("
@@ -162,7 +168,8 @@ function collect_traced_calls(trace::AbstractString)
         line = strip(replace(line, r"^#=.*?=#\s*" => "", r"\)\s*#[^)]*$" => ")"))
         (startswith(line, prefix) && endswith(line, ")")) || continue
         (occursin("Main.", line) || occursin("ProjecturedPrecompile.", line)) && continue
-        call = line[(length(prefix) + 1):(end - 1)]
+        call = replace(line[(length(prefix) + 1):(end - 1)],
+                       r"([(,]\s*)[A-Za-z_]\w*\s*=(?!=)" => s"\1")
         _is_complete_call(call) && push!(kept, call)
     end
     sort!(collect(kept))
