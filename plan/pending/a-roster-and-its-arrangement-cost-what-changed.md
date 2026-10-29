@@ -341,6 +341,14 @@ measures one walk alone first, and it removes what costs most there.
   `test_platform` did not fit in the memory that a job of another session left
   (a 3.5 GB cap ran out in the precompile); they wait for room with a 10 GB cap.
 
+  **Landed on main, 2026-10-29, before the full suites.** The owner: "land it on
+  main test can be done later". The branch lands by a fast-forward. The plan
+  stays in `plan/pending/` until `test_kernel` and `test_platform` pass on main.
+  omnet-julia and inet-julia define none of the new methods, and the omnet call
+  `ItemsWithin(source, TaskDocument)` keeps its meaning. The task views of omnet
+  (`_make_task_view` in `source/ide/CampaignExplorer.jl`) open slower than
+  before until they pass `enter_field = is_task_search_field`.
+
 ## Tests
 
 `test_roster`, `test_roster_table`, `test_roster_sources`, `test_roster_facets`,
