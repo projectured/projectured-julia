@@ -268,12 +268,46 @@ Each step is one commit on the branch, with its test.
     `test_background_work` 21, `test_explorer` 294,
     `test_widget_column_header` 48, `test_platform_slice_edges` 1;
     `test_platform_layering` 6 of 7 (the fault of main).
-- [ ] **Step 4 — A widget in a cell, a share of the width, a marked row.** The
+- [x] **Step 4 — A widget in a cell, a share of the width, a marked row.** The
   roster gets a function of its interface that makes the widget of a cell for an
   item and a key, whose default is the cell of now (D7). A roster holds a share of
   the width for each column, and the table marks the row of the item that the
   roster names (D8).
   Tests: `test_roster`, `test_roster_table`.
+
+  **Done.** What the work found and decided:
+  - New names: `make_roster_cell` (interface of the roster slice, exported), the
+    fields `RosterRowsToWidget.cells`, `Roster.shares` and `Roster.marked` (keywords
+    `shares = nothing`, `marked = nothing`), and the private helpers `_make_row_path`,
+    `_map_selection_or_mark` and `_set_column_shares!`. No new event, property or
+    registry: the table reads the roster through `:roster` of step 3.
+  - `make_roster_cell(cells, item, key, value)` gets `value` as the value cell of the
+    column of the row, as the cell code reads it. The method for `nothing` makes the
+    label of the text. The table itself keeps what depends on the column number and
+    on the type of the value for `cells === nothing`: the link of the item in column 1
+    and the document that follows a value that is a document. A method for another
+    `cells` value makes the whole cell, and the table gives its widget the mouse target
+    of the row, so a press there selects the item of the row as for a label.
+  - Shares: the table sets its `columns` cell to a `WidgetTableColumn` for each column
+    with `SizePolicy(nothing, nothing, nothing, weight)`, a weight of 1 for a column
+    beyond the weights. The width is the minimum of the header and the share of the
+    rest, so the ratio of the drawn widths is the ratio of the weights only above the
+    floors of the headers; the test offers 6000 pixels.
+  - Marked row: `follow_output_selection!` of the table follows
+    `_map_selection_or_mark`, the selection of the rows when it is in the rows, else
+    the whole row of the item that `marked` names. The editor selection and the mark
+    do not conflict: the selection wins while it is in the rows, and the mark shows
+    when it is not. The row is counted from the head of the list as for the editor
+    selection (`_make_row_path`), so a row before the head has a number of zero or
+    less. The row is found by identity in the rows that print (a filtered list too).
+  - `pred_arguments` of a roster still writes the source, the columns and the title:
+    a file keeps no `shares` and no `marked`.
+  - omnet-julia: both calls of `Roster(` (`CampaignExplorer.jl`,
+    `LegacyResultFile.jl`) pass keywords only, so no call breaks.
+  - Results: `test_roster` 69, `test_roster_table` 54 (17 new), `test_roster_header` 41,
+    `test_roster_program` 21, `test_task_views` 70, `test_explorer` 294,
+    `test_background_work` 21, `test_platform_slice_edges` 1, `test_platform_layering`
+    6 of 7 (the two files of main).
 - [ ] **Step 5 — The page of a task group shows a roster.** The table of the pane
   is a roster of the tasks of the group with an arrangement, under the bar of the
   arrangement. The columns, the cells and the shares are those of now. The

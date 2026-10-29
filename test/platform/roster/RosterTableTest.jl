@@ -47,6 +47,11 @@ function _roster_drawn_texts(node, found = Dict{String,Any}())
     found
 end
 
+# A page's own cells: the text of the value in angle brackets.
+struct _RosterBracketCells end
+RosterModule.make_roster_cell(::_RosterBracketCells, item, key, value) =
+    WidgetLabel(() -> string("<", format_roster_value(value[]), ">"))
+
 function test_roster_table()
 @testset "the table of a roster in an editor" begin
     make_notes() = CellVector(Cell[Cell(_RosterNote(1, PrimitiveString("alpha"))),
@@ -270,6 +275,103 @@ function test_roster_table()
         @test selected_tail(editor, 3) == selected
         frame!()
         @test 0 <= place(string(view.anchor))[3] < Int(window.content.h)
+    end
+    @testset "a method of make_roster_cell draws the cell, and a press there selects the item of its row" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:3])
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]), runs)
+        extra = Pair{Type,Any}[CellVector{RosterRow} => ChainingProjection(
+            RosterRowsToWidget(nothing, _RosterBracketCells()), GridLayoutToGraphicsCanvas())]
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
+        backend = HeadlessBackend()
+        editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        texts = _arrangement_texts(backend)
+        @test all(text -> text in texts, ["<1>", "<2>", "<3>", "<done>"])
+        @test !("1" in texts)
+        (x, y) = _arrangement_place(backend, "<2>")
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0),
+                            MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0))
+        frame!()
+        found = get_reference_steps(strip_reference_types(editor.document.selection))
+        @test found[(end - 2):end] == collect(get_reference_steps(extend_reference(EmptyReference(),
+            FieldReferenceStep("rows"), ElementReferenceStep(2), FieldReferenceStep("item"))))
+    end
+
+    @testset "the shares of a roster divide the width of its columns in the ratio of the weights" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:3])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(6000)), height = Cell(Int32(400)))
+        # The distances between the left edges of the texts of the three columns, which
+        # are the widths of the columns above the header floors.
+        function steps_of(roster)
+            io = print_document(natural, nothing, roster, context)
+            drawn = _arrangement_drawn(io.output)
+            x(text) = drawn[findlast(entry -> entry[1] == text, drawn)][2]
+            (x("done") - x("1"), x("0.1") - x("done"))
+        end
+        columns = ["id", "status", "delay"]
+        (a, b) = steps_of(link_roster!(Roster(CollectionItems(runs); columns), runs))
+        @test 0.9 < b / a < 1.1
+        shared = link_roster!(Roster(CollectionItems(runs); columns, shares = [1, 2, 1]), runs)
+        (a, b) = steps_of(shared)
+        @test 1.9 < b / a < 2.1
+        shared.shares = [3, 1, 1]
+        (a, b) = steps_of(shared)
+        @test 0.3 < b / a < 0.37
+    end
+
+    @testset "the marked row of a roster is the selected row of its table, also below the head of a list" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:60])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]), runs)
+        io = print_document(natural, nothing, roster, context)
+        iomap = _find_roster_iomap_of(io, RosterRowsToWidgetIoMap)
+        rows_of(table) = (found = table.selection;
+                          found isa ConcreteReference ?
+                              collect(get_reference_steps(strip_reference_types(found))) : nothing)
+        row(k) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("rows"),
+                                                              ElementReferenceStep(k))))
+        @test iomap.view !== nothing
+        @test rows_of(iomap.table) === nothing
+        roster.marked = runs[3]
+        @test rows_of(iomap.table) == row(3)
+        roster.marked = runs[5]
+        @test rows_of(iomap.table) == row(5)
+        iomap.view.anchor = 4
+        @test rows_of(iomap.table) == row(2)
+        iomap.view.anchor = 7
+        @test rows_of(iomap.table) == row(-1)
+        roster.marked = nothing
+        @test rows_of(iomap.table) === nothing
+        marked = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"], marked = runs[2]), runs)
+        @test rows_of(_find_roster_iomap_of(print_document(natural, nothing, marked, context),
+                                            RosterRowsToWidgetIoMap).table) == row(2)
+    end
+
+    @testset "a selection in the rows takes the place of the mark" begin
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:3])
+        # The first column is a link, so the press that selects a row is on the id in the second.
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["status", "id"], marked = runs[1]), runs)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        table = _find_roster_iomap_of(editor.iomap, RosterRowsToWidgetIoMap).table
+        row(k) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("rows"),
+                                                              ElementReferenceStep(k))))
+        shown() = collect(get_reference_steps(strip_reference_types(table.selection)))
+        @test shown() == row(1)
+        (x, y) = _arrangement_place(backend, "3")
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0),
+                            MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0))
+        drain_operations!(editor); run_frame!(editor)
+        @test shown() == row(3)
+        roster.marked = runs[2]
+        @test shown() == row(3)
     end
 end
 end

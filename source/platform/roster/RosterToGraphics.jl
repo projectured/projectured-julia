@@ -86,20 +86,32 @@ readers around the table carry to the arrangement. The caret of a field is a pat
 in the table that the table introduced (`‹column_headers[c]…›`). A table that does
 not print inside an arrangement has a plain header of labels.
 
-A cell whose value is a document shows that document itself, the same object as
-in its item, so a key edits it through its own reader, as in any other place. A
-cell of any other value shows its text ([`format_roster_value`](@ref)), and a press
-there selects the item of the row, so the context menu is the menu of the item.
+With `cells` set to `nothing`, a cell whose value is a document shows that document
+itself, the same object as in its item, so a key edits it through its own reader,
+as in any other place. A cell of any other value shows its text
+([`format_roster_value`](@ref)), and a press there selects the item of the row, so
+the context menu is the menu of the item. With another `cells` value, the cell of a
+column is the widget that [`make_roster_cell`](@ref) makes, which a press also
+selects the item of the row for. A page puts its own `RosterRowsToWidget` with its
+`cells` value in the dispatch of its widgets.
+
+The columns divide the width in the ratio of `shares` of the roster in the printer
+context (`:roster`), and equally where the context has no roster or the roster has
+no shares. The row of the item that `marked` of that roster names is the selected
+row of the table while the selection of the editor is not in the rows.
 A row keeps its cells while it stays, so in a list the grid keeps the print of a
 row that a filter or a sort keeps, and prints only the rows that are new to it.
 """
 struct RosterRowsToWidget <: Projection
     widget::Any         # the widget theme that gives the styles of a header, or nothing
+    cells::Any          # the value that make_roster_cell dispatches on, or nothing
 end
 
 Base.show(io::IO, ::RosterRowsToWidget) = print(io, "RosterRowsToWidget()")
 
-RosterRowsToWidget() = RosterRowsToWidget(nothing)
+RosterRowsToWidget(widget = nothing) = RosterRowsToWidget(widget, nothing)
+
+make_roster_cell(::Nothing, item, key, value) = WidgetLabel(() -> format_roster_value(value[]))
 
 @iomap struct RosterRowsToWidgetIoMap
     projection::Any
@@ -132,15 +144,17 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
                                           for (c, key) in enumerate(columns)])
     view = (ctx !== nothing && get_exact_height(ctx) !== nothing) ? _RosterTableView(1) : nothing
     table = view === nothing ?
-        WidgetTable(headers, CellVector(Computation(() -> _collect_row_cells(rows, made)))) :
-        _make_roster_list_table(rows, made, headers, view)
+        WidgetTable(headers, CellVector(Computation(() -> _collect_row_cells(p, rows, made)))) :
+        _make_roster_list_table(p, rows, made, headers, view)
     layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
     iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view, entry !== nothing, entry)
+    roster = ctx === nothing ? nothing : get_property(ctx, :roster, nothing)
+    _set_column_shares!(table, roster, length(columns))
     # The layout and the table hold their part of the selection and of the part
     # under the pointer. The walk stops at the table: a cell can hold a document
     # of an item, which keeps its own selection.
     is_followed = node -> node isa GridLayout || node isa WidgetTable
-    follow_output_selection!(layout, () -> _map_rows_forward(iomap, getfield(rows, :selection)[]);
+    follow_output_selection!(layout, () -> _map_selection_or_mark(iomap, roster);
                              forward_mouse_target = () -> map_mouse_target_forward(rows,
                                  path -> _map_rows_forward(iomap, path)),
                              is_followed)
@@ -306,9 +320,9 @@ end
 # border_width, column_policy, row_policy, cell_policy, visible, margin, border,
 # padding, style, scroll_position, top_row, column_drag, vertical_scroll_bar,
 # horizontal_scroll_bar, open_cells, tooltip.
-function _make_roster_list_table(rows, made, headers, view)
+function _make_roster_list_table(p, rows, made, headers, view)
     WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing),
-                Cell(@computation _make_roster_row_list(rows, made, view.anchor)),
+                Cell(@computation _make_roster_row_list(p, rows, made, view.anchor)),
                 Cell(:row_major), Cell(WidgetTableRows(nothing)),
                 Cell(@computation WidgetTableColumns(length(headers))), Cell(1),
                 Cell(_ROSTER_COLUMN_POLICY), Cell(Content), Cell(:clip), Cell(true),
@@ -321,21 +335,21 @@ end
 # for a row that stays, made when a walk first reaches the row; `nothing` is a
 # list with no rows. `made` keeps the cells from one list to the next, and
 # forgets a row that left.
-function _make_roster_row_list(rows, made::IdDict{Any,Any}, anchor::Int)
+function _make_roster_row_list(p, rows, made::IdDict{Any,Any}, anchor::Int)
     present = IdDict{Any,Bool}(row => true for row in rows)
     filter!(entry -> haskey(present, entry.first), made)
     isempty(rows) && return nothing
-    make_index_list(length(rows), anchor, i -> (row = rows[i]; get!(() -> _make_row_cells(row), made, row)))
+    make_index_list(length(rows), anchor, i -> (row = rows[i]; get!(() -> _make_row_cells(p, row), made, row)))
 end
 
 # The cells of each row of `rows`, the same cells for a row that stays. `made`
 # keeps them from one computation to the next.
-function _collect_row_cells(rows, made::IdDict{Any,Any})
+function _collect_row_cells(p, rows, made::IdDict{Any,Any})
     kept = IdDict{Any,Any}()
     found = Any[]
     for row in rows
         cells = get(made, row, nothing)
-        cells === nothing && (cells = _make_row_cells(row))
+        cells === nothing && (cells = _make_row_cells(p, row))
         kept[row] = cells
         push!(found, cells)
     end
@@ -350,14 +364,15 @@ end
 # the whole table again. A value that is text when the row is made gets a cell
 # that holds its label, and only the text of the label reads the value. A value
 # that is a document gets a cell that follows it, so a new document shows.
-function _make_row_cells(row::RosterRow)
+function _make_row_cells(p::RosterRowsToWidget, row::RosterRow)
     values = row.values
     slots = Cell[]
     for c in 1:length(values)
         value = get_cell_at(values, c)
-        label = c == 1 ? _make_item_link(value) : WidgetLabel(() -> format_roster_value(value[]))
+        label = p.cells === nothing && c == 1 ? _make_item_link(value) :
+                make_roster_cell(p.cells, row.item, row.columns[c], value)
         _follow_cell_mouse_target!(label, row, c)
-        push!(slots, peek(value) isa Document ?
+        push!(slots, p.cells === nothing && peek(value) isa Document ?
                          Cell(Computation(() -> (v = value[]; v isa Document ? v : label))) :
                          Cell(label))
     end
@@ -368,6 +383,7 @@ end
 # names it, below the item, as a part that the rows draw, so a link lights under
 # the pointer.
 function _follow_cell_mouse_target!(widget, row::RosterRow, c::Int)
+    hasfield(typeof(widget), :mouse_target) || return widget
     set_cell_computation!(getfield(widget, :mouse_target), () ->
         _find_cell_column(get_mouse_target(row)) == c ? EmptyReference() : nothing)
     widget
@@ -412,6 +428,37 @@ const _TABLE_STEPS = (FieldReferenceStep("children"), ElementReferenceStep(1))
 
 _make_table_path(steps...) = extend_reference(EmptyReference(), _TABLE_STEPS..., steps...)
 
+# The path in the layout of the whole row `r` of the rows. A list counts the row
+# from its head, so a row before the head has a number of zero or less.
+_make_row_path(iomap::RosterRowsToWidgetIoMap, r::Int) =
+    _make_table_path(FieldReferenceStep("rows"), ElementReferenceStep(r - _get_roster_head_row(iomap) + 1))
+
+# The path in the layout of the selection of the rows; where the selection is not
+# in the rows, the path of the row of the item that `roster` marks, or `nothing`.
+function _map_selection_or_mark(iomap::RosterRowsToWidgetIoMap, roster)
+    shown = _map_rows_forward(iomap, getfield(iomap.input, :selection)[])
+    (shown !== nothing || roster === nothing) && return shown
+    marked = roster.marked
+    marked === nothing && return nothing
+    r = findfirst(row -> peek(getfield(row, :item)) === marked, iomap.input)
+    r === nothing ? nothing : _make_row_path(iomap, r)
+end
+
+# The width of the columns of `table` in the ratio of the `shares` of `roster`,
+# which a column beyond the weights takes as 1; the table keeps what it has for a
+# roster with no shares.
+function _set_column_shares!(table, roster, count::Int)
+    (roster === nothing || roster.shares === nothing) && return table
+    set_cell_computation!(getfield(table, :columns), () -> begin
+        shares = roster.shares
+        shares === nothing ? WidgetTableColumns(count) :
+            Any[WidgetTableColumn(; policy = SizePolicy(nothing, nothing, nothing,
+                                                        Float64(c <= length(shares) ? shares[c] : 1.0)))
+                for c in 1:count]
+    end)
+    table
+end
+
 # The path in the layout of the path `path` of the rows: a whole row for the row
 # or its item, and a cell for a path at or below the place of its column.
 function _map_rows_forward(iomap::RosterRowsToWidgetIoMap, path)
@@ -427,7 +474,7 @@ function _map_rows_forward(iomap::RosterRowsToWidgetIoMap, path)
     (1 <= r <= length(rows)) || return nothing
     row = rows[r]
     k = r - _get_roster_head_row(iomap) + 1
-    whole = _make_table_path(FieldReferenceStep("rows"), ElementReferenceStep(k))
+    whole = _make_row_path(iomap, r)
     length(steps) == 1 && return whole
     c = _find_cell_column(extend_reference(EmptyReference(), steps[2:end]...))
     c === nothing ||

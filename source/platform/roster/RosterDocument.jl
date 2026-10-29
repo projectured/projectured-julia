@@ -212,11 +212,16 @@ format_roster_value(value::Document) = something(get_document_title(value), stri
 format_roster_value(value) = string(value)
 
 """
-    Roster(source; columns = String[], title = "Roster")
+    Roster(source; columns = String[], title = "Roster", shares = nothing, marked = nothing)
 
 A list of the members of one kind, gathered from anywhere in a session: the items
 of `source`, one row for each item ([`RosterRow`](@ref)), with the columns named
 by the keys of `columns`. `title` is the title of its tab.
+
+`shares` is a vector of weights, one for each column, that divide the width of a
+table of the rows in their ratio, or `nothing` for equal shares. `marked` is the
+item whose row the table marks as the selected row, or `nothing`; a selection in
+the rows takes the place of the mark while it is there.
 
 `rows` is a `CellVector{RosterRow}` that keeps its identity: its elements compute
 from the parts of the source, and the roster keeps one cell for each part, one
@@ -254,11 +259,13 @@ See also `show_roster!` and `describe_roster_sources`.
     rows::Any
     link::Any
     index::Any
+    shares::Any
+    marked::Any
 end
 
-function Roster(source; columns = String[], title::AbstractString = "Roster")
+function Roster(source; columns = String[], title::AbstractString = "Roster", shares = nothing, marked = nothing)
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
-                    Cell(nothing), Cell(nothing), Cell(nothing))
+                    Cell(nothing), Cell(nothing), Cell(shares), Cell(marked), Cell(nothing))
     rows = CellVector{RosterRow}()
     memo = _RosterMemo(nothing, nothing, nothing, _RosterKey[], IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))

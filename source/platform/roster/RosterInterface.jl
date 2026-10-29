@@ -86,3 +86,20 @@ operation, or `nothing` when the facet takes no edit. The default answers
 `nothing`, so a facet is read only unless its slice gives the edit.
 """
 function make_item_facet_operation end
+
+"""
+    make_roster_cell(cells, item, key, value) -> widget
+
+The widget of one cell of a table of rows: `item` is the item of the row, `key`
+the name of the column, and `value` the cell that holds the value of the column
+for that row. `cells` is the field `cells` of the [`RosterRowsToWidget`](@ref)
+that prints the table. The method for `nothing` makes the label of the text of the
+value ([`format_roster_value`](@ref)); the table shows a document that is a value
+itself, and the link of the item in the first column, when `cells` is `nothing`.
+
+A page that draws other cells puts its own `RosterRowsToWidget`, with its `cells`
+value, in the dispatch of its widgets, and adds a method for the type of that
+value. The widget that the method makes behaves as a text cell does: a press there
+selects the item of the row, and the row keeps its cells while it stays.
+"""
+function make_roster_cell end
