@@ -1719,7 +1719,12 @@ end
 
 function _render_polyline!(renderer::Ptr{SDL_Renderer}, pl::GraphicsPolyline, ox::Int, oy::Int)
     pl.color.alpha == 0 && return
-    pts = [(Int(p[1]) + ox, Int(p[2]) + oy) for p in pl.points]
+    # As in `_render_polygon!`: the points have no declared type, so the loop fills
+    # a vector of a concrete type.
+    pts = Tuple{Int,Int}[]
+    for p in pl.points
+        push!(pts, (Int(p[1])::Int + ox, Int(p[2])::Int + oy))
+    end
     _stroke_polyline!(renderer, pts, Int(pl.width), _rgba8(pl.color)...,
                       pl.start_arrow, pl.end_arrow, Int(pl.arrow_size), pl.dash)
 end
@@ -2477,9 +2482,12 @@ function _is_hashed_faithfully(value)::Bool
     value isa Ptr && return false
     value isa AbstractString && return true
     value isa Tuple && return all(_is_hashed_faithfully, value)
-    # `eltype` of the type: a package that adds `eltype` of its own array makes a
-    # call of `eltype` of an abstract array invalid, but not this call.
-    value isa AbstractArray && return length(value) < 32768 && isbitstype(eltype(typeof(value)))
+    # Only an `Array`: a package that adds `eltype` for its own array type, as
+    # SentinelArrays and DataFrames do, makes a call of `eltype` of an abstract
+    # array invalid. Another array has no signature, so its leaf is painted
+    # whenever it is stale.
+    value isa Array && return length(value) < 32768 && isbitstype(eltype(value))
+    value isa AbstractArray && return false
     ismutable(value) || return true
     T = typeof(value)
     fieldcount(T) > 0 && all(i -> fieldtype(T, i) <: ImmutableCell, 1:fieldcount(T))
@@ -2894,7 +2902,9 @@ function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::
                                  early::Bool)
     drawn = _DirtyAcc()
     members = UInt[]
-    for i in first:length(ev)
+    # The length is an `Int` for inference, so `ev[i]` is not a call with an index
+    # of an abstract type, which a package loaded later can make invalid.
+    for i in first:(length(ev)::Int)
         elem = ev[i]
         elem isa GraphicsFence && continue
         _is_past_early_stop(elem, ox, oy, edges, layout, early) && break

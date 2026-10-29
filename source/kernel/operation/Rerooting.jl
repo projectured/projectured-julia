@@ -44,6 +44,11 @@ reroot_operation(op::CompoundOperation, steps::Tuple) =
 reroot_operation(op::WrappingOperation, steps::Tuple) =
     rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
+# A call with an operation of an unknown type dispatches when it runs. Inference
+# that used the few methods of the kernel would make the caller invalid as soon as
+# a package loaded later adds its method.
+Base.Experimental.@max_methods 1 function operation_reference end
+
 operation_reference(op) = nothing
 operation_reference(op::ReplaceSelectionOperation) = op.path
 # A carried root is the place of the write, so only a document-rooted write

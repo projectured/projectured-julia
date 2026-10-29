@@ -3,6 +3,11 @@
 # Nothing to apply: a frame with no operation still evaluates.
 function evaluate_operation(editor, op::Nothing) end
 
+# A call with an operation of an unknown type dispatches when it runs. Inference
+# that used the two methods of the kernel would make the caller invalid as soon as
+# a package loaded later adds its method.
+Base.Experimental.@max_methods 1 function is_collecting_operation end
+
 # An operation collects only when its type says so. A wrapper, such as the mark
 # of view state, collects when what it holds collects, and a join keeps the
 # wrapper of the inner operation.

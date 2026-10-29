@@ -86,4 +86,19 @@ in the sealed struct layer, so this plan fixes each call and leaves the macro.
    abstract type stays open to the next package; only a concrete type, more
    matching methods than `max_methods`, or a call that inference does not follow
    closes it.
-3. [ ] Run the narrow tests of the changed files.
+3. [x] The owner asked for a second round: fix the four roots of step 2.
+   - `_render_polyline!` fills a `Vector{Tuple{Int,Int}}`, as `_render_polygon!` does.
+   - `_is_hashed_faithfully` gives a signature only to an `Array`. Another array
+     has none, so its leaf is painted whenever it is stale.
+   - `is_collecting_operation` has two methods in the kernel, so
+     `@max_methods 1` closes it, as it closes `operation_reference`.
+   - `_refresh_canvas_bounds!` reads the length of the vector as an `Int`.
+   - The `@max_methods` line of `operation_reference` moves from
+     `OperationInterface.jl` to `Rerooting.jl`: the kernel guard
+     `PAR-INTERFACE-DECLARES-ONLY` allows no macro call in an interface file.
+4. [ ] Measure the session again, as in step 2. Name each next root, but do not fix it.
+5. [ ] Run the narrow tests of the changed files: `test_kernel()`, `test_sdl()`,
+   `test_dataframes()` and the 229 parts of `test_platform()`. A run on the code
+   of step 1 gave: `test_dataframes()` 628 of 628; `test_kernel()` 1 failure, the
+   guard above; `test_sdl()` 1 failure and 1 error in `SdlWorkloadTest`, where
+   `SDL_PushEvent` says that the event system has been shut down.

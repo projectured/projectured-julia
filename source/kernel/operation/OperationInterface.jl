@@ -231,11 +231,6 @@ over operation types the kernel cannot enumerate.
 """
 function operation_reference end
 
-# A call with an operation of an unknown type dispatches when it runs. Inference
-# that used the few methods of the kernel would make the caller invalid as soon as
-# a package loaded later adds its method.
-Base.Experimental.@max_methods 1 function operation_reference end
-
 """
     retarget_operation(op, reference) -> op
 
