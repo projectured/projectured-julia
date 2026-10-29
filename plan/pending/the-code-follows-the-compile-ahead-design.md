@@ -245,6 +245,35 @@ changes. Mark a step here when it is done.
      of its fields (`Rational{Int64}(num=1, den=1)`), which does not read back.
      Each type of Unitful holds one. `repair_statements.jl` of omnet dropped the
      names; `collect_traced_calls` of `ProjecturedPrecompile` now does it.
+
+   Decided (the owner, 2026-10-29, "Yes"): `omnet_ide` gets a real package,
+   `OmnetIdeBuild`, in the form of `ProjecturedBuild`: it holds every package
+   of the binary, both backends and the four assistant packages included, and
+   the workload of the binary (`warm_omnet_ide()`, then the window on SDL). The
+   demo and `omnet_simulate` follow way 3: the old workload of the demo is the
+   workload of `OmnetPresentationExample` now, and `omnet_simulate` had none.
+   Decision 9 of `compile-ahead.md` says so in projectured and in omnet: an
+   application with a workload of its own has a real package; an application
+   whose workload is only that of its packages has none.
+
+   As built (2026-10-29, omnet `2489b6e5c`):
+   - The tests: the package graph and the name guards pass except two failures
+     that `main` has too (`OmnetBench` depends on `OmnetSimulatorExample`, and
+     the spelling guard flags `build_omnetpp!`). The runner suite passes 671 of
+     673; the two closure errors read `../projectured-julia`, the main checkout,
+     which has no `ProjecturedPrecompile` before the landing. Through a layout of
+     symbolic links where both sibling names point at the worktrees, the closure
+     tests pass 58 of 58, and the build test passes 64 of 67 with the same three
+     errors as `main` (no `juliac` in this Julia, and a `PackageCompiler`
+     checkout with no `collect_tracked_sources`).
+   - The closure of `OmnetIde` counts 36 packages, one more:
+     `ProjecturedPrecompile`.
+   - A build with no assistant still holds the assistant packages, because
+     `OmnetIdeBuild` holds them, as a projectured build with one backend still
+     holds both.
+   - `environment/all` of omnet gains `OmnetIdeBuild` and `ProjecturedACP`.
+   - Each of the twelve sample packages builds its image with the live workload
+     in 18 to 22 s.
 5. [ ] **inet: each package uses it.**
    - `InetExample` and `InetRunner` call `ProjecturedPrecompile`. The workload
      of the binary moves from `precompile_execution_file` into the workload of
