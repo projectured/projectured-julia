@@ -156,7 +156,7 @@ changes. Mark a step here when it is done.
      303 s. A package with `@compile_ahead` alone is not recorded by the
      repository scope (`has_package_workload`), and a call of
      `ProjecturedPrecompile` itself goes into no list.
-3. [ ] **The measurements (U7, U5).** The guards and the measurements of U7 leave
+3. [x] **The measurements (U7, U5).** The guards and the measurements of U7 leave
    the test suites and run from one command. The release runs the recording and
    the measurements.
 
@@ -222,6 +222,29 @@ changes. Mark a step here when it is done.
      `Batch.jl`, the levels of `Batch.jl` and of `OmnetRepl` go.
    - The reactive build keeps its own trace, because the build chooses how the
      binary is produced (U13).
+
+   Decided (the owner, 2026-10-29, "Yes"): the run binaries take way 3.
+   `omnet_run` and the twelve sample binaries have no package of their own. A
+   sample binary differs from another one only in the model package that ports
+   the simple modules of its sample, and each model package has its own
+   workload: one configuration of its own sample. The runner has the workload of
+   the paths that answer with no model. The build of a run binary only chooses
+   `precompile_calls`.
+
+   As built (2026-10-29):
+   - `OmnetRunner` and the twelve model packages call `@compile_ahead`. The
+     preference `workload` of the runner is now `precompile_calls`, which
+     `--build-info` prints; the preference `models` goes, because nothing reads
+     it.
+   - `Batch.jl`, `asset/precompile/`, `record_workload.jl` and
+     `repair_statements.jl` go. The build command takes `--precompile-calls=`
+     in place of `--workload=` and `--no-workload`.
+   - The trace of a reactive build runs `run_package_workload()` of each package
+     of the build that compiles ahead.
+   - Fact: Julia 1.13 still prints a value in a type parameter with the names
+     of its fields (`Rational{Int64}(num=1, den=1)`), which does not read back.
+     Each type of Unitful holds one. `repair_statements.jl` of omnet dropped the
+     names; `collect_traced_calls` of `ProjecturedPrecompile` now does it.
 5. [ ] **inet: each package uses it.**
    - `InetExample` and `InetRunner` call `ProjecturedPrecompile`. The workload
      of the binary moves from `precompile_execution_file` into the workload of
