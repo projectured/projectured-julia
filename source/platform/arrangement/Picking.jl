@@ -18,7 +18,9 @@ name items of the input, so a table keeps its order until the sort is final.
 A filter over a `CellVector` keeps one cell for each item, which says whether the
 conditions hold for it, by the identity of the cell of the item. So a change of
 one item computes the cell of that item, and the rows compute again only when the
-answer of that cell changes.
+answer of that cell changes. A sort over a `CellVector` keeps one cell of the key
+values of each item and its last order, so a change of the keys of a few items
+moves only the rows of those items.
 """
 struct PickingProjection <: Projection
     compute_rows::Function
@@ -38,12 +40,30 @@ end
 
 (rows::_FilterRows)(items) = compute_filter_rows(rows.filter, items)
 
+# The order that a sort gives, as a function of the items.
+struct _SortRows <: Function
+    sort::Any
+end
+
+(rows::_SortRows)(items) = compute_sort_rows(rows.sort, items)
+
 # The cell of each item of a `CellVector` that one description computed, such as
 # the conditions of a filter, in the order of `elements`, the cells of the items.
 mutable struct _ItemCells
     description::Any
     elements::Any
     cells::Vector{Cell}
+end
+
+# What a sort over a `CellVector` keeps from one computation to the next: the cell
+# of the keys of each item, and the keys, the cells of the items, the key values
+# and the order of the last sort.
+mutable struct _SortedItems
+    cells::_ItemCells
+    keys::Any
+    elements::Any
+    values::Vector{Any}
+    order::Vector{Int}
 end
 
 function print_document(p::PickingProjection, recursion, input::CellVector, ctx)
@@ -74,6 +94,11 @@ _make_rows_computation(compute_rows, input) = () -> collect(Int, compute_rows(in
 function _make_rows_computation(rows::_FilterRows, input::CellVector)
     cells = _ItemCells(nothing, nothing, Cell[])
     () -> _compute_kept_rows(rows.filter, input, cells)
+end
+
+function _make_rows_computation(rows::_SortRows, input::CellVector)
+    sorted = _SortedItems(_ItemCells(nothing, nothing, Cell[]), nothing, nothing, Any[], Int[])
+    () -> _compute_sorted_rows(rows.sort, input, sorted)
 end
 
 # A document that holds no items of its own passes through, with no rows, so a
@@ -123,8 +148,7 @@ _is_later_introduced(p::Projection, reference) =
     is_introduced_reference(reference) && !is_introduced_reference(reference, p)
 
 make_arrangement_projection(filter::ArrangementFilter) = PickingProjection(_FilterRows(filter))
-make_arrangement_projection(sort::ArrangementSort) =
-    PickingProjection(items -> compute_sort_rows(sort, items))
+make_arrangement_projection(sort::ArrangementSort) = PickingProjection(_SortRows(sort))
 # A find picks nothing: its stage passes the items as they are, and the bar shows
 # its field.
 make_arrangement_projection(::ArrangementFind) = IdentityProjection()
@@ -259,19 +283,75 @@ by the next for items that are equal, and in their own order for items that are
 equal in every key. A missing value comes last in either direction.
 """
 function compute_sort_rows(sort::ArrangementSort, items)
-    keys = Any[key for key in sort.keys]
-    values = [Any[find_arrangement_key_value(items[i], key.key) for key in keys] for i in 1:length(items)]
-    before(i, j) = begin
-        for (n, key) in enumerate(keys)
-            a, b = values[i][n], values[j][n]
-            _is_missing_value(a) != _is_missing_value(b) && return _is_missing_value(b)
-            order = compare_arrangement_values(a, b)
-            order == 0 && continue
-            return key.direction === :descending ? order > 0 : order < 0
-        end
-        false
+    keys = _read_sort_keys(sort)
+    values = Any[_find_key_values(keys, items[i]) for i in 1:length(items)]
+    _sort_all_rows(keys, values)
+end
+
+# The keys of `sort` as plain values, each its key and its direction, read through
+# their cells.
+_read_sort_keys(sort::ArrangementSort) = Tuple((key.key, key.direction) for key in sort.keys)
+
+# The value of the one key of `keys` inside `item`, or a tuple of the value of each
+# key. One value is a plain value when the key is, so the cell of a key that keeps
+# its value stops there.
+_find_key_values(keys, item) =
+    length(keys) == 1 ? find_arrangement_key_value(item, keys[1][1]) :
+                        Tuple(find_arrangement_key_value(item, key) for (key, _) in keys)
+
+_sort_all_rows(keys, values) =
+    Base.sort(collect(1:length(values)); lt = (i, j) -> _is_sorted_before(keys, values, i, j), alg = MergeSort)
+
+# Whether the item `i` comes before the item `j` by the key values `values`: by the
+# first key, then by the next for items that are equal. A missing value comes last
+# in either direction.
+function _is_sorted_before(keys, values, i, j)
+    single = length(keys) == 1
+    for (n, (_, direction)) in enumerate(keys)
+        a = single ? values[i] : values[i][n]
+        b = single ? values[j] : values[j][n]
+        _is_missing_value(a) != _is_missing_value(b) && return _is_missing_value(b)
+        order = compare_arrangement_values(a, b)
+        order == 0 && continue
+        return direction === :descending ? order > 0 : order < 0
     end
-    Base.sort(collect(1:length(items)); lt = before, alg = MergeSort)
+    false
+end
+
+# The order of `input` by the keys of `sort`, from the cell of the key values of
+# each item. When the items are those of the last sort and few key values changed,
+# only the items whose values changed move, each to its place by a binary search;
+# items with equal keys keep the order of the input, as in a sort of every item.
+function _compute_sorted_rows(sort::ArrangementSort, input::CellVector, sorted::_SortedItems)
+    keys = _read_sort_keys(sort)
+    elements = getfield(input, :elements)[]
+    cells = _follow_item_cells!(sorted.cells, keys, elements,
+                                element -> Cell(Computation(() -> _find_key_values(keys, unwrap_cell(element)))))
+    values = Any[cell[] for cell in cells]
+    is_same_items = sorted.elements === elements && isequal(sorted.keys, keys)
+    changed = is_same_items ? Int[i for i in eachindex(values) if !isequal(values[i], sorted.values[i])] : nothing
+    order = if changed !== nothing && length(changed) <= max(32, length(values) ÷ 16)
+        _move_sorted_rows(sorted.order, changed,
+                          (i, j) -> _is_sorted_before(keys, values, i, j) ||
+                                    (!_is_sorted_before(keys, values, j, i) && i < j))
+    else
+        _sort_all_rows(keys, values)
+    end
+    sorted.keys, sorted.elements, sorted.values, sorted.order = keys, elements, values, order
+    order
+end
+
+# `order` with the rows `moved` taken out and each put back at its place by `lt`, a
+# total order; `order` itself when no row moves.
+function _move_sorted_rows(order::Vector{Int}, moved::Vector{Int}, lt)
+    isempty(moved) && return order
+    is_moved = falses(length(order))
+    foreach(i -> is_moved[i] = true, moved)
+    rows = Int[i for i in order if !is_moved[i]]
+    for i in moved
+        insert!(rows, searchsortedfirst(rows, i; lt), i)
+    end
+    rows
 end
 
 _is_missing_value(value) = value === nothing || value === missing

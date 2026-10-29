@@ -201,7 +201,29 @@ over the same values answers the same.
     `test_arrangement` 10, `test_arrangement_quick_text` 24,
     `test_arrangement_group` 24, `test_arrange_collection_operation` 20,
     `test_roster` 69, `test_roster_table` 34 and `test_task_views` 70 pass.
-- [ ] **Step 5 — D3, a sort keeps one key cell for each item.**
+- [x] **Step 5 — D3, a sort keeps one key cell for each item.**
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - The stage of a sort takes `_SortRows <: Function`, and over a `CellVector`
+    its computation keeps `_SortedItems`: the cell of the key values of each item
+    (through `_ItemCells`), and the keys, the cells of the items, the key values
+    and the order of the last sort.
+  - The cell of an item gives the value of the key when the sort has one key, so a
+    `Symbol` or a `String` that stays the same stops there; with more keys it gives
+    a tuple.
+  - When the items are those of the last sort, the computation compares each key
+    value with the last one. If at most `max(32, n ÷ 16)` changed, it takes those
+    rows out and puts each back with `searchsortedfirst`, by the order of the keys
+    and then of the index. That is the order of the stable sort of every item. Else
+    it sorts every item again.
+  - `compute_sort_rows` and the stage share `_read_sort_keys`, `_find_key_values`
+    and `_is_sorted_before`.
+  - The numbers (after one task starts): a sort by status 121 ms -> 8.4 ms, a sort
+    by name 8 ms -> 1.7 ms (it only checks its cells). A sort the first time takes
+    272 to 342 ms.
+  - Tests: the new testset "a change of one item moves its row in a sort, to the
+    order of a sort of every item", with one key and with two;
+    `test_arrangement_filter_sort` 27, and the other suites of step 4 pass.
 - [ ] **Step 6 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.
 
