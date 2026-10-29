@@ -409,6 +409,18 @@ changes. Mark a step here when it is done.
    recompiles), and 42 against 1 in `omnet_ide`, most of them in the presses
    and the typing in the tables of results. The cause is not known yet.
 
+   The binaries. Decided (the owner, 2026-10-29, "let's skip all inet stuff
+   for now and focus only on projectured and omnet"): five builds, each in a
+   job of its own with 8 image threads and a sample of its CPU each 30 s:
+   `omnet_run` on main and on the branch, `projectured` on the branch, and
+   `omnet_ide` on main and on the branch. `projectured` on main is the code of
+   the branches of yesterday, so its numbers are those of step 9 of
+   [a-gesture-compiles-nothing.md](../done/a-gesture-compiles-nothing.md).
+   `omnet_ide` of that step had no model adapters, so it does not compare,
+   and main builds again. The inet build of main ran out of memory under a cap
+   of 18G after 53 min, in the process of the system image, and the inet
+   builds are left out.
+
    The longest chain of images sets the wall time, not the count of cores: on
    the branch the images of projectured are 995 s of work, 31 s on 32 cores,
    but their longest chain is 283 s (`ProjecturedKernel` → `ProjecturedPlatform`
