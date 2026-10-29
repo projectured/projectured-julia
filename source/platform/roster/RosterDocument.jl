@@ -37,15 +37,41 @@ the value cell of that column ([`find_arrangement_key_value`](@ref)).
     values::Any
 end
 
+# One key of a column as the value cells of the rows compute it, made once for the
+# rows of one roster: whether it starts at `within`, its first name after that,
+# the path of the names from the first one on and the path after it, and for each
+# type of item whether the first name is a facet of that type.
+struct _RosterKey
+    is_within::Bool
+    head::Union{String,Nothing}
+    facet::Symbol
+    path::Reference
+    rest::Reference
+    facets::IdDict{Type,Bool}
+end
+
+function _RosterKey(key::AbstractString)
+    names = String.(split(key, '.'))
+    from = names[1] == "within" ? 2 : 1
+    head = from > length(names) ? nothing : names[from]
+    path(names) = extend_reference(EmptyReference(), (FieldReferenceStep(name) for name in names)...)
+    _RosterKey(from == 2, head, Symbol(something(head, "")), path(names[from:end]), path(names[(from + 1):end]),
+               IdDict{Type,Bool}())
+end
+
 """
     make_roster_row(item, within, columns) -> RosterRow
 
 The row of `item`, held by `within`, with one value cell for each key of
 `columns`, which [`compute_roster_value`](@ref) computes.
 """
-function make_roster_row(item, within, columns)
+make_roster_row(item, within, columns) = _make_roster_row(item, within, columns, _RosterKey[_RosterKey(key) for key in columns])
+
+# The row of `item`, whose value cells compute `keys`, the keys of `columns`, which
+# the rows of one roster share.
+function _make_roster_row(item, within, columns, keys::Vector{_RosterKey})
     row = RosterRow(Cell(item), Cell(within), Cell(columns), Cell(nothing), Cell(nothing))
-    row.values = CellVector(Cell[Cell(Computation(() -> compute_roster_value(row, key))) for key in columns])
+    row.values = CellVector(Cell[Cell(Computation(() -> _compute_roster_key_value(row, key))) for key in keys])
     row
 end
 
@@ -59,20 +85,22 @@ item. A first name that is a facet of the type of the item
 it a path inside that value. Any other key is a path of fields inside the item.
 A path that reaches nothing gives `nothing`.
 """
-function compute_roster_value(row::RosterRow, key::AbstractString)
-    names = split(key, '.')
-    String(names[1]) == "within" && return _compute_key_value(row.within, names, 2)
-    _compute_key_value(row.item, names, 1)
+compute_roster_value(row::RosterRow, key::AbstractString) = _compute_roster_key_value(row, _RosterKey(key))
+
+# The value of `key` of `row`: the value of a facet and a path inside it, or a path
+# of fields.
+function _compute_roster_key_value(row::RosterRow, key::_RosterKey)
+    item = key.is_within ? row.within : row.item
+    (key.head === nothing || item === nothing) && return item
+    is_facet = get!(() -> _has_item_facet(typeof(item), key.head), key.facets, typeof(item))
+    is_facet ? _follow_path(compute_item_facet(item, Val(key.facet)), key.rest) : _follow_path(item, key.path)
 end
 
-# The value at the key `names[from:end]` of `item`: a facet and a path inside it,
-# or a path of fields.
-function _compute_key_value(item, names, from::Int)
-    (from > length(names) || item === nothing) && return item
-    head = String(names[from])
-    _has_item_facet(typeof(item), head) &&
-        return _follow_names(compute_item_facet(item, Val(Symbol(head))), names, from + 1)
-    _follow_names(item, names, from)
+# The value at the path of fields `path` inside `value`, or `value` for the empty path.
+function _follow_path(value, path::Reference)
+    path isa EmptyReference && return value
+    value === nothing && return nothing
+    try_evaluate_reference(value, path, nothing)
 end
 
 # The value at the names `names[from:end]` inside `value`, a path of fields.
@@ -231,7 +259,7 @@ function Roster(source; columns = String[], title::AbstractString = "Roster")
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
                     Cell(nothing), Cell(nothing), Cell(nothing))
     rows = CellVector{RosterRow}()
-    memo = _RosterMemo(nothing, nothing, nothing, IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
+    memo = _RosterMemo(nothing, nothing, nothing, _RosterKey[], IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))
     roster.rows = rows
     set_cell_computation!(getfield(roster, :index), () -> _compute_roster_index(roster, memo))
@@ -409,14 +437,16 @@ function link_roster!(roster::Roster, link)
     roster
 end
 
-# What the rows of a roster keep from one computation to the next: the cell of the
-# items of each part, the cell of the items inside each item with the item of the
-# outer source that it was made for, and the slot of the row of each item. A change
-# of the source, of the columns or of the link starts them again.
+# What the rows of a roster keep from one computation to the next: the keys of the
+# columns, which all rows share, the cell of the items of each part, the cell of the
+# items inside each item with the item of the outer source that it was made for, and
+# the slot of the row of each item. A change of the source, of the columns or of the
+# link starts them again.
 mutable struct _RosterMemo
     source::Any
     columns::Any
     link::Any
+    keys::Vector{_RosterKey}
     parts::IdDict{Any,Any}
     insides::IdDict{Any,Any}
     rows::IdDict{Any,Any}
@@ -433,6 +463,7 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     link === nothing && return Cell[]
     if !(memo.source === source && memo.columns === columns && memo.link === link)
         memo.source, memo.columns, memo.link = source, columns, link
+        memo.keys = _RosterKey[_RosterKey(key) for key in columns]
         memo.parts = IdDict{Any,Any}()
         memo.insides = IdDict{Any,Any}()
         memo.rows = IdDict{Any,Any}()
@@ -460,7 +491,7 @@ function _add_roster_slots!(gather, entries)
         haskey(gather.rows, entry.item) && continue
         slot = get(memo.rows, entry.item, nothing)
         (slot === nothing || peek(getfield(peek(slot), :within)) !== entry.within) &&
-            (slot = Cell(make_roster_row(entry.item, entry.within, gather.columns)))
+            (slot = Cell(_make_roster_row(entry.item, entry.within, gather.columns, memo.keys)))
         gather.rows[entry.item] = slot
         push!(gather.slots, slot)
         part = get_roster_item_inside(gather.source, entry)

@@ -62,12 +62,12 @@ outer source, which a document can name, and a `TaskDocument` no longer lets a
 walk enter its field `group`: that `Ref` names the group that holds the task, and
 its docstring already said that a walk must not go round through it.
 
-**D1. A roster makes a row when a reader first reads it.** The slot of an item
-is a computed cell that makes the row at its first read, and it keeps the same
-row while the item stays. The gather of the parts and the one row for an item
-that two parts give stay as they are. With no filter and no sort, a table makes
-only the rows that it shows. A filter or a sort reads every row, so it still
-makes every row.
+**D1. A roster makes a row when a reader first reads it. Dropped.** The slot of
+an item was to be a computed cell that makes the row at its first read. A filter
+or a sort reads every row, so it would still make every row, and a profile after
+step 5 showed that the rows are not the large cost of the first open of a view.
+The owner, 2026-10-29: "ignore my previous lazy rows comment then, it doesn't
+help here".
 
 **D2. A filter keeps one cell for each item.** The stage of a filter over a
 `CellVector` keeps, for each element cell of its input, a computed cell that
@@ -87,7 +87,7 @@ each back at its place with a binary search. Items with equal keys keep the
 order of the input, as now. When the input changed, or many keys changed, it
 sorts all items again.
 
-**D4. What stays.** The pick keeps its last final rows while a value is
+**What stays.** The pick keeps its last final rows while a value is
 provisional (`make_final_holding_cell`). The IO map, the maps of the paths and
 the output stay. A stage over a plain `AbstractVector` has no element cells, so
 it stays as it is.
@@ -95,6 +95,21 @@ it stays as it is.
 The cells of D2 and D3 are local state of a stage, as the memo of the roster and
 the held value of `make_final_holding_cell` are. A computation that runs twice
 over the same values answers the same.
+
+**D4. A column finds its facet or its field once** (added after step 5). A value
+of a roster now splits its key, searches the facets of the type of its item with
+`collect_item_facets`, and builds the path of its fields, for each item and each
+column: about 105 ms of the first filter of 22,731 tasks. The roster makes one
+object for each column when its columns change, which holds the names of the
+key, its path, and for each type of item whether the first name is a facet. The
+value cells of all rows of one roster share it. `compute_roster_value(row, key)`
+keeps its signature and makes such an object for one call.
+
+**D5. An inside walk costs less** (added after step 5). One walk of the inside
+of a task costs about 10 µs, about 230 ms for 22,731 tasks, and about half of it
+is outside the walk of the fields: the keywords, the scoped value of the
+background work, the dictionaries and the vectors of each walk. The step
+measures one walk alone first, and it removes what costs most there.
 
 ## The steps
 
@@ -175,8 +190,7 @@ over the same values answers the same.
     The new tests: a walk with `enter_matches = false` reads nothing inside a
     match, and `ItemsWithin` finds the steps inside a step, keeps the rows when a
     step changes, and places a new inner step.
-- [ ] **Step 3 — D1, lazy rows of a roster.** The owner asked whether the rows
-  should be a lazy list instead; the answer waits until step 2 is measured.
+- [x] **Step 3 — D1, lazy rows of a roster. Dropped** (see D1).
 - [x] **Step 4 — D2, a filter keeps one cell for each item.**
 
   **Done, 2026-10-29.** What the work found and decided:
@@ -224,7 +238,48 @@ over the same values answers the same.
   - Tests: the new testset "a change of one item moves its row in a sort, to the
     order of a sort of every item", with one key and with two;
     `test_arrangement_filter_sort` 27, and the other suites of step 4 pass.
-- [ ] **Step 6 — Measure again.** The same script, the numbers to the owner, and
+- [x] **Step 6 — D4, a column finds its facet or its field once.** Added after
+  step 5 (the owner, 2026-10-29: "yes").
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - `_RosterKey` holds one key of a column: whether it starts at `within`, its
+    first name and that name as a `Symbol`, the path of the names from the first
+    one on and the path after it, and for each type of item whether the first
+    name is a facet. The memo of the roster makes the keys when its columns
+    change, and every row of the roster shares them (`_make_roster_row`).
+    `make_roster_row(item, within, columns)` and `compute_roster_value(row, key)`
+    keep their signatures and make keys for their one call.
+  - The search of the facets of a type runs once for each type of item in a
+    column, at the first value of that type. A facet that a package loaded later
+    declares shows in a roster after its columns, its source or its link change.
+  - The number: the first filter over the tasks with a shared project (the
+    script `measure-shared.jl`, see step 7) takes 181 ms on the branch, and
+    381 ms on main.
+  - Tests: `test_roster` 69, `test_roster_table` 34, `test_roster_sources` 19,
+    `test_roster_facets` 30, `test_roster_program` 21,
+    `test_arrangement_filter_sort` 27, `test_arrangement_quick_text` 24,
+    `test_arrangement_group` 24 and `test_task_views` 70 pass.
+- [ ] **Step 7 — D5, an inside walk costs less.** Added after step 5 (the owner,
+  2026-10-29: "yes").
+
+  What the work found so far:
+  - One inside walk alone, outside a cell, costs 3.6 µs (82 ms for 22,731
+    tasks; a read of each field is 19 ms). Inside a cell it costs about 10 µs,
+    because the cell records each read.
+  - **The inside walks make the first open slower than on main when the tasks
+    name a shared value.** A task of omnet holds its configuration, which holds
+    the whole project. The single walk of a group on main visited the project one
+    time, because the walk visits each object once. One walk for each task visits
+    it again for each task. The script
+    `/var/tmp/claude-julia/lazy-arrangement/measure-shared.jl` gives each of
+    22,731 tasks one shared project of about 250 values. The rows of the first
+    open (warm) take 796 ms on main and 2986 ms on the branch.
+  - A trial with `is_walk_opaque(::AbstractTask) = true`, as the runtime of a task
+    already is, removed it: 514 ms for the rows and 112 ms for the first filter
+    with the shared project; 250 ms for the rows of `measure.jl` (390 ms before).
+    It also means that a search no longer finds a document or a text inside the
+    value of a task. The trial is not committed: it waits for the owner.
+- [ ] **Step 8 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.
 
 ## Tests
