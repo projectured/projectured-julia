@@ -440,6 +440,21 @@ changes. Mark a step here when it is done.
    [a-gesture-compiles-nothing.md](../done/a-gesture-compiles-nothing.md)
    measured 0 recompiles with it.
 
+   The fix (projectured `148b12c1c`, the owner, 2026-10-29: "yes"): the
+   written package of a binary loads first each of its packages that no other
+   of them depends on, the package of the application; the other lines keep
+   their order. The rule needs no new keyword: in the graph it picks
+   `ProjecturedBuild` for `projectured`, `OmnetIdeBuild` for `omnet_ide`, and
+   `OmnetRunner` with the model for `omnet_run`. `test_build_executable()`
+   passes 275 of 275. The guard of `projectured` after the fix: the start 66
+   (1), 166 gestures 208 statements (1 recompile, in Help › Gestures), 2 over
+   10 (Help › Gestures 18, the assistant turn 13), 2 passes and 3 broken.
+
+   The owner stopped the study of the recompiles here (2026-10-29: "I think we
+   can stop hunting down the recompiles for now"). The guard of `omnet_ide`
+   with the fix was stopped before it ended, so its 42 recompiles are not
+   measured again.
+
    The binaries. Decided (the owner, 2026-10-29, "let's skip all inet stuff
    for now and focus only on projectured and omnet"): five builds, each in a
    job of its own with 8 image threads and a sample of its CPU each 30 s:
