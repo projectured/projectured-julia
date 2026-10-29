@@ -182,7 +182,7 @@ Each step is one commit on the branch, with its test.
     slice: `test_platform_slice_edges` 1, `test_widget_column_header` 48,
     `test_dataframes_layering`, `test_data_frame_filter` and
     `test_data_frame_columns` 123.
-- [ ] **Step 3 — The header of a roster table with an arrangement.**
+- [x] **Step 3 — The header of a roster table with an arrangement.**
   `RosterRowsToWidget` reads the arrangement of its place from the printer
   context. Each header gets the parts of step 2 over the entry: the field edits
   the condition of its column (D4), the glyph edits the sort keys, and "Filter
@@ -192,6 +192,71 @@ Each step is one commit on the branch, with its test.
   header.
   Tests: `test_roster`, `test_arrangement`, a new test with real presses, and
   `test_task_views`.
+
+  **Done.** What the work found and decided:
+  - No new mechanism. The mechanisms that exist carry it. The printer context
+    gives `:arrangement` and `:arranged_picks` (the entry of the place), and the
+    roster adds the property `:roster` next to `:roster_columns`. An edit is an
+    `ArrangeCollectionOperation` (`at` the rows) or a `CompoundOperation` of one
+    and a `ReplaceSelectionOperation`. The caret of a field is an introduced
+    step of the table (`make_introduced_reference`, as the bar holds the caret of
+    a chip).
+  - New names in the arrangement slice (`ArrangementColumns.jl`):
+    `is_arranged_place(context)`, `find_arranged_entry(context)`,
+    `find_column_filter_text(entry, name)`, `make_column_filter(entry, name,
+    text)`, `get_column_sort_keys(entry)`, `make_column_sort(entry, keys)` and
+    `collect_column_values(items, name)`. `find_arranged_entry` finds the entry
+    that the dispatch chose: the items print below the steps that the bar puts
+    above them, so it takes the source of the pick that has the path of the
+    table. A key is read and made with `_make_key`, so the field of `"status"`
+    is the condition that `filter_collection!(…, "status" => …)` writes.
+  - `RosterRowsToWidget` has a field `widget`, the scaled widget theme of the
+    natural renderer, for the six styles of step 2 and for the size of the
+    dialog. Its IO map has `is_filtering` and `entry` (a cell of the entry). The
+    roster slice does not use the appearance slice, so the opener of the dialog
+    (`_open_value_list!`) takes the theme from the projection and not from the
+    editor.
+  - Header of column `c` of a table that prints in an arrangement:
+    `make_labeled_field(WidgetContextMenu(key, glyph), field)`. The field is
+    `children[2]` of the header. A header that depends on the sort of the entry is
+    made again when the sort changes. The text and the reason of the field read
+    the entry in a cell, so a typed character makes no new header.
+  - A part of a header makes its operation at its own path in the table. The
+    table puts such an `ArrangeCollectionOperation` or `OpenContextMenuOperation`
+    at the rows (`_retarget_header_operation`). A path into a header maps back to
+    an introduced reference, which the gesture routes through.
+  - A key in the field is a `ReplaceStringRangeOperation`. The table makes the
+    new whole filter (`make_column_filter`) and the caret after the new text as
+    one compound. `ArrangingProjection` now makes the edit of each part of a
+    compound that arranges a collection (`_make_arranged_change`), so the caret
+    and the filter are one step of undo. A run of typing joins one step.
+  - "Filter by values…" is in the `WidgetContextMenu` around the key and the
+    glyph. The dialog lists the values of `roster.rows`, all rows, which
+    `collect_column_values` reads with the key of the filter. "Apply" finds the
+    roster in the editor document (`search_references`, as `show_roster!` does) and
+    posts `make_filter_collection_operation` with the conditions of the new
+    filter, so it does not depend on the path of the printer context: a path of
+    the context is not a path from the root of the editor when the editor has a
+    wrapper around its document.
+  - Not done: a header edit that takes the last description away also takes the
+    arrangement away, as a chip does, and a table that is then outside an
+    arrangement has a plain header. A typed edit keeps the arrangement because it
+    is a compound. The holder of a table that must keep its header calls
+    `keep_held_arrangement`. The headless backend does not draw a window of a
+    popup (the menu and the dialog), so the test presses the right click and
+    checks the menu window, and takes the boxes and "Apply" of the dialog from its
+    widgets.
+  - A sort glyph of more than one key draws the place of each key, so the digits
+    of a header are in the drawn texts of a table. `test_roster` skips them.
+  - Results: `test_roster_header` 41 (new file
+    `test/platform/roster/RosterHeaderTest.jl`), `test_roster` 69,
+    `test_roster_table` 37, `test_roster_program` 21, `test_arrangement` 10,
+    `test_arrangement_natural` 11, `test_arrangement_filter_sort` 27,
+    `test_arrange_collection_operation` 20, `test_arrangement_menu` 32,
+    `test_arrangement_program` 13, `test_task_views` 70, `test_task_group` 84,
+    `test_background_work` 21, `test_explorer` 294,
+    `test_widget_column_header` 48, `test_platform_slice_edges` 1;
+    `test_platform_layering` 6 of 7 (the fault of main).
 - [ ] **Step 4 — A widget in a cell, a share of the width, a marked row.** The
   roster gets a function of its interface that makes the widget of a cell for an
   item and a key, whose default is the cell of now. A roster holds a share of the

@@ -239,12 +239,13 @@ function test_roster()
                     extend_reference(EmptyReference(), FieldReferenceStep("id")), :descending)])]))
         drawn = texts(io.output)
         @test "2 of 3" in drawn
-        @test filter(t -> t in ("1", "2", "3"), drawn) == ["3", "1"]
+        # The headers of the two sorted columns draw the places of their keys first.
+        @test filter(t -> t in ("1", "2", "3"), drawn)[3:end] == ["3", "1"]
         # A change of an item reaches the table through its row.
         runs[3].status = "failed"
         drawn = texts(io.output)
         @test "1 of 3" in drawn
-        @test filter(t -> t in ("1", "2", "3"), drawn) == ["1"]
+        @test filter(t -> t in ("1", "2", "3"), drawn)[3:end] == ["1"]
     end
 
     @testset "a roster counts its rows, and an arrangement counts what it shows, in the colour they share" begin

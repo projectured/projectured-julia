@@ -6,10 +6,10 @@
     RosterToGraphics()
 
 Prints a [`Roster`](@ref): its `rows` print through the recursion at the path
-`rows`, with the keys of the columns in the printer context. So an entry of an
-arrangement at `rows` puts its filter, its sort and its bar before the printer of
-the rows, as at any collection, and the rows print as a table
-([`RosterRowsToWidget`](@ref)). The output is the output of the rows.
+`rows`, with the keys of the columns and the roster itself in the printer context.
+So an entry of an arrangement at `rows` puts its filter, its sort and its bar
+before the printer of the rows, as at any collection, and the rows print as a
+table ([`RosterRowsToWidget`](@ref)). The output is the output of the rows.
 """
 struct RosterToGraphics <: Projection end
 
@@ -23,6 +23,7 @@ end
 function print_document(p::RosterToGraphics, recursion, roster::Roster, ctx)
     context = make_child_context(ctx, roster, FieldReferenceStep("rows"))
     context = with_property(context, :roster_columns, getfield(roster, :columns))
+    context = with_property(context, :roster, roster)
     inner = make_reconciled_child_iomap_cell(() -> roster.rows, rows -> print_child(recursion, rows, context))
     RosterToGraphicsIoMap(p, roster, Cell(@computation inner[].output), inner)
 end
@@ -72,6 +73,19 @@ a table of a list measures no cell for a column. Where no height is given, as in
 a print with no window, the body is a vector of every row, and a column is as
 wide as its widest cell.
 
+Where the rows print inside an arrangement, each header is the key and the sort
+glyph above the field of a filter, as the header of a data frame table is, over
+the entry of the arrangement at the place of the rows. The field shows the
+condition of its column in the first filter of the entry
+([`find_column_filter_text`](@ref)), and an edit of it writes a `:matches` condition
+there. The glyph shows the sort of the column, and a click or a Shift+click writes
+the keys that [`compute_clicked_sort_keys`](@ref) gives. The menu of the key and the
+glyph has "Filter by values…", which lists the values of the column over every row
+of the roster. Each edit is an `ArrangeCollectionOperation` at the rows, which the
+readers around the table carry to the arrangement. The caret of a field is a path
+in the table that the table introduced (`‹column_headers[c]…›`). A table that does
+not print inside an arrangement has a plain header of labels.
+
 A cell whose value is a document shows that document itself, the same object as
 in its item, so a key edits it through its own reader, as in any other place. A
 cell of any other value shows its text ([`format_roster_value`](@ref)), and a press
@@ -79,7 +93,13 @@ there selects the item of the row, so the context menu is the menu of the item.
 A row keeps its cells while it stays, so in a list the grid keeps the print of a
 row that a filter or a sort keeps, and prints only the rows that are new to it.
 """
-struct RosterRowsToWidget <: Projection end
+struct RosterRowsToWidget <: Projection
+    widget::Any         # the widget theme that gives the styles of a header, or nothing
+end
+
+Base.show(io::IO, ::RosterRowsToWidget) = print(io, "RosterRowsToWidget()")
+
+RosterRowsToWidget() = RosterRowsToWidget(nothing)
 
 @iomap struct RosterRowsToWidgetIoMap
     projection::Any
@@ -88,6 +108,8 @@ struct RosterRowsToWidget <: Projection end
     columns::Any        # the keys of the columns
     table::Any          # the WidgetTable of the rows
     view::Any           # the _RosterTableView of a body that is a list, or nothing
+    is_filtering::Bool  # whether the header holds the parts of a filter and a sort
+    entry::Any          # the Cell of the entry of the place, or nothing for a plain header
 end
 
 # The row of `rows` at the head of the body of a roster table that is a list.
@@ -104,13 +126,16 @@ const _ROSTER_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     columns = _find_roster_columns(rows, ctx)
     made = IdDict{Any,Any}()
-    headers = CellVector(Cell[Cell(WidgetLabel(key)) for key in columns])
+    entry = is_arranged_place(ctx) ? Cell(@computation find_arranged_entry(ctx)) : nothing
+    headers = entry === nothing ? CellVector(Cell[Cell(WidgetLabel(key)) for key in columns]) :
+              CellVector(@computation Any[_make_filter_header(p, rows, entry, ctx, key, c)
+                                          for (c, key) in enumerate(columns)])
     view = (ctx !== nothing && get_exact_height(ctx) !== nothing) ? _RosterTableView(1) : nothing
     table = view === nothing ?
         WidgetTable(headers, CellVector(Computation(() -> _collect_row_cells(rows, made)))) :
         _make_roster_list_table(rows, made, headers, view)
     layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
-    iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view)
+    iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view, entry !== nothing, entry)
     # The layout and the table hold their part of the selection and of the part
     # under the pointer. The walk stops at the table: a cell can hold a document
     # of an item, which keeps its own selection.
@@ -120,6 +145,129 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
                                  path -> _map_rows_forward(iomap, path)),
                              is_followed)
     iomap
+end
+
+# ── The header of a table in an arrangement ──────────────────────────────────
+
+# The steps below the table to the text of the filter field of header `c`,
+# `column_headers[c].children[2].content[a:b]`, where `make_labeled_field` puts
+# the field.
+_make_header_field_path(c::Int, a::Int, b::Int) =
+    _make_table_path(FieldReferenceStep("column_headers"), ElementReferenceStep(c), FieldReferenceStep("children"),
+                     ElementReferenceStep(2), FieldReferenceStep("content"), RangeReferenceStep(a, b))
+
+# The number of the header, and the start and the stop of the range, of the path
+# `steps` in the layout when it goes into the text of a filter field, or
+# `nothing`.
+function _find_header_field(steps)
+    n = length(_TABLE_STEPS)
+    (length(steps) == n + 6 && all(steps[k] == _TABLE_STEPS[k] for k in 1:n) &&
+     steps[n + 1] == FieldReferenceStep("column_headers") && _is_index_step(steps[n + 2]) &&
+     steps[n + 3] == FieldReferenceStep("children") && steps[n + 4] == ElementReferenceStep(2) &&
+     steps[n + 5] == FieldReferenceStep("content") && steps[n + 6] isa RangeReferenceStep) || return nothing
+    (steps[n + 2].start + 1, steps[n + 6].start, steps[n + 6].stop)
+end
+
+# Whether `path`, a path in the layout of the table, goes into a header: a part
+# that makes an operation there arranges the rows, so its place is the rows.
+function _is_header_path(path)
+    path isa ConcreteReference || return false
+    steps = get_reference_steps(strip_reference_types(path))
+    n = length(_TABLE_STEPS)
+    length(steps) > n && all(steps[k] == _TABLE_STEPS[k] for k in 1:n) && steps[n + 1] == FieldReferenceStep("column_headers")
+end
+
+# `operation` made at a part of a header, put at the rows, or `nothing` for any
+# other operation: the arrangement of the rows that the part edits, and the menu
+# of the part, are of the rows, which the readers around the table can place.
+function _retarget_header_operation(operation)
+    inner = operation isa WrappingOperation ? get_wrapped_operation(operation) : operation
+    inner isa Union{ArrangeCollectionOperation,OpenContextMenuOperation} || return nothing
+    _is_header_path(operation_reference(inner)) || return nothing
+    moved = retarget_operation(inner, EmptyReference())
+    operation isa WrappingOperation ? rewrap_operation(operation, moved) : moved
+end
+
+# The range `(start, stop)` of the caret in the filter field of header `c`, or
+# `nothing`: the selection of `rows` is the step that the table introduced.
+function _find_header_range(rows, c::Int)
+    selection = getfield(rows, :selection)[]
+    (selection isa ConcreteReference && selection.head isa ProjectionReferenceStep &&
+     selection.head.projection isa RosterRowsToWidget) || return nothing
+    found = _find_header_field(get_reference_steps(strip_reference_types(selection.head.output_path)))
+    (found === nothing || found[1] != c) ? nothing : (found[2], found[3])
+end
+
+# The header of column `key`, number `c`: the key and the sort glyph above the
+# field of the filter. The key and the glyph have the menu of the column.
+function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::String, c::Int)
+    style(name) = unwrap_cell(get_widget_style(p.widget, name))
+    text() = find_column_filter_text(entry[], key)
+    function reason()
+        condition = parse_filter_text(text())
+        condition isa String ? condition : nothing
+    end
+    glyph = make_sort_glyph(get_column_sort_keys(entry[]), key, style(:unsorted_glyph),
+                            adding -> _make_sort_operation(entry, key, adding); domain = "roster")
+    menu = WidgetMenu(Any[WidgetMenuItem("Filter by values…";
+                                         action = Action("Filter by values…";
+                                                         callback = editor -> _open_value_list!(p, editor, rows, ctx, entry, key)))])
+    label = WidgetContextMenu(HorizontalLayout(Any[WidgetLabel(key), glyph...]; gap = Int(style(:header_gap))), menu)
+    make_labeled_field(label, make_filter_field(text, () -> _find_header_range(rows, c), reason,
+                                                Int(style(:header_field_width)), style(:invalid_filter)))
+end
+
+# The edit of a click on the glyph of column `key`: the new sort of the entry.
+function _make_sort_operation(entry, key::String, adding::Bool)
+    keys = compute_clicked_sort_keys(get_column_sort_keys(entry[]), key, adding)
+    ArrangeCollectionOperation(EmptyReference(), make_column_sort(entry[], keys))
+end
+
+# The edit of a key in the filter field of header `c`, or `nothing` for an edit
+# elsewhere: the new filter of the entry, and the caret after the text that was
+# put in, as one step.
+function _make_header_edit(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, operation::ReplaceStringRangeOperation)
+    iomap.is_filtering || return nothing
+    found = _find_header_field(get_reference_steps(strip_reference_types(operation.reference)))
+    found === nothing && return nothing
+    (c, a, b) = found
+    key = iomap.columns[c]
+    old = find_column_filter_text(iomap.entry, key)
+    new = string(first(old, a), operation.replacement, chop(old; head = b, tail = 0))
+    caret = a + length(operation.replacement)
+    CompoundOperation(Any[ArrangeCollectionOperation(EmptyReference(), make_column_filter(iomap.entry, key, new)),
+                          ReplaceSelectionOperation(make_introduced_reference(p, iomap.input,
+                              _make_header_field_path(c, caret, caret)))])
+end
+
+# Open the dialog of the values of column `key` over every row of the roster. The
+# boxes are ticked by the filter text of the column, and "Apply" posts the filter
+# that writes `= a, b` as the condition of the column.
+function _open_value_list!(p::RosterRowsToWidget, editor, rows, ctx, entry, key::String)
+    roster = get_property(ctx, :roster, nothing)
+    items = roster === nothing ? rows : roster.rows
+    text = find_column_filter_text(entry[], key)
+    function write(values, ticked)
+        written = make_value_list_text(values, ticked)
+        found = roster === nothing ? Any[] : search_references(editor.document, node -> node === roster; maxdepth = 24)
+        (written === nothing || isempty(found)) && return nothing
+        filter = make_column_filter(entry[], key, written)
+        make_filter_collection_operation(ReferencedDocument(roster, strip_reference_types(found[1])),
+                                         filter.conditions...; editor)
+    end
+    dialog, take = make_value_list_dialog(key, collect_column_values(items, key),
+                                          value -> is_value_listed(text, value), write; widget = p.widget)
+    window = unwrap_cell(get_widget_style(p.widget, :value_list_window_size))
+    apply = last(collect(dialog.buttons))
+    apply.action = Action(apply.action.label;
+                          callback = _ -> (operation = take();
+                                           operation === nothing || post_operation!(editor, operation);
+                                           nothing))
+    evaluate_operation(editor, OpenWindowOperation(id = :value_list, title = "Filter by values",
+                                                   x = -1, y = -1, width = Int(window.x[]),
+                                                   height = Int(window.y[]),
+                                                   style = :floating, content = dialog))
+    nothing
 end
 
 # An operation that a route brings to a row or a part of it, which no printed cell
@@ -268,6 +416,7 @@ _make_table_path(steps...) = extend_reference(EmptyReference(), _TABLE_STEPS...,
 # or its item, and a cell for a path at or below the place of its column.
 function _map_rows_forward(iomap::RosterRowsToWidgetIoMap, path)
     path === nothing && return nothing
+    is_introduced_reference(path, iomap.projection) && return path.head.output_path
     path isa EmptyReference && return EmptyReference()
     path isa ConcreteReference || return nothing
     steps = get_reference_steps(strip_reference_types(path))
@@ -303,6 +452,10 @@ function map_reference_backward(::RosterRowsToWidget, iomap::RosterRowsToWidgetI
         return nothing
     rest = steps[(length(_TABLE_STEPS) + 1):end]
     isempty(rest) && return EmptyReference()
+    # A part of the header is a part that the table drew, which a gesture routes to
+    # and a caret in a field holds, by the introduced step.
+    iomap.is_filtering && rest[1] == FieldReferenceStep("column_headers") &&
+        return make_introduced_reference(get_iomap_projection(iomap), iomap.input, extend_reference(EmptyReference(), steps...))
     rows = iomap.input
     head = _get_roster_head_row(iomap)
     item_of(r) = extend_reference(EmptyReference(), ElementReferenceStep(r), FieldReferenceStep("item"))
@@ -360,6 +513,12 @@ _get_roster_head_row(iomap::RosterRowsToWidgetIoMap) =
 # anchor. Every other answer goes back as it goes from any projection.
 function read_intent(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, operation)
     operation isa ReplaceMouseTargetOperation && return _map_mouse_target_backward(p, iomap, operation)
+    if operation isa ReplaceStringRangeOperation
+        edit = _make_header_edit(p, iomap, operation)
+        edit === nothing || return edit
+    end
+    moved = _retarget_header_operation(operation)
+    moved === nothing || return moved
     k = _find_roster_head_move(iomap, operation)
     k === nothing && return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
     anchor = _get_roster_head_row(iomap) + k - 1
@@ -406,6 +565,6 @@ end
 # layout of widgets, which the renderer draws.
 function _make_roster_graphics_entries(; measure = nothing, appearance)
     Pair{Type,Any}[Roster => RosterToGraphics(),
-                   CellVector{RosterRow} => ChainingProjection(RosterRowsToWidget(),
+                   CellVector{RosterRow} => ChainingProjection(RosterRowsToWidget(get_scaled_theme!(appearance, WidgetTheme)),
                                                                GridLayoutToGraphicsCanvas())]
 end

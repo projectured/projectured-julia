@@ -56,6 +56,8 @@ export get_arrangement_parts, describe_arrangement_part, describe_arranged_colle
        make_limit_collection_operation, make_arrangement_entry, get_arranged_collection_steps,
        find_arranged_collection
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
+export is_arranged_place, find_arranged_entry, find_column_filter_text, make_column_filter,
+       get_column_sort_keys, make_column_sort, collect_column_values
 
 include("ArrangementDocument.jl")
 include("FilterLanguage.jl")
@@ -65,6 +67,7 @@ include("Picking.jl")
 include("Grouping.jl")
 include("ArrangementBar.jl")
 include("Finding.jl")
+include("ArrangementColumns.jl")
 include("ArrangementProgram.jl")
 include("ArrangementMenu.jl")
 

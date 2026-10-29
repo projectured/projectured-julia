@@ -73,7 +73,15 @@ function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::A
 end
 
 # `operation`, or the edit of `arrangement` that it makes when it arranges a
-# collection inside the document of `arrangement`.
+# collection inside the document of `arrangement`. A compound makes the edit of
+# each of its parts that arranges one, so a header can move the caret in the same
+# step as it writes its filter.
+function _make_arranged_change(arrangement::ArrangementDocument, operation::CompoundOperation)
+    parts = Any[_make_arranged_change(arrangement, part) for part in operation.operations]
+    all(k -> parts[k] === operation.operations[k], eachindex(parts)) && return operation
+    CompoundOperation(Any[part for part in parts if part !== nothing])
+end
+
 function _make_arranged_change(arrangement::ArrangementDocument, operation)
     operation isa ArrangeCollectionOperation || return operation
     at = @reference_case strip_reference_types(operation.at) begin
