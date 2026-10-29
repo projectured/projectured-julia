@@ -19,6 +19,13 @@ end
     runs::CellVector
 end
 
+# A step of a plan, which can hold steps of its own.
+@document struct _RosterStep
+    name::String
+    status::String
+    steps::CellVector
+end
+
 RosterModule.get_item_facets(::Type{_RosterRun}) = ["slow" => "whether the run took longer than 0.3"]
 # A run that failed says so, and a count of failed runs takes its colour.
 ProjecturedPlatform.DomainModule.get_document_decoration(run::_RosterRun) =
@@ -182,6 +189,26 @@ function test_roster()
         @test length(within.rows) == 7
         @test within.rows[7].values[2] == "b"
         @test get_roster_item_type(ItemsWithin(CollectionItems(studies), _RosterRun)) === _RosterRun
+    end
+
+    @testset "ItemsWithin gathers the inside of each document that it finds as a part of its own" begin
+        nested = _RosterStep("a.1", "pending", CellVector(Any[]))
+        first_step = _RosterStep("a", "pending", CellVector(Any[nested]))
+        plans = CellVector(Any[_RosterStudy("plan", CellVector(Any[first_step, _RosterStep("b", "pending", CellVector(Any[]))]))])
+        roster = link_roster!(Roster(ItemsWithin(CollectionItems(plans), _RosterStep);
+                                     columns = ["name", "status", "within.name"]), plans)
+        rows = roster.rows
+        @test [row.values[1] for row in rows] == ["a", "a.1", "b"]
+        @test rows[2].values[3] == "plan"
+        # A change inside a step keeps every row, and the value of its row follows.
+        kept = collect(rows)
+        nested.status = "done"
+        @test all(collect(rows) .=== kept)
+        @test rows[2].values[2] == "done"
+        # A step that comes inside a step gets its row after the steps before it.
+        push!(first_step.steps, _RosterStep("a.2", "pending", CellVector(Any[])))
+        @test [row.values[1] for row in rows] == ["a", "a.1", "a.2", "b"]
+        @test find_roster_row(roster, nested) == 2
     end
 
     @testset "a filter and a sort of the rows, and the table" begin

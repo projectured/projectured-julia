@@ -33,6 +33,19 @@ There is no default method, for the reason of `collect_roster_parts`.
 function collect_roster_items end
 
 """
+    get_roster_item_inside(source, entry::RosterItem) -> part or nothing
+
+The inside of the item of `entry` as a part of `source` of its own, or `nothing`
+when `source` gathers nothing inside its items. The roster keeps one computed
+cell for the inside of each item, by the identity of the item, which
+[`collect_roster_items`](@ref) of that part fills. So a source that finds items
+inside items does not read the inside of an item where it finds the item, and a
+change inside one item gathers the inside of that item again, and of no other.
+The default is `nothing`.
+"""
+function get_roster_item_inside end
+
+"""
     get_roster_item_type(source) -> Type
 
 The type of the items of `source`, which [`describe_item_facets`](@ref) reads to

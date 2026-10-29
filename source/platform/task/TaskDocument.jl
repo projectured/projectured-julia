@@ -79,6 +79,9 @@ end
 # it runs; the task is a value that it shares.
 accepts_pasted_document(::TaskDocument) = false
 has_document_duplicate(::TaskDocument) = true
+
+# A search finds the group of a task where the group is, not back through the task.
+is_field_walked(::TaskDocument, name::Symbol) = name !== :group
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
                                                     executions = CellVector(), result_document = nothing,

@@ -190,9 +190,12 @@ of `source`, one row for each item ([`RosterRow`](@ref)), with the columns named
 by the keys of `columns`. `title` is the title of its tab.
 
 `rows` is a `CellVector{RosterRow}` that keeps its identity: its elements compute
-from the parts of the source, and the roster keeps one cell for each part and one
-row for each item. So a change inside one part gathers that part again, and a row
-of an item that stays keeps its cells. An item that two parts give is one row.
+from the parts of the source, and the roster keeps one cell for each part, one
+cell for the inside of each item that the source gathers inside
+([`get_roster_item_inside`](@ref)), and one row for each item. So a change inside
+one part gathers that part again, a change inside one item gathers its inside
+again, and a row of an item that stays keeps its cells. An item that two parts
+give is one row.
 
 `link` is the document of the window that shows the roster, which a source reads,
 such as the tabs of the window; `nothing` until the window links it
@@ -228,7 +231,7 @@ function Roster(source; columns = String[], title::AbstractString = "Roster")
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
                     Cell(nothing), Cell(nothing), Cell(nothing))
     rows = CellVector{RosterRow}()
-    memo = _RosterMemo(nothing, nothing, nothing, IdDict{Any,Any}(), IdDict{Any,Any}())
+    memo = _RosterMemo(nothing, nothing, nothing, IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))
     roster.rows = rows
     set_cell_computation!(getfield(roster, :index), () -> _compute_roster_index(roster, memo))
@@ -256,7 +259,8 @@ function _compute_roster_index(roster::Roster, memo)
         rows[row.item] = k
     end
     places = IdDict{Any,Any}()
-    for items in values(memo.parts), entry in items[]
+    for items in Iterators.flatten((values(memo.parts), (inside.items for inside in values(memo.insides)))),
+        entry in something(items[], ())
         (entry.place === nothing || haskey(places, entry.item)) || (places[entry.item] = entry.place)
     end
     RosterIndex(places, rows)
@@ -406,13 +410,15 @@ function link_roster!(roster::Roster, link)
 end
 
 # What the rows of a roster keep from one computation to the next: the cell of the
-# items of each part, and the slot of the row of each item. A change of the
-# source, of the columns or of the link starts them again.
+# items of each part, the cell of the items inside each item with the item of the
+# outer source that it was made for, and the slot of the row of each item. A change
+# of the source, of the columns or of the link starts them again.
 mutable struct _RosterMemo
     source::Any
     columns::Any
     link::Any
     parts::IdDict{Any,Any}
+    insides::IdDict{Any,Any}
     rows::IdDict{Any,Any}
 end
 
@@ -428,27 +434,54 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     if !(memo.source === source && memo.columns === columns && memo.link === link)
         memo.source, memo.columns, memo.link = source, columns, link
         memo.parts = IdDict{Any,Any}()
+        memo.insides = IdDict{Any,Any}()
         memo.rows = IdDict{Any,Any}()
     end
     parts = IdDict{Any,Any}()
-    rows = IdDict{Any,Any}()
-    slots = Cell[]
+    gather = (source = source, link = link, columns = columns, memo = memo, insides = IdDict{Any,Any}(),
+              rows = IdDict{Any,Any}(), slots = Cell[])
     for part in collect_roster_parts(source, link)
         items = get(memo.parts, part, nothing)
         items === nothing && (items = Cell(Computation(() -> collect_roster_items(source, link, part))))
         parts[part] = items
-        for entry in items[]
-            haskey(rows, entry.item) && continue
-            slot = get(memo.rows, entry.item, nothing)
-            (slot === nothing || peek(getfield(peek(slot), :within)) !== entry.within) &&
-                (slot = Cell(make_roster_row(entry.item, entry.within, columns)))
-            rows[entry.item] = slot
-            push!(slots, slot)
-        end
+        _add_roster_slots!(gather, items[])
     end
     memo.parts = parts
-    memo.rows = rows
-    slots
+    memo.insides = gather.insides
+    memo.rows = gather.rows
+    gather.slots
+end
+
+# The slot of the row of each item of `entries` that has no row yet, each followed
+# by the slots of the items inside it, which the cell of its inside gathers.
+function _add_roster_slots!(gather, entries)
+    memo = gather.memo
+    for entry in entries
+        haskey(gather.rows, entry.item) && continue
+        slot = get(memo.rows, entry.item, nothing)
+        (slot === nothing || peek(getfield(peek(slot), :within)) !== entry.within) &&
+            (slot = Cell(make_roster_row(entry.item, entry.within, gather.columns)))
+        gather.rows[entry.item] = slot
+        push!(gather.slots, slot)
+        part = get_roster_item_inside(gather.source, entry)
+        part === nothing && continue
+        inside = get(memo.insides, entry.item, nothing)
+        if inside === nothing || inside.within !== entry.within
+            (source, link) = (gather.source, gather.link)
+            inside = (items = Cell(Computation(() -> _collect_inside_items(source, link, part))), within = entry.within)
+        end
+        gather.insides[entry.item] = inside
+        items = inside.items[]
+        items === nothing || _add_roster_slots!(gather, items)
+    end
+end
+
+# The items inside one item, or `nothing` when there are none. `nothing` is a plain
+# value, so a change inside an item that holds no items stops at the cell of its
+# inside, and the slots do not compute again.
+function _collect_inside_items(source, link, part)
+    items = collect_roster_items(source, link, part)
+    isempty(items) ? nothing : items
 end
 
 # A row says what its item says.

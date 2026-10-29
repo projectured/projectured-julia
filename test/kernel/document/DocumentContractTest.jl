@@ -158,6 +158,20 @@ function test_document_contract()
         @test !isempty(search_documents(ContractPair((far, 1), nothing, nothing), node -> node === far))
     end
 
+    @testset "a walk that does not enter a match reads nothing inside it" begin
+        inner = ToyNode("inner", nothing, nothing)
+        outer = ToyNode("outer", inner, nothing)
+        root = ContractPair(outer, nothing, nothing)
+        @test collect(search_documents(root, node -> node isa ToyNode)) == [outer, inner]
+        @test collect(search_documents(root, node -> node isa ToyNode; enter_matches = false)) == [outer]
+        # A computation that walks so reads no cell of the match, so a change
+        # inside the match leaves the computation valid.
+        count = Cell(Computation(() -> length(search_documents(root, node -> node isa ToyNode; enter_matches = false))))
+        @test count[] == 1
+        outer.label = "changed"
+        @test is_cell_valid(count)
+    end
+
     @testset "@document constructs and unwraps cells" begin
         n = ToyNode("root", nothing, nothing)
         # Field auto-wrap: passing a bare value works; the field is stored as a

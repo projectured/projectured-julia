@@ -42,8 +42,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 
 import ..DomainModule: get_document_decoration
-export collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets, compute_item_facet,
-       make_item_facet_operation
+export collect_roster_parts, collect_roster_items, get_roster_item_inside, get_roster_item_type, get_item_facets,
+       compute_item_facet, make_item_facet_operation
 export RosterItem, RosterRow, make_roster_row, compute_roster_value, collect_item_facets, format_roster_value,
        Roster, link_roster!, RosterIndex, get_roster_item_place, find_roster_row, find_held_item_path,
        retarget_held_row_open

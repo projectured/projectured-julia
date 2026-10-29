@@ -182,7 +182,7 @@ end
 """
     walk_document(walk::DocumentWalk, obj, predicate;
                   include_selection=false, maxdepth=64, limit=100, raw=false,
-                  descend=(parent, child) -> true,
+                  descend=(parent, child) -> true, enter_matches=true,
                   on_error=(object, exception) -> false,
                   background=false) -> DocumentMatches
 
@@ -217,6 +217,11 @@ matches can be only in some parts of the graph, so that the walk skips the
 parts that can hold none, such as a type or a function held in a field. An
 exception from `descend` goes to the caller.
 
+`enter_matches = false` stops the walk at each match: it reports the match and
+reads no part of it. A caller that gathers items, each with parts of its own,
+passes it, so that a computation that gathers the items reads no cell inside an
+item, and a change inside one item does not make it gather again.
+
 `background` says whether the walk starts background work. A cell whose value
 a task computes off the loop, a background cell, holds its last answer or its
 default until its work is done. By default the walk takes that value as it is
@@ -238,7 +243,7 @@ reaches `on_error`: it ends the walk.
 function walk_document(walk::DocumentWalk, obj, predicate;
                        include_selection::Bool=false, maxdepth::Int=64,
                        limit::Union{Integer,Nothing} = 100, raw::Bool=false,
-                       descend = _enter_every_child, on_error = _count_as_no_match,
+                       descend = _enter_every_child, enter_matches::Bool = true, on_error = _count_as_no_match,
                        background::Bool = false)
     limit === nothing || limit >= 0 || throw(ArgumentError("walk_document: `limit` is a count, got $limit"))
     results = Any[]
@@ -250,7 +255,7 @@ function walk_document(walk::DocumentWalk, obj, predicate;
         _walk_document!(walk, results, IdDict{Any,Bool}(), root,
                         _GuardedPredicate(predicate, on_error),
                         walk.initial(root), nothing, IdDict{Any,Bool}(),
-                        include_selection, maxdepth, raw, descend, background, counts)
+                        include_selection, maxdepth, raw, descend, enter_matches, background, counts)
     end
     is_limit_reached = length(results) > counts.limit
     is_limit_reached && pop!(results)
@@ -350,7 +355,7 @@ end
 # unchanged, and the compile count below is measured on this form. The walk ends
 # when it found one match more than its limit.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
-                         seen, include_selection, depth, raw, descend, background, counts)
+                         seen, include_selection, depth, raw, descend, enter_matches, background, counts)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,
     # used as an `IdDict{Any, Bool}` key, and handed down. Every use is an `Any`
     # slot already, so specialising on it buys no speed — and costs a great deal
@@ -378,6 +383,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
         if target !== nothing && !haskey(reported, target)
             push!(results, target); reported[target] = true
         end
+        enter_matches || return
     end
     leaf && return
     if depth <= 0
@@ -392,7 +398,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
+                            here, seen, include_selection, depth - 1, raw, descend, enter_matches, background, counts)
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
@@ -404,7 +410,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, k, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
+                            here, seen, include_selection, depth - 1, raw, descend, enter_matches, background, counts)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
@@ -414,7 +420,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
+                            here, seen, include_selection, depth - 1, raw, descend, enter_matches, background, counts)
         end
     else
         for fn in fieldnames(typeof(obj))
@@ -427,7 +433,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, fn, child),
-                            here, seen, include_selection, depth - 1, raw, descend, background, counts)
+                            here, seen, include_selection, depth - 1, raw, descend, enter_matches, background, counts)
         end
     end
 end
