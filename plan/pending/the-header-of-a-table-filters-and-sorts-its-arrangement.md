@@ -75,6 +75,13 @@ omnet opp tests and validation tasks, which shows the expected code, becomes
 code, and the reason is a column of its own, `reason`, so each filter tests the
 value that its cell shows.
 
+**D10. The columns of a kind are values of its tasks, and a label has no
+underscore.** The owner, 2026-10-29, agreed that each kind of task gives its
+columns as values of its tasks, so `queue2` under "test" keeps the task queue2,
+and said: "don't use underscores for column labels for humans". The header of a
+column shows its name with a space for each underscore (`expected result`,
+`process id`), and the name in the code stays `expected_result`.
+
 Decisions of the design (mine, not the owner's):
 
 - **D3.** A `String` value in a filter pair is the filter text:
@@ -105,6 +112,17 @@ Decisions of the design (mine, not the owner's):
   `nothing` for equal shares, and `marked`, the item whose row the table marks or
   `nothing`. The table reads them through the context property `:roster` of step
   3, so the page gives them with no new property of the context.
+- **D11.** A roster finds whether a column is a value of an item once for each
+  type of item. Every task is a `TaskDocument`, but the kinds of task have other
+  columns. So the roster slice gets two interface functions: `get_item_facet_type(item)`,
+  the type whose facets the item has (default `typeof(item)`), which keys the check,
+  and `has_item_facet(item, name)` (default: the facets that the type declares),
+  which the check calls on the first item of that type. A task answers a type of its
+  kind, and has the facets of a task and the columns of its kind
+  (`get_task_columns`), whose value is `format_task_column`. A facet of a task
+  wins over a column of its kind with the same name. The facet `expected_result`
+  is the expected code of the result after the task ends, and before that the
+  column `expected_result` of its kind, or `nothing` when the kind has none.
 
 ## The steps
 
@@ -318,14 +336,25 @@ Each step is one commit on the branch, with its test.
     `test_roster_program` 21, `test_task_views` 70, `test_explorer` 294,
     `test_background_work` 21, `test_platform_slice_edges` 1, `test_platform_layering`
     6 of 7 (the two files of main).
-- [ ] **Step 5 — The page of a task group shows a roster.** The table of the pane
+- [ ] **Step 5a — The values of a task and the labels of a header.** The header
+  of a roster column shows its name with a space for each underscore (D10). The
+  roster slice gets `get_item_facet_type` and `has_item_facet` (D11). A task gets
+  the facets `expected_result` (D9, D11), `state`, `progress`, `elapsed`,
+  `process`, `processor` and `memory`, each the value that the cell of the group
+  table shows, and the columns of its kind. The facets of now keep their meaning.
+  Tests: `test_roster`, `test_roster_table`, `test_roster_header`,
+  `test_task_views`, and a new testset that filters and sorts a roster of tasks by
+  a column of their kind and by `expected_result`.
+- [ ] **Step 5b — The page of a task group shows a roster.** The table of the pane
   is a roster of the tasks of the group with an arrangement, under the bar of the
-  arrangement. The columns, the cells and the shares are those of now. The
-  choice `all · running · unexpected` chooses the tasks that the roster lists. A
-  press on a row writes `selected`, the row of `selected` is marked, and the list
-  starts at the anchor.
+  arrangement, held in a field of the group as the Background work log holds its
+  table. The columns are those of now and `reason` (D9); the column `result` shows
+  the actual code. The cells and the shares are those of now, through
+  `make_roster_cell` (D7). The choice `all · running · unexpected` chooses the
+  tasks that the roster lists. A press on a row writes `selected`, the row of
+  `selected` is marked (D8), and the list starts at the anchor.
   Tests: `test_task_group`, `test_task_views`, `test_task_pages`, and an image of
-  the pane before and after, which must show the same table.
+  the pane before and after, which must show the same rows.
 - [ ] **Step 6 — Measure, and the documents.** The filter and the sort of a group
   of 22,731 tasks through its page: the first open, and the end of one task.
   The documents of the arrangement, the roster, the task slice and the DataFrames
