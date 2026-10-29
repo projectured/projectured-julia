@@ -52,6 +52,12 @@ struct _RosterBracketCells end
 RosterModule.make_roster_cell(::_RosterBracketCells, item, key, value) =
     WidgetLabel(() -> string("<", format_roster_value(value[]), ">"))
 
+# A page's cells for one kind of item: the other kind of item has the cells of the table.
+struct _RosterMixedCells end
+RosterModule.make_roster_cell(::_RosterMixedCells, item, key, value) =
+    WidgetLabel(() -> string("<", format_roster_value(value[]), ">"))
+RosterModule.make_roster_cell(::_RosterMixedCells, ::_RosterNote, key, value) = nothing
+
 function test_roster_table()
 @testset "the table of a roster in an editor" begin
     make_notes() = CellVector(Cell[Cell(_RosterNote(1, PrimitiveString("alpha"))),
@@ -297,6 +303,34 @@ function test_roster_table()
         found = get_reference_steps(strip_reference_types(editor.document.selection))
         @test found[(end - 2):end] == collect(get_reference_steps(extend_reference(EmptyReference(),
             FieldReferenceStep("rows"), ElementReferenceStep(2), FieldReferenceStep("item"))))
+    end
+
+    @testset "a method of make_roster_cell that returns nothing leaves the cells of that item to the table" begin
+        extra = Pair{Type,Any}[CellVector{RosterRow} => ChainingProjection(
+            RosterRowsToWidget(nothing, _RosterMixedCells()), GridLayoutToGraphicsCanvas())]
+        function make_editor(roster)
+            natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
+            backend = HeadlessBackend()
+            editor = build_editor(roster, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  window = false, tabs = false, appearance = false, settings = false)
+            run_frame!(editor)
+            (editor, backend)
+        end
+        # The notes have the link in the first column and show the document of their note.
+        notes = make_notes()
+        (editor, backend) = make_editor(link_roster!(Roster(CollectionItems(notes); columns = ["id", "note"]), notes))
+        texts = _arrangement_texts(backend)
+        @test "1" in texts && "alpha" in texts && !("<1>" in texts)
+        (x, y) = _arrangement_place(backend, "2")
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0))
+        click = MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)
+        opened = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+        opened = opened isa WrappingOperation ? get_wrapped_operation(opened) : opened
+        @test opened isa OpenPageOperation && opened.place === :here
+        # The runs have the cells of the page.
+        runs = CellVector(Cell[Cell(_RosterRun(k, "done", 0.1)) for k in 1:2])
+        (_, backend) = make_editor(link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]), runs))
+        @test all(text -> text in _arrangement_texts(backend), ["<1>", "<2>", "<done>"])
     end
 
     @testset "the shares of a roster divide the width of its columns in the ratio of the weights" begin

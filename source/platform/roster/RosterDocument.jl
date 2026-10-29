@@ -231,7 +231,10 @@ by the keys of `columns`. `title` is the title of its tab.
 `shares` is a vector of weights, one for each column, that divide the width of a
 table of the rows in their ratio, or `nothing` for equal shares. `marked` is the
 item whose row the table marks as the selected row, or `nothing`; a selection in
-the rows takes the place of the mark while it is there.
+the rows takes the place of the mark while it is there. `anchor` is the item whose
+row is at the head of the list of a table of the rows, or `nothing` for a table
+that keeps its own head. A table that scrolls far from the head writes the item
+there, as view state, and the owner of the roster takes the write.
 
 `rows` is a `CellVector{RosterRow}` that keeps its identity: its elements compute
 from the parts of the source, and the roster keeps one cell for each part, one
@@ -271,11 +274,12 @@ See also `show_roster!` and `describe_roster_sources`.
     index::Any
     shares::Any
     marked::Any
+    anchor::Any
 end
 
 function Roster(source; columns = String[], title::AbstractString = "Roster", shares = nothing, marked = nothing)
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
-                    Cell(nothing), Cell(nothing), Cell(shares), Cell(marked), Cell(nothing))
+                    Cell(nothing), Cell(nothing), Cell(shares), Cell(marked), Cell(nothing), Cell(nothing))
     rows = CellVector{RosterRow}()
     memo = _RosterMemo(nothing, nothing, nothing, _RosterKey[], IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))

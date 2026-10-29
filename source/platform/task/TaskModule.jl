@@ -14,6 +14,7 @@ module TaskModule
 
 using Base.ScopedValues: ScopedValue, with
 using ..AgentModule
+using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -45,7 +46,7 @@ using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!, is_walk_opaque,
                          is_field_walked
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets,
-                       compute_item_facet, get_item_facet_type, has_item_facet, _has_item_facet
+                       compute_item_facet, get_item_facet_type, has_item_facet, make_roster_cell, _has_item_facet
 import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,
                        make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline

@@ -122,5 +122,11 @@ A page that draws other cells puts its own `RosterRowsToWidget`, with its `cells
 value, in the dispatch of its widgets, and adds a method for the type of that
 value. The widget that the method makes behaves as a text cell does: a press there
 selects the item of the row, and the row keeps its cells while it stays.
+
+A method that returns `nothing` for an item leaves the cell to the table: the
+table then makes the default cell of that item, as it does for `cells` of
+`nothing`, which is the link of the item in the first column, and a document that
+is a value, shown itself. So a page that draws the cells of one kind of item gives
+the other items the cells of every other table.
 """
 function make_roster_cell end

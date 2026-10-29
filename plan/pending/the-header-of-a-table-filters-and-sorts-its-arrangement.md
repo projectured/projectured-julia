@@ -380,7 +380,7 @@ Each step is one commit on the branch, with its test.
     `LegacyProgramTestTask` answer the kind column `expected`
     (`source/legacy/simulator/`); the declared facet `expected` wins over it in a roster, so
     they rename the column in the later omnet step. Tests there assert the column list.
-- [ ] **Step 5b — The page of a task group shows a roster.** The table of the pane
+- [x] **Step 5b — The page of a task group shows a roster.** The table of the pane
   is a roster of the tasks of the group with an arrangement, under the bar of the
   arrangement, held in a field of the group as the Background work log holds its
   table. The columns are those of now and `reason` (D9); the column `result` shows
@@ -390,6 +390,96 @@ Each step is one commit on the branch, with its test.
   `selected` is marked (D8), and the list starts at the anchor.
   Tests: `test_task_group`, `test_task_views`, `test_task_pages`, and an image of
   the pane before and after, which must show the same rows.
+
+  **Done.** What the work found and decided:
+  - New names. `TaskGroupDocument` has two fields at its end, `shown` and `table`.
+    `shown` is a cell with a computation: the `tasks` collection itself for `all`,
+    else a new collection of the task documents that the choice keeps, in the order
+    of the group. `table` is `ArrangementDocument(roster, ArrangementEntry[])`, made
+    and linked in `wrap_task_group_document` (`_make_task_group_table!`), whose
+    source is `CollectionItems` of the field `shown`. `Roster` has a field `anchor`
+    (D-anchor below). The task slice has the type `TaskCells` (the colours of the
+    pane) with `make_roster_cell` methods, and private helpers. The one positional
+    construction of `TaskGroupDocument` is in `wrap_task_group_document`; omnet-julia
+    has none, and no source of it uses a helper that this step removed.
+  - Decision 1 (coordinator, a widening of the step 4 contract): `make_roster_cell`
+    may return `nothing`, which means the default cell of the table. `_make_row_cells`
+    then makes the link in column 1 and the cell that follows a document value, as for
+    `cells` of `nothing`. `TaskCells` returns `nothing` for an item that is no
+    `TaskDocument`, so a roster of other items that prints inside a task pane draws
+    as it draws elsewhere. Stated in the docstrings of `make_roster_cell` and
+    `RosterRowsToWidget`; test in `RosterTableTest.jl`.
+  - Decision 2 (coordinator): `Roster.anchor` holds an item, in the way of `marked`;
+    `nothing` keeps the private head of the table. The group computes it: the first
+    task at or after `tasks[anchor]` that the choice shows. The table takes its head
+    row as the row of that item in the arranged rows, else row 1. A scroll far from
+    the head writes the item to `anchor` of the roster, as view state, and the pane
+    turns that write into the write of `anchor` of the group, by the identity place of
+    the item in `tasks`. `RosterRowsToWidgetIoMap` has the fields `head` (a cell) and
+    `roster`.
+  - Decision 3 (coordinator): the place of an item of the source is `shown[j]`, which
+    changes with the choice. The pane names a task by `tasks[i]` in every answer: an
+    open of a page at a row, at `shown[j]`, a press, a double press and a Ctrl+press,
+    by the identity of the task. The reader of the pane calls `keep_held_arrangement`
+    and `retarget_held_row_open` with the step `table`, then `_retarget_task_open` and
+    `_convert_table_answer`. For the table of an inner group in the detail, the two
+    held-arrangement calls name a field of the pane's group, so only the identity
+    conversion applies there; the removal of its last description takes its
+    arrangement away.
+  - Decision 4 (coordinator): the pane maps `table.<rest>` of the group, and the same
+    path of the group of its detail (`tasks[i].inner_group.table`,
+    `preparation.table`), to the place of each table in its output, as the cards are
+    mapped. The table stands directly in the constraint of the split, with no scroll
+    pane, because a list table scrolls itself. The pane follows the mouse target down
+    to the table but not into it: the table is a document that holds its own.
+  - Decision 5 (coordinator): the cells of `processor` and `memory` keep the text of
+    now (`NN%`, `format_memory_size`); the facets keep the raw values. The kind columns
+    that are no facet (such as `configuration`) show the text that `format_task_column`
+    gives, which is also what a field of the document, such as the column `group` of a
+    task that is a group, needs.
+  - Decision 6 (coordinator): the table of the slice edges in
+    `test/platform/PlatformSuite.jl` has "arrangement" in the row of "task". It follows
+    D2 (the table of a group is a roster with an arrangement), and the order of the
+    slices permits it: arrangement comes before task, and backgroundwork uses it too.
+  - The columns and shares, in the order of the table: `state` 1, the columns of the
+    kind with their weights, `progress` 2, `elapsed` 1, `process` 1, `processor` 1,
+    `memory` 1, `result` 1, `expected` 1, `reason` 4. The column `result` shows the
+    actual code only, `expected` shows true or false, and `reason` the reason (D9).
+    The headers come from `format_roster_column_label`.
+  - Fact: the text that the old `result` cell gave (`_format_task_outcome`: the result
+    in the words of `opp_repl`, such as `ERROR (unexpected) (Non-zero exit code: 1)`,
+    and the last output line while a task runs) is no longer in the table. The detail
+    of the task still shows the result in those words. A task that runs shows nothing
+    in `result` and `reason`.
+  - Removed with the old table: `_build_table`, `_build_whole_table`, `_build_table_row`,
+    `_compute_shown_indices` (the source is `shown`), `_get_head_place`,
+    `_find_selected_row`, `_format_task_outcome`, `_make_table_columns`,
+    `_collect_group_tables`, `_convert_head_write`, the tooltip of the old table, and
+    the scroll pane around it.
+  - `_RosterTableView` keeps the head of a roster that has no `anchor`; a group's roster
+    always has one while the group has tasks.
+  - The widgets of the pane now dispatch through `make_arranged_dispatch` with the rows
+    of the arrangement and the roster before the widget rows, and `RosterRowsToWidget`
+    with the `TaskCells` for `CellVector{RosterRow}`.
+  - Tests: `test/platform/task/TaskGroupTableTest.jl` (new, `test_task_group_table`):
+    the columns and shares, the choice, a press and the marked row, a double press and
+    a Ctrl+press, an open at `shown[j]`, a filter typed under `test` and one undo, a
+    click on the sort glyph of `elapsed`, the choice `running` with a filter, the
+    arrangement that stays, and the head and a scroll. `TaskGroupToWidgetTest.jl`: the
+    press test reads `marked` of the roster, and the test of a scrolled list moved to
+    the new file. `RosterTableTest.jl`: a method that returns `nothing`.
+  - Results: `test_task_group_table` 39 (new), `test_task_views` 65, `test_task_group` 84,
+    `test_task_pages` 48, `test_task_document` 128, `test_task_kind_facets` 27,
+    `test_task_result` 115, `test_task_group_verbs` 40, `test_roster` 69, `test_roster_table`
+    57 (3 new), `test_roster_header` 41, `test_roster_facets` 30, `test_roster_program` 21,
+    `test_background_work` 21, `test_explorer` 294, `test_system_process` 80,
+    `test_assistant_wake` 17, `test_arrangement_natural` 11, `test_arrangement_filter_sort` 27,
+    `test_roster_sources` 19, `test_platform_slice_edges` 1; `test_platform_layering` 6 of 7
+    (the two files of main). All pass. The ranking script of the assistant searches keeps
+    its six first names. The image of the pane before and after (30 probe tasks, 15 done,
+    3 unexpected, 4 running, 8 waiting) shows the same rows, state colours and marked row;
+    it differs in the header (sort glyphs and filter fields) and in the columns of item 3.
+
 - [ ] **Step 6 — Measure, and the documents.** The filter and the sort of a group
   of 22,731 tasks through its page: the first open, and the end of one task.
   The documents of the arrangement, the roster, the task slice and the DataFrames

@@ -55,6 +55,12 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `preparation` — the document of the preparation of the group: a
   `TaskGroupDocument` when it is a group, a [`TaskDocument`](@ref) when it is
   one task, or `nothing` when the group has none.
+- `shown` — the tasks that `row_filter` shows, in the order of the group: the
+  `tasks` collection itself for `"all"`, else a collection of the task documents
+  that the choice keeps. The source of the roster of `table`.
+- `table` — an `ArrangementDocument` around a [`Roster`](@ref) of the tasks in
+  `shown`, which the pane draws as its table. The roster marks the task at
+  `selected`, and starts its list at the task of `anchor`.
 """
 @document struct TaskGroupDocument <: Document
     title::String
@@ -68,6 +74,8 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     anchor::Int
     row_filter::Any
     preparation::Any
+    shown::Any
+    table::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -129,7 +137,8 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),
-                            Cell(PrimitiveString("all")), Cell(preparation))
+                            Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing))
+    _make_task_group_table!(doc)
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.
     for (index, document) in enumerate(documents)
@@ -151,6 +160,74 @@ function find_task_group_document(doc::TaskGroupDocument, index::Integer)
     documents = getfield(doc, :tasks)[]
     1 <= index <= length(documents) || return nothing
     getfield(documents[index], :inner_group)[]
+end
+
+# The columns of the table of a group, in the order a reader wants them, with the
+# weights that divide the width: the prose most, a number least. The columns of
+# the kind of the tasks (`get_task_columns`) stand between the state and the
+# progress, and are those of the first task.
+const _LEADING_COLUMNS = ["state" => 1]
+const _TRAILING_COLUMNS = ["progress" => 2, "elapsed" => 1, "process" => 1, "processor" => 1,
+                           "memory" => 1, "result" => 1, "expected" => 1, "reason" => 4]
+
+_get_table_columns(group) = vcat(_LEADING_COLUMNS,
+    isempty(group.tasks) ? Pair{String,Int}[] : get_task_columns(first(group.tasks)), _TRAILING_COLUMNS)
+
+# Whether the choice `word` of rows shows the task `document`.
+function _is_task_shown(word, document::TaskDocument)
+    word == "running" && return get_task_document_status(document) in (:running, :cancelling)
+    word == "unexpected" && return (result = get_task_document_result(document)) !== nothing &&
+                                   result.result != result.expected_result
+    true
+end
+
+_get_row_word(doc::TaskGroupDocument) = something(getfield(doc, :row_filter)[].value, "all")
+
+# The tasks that the choice shows: the collection of the tasks itself for all of
+# them, so a roster of it computes again only when a task comes or goes.
+function _compute_shown_tasks(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    word = _get_row_word(doc)
+    word == "all" && return documents
+    CellVector(Any[document for document in documents if _is_task_shown(word, document)])
+end
+
+# The task whose row is marked: the task at `selected`, or `nothing`.
+function _find_selected_task(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    index = getfield(doc, :selected)[]
+    1 <= index <= length(documents) ? documents[index] : nothing
+end
+
+# The task whose row is at the head of the list: the first task at or after
+# `anchor` that the choice shows, else the last one it shows before it.
+function _find_head_task(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    isempty(documents) && return nothing
+    word = _get_row_word(doc)
+    first_index = clamp(getfield(doc, :anchor)[], 1, length(documents))
+    word == "all" && return documents[first_index]
+    for index in first_index:length(documents)
+        _is_task_shown(word, documents[index]) && return documents[index]
+    end
+    for index in (first_index - 1):-1:1
+        _is_task_shown(word, documents[index]) && return documents[index]
+    end
+    nothing
+end
+
+# The table of a group: an arrangement of a roster of the tasks that the choice
+# shows, linked to the group.
+function _make_task_group_table!(doc::TaskGroupDocument)
+    set_cell_computation!(getfield(doc, :shown), () -> _compute_shown_tasks(doc))
+    columns = _get_table_columns(get_task_group(doc))
+    roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("shown")));
+                    columns = first.(columns), title = getfield(doc, :title)[], shares = last.(columns))
+    set_cell_computation!(getfield(roster, :marked), () -> _find_selected_task(doc))
+    set_cell_computation!(getfield(roster, :anchor), () -> _find_head_task(doc))
+    link_roster!(roster, doc)
+    setproperty!(doc, :table, ArrangementDocument(roster, ArrangementEntry[]))
+    doc
 end
 
 # The task documents, in the order the group was made. The field holds a

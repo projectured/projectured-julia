@@ -92,13 +92,17 @@ as in any other place. A cell of any other value shows its text
 ([`format_roster_value`](@ref)), and a press there selects the item of the row, so
 the context menu is the menu of the item. With another `cells` value, the cell of a
 column is the widget that [`make_roster_cell`](@ref) makes, which a press also
-selects the item of the row for. A page puts its own `RosterRowsToWidget` with its
+selects the item of the row for; a method that returns `nothing` leaves the cell
+of that item to the table, which makes it as it does for `nothing`. A page puts its own `RosterRowsToWidget` with its
 `cells` value in the dispatch of its widgets.
 
 The columns divide the width in the ratio of `shares` of the roster in the printer
 context (`:roster`), and equally where the context has no roster or the roster has
 no shares. The row of the item that `marked` of that roster names is the selected
 row of the table while the selection of the editor is not in the rows.
+The head of a list is the row of the item that `anchor` of the roster names, or the
+first row when the rows do not show it; a roster with no `anchor` keeps the head in
+the table. A scroll far from the head writes the item to `anchor`, as view state.
 A row keeps its cells while it stays, so in a list the grid keeps the print of a
 row that a filter or a sort keeps, and prints only the rows that are new to it.
 """
@@ -120,6 +124,8 @@ make_roster_cell(::Nothing, item, key, value) = WidgetLabel(() -> format_roster_
     columns::Any        # the keys of the columns
     table::Any          # the WidgetTable of the rows
     view::Any           # the _RosterTableView of a body that is a list, or nothing
+    head::Any           # the Cell of the row at the head of a body that is a list, or nothing
+    roster::Any         # the roster of the printer context, or nothing
     is_filtering::Bool  # whether the header holds the parts of a filter and a sort
     entry::Any          # the Cell of the entry of the place, or nothing for a plain header
 end
@@ -142,13 +148,14 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     headers = entry === nothing ? CellVector(Cell[Cell(WidgetLabel(format_roster_column_label(key))) for key in columns]) :
               CellVector(@computation Any[_make_filter_header(p, rows, entry, ctx, key, c)
                                           for (c, key) in enumerate(columns)])
+    roster = ctx === nothing ? nothing : get_property(ctx, :roster, nothing)
     view = (ctx !== nothing && get_exact_height(ctx) !== nothing) ? _RosterTableView(1) : nothing
+    head = view === nothing ? nothing : Cell(@computation _compute_head_row(rows, roster, view))
     table = view === nothing ?
         WidgetTable(headers, CellVector(Computation(() -> _collect_row_cells(p, rows, made)))) :
-        _make_roster_list_table(p, rows, made, headers, view)
+        _make_roster_list_table(p, rows, made, headers, head)
     layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
-    iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view, entry !== nothing, entry)
-    roster = ctx === nothing ? nothing : get_property(ctx, :roster, nothing)
+    iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view, head, roster, entry !== nothing, entry)
     _set_column_shares!(table, roster, length(columns))
     # The layout and the table hold their part of the selection and of the part
     # under the pointer. The walk stops at the table: a cell can hold a document
@@ -314,15 +321,15 @@ function _find_roster_columns(rows, ctx)
     isempty(rows) ? String[] : collect(String, rows[1].columns)
 end
 
-# The table whose body is the list of the rows from the row `anchor` of `view`.
+# The table whose body is the list of the rows from the row `head`.
 # Positional, so every declared field is named here in order: position,
 # column_headers, row_headers, corner, cells, cell_order, rows, columns,
 # border_width, column_policy, row_policy, cell_policy, visible, margin, border,
 # padding, style, scroll_position, top_row, column_drag, vertical_scroll_bar,
 # horizontal_scroll_bar, open_cells, tooltip.
-function _make_roster_list_table(p, rows, made, headers, view)
+function _make_roster_list_table(p, rows, made, headers, head)
     WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing),
-                Cell(@computation _make_roster_row_list(p, rows, made, view.anchor)),
+                Cell(@computation _make_roster_row_list(p, rows, made, head[])),
                 Cell(:row_major), Cell(WidgetTableRows(nothing)),
                 Cell(@computation WidgetTableColumns(length(headers))), Cell(1),
                 Cell(_ROSTER_COLUMN_POLICY), Cell(Content), Cell(:clip), Cell(true),
@@ -369,10 +376,12 @@ function _make_row_cells(p::RosterRowsToWidget, row::RosterRow)
     slots = Cell[]
     for c in 1:length(values)
         value = get_cell_at(values, c)
-        label = p.cells === nothing && c == 1 ? _make_item_link(value) :
-                make_roster_cell(p.cells, row.item, row.columns[c], value)
+        made = p.cells === nothing ? nothing : make_roster_cell(p.cells, row.item, row.columns[c], value)
+        is_default = made === nothing
+        label = !is_default ? made :
+                c == 1 ? _make_item_link(value) : make_roster_cell(nothing, row.item, row.columns[c], value)
         _follow_cell_mouse_target!(label, row, c)
-        push!(slots, p.cells === nothing && peek(value) isa Document ?
+        push!(slots, is_default && peek(value) isa Document ?
                          Cell(Computation(() -> (v = value[]; v isa Document ? v : label))) :
                          Cell(label))
     end
@@ -551,7 +560,16 @@ _is_index_step(step) = step isa RangeReferenceStep && is_element_reference_step(
 # anchor for a list, in the range of the rows, as the list takes it. A path of the
 # table counts a row from the head.
 _get_roster_head_row(iomap::RosterRowsToWidgetIoMap) =
-    iomap.view === nothing ? 1 : clamp(iomap.view.anchor, 1, max(1, length(iomap.input)))
+    iomap.view === nothing ? 1 : clamp(iomap.head, 1, max(1, length(iomap.input)))
+
+# The row of `rows` at the head of a list: the row of the item that `anchor` of
+# `roster` names, or the first row when the rows do not show that item, or the
+# anchor of `view` for a roster that names no item.
+function _compute_head_row(rows, roster, view)
+    item = roster === nothing ? nothing : roster.anchor
+    item === nothing && return view.anchor
+    something(findfirst(row -> peek(getfield(row, :item)) === item, rows), 1)
+end
 
 # The table moves the head of a list of rows far down by a write of `cells`, with
 # a shift of its selection. The roster keeps the head as the anchor of its view,
@@ -569,12 +587,21 @@ function read_intent(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, oper
     k = _find_roster_head_move(iomap, operation)
     k === nothing && return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
     anchor = _get_roster_head_row(iomap) + k - 1
-    moved = Any[ReplaceViewStateOperation(ReplaceReferencedValueOperation(iomap.view, "anchor", anchor))]
+    moved = Any[ReplaceViewStateOperation(_make_head_write(iomap, anchor))]
     for member in operation.operations
         (member isa ReplaceSelectionOperation || _find_written_cells(iomap.table, member) !== nothing) ||
             push!(moved, member)
     end
     CompoundOperation(moved)
+end
+
+# The write of the head of a list at row `anchor`: the item of that row as the
+# `anchor` of the roster when the roster names one, else the anchor of the view.
+function _make_head_write(iomap::RosterRowsToWidgetIoMap, anchor::Int)
+    roster = iomap.roster
+    (roster !== nothing && roster.anchor !== nothing && 1 <= anchor <= length(iomap.input)) ?
+        ReplaceReferencedValueOperation(roster, "anchor", peek(getfield(iomap.input[anchor], :item))) :
+        ReplaceReferencedValueOperation(iomap.view, "anchor", anchor)
 end
 
 # The count from the head of the row that `operation` moves the head of the body
