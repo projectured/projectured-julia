@@ -134,9 +134,14 @@ sessions, so the call helps the most sessions. When no package of the repository
 of a call, the call goes to the package of the application itself, which loads
 all the others.
 
-**Decision 9.** Each application has a real package under version control, and
-the build of its binary uses that package. So the lists that an application
-records for itself have a folder under version control, as Decision 4 needs.
+**Decision 9.** Each application with a workload of its own has a real package
+under version control, and the build of its binary uses that package. So the
+lists that an application records for itself have a folder under version
+control, as Decision 4 needs. An application whose workload is only the
+workloads of the packages that it holds has no package of its own, and its
+build only chooses `precompile_calls`. In this repository `projectured` has the
+package `ProjecturedBuild`, because its workload drives the window of the
+platform on SDL with every domain loaded.
 
 ## The preferences
 
