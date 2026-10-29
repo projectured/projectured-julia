@@ -55,10 +55,9 @@ function _make_release_repository()
                         "Registered" => "00000000-0000-0000-0000-00000000000d",
                         "Dates" => "ade2ca70-3891-5945-98fb-dc099432e06a"])
     _write_release_fixture_extension(root)
-    # The recorded precompile statements of `FakeTop`, which AutoPrecompile reads
-    # from the folder of a loaded package.
+    # The recorded calls of `FakeTop`, which its `@compile_ahead` compiles.
     mkpath(joinpath(root, "package", "FakeTop", "precompile"))
-    write(joinpath(root, "package", "FakeTop", "precompile", "scenario.txt"),
+    write(joinpath(root, "package", "FakeTop", "precompile", "workload.txt"),
           "Tuple{typeof(FakeTop.top)}\n")
     _write_release_fixture_tests(root)
     mkpath(joinpath(root, "environment"))
@@ -215,7 +214,7 @@ function test_package_release()
                                         "WeakTrigger" => "2.0.0", "julia" => "1.11")
             @test top["extensions"] == Dict("FakeTopWeakTriggerExt" => "WeakTrigger")
             @test isfile(joinpath(output, "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"))
-            @test read(joinpath(output, "FakeTop", "precompile", "scenario.txt"), String) ==
+            @test read(joinpath(output, "FakeTop", "precompile", "workload.txt"), String) ==
                   "Tuple{typeof(FakeTop.top)}\n"
             @test !isdir(joinpath(output, "FakeBase", "precompile"))
             # One folder for each package, the support packages in `test/` and

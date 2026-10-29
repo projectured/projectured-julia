@@ -8,7 +8,7 @@
 # each, and neither repository's name appears in the code that does the writing.
 
 """
-    BuildContext(root; package_roots, log_variable, statements, version)
+    BuildContext(root; package_roots, log_variable, version)
 
 Where a build writes, and where it looks up a package's directory and uuid.
 
@@ -21,8 +21,6 @@ Where a build writes, and where it looks up a package's directory and uuid.
 - `log_variable` — the environment variable that sets the log level of a
   binary this context builds, read behind `--log-level` on the command line and
   ahead of the baked default. Defaults to `"PROJECTURED_LOG_LEVEL"`.
-- `statements` — a precompile statements file [`compile_app!`](@ref) passes to
-  `create_app`, or `nothing`.
 - `version` — the text `--version` prints after the binary's name. Defaults to
   `"0.1.0"`.
 """
@@ -30,17 +28,15 @@ struct BuildContext
     root::String
     package_roots::Vector{String}
     log_variable::String
-    statements::Union{String,Nothing}
     version::String
 end
 
 function BuildContext(root::AbstractString;
                        package_roots = [joinpath(root, "package")],
                        log_variable::AbstractString = "PROJECTURED_LOG_LEVEL",
-                       statements::Union{AbstractString,Nothing} = nothing,
                        version::AbstractString = "0.1.0")
     BuildContext(String(root), String[String(p) for p in package_roots], String(log_variable),
-                 statements === nothing ? nothing : String(statements), String(version))
+                 String(version))
 end
 
 """

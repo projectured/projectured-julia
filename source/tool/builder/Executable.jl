@@ -229,7 +229,7 @@ output directory.
   about.
 - `compile_app` — the function that turns the written package into a bundle:
   `compile_app(project, output, name; force, optimization, debug_info,
-  strip_metadata, cpu_target, incremental, filter_stdlibs, statements)`. The
+  strip_metadata, cpu_target, incremental, filter_stdlibs)`. The
   default, [`compile_app!`](@ref), is the plain path with the released
   PackageCompiler and its own launcher. A caller that links its own launcher,
   trims, or rebuilds reactively passes one of its own.
@@ -317,8 +317,7 @@ function build_executable(context::BuildContext; name::AbstractString,
     compile || return project
 
     compile! = () -> compile_app(project, output, name; force, optimization, debug_info,
-                                  strip_metadata, cpu_target, incremental, filter_stdlibs,
-                                  statements = context.statements)
+                                  strip_metadata, cpu_target, incremental, filter_stdlibs)
     if logfile === nothing
         compile!()
     else
@@ -340,8 +339,7 @@ end
 
 """
     compile_app!(project, output, name; force, optimization, debug_info,
-                  strip_metadata, cpu_target, incremental, filter_stdlibs,
-                  statements) -> String
+                  strip_metadata, cpu_target, incremental, filter_stdlibs) -> String
 
 Compile `project` into `output`, with the released PackageCompiler's own
 launcher: one executable, `name => "julia_main"`, and nothing more.
@@ -353,14 +351,12 @@ rebuilds reactively passes a `compile_app` of its own to
 function compile_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                        force::Bool = true, optimization::Integer = 3, debug_info::Integer = 1,
                        strip_metadata::Bool = false, cpu_target::AbstractString = "",
-                       incremental::Bool = true, filter_stdlibs::Bool = false,
-                       statements::Union{AbstractString,Nothing} = nothing)
+                       incremental::Bool = true, filter_stdlibs::Bool = false)
     arguments = `-O$(optimization) -g$(debug_info)`
     strip_metadata && (arguments = `$arguments --strip-metadata`)
     @info "Compiling $name" incremental
-    # Splatted in only when it has a value: `create_app` takes a `String` for
-    # each and refuses `nothing`, so an absent one has to be absent rather than
-    # empty.
+    # Splatted in only when it has a value: `create_app` takes a `String` and
+    # refuses `nothing`, so an absent one has to be absent rather than empty.
     _create_app(project, output;
                 executables = [String(name) => "julia_main"],
                 force = force,
@@ -368,9 +364,7 @@ function compile_app!(project::AbstractString, output::AbstractString, name::Abs
                 filter_stdlibs = filter_stdlibs,
                 include_lazy_artifacts = true,
                 sysimage_build_args = arguments,
-                (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...,
-                (statements !== nothing && isfile(statements) ?
-                     (; precompile_statements_file = statements) : ())...)
+                (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
     output
 end
 
