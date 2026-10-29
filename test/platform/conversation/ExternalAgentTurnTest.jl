@@ -45,6 +45,27 @@ function test_external_agent_turn()
                   findfirst(part -> part.content isa EvaluatorForm, parts)
         end
 
+        @testset "a warm-up applies one turn with each kind of part, and no agent" begin
+            a = Assistant(; backend = :acp)
+            @test warm_assistant_turn!(a) === a
+            # The assistant keeps its session, which was none.
+            @test a.agent_session === nothing
+            turns = collect(a.conversation.turns)
+            @test [turn.role for turn in turns[end - 1:end]] == [:user, :assistant]
+            @test turns[end].stop_reason === :end_turn
+            parts = collect(turns[end].parts)
+            @test parts[1].content isa ConversationThinking
+            forms = [part.content for part in parts if part.content isa EvaluatorForm]
+            @test [form.tool_name for form in forms] == ["search_api", "Bash", "execute_julia_code"]
+            @test forms[3].source == AssistantModule._WARM_CODE
+            @test forms[3].output == AssistantModule._WARM_CODE_OUTPUT
+            # The request stays open, so a workload can draw its options and click one.
+            request = only(part.content for part in parts if part.content isa ConversationPermissionRequest)
+            @test is_permission_request_open(request)
+            texts = [AssistantModule._part_text(part) for part in parts]
+            @test any(text -> occursin("33.5", text), texts)
+        end
+
         @testset "the turn says that the agent starts until its session is open" begin
             gate = Channel{Nothing}(1)
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];

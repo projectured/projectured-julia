@@ -21,7 +21,8 @@ The events of an external agent also fill the work of its session, an
 tasks as tasks of the task slice, its notices and its processes
 (`AgentWorkDocument.jl`). Each event of a session goes into the queue of the
 session, in a prompt and between two prompts, and the feed of the window applies
-the events in the order in which they came (`AgentEventFeed.jl`). The work page
+the events in the order in which they came (`AgentEventFeed.jl`). A precompile
+workload applies one such turn with no agent (`AssistantWarmUp.jl`). The work page
 of an assistant shows that work in a navigator, and a subagent has a page of its
 own (`AssistantWorkDocument.jl`, `AssistantWorkToWidget.jl`,
 `AgentWorkToWidget.jl`).
@@ -110,6 +111,7 @@ export AssistantList, get_session_assistant_list, set_assistant_list_source!,
        set_assistant_list_opener!, select_assistant!, link_assistant_list!, unlink_assistant_list!
 export AssistantListToWidgetPane
 export apply_agent_event!, AgentEventFeed
+export warm_assistant_turn!
 export show_assistant_work!
 export AssistantWorkToWidget
 export AgentWorkToWidget
@@ -127,6 +129,7 @@ include("AssistantList.jl")
 include("AssistantListToWidget.jl")
 include("AssistantApi.jl")
 include("AgentEventFeed.jl")
+include("AssistantWarmUp.jl")
 include("AssistantWorkDocument.jl")
 include("AssistantWorkToWidget.jl")
 include("AgentWorkToWidget.jl")

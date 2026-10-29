@@ -199,3 +199,46 @@ prints again. Step 4 counts it.
   covers each case of the predicate and the answers of the walkers.
   `test_reference_evaluation()` 128 passes, `test_kernel()` 4932 passes, no
   failure and no error. The guide `reference.md` names the predicate.
+
+### Step 3
+
+- `warm_assistant_turn!(assistant)` (`source/platform/assistant/AssistantWarmUp.jl`,
+  exported by `AssistantModule`) gives the assistant an `ExternalAgentSession` with
+  no connection for the length of the call, applies a user turn and the events of
+  one agent turn with `apply_agent_event!(nothing, assistant, event)`, and puts the
+  session back. The agent turn opens by itself, as a turn that an agent starts
+  between two prompts, and ends at its `AgentUsageUpdate`.
+- Decision: the canned events are input, as the canned keys of `warm_application()`
+  are, and not a double of the agent seam (`PAR-NO-TEST-DOUBLES-IN-MAIN`). No path
+  that a person reaches makes them, and no connection is implemented.
+- Facts found on the way:
+  - Only the prefix `mcp__projectured__` is taken off a tool name, so the warm
+    calls use it; with another prefix the form does not read the input as code.
+  - A text block becomes Markdown at its end through `parse_markdown_blocks`, and
+    a fenced block becomes a live Julia document. Both need `ProjecturedMarkdown`
+    and `ProjecturedJulia` loaded, which the binaries load.
+  - A pane follows the end of a turn, so the thinking and the first text are out
+    of view in a window of 1280 × 800. The `execute_julia_code` call therefore
+    comes last but one, before the answer, so its code is in view.
+  - A click on "Allow" in the assistant pane can move the focus, and the test of
+    `warm_application()` checks that the focus ends in the tab that the Insert key
+    made. So `warm_application()` moves the pointer over six drawn tokens of the
+    code and the option (`runner_1`, `select_simulations!`, `for`, `0.5`, `Fifo`,
+    `Allow`; all six found in view) and answers the request with
+    `answer_permission_request!`, with no click.
+  - `_find_drawn_text_point` skips a text above or left of the frame, because a
+    scrolled pane keeps its texts in the tree with a negative place.
+- Tests: "a warm-up applies one turn with each kind of part, and no agent"
+  (`ExternalAgentTurnTest.jl`); `test_external_agent_turn()` 281 passes;
+  `test_application()` 389 passes and 2 broken, the two known markers of the
+  scroll scenario of the Files pane. The guide `assistant.md` has "The warm-up of a
+  build" and a design decision.
+- The example checks of step 1, run alone: `test_position_navigation` 83 passes
+  (Julia) and 395 (Markdown); `test_example(markdown_example)` 6050 passes;
+  `test_example(julia_example)` 3357 passes and 84 failures at
+  `TypeinTest.jl:733`. The base commit `4c07f266c` gives the same 3357 and the same
+  84 failures, so they come before this branch: the Julia example draws no caret on
+  its identifier leaves.
+- The call in `OmnetIde.precompile_workload!` is in the worktree of omnet-julia, on
+  the branch `window-answers`. It is checked in a scratch copy of the app
+  environment whose paths go to both worktrees.

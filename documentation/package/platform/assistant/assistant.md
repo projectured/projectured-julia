@@ -227,6 +227,8 @@ The agent runs its own loop, and it reports more than text: the subagents that i
 
 **The end of the work when a connection ends.** The agent may send nothing more when its connection ends, as when its process died. So the work of the session ends at once on the editor task when the agent stops (`stop_external_agent!`, also at the close of a tab and at a reset), when a turn fails or the connection stops, and when the start of the agent fails. Each background task that runs ends as `CANCEL` with the reason "The agent ended.". Each subagent that runs or waits for a person becomes idle with the stop reason `:cancelled`, and its turn ends. Every question that waits is cancelled, and a turn that the agent started by itself ends. After a failed prompt, this comes after the events of the prompt that still wait.
 
+**The warm-up of a build.** `warm_assistant_turn!(assistant)` applies one turn of an external agent with no agent and no process, through `apply_agent_event!`, the path of the feed. The turn has a thinking block, Markdown text with a list and a code block, a `search_api` call with a Markdown answer, a permission request that stays open, an `execute_julia_code` call whose code comes in a later update, with its result, and the answer. The code comes last but one, because a pane follows the end of a turn, so the pointer of a workload reaches it. It ends at the usage that the agent reports, and the session of the assistant is the same afterwards. A precompile workload calls it and prints the assistant through the projection of its window: `warm_application()` moves the pointer over parts of the turn and answers the request, and the workload of the OMNeT++ IDE moves the pointer over the window and answers the request. Without it, the loop of a window compiles each kind of part while an agent works, and a frame can take many seconds.
+
 ### The work page
 
 `AssistantWork(assistant)` is a document that holds an assistant and shows its work, It is a page of a navigator. The Work button opens it in a tab, titled "Work · " and the title of the assistant. The page is a column of cards in a scroll pane of its own:
@@ -295,6 +297,7 @@ The package registers the natural row `:assistant` with `build_assistant_graphic
 - **One queue, one order.** The events of a prompt and the events between two prompts take the one path, so they apply in the order in which they came. The queue holds no editor, because a document must not hold the editor.
 - **A background task is a task.** The task slice has the columns, the facets, the detail and the stop that a background task needs.
 - **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See [plan/done/assistant-collapse-layout.md](../../../../plan/done/assistant-collapse-layout.md).
+- **A build prints one turn of an agent.** The canned events of the warm-up are input, as the canned keys of `warm_application()` are, and not a double of the agent: no path that a person reaches makes them, and they never answer a prompt. See [plan/done/the-window-answers-while-the-assistant-works.md](../../../../plan/done/the-window-answers-while-the-assistant-works.md).
 
 ## Usage
 
