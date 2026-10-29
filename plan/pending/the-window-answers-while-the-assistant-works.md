@@ -125,7 +125,7 @@ prints again. Step 4 counts it.
    vector and of a string, and a position. Each answers the same result as today.
    Then `test_kernel()`. The guide `documentation/package/kernel/reference.md` names
    the predicate.
-3. [ ] **The workloads print one assistant turn.** Main moved to the design of
+3. [x] **The workloads print one assistant turn.** Main moved to the design of
    `documentation/design/compile-ahead.md` on 2026-10-29: each package compiles its
    recorded lists `precompile/*.txt` by default, and a workload runs only when a
    person records the lists again. So the turn is a step of the window workloads,
@@ -298,6 +298,29 @@ prints again. Step 4 counts it.
 - Tests (projectured worktree, `bounded-run`): `test_external_agent_turn()` 305
   passes; `test_window_workload()` 1 pass, so each new step found its target and no
   barrier caught a fault.
+- Test (omnet worktree, scratch environment `/var/tmp/window-answers-omnet-env`
+  with the paths of both worktrees): `test_ide_window_workload()` 1 pass, so the
+  IDE window found the same three targets.
+- The recordings, each with no failure of its workload:
+  - `ProjecturedPlatform/precompile/workload.txt`: 560 lines added, 279 removed;
+    44 new lines name the agent turn (the step, the drain of the feed, the card of
+    the permission request). The removed lines are calls that main no longer makes
+    since its last recording.
+  - The binary `projectured`: 16 lists `precompile/projectured.txt` and
+    `ProjecturedBuild/precompile/workload.txt`, 1022 lines added, 12 removed. The
+    Julia list now holds `JuliaSymbolToSyntaxLeaf`, `JuliaTupleToSyntaxNode`,
+    `JuliaStringToSyntaxLeaf`, `JuliaForToSyntaxNode`, `JuliaCallToSyntaxNode` and
+    the Markdown list `MarkdownCodeToSyntaxLeaf`; main had none of them.
+  - The IDE: `OmnetIde` and `OmnetIdeBuild` lists and two lists of other omnet
+    packages, 1427 lines added, 520 removed (omnet-julia, after `c3869aa22`).
+    They now hold `WorkloadAgentTurn`, the permission request,
+    `JuliaForToSyntaxNode`, `JuliaTupleToSyntaxNode` and `MarkdownCodeToSyntaxLeaf`.
+    `JuliaCallToSyntaxNode` falls from 6 to 3 lines, because the projectured list
+    of `ProjecturedJulia` compiles those calls, and a recording does not list a
+    call that an image holds.
+- A job of the run tool can wait for room: other sessions held caps of 20 GB, so
+  the IDE recordings waited about 20 minutes. One test job at a cap of 9 GB had
+  one OOM kill of a parallel precompile worker, which Pkg compiled again.
 
 ### Step 4
 
