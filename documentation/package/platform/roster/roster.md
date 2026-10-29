@@ -143,6 +143,8 @@ The counters measured this on a headless window, with the walk of the paint coun
 | a change of one call, no roster | 0 | 149 | 0 |
 | the same, with the roster of the calls of one function, grouped by file | 571 | 33047 | 737 |
 
+**A large roster.** On 2026-10-29 a roster of the 22,731 tasks of one group, with four columns, was measured in `ProjecturedPlatform` alone. After one task starts, a filter on the status computes again in about 6 ms, a sort by the status in about 8 ms, a sort by the name in about 2 ms, and a quick text in about 2 ms. The cell of the inside of that task, the value cell of its status and its cell in the filter or the sort compute again. The rows of a filter compute again only when the answer of that task changes, and a sort moves only its row (the arrangement keeps one cell for each item). The first open costs more, because each item gets a row, a cell of its inside, and a cell in each filter and sort: about 0.4 s for the rows and about 0.5 s for the first filter. When the tasks name one project of about 250 values, the rows take about 0.2 s with `enter_field = is_task_search_field`, and about 2 s without it. The plan [a-roster-and-its-arrangement-cost-what-changed.md](../../../../plan/pending/a-roster-and-its-arrangement-cost-what-changed.md) holds the scripts and each number.
+
 The plan in [roster-table-cost.md](../../../../plan/done/roster-table-cost.md) holds the probe that found these causes, and [computed-cell-stop-measure.md](../../../../plan/done/computed-cell-stop-measure.md) the measure of the stop of a computed cell.
 
 ## Limits

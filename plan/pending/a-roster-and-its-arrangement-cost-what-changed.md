@@ -333,8 +333,13 @@ measures one walk alone first, and it removes what costs most there.
       `test_task_document` 128, `test_task_views` 70, `test_task_group` 84,
       `test_arrangement_filter_sort` 27, `test_pred_file` 45 and
       `test_marker_language` 22 pass.
-- [ ] **Step 8 — Measure again.** The same script, the numbers to the owner, and
+- [x] **Step 8 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.
+
+  **Done, 2026-10-29, but the full suites.** The numbers are in steps 2 to 7,
+  and the roster document has a paragraph "A large roster". `test_kernel` and
+  `test_platform` did not fit in the memory that a job of another session left
+  (a 3.5 GB cap ran out in the precompile); they wait for room with a 10 GB cap.
 
 ## Tests
 
