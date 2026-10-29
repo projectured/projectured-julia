@@ -289,6 +289,38 @@ changes. Mark a step here when it is done.
    for the packages below `InetRunner`. The builder writes a small package that
    lists each package of the binary. `BuildSpec` becomes a build function, like
    `build_omnet_run_executable`.
+
+   As built (2026-10-29, inet `f2667da`, worktree `inet-julia-compile-ahead`):
+   - `InetRunner` runs the old binary workload at its old level `:full` in its
+     own `@compile_ahead` (`source/runner/RunnerWorkload.jl`): the command lines
+     that answer with no run, the parse of the corpus, a whole run of a small
+     network and two configurations of the tutorial. `InetExample` opens and
+     forces its catalog page and one header page. `InetRepl` only re-exports.
+   - Facts: the strict workload found four faults that the old workload hid in
+     a `try`. It imported `iniparse_file`, which omnet no longer has, so each of
+     the 329 INI files of the corpus failed to parse; `-c General` names no
+     configuration; the small network named two packet elements that nobody
+     registers; and `main` answers an exit code, so a failed run said nothing.
+     The workload now reads with `parse_ini_file`, runs `[Config Small]`, uses
+     `ActivePacketSource` and `PassivePacketSink`, and throws when a run ends
+     with another code than 0.
+   - `source/tool/build/Build.jl` is `build_inet_executable` over
+     `ProjecturedBuilder`, with its own context (the sibling checkouts of omnet
+     and projectured), `incremental = false` and a portable processor target by
+     default, as the inet build had. The editor build goes: its package
+     `InetRunnerEditor` is not written, so no build of it could run, and the
+     runner says that the build that draws is not written yet. The front end
+     takes `--precompile-calls=`. `InetRunnerTest` and `environment/tool`
+     depend on `ProjecturedBuilder` in place of Pkg and Preferences.
+   - `BuildContext` of `ProjecturedBuilder` loses its field `statements`, the
+     file of statements that PackageCompiler replays: no repository sets it
+     now, and it was a second mechanism. omnet passes none any more.
+   - Tests: the package graph 39 of 39, the runner command line and run 107 of
+     107, and through the layout of symbolic links the build test, the runner
+     closure and the package graph 65 of 65. `test_inet()` gives 390 pass, 46
+     fail and 34 errors, the same as `main` (an ambiguous `open_page!` between
+     `OmnetPresentation` and `ProjecturedAll` in `InetTest`). The builder suite
+     of projectured passes 593 of 593.
 6. [ ] **The measurement and the end.** Run the measurements of U7 in each
    repository, before step 2 and after step 5, and write both into this plan.
    Remove the section "The code today" from the three design documents.
