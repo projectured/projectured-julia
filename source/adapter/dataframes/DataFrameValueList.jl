@@ -13,8 +13,13 @@
 # `nothing` for the default theme.
 function _make_value_list_dialog(view, column::String; widget = nothing)
     filter = _find_column_filter(view.query, column)
-    make_value_list_dialog(column, view.frame[!, column], filter === nothing ? "" : filter.text,
-                           text -> _make_filter_write_operation(view, column, text); widget)
+    text = filter === nothing ? "" : filter.text
+    type = eltype(view.frame[!, column])
+    function write(values, ticked)
+        written = make_value_list_text(values, ticked)
+        written === nothing ? nothing : _make_filter_write_operation(view, column, written)
+    end
+    make_value_list_dialog(column, view.frame[!, column], value -> is_value_listed(text, value, type), write; widget)
 end
 
 # Open the dialog of the values of `column` in `view` in `editor`. "Apply" posts

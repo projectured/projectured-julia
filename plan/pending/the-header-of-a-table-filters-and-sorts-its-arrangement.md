@@ -80,6 +80,10 @@ Decisions of the design (mine, not the owner's):
 - **D5.** The parser of the platform takes no type: a form of numbers holds only
   for a number value, and a text form compares the text of the value. The data
   frame table gives the type of its column, as now.
+- **D6.** The header parts are a fragment of the widget slice, and their six
+  styles move from `DataFrameTheme` to `WidgetTheme`, because the data frame
+  table and the roster table share them. The widget slice already holds parts of
+  the header of a table (`WidgetTableHeaderLevels.jl`, `WidgetTableParts.jl`).
 
 ## The steps
 
@@ -132,16 +136,19 @@ Each step is one commit on the branch, with its test.
 
   **Done.** What the work found and decided:
   - The parts are in `source/platform/widget/WidgetColumnHeader.jl`, a fragment
-    of the widget slice. `WidgetModule` now does `using ..ArrangementModule`, for
-    `is_value_listed` and `make_value_list_text`. Exported names:
+    of the widget slice, which does not use the arrangement slice: the table of
+    the slice edges (`test_platform_slice_edges`) does not allow it. So the
+    dialog takes `is_ticked(value)` and `write(values, ticked)`, and its caller
+    gives the filter language (`is_value_listed`, `make_value_list_text`).
+    Exported names:
     `find_sort_state(keys, name)`, `compute_clicked_sort_keys(keys, name, adding)`,
     `make_sort_glyph(keys, name, unsorted_color, make_operation; domain)`,
     `make_filter_field(text, range, reason, width, invalid_filter; language,
     placeholder)`, `make_field_child_reference(path)`,
     `make_labeled_field(label, field)`, `compute_value_counts(column; limit)` and
-    `make_value_list_dialog(name, column, filter_text, write; widget)`.
+    `make_value_list_dialog(name, column, is_ticked, write; widget)`.
     `keys` is a vector of `(name, descending)` pairs, `make_operation(adding)` and
-    `write(text)` give the operations, and `domain` names the gestures in the
+    `write(values, ticked)` give the operations, and `domain` names the gestures in the
     gesture help (the table sets "data frame").
   - `make_field_child_reference` is exported because the expression bar and the
     selection of the table of the adapter map a caret through the same second
@@ -171,7 +178,10 @@ Each step is one commit on the branch, with its test.
     `test_appearance_wrapper` 55, `test_settings` 107, `test_settings_tab` 55,
     `test_builder_appearance` 7, `test_widget_table` 17 all pass;
     `test_interface_api` 140 pass and 2 fail, the two of main (33 widget names,
-    the docstring of `WidgetLink`).
+    the docstring of `WidgetLink`). After the dialog stopped using the arrangement
+    slice: `test_platform_slice_edges` 1, `test_widget_column_header` 48,
+    `test_dataframes_layering`, `test_data_frame_filter` and
+    `test_data_frame_columns` 123.
 - [ ] **Step 3 — The header of a roster table with an arrangement.**
   `RosterRowsToWidget` reads the arrangement of its place from the printer
   context. Each header gets the parts of step 2 over the entry: the field edits

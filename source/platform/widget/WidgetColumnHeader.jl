@@ -219,29 +219,29 @@ function compute_value_counts(column::AbstractVector; limit::Int = _VALUE_LIST_L
 end
 
 """
-    make_value_list_dialog(name, column, filter_text, write; widget = nothing) -> (dialog, take)
+    make_value_list_dialog(name, column, is_ticked, write; widget = nothing) -> (dialog, take)
 
 The dialog of the values of the column `name`, and `take()`, which gives the
-operation that "Apply" posts, or `nothing` when no value is ticked. The dialog
-has a box for each distinct value of `column` with the count of its rows, ticked
-as the filter text `filter_text` keeps it. `write(text)` gives the operation
-that writes the filter text `text`, `= a, b` for the ticked values and the empty
-text when all are ticked. A `missing` is not in the list. A column with more than
-1,000 distinct values gives a dialog that says so, and a `take` that gives
-`nothing`. `widget` is the widget theme of the editor that opens the dialog,
-scaled or not, or `nothing` for the default theme.
+operation that "Apply" posts, or `nothing`. The dialog has a box for each
+distinct value of `column` with the count of its rows, ticked when it opens as
+`is_ticked(value)` says. `write(values, ticked)` gives the operation of "Apply"
+for the distinct values and whether each is ticked, or `nothing`. A `missing` is
+not in the list. A column with more than 1,000 distinct values gives a dialog
+that says so, and a `take` that gives `nothing`. `widget` is the widget theme of
+the editor that opens the dialog, scaled or not, or `nothing` for the default
+theme.
 
 Use it with a window that shows the dialog, and connect the button "Apply" to
 `take`.
 
 # Example
 
-    dialog, take = make_value_list_dialog("kind", column, "", text -> write_filter(text))
+    dialog, take = make_value_list_dialog("kind", column, value -> is_value_listed(text, value),
+                                          (values, ticked) -> write_filter(make_value_list_text(values, ticked)))
 
 See also `compute_value_counts`, `is_value_listed`, `make_value_list_text`.
 """
-function make_value_list_dialog(name::String, column::AbstractVector, filter_text::AbstractString, write;
-                                widget = nothing)
+function make_value_list_dialog(name::String, column::AbstractVector, is_ticked, write; widget = nothing)
     counted = compute_value_counts(column)
     if counted === nothing
         text = "The column $(name) has more than $(_VALUE_LIST_LIMIT) distinct values. " *
@@ -250,16 +250,13 @@ function make_value_list_dialog(name::String, column::AbstractVector, filter_tex
                              popup_id = :value_list), () -> nothing)
     end
     values = Any[first(entry) for entry in counted]
-    boxes = WidgetCheckbox[WidgetCheckbox(is_value_listed(filter_text, value, eltype(column));
+    boxes = WidgetCheckbox[WidgetCheckbox(is_ticked(value);
                                           label = string(value) * "  (" * string(count) * ")")
                            for (value, count) in counted]
     size = unwrap_cell(get_widget_style(widget, :value_list_size))
     list = WidgetScrollPane(VerticalLayout(Any[boxes...]; gap = unwrap_cell(get_widget_style(widget, :item_gap)));
                             size = Point2D(Int(size.x[]), Int(size.y[])))
-    function take()
-        text = make_value_list_text(values, Bool[box.content for box in boxes])
-        text === nothing ? nothing : write(text)
-    end
+    take() = write(values, Bool[box.content for box in boxes])
     dialog = WidgetDialog("Filter by values", list, Any[WidgetButton("Cancel"), WidgetButton("Apply")];
                           popup_id = :value_list)
     (dialog, take)

@@ -1,3 +1,5 @@
+using ProjecturedPlatform.ArrangementModule: make_value_list_text, is_value_listed
+
 """
     test_widget_column_header()
 
@@ -79,7 +81,8 @@ function test_widget_column_header()
         @test compute_value_counts(1:5; limit = 4) === nothing
         @test compute_value_counts(1:4; limit = 4) == [i => 1 for i in 1:4]
         written = Any[]
-        dialog, take = make_value_list_dialog("kind", column, "", text -> (push!(written, text); text))
+        write(values, ticked) = (text = make_value_list_text(values, ticked); push!(written, text); text)
+        dialog, take = make_value_list_dialog("kind", column, _ -> true, write)
         boxes = dialog.content.content.children
         @test [box.label for box in boxes] == ["a  (1)", "a, b  (1)", "b  (2)", "c  (1)"]
         @test all(box -> box.content, boxes)
@@ -89,12 +92,12 @@ function test_widget_column_header()
         getfield(boxes[4], :content)[] = false
         @test take() == "= a, \"a, b\""
         # The boxes start from the filter text, and no value ticked takes nothing.
-        dialog, take = make_value_list_dialog("kind", column, "= b", text -> text)
+        dialog, take = make_value_list_dialog("kind", column, value -> is_value_listed("= b", value), make_value_list_text)
         @test [box.content for box in dialog.content.content.children] == [false, false, true, false]
         foreach(box -> getfield(box, :content)[] = false, dialog.content.content.children)
         @test take() === nothing
         # A column of more than 1,000 distinct values says so and takes nothing.
-        dialog, take = make_value_list_dialog("id", collect(1:1001), "", text -> text)
+        dialog, take = make_value_list_dialog("id", collect(1:1001), _ -> true, make_value_list_text)
         @test dialog.content isa AbstractString && occursin("more than 1000", dialog.content)
         @test take() === nothing
     end

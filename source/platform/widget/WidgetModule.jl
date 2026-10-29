@@ -8,7 +8,6 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
-using ..ArrangementModule
 using ..CellModule
 using ..ClockModule
 using ..CollectionModule
