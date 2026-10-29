@@ -8,7 +8,9 @@ call reads the two preferences of the package, `precompile_calls` and
 `precompile_failure`, and then compiles the recorded calls of the package, runs
 its workload, or does nothing. The recording runs the workload of a package or
 of an application in a new process and writes the calls that it compiled into
-the folder `precompile/` of the package that owns them.
+the folder `precompile/` of the package that owns them. The measurements that
+each repository takes the same way, the images of its packages and the build of
+a binary, are here too.
 
 `documentation/design/compile-ahead.md` holds the design: the requirements, the
 decisions, and why there is one mechanism.
@@ -28,11 +30,14 @@ export @compile_ahead,
        find_call_owner, compute_call_owners,
        find_repository_root, trace_package_calls,
        record_package_calls!, record_repository_calls!, record_application_calls!,
-       compare_display_recordings
+       compare_display_recordings,
+       measure_folder_bytes, print_measurement_row, measure_package_images,
+       measure_process_median, measure_binary_build
 
 include("PrecompilePreferences.jl")
 include("PrecompilePackage.jl")
 include("PrecompileFailure.jl")
 include("PrecompileRecording.jl")
+include("PrecompileMeasurement.jl")
 
 end # module PrecompileModule

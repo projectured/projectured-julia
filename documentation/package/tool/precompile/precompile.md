@@ -80,8 +80,25 @@ julia --project=environment/all tool/measure-compile-ahead.jl                   
 julia --project=environment/all tool/measure-compile-ahead.jl --record --binaries   # what the release runs
 ```
 
+The measurements that each repository takes the same way are functions of this
+package, so that omnet-julia and inet-julia measure as this repository does:
+`measure_package_images(environment)` builds each image in a depot of its own
+and answers the build time and the size of each package; `measure_process_median(command)`
+runs a command in new processes and answers the median of each value that it
+prints on a line `MEASUREMENT <label>: <seconds>`; and
+`measure_binary_build(command, bundle)` answers the build time, the peak memory
+and the size of a binary. The command of each repository runs in an environment
+that holds this package, and each measurement runs in a new process of the
+environment of the measured checkout, so `--root=<checkout>` measures a
+checkout from before the change too. omnet-julia has
+`tool/measure-compile-ahead.jl`, which also measures the first window of
+`omnet_ide` and its gestures, and inet-julia has
+`source/tool/build/measure-compile-ahead.jl`, which measures the first run of
+the runner in place of a first frame.
+
 ## Tests
 
-- Test: `test_precompile()` of the test package `ProjecturedPrecompileTest` runs the layering guard, `test_precompile_recording()` and `test_compile_ahead()`.
+- Test: `test_precompile()` of the test package `ProjecturedPrecompileTest` runs the layering guard, `test_precompile_recording()`, `test_precompile_measurement()` and `test_compile_ahead()`.
+- Test: `test_precompile_measurement()` in `test/tool/precompile/PrecompileMeasurementTest.jl`: the size of a folder, and the median of three new processes.
 - Test: `test_precompile_recording()` in `test/tool/precompile/PrecompileRecordingTest.jl`: the trace, the list, the graph of the dependencies, and the package that keeps a call.
 - Test: `test_compile_ahead()` in `test/tool/precompile/PrecompilePackageTest.jl`: a probe package in a temporary repository, built in new processes at each value of the two preferences, and recorded once.

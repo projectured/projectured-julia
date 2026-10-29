@@ -1,5 +1,6 @@
 include("PrecompileRecordingTest.jl")
 include("PrecompilePackageTest.jl")
+include("PrecompileMeasurementTest.jl")
 
 """
     test_precompile_layering()
@@ -22,14 +23,17 @@ end
     test_precompile()
 
 Run the whole suite of `ProjecturedPrecompile`: the layering guard, the parts of
-the recording, and a probe package at each value of its two preferences.
+the recording and of the measurement, and a probe package at each value of its
+two preferences.
 """
 function test_precompile()
     @testset "ProjecturedPrecompile" begin
         test_precompile_layering()
         test_precompile_recording()
+        test_precompile_measurement()
         test_compile_ahead()
     end
 end
 
-export test_precompile, test_precompile_layering, test_precompile_recording, test_compile_ahead
+export test_precompile, test_precompile_layering, test_precompile_recording,
+       test_precompile_measurement, test_compile_ahead

@@ -9,12 +9,22 @@
 # --root      measure another checkout of this repository, for example the one
 #             of a commit before a change (default: this checkout)
 #
+# The command runs in an environment that holds `ProjecturedPrecompile`, and each
+# measurement runs in a new process of the environment of the measured checkout,
+# so a checkout from before the change can be measured too.
+#
 # It measures the build time and the size of the image of each package, in a
 # depot of its own; the `using` line and the first frame of the session of the
 # README; the calls that the start and each gesture of the binary compile; and,
 # with `--binaries`, the build time, the peak memory and the size of the binary.
 
-using Printf
+# The parts that each repository measures the same way are in
+# `ProjecturedPrecompile`: the images of the packages, the timings of new
+# processes and the build of a binary.
+
+using ProjecturedPrecompile: measure_package_images, measure_process_median,
+                             measure_binary_build, record_repository_calls!,
+                             record_application_calls!
 
 const ROOT = let given = filter(argument -> startswith(argument, "--root="), ARGS)
     normpath(isempty(given) ? joinpath(@__DIR__, "..") : abspath(last(given)[8:end]))
@@ -27,47 +37,10 @@ function print_heading(text)
     println(repeat("─", length(text)))
 end
 
-# The size of each file under `folder`, added up.
-function measure_folder_bytes(folder::AbstractString)
-    isdir(folder) || return 0
-    sum((filesize(joinpath(root, file)) for (root, _, files) in walkdir(folder) for file in files);
-        init = 0)
-end
-
-# Each package of `environment/all`, built in a depot of its own, so that no
-# image of another build is reused. The depot takes the packages, the artifacts
-# and the registries of the depot of this process, so the build downloads nothing.
-function measure_package_images()
+# Each package of `environment/all`, built in a depot of its own.
+function measure_images()
     print_heading("The images of the packages")
-    depot = mktempdir()
-    source = first(DEPOT_PATH)
-    for folder in ("packages", "artifacts", "registries", "scratchspaces", "clones")
-        isdir(joinpath(source, folder)) && symlink(joinpath(source, folder), joinpath(depot, folder))
-    end
-    command = addenv(`$JULIA --startup-file=no --project=$(joinpath(ROOT, "environment", "all"))
-                      -e "using Pkg; Pkg.precompile()"`,
-                     "JULIA_DEPOT_PATH" => depot * (Sys.iswindows() ? ";" : ":"),
-                     "JULIA_PKG_OFFLINE" => "true")
-    output = IOBuffer()
-    start = time()
-    process = run(pipeline(ignorestatus(command); stdout = output, stderr = output))
-    seconds = time() - start
-    text = String(take!(output))
-    success(process) || println(last(text, 4000))
-    compiled = joinpath(depot, "compiled", "v$(VERSION.major).$(VERSION.minor)")
-    rows = Tuple{String,Float64,Int}[]
-    for found in eachmatch(r"(?m)^\s*([\d.]+) s\s+✓ (\S+)", text)
-        name = found.captures[2]
-        push!(rows, (name, parse(Float64, found.captures[1]),
-                     measure_folder_bytes(joinpath(compiled, name))))
-    end
-    sort!(rows; by = row -> -row[2])
-    for (name, build, bytes) in rows
-        @printf("  %-44s %8.1f s %9.1f MB\n", name, build, bytes / 1e6)
-    end
-    @printf("  %-44s %8.1f s %9.1f MB\n", "all, the wall time", seconds,
-            measure_folder_bytes(compiled) / 1e6)
-    rm(depot; recursive = true, force = true)
+    measure_package_images(joinpath(ROOT, "environment", "all"))
     nothing
 end
 
@@ -96,37 +69,27 @@ function measure_first_frame()
     (wall, compile)
 end
 (wall, compile) = measure_first_frame()
-println("README ", using_seconds, " ", wall, " ", compile)
+println("MEASUREMENT the using line: ", using_seconds)
+println("MEASUREMENT the first frame: ", wall)
+println("MEASUREMENT the part of the first frame that compiles: ", compile)
 """
 
 function measure_readme_session(; runs::Integer = 3)
     print_heading("The session of the README (the median of $runs runs)")
-    results = NTuple{3,Float64}[]
-    for _ in 1:runs
-        command = addenv(`$JULIA --startup-file=no --project=$(joinpath(ROOT, "environment", "readme-data-frame"))
-                          -e $README_SESSION`, "SDL_VIDEODRIVER" => "offscreen")
-        found = match(r"README (\S+) (\S+) (\S+)", read(ignorestatus(command), String))
-        found === nothing || push!(results, Tuple(parse.(Float64, found.captures)))
-    end
-    if isempty(results)
-        println("  the session printed no result")
-        return nothing
-    end
-    median(values) = sort(values)[cld(length(values), 2)]
-    @printf("  %-44s %8.2f s\n", "the using line", median(first.(results)))
-    @printf("  %-44s %8.2f s\n", "the first frame", median(getindex.(results, 2)))
-    @printf("  %-44s %8.2f s\n", "the part of the first frame that compiles", median(last.(results)))
+    command = addenv(`$JULIA --startup-file=no --project=$(joinpath(ROOT, "environment", "readme-data-frame"))
+                      -e $README_SESSION`, "SDL_VIDEODRIVER" => "offscreen")
+    measure_process_median(command; runs)
     nothing
 end
 
-# The guards: what the first window and each gesture of the binary compile.
+# The guards: what the first window and each gesture of the binary compile, in a
+# process of the environment of the measured checkout.
 function measure_gestures()
     print_heading("The calls that the start and each gesture compile")
-    @eval using ProjecturedTest, Test
-    Base.invokelatest() do
-        ProjecturedTest.test_first_window_compiles_little()
-        ProjecturedTest.test_gestures_compile_little()
-    end
+    script = "using ProjecturedTest, Test; " *
+             "ProjecturedTest.test_first_window_compiles_little(); " *
+             "ProjecturedTest.test_gestures_compile_little()"
+    run(ignorestatus(`$JULIA --startup-file=no --project=$(joinpath(ROOT, "environment", "all")) -e $script`))
     nothing
 end
 
@@ -134,35 +97,18 @@ end
 # size of the bundle. The peak memory needs `/usr/bin/time`.
 function measure_binary()
     print_heading("The binary projectured")
-    command = `$(joinpath(ROOT, "bin", "build_projectured"))`
-    time_tool = "/usr/bin/time"
-    report = tempname()
-    isfile(time_tool) && (command = `$time_tool -f "%M" -o $report $command`)
-    start = time()
-    process = run(ignorestatus(command))
-    seconds = time() - start
-    success(process) || println("  the build failed")
-    @printf("  %-44s %8.1f s\n", "the build time", seconds)
-    if isfile(report)
-        kilobytes = parse(Int, strip(last(readlines(report))))
-        @printf("  %-44s %8.1f GiB\n", "the peak memory of the build", kilobytes / 2^20)
-    end
-    @printf("  %-44s %8.1f MB\n", "the bundle",
-            measure_folder_bytes(joinpath(ROOT, "build", "projectured")) / 1e6)
+    measure_binary_build(`$(joinpath(ROOT, "bin", "build_projectured"))`,
+                         joinpath(ROOT, "build", "projectured"))
     nothing
 end
 
 function record_calls()
     print_heading("The recording")
-    @eval using ProjecturedPrecompile
-    Base.invokelatest() do
-        for path in ProjecturedPrecompile.record_repository_calls!(; root = ROOT)
-            println("  ", relpath(path, ROOT))
-        end
-        for path in ProjecturedPrecompile.record_application_calls!("ProjecturedBuild", "projectured";
-                                                                     root = ROOT)
-            println("  ", relpath(path, ROOT))
-        end
+    for path in record_repository_calls!(; root = ROOT)
+        println("  ", relpath(path, ROOT))
+    end
+    for path in record_application_calls!("ProjecturedBuild", "projectured"; root = ROOT)
+        println("  ", relpath(path, ROOT))
     end
     nothing
 end
@@ -175,7 +121,7 @@ function main(arguments)
     "--record" in arguments && record_calls()
     # A measurement that fails says so and does not stop the others.
     failed = false
-    for measure in (measure_package_images, measure_readme_session, measure_gestures,
+    for measure in (measure_images, measure_readme_session, measure_gestures,
                     ("--binaries" in arguments ? (measure_binary,) : ())...)
         try
             measure()
