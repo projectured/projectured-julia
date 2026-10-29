@@ -125,14 +125,27 @@ prints again. Step 4 counts it.
    vector and of a string, and a position. Each answers the same result as today.
    Then `test_kernel()`. The guide `documentation/package/kernel/reference.md` names
    the predicate.
-3. [x] **The workloads print one assistant turn.** `warm_assistant_turn!` in
-   `source/platform/assistant/`, with a test in a headless editor: the turn has
-   each kind of part, the editor records no fault, and the function answers the
-   assistant. The call in `warm_application()` lands on main of projectured-julia
-   first. The call in `OmnetIde.precompile_workload!` follows in omnet-julia,
-   because a worktree of omnet-julia does not see a change of projectured-julia
-   that is not on main. The guide `documentation/package/platform/assistant/assistant.md`
-   says what the warm-up covers.
+3. [ ] **The workloads print one assistant turn.** Main moved to the design of
+   `documentation/design/compile-ahead.md` on 2026-10-29: each package compiles its
+   recorded lists `precompile/*.txt` by default, and a workload runs only when a
+   person records the lists again. So the turn is a step of the window workloads,
+   and the lists are recorded again. The owner approved this form with "yes" on
+   2026-10-29.
+   - `warm_assistant_turn!(editor, assistant)` in `source/platform/assistant/`
+     puts the events of one agent turn into the queue of a session, which the
+     feed of the window drains. The step `WorkloadAgentTurn` of
+     `ApplicationWorkload.jl` calls it on the assistant that the window shows.
+   - `run_window_workload()` of the platform and `make_ide_workload_steps` of
+     omnet-julia give the step after the turn of their built-in assistant, wait
+     for its answer, and click in its code and on "Allow".
+   - Tests: `test_external_agent_turn()` and `test_window_workload()` in
+     projectured-julia, `test_ide_window_workload()` in omnet-julia (through a
+     scratch environment whose paths go to both worktrees).
+   - The recordings, in this order: `record_package_calls!("ProjecturedPlatform")`,
+     `record_application_calls!("ProjecturedBuild", "projectured")`, then in
+     omnet-julia `record_package_calls!("OmnetIde")` and
+     `record_application_calls!("OmnetIdeBuild", "omnet_ide")`.
+   - The guide `assistant.md` says what the warm-up covers.
 4. [ ] **The live check.** The profile scripts of `/var/tmp/ide-profile-20261021/scripts/`
    again, with one long turn of the same kind. Counts, which do not depend on the
    load of the machine:
@@ -259,6 +272,32 @@ prints again. Step 4 counts it.
 - The precompile of the app logs "The pane has no duplicate" twice for the
   `StudyStudy` pane. The F1 and Ctrl+Shift+P reads of the workload make it while
   the Study tab has the focus, before the assistant pane opens.
+
+### Step 3, second form (2026-10-29)
+
+- The branch moved onto main (`d338b8d04`). Steps 1 and 2 applied with no change.
+  The first form of step 3 conflicted: `warm_application()` moved to
+  `ApplicationWorkload.jl`, and omnet-julia has no `IdePrecompile.jl` any more. The
+  helper, its test and the guide kept their commit; the calls of the workloads
+  went, and the omnet commit `e6fe4a3b` left the branch.
+- `warm_assistant_turn!(editor, assistant)` makes an `ExternalAgentSession` with no
+  connection, makes its queue with `_make_agent_event_queue!` (which registers it
+  with the `AgentEventFeed` of the window, at once on the task of the editor), puts
+  the events with `put_agent_event!`, and calls `wake_editor!`. The frames that
+  follow drain the queue, so a recording also sees the drain of the feed, which
+  took 228 compile samples and 454 work samples of the loop in the first profile.
+  The assistant keeps the session, which only a window that its workload closes
+  takes.
+- `WorkloadAgentTurn` (exported by `ApplicationModule`) finds the first view whose
+  input is an `Assistant` (`_collect_part_iomaps`, which `_collect_part_outputs`
+  now uses too), calls `warm_assistant_turn!` there, and gives no device input.
+- `run_window_workload()` and `make_ide_workload_steps` give, after the turn of the
+  built-in assistant: `WorkloadAgentTurn()`, `WorkloadWait(DrawnText(r"33\.5"))`,
+  `WorkloadClick(DrawnText(r"lengths_1"))` and `WorkloadClick(DrawnText("Allow"))`.
+  `lengths_1` is only in the code of the turn, which a pane keeps in view.
+- Tests (projectured worktree, `bounded-run`): `test_external_agent_turn()` 305
+  passes; `test_window_workload()` 1 pass, so each new step found its target and no
+  barrier caught a fault.
 
 ### Step 4
 
