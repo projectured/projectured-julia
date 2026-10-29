@@ -157,7 +157,6 @@ Tuple{typeof(Base.isempty), Base.Dict{String, Any}}
 Tuple{typeof(Base.isequal), Int64, Int64}
 Tuple{typeof(Base.isequal), Task, Task}
 Tuple{typeof(Base.isequal), Tuple{Symbol, Int64, Vararg{UInt64, 4}}, Tuple{Symbol, Int64, Vararg{UInt64, 4}}}
-Tuple{typeof(Base.isequal), Type, Type}
 Tuple{typeof(Base.isequal), UInt8}
 Tuple{typeof(Base.isfinite), Float64}
 Tuple{typeof(Base.isodd), Int64}

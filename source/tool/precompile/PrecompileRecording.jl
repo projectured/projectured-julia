@@ -37,6 +37,19 @@ function is_compiling_package(folder::AbstractString)
 end
 
 """
+    has_package_workload(folder) -> Bool
+
+Whether the entry file of the package in `folder` calls
+[`@compile_ahead`](@ref) with a workload, and not alone.
+"""
+function has_package_workload(folder::AbstractString)
+    entry = joinpath(folder, "src", basename(normpath(folder)) * ".jl")
+    isfile(entry) || return false
+    text = read(entry, String)
+    occursin(r"(?m)^\s*@compile_ahead\b", text) && !occursin(r"(?m)^\s*@compile_ahead\s*$", text)
+end
+
+"""
     collect_compiling_packages(root) -> Vector{String}
 
 The packages in `root/package/` whose entry file calls
@@ -73,10 +86,13 @@ function collect_package_closures(environment::AbstractString)
     closures
 end
 
-# The first name of each dotted name in `call`: the modules that it names.
+# The modules that `call` names: the first name of each dotted name, and each
+# bare name, as `Pkg` in `Base.Val{Pkg}`. The caller keeps only the names of
+# packages, so a bare name of a type counts for nothing.
 function _collect_call_roots(call::AbstractString)
     roots = Set{String}()
     function visit(x)
+        x isa Symbol && push!(roots, String(x))
         x isa Expr || return
         if x.head === :.
             first = x
@@ -136,7 +152,8 @@ end
 The calls of a file that `--trace-compile` wrote, once each and sorted, so that
 a new recording makes a diff that a person can read. A call that names `Main`
 belongs to the command of the recording, and a call that does not parse cannot
-be read back, so both are dropped.
+be read back, so both are dropped, and so is a call of
+`ProjecturedPrecompile` itself, which belongs to no package.
 """
 function collect_traced_calls(trace::AbstractString)
     prefix = "precompile("
@@ -144,7 +161,7 @@ function collect_traced_calls(trace::AbstractString)
     for line in eachline(trace)
         line = strip(replace(line, r"^#=.*?=#\s*" => "", r"\)\s*#[^)]*$" => ")"))
         (startswith(line, prefix) && endswith(line, ")")) || continue
-        occursin("Main.", line) && continue
+        (occursin("Main.", line) || occursin("ProjecturedPrecompile.", line)) && continue
         call = line[(length(prefix) + 1):(end - 1)]
         _is_complete_call(call) && push!(kept, call)
     end
@@ -263,13 +280,14 @@ end
     record_repository_calls!(; root, environment, display, threads) -> Vector{String}
 
 Record the workload of each package of the repository `root` that calls
-[`@compile_ahead`](@ref), each one after the packages that it depends on.
-Answers the paths.
+[`@compile_ahead`](@ref) with a workload, each one after the packages that it
+depends on. Answers the paths.
 """
 function record_repository_calls!(; root::AbstractString = _get_default_root(),
                                   environment::AbstractString = joinpath(root, "environment", "all"),
                                   kwargs...)
-    packages = collect_compiling_packages(root)
+    packages = filter(package -> has_package_workload(joinpath(root, "package", package)),
+                      collect_compiling_packages(root))
     closures = collect_package_closures(environment)
     count_below(package) = count(other -> other in get(closures, package, Set{String}()), packages)
     sort!(packages; by = package -> (count_below(package), package))
@@ -285,7 +303,14 @@ repository that keeps it, as [`compute_call_owners`](@ref) chooses. The other
 packages keep their own recorded calls while the workload runs, so this records
 only the calls that their own workloads do not compile. The old files of
 `application` go first, so that their calls compile again and the trace sees
-them. Answers the paths that it wrote.
+them.
+
+A package that loads later can make the code of a call invalid in the image of
+the lower package that keeps it. So at the end the recording records the
+workload of `package` again, into its `precompile/workload.txt`, with the new
+files in place: that trace holds each call that the binary still compiles,
+also each call that compiles again, and the package of the application, which
+loads last, keeps it. Answers the paths that it wrote.
 """
 function record_application_calls!(package::AbstractString, application::AbstractString;
                                    root::AbstractString = _get_default_root(),
@@ -299,9 +324,11 @@ function record_application_calls!(package::AbstractString, application::Abstrac
     calls = trace_package_calls(package; root, environment, kwargs...)
     owners = compute_call_owners(calls, candidates, collect_package_closures(environment);
                                  fallback = package)
-    [write_recorded_calls!(joinpath(root, "package", owner, "precompile", file), owned;
-                           workload = application)
-     for (owner, owned) in sort!(collect(owners); by = first)]
+    paths = [write_recorded_calls!(joinpath(root, "package", owner, "precompile", file), owned;
+                                   workload = application)
+             for (owner, owned) in sort!(collect(owners); by = first)]
+    push!(paths, record_package_calls!(package; root, environment, kwargs...))
+    paths
 end
 
 """

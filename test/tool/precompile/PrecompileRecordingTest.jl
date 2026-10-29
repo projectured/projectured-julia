@@ -80,6 +80,8 @@ function test_precompile_recording()
                 # The lowest package that sees what the call names.
                 @test owner("Tuple{typeof(Platform.f), Graph.Node}") == "Graph"
                 @test owner("Tuple{typeof(Platform.f), Kernel.Cell}") == "Platform"
+                # A bare name of a package counts as a module that the call names.
+                @test owner("Tuple{typeof(Platform.f), Base.Val{Graph}}") == "Graph"
                 # Base and a module that the manifest does not name are seen by all.
                 @test owner("Tuple{typeof(Base.sum), Array{Int64, 1}}") == "Platform"
                 # A call that joins two packages, where neither depends on the other.

@@ -178,6 +178,38 @@ changes. Mark a step here when it is done.
      landing of the release.
    - `environment/build` and `environment/readme-data-frame` are resolved
      again, because their packages now depend on `ProjecturedPrecompile`.
+   Measured (2026-10-29), projectured only, `tool/measure-compile-ahead.jl`
+   with no binary, on `main` (`e30ac20d8`) and on this branch:
+
+   | | main | this branch |
+   |---|---:|---:|
+   | the images of `environment/all` in a new depot | 743 s, 1374 MB | 516 s, 1331 MB |
+   | `ProjecturedPlatform` | 198 s, 307 MB | 103 s, 292 MB |
+   | `ProjecturedREPL` | 156 s, 306 MB | 16 s, 3 MB |
+   | `ProjecturedExample` | 9 s, 2 MB | 87 s, 175 MB |
+   | `ProjecturedBuild` | — | 65 s, 94 MB |
+   | the `using` line of the README session | 2.09 s | 2.09 s |
+   | its first frame (the part that compiles) | 0.89 s (0.69) | 0.96 s (0.76) |
+   | the start of the binary: statements (compiled again) | 77 (1) | 73 (6) |
+   | 166 gestures: statements (compiled again) | 251 (2) | 310 (80) |
+   | gestures over 10 statements | 4 | 4 |
+
+   Facts from the measurement:
+   - Two of the three calls that the application recording gave to
+     `ProjecturedAnthropic` named `Base.Val{Pkg}`; `Pkg` stands bare there,
+     and the owner rule saw only the first names of dotted names. The rule now
+     counts a bare name of a package too, and the compile puts a loaded module
+     in place of a bare name.
+   - The 80 calls compiled again are mostly the save of each format and the
+     reads of intents. Each list holds them, and a package that loads later
+     makes them invalid. The same gestures on `main` compile about as many calls
+     new, not again: Ctrl+S on a book file is 14 new calls on `main` and 13 here,
+     10 of them again. A second recording of `ProjecturedBuild` after the
+     application lists, `"live"` for `ProjecturedBuild` alone (99 again), and
+     `"live"` for every package (92 again) do not change it. The cause is open.
+   - `record_application_calls!` records the package of the application again
+     at its end, so that its list follows the new lists of the lower packages.
+   - The measurement command continues when one measurement fails, and says so.
 4. [ ] **omnet: each package uses it.**
    - `OmnetIde`, `OmnetLegacyFormat`, `OmnetLegacyResultPresentation`,
      `OmnetPresentationExample` and `OmnetSimulator` call

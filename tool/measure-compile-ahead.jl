@@ -173,11 +173,18 @@ function main(arguments)
     isempty(unknown) || (println(stderr, "unknown option ", first(unknown)); return 1)
     println("Measuring ", ROOT)
     "--record" in arguments && record_calls()
-    measure_package_images()
-    measure_readme_session()
-    measure_gestures()
-    "--binaries" in arguments && measure_binary()
-    0
+    # A measurement that fails says so and does not stop the others.
+    failed = false
+    for measure in (measure_package_images, measure_readme_session, measure_gestures,
+                    ("--binaries" in arguments ? (measure_binary,) : ())...)
+        try
+            measure()
+        catch exception
+            failed = true
+            println("  the measurement failed: ", first(split(sprint(showerror, exception), "\n")))
+        end
+    end
+    failed ? 1 : 0
 end
 
 exit(main(ARGS))

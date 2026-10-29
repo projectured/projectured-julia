@@ -132,7 +132,8 @@ end
 
 # A recorded call names each type by the module that defines it. The first name
 # of each dotted name becomes the module object of that name, the package itself
-# included, which is not in `Base.loaded_modules` while it precompiles. The
+# included, which is not in `Base.loaded_modules` while it precompiles, and so
+# does a bare name of a loaded module, as `Pkg` in `Base.Val{Pkg}`. The
 # expression is then evaluated in the package, and it defines no name there.
 function _compile_recorded_call(package::Module, modules::Dict{Symbol,Module},
                                 call::AbstractString)
@@ -144,6 +145,7 @@ function _compile_recorded_call(package::Module, modules::Dict{Symbol,Module},
 end
 
 function _insert_call_modules(x, modules::Dict{Symbol,Module})
+    x isa Symbol && return get(modules, x, x)
     x isa Expr || return x
     if x.head === :.
         root = x.args[1]
