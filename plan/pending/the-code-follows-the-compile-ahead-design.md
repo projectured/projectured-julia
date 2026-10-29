@@ -407,7 +407,38 @@ changes. Mark a step here when it is done.
    gesture what the image holds: 80 against 2 in `projectured`, most of them
    in the saves (`Ctrl+S saves SqlFile.sql` 13 statements, 11 of them
    recompiles), and 42 against 1 in `omnet_ide`, most of them in the presses
-   and the typing in the tables of results. The cause is not known yet.
+   and the typing in the tables of results.
+
+   The cause in `projectured` (2026-10-29, the logs of both checks of Julia:
+   `jl_debug_method_invalidation` and
+   `Base.Compiler.ReinferUtils.debug_method_invalidation`): the load order of
+   the binary package. Nothing is invalidated during the gestures; all of it
+   happens during the load. `ProjecturedApp` imports the domain packages
+   first, then `using` the platform, the adapters and `ProjecturedBuild`. The
+   images of the domains bring their compiled save calls early. Packages that
+   load after them add methods that invalidate those calls through a dynamic
+   call:
+   - `show(::IO, ::RawDatabaseResult)` of `ProjecturedDatabase` and
+     `show(::IO, ::URI)` of URIs, through `show(::IOContext{IOBuffer}, ::Any)`,
+     into `print_path_text(::Reference)` and `_reference_marker(::Any,
+     ::Reference)`, then `_cut_copy` and `_cut_field`;
+   - `keys(::Test.GenericArray)` of Test, through `keys(::AbstractVector)`,
+     into `_read_override_click_along`;
+   - `get_file_domain(::Type{<:JsonFile})`, into `is_file_domain_node`.
+
+   After the load, the 89 recompiled calls have a valid compiled copy as
+   follows: `using ProjecturedApp` 3; `using ProjecturedBuild` alone 84;
+   `ProjecturedBuild` first, then `ProjecturedApp` 84; the `using` lines
+   first, then the domain imports, 81. The 5 that stay stale with
+   `ProjecturedBuild` first also stay stale when it loads alone: 3 `__init__`
+   of JLL packages, a `run_fault_barrier!` body and a `handle_message` call.
+   The main checkout writes the same import order, so the order alone does not
+   explain why main recompiles 2. Not checked: whether on main the images of
+   the domains held these calls at all. `omnet_ide` is not studied. The
+   binaries do not have this problem: their system image compiles all code in
+   one process, and step 9 of
+   [a-gesture-compiles-nothing.md](../done/a-gesture-compiles-nothing.md)
+   measured 0 recompiles with it.
 
    The binaries. Decided (the owner, 2026-10-29, "let's skip all inet stuff
    for now and focus only on projectured and omnet"): five builds, each in a
