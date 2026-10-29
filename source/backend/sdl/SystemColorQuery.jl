@@ -214,8 +214,10 @@ function _read_command_output(command::Cmd, limit::Real)
         kill(process)
         return nothing
     end
+    # The type of `text` is known, so a package that adds a method to `match`
+    # for its own string type does not make the readers of the answer invalid.
     text = try
-        fetch(reader)
+        fetch(reader)::String
     catch
         nothing
     end

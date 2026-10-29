@@ -433,7 +433,10 @@ end
 
 function _find_cell_slot(node, step::ARangeReferenceStep)
     is_position_reference_step(step) && return nothing
-    slot = get_slot_at(node, step.start + 1)
+    # `start` is an `Int` (`RangeReferenceStep`), but a field read of the abstract
+    # step gives no type, and `get_slot_at` of an abstract `Integer` is a call that a
+    # package loaded later can make invalid.
+    slot = get_slot_at(node, (step.start::Int) + 1)
     slot isa AbstractCell ? slot : nothing
 end
 

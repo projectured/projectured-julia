@@ -1818,7 +1818,13 @@ function _fill_polygon!(renderer::Ptr{SDL_Renderer}, pts,
 end
 
 function _render_polygon!(renderer::Ptr{SDL_Renderer}, pg::GraphicsPolygon, ox::Int, oy::Int)
-    pts = [(Float64(p[1]) + ox, Float64(p[2]) + oy) for p in pg.points]
+    # The points have no declared type (`points::Any`). A collect of them compiles
+    # `Int(::Integer)`, which a package loaded later can make invalid, so the loop
+    # fills a vector of a concrete type.
+    pts = Tuple{Float64,Float64}[]
+    for p in pg.points
+        push!(pts, (Float64(p[1])::Float64 + ox, Float64(p[2])::Float64 + oy))
+    end
     length(pts) < 3 && return
     pg.color.alpha > 0 && _fill_polygon!(renderer, pts, _rgba8(pg.color)...)
     bw = Int(pg.border_width)
@@ -2471,7 +2477,9 @@ function _is_hashed_faithfully(value)::Bool
     value isa Ptr && return false
     value isa AbstractString && return true
     value isa Tuple && return all(_is_hashed_faithfully, value)
-    value isa AbstractArray && return length(value) < 32768 && isbitstype(eltype(value))
+    # `eltype` of the type: a package that adds `eltype` of its own array makes a
+    # call of `eltype` of an abstract array invalid, but not this call.
+    value isa AbstractArray && return length(value) < 32768 && isbitstype(eltype(typeof(value)))
     ismutable(value) || return true
     T = typeof(value)
     fieldcount(T) > 0 && all(i -> fieldtype(T, i) <: ImmutableCell, 1:fieldcount(T))

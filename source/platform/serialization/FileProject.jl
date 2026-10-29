@@ -500,7 +500,9 @@ _is_marker_text(e::Expr) =
 
 # The tag of a text of a format, `:json` for `json"…"`, or `nothing`.
 function _get_marker_text_tag(e::Expr)
-    name = String(e.args[1])
+    # The caller checks that the name is a `Symbol`. With the type known, a package
+    # that adds `startswith` for its own type does not make this code invalid.
+    name = String(e.args[1]::Symbol)
     startswith(name, "@") && endswith(name, "_str") && Base.length(name) > 5 || return nothing
     tag = name[2:(end - 4)]
     Base.isidentifier(tag) ? Symbol(tag) : nothing

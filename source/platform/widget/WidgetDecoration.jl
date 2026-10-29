@@ -104,7 +104,10 @@ function _push_icon_mark!(elements::Vector, badge, mark::WidgetIconMark, corner:
     mark_color = role === nothing ? color : _get_role_text_color(badge, role, color)
     content = mark.content
     if content isa Integer
-        text = content > 99 ? "99+" : string(content)
+        # A count of any integer type is `Any` for inference: a call of `string`
+        # of an abstract `Integer` is one that a package loaded later can make invalid.
+        count = Base.inferencebarrier(content)
+        text = (count > 99 ? "99+" : string(count))::String
         font = with_font_size(badge.label_text.font, max(8, round(Int, size * _ICON_COUNT_SHARE)))
         text_width, text_height = _text_size(badge.measure, font, text)
         height = text_height + 2

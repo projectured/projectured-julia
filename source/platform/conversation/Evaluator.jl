@@ -227,7 +227,13 @@ const _ARGUMENT_LINE_WIDTH = 80
 # `depth` when `depth` is given. The keys of a dictionary are in key order.
 function _write_json(io::IO, value, depth::Union{Nothing,Int} = nothing)
     if value isa AbstractDict
-        items = sort!([(string(key), item) for (key, item) in value]; by = first)
+        # A vector of a concrete type: `sort!` of a comprehension over an abstract
+        # dictionary is a call that a package loaded later can make invalid.
+        items = Tuple{String,Any}[]
+        for (key, item) in value
+            push!(items, (string(key)::String, item))
+        end
+        sort!(items; by = first)
         _write_json_items(io, items, depth, '{', '}') do (key, item)
             _write_json(io, key)
             print(io, ": ")

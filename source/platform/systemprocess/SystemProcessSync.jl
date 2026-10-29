@@ -144,7 +144,9 @@ function drain_system_process_tree!(tree::SystemProcessTree; now::Real = time(),
     end
     if sampler.reading === nothing && now - sampler.started_at >= interval
         sampler.started_at = Float64(now)
-        root_process_ids = collect(Int, tree.root_process_ids)
+        # The field is a `Vector{Int}`, but its read gives no type, and a collect of
+        # a value of no type compiles a call that a package loaded later can make invalid.
+        root_process_ids = collect(Int, tree.root_process_ids::Vector{Int})
         sampler.reading = Threads.@spawn :default _read_into_sampler!(sampler, root_process_ids)
     end
     synced

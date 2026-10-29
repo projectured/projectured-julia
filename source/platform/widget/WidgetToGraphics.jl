@@ -1987,9 +1987,12 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # An empty field of plain text shows its placeholder, an example of what
         # it takes, where its text begins, and is as wide as the example.
         placeholder = w.placeholder
-        shows_placeholder = placeholder !== nothing && !(w.content isa Document) && isempty(string(w.content))
+        # The flag is a `Bool` for inference, so a package that adds `|` for its
+        # own type does not make this code invalid.
+        shows_placeholder = placeholder !== nothing && !(w.content isa Document) &&
+                            isempty(string(w.content)::String)
         shows_placeholder |= placeholder !== nothing && value_slot !== nothing &&
-                             isempty(string(value_slot[].output))
+                             isempty(string(value_slot[].output)::String)
         inner_w = Int(inner.w[])
         placeholder_style = StyleText(text_style.font, p.placeholder_text.color)
         shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, placeholder_style.font,
