@@ -358,6 +358,64 @@ changes. Mark a step here when it is done.
    - The section "The code today" goes from the three design documents
      (projectured `5670e98c4`, omnet `1db23c48b`, inet `1e91ecd`).
 
+   Results without the binaries (2026-10-29, 10:58 to 13:05, Julia 1.13.1, one
+   job of 20 GB; another session ran jobs at the same time, a load average of
+   about 6 on 32 cores). "main" is the main checkout of each repository, the
+   code before step 2; "branch" is the tree of the branches. The outputs are
+   in the scratch folder of the session, `measure/<repository>-<main|branch>.txt`.
+
+   The images of `environment/all`, in a depot of its own, the default
+   parallel precompile:
+
+   | | main | branch |
+   |---|---:|---:|
+   | projectured: the wall time, the size | 768.9 s, 1375 MB | 527.4 s, 1330 MB |
+   | omnet | 1156.5 s, 1838 MB | 899.2 s, 2093 MB |
+   | inet | 706.8 s, 1284 MB | 449.0 s, 1188 MB |
+   | `ProjecturedPlatform` (in each of the three) | 202 to 205 s | 107 to 115 s |
+   | the other slow images of projectured | `ProjecturedREPL` 159.2 s, `ProjecturedSDL` 84.2 s | `ProjecturedExample` 88.3 s, `ProjecturedBuild` 66.5 s |
+   | of omnet | `OmnetRepl` 321.3 s, `OmnetIde` 140.7 s | `OmnetPresentationExample` 136.7 s, `OmnetIde` 66.0 s |
+   | of inet | `InetRepl` 177.4 s, `ProjecturedSDL` 78.9 s | `InetExample` 38.1 s, `InetRepl` 27.6 s |
+
+   The sessions from source, each the median of three new processes, in
+   seconds (the part that compiles in parentheses):
+
+   | | main | branch |
+   |---|---:|---:|
+   | projectured, the README: the `using` line | 2.13 | 2.16 |
+   | projectured, the README: the first frame | 0.85 (0.69) | 0.99 (0.78) |
+   | omnet, `using OmnetIde, ProjecturedSDL` | 11.5 | 11.23 |
+   | omnet, the first frame of `run_omnet_ide` | 4.97 (4.2) | 4.96 (4.24) |
+   | inet, `using InetRunner` | 7.31 | 7.57 |
+   | inet, the first run of `ActiveSourcePassiveSink` | 11.37 (11.33) | 0.17 (0.14) |
+
+   The omnet session loads `OmnetIde`, not `OmnetIdeBuild`, so the workload
+   of the window is not in what it loads, on main or on the branch.
+
+   The guards of the binaries. Each image of a binary runs its workload with
+   no warning, and each guard has 2 passes and 3 broken, on main and on the
+   branch:
+
+   | | main | branch |
+   |---|---:|---:|
+   | `projectured`: the start (recompiles) | 77 (1) | 72 (6) |
+   | `projectured`: 166 gestures, statements (recompiles), over 10 | 251 (2), 4 | 310 (80), 4 |
+   | `omnet_ide`: the start (recompiles) | 91 (1) | 87 (3) |
+   | `omnet_ide`: 202 gestures, statements (recompiles), over 10 | 247 (1), 8 | 240 (42), 6 |
+
+   **Open: the recompiles of the branch.** The branch compiles again in a
+   gesture what the image holds: 80 against 2 in `projectured`, most of them
+   in the saves (`Ctrl+S saves SqlFile.sql` 13 statements, 11 of them
+   recompiles), and 42 against 1 in `omnet_ide`, most of them in the presses
+   and the typing in the tables of results. The cause is not known yet.
+
+   The longest chain of images sets the wall time, not the count of cores: on
+   the branch the images of projectured are 995 s of work, 31 s on 32 cores,
+   but their longest chain is 283 s (`ProjecturedKernel` → `ProjecturedPlatform`
+   → … → `ProjecturedExample` → `ProjecturedTest` → `ProjecturedREPL`), and
+   493 s on main. The precompile jobs of this plan used 2.4 to 2.5 cores on
+   average.
+
 ## Hazards
 
 - A list names closures that the compiler generated, so it goes stale when the
