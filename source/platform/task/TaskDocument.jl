@@ -82,6 +82,28 @@ has_document_duplicate(::TaskDocument) = true
 
 # A search finds the group of a task where the group is, not back through the task.
 is_field_walked(::TaskDocument, name::Symbol) = name !== :group
+
+"""
+    is_task_search_field(parent, name) -> Bool
+
+Whether a search for tasks reads the field `name` of `parent`: from a task, only
+its inner group, which holds the tasks of a task that is a group; from a group,
+only its tasks and its preparation; from anything else, every field. So a search
+for the tasks of a group reads no task value, no execution and no result document
+of a task, and computes none of them.
+
+Use it as the `enter_field` of a search for tasks, such as the source of a roster
+of the tasks of groups.
+
+# Example
+
+    Roster(ItemsWithin(CollectionItems(@reference(groups)), TaskDocument; enter_field = is_task_search_field))
+"""
+is_task_search_field(parent, name) = true
+is_task_search_field(parent::TaskDocument, name) = name === :inner_group
+
+# A file that keeps a roster of tasks names the function.
+is_pred_constructible(::typeof(is_task_search_field)) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
                                                     executions = CellVector(), result_document = nothing,

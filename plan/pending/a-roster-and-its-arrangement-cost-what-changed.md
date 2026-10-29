@@ -259,8 +259,10 @@ measures one walk alone first, and it removes what costs most there.
     `test_roster_facets` 30, `test_roster_program` 21,
     `test_arrangement_filter_sort` 27, `test_arrangement_quick_text` 24,
     `test_arrangement_group` 24 and `test_task_views` 70 pass.
-- [ ] **Step 7 — D5, an inside walk costs less.** Added after step 5 (the owner,
-  2026-10-29: "yes").
+- [x] **Step 7 — D5, an inside walk costs less.** Added after step 5 (the owner,
+  2026-10-29: "yes"). **Done in projectured, 2026-10-29**; the omnet task views
+  pass `enter_field = is_task_search_field` after this branch lands, because the
+  omnet branch builds against projectured main.
 
   What the work found so far:
   - One inside walk alone, outside a cell, costs 3.6 µs (82 ms for 22,731
@@ -278,7 +280,59 @@ measures one walk alone first, and it removes what costs most there.
     already is, removed it: 514 ms for the rows and 112 ms for the first filter
     with the shared project; 250 ms for the rows of `measure.jl` (390 ms before).
     It also means that a search no longer finds a document or a text inside the
-    value of a task. The trial is not committed: it waits for the owner.
+    value of a task. The trial is not committed.
+  - **Decided by the owner, 2026-10-29.** Not the opaque task: "no, let's not
+    limit the search functionality this way for now". Not a task source of the
+    task slice either; the owner: "we already have a generic way of walking
+    documents in the kernel which can take various functional arguments, why not
+    use that for rosters?", "can a function be saved with its name if it has one
+    and looked up when loaded?", and "can we fix the walk so that it can decide
+    before the field is read?". To the design that follows: "yes".
+  - The design:
+    - `walk_document` takes `enter_field(parent, name) -> Bool`, which it asks
+      where it asks `is_field_walked`, before it reads the field. A refused field
+      is not read, so a computed field is not computed. `descend` stays as it is.
+    - `ItemsWithin(source, type; descend, enter_field)` holds the two functions of
+      the walk, `nothing` by default, and gives them to each search of a part and
+      of an inside. A file writes them only when they are given.
+    - A pred file names a function as it names a type: by its bare name, looked up
+      among the loaded modules, for a function whose package marks it with
+      `is_pred_constructible(::typeof(f)) = true`. The reader builds a value from
+      a call only for a name with an upper-case first letter, so a file never
+      calls a function that it names. A closure is refused, as before.
+    - The task slice gives `is_task_search_field(parent, name)`: from a task, only
+      `inner_group`; from anything else, every field. The omnet task views pass it
+      as `enter_field`.
+  - What the work found and decided:
+    - The walk also gives `enter_field` the positions of the fields of a tuple, so
+      the function takes any name, not only a `Symbol`.
+    - A group document holds its task documents in `tasks` and in `preparation`
+      (the task of its preparation), and its model and its shadow hold the task
+      values. So `is_task_search_field` reads only `tasks` and `preparation` of a
+      group, and the search of a part no longer walks every task value either.
+    - The grammar of a marker took a bare name only with a capital. It now also
+      takes the name of a function that a file may name
+      (`_is_marker_function_name`). The serialization document said "a file still
+      can not name a function"; it now says that a file names such a function as
+      a value and never calls it.
+    - `describe_roster_sources` reads the signature of the docstring, so it now
+      shows `ItemsWithin(source, type; descend = nothing, enter_field = nothing)`.
+    - The numbers, one thread and no compile workloads (a job of another session
+      held most of the memory), first open, warm, 22,731 tasks that name one
+      project of about 250 values: with no function, the rows 1999 ms and the
+      first filter 118 ms; with `enter_field = is_task_search_field`, the rows
+      216 ms and the first filter 109 ms. Main took 796 ms and 381 ms in an
+      earlier run. After one task starts, every case stays below 10 ms.
+    - An `ItemsWithin` with no function still walks a shared value once for each
+      item, which costs more than main when the items share a large value.
+    - Tests: the new testsets "a walk decides about a field before it reads the
+      field", the save and read of a source with a function and the refusal of a
+      closure, and a roster of a group of groups with `is_task_search_field` that
+      computes no result document. `test_document_contract` 154, `test_roster` 69,
+      `test_roster_table` 37, `test_roster_sources` 19, `test_roster_program` 21,
+      `test_task_document` 128, `test_task_views` 70, `test_task_group` 84,
+      `test_arrangement_filter_sort` 27, `test_pred_file` 45 and
+      `test_marker_language` 22 pass.
 - [ ] **Step 8 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.
 

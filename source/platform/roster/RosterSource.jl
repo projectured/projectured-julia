@@ -42,7 +42,7 @@ function collect_roster_items(source::CollectionItems, link, part)
 end
 
 """
-    ItemsWithin(source, type)
+    ItemsWithin(source, type; descend = nothing, enter_field = nothing)
 
 The documents of `type` inside each item of `source`, at any depth. Each item of
 `source` is one part, and the inside of each document that it finds is a part of
@@ -52,6 +52,13 @@ gathers the documents inside that document again, and of no other. The row of
 each such document holds the item of `source` that holds it, which the key
 `within` names.
 
+`descend` and `enter_field` are the functions of the same names of
+`walk_document`, which each search of a part and of an inside takes, or `nothing`
+for a search that enters every child and reads every field. Give them when the
+documents can lie only in some parts of an item, so that a search reads nothing
+else. A file writes each by its name, so each must be a function with a name that
+its package lets a file name (`is_pred_constructible`).
+
 Use it to give a roster the documents of one type that lie inside other items.
 
 # Example
@@ -59,12 +66,28 @@ Use it to give a roster the documents of one type that lie inside other items.
     # every call in the files of the tabs, each with its file
     Roster(ItemsWithin(TabDocuments(FileDocument), JuliaCall); columns = ["callee", "within.name"])
 
+    # every task of the groups of a list, and the tasks of their inner groups
+    Roster(ItemsWithin(CollectionItems(@reference(groups)), TaskDocument; enter_field = is_task_search_field))
+
 See also `Roster` and `TabDocuments`.
 """
 struct ItemsWithin
     source::Any
     type::Type
+    descend::Any
+    enter_field::Any
 end
+
+ItemsWithin(source, type::Type; descend = nothing, enter_field = nothing) =
+    ItemsWithin(source, type, descend, enter_field)
+ItemsWithin(; source, type::Type, descend = nothing, enter_field = nothing) =
+    ItemsWithin(source, type, descend, enter_field)
+
+# A file writes the functions of the searches only when the source has them.
+pred_arguments(source::ItemsWithin) =
+    ((), Pair{Symbol,Any}[:source => source.source, :type => source.type,
+                          (name => getfield(source, name) for name in (:descend, :enter_field)
+                           if getfield(source, name) !== nothing)...])
 
 get_roster_item_type(source::ItemsWithin) = source.type
 
@@ -97,15 +120,25 @@ get_roster_item_inside(source::ItemsWithin, entry::RosterItem) = _ItemInside(ent
 
 collect_roster_items(source::ItemsWithin, link, outer) =
     RosterItem[RosterItem(found, outer)
-               for found in search_documents(outer, node -> node isa source.type; limit = nothing, enter_matches = false)]
+               for found in _search_items(source, outer, node -> node isa source.type, nothing)]
 
 # The documents inside a found document, each read up to itself. The search does
 # not go back into the item of the outer source, which a document can name.
 collect_roster_items(source::ItemsWithin, link, inside::_ItemInside) =
     RosterItem[RosterItem(found, inside.outer)
-               for found in search_documents(inside.item, node -> node !== inside.item && node isa source.type;
-                                             limit = nothing, enter_matches = false,
-                                             descend = (parent, child) -> child !== inside.outer)]
+               for found in _search_items(source, inside.item, node -> node !== inside.item && node isa source.type,
+                                          inside.outer)]
+
+# The documents that `predicate` keeps in `root`, each read up to itself, by the
+# functions of the searches of `source`; the search does not enter `outer`.
+function _search_items(source::ItemsWithin, root, predicate, outer)
+    descend = something(source.descend, _is_any_step)
+    search_documents(root, predicate; limit = nothing, enter_matches = false,
+                     descend = (parent, child) -> child !== outer && descend(parent, child),
+                     enter_field = something(source.enter_field, _is_any_step))
+end
+
+_is_any_step(_, _) = true
 
 # The stores that a slice registers as a source, by name. The table is filled when
 # each slice loads (its `__init__`), as the rows of the natural renderer are, so a

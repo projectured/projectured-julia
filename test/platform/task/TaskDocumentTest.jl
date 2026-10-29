@@ -298,6 +298,14 @@ function test_task_document()
             @test get_tree_children_steps(phase) == ((FieldReferenceStep("inner_group"), FieldReferenceStep("tasks")),)
             @test get_tree_children_steps(first(getfield(inner, :tasks)[])) == ()
             @test format_tree_node_label(inner) == identifier * ".1 phase 1"
+            # A roster of the tasks of the group finds the tasks of its inner groups,
+            # and its searches read no result document of a task.
+            groups = CellVector(Any[document])
+            roster = link_roster!(Roster(ItemsWithin(CollectionItems(groups), TaskDocument;
+                                                     enter_field = is_task_search_field); columns = ["name"]), groups)
+            rows = collect(roster.rows)
+            @test length(rows) == 12 && rows[2].item === first(getfield(inner, :tasks)[])
+            @test !any(row -> is_cell_valid(getfield(row.item, :result_document)), rows)
             decoration = get_document_decoration(inner)
             @test decoration.icon === :x && [count.text for count in decoration.counts] == ["1 ERROR"]
             @test find_decoration_tint(decoration) === :error

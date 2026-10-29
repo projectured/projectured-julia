@@ -65,7 +65,8 @@ end
 The row of `item`, held by `within`, with one value cell for each key of
 `columns`, which [`compute_roster_value`](@ref) computes.
 """
-make_roster_row(item, within, columns) = _make_roster_row(item, within, columns, _RosterKey[_RosterKey(key) for key in columns])
+make_roster_row(item, within, columns) =
+    _make_roster_row(item, within, columns, _RosterKey[_RosterKey(key) for key in columns])
 
 # The row of `item`, whose value cells compute `keys`, the keys of `columns`, which
 # the rows of one roster share.

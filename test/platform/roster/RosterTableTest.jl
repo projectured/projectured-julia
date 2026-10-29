@@ -157,6 +157,14 @@ function test_roster_table()
         within = Roster(ItemsWithin(StoreRecords(:tasks), PrimitiveString); columns = ["value"])
         read = parse_pred_text(print_pred_text(within))
         @test read.source == ItemsWithin(StoreRecords(:tasks), PrimitiveString)
+        # A function of the searches is written by its name, and read back as itself.
+        tasks = Roster(ItemsWithin(StoreRecords(:tasks), TaskDocument; enter_field = is_task_search_field))
+        text = print_pred_text(tasks)
+        @test occursin("enter_field = is_task_search_field", text)
+        @test parse_pred_text(text).source.enter_field === is_task_search_field
+        # A function with no name is no data, so a file does not write it.
+        @test_throws Exception print_pred_text(Roster(ItemsWithin(StoreRecords(:tasks), TaskDocument;
+                                                                  enter_field = (parent, name) -> true)))
     end
 
     # A tab gives its content the height of the tab as a slot, and the table of a

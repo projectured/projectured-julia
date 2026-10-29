@@ -92,6 +92,10 @@ get_item_facets(::Type{TaskGroupDocument}) = [
     "kind" => "the kind of the group, its name, such as smoke test or fingerprint test"]
 compute_item_facet(doc::TaskGroupDocument, ::Val{:kind}) = get_task_group(doc).name
 
+# A group holds its task documents in its tasks and its preparation; its model and
+# its shadow hold the task values, which hold no task document.
+is_task_search_field(parent::TaskGroupDocument, name) = name === :tasks || name === :preparation
+
 """The `TaskGroupSummary` of the group at the last sync of its shadow."""
 get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)[].summary
 

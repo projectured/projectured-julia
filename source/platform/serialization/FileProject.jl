@@ -293,26 +293,35 @@ _is_type_name(name::Symbol) =
 
 """
     is_pred_constructible(::Type) -> Bool
+    is_pred_constructible(f::Function) -> Bool
 
 Whether a file may name a type and have one built. `true` for a `Document`, and
 `false` for anything else unless the package that owns the type adds a method,
 as a wire format that is data does. A type that must not be built from a file
 says so in its method of [`make_pred_document`](@ref).
+
+For a function, whether a file may name it: a file writes it as its bare name, and
+the reader looks the name up among the loaded modules, as it looks up a type.
+`false` unless the package that owns the function adds a method for its type, as
+`is_pred_constructible(::typeof(f)) = true`. A file never calls a function that it
+names, and a function with no name, such as a closure, is never written.
 """
 is_pred_constructible(::Type{T}) where {T} = T <: Document
+is_pred_constructible(::Function) = false
 
-# The name of each loaded document type, to its constructor, or to every
-# constructor when two loaded types have one name.
+# The name of each loaded document type, to its constructor, and of each function
+# that a file may name, to the function; or to every one of them when two have one
+# name.
 const _PRED_NAMES = Dict{String,Any}()
 const _PRED_NAMES_LOCK = ReentrantLock()
 
 """
-    get_pred_type(name) -> Type or nothing
+    get_pred_type(name) -> Type, Function or nothing
 
-The loaded type that a file names with `name`, or `nothing` when no loaded type
-that [`is_pred_constructible`](@ref) has that name. A name that two such types
-have is an error that names both, because a file can not say which one it
-means.
+The loaded type or function that a file names with `name`, or `nothing` when no
+loaded type or function that [`is_pred_constructible`](@ref) has that name. A
+name that two of them have is an error that names both, because a file can not
+say which one it means.
 """
 function get_pred_type(name::AbstractString)
     key = String(name)
@@ -351,6 +360,8 @@ function _collect_pred_names!(m::Module, seen::Set{Module})
             constructor = _get_schema_type(value)
             _add_pred_name!(String(nameof(value)), constructor)
             _add_pred_name!(String(get_document_schema_name(value)), constructor)
+        elseif value isa Function && is_pred_constructible(value) && nameof(value) === name
+            _add_pred_name!(String(name), value)
         end
     end
     nothing
@@ -390,8 +401,9 @@ end
 
 # The subset: a call whose head is a plain name and whose arguments are
 # literals, keyword arguments, or recursively such calls. No assignment, no
-# control flow, and no bare name but `nothing` and the name of a type that a file
-# may build — a marker is data that happens to read as Julia.
+# control flow, and no bare name but `nothing`, the name of a type that a file
+# may build and the name of a function that a file may name — a marker is data
+# that happens to read as Julia.
 #
 # Keywords are in the subset because a document is CONSTRUCTED by naming its
 # fields: `UdpHeader(source_port = 5000)` is the same statement as
@@ -455,7 +467,12 @@ end
 # holds nothing has to be writable, and there is no other way to spell it.
 _is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
                         x isa Bool || x === nothing || x === :nothing ||
-                        _is_marker_symbol(x) || _is_marker_type_name(x)
+                        _is_marker_symbol(x) || _is_marker_type_name(x) || _is_marker_function_name(x)
+
+# A bare name of a function that a file may name, such as a function of the
+# searches that a source of a roster holds. The reader gives the function as a
+# value, and it never calls it.
+_is_marker_function_name(x) = x isa Symbol && Base.isidentifier(String(x)) && get_pred_type(String(x)) isa Function
 
 # `PrimitiveNumber` bare is a type as a value, as a field that limits what a
 # document can become holds it. Only a name that starts with a capital passes, and
@@ -468,7 +485,7 @@ function _evaluate_marker_name(name::Symbol)
     name === :nothing && return nothing
     T = get_pred_type(String(name))
     T === nothing && error("a marker names ", name,
-                           ", and no loaded type that a file may build has that name")
+                           ", and no loaded type or function that a file may name has that name")
     T
 end
 

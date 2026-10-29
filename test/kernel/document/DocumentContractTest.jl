@@ -18,7 +18,7 @@ Covers:
 using Test
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCell,
-                                    ReactiveCell, AbstractCell, is_cell_valid
+                                    ReactiveCell, AbstractCell, is_cell_valid, set_cell_computation!
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
@@ -170,6 +170,18 @@ function test_document_contract()
         @test count[] == 1
         outer.label = "changed"
         @test is_cell_valid(count)
+    end
+
+    @testset "a walk decides about a field before it reads the field" begin
+        computes = Ref(0)
+        pair = ContractPair(ToyNode("first", nothing, nothing), nothing, nothing)
+        set_cell_computation!(getfield(pair, :second), () -> (computes[] += 1; ToyNode("second", nothing, nothing)))
+        skip_second = (parent, name) -> !(parent isa ContractPair && name === :second)
+        @test [node.label for node in search_documents(pair, node -> node isa ToyNode; enter_field = skip_second)] ==
+              ["first"]
+        # The field that the walk refused is not read, so its value is not computed.
+        @test computes[] == 0
+        @test length(search_documents(pair, node -> node isa ToyNode)) == 2 && computes[] == 1
     end
 
     @testset "@document constructs and unwraps cells" begin

@@ -51,8 +51,8 @@ function test_roster_program()
     @testset "the words of the sources and of the keys" begin
         sources = string(describe_roster_sources())
         @test all(call -> occursin(call, sources),
-                  ["CollectionItems(collection)", "ItemsWithin(source, type)", "StoreRecords(name::Symbol)",
-                   "TabDocuments(type)"])
+                  ["CollectionItems(collection)", "ItemsWithin(source, type; descend = nothing, enter_field = nothing)",
+                   "StoreRecords(name::Symbol)", "TabDocuments(type)"])
         @test occursin("- :log: the lines of the message log of the session", sources)
         keys = string(describe_item_facets(TextFile))
         @test occursin("- has_edits: whether", keys) && occursin("filename, content", keys)

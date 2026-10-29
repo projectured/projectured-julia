@@ -488,6 +488,15 @@ function _print_pred_value(io::IO, value::Type, where, indent)
     print(io, name)
 end
 
+# A function that its package lets a file name is its bare name, which the reader
+# looks up as it looks up the name of a type.
+function _print_pred_value(io::IO, value::Function, where, indent)
+    is_pred_constructible(value) || _refuse_pred_value(value, where)
+    name = String(nameof(value))
+    get_pred_type(name) === value || _refuse_pred_value(value, where)
+    print(io, name)
+end
+
 # A value that is data but not a document, of a type that a file may build, is
 # its call on one line: a size or a margin is one value in a diff, as a number is.
 function _print_pred_value(io::IO, value, where, indent)

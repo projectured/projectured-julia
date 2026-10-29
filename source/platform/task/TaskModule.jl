@@ -51,7 +51,7 @@ import ..DomainModule: accepts_pasted_document, get_document_decoration, get_ins
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: pred_arguments, make_pred_document
+import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..NavigatorModule: find_navigator_address
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 
@@ -85,7 +85,8 @@ export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildSte
 export TaskFeedStore, get_session_task_feed_store, register_task_execution!,
        record_task_execution_sync!, has_task_feed_entries, drain_task_feed!, TaskFeed,
        make_task_feeds
-export TaskDocument, find_task_document_group, get_current_task_execution, get_task_document_status,
+export TaskDocument, is_task_search_field, find_task_document_group, get_current_task_execution,
+       get_task_document_status,
        get_task_document_result, collect_task_document_lines, start_task!,
        wait_task_document, stop_task!, reset_task_document!, add_task_execution!,
        get_earlier_task_executions
