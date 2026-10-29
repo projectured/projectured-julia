@@ -421,6 +421,40 @@ changes. Mark a step here when it is done.
    of 18G after 53 min, in the process of the system image, and the inet
    builds are left out.
 
+   Results of the binaries (2026-10-29, 14:20 to 16:36, 8 image threads, a cap
+   of 35 GiB for `projectured` and `omnet_ide`). The outputs are in the scratch
+   folder, `measure/binary-ca-bin-<build>.txt` and `measure/cpu-ca-bin-<build>.txt`:
+
+   | | main | branch |
+   |---|---:|---:|
+   | `omnet_run`: the build time, the peak memory | 942.7 s, 18.0 GiB | 425.8 s, 15.0 GiB |
+   | `omnet_run`: the bundle, of it `sys.so`; the start | 1847 MB, 1198 MB; 0.54 s | 1669 MB, 1028 MB; 0.32 s |
+   | `omnet_ide`: the build time, the peak memory | 2387.2 s, 26.0 GiB | 1504.2 s, 23.8 GiB |
+   | `omnet_ide`: the bundle, of it `sys.so`; the start | 3408 MB, 2247 MB; 0.85 s | 3342 MB, 2184 MB; 0.84 s |
+   | `projectured`: the build time, the peak memory | about 1796 s, 22.7 GiB (step 9) | 1088.9 s, 19.7 GiB |
+   | `projectured`: the bundle, of it `sys.so`; the start | 2040 MB, 1163 MB (step 9) | 2279 MB, 1457 MB; 0.65 s |
+
+   The CPU records split each build in two phases. The images phase builds
+   the package images that the default depot does not hold yet. The tree of
+   the branches held most of them from the guards of the morning, so that
+   phase is short on the branch and it does not compare. The system image
+   phase compares:
+
+   | Minutes: the images, then the system image | main | branch |
+   |---|---:|---:|
+   | `omnet_run` | 7.3, then 8.2 | 2.2, then 4.8 |
+   | `omnet_ide` | 16.5, then 23.3 | 2.3, then 22.8 |
+   | `projectured` | no record | 2.3, then 15.8 |
+
+   In the system image phase the process uses 1 core for 85 to 90 % of the
+   time, and the 8 image threads only for the last 1 to 2 minutes:
+   `omnet_ide` of the branch 20.5 min at 1 core and 2 min at 8 cores,
+   `projectured` 14.5 min and 1.3 min. The memory stays flat for the first
+   part of the 1-core time (9 to 12.5 min), then grows to the peak (5 to
+   7.5 min), then the 8 threads start. More image threads can shorten only the
+   last 1 to 2 minutes. The 1-core time is in one Julia process, which runs
+   the workload with `--pkgimages=no` and then generates the code of the image.
+
    The longest chain of images sets the wall time, not the count of cores: on
    the branch the images of projectured are 995 s of work, 31 s on 32 cores,
    but their longest chain is 283 s (`ProjecturedKernel` → `ProjecturedPlatform`
