@@ -96,7 +96,30 @@ in the sealed struct layer, so this plan fixes each call and leaves the macro.
    - The `@max_methods` line of `operation_reference` moves from
      `OperationInterface.jl` to `Rerooting.jl`: the kernel guard
      `PAR-INTERFACE-DECLARES-ONLY` allows no macro call in an interface file.
-4. [ ] Measure the session again, as in step 2. Name each next root, but do not fix it.
+4. [x] Measure the session again, as in step 2. Name each next root, but do not fix it.
+
+   | | main `d338b8d04` | step 1 | step 3 |
+   |---|---:|---:|---:|
+   | the first frame | 1.44 s | 1.16 s | 1.08 s |
+   | compilation in the first frame | 1.2 s | 0.81 s | 0.85 s |
+   | of it, code compiled again | 0.86 s | 0.48 s | 0.37 s |
+   | calls compiled again | 23 of 81 | 17 of 75 | 10 of 68 |
+
+   The compilation of new calls grows as the recompilation shrinks: a callee
+   that a recompile no longer compiles first is compiled with the new call
+   that needs it. The largest new call is `_make_index_node` with the types of
+   a data frame, 227 ms, which no recorded list holds.
+
+   The next roots, not fixed:
+
+   | The method that a later package adds | Our call | Time |
+   |---|---|---:|
+   | SentinelArrays `IteratorSize(::BufferedVector)` | `_render_spline!` collects the points of a spline | about 245 ms |
+   | ProjecturedPlatform `append_fault!(::FaultSafeModeProjection, …)` | the kernel `_hand_fault_to_targets!`, with a target of type `Any`; the fault layer is sealed | 122 ms |
+   | ProjecturedPlatform `get_document_gesture_bindings_own(::Type{SyntaxCompound})` | the kernel `_gesture_bindings`, with an abstract `Type` | 10 ms |
+
+   A root shows only when no root before it made its caller invalid, so each
+   round shows the next level.
 5. [ ] Run the narrow tests of the changed files: `test_kernel()`, `test_sdl()`,
    `test_dataframes()` and the 229 parts of `test_platform()`. A run on the code
    of step 1 gave: `test_dataframes()` 628 of 628; `test_kernel()` 1 failure, the
