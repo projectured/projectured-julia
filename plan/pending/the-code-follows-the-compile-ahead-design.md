@@ -281,6 +281,14 @@ changes. Mark a step here when it is done.
    - `asset/precompile/`, the recording driver, `InetExample.precompile_workload()`,
      the levels of `InetRepl` and of the build, and the name
      `editor_precompile.jl` go.
+
+   Decided (the owner, 2026-10-29, "I agree with you, option 1"): the inet build
+   uses `ProjecturedBuilder`, as the omnet build does. The inet build compiled
+   `package/InetRunner` itself, and Julia reads a preference only for a package
+   that the project lists directly, so it could not choose `precompile_calls`
+   for the packages below `InetRunner`. The builder writes a small package that
+   lists each package of the binary. `BuildSpec` becomes a build function, like
+   `build_omnet_run_executable`.
 6. [ ] **The measurement and the end.** Run the measurements of U7 in each
    repository, before step 2 and after step 5, and write both into this plan.
    Remove the section "The code today" from the three design documents.
