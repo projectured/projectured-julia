@@ -71,6 +71,15 @@ precompile_calls = "live"
 precompile_failure = "error"
 ```
 
+## The measurements
+
+`tool/measure-compile-ahead.jl` runs the measurements of U7 of [compile-ahead.md](../../../design/compile-ahead.md): the build time and the size of the image of each package, in a depot of its own; the `using` line and the first frame of the session of the README; the calls that the first window and each gesture of the binary compile (`test_first_window_compiles_little` and `test_gestures_compile_little`, which no default suite runs); and, with `--binaries`, the build time, the peak memory and the size of the binary `projectured`. With `--record` it records the calls of each package and of the binary first. A person runs it by hand, and the release runs it with both options; see [release-guide.md](../../../guide/release-guide.md).
+
+```bash
+julia --project=environment/all tool/measure-compile-ahead.jl                       # the measurements
+julia --project=environment/all tool/measure-compile-ahead.jl --record --binaries   # what the release runs
+```
+
 ## Tests
 
 - Test: `test_precompile()` of the test package `ProjecturedPrecompileTest` runs the layering guard, `test_precompile_recording()` and `test_compile_ahead()`.

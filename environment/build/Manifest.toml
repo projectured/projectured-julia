@@ -125,6 +125,13 @@ version = "1.13.0"
     [deps.Pkg.weakdeps]
     REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
+[[deps.PrecompileTools]]
+deps = ["Preferences"]
+git-tree-sha1 = "edbeefc7a4889f528644251bdb5fc9ab5348bc2c"
+registries = "General"
+uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+version = "1.3.4"
+
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "5005266de4bfe50e53ff44a5cb5c540b6e47a254"
@@ -138,9 +145,15 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
 [[deps.ProjecturedBuilder]]
-deps = ["Dates", "Pkg", "Preferences", "SHA", "TOML"]
+deps = ["Dates", "Pkg", "Preferences", "ProjecturedPrecompile", "SHA", "TOML"]
 path = "../../package/ProjecturedBuilder"
 uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
+version = "0.1.0"
+
+[[deps.ProjecturedPrecompile]]
+deps = ["PrecompileTools", "Preferences", "TOML"]
+path = "../../package/ProjecturedPrecompile"
+uuid = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 version = "0.1.0"
 
 [[deps.Random]]

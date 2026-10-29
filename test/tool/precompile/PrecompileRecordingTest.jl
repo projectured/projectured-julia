@@ -22,6 +22,7 @@ function test_precompile_recording()
                     precompile(Tuple{typeof(Base.sum), Array{Int64, 1}})
                     precompile(Tuple{typeof(Base.sum), Array{Int64, 1}})
                     precompile(Tuple{typeof(Main.driver), Int64})
+                    precompile(Tuple{typeof(ProjecturedPrecompile.PrecompileModule.f), Base.PkgId})
                     precompile(Tuple{typeof(Base.length), String}) # recompile
                     #= 12.5 ms =# precompile(Tuple{typeof(Base.first), String})
                     precompile(Tuple{typeof(Base.last), )
@@ -47,6 +48,11 @@ function test_precompile_recording()
                 _write_text_file!(joinpath(root, "package", "Quiet", "src", "Quiet.jl"),
                                   "module Quiet\n# @compile_ahead is only named here\nend\n")
                 @test collect_compiling_packages(root) == ["Low"]
+                @test !has_package_workload(joinpath(root, "package", "Low"))
+                _write_text_file!(joinpath(root, "package", "Busy", "src", "Busy.jl"),
+                                  "module Busy\n@compile_ahead begin\n    run_it()\nend\nend\n")
+                @test has_package_workload(joinpath(root, "package", "Busy"))
+                @test collect_compiling_packages(root) == ["Busy", "Low"]
                 @test find_repository_root(joinpath(root, "package", "Low", "src")) == root
                 @test find_repository_root(folder) === nothing
                 manifest = _write_text_file!(joinpath(root, "environment", "all", "Manifest.toml"), """

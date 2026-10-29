@@ -93,7 +93,7 @@ changes. Mark a step here when it is done.
    `"live"`, a failed workload at each value of `precompile_failure`,
    `"recorded"`, a stale list, an unknown value and a recording. The naming
    guard and the documentation check pass.
-2. [ ] **projectured: each package uses it.**
+2. [x] **projectured: each package uses it.**
    - Each entry file with a workload calls `ProjecturedPrecompile`.
    - `ProjecturedExample` gets a workload that opens each example and sends it
      the events of the recording driver of today (D2).
@@ -148,10 +148,36 @@ changes. Mark a step here when it is done.
      `FileSystemFile` and `Workspace` no longer have. The workload names them.
    - Done: a recording whose workload fails keeps the calls compiled before the
      failure and shows the failure in a warning, as the default of U12 does.
-   - Open: the recording of the new lists.
+   - Done: the recording (2026-10-29, 27 min, peak 6.7 GiB):
+     `record_repository_calls!` wrote `workload.txt` for 21 packages (the
+     platform 9626 calls, `ProjecturedExample` 8110, `ProjecturedBuild` 3219,
+     each domain 300 to 800) in 1300 s, and `record_application_calls!` wrote
+     `projectured.txt` into 27 packages (the platform 1827, the kernel 272) in
+     303 s. A package with `@compile_ahead` alone is not recorded by the
+     repository scope (`has_package_workload`), and a call of
+     `ProjecturedPrecompile` itself goes into no list.
 3. [ ] **The measurements (U7, U5).** The guards and the measurements of U7 leave
    the test suites and run from one command. The release runs the recording and
    the measurements.
+
+   As built (2026-10-29), projectured:
+   - `tool/measure-compile-ahead.jl` runs the measurements of U7: the build time
+     and the size of the image of each package, in a depot of its own that
+     takes the packages, artifacts and registries of the depot of the process;
+     the `using` line, the first frame and its compile part of the session of
+     the README, the median of three; the two guards; and, with `--binaries`,
+     the build time, the peak memory (`/usr/bin/time`) and the size of the
+     binary. `--record` records first. `--root=<checkout>` measures another
+     checkout, run with the environment of that checkout, so that step 6 can
+     measure `main` before the change with the same command.
+   - `test_first_window_compiles_little` and `test_gestures_compile_little`
+     leave the default suite of `ProjecturedTest`; they stay exported.
+   - The release is a procedure in `release-guide.md`, not one command, so
+     "the release runs them" is a step of that procedure: the command with
+     `--record --binaries`, and a commit of the changed lists, before the
+     landing of the release.
+   - `environment/build` and `environment/readme-data-frame` are resolved
+     again, because their packages now depend on `ProjecturedPrecompile`.
 4. [ ] **omnet: each package uses it.**
    - `OmnetIde`, `OmnetLegacyFormat`, `OmnetLegacyResultPresentation`,
      `OmnetPresentationExample` and `OmnetSimulator` call

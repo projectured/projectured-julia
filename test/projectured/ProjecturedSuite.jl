@@ -588,10 +588,9 @@ function test_integration()
     # Every gesture that makes a recorded change is taken back, and the document
     # returns to the text it had.
     test_undo_round_trip()
-    # The first window of a data frame compiles little in a fresh process.
-    test_first_window_compiles_little()
-    # Each gesture of the binary compiles little in a fresh process of its package.
-    test_gestures_compile_little()
+    # The guards of the first window and of the gestures of the binary are
+    # measurements: `tool/measure-compile-ahead.jl` runs them, by hand and before
+    # each release, as documentation/design/compile-ahead.md (U7) says.
     # Every gesture that changes no document leaves the history as it was.
     test_history_sweep()
     test_file_watch_window()

@@ -62,14 +62,25 @@ Because of these bounds, a user updates all packages of ProjecturEd together.
    2. Commit the change, and push it to its repository.
    3. Resolve `environment/all` again in this repository, so that its manifest
       names the new version.
-2. Land every change of the release on `main`, the manifest too, and push it.
-3. Make sure that the CI of this repository passes on that commit: the static
+2. Record the calls of each package and of the binary again, and measure what
+   the packages and the binary compile ahead. The release ships the recorded
+   calls of each package, so they must follow the code of the release:
+
+   ```bash
+   julia --project=environment/all tool/measure-compile-ahead.jl --record --binaries
+   ```
+
+   Commit the files `package/*/precompile/*.txt` that changed. Compare the
+   measurements with those of the last release; see
+   [compile-ahead.md](../design/compile-ahead.md) for what each one measures.
+3. Land every change of the release on `main`, the manifest too, and push it.
+4. Make sure that the CI of this repository passes on that commit: the static
    guards and the job of each test package.
-4. Clone this repository at that commit into a new folder beside this
+5. Clone this repository at that commit into a new folder beside this
    checkout, for example `../projectured-julia-release`. The folder must be
    beside the checkouts of the other repositories, because `environment/all`
    finds them there.
-5. Clone the release repository and the registry into a work folder, for
+6. Clone the release repository and the registry into a work folder, for
    example `/var/tmp/release/Projectured.jl` and
    `/var/tmp/release/ProjecturedRegistry`.
 
