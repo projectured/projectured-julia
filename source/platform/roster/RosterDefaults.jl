@@ -14,3 +14,8 @@ get_item_facets(::Type) = Pair{String,String}[]
 
 # A facet takes no edit unless its slice gives one.
 make_item_facet_operation(item, name::Val, value) = nothing
+
+# The items of a type have the facets that the type declares.
+get_item_facet_type(item) = typeof(item)
+
+has_item_facet(item, name::AbstractString) = _has_item_facet(typeof(item), name)

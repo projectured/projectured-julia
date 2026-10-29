@@ -79,6 +79,27 @@ for its name, such as `compute_item_facet(file::FileDocument, ::Val{:folder})`.
 function compute_item_facet end
 
 """
+    get_item_facet_type(item) -> Type
+
+The type whose facets `item` has, which a roster reads once for each such type to
+find whether a name is a facet ([`has_item_facet`](@ref)). Two items that answer
+the same type must answer the same for every name. The default is `typeof(item)`.
+"""
+function get_item_facet_type end
+
+"""
+    has_item_facet(item, name) -> Bool
+
+Whether `name` is a facet of `item`: a value that [`compute_item_facet`](@ref)
+computes. A roster calls it for the first item of each
+[`get_item_facet_type`](@ref) and keeps the answer for the others. The default
+answers whether the type of `item` or a supertype declares the facet
+([`get_item_facets`](@ref)); a kind of item whose facets depend on more than its
+type adds a method.
+"""
+function has_item_facet end
+
+"""
     make_item_facet_operation(item, name::Val, value) -> Operation or nothing
 
 The edit that gives the facet `name` of `item` the value `value`, as an

@@ -173,6 +173,13 @@ function get_current_task_execution(document::TaskDocument)
     last(getfield(document, :executions)[])
 end
 
+# A field of the current execution of a task, as its shadow holds it, or
+# `nothing` when the task has no current execution.
+function _get_current_field(document::TaskDocument, name::Symbol)
+    current = get_current_task_execution(document)
+    current === nothing ? nothing : getproperty(current, name)
+end
+
 """
     get_task_document_status(document) -> Symbol
 
@@ -184,14 +191,24 @@ function get_task_document_status(document::TaskDocument)
 end
 
 # The facets of a task in a roster of tasks, which a roster shows, filters, sorts
-# and groups by.
+# and groups by. The columns of the kind of the task are facets too
+# ([`get_task_columns`](@ref)); a facet below wins over a column of the same name.
 get_item_facets(::Type{TaskDocument}) = [
     "name" => "the task in one line, as the list of tasks writes it",
     "status" => "the status of the current execution: pending, running, cancelling, done, error, " *
                 "cancelled or skipped",
     "result" => "the result code of the current execution, such as PASS or ERROR, or nothing before it ends",
     "expected" => "whether that result is the expected one, true or false, or nothing before it ends",
-    "reason" => "why the result is what it is, such as the first error, or nothing"]
+    "reason" => "why the result is what it is, such as the first error, or nothing",
+    "expected_result" => "the code that the result is expected to be: the code of the result after the task ends, " *
+                         "before that the expected code that the kind of the task says, or nothing",
+    "state" => "the word that the table of a group shows for the task: its result code once it ends, else " *
+               "running, stopping or its status",
+    "progress" => "the fraction of the work that the running task reports, or nothing",
+    "elapsed" => "the time in seconds that a finished task took, or nothing while it runs or before it starts",
+    "process" => "the number of the process of the current execution, or nothing",
+    "processor" => "the load of the processor of the current execution, in percent, or nothing",
+    "memory" => "the resident memory of the process of the current execution, in bytes, or nothing"]
 compute_item_facet(document::TaskDocument, ::Val{:name}) = format_task_parameters(getfield(document, :task)[])
 compute_item_facet(document::TaskDocument, ::Val{:status}) = get_task_document_status(document)
 compute_item_facet(document::TaskDocument, ::Val{:result}) =
@@ -200,6 +217,49 @@ compute_item_facet(document::TaskDocument, ::Val{:expected}) =
     (result = get_task_document_result(document); result === nothing ? nothing : is_expected(result))
 compute_item_facet(document::TaskDocument, ::Val{:reason}) =
     (result = get_task_document_result(document); result === nothing ? nothing : result.reason)
+function compute_item_facet(document::TaskDocument, ::Val{:expected_result})
+    result = get_task_document_result(document)
+    result === nothing || return result.expected_result
+    text = format_task_column(getfield(document, :task)[], "expected_result")
+    isempty(text) ? nothing : text
+end
+compute_item_facet(document::TaskDocument, ::Val{:state}) = _get_task_state_word(document)
+compute_item_facet(document::TaskDocument, ::Val{:progress}) = _get_current_field(document, :progress)
+function compute_item_facet(document::TaskDocument, ::Val{:elapsed})
+    (started, ended) = _get_task_document_times(document)
+    (started === nothing || ended === nothing) ? nothing : ended - started
+end
+compute_item_facet(document::TaskDocument, ::Val{:process}) = _get_current_field(document, :process_id)
+compute_item_facet(document::TaskDocument, ::Val{:processor}) = _get_current_field(document, :processor_load)
+compute_item_facet(document::TaskDocument, ::Val{:memory}) = _get_current_field(document, :resident_memory)
+
+# What a task document says in the column `state` of a table of tasks: its result
+# code once it has one, else the state it is in.
+function _get_task_state_word(document::TaskDocument)
+    result = get_task_document_result(document)
+    result === nothing || return result.result
+    status = get_task_document_status(document)
+    status === :running ? "running" : status === :cancelling ? "stopping" : string(status)
+end
+
+# The facets of the items of one kind of task: the declared facets of a task and
+# the columns of its kind. The task of a document does not change, so the type
+# of the task says which columns the document has.
+struct TaskKindFacets{T} end
+
+get_item_facet_type(document::TaskDocument) = TaskKindFacets{typeof(getfield(document, :task)[])}
+
+# A field of the document wins over a column of the same name, as it wins over a
+# facet; a column of the kind is a value of the task that `format_task_column` gives.
+function has_item_facet(document::TaskDocument, name::AbstractString)
+    _has_item_facet(TaskDocument, name) && return true
+    Symbol(name) in fieldnames(TaskDocument) && return false
+    any(column -> first(column) == name, get_task_columns(getfield(document, :task)[]))
+end
+compute_item_facet(document::TaskDocument, name::Val{:type}) =
+    invoke(compute_item_facet, Tuple{Document,Val{:type}}, document, name)
+compute_item_facet(document::TaskDocument, name::Val) =
+    format_task_column(getfield(document, :task)[], String(only(typeof(name).parameters)))
 
 # The node of a task in a tree: its name; its decoration says its status as its
 # icon, the code of its result as a count, and the time when it started or how

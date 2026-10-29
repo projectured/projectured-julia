@@ -336,7 +336,7 @@ Each step is one commit on the branch, with its test.
     `test_roster_program` 21, `test_task_views` 70, `test_explorer` 294,
     `test_background_work` 21, `test_platform_slice_edges` 1, `test_platform_layering`
     6 of 7 (the two files of main).
-- [ ] **Step 5a — The values of a task and the labels of a header.** The header
+- [x] **Step 5a — The values of a task and the labels of a header.** The header
   of a roster column shows its name with a space for each underscore (D10). The
   roster slice gets `get_item_facet_type` and `has_item_facet` (D11). A task gets
   the facets `expected_result` (D9, D11), `state`, `progress`, `elapsed`,
@@ -345,6 +345,41 @@ Each step is one commit on the branch, with its test.
   Tests: `test_roster`, `test_roster_table`, `test_roster_header`,
   `test_task_views`, and a new testset that filters and sorts a roster of tasks by
   a column of their kind and by `expected_result`.
+
+  **Done.** What the work found and decided:
+  - New names: `format_roster_column_label` (roster slice, exported), `get_item_facet_type`
+    and `has_item_facet` (interface of the roster slice, exported, defaults in
+    `RosterDefaults.jl`), the marker type `TaskKindFacets{T}` (task slice, not exported),
+    and the facets `expected_result`, `state`, `progress`, `elapsed`, `process`,
+    `processor` and `memory` of a task. The private helper `_get_task_state_word` is shared
+    by the facet `state` and the cell of the group table (`_get_task_state` keeps only the
+    colour); `_get_current_field` moved to `TaskDocument.jl` because the facets read it.
+  - The `facets` cache of `_RosterKey` is keyed by `get_item_facet_type(item)`, and the
+    first item of each such type answers `has_item_facet(item, name)`. The other callers of
+    `_has_item_facet(typeof(...))` (`_get_column_path`, `_make_item_edit`) go through
+    `has_item_facet` too, so a kind column takes the facet path everywhere; it takes no edit.
+  - A `TaskDocument` answers `TaskKindFacets{typeof(task)}`; the task of a document does not
+    change (no write to the field `task`). A declared facet wins over a kind column of the
+    same name, and a field of the document wins over both (the kind `TaskGroup` has a column
+    `group`, which stays the field). The value of a kind column is
+    `format_task_column(task, name)`. Because the generic method for a `Val` and a
+    `TaskDocument` is ambiguous with the facet `type` of `Document`, `type` is forwarded by
+    `invoke`.
+  - Decision on `elapsed` (the coordinator): `nothing` while the task runs or before it
+    starts, and `end_time - start_time` in seconds after it ends. The cell of the table
+    reads the summary of the group to count on with each drain; a facet that read it would
+    make every task of a roster compute again at each drain. So `elapsed` reads no group
+    and no clock.
+  - `expected_result` is the expected code of the result after the task ends, before that
+    the kind column `expected_result` when it is not empty, else `nothing`. `expected`
+    keeps its meaning (true or false after the end).
+  - Labels (D10): the plain header, the label above the field of the arranged header and the
+    name in the dialog "Filter by values" show `format_roster_column_label(key)`; the key,
+    the filter key and the chips do not change.
+  - omnet-julia (read only): `LegacyValidationTask`, `LegacyOppTestTask` and
+    `LegacyProgramTestTask` answer the kind column `expected`
+    (`source/legacy/simulator/`); the declared facet `expected` wins over it in a roster, so
+    they rename the column in the later omnet step. Tests there assert the column list.
 - [ ] **Step 5b — The page of a task group shows a roster.** The table of the pane
   is a roster of the tasks of the group with an arrangement, under the bar of the
   arrangement, held in a field of the group as the Background work log holds its

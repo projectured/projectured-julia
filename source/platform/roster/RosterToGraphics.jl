@@ -139,7 +139,7 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     columns = _find_roster_columns(rows, ctx)
     made = IdDict{Any,Any}()
     entry = is_arranged_place(ctx) ? Cell(@computation find_arranged_entry(ctx)) : nothing
-    headers = entry === nothing ? CellVector(Cell[Cell(WidgetLabel(key)) for key in columns]) :
+    headers = entry === nothing ? CellVector(Cell[Cell(WidgetLabel(format_roster_column_label(key))) for key in columns]) :
               CellVector(@computation Any[_make_filter_header(p, rows, entry, ctx, key, c)
                                           for (c, key) in enumerate(columns)])
     view = (ctx !== nothing && get_exact_height(ctx) !== nothing) ? _RosterTableView(1) : nothing
@@ -226,7 +226,7 @@ function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::Strin
     menu = WidgetMenu(Any[WidgetMenuItem("Filter by values…";
                                          action = Action("Filter by values…";
                                                          callback = editor -> _open_value_list!(p, editor, rows, ctx, entry, key)))])
-    label = WidgetContextMenu(HorizontalLayout(Any[WidgetLabel(key), glyph...]; gap = Int(style(:header_gap))), menu)
+    label = WidgetContextMenu(HorizontalLayout(Any[WidgetLabel(format_roster_column_label(key)), glyph...]; gap = Int(style(:header_gap))), menu)
     make_labeled_field(label, make_filter_field(text, () -> _find_header_range(rows, c), reason,
                                                 Int(style(:header_field_width)), style(:invalid_filter)))
 end
@@ -269,7 +269,7 @@ function _open_value_list!(p::RosterRowsToWidget, editor, rows, ctx, entry, key:
         make_filter_collection_operation(ReferencedDocument(roster, strip_reference_types(found[1])),
                                          filter.conditions...; editor)
     end
-    dialog, take = make_value_list_dialog(key, collect_column_values(items, key),
+    dialog, take = make_value_list_dialog(format_roster_column_label(key), collect_column_values(items, key),
                                           value -> is_value_listed(text, value), write; widget = p.widget)
     window = unwrap_cell(get_widget_style(p.widget, :value_list_window_size))
     apply = last(collect(dialog.buttons))
@@ -411,11 +411,11 @@ function _get_column_path(row::RosterRow, r::Int, c::Int)
     key = row.columns[c]
     names = split(key, '.')
     head = String(names[1])
-    steps = if head == "within" && length(names) > 1 && _has_item_facet(typeof(row.within), String(names[2]))
+    steps = if head == "within" && length(names) > 1 && has_item_facet(row.within, String(names[2]))
         Any[FieldReferenceStep("values"), ElementReferenceStep(c)]
     elseif head == "within"
         Any[FieldReferenceStep("within"), (FieldReferenceStep(String(n)) for n in names[2:end])...]
-    elseif _has_item_facet(typeof(row.item), head)
+    elseif has_item_facet(row.item, head)
         Any[FieldReferenceStep("values"), ElementReferenceStep(c)]
     else
         Any[FieldReferenceStep("item"), (FieldReferenceStep(String(n)) for n in names)...]

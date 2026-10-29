@@ -40,7 +40,8 @@ end
 # One key of a column as the value cells of the rows compute it, made once for the
 # rows of one roster: whether it starts at `within`, its first name after that,
 # the path of the names from the first one on and the path after it, and for each
-# type of item whether the first name is a facet of that type.
+# facet type of item ([`get_item_facet_type`](@ref)) whether the first name is a
+# facet of the items of that type.
 struct _RosterKey
     is_within::Bool
     head::Union{String,Nothing}
@@ -93,7 +94,7 @@ compute_roster_value(row::RosterRow, key::AbstractString) = _compute_roster_key_
 function _compute_roster_key_value(row::RosterRow, key::_RosterKey)
     item = key.is_within ? row.within : row.item
     (key.head === nothing || item === nothing) && return item
-    is_facet = get!(() -> _has_item_facet(typeof(item), key.head), key.facets, typeof(item))
+    is_facet = get!(() -> has_item_facet(item, key.head), key.facets, get_item_facet_type(item))
     is_facet ? _follow_path(compute_item_facet(item, Val(key.facet)), key.rest) : _follow_path(item, key.path)
 end
 
@@ -210,6 +211,15 @@ format_roster_value(value::AbstractString) = String(value)
 format_roster_value(value::Symbol) = String(value)
 format_roster_value(value::Document) = something(get_document_title(value), string(nameof(typeof(value))))
 format_roster_value(value) = string(value)
+
+"""
+    format_roster_column_label(key) -> String
+
+The text that the header of the column `key` shows: the key with a space for each
+underscore, so `expected_result` shows `expected result`. The key itself, which
+names the column in a filter and a sort, does not change.
+"""
+format_roster_column_label(key::AbstractString) = replace(key, '_' => ' ')
 
 """
     Roster(source; columns = String[], title = "Roster", shares = nothing, marked = nothing)

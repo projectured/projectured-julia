@@ -103,22 +103,13 @@ function _get_group_state(p, doc::TaskGroupDocument, group)
     (counts.result, _get_role_color(p, get_result_role(group.codes, counts.result)))
 end
 
-# A field of the current execution of a task, as its shadow holds it, or
-# `nothing` when the task has no current execution.
-function _get_current_field(document::TaskDocument, name::Symbol)
-    current = get_current_task_execution(document)
-    current === nothing ? nothing : getproperty(current, name)
-end
-
 # What a task document says in the column `state`: its result code once it has
 # one, else the state it is in.
 function _get_task_state(p, group, document::TaskDocument)
+    word = _get_task_state_word(document)
     result = get_task_document_result(document)
-    result === nothing || return (result.result, _get_role_color(p, get_result_role(group.codes, result.result)))
-    status = get_task_document_status(document)
-    status === :running && return ("running", p.running_color)
-    status === :cancelling && return ("stopping", p.running_color)
-    (string(status), p.muted_color)
+    result === nothing || return (word, _get_role_color(p, get_result_role(group.codes, word)))
+    (word, get_task_document_status(document) in (:running, :cancelling) ? p.running_color : p.muted_color)
 end
 
 # The time a task took, or is taking: the summary cell is read so a task that

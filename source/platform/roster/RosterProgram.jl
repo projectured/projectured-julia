@@ -229,7 +229,7 @@ function _make_item_edit(row::RosterRow, key::String, value)
     head = names[1]
     (target, path) = head == "within" ? (row.within, names[2:end]) : (row.item, names)
     isempty(path) && throw(ArgumentError(string("The key \"", key, "\" names an item, not a field of it.")))
-    if _has_item_facet(typeof(target), path[1])
+    if has_item_facet(target, path[1])
         length(path) == 1 || throw(ArgumentError(string("The key \"", key, "\" goes inside a facet, which takes no edit.")))
         operation = make_item_facet_operation(target, Val(Symbol(path[1])), value)
         operation === nothing && throw(ArgumentError(string("The facet \"", path[1], "\" takes no edit.")))
