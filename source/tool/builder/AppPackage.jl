@@ -43,7 +43,10 @@ const LOG_LEVEL_NAMES = ("debug", "info", "warn", "error", "none")
 Write the package this build compiles, and answer its directory.
 
 - `packages` — the names of what goes in. They become `[deps]`, `[sources]` and
-  the `using` list, in that one place, so the three cannot disagree.
+  the `using` list, in that one place, so the three cannot disagree. A package
+  that no other of `packages` and `imports` depends on loads first, so the
+  package of an application loads the others in the order its image compiled
+  them in.
 - `imports` — packages the generated module imports and does not use: a
   dependency of the build's own generated code (`init`, below) rather than of a
   program in `packages`. They join `[deps]` and `[sources]` beside `packages`,
@@ -118,11 +121,8 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         println(io, "# write the same thing again leaves it alone, so that its cache holds.")
         println(io, "module ", module_name)
         println(io)
-        for package in imports
-            println(io, "import ", package)
-        end
-        for package in packages
-            println(io, "using ", package)
+        for (keyword, package) in _compute_app_load_order(context, packages, imports)
+            println(io, keyword, " ", package)
         end
         println(io)
         println(io, "const BUILD_INFO = \"\"\"\n", info, "\"\"\"")
@@ -226,6 +226,23 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     write_if_changed(joinpath(directory, "src", module_name * ".jl"), source;
                      ignoring = _BUILD_TIMESTAMP)
     directory
+end
+
+# The load lines of the written module, `"import" => name` and `"using" => name`.
+# A package that no other named package depends on loads first: the package of
+# an application, which loads all the others. Its image holds the calls that it
+# compiled with the others loaded in its own order, and a load in that order
+# keeps them valid. In another order a package can load after an image and add a
+# method that makes calls of that image invalid, and a session compiles them
+# again. The other lines keep their order, and they load nothing new.
+function _compute_app_load_order(context::BuildContext, packages, imports)
+    loads = Pair{String,String}[["import" => String(package) for package in imports];
+                                ["using" => String(package) for package in packages]]
+    dependencies = Dict(name => setdiff(_collect_local_dependencies(context, (name,)), (name,))
+                        for (_, name) in loads)
+    is_loaded_by_another(name) = any(name in needs for needs in values(dependencies))
+    [filter(load -> !is_loaded_by_another(last(load)), loads);
+     filter(load -> is_loaded_by_another(last(load)), loads)]
 end
 
 """

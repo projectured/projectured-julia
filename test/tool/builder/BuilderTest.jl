@@ -1075,8 +1075,12 @@ function test_build_executable()
                            "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
             # The workload of the binary is in `ProjecturedBuild`, not in the
-            # package that the build writes.
-            @test occursin("using ProjecturedBuild", source)
+            # package that the build writes. It loads all the other packages, so
+            # it loads first, in the order in which its image compiled their calls.
+            loads = filter(line -> startswith(line, "using ") || startswith(line, "import "),
+                           split(source, '\n'))
+            @test first(loads) == "using ProjecturedBuild"
+            @test "import ProjecturedJSON" in loads
             @test !occursin("compile_workload", source)
             # The build chooses what each package that compiles ahead compiles.
             preferences = ProjecturedBuilder.BuilderModule.TOML.parsefile(
