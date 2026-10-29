@@ -84,6 +84,17 @@ Decisions of the design (mine, not the owner's):
   styles move from `DataFrameTheme` to `WidgetTheme`, because the data frame
   table and the roster table share them. The widget slice already holds parts of
   the header of a table (`WidgetTableHeaderLevels.jl`, `WidgetTableParts.jl`).
+- **D7.** The widget of a cell comes from the interface function
+  `make_roster_cell(cells, item, key, value)`. `RosterRowsToWidget` holds `cells`,
+  whose default is `nothing`, and the method for `nothing` makes the cell of now.
+  The cells of a task need the colors of the scaled `TaskTheme`, and no projection
+  holds an `Appearance`. So a page that draws other cells puts its own
+  `RosterRowsToWidget`, whose `cells` holds its styles, in the dispatch of its
+  widgets, as the task slice already builds its own dispatch for its panes.
+- **D8.** A `Roster` holds `shares`, a weight of the width for each column or
+  `nothing` for equal shares, and `marked`, the item whose row the table marks or
+  `nothing`. The table reads them through the context property `:roster` of step
+  3, so the page gives them with no new property of the context.
 
 ## The steps
 
@@ -259,9 +270,9 @@ Each step is one commit on the branch, with its test.
     `test_platform_layering` 6 of 7 (the fault of main).
 - [ ] **Step 4 — A widget in a cell, a share of the width, a marked row.** The
   roster gets a function of its interface that makes the widget of a cell for an
-  item and a key, whose default is the cell of now. A roster holds a share of the
-  width for each column, and the table marks the row of an item that the printer
-  context names.
+  item and a key, whose default is the cell of now (D7). A roster holds a share of
+  the width for each column, and the table marks the row of the item that the
+  roster names (D8).
   Tests: `test_roster`, `test_roster_table`.
 - [ ] **Step 5 — The page of a task group shows a roster.** The table of the pane
   is a roster of the tasks of the group with an arrangement, under the bar of the
