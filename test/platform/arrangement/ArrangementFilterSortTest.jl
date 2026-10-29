@@ -74,6 +74,20 @@ function test_arrangement_filter_sort()
         @test shown() == [0, 1, 2]
     end
 
+    @testset "a change of one item computes the rows of a filter only when its answer changes" begin
+        items = [_ArrangementRun(i, "done", 0.1, vector(String[])) for i in 1:5]
+        stage = print_document(make_arrangement_projection(filter_of(condition(field("status"), :equal, "failed"))),
+                               nothing, CellVector(Cell[Cell(item) for item in items]), PrinterContext())
+        kept = stage.rows
+        @test kept == Int[]
+        # The item still fails the condition, so the rows stay the same vector.
+        items[2].status = "skipped"
+        @test stage.rows === kept
+        # The item now meets it, so the rows change.
+        items[3].status = "failed"
+        @test stage.rows == [3]
+    end
+
     runs = [_ArrangementRun(1, "done", 0.31, vector(["a", "b"])),
             _ArrangementRun(2, "failed", 0.12, vector(["c"])),
             _ArrangementRun(3, "done", 0.54, vector(["d", "e", "f"])),

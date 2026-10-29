@@ -177,7 +177,30 @@ over the same values answers the same.
     step changes, and places a new inner step.
 - [ ] **Step 3 — D1, lazy rows of a roster.** The owner asked whether the rows
   should be a lazy list instead; the answer waits until step 2 is measured.
-- [ ] **Step 4 — D2, a filter keeps one cell for each item.**
+- [x] **Step 4 — D2, a filter keeps one cell for each item.**
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - The stage of a filter takes a callable `_FilterRows <: Function` in place of
+    a closure, so that `_make_rows_computation` gives a filter over a
+    `CellVector` its own computation with `_ItemCells`: the description that the
+    cells were made for, the element cells that they follow, and one cell for
+    each. A stage over a plain vector, and the first items of a group, keep the
+    computation of their function.
+  - The conditions are read as plain values (`_read_conditions`: the key, the
+    operator and the value of each), so the cells of the items capture no cell of
+    a condition. A new description makes new cells for every item.
+  - The cell of an item gives a `Bool`, which is a plain value, so a change of an
+    item that keeps its answer stops at the cell of that item, and the rows stay
+    the same vector.
+  - The numbers (after one task starts): the filter 120 ms -> 6.4 ms, the quick
+    text 187 ms -> 2.7 ms, a filter of the running tasks and then a sort by
+    status 126 ms -> 4.9 ms. A filter the first time takes 476 ms: it computes
+    one cell for each item.
+  - Tests: the new testset "a change of one item computes the rows of a filter
+    only when its answer changes"; `test_arrangement_filter_sort` 21,
+    `test_arrangement` 10, `test_arrangement_quick_text` 24,
+    `test_arrangement_group` 24, `test_arrange_collection_operation` 20,
+    `test_roster` 69, `test_roster_table` 34 and `test_task_views` 70 pass.
 - [ ] **Step 5 — D3, a sort keeps one key cell for each item.**
 - [ ] **Step 6 — Measure again.** The same script, the numbers to the owner, and
   the cost section of `documentation/package/platform/roster/roster.md`.

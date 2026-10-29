@@ -14,6 +14,11 @@ so a path, and an operation that names one, maps back to the item of the input.
 While a value that the rows read is provisional, such as a key that a task still
 reads, the stage keeps its last final rows (`make_final_holding_cell`) that still
 name items of the input, so a table keeps its order until the sort is final.
+
+A filter over a `CellVector` keeps one cell for each item, which says whether the
+conditions hold for it, by the identity of the cell of the item. So a change of
+one item computes the cell of that item, and the rows compute again only when the
+answer of that cell changes.
 """
 struct PickingProjection <: Projection
     compute_rows::Function
@@ -24,6 +29,21 @@ end
     input::Any
     output::Any
     rows::Any           # the index in the input of each item of the output
+end
+
+# The rows that a filter keeps, as a function of the items.
+struct _FilterRows <: Function
+    filter::Any
+end
+
+(rows::_FilterRows)(items) = compute_filter_rows(rows.filter, items)
+
+# The cell of each item of a `CellVector` that one description computed, such as
+# the conditions of a filter, in the order of `elements`, the cells of the items.
+mutable struct _ItemCells
+    description::Any
+    elements::Any
+    cells::Vector{Cell}
 end
 
 function print_document(p::PickingProjection, recursion, input::CellVector, ctx)
@@ -44,8 +64,17 @@ end
 # The rows of `input` that `p` picks, which keep their last final value while a
 # value that they read is provisional, as long as each of them names an item.
 _make_picked_rows(p::PickingProjection, input) =
-    make_final_holding_cell(() -> collect(Int, p.compute_rows(input));
+    make_final_holding_cell(_make_rows_computation(p.compute_rows, input);
                             is_usable = rows -> all(row -> 1 <= row <= length(input), rows))
+
+# The computation of the rows that `compute_rows` picks of `input`. A filter over a
+# `CellVector` keeps the cells of its items from one computation to the next.
+_make_rows_computation(compute_rows, input) = () -> collect(Int, compute_rows(input))
+
+function _make_rows_computation(rows::_FilterRows, input::CellVector)
+    cells = _ItemCells(nothing, nothing, Cell[])
+    () -> _compute_kept_rows(rows.filter, input, cells)
+end
 
 # A document that holds no items of its own passes through, with no rows, so a
 # recursion inside it can arrange the items where it prints them.
@@ -93,8 +122,7 @@ end
 _is_later_introduced(p::Projection, reference) =
     is_introduced_reference(reference) && !is_introduced_reference(reference, p)
 
-make_arrangement_projection(filter::ArrangementFilter) =
-    PickingProjection(items -> compute_filter_rows(filter, items))
+make_arrangement_projection(filter::ArrangementFilter) = PickingProjection(_FilterRows(filter))
 make_arrangement_projection(sort::ArrangementSort) =
     PickingProjection(items -> compute_sort_rows(sort, items))
 # A find picks nothing: its stage passes the items as they are, and the bar shows
@@ -132,8 +160,38 @@ The indices of the items of `items` for which every condition of `filter` holds,
 in their order.
 """
 function compute_filter_rows(filter::ArrangementFilter, items)
-    conditions = Any[condition for condition in filter.conditions]
-    Int[i for i in 1:length(items) if all(c -> is_condition_holding(c, items[i]), conditions)]
+    conditions = _read_conditions(filter)
+    Int[i for i in 1:length(items) if _is_kept(conditions, items[i])]
+end
+
+# The conditions of `filter` as plain values, each its key, its operator and its
+# value, read through their cells.
+_read_conditions(filter::ArrangementFilter) =
+    Tuple((condition.key, condition.operator, condition.value) for condition in filter.conditions)
+
+_is_kept(conditions, item) = all(c -> _is_condition_holding(c[1], c[2], c[3], item), conditions)
+
+# The rows that `filter` keeps of `input`, from the cell of each item, which keeps
+# its answer while the item and the conditions stay the same.
+function _compute_kept_rows(filter::ArrangementFilter, input::CellVector, memo::_ItemCells)
+    conditions = _read_conditions(filter)
+    cells = _follow_item_cells!(memo, conditions, getfield(input, :elements)[],
+                                element -> Cell(Computation(() -> _is_kept(conditions, unwrap_cell(element)))))
+    Int[i for (i, cell) in enumerate(cells) if cell[]::Bool]
+end
+
+# The cells of `memo` for the cells of the items `elements` and the description
+# `description`: the same cell for an item that stays, a new cell from
+# `make_cell(element)` for a new item, and new cells for every item after the
+# description changed.
+function _follow_item_cells!(memo::_ItemCells, description, elements, make_cell)
+    isequal(memo.description, description) || (memo.description = description; memo.elements = nothing)
+    memo.elements === elements && return memo.cells
+    known = IdDict{Any,Cell}()
+    memo.elements === nothing || foreach((element, cell) -> known[element] = cell, memo.elements, memo.cells)
+    memo.cells = Cell[get(() -> make_cell(element), known, element) for element in elements]
+    memo.elements = elements
+    memo.cells
 end
 
 """
@@ -145,14 +203,15 @@ inside `item`, at any depth: the condition holds when one of them holds it, as
 the quick text field of a bar keeps the items where any value contains its text.
 An empty text is contained in every item.
 """
-function is_condition_holding(condition::ArrangementCondition, item)
-    operator = condition.operator
-    expected = condition.value
-    if condition.key === nothing
+is_condition_holding(condition::ArrangementCondition, item) =
+    _is_condition_holding(condition.key, condition.operator, condition.value, item)
+
+function _is_condition_holding(key, operator::Symbol, expected, item)
+    if key === nothing
         operator === :contains && isempty(string(expected)) && return true
         return _is_any_value_holding(operator, expected, item, IdSet{Any}(), 0)
     end
-    _is_value_holding(operator, find_arrangement_key_value(item, condition.key), expected)
+    _is_value_holding(operator, find_arrangement_key_value(item, key), expected)
 end
 
 # Whether `actual` compares with `expected` by `operator`.
