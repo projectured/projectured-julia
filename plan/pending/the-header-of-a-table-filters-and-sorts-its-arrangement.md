@@ -123,12 +123,55 @@ Each step is one commit on the branch, with its test.
     fault of main (`FileChangeModule.jl` and `ShellModule.jl`). The six searches
     of `test_referenced_document_editor` keep their first names after the
     docstring of `filter_collection!` changed.
-- [ ] **Step 2 — The header parts in the platform.** The sort glyph, the field of
+- [x] **Step 2 — The header parts in the platform.** The sort glyph, the field of
   a filter with its reason, and the dialog of the values move to the platform.
   Each part takes where its text is written, the sort keys and the operation
   that writes them, and the values of its column, so it knows nothing of a data
   frame. The data frame table uses them.
   Tests: `test_dataframes`, because a change of a table can break its cells.
+
+  **Done.** What the work found and decided:
+  - The parts are in `source/platform/widget/WidgetColumnHeader.jl`, a fragment
+    of the widget slice. `WidgetModule` now does `using ..ArrangementModule`, for
+    `is_value_listed` and `make_value_list_text`. Exported names:
+    `find_sort_state(keys, name)`, `compute_clicked_sort_keys(keys, name, adding)`,
+    `make_sort_glyph(keys, name, unsorted_color, make_operation; domain)`,
+    `make_filter_field(text, range, reason, width, invalid_filter; language,
+    placeholder)`, `make_field_child_reference(path)`,
+    `make_labeled_field(label, field)`, `compute_value_counts(column; limit)` and
+    `make_value_list_dialog(name, column, filter_text, write; widget)`.
+    `keys` is a vector of `(name, descending)` pairs, `make_operation(adding)` and
+    `write(text)` give the operations, and `domain` names the gestures in the
+    gesture help (the table sets "data frame").
+  - `make_field_child_reference` is exported because the expression bar and the
+    selection of the table of the adapter map a caret through the same second
+    child as `make_labeled_field` does.
+  - The opener of the dialog stays in the adapter. `find_editor_appearance` is in
+    the appearance slice, which comes after the widget slice. The dialog takes a
+    popup id `:value_list`, and the adapter opens its window with that id.
+    `_make_value_list_dialog(view, column; widget)` of the adapter is a thin call
+    of the platform function over the column and the filter text of the view.
+  - The six styles moved from `DataFrameTheme` to `WidgetTheme`, in a new group
+    "Header of a table": `header_field_width` (was `query_field_width`),
+    `header_gap` (was `filter_gap`), `invalid_filter` (was `invalid_query`),
+    `unsorted_glyph`, `value_list_size`, `value_list_window_size`, with the same
+    defaults. `DataFrameViewToWidget` holds the first four under the new names and
+    fills them from the widget theme; the expression bar and the find field read
+    `invalid_filter` too. `DataFrameTheme` keeps `expression_field_width`,
+    `find_field_width`, `expression_gap` and `list_column_width`.
+  - The adapter keeps `_get_sort_keys(query)`, which makes the pairs, and
+    `_make_sort_operation`, which computes its keys with the platform function.
+    The structure of the header stays: a vertical layout of the label row above
+    the field, so the field is `children[2]`.
+  - Results: `test_widget_column_header` 48 pass (new file
+    `test/platform/widget/WidgetColumnHeaderTest.jl`); `test_dataframes()` 603
+    pass; `test_platform_layering` 6 of 7 (the fault of main, `FileChangeModule.jl`
+    and `ShellModule.jl`); `test_widget_scales` 23, `test_widget_colors` 75,
+    `test_appearance_tab` 126, `test_appearance_file` 22,
+    `test_appearance_wrapper` 55, `test_settings` 107, `test_settings_tab` 55,
+    `test_builder_appearance` 7, `test_widget_table` 17 all pass;
+    `test_interface_api` 140 pass and 2 fail, the two of main (33 widget names,
+    the docstring of `WidgetLink`).
 - [ ] **Step 3 — The header of a roster table with an arrangement.**
   `RosterRowsToWidget` reads the arrangement of its place from the printer
   context. Each header gets the parts of step 2 over the entry: the field edits

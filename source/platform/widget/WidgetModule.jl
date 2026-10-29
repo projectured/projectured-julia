@@ -8,6 +8,7 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
+using ..ArrangementModule
 using ..CellModule
 using ..ClockModule
 using ..CollectionModule
@@ -102,6 +103,8 @@ export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, mak
        make_context_menu_binding, make_menu_button_binding
 export OpenPageOperation, make_open_page_gestures, make_target_open_operation
 export OpenFileOperation
+export find_sort_state, compute_clicked_sort_keys, make_sort_glyph, make_filter_field, make_field_child_reference,
+       make_labeled_field, compute_value_counts, make_value_list_dialog
 export KeepPointOperation
 export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
@@ -130,6 +133,7 @@ include("WidgetDecoration.jl")
 include("FaultToWidget.jl")
 include("WidgetTableParts.jl")
 include("WidgetTableHeaderLevels.jl")
+include("WidgetColumnHeader.jl")
 include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")

@@ -8,7 +8,7 @@
 # where the top row is in the frame.
 
 """
-    DataFrameViewToWidget(; row_height = 0, row_step = 0, query_field_width, …)
+    DataFrameViewToWidget(; row_height = 0, row_step = 0, header_field_width, …)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts and
 draws the vertical `WidgetScrollBar` of the view over the right edge of its rows,
@@ -54,22 +54,23 @@ of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
 
 The projection holds its styles and no theme; `make_data_frame_view_projection`
-fills them from the `DataFrameTheme` of its appearance, and with none it holds
-the default styles: the width of a field of the filter row and of the expression bar, the
-gaps of their parts, the color of a query that does not parse and of the
-glyph of a column that does not sort, and `list_column_width`. The table
+fills them from the `WidgetTheme` and the `DataFrameTheme` of its appearance, and
+with none it holds the default styles: the width of a field of the filter row and
+of the expression bar, the gaps of the header and of the bar, the color of a text
+that does not parse and of the glyph of a column that does not sort, and
+`list_column_width`. The table
 draws the bar at the thickness of its widget theme.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int = 0
     row_step::Int = 0
-    query_field_width::Int = get_data_frame_style(nothing, :query_field_width)
+    header_field_width::Int = get_widget_style(nothing, :header_field_width)
     expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
     find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
-    filter_gap::Int = get_data_frame_style(nothing, :filter_gap)
+    header_gap::Int = get_widget_style(nothing, :header_gap)
     expression_gap::Int = get_data_frame_style(nothing, :expression_gap)
-    invalid_query::StyleColor = get_data_frame_style(nothing, :invalid_query)
-    unsorted_glyph::StyleColor = get_data_frame_style(nothing, :unsorted_glyph)
+    invalid_filter::StyleColor = get_widget_style(nothing, :invalid_filter)
+    unsorted_glyph::StyleColor = get_widget_style(nothing, :unsorted_glyph)
     list_column_width::Int = get_data_frame_style(nothing, :list_column_width)
 end
 
@@ -201,7 +202,7 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
 
 # The header of each kept row, its row number in the frame, as a list that moves
 # in step with the rows, and the corner of the filter row. A frame with no rows
-# has neither. `p` carries the style of the data frame theme.
+# has neither. `p` carries the styles of the projection.
 function _make_row_numbers(p, view::DataFrameView)
     headers = Cell(@computation (kept = view.kept_rows;
                                  isempty(kept) ? CellVector() :
@@ -253,7 +254,7 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
     found = _find_query_text_selection(view)
     if found !== nothing
         found[1] === :expression && return nothing
-        field = _make_field_child_reference(_make_content_range_reference(found[2]))
+        field = make_field_child_reference(_make_content_range_reference(found[2]))
         found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
     end
@@ -358,7 +359,8 @@ of `appearance`. The height of a row is a line of the font of that theme, and
 its step adds the padding of a cell of the theme and a rule, and the scroll bar
 of the table takes the thickness of that theme; all three read the scaled
 theme at each print, with no edge, as a style field of a widget does. The filter
-row and the expression bar draw with the scaled `DataFrameTheme` of `appearance`.
+row draws with the scaled `WidgetTheme` and the expression bar with the scaled
+`DataFrameTheme` of `appearance`.
 """
 function make_data_frame_view_projection(; measure::TextMeasure,
                                          appearance::Appearance = Appearance())
@@ -371,12 +373,12 @@ function make_data_frame_view_projection(; measure::TextMeasure,
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
     get_style(name) = get_data_frame_style(frame_theme, name)
     view = DataFrameViewToWidget(; row_height, row_step,
-                                 query_field_width = get_style(:query_field_width),
+                                 header_field_width = get_widget_style(theme, :header_field_width),
                                  expression_field_width = get_style(:expression_field_width),
                                  find_field_width = get_style(:find_field_width),
-                                 filter_gap = get_style(:filter_gap), expression_gap = get_style(:expression_gap),
-                                 invalid_query = get_style(:invalid_query),
-                                 unsorted_glyph = get_style(:unsorted_glyph),
+                                 header_gap = get_widget_style(theme, :header_gap), expression_gap = get_style(:expression_gap),
+                                 invalid_filter = get_widget_style(theme, :invalid_filter),
+                                 unsorted_glyph = get_widget_style(theme, :unsorted_glyph),
                                  list_column_width = get_style(:list_column_width))
     ChainingProjection(view, grid)
 end

@@ -84,38 +84,8 @@ _make_content_range_reference(range) =
     ConcreteReference(FieldReferenceStep("content"),
                       ConcreteReference(RangeReferenceStep(range[1], range[2]), EmptyReference()))
 
-# The second child of a layout, the field, followed by `path`.
-_make_field_child_reference(path) =
-    path === nothing ? nothing :
-        ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(1, 2), path))
-
-# A text field of the query: `text()` is its text, `range()` the range of its
-# caret or `nothing`, and `reason()` why its text does not parse, or `nothing`.
-# A text that does not parse colors the field with `invalid_query`, and its
-# tooltip says the reason. `placeholder()` is the example that the empty field
-# shows, or `nothing`.
-function _make_query_field(text, range, reason, width::Int, invalid_query::StyleColor;
-                           language::Union{Nothing,Symbol} = nothing, placeholder = nothing)
-    field = WidgetText(""; width, language)
-    placeholder === nothing || set_cell_computation!(getfield(field, :placeholder), placeholder)
-    set_cell_computation!(getfield(field, :content), text)
-    set_cell_computation!(getfield(field, :selection),
-                          () -> (r = range(); r === nothing ? nothing : _make_content_range_reference(r)))
-    set_cell_computation!(getfield(field, :tooltip), reason)
-    set_cell_computation!(getfield(field, :style),
-                          () -> reason() === nothing ? nothing : WidgetStyle(; content_color = invalid_query))
-    field
-end
-
-# `label` above `field`, with the selection of the field.
-function _make_labeled_field(label, field)
-    layout = VerticalLayout(Any[label, field])
-    set_cell_computation!(getfield(layout, :selection), () -> _make_field_child_reference(field.selection))
-    layout
-end
-
 # The header of column `name`: its name and type and the glyph of its sort,
-# above the field of its filter. `p` carries the style of the data frame theme.
+# above the field of its filter. `p` carries the styles of the projection.
 function _make_filter_header(p, view, name::String)
     filter = _find_column_filter(view.query, name)
     text() = filter === nothing ? "" : filter.text
@@ -124,16 +94,18 @@ function _make_filter_header(p, view, name::String)
         condition = parse_filter_text(filter.text, eltype(view.frame[!, name]))
         condition isa String ? condition : nothing
     end
-    label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))),
-                                 _make_sort_glyph(p, view, name)...]; gap = p.filter_gap)
-    _make_labeled_field(label, _make_query_field(text, () -> _find_filter_range(view, name), reason,
-                                                 p.query_field_width, p.invalid_query))
+    glyph = make_sort_glyph(_get_sort_keys(view.query), name, p.unsorted_glyph,
+                            adding -> _make_sort_operation(view, name, adding); domain = "data frame")
+    label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))), glyph...];
+                             gap = p.header_gap)
+    make_labeled_field(label, make_filter_field(text, () -> _find_filter_range(view, name), reason,
+                                                p.header_field_width, p.invalid_filter))
 end
 
 # The corner: the count of the kept rows, padded with figure spaces, which are
 # as wide as a digit, to the digits of the count of all rows, so the header
 # column is as wide as the widest row number; and under it the field of the
-# pattern of the column names. `p` carries the style of the data frame theme.
+# pattern of the column names. `p` carries the styles of the projection.
 function _make_query_corner(p, view)
     label = WidgetLabel("")
     set_cell_computation!(getfield(label, :content),
@@ -142,9 +114,9 @@ function _make_query_corner(p, view)
         keep = parse_name_pattern(view.query.column_pattern)
         keep isa String ? keep : nothing
     end
-    field = _make_query_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),
-                              reason, p.query_field_width, p.invalid_query)
-    _make_labeled_field(label, field)
+    field = make_filter_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),
+                              reason, p.header_field_width, p.invalid_filter)
+    make_labeled_field(label, field)
 end
 
 # The bar above the table: the field of the expression of the query, after the
@@ -153,19 +125,19 @@ end
 # the expression is Julia code, which the Julia domain colors when it is loaded.
 # An empty field shows an example made of the columns of the frame. The bar is a
 # grid of one row, whose third column takes the room between the two fields. `p`
-# carries the style of the data frame theme.
+# carries the styles of the projection.
 function _make_expression_bar(p, view)
-    field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
-                              () -> last(view.expression_result), p.expression_field_width, p.invalid_query;
+    field = make_filter_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
+                              () -> last(view.expression_result), p.expression_field_width, p.invalid_filter;
                               language = :julia,
                               placeholder = () -> (view.frame_version; _make_expression_example(view.frame)))
-    find = _make_query_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view),
-                             p.find_field_width, p.invalid_query; placeholder = () -> "Find (Ctrl+F)")
+    find = make_filter_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view),
+                             p.find_field_width, p.invalid_filter; placeholder = () -> "Find (Ctrl+F)")
     bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), find, _make_refresh_glyph(view)], 5;
                      horizontal_gap = p.expression_gap, vertical_align = :center,
                      column_policies = Any[Content, Content, Fill, Content, Content])
     set_cell_computation!(getfield(bar, :selection), () -> begin
-        inner = _make_field_child_reference(field.selection)
+        inner = make_field_child_reference(field.selection)
         inner === nothing || return inner
         find.selection === nothing ? nothing :
             ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(3, 4), find.selection))

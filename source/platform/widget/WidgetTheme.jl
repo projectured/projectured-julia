@@ -13,7 +13,7 @@ value times its scale, and `WidgetTheme()` is the default theme. Each colour is 
 role of the colour theme, so the colour settings of the appearance choose it.
 
 The fields are in groups: the palette, the decorations, the fonts, the spacing,
-the radii, the lines, the parts of controls and the icons. Each field has a
+the radii, the lines, the parts of controls, the header of a table and the icons. Each field has a
 docstring that says what it draws, which the appearance tab shows under its name.
 
 The text styles are no fields: a widget derives them from the fonts and the
@@ -187,6 +187,19 @@ builder fills them from a theme, scaled or not.
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
+    # ── Header of a table ──
+    "The width of the field of a filter under the header of a column, so an empty field has room for a press."
+    header_field_width::ControlSize = ControlSize(80)
+    "The gap between the name of a column and the glyph of its sort, in its header."
+    header_gap::Spacing = Spacing(4)
+    "A field of a filter or of a query whose text does not parse."
+    invalid_filter::ThemeColor = ColorRole(:error_tint)
+    "The glyph of the header of a column that does not sort."
+    unsorted_glyph::ThemeColor = ColorRole(:text_faint)
+    "The width and the height of the list in the dialog of the values of a column."
+    value_list_size::ControlSize = ControlSize(Point2D(320, 320))
+    "The width and the height of the window of the dialog of the values of a column."
+    value_list_window_size::ControlSize = ControlSize(Point2D(400, 460))
     # ── Icons ──
     "Half the side of a chevron."
     chevron::IconSize = IconSize(4)
