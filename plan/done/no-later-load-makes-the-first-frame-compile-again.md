@@ -1,6 +1,6 @@
 # No later load makes the first frame compile again
 
-Status: steps 1 to 5 done on the branch `invalidation-roots`, not landed.
+Status: done 2026-10-29. The five steps are on main.
 
 ## The issue
 
