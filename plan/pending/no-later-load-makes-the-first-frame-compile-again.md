@@ -1,6 +1,6 @@
 # No later load makes the first frame compile again
 
-Status: in progress, branch `invalidation-roots`.
+Status: steps 1 to 5 done on the branch `invalidation-roots`, not landed.
 
 ## The issue
 
@@ -120,8 +120,25 @@ in the sealed struct layer, so this plan fixes each call and leaves the macro.
 
    A root shows only when no root before it made its caller invalid, so each
    round shows the next level.
-5. [ ] Run the narrow tests of the changed files: `test_kernel()`, `test_sdl()`,
+5. [x] Run the narrow tests of the changed files: `test_kernel()`, `test_sdl()`,
    `test_dataframes()` and the 229 parts of `test_platform()`. A run on the code
    of step 1 gave: `test_dataframes()` 628 of 628; `test_kernel()` 1 failure, the
    guard above; `test_sdl()` 1 failure and 1 error in `SdlWorkloadTest`, where
    `SDL_PushEvent` says that the event system has been shut down.
+
+   On the code of step 3, and on main `d338b8d04` for the baseline:
+
+   | Suite | this branch | main |
+   |---|---|---|
+   | `test_kernel()` | 4972 of 4972 | — |
+   | `test_dataframes()` | 628 of 628 | — |
+   | `test_sdl()` | 1083, 1 failure, 1 error | the same, also on `9698170c1` before the compile-ahead landing |
+   | the 229 parts of `test_platform()` | 173,719, 3 failures, 7 broken | the same three failures |
+
+   The three platform failures are the known ones of main: the layering guard
+   (`FileChangeModule`) and `InterfaceApiTest.jl:46` and `:49`.
+
+   The first platform run had 4 errors more in `SystemProcessTest`: the field
+   `root_process_ids` is declared `Vector{Int}`, but `@document` keeps it as a
+   `CellVector{Int64,…}`, so the type assertion of step 1 was wrong. A loop now
+   collects the identifiers into a `Vector{Int}` (`221e106fe`).
