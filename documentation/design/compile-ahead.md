@@ -165,15 +165,3 @@ its own whose code is in `source/tool/precompile/` of projectured-julia. It is
 at the bottom of the graph of the dependencies, and it depends only on
 PrecompileTools, Preferences and the standard library TOML. So each package of
 each repository can depend on it.
-
-## The code today
-
-The code does not follow this design yet:
-
-- The build writes the package of each application under `build/app/<name>/`
-  again at each build, and nobody commits it.
-- Each package has the preference `precompile_workload` of PrecompileTools,
-  which is only on or off.
-- Only the leaf `ProjecturedREPL` has levels: `:none`, `:recorded` and `:live`.
-- The workloads in the packages run the gestures at each build, as step 3 does.
-  No preference chooses step 2 for them.
