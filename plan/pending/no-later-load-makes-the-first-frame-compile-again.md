@@ -56,8 +56,34 @@ in the sealed struct layer, so this plan fixes each call and leaves the macro.
 
 ## Steps
 
-1. [ ] Fix the ten calls of the table: a type assertion with the declared type,
+1. [x] Fix the ten calls of the table: a type assertion with the declared type,
    a vector of a concrete type, or for an open function `@max_methods 1`.
-2. [ ] Measure the session again: the first frame, its compilation, the calls
+   Done in `6914a01db`. The count of an icon mark uses `Base.inferencebarrier`,
+   as `PredFile.jl` does, because a count can be of any integer type.
+2. [x] Measure the session again: the first frame, its compilation, the calls
    compiled again, and the invalidation log. Name each next root, but do not fix it.
+
+   | | main `d338b8d04` | this branch |
+   |---|---:|---:|
+   | the `using` line | 2.2 s | 2.2 s |
+   | the first frame | 1.44 s | 1.16 s |
+   | compilation in the first frame | 1.2 s | 0.81 s |
+   | of it, code compiled again | 0.86 s | 0.48 s |
+   | calls compiled again | 23 of 81 | 17 of 75 |
+
+   The next roots, not fixed:
+
+   | The method that a later package adds | Our call | Time |
+   |---|---|---:|
+   | SentinelArrays `IteratorSize(::BufferedVector)` | `compute_polyline_before_arrowheads(…, ::AbstractVector, …)` | about 215 ms |
+   | DataFrames `eltype(::Type{RepeatedVector})` | `_is_hashed_faithfully`: `eltype(typeof(value))` of an abstract array | 213 ms |
+   | ProjecturedPlatform `is_collecting_operation(::OpenContextMenuOperation)` | the kernel `_read_outward`, with an operation of type `Any` | 128 ms |
+   | SentinelArrays `Int64(::ChainedVectorIndex)` | `_refresh_canvas_bounds!` on a `CellVector{Any}` | 43 ms |
+
+   The fix of step 1 for `_is_hashed_faithfully` moved its root and did not
+   remove it: `eltype` of the type is open to a package as `eltype` of the value
+   is. A call that inference follows into one method of an argument of an
+   abstract type stays open to the next package; only a concrete type, more
+   matching methods than `max_methods`, or a call that inference does not follow
+   closes it.
 3. [ ] Run the narrow tests of the changed files.
