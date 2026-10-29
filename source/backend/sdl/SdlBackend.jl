@@ -1843,7 +1843,12 @@ end
 function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::Int, oy::Int)
     sp.color.alpha == 0 && return
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
-    pts = [(p[1] + ox, p[2] + oy) for p in tess]
+    # As in `_render_polygon!`: the points have no declared type, so the loop fills
+    # a vector of a concrete type.
+    pts = Tuple{Float64,Float64}[]
+    for p in tess
+        push!(pts, (p[1]::Float64 + ox, p[2]::Float64 + oy))
+    end
     _stroke_polyline!(renderer, pts, Int(sp.width), _rgba8(sp.color)...,
                       sp.start_arrow, sp.end_arrow, Int(sp.arrow_size), sp.dash)
 end

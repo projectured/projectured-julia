@@ -372,7 +372,9 @@ function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vect
     frame = view.frame
     _start_made_rows!(made, (objectid(frame), view.frame_version, columns, column_anchor))
     isempty(kept) && return CellVector()
-    types = Dict(name => eltype(frame[!, name]) for name in columns)
+    # One type of the dictionary for every frame: the row closures capture it, so
+    # the calls that the workload recorded fit a frame of any column types.
+    types = Dict{String,Type}(name => eltype(frame[!, name]) for name in columns)
     shown(i, name) = (base = make_data_frame_cell(frame[i, name], types[name]);
                       () -> _get_shown_cell_document(view, i, name, base))
     function row_of(i)
