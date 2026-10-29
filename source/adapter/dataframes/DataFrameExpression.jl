@@ -163,6 +163,9 @@ function _get_example_value(column::AbstractVector)
     nothing
 end
 
+# Whether a column of the element type `T` holds numbers that compare.
+_is_number_type(T::Type) = T <: Real && !(T <: Bool)
+
 # An example of an expression over the columns of `frame`, which the empty field
 # of the expression shows: a comparison of its first column of numbers with a
 # value of that column, and a test of the first letter of its first column of

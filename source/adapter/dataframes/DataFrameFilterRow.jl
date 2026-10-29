@@ -121,7 +121,7 @@ function _make_filter_header(p, view, name::String)
     text() = filter === nothing ? "" : filter.text
     function reason()
         filter === nothing && return nothing
-        condition = _parse_column_filter(filter.text, eltype(view.frame[!, name]))
+        condition = parse_filter_text(filter.text, eltype(view.frame[!, name]))
         condition isa String ? condition : nothing
     end
     label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))),
@@ -139,7 +139,7 @@ function _make_query_corner(p, view)
     set_cell_computation!(getfield(label, :content),
                           () -> lpad(string(length(view.kept_rows)::Int), ndigits(nrow(view.frame)::Int), '\u2007'))
     function reason()
-        keep = _parse_name_pattern(view.query.column_pattern)
+        keep = parse_name_pattern(view.query.column_pattern)
         keep isa String ? keep : nothing
     end
     field = _make_query_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),

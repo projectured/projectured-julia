@@ -22,6 +22,7 @@ A part of an arrangement as a person reads it, as its chip says it: a condition,
 such as `status ≠ "failed"`, a key of a sort, such as `↑ delay`, or a find.
 """
 describe_arrangement_part(condition::ArrangementCondition) =
+    condition.operator === :matches ? string(_describe_key(condition.key), ": ", condition.value) :
     string(_describe_key(condition.key), " ",
            get(_OPERATOR_TEXTS, condition.operator, string(condition.operator)), " ",
            condition.value isa AbstractString ? repr(condition.value) : string(condition.value))
@@ -140,8 +141,10 @@ condition takes it away. A second call replaces the conditions of the first.
 A condition is `key => comparison`. `key` is the path of a value inside an item: a
 field, such as `"status"`, a path of fields, such as `"address.city"`, `""` for
 the item itself, or `nothing` for any value inside the item. `comparison` is
-`==(value)`, `!=(value)`, `<(value)`, `>(value)`, `<=(value)`, `>=(value)` or
-`contains(text)`. A comparison alone is a condition on the item itself.
+`==(value)`, `!=(value)`, `<(value)`, `>(value)`, `<=(value)`, `>=(value)`,
+`contains(text)`, or a filter text, a `String` in the language of the field under
+the header of a column, such as `"= failed, error"`, `"> 0.2"` or `"/^T1/"`. A
+comparison alone is a condition on the item itself.
 
 Use it to show the part of a list, a set of runs or the rows of a table that a
 person asks about, without a change of the data.
@@ -149,6 +152,7 @@ person asks about, without a change of the data.
 # Example
 
     filter_collection!(runs_1, "status" => !=("failed"), "delay" => >(0.2))
+    filter_collection!(runs_1, "status" => "= failed, error")
     filter_collection!(runs_1)          # every run again
 
 `collection` is a `Reference` from the root of the editor's document, or a
@@ -453,7 +457,8 @@ _make_condition(condition::Pair) =
     ArrangementCondition(_make_key(first(condition)), _get_comparison(last(condition))...)
 _make_condition(comparison) = ArrangementCondition(EmptyReference(), _get_comparison(comparison)...)
 
-# The operator and the value of a comparison with one value.
+# The operator and the value of a comparison with one value, or of a filter text.
+_get_comparison(text::AbstractString) = (:matches, String(text))
 function _get_comparison(comparison)
     if comparison isa Base.Fix2
         operator = get(_COMPARISON_OPERATORS, comparison.f, nothing)
@@ -462,7 +467,8 @@ function _get_comparison(comparison)
         return (:contains, comparison.x)
     end
     throw(ArgumentError("A condition compares with one value: ==(value), !=(value), <(value), " *
-                        ">(value), <=(value), >=(value) or contains(text), not " * repr(comparison) * "."))
+                        ">(value), <=(value), >=(value), contains(text) or a filter text, not " *
+                        repr(comparison) * "."))
 end
 
 const _COMPARISON_OPERATORS = IdDict{Any,Symbol}(

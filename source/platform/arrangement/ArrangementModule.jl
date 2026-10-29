@@ -45,6 +45,7 @@ export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_ar
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, find_arrangement_key_value, compute_filter_rows,
        is_condition_holding, compute_sort_rows, compare_arrangement_values
+export parse_filter_text, parse_name_pattern, make_value_list_text, is_value_listed
 export GroupingProjection, GroupingIoMap, compute_group_rows, compute_arrangement_aggregate
 export ArrangementBarProjection, ArrangementBarIoMap
 export compute_shown_rows, make_field_caret_reference, find_arranged_place, is_in_find_field,
@@ -57,6 +58,7 @@ export get_arrangement_parts, describe_arrangement_part, describe_arranged_colle
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
 
 include("ArrangementDocument.jl")
+include("FilterLanguage.jl")
 include("ArrangeCollectionOperation.jl")
 include("Arranging.jl")
 include("Picking.jl")

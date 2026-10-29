@@ -85,7 +85,7 @@ Decisions of the design (mine, not the owner's):
 
 Each step is one commit on the branch, with its test.
 
-- [ ] **Step 1 — The filter language in the platform, and `:matches`.** The
+- [x] **Step 1 — The filter language in the platform, and `:matches`.** The
   parser and its conditions move to a fragment of the arrangement slice. The
   arrangement reads a `:matches` text once, when the conditions change, and
   tests each item with the condition that it made. A text that does not parse
@@ -93,6 +93,36 @@ Each step is one commit on the branch, with its test.
   frame table uses the parser of the platform.
   Tests: `test_data_frame_filter`, `test_arrangement_filter_sort` and a new
   testset of `:matches`.
+
+  **Done.** What the work found and decided:
+  - The fragment is `source/platform/arrangement/FilterLanguage.jl`. It exports
+    four functions, because the list of the values of the data frame table uses
+    two of them, and the header field of step 3 needs them too:
+    `parse_filter_text(text, type = Any)`, `parse_name_pattern(text)`,
+    `make_value_list_text(values, ticked)` and `is_value_listed(text, value,
+    type = Any)`. The list of values read an `_EqualCondition` before, which a
+    qualified name of another module can not reach.
+  - D5: for the type `Any`, a comparison and a range parse, and their conditions
+    hold only for a value that is a number and no `Bool`. For a type of numbers
+    that check is always true, so the data frame table keeps its behaviour.
+  - `_read_conditions` reads a `:matches` text into a `_ParsedFilterText`, the
+    text and its test, which is equal to another when the texts are. So the cells
+    of the items of a filter stay while the text stays. A key that finds no
+    value gives `nothing`, which the test reads as `missing`.
+  - The adapter keeps `_is_number_type` for its example of an expression, and
+    labels a value of the list with `string(value)`, which is the text that the
+    filter reads.
+  - The three testsets of the language moved from `DataFrameFilterTest.jl` to
+    `test/platform/arrangement/ArrangementFilterLanguageTest.jl`
+    (`test_arrangement_filter_language`), with a testset of the type `Any` and
+    one of `:matches`.
+  - Results: `test_arrangement_filter_language` 50, `test_arrangement_filter_sort`
+    27, `test_arrangement_program` 13; `test_dataframes_layering`,
+    `test_data_frame_filter`, `test_data_frame_sort` and
+    `test_data_frame_columns` 140. `test_platform_layering` fails 1 of 7, the
+    fault of main (`FileChangeModule.jl` and `ShellModule.jl`). The six searches
+    of `test_referenced_document_editor` keep their first names after the
+    docstring of `filter_collection!` changed.
 - [ ] **Step 2 — The header parts in the platform.** The sort glyph, the field of
   a filter with its reason, and the dialog of the values move to the platform.
   Each part takes where its text is written, the sort keys and the operation

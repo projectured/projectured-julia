@@ -72,7 +72,7 @@ end
 function _get_shown_columns(view)
     view.frame_version
     query = view.query
-    keep = _parse_name_pattern(query.column_pattern)
+    keep = parse_name_pattern(query.column_pattern)
     String[name for name in names(view.frame)
            if !(name in query.hidden_columns) && (keep isa String || keep(name))]
 end

@@ -189,9 +189,30 @@ function compute_filter_rows(filter::ArrangementFilter, items)
 end
 
 # The conditions of `filter` as plain values, each its key, its operator and its
-# value, read through their cells.
+# value, read through their cells. The text of a `:matches` condition is read
+# into its test here, once for every item.
 _read_conditions(filter::ArrangementFilter) =
-    Tuple((condition.key, condition.operator, condition.value) for condition in filter.conditions)
+    Tuple((condition.key, condition.operator, _read_condition_value(condition.operator, condition.value))
+          for condition in filter.conditions)
+
+_read_condition_value(operator::Symbol, value) =
+    operator === :matches ? _ParsedFilterText(string(value), parse_filter_text(string(value))) : value
+
+# The filter text of a `:matches` condition and its test: a condition, `nothing`
+# for an empty text, or the reason why it does not parse. Two are equal when
+# their texts are, so the cells of the items stay while the text stays.
+struct _ParsedFilterText
+    text::String
+    test::Any
+end
+Base.:(==)(a::_ParsedFilterText, b::_ParsedFilterText) = a.text == b.text
+Base.isequal(a::_ParsedFilterText, b::_ParsedFilterText) = a.text == b.text
+Base.hash(a::_ParsedFilterText, h::UInt) = hash(a.text, hash(_ParsedFilterText, h))
+
+# Whether the filter text `expected` keeps every value: an empty text, or one that
+# does not parse.
+_is_keeping_all(expected) =
+    (expected isa _ParsedFilterText ? expected : _read_condition_value(:matches, expected)).test isa Union{Nothing,String}
 
 _is_kept(conditions, item) = all(c -> _is_condition_holding(c[1], c[2], c[3], item), conditions)
 
@@ -233,13 +254,20 @@ is_condition_holding(condition::ArrangementCondition, item) =
 function _is_condition_holding(key, operator::Symbol, expected, item)
     if key === nothing
         operator === :contains && isempty(string(expected)) && return true
+        operator === :matches && _is_keeping_all(expected) && return true
         return _is_any_value_holding(operator, expected, item, IdSet{Any}(), 0)
     end
     _is_value_holding(operator, find_arrangement_key_value(item, key), expected)
 end
 
-# Whether `actual` compares with `expected` by `operator`.
+# Whether `actual` compares with `expected` by `operator`. A value of `nothing`,
+# which a key that finds no value gives, is `missing` to a filter text.
 function _is_value_holding(operator::Symbol, actual, expected)
+    if operator === :matches
+        _is_keeping_all(expected) && return true
+        parsed = expected isa _ParsedFilterText ? expected : _read_condition_value(operator, expected)
+        return parsed.test(something(actual, missing))
+    end
     operator === :equal && return isequal(actual, expected)
     operator === :not_equal && return !isequal(actual, expected)
     operator === :contains &&
