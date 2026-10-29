@@ -10902,6 +10902,7 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     edge_hovered_stroke::StyleStroke    # over the right edge of a header that the pointer is on
     cell_mark_stroke::StyleStroke       # the frame of an open cell whose last commit failed
     cell_padding::Inset                 # inside a cell: top and bottom, left and right
+    column_minimum_width::Int           # the least width of a column that takes a share of the width
     row_radius::Int                     # corner radius of the hover and the selection band
 end
 
@@ -10916,11 +10917,12 @@ WidgetTableToGraphicsCanvas(theme; graphics_theme = nothing,
                             edge_hovered_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, 3)),
                             cell_mark_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.destructive, 2)),
                             cell_padding = _themed(Inset, theme, t -> t.control_padding),
+                            column_minimum_width = _themed(Int, theme, t -> t.table_column_minimum_width),
                             row_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, divider_stroke, header_row_color, row_selected_color,
                                 layer_hovered_color, edge_hovered_stroke, cell_mark_stroke, cell_padding,
-                                row_radius)
+                                column_minimum_width, row_radius)
 
 # The geometry of a table as if it were not scrolled, in the coordinates of its
 # content. `col_x` / `row_y` are the cumulative left/top edges, length
@@ -11084,7 +11086,8 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         master = m == 0
         policies = master ? Cell(Any[_get_table_column_policy(w, c) for c in 1:n]) :
                             Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n])
-        offers = Bool[wraps[c] && (master || !_wt_is_content_column(_get_table_column_policy(w, c)))
+        offers = Bool[(wraps[c] || _wt_is_weighted_column(_get_table_column_policy(w, c))) &&
+                      (master || !_wt_is_content_column(_get_table_column_policy(w, c)))
                       for c in 1:n]
         grid = GridLayout(CellVector(Cell[Cell(_wt_get_header(w.column_headers, c)) for c in 1:n]),
                           Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
@@ -11119,7 +11122,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     get_row_header(r) = row_header_pane === nothing ? nothing :
                         row_header_pane.content_iomap.child_iomaps[r][3]
     column_policies = Cell(@computation Any[
-        _get_cells_column_policy(w, c, get_column_header(c), widest[c]) for c in 1:n])
+        _get_cells_column_policy(w, c, get_column_header(c), p.column_minimum_width, widest[c]) for c in 1:n])
     row_policies = Cell(@computation Any[_wt_get_cells_row_policy(w, r, get_row_header(r)) for r in 1:m])
     grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(w, r, c)) for r in 1:m for c in 1:n]),
                       Cell(max(1, n)), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),

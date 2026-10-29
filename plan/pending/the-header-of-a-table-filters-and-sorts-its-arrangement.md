@@ -123,6 +123,14 @@ Decisions of the design (mine, not the owner's):
   wins over a column of its kind with the same name. The facet `expected_result`
   is the expected code of the result after the task ends, and before that the
   column `expected_result` of its kind, or `nothing` when the kind has none.
+- **D12.** The owner, 2026-10-30: the shares win. A column of a table that has a
+  weight takes its share of the width, but never less than the minimum of the theme
+  (`table_column_minimum_width`, 100 px, scaled like the other control sizes). The
+  header of a column is not a floor of such a column: it is offered the width of the
+  column, so the filter field fills it. When the window is narrower than the sum of
+  the minimums, the table is cut at its right edge, as a wide table is. A column
+  that offers no width (a data frame column, as wide as its content) gives the field
+  `header_field_minimum_width`.
 
 ## The steps
 
@@ -483,17 +491,41 @@ Each step is one commit on the branch, with its test.
     `header_field_width` of 80, so each column of a table with a filter header was at
     least about 131 px wide; the 11 columns of a group in 1500 px took the whole width
     and every column was equally wide.
-  - Decision 7 (coordinator): the field fills its column. `make_labeled_field` makes
-    its layout with `child_width = Fill`, and the header fields are made with width 0,
-    so the field is as wide as the column that the table gives. The style
-    `header_field_width` is removed (WidgetTheme, `DataFrameViewToWidget`, and the
-    tests that listed it): the label row (key and glyph) already holds a column at its
-    own width, so a minimum of the field decides nothing. The columns of a group then
-    stand at the width of the label row at least (107 to 201 px at 1500 px) and divide
-    the rest by their shares. Test: "the shares divide the width of the columns under
-    a filter header" in `TaskGroupTableTest.jl` (the column of share 2 is wider than a column
-    of share 1); the clicks of the header tests are at 10 px in the field, which is as wide
-    as its column; image `group-after2.png`.
+  - Fact: commit 2ce68a101 did not make the field fill. It gave the layout of the header
+    `Fill` and the field width 0, and drew a field of 20 px: the header row of a table
+    offers its width to a header only where the column wraps its cells, so the header of
+    a column with a weight was measured at its content, as a floor of the column, and no
+    `Fill` reached it. The images of that commit were read wrong.
+  - Decision 7 (D12): the table offers the width of a column with a weight to its header
+    (`_wt_is_weighted_column`, in the eager parts and in the parts of a list). The cells
+    policy of such a column is `SizePolicy(floor, ...)` with `floor` the larger of
+    `table_column_minimum_width` (new style of `WidgetTheme`, read by the projection as
+    `column_minimum_width`) and, when its cells do not wrap, its widest cell; the header
+    is no floor. This changes every table with weighted columns and column headers.
+  - Decision 8: `make_labeled_field(label, field, minimum_width)` makes its layout with
+    `child_width = SizePolicy(minimum_width, nothing, nothing, 1.0)`; the header fields are
+    made with width 0. Where the column offers nothing, `make_cross_axis_context` gives a
+    weighted child with no edge its minimum and its content, so a data frame field is
+    `minimum_width` wide at least. The style is `header_field_minimum_width` (80;
+    `header_field_width` is gone), read by the data frame view and the roster.
+  - The sort glyph of `elapsed` in `test_task_group_table` was not hit because a weighted
+    column had no minimum, so in the narrow window of the editor the columns were narrower
+    than their label rows and the glyph was cut. With the minimum of 100 px the glyph is
+    reachable in the same window (the table is cut at its right edge instead).
+  - The columns of a data frame table have a weight too, so a header that is wider than the
+    share of its column wraps in its column (a window of 600 px broke "name :: String"
+    into two texts). `test_data_frame_view` prints the header test at 1400 px.
+  - Tests: `test_widget_table_list_column_share` (was `..._header_floor`): a weighted
+    column takes its share, never less than the minimum of the theme. "the filter field of
+    a column is as wide as the column, so the shares show" in `TaskGroupTableTest.jl` reads
+    the drawn boxes of the fields at 2400 px (11 minimums need more than the 800 px window
+    of the editor, where every column is at its minimum): the field of the column of share 2
+    is wider than that of share 1, and each is its column minus the same padding.
+  - Images (30 probe tasks): `group-after4.png` at 1500 px: the 11 columns are about 131 px
+    (`state`, `configuration`, `elapsed` to `expected`), 142 px (`test`, `progress`) and
+    168 px (`reason`); the minimums leave 169 px to the shares. `group-narrow4.png` at
+    800 px: each column is at its minimum, 121 px, and the table is cut at the right edge.
+    `dataframe-after4.png`: the fields fill the columns of the data frame table.
 
 - [ ] **Step 6 — Measure, and the documents.** The filter and the sort of a group
   of 22,731 tasks through its page: the first open, and the end of one task.

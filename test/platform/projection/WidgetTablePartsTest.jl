@@ -21,8 +21,8 @@ function _wtp_key_event(key, modifiers)
                             KeyPress(character, modifiers; time = 0.0)
 end
 
-function test_widget_table_list_header_floor()
-@testset "a weighted column is at least as wide as its header" begin
+function test_widget_table_list_column_share()
+@testset "a weighted column takes its share of the width, never less than the minimum of the theme" begin
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
@@ -37,13 +37,16 @@ function test_widget_table_list_header_floor()
         print_document(rec, nothing, table, ctx)
     end
     widths(io) = Int[Int(c[]) for c in io.state.cells_pane.content_iomap.col_w]
+    minimum_width = Int(unwrap_cell(get_widget_style(nothing, :table_column_minimum_width)))
     wide = print_at(900)
     @test Int(wide.output.w[]) == 900
-    # The same share on top of each header, less a pixel of rounding.
-    @test abs((widths(wide)[2] - widths(wide)[1]) - 8 * (length("a much longer header") - length("id"))) <= 1
+    # The headers are no floor: the columns take the same share, whatever their headers say.
+    @test abs(widths(wide)[2] - widths(wide)[1]) <= 1
+    @test all(>(minimum_width), widths(wide))
     narrow = print_at(100)
-    @test widths(narrow) == [8 * length("id"), 8 * length("a much longer header")]
+    @test widths(narrow) == [minimum_width, minimum_width]
     @test Int(narrow.output.w[]) == 100
+    # The table is cut at its right edge.
     @test Int(narrow.state.cells_pane.content_iomap.output.w) > 100
 end
 end

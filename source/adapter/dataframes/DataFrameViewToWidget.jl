@@ -8,7 +8,7 @@
 # where the top row is in the frame.
 
 """
-    DataFrameViewToWidget(; row_height = 0, row_step = 0, header_gap, …)
+    DataFrameViewToWidget(; row_height = 0, row_step = 0, header_field_minimum_width, …)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts and
 draws the vertical `WidgetScrollBar` of the view over the right edge of its rows,
@@ -64,6 +64,7 @@ draws the bar at the thickness of its widget theme.
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int = 0
     row_step::Int = 0
+    header_field_minimum_width::Int = get_widget_style(nothing, :header_field_minimum_width)
     expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
     find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
     header_gap::Int = get_widget_style(nothing, :header_gap)
@@ -372,6 +373,7 @@ function make_data_frame_view_projection(; measure::TextMeasure,
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
     get_style(name) = get_data_frame_style(frame_theme, name)
     view = DataFrameViewToWidget(; row_height, row_step,
+                                 header_field_minimum_width = get_widget_style(theme, :header_field_minimum_width),
                                  expression_field_width = get_style(:expression_field_width),
                                  find_field_width = get_style(:find_field_width),
                                  header_gap = get_widget_style(theme, :header_gap), expression_gap = get_style(:expression_gap),

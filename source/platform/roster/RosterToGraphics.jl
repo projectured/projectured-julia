@@ -235,7 +235,8 @@ function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::Strin
                                                          callback = editor -> _open_value_list!(p, editor, rows, ctx, entry, key)))])
     label = WidgetContextMenu(HorizontalLayout(Any[WidgetLabel(format_roster_column_label(key)), glyph...]; gap = Int(style(:header_gap))), menu)
     make_labeled_field(label, make_filter_field(text, () -> _find_header_range(rows, c), reason,
-                                                0, style(:invalid_filter)))
+                                                0, style(:invalid_filter)),
+                       Int(style(:header_field_minimum_width)))
 end
 
 # The edit of a click on the glyph of column `key`: the new sort of the entry.

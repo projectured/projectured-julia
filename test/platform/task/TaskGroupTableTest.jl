@@ -76,16 +76,41 @@ function test_task_group_table()
         stop_task_group_document!(group)
     end
 
-    @testset "the shares divide the width of the columns under a filter header" begin
+    @testset "the filter field of a column is as wide as the column, so the shares show" begin
         group = make_group()
-        (editor, backend, window) = make_editor(group)
-        entries = drawn(window)
-        x_of(label) = entries[findfirst(e -> e[1] == label, entries)][2]
-        progress_width = x_of("elapsed") - x_of("progress")
-        elapsed_width = x_of("process") - x_of("elapsed")
-        # A field under a key does not hold its column at a width of its own, so the
-        # column of share 2 is wider than the column of share 1.
-        @test progress_width > elapsed_width
+        # A window of 2400 px holds the 11 columns above their minimum, so each takes its share.
+        canvas = last(_print_task_view(group; width = 2400)).output
+        entries = _arrangement_drawn(canvas)
+        label_x(label) = entries[findfirst(e -> e[1] == label, entries)][2]
+        label_y = entries[findfirst(e -> e[1] == "state", entries)][3]
+        # The drawn boxes of the fields: the rounded boxes with a border in the band under the labels.
+        function boxes(canvas, ox = 0, oy = 0, found = Tuple{Int,Int,Int}[])
+            x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+            for element in canvas.elements
+                element = element isa Cell ? element[] : element
+                element = element isa ListNode ? element.value : element
+                if element isa GraphicsRect && element.border_width > 0 && element.radius_tl > 0 &&
+                   label_y + 8 <= y + Int(element.y) <= label_y + 40 && element.w > 20
+                    push!(found, (x + Int(element.x), Int(element.w), y + Int(element.y)))
+                elseif element isa GraphicsCanvas
+                    boxes(element, x, y, found)
+                elseif element isa GraphicsViewport
+                    boxes(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                          y + Int(element.y) + round(Int, element.transform.f), found)
+                end
+            end
+            found
+        end
+        fields = sort(unique(boxes(canvas)))
+        @test length(fields) >= 4
+        width_of(label) = fields[findfirst(f -> abs(f[1] - label_x(label)) <= 12, fields)][2]
+        # The drawn pitch of a column is its width and the padding of its cell.
+        pitch_state = label_x("test") - label_x("state")
+        pitch_test = label_x("configuration") - label_x("test")
+        @test pitch_test > pitch_state
+        @test pitch_state - width_of("state") == pitch_test - width_of("test")
+        @test 0 <= pitch_state - width_of("state") <= 40
+        @test width_of("test") > width_of("state")
         stop_task_group_document!(group)
     end
 

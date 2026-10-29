@@ -159,23 +159,24 @@ make_field_child_reference(path) =
         ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(1, 2), path))
 
 """
-    make_labeled_field(label, field) -> VerticalLayout
+    make_labeled_field(label, field, minimum_width) -> VerticalLayout
 
 `label` above `field`, with the selection of the field. The field is the second
 child of the layout. The layout fills the width that its column offers, so a
-field made with width 0 is as wide as its column.
+field made with width 0 is as wide as its column, and it is `minimum_width` wide
+where nothing is offered.
 
 Use it for the header of a column: its name and its glyph above the field of its
 filter.
 
 # Example
 
-    make_labeled_field(WidgetLabel("age"), make_filter_field(text, range, reason, 0, color))
+    make_labeled_field(WidgetLabel("age"), make_filter_field(text, range, reason, 0, color), 80)
 
 See also `make_filter_field`, `make_field_child_reference`.
 """
-function make_labeled_field(label, field)
-    layout = VerticalLayout(Any[label, field]; child_width = Fill)
+function make_labeled_field(label, field, minimum_width::Int)
+    layout = VerticalLayout(Any[label, field]; child_width = SizePolicy(minimum_width, nothing, nothing, 1.0))
     set_cell_computation!(getfield(layout, :selection), () -> make_field_child_reference(field.selection))
     layout
 end

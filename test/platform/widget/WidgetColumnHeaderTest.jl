@@ -69,7 +69,7 @@ function test_widget_column_header()
         reason[] = nothing
         @test field.tooltip === nothing && field.style === nothing
         # The labeled field holds the field as its second child, and maps the caret into it.
-        layout = make_labeled_field(WidgetLabel("age"), field)
+        layout = make_labeled_field(WidgetLabel("age"), field, 80)
         @test layout.children[2] === field
         @test layout.selection == make_field_child_reference(field.selection)
         @test make_field_child_reference(nothing) === nothing
@@ -105,9 +105,11 @@ function test_widget_column_header()
     @testset "the styles are in the widget theme" begin
         theme = WidgetTheme()
         style(theme, name) = unwrap_cell(get_widget_style(theme, name))
+        @test style(theme, :header_field_minimum_width) == 80
         @test style(theme, :header_gap) == 4
         @test style(nothing, :value_list_size).x[] == 320
         scaled = get_scaled_theme!(Appearance(control_scale = 1.5, spacing_scale = 1.5), WidgetTheme)
+        @test style(scaled, :header_field_minimum_width) == 120
         @test style(scaled, :header_gap) == 6
     end
 end

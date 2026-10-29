@@ -92,7 +92,10 @@ function test_data_frame_view()
 
         @testset "the header names each column and its type" begin
             view = DataFrameView(make_data_frame_example(rows = 3))
-            io = print_document(projection, nothing, view, context())
+            # A header is no floor of its column, so the window is wide enough for each column to
+            # hold its header in one line.
+            wide = with_exact_size(PrinterContext(); width = Cell(Int32(1400)), height = Cell(Int32(300)))
+            io = print_document(projection, nothing, view, wide)
             found = Set(t[3] for t in _data_frame_texts(io.output))
             @test "id :: Int64" in found
             @test "name :: String" in found

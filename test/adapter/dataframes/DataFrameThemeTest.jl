@@ -9,6 +9,7 @@ function test_data_frame_theme()
 @testset "the data frame view follows the scales of the appearance" begin
     defaults = DataFrameTheme()
     plain = DataFrameViewToWidget()
+    @test plain.header_field_minimum_width == 80
     @test plain.expression_field_width == 480
     @test plain.list_column_width == 160
     @test plain.header_gap == 4
@@ -20,6 +21,7 @@ function test_data_frame_theme()
     appearance = Appearance(control_scale = 1.5, spacing_scale = 1.5)
     chain = make_data_frame_view_projection(; measure = FixedMeasure(8, 12, 4, 0), appearance)
     scaled = first(chain.projections)
+    @test scaled.header_field_minimum_width == 120
     @test scaled.expression_field_width == 720
     @test scaled.list_column_width == 240
     @test scaled.header_gap == 6

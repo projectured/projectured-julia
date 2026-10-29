@@ -1063,7 +1063,8 @@ that the container does not divide: the cross axis of a stack, and both axes
 of a `WidgetComposite`, whose children overlap.
 
 The edge `B` on that axis is the maximum of the range of `cctx`. `Fill` and
-`Relative` take it exactly, `(B, B)`; a declared preferred extent takes that
+`Relative` take it exactly, `(B, B)`, and with no edge they take their minimum
+and their content; a declared preferred extent takes that
 number exactly; and everything else is `Content`: the child draws its content
 up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's minimum and
 maximum. The policy is the `LayoutConstraint` that `child` is, else `default`,
@@ -1076,7 +1077,12 @@ own.
 function make_cross_axis_context(cctx, child, axis::Symbol, default)
     edge = axis === :x ? cctx.maximum_width : cctx.maximum_height
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
-    layout_weight(child, axis; default) > 0 && return with_size_range(cctx; on_axis((edge, edge))...)
+    if layout_weight(child, axis; default) > 0
+        # With no edge to take, a weighted child draws its content, at least its minimum.
+        minimum = layout_min(child, axis, 0; default)
+        return with_size_range(cctx; on_axis(edge === nothing && minimum > 0 ? (Cell(Int32(minimum)), nothing) :
+                                              (edge, edge))...)
+    end
     pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
     minimum = layout_min(child, axis, 0; default)

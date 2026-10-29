@@ -187,7 +187,12 @@ builder fills them from a theme, scaled or not.
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
+    # ── Table ──
+    "The least width of a column of a table that takes a share of its width."
+    table_column_minimum_width::ControlSize = ControlSize(100)
     # ── Header of a table ──
+    "The least width of the field of a filter under the header of a column, where the column does not give it its width, so an empty field has room for a press."
+    header_field_minimum_width::ControlSize = ControlSize(80)
     "The gap between the name of a column and the glyph of its sort, in its header."
     header_gap::Spacing = Spacing(4)
     "A field of a filter or of a query whose text does not parse."

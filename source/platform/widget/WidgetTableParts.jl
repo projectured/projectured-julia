@@ -132,21 +132,24 @@ end
 _get_part_child_width(cim) =
     (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim.output.w) : 0
 
-# The policy of column `c` of the cells. A column with no minimum of its own is
-# at least as wide as its header, `header`, which is the IO map of the header;
-# a column with a weight is also at least as wide as `widest`, a cell of the
-# width of its widest cell, when the cells are measured. A column with a weight
-# whose cells wrap offers its width to its header as well, so the width of its
-# header depends on the column and is no floor.
-function _get_cells_column_policy(w::WidgetTable, c::Int, header, widest = nothing)
+# Whether a column with a weight offers its width to its header: it divides the
+# width of the table, so the header is as wide as the column and is no floor.
+_wt_is_weighted_column(policy::SizePolicy) = policy.weight !== nothing && policy.weight > 0
+
+# The policy of column `c` of the cells. A column with a weight takes its share
+# of the width, and is at least `minimum_width` wide and as wide as `widest`, a
+# cell of the width of its widest cell, when the cells are measured and do not
+# wrap. It offers its width to its header, so the header is no floor of it. Any
+# other column with no minimum of its own is at least as wide as its header,
+# `header`, which is the IO map of the header.
+function _get_cells_column_policy(w::WidgetTable, c::Int, header, minimum_width::Int, widest = nothing)
     policy = _get_table_column_policy(w, c)
-    (header === nothing || policy.min !== nothing) && return policy
-    if policy.weight !== nothing && policy.weight > 0
-        _wt_column_cell_policy(w, c) === :wrap && return policy
-        floor = max(_get_part_child_width(header), widest === nothing ? 0 : Int(widest[]))
+    policy.min !== nothing && return policy
+    if _wt_is_weighted_column(policy)
+        floor = max(minimum_width, widest === nothing || _wt_column_cell_policy(w, c) === :wrap ? 0 : Int(widest[]))
         return SizePolicy(floor, max(floor, something(policy.preferred, 0)), policy.max, policy.weight)
     end
-    policy.preferred === nothing || return policy
+    (header === nothing || policy.preferred !== nothing) && return policy
     SizePolicy(_get_part_child_width(header), nothing, policy.max, policy.weight)
 end
 
@@ -903,6 +906,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     content_x, content_y = _content_offset(p, w)
     aligns = Symbol[_wt_column_align(w, c) for c in 1:n]
     offers = Bool[_wt_column_cell_policy(w, c) === :wrap for c in 1:n]
+    header_offers = Bool[offers[c] || _wt_is_weighted_column(_get_table_column_policy(w, c)) for c in 1:n]
     offset = getfield(w, :scroll_position)
     # The width of every column, which the cells decide once they print.
     widths = Cell[Cell(0) for _ in 1:n]
@@ -927,7 +931,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
                           Cell(aligns), Cell(Fixed(0)),
                           levels.column_levels > 0 ? Cell(Content) : _get_header_row_policy(corner),
                           Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n]),
-                          Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
+                          Cell(Any[]), Cell(header_offers), Cell(Bool[]), Cell(nothing))
         header_offset = Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0))
         pane = _make_part_pane(grid, header_offset, Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
         column_header_pane = print_child(recursion, pane, with_free_axis(beside, :y))
@@ -939,7 +943,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     get_header(c) = header_grid === nothing ? nothing :
                     levels.column_levels > 0 ? _LevelHeaderWidth(levels, header_grid, measured, c, hgap) :
                                                header_grid.child_iomaps[c][3]
-    policies = Cell(@computation Any[_get_cells_column_policy(w, c, get_header(c)) for c in 1:n])
+    policies = Cell(@computation Any[_get_cells_column_policy(w, c, get_header(c), p.column_minimum_width) for c in 1:n])
     grid = GridLayout(_get_row_list(w), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       Cell(aligns), getfield(w, :column_policy), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
