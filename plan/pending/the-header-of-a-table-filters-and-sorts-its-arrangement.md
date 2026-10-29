@@ -65,6 +65,16 @@ marked row, so the page of a group looks as it does now. The other choice was
 the group table as it is, with the arrangement and the header parts in its own
 code.
 
+**D9. One value for each name.** The owner, 2026-10-29: "there should have been
+separate fields: result is the actual result, expected result is the expected
+result, expected true or false if the two are equal". A task has the values
+`result` (the actual code, `FAIL`), `expected_result` (the expected code, `PASS`)
+and `expected` (`true` when the two are equal). The kind column `expected` of the
+omnet opp tests and validation tasks, which shows the expected code, becomes
+`expected_result`. The column `result` of the table of a group shows the actual
+code, and the reason is a column of its own, `reason`, so each filter tests the
+value that its cell shows.
+
 Decisions of the design (mine, not the owner's):
 
 - **D3.** A `String` value in a filter pair is the filter text:
