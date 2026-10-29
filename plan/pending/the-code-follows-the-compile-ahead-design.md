@@ -325,6 +325,39 @@ changes. Mark a step here when it is done.
    repository, before step 2 and after step 5, and write both into this plan.
    Remove the section "The code today" from the three design documents.
 
+   Decided (the owner, 2026-10-29, "I accept step 6, yes"): the measurements
+   that each repository takes the same way are functions of
+   `ProjecturedPrecompile` (`measure_package_images`, `measure_process_median`,
+   `measure_binary_build`), and each repository has a small command for its own
+   checks.
+
+   As built (2026-10-29):
+   - projectured `dfe541a96`: `source/tool/precompile/PrecompileMeasurement.jl`
+     and `test_precompile_measurement()`. The command of each repository runs
+     in an environment that holds `ProjecturedPrecompile`, and each measurement
+     runs in a new process of the environment of the measured checkout, so the
+     command measures `main` too.
+   - omnet `f62e464f0`: `tool/measure-compile-ahead.jl`: the images, the `using`
+     line and the first frame of `OmnetIde`, the guard of `omnet_ide`, and the
+     binaries `omnet_ide` and `omnet_run`.
+   - inet `0dc46b8`: `source/tool/build/measure-compile-ahead.jl`: the images,
+     the `using` line and the first run of `InetRunner` in place of a first
+     frame, and the binary `inet-julia`. `.gitignore` named `build/`, which also
+     hid `source/tool/build/`; it names `/build/` now.
+   - The recordings: omnet 1872 s for the repository and 715 s for `omnet_ide`;
+     inet 187 s. The first recording of `OmnetIde` failed under load: the window
+     did not draw `DONE` within the 300 s of its step, while four other jobs ran.
+     It passed when it ran again, and the lists of `omnet_ide` were recorded
+     again after it.
+   - Fact: Pkg follows the real path of an environment, so the relative
+     `[sources]` of a worktree reach the main checkouts also through a folder of
+     symbolic links. That folder serves the static tests only. The
+     measurements of the branches run in `/var/tmp/compile-ahead/tree`, a
+     detached worktree of each branch with the real name of its repository,
+     beside links to the other folders that the `[sources]` reach.
+   - The section "The code today" goes from the three design documents
+     (projectured `5670e98c4`, omnet `1db23c48b`, inet `1e91ecd`).
+
 ## Hazards
 
 - A list names closures that the compiler generated, so it goes stale when the
