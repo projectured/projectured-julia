@@ -105,11 +105,9 @@ function test_widget_column_header()
     @testset "the styles are in the widget theme" begin
         theme = WidgetTheme()
         style(theme, name) = unwrap_cell(get_widget_style(theme, name))
-        @test style(theme, :header_field_width) == 80
         @test style(theme, :header_gap) == 4
         @test style(nothing, :value_list_size).x[] == 320
         scaled = get_scaled_theme!(Appearance(control_scale = 1.5, spacing_scale = 1.5), WidgetTheme)
-        @test style(scaled, :header_field_width) == 120
         @test style(scaled, :header_gap) == 6
     end
 end

@@ -30,7 +30,7 @@ function test_roster_header()
     # The place under a drawn label where the filter field of its header is.
     function field_place(backend, label)
         (x, y) = _arrangement_place(backend, label)
-        (x + 78, y + 30)
+        (x + 10, y + 30)
     end
     # The places of the sort glyphs of the headers, from the left.
     glyphs(backend) = sort([(x + 2, y + 2) for (text, x, y) in _arrangement_drawn(last(rendered_output(backend)))
@@ -89,6 +89,7 @@ function test_roster_header()
         @test !(">= 1" in _arrangement_texts(backend))
         # An edit of the field of the column writes in the place of that condition.
         press!(editor, backend, field_place(backend, "status")...)
+        key!(editor, backend, :end)
         type!(editor, backend, ", error")
         @test filters_of(rows) == [(key_of("status"), :matches, "= failed, error"), (key_of("delay"), :greater, 0.1)]
         @test shown_ids(rows) == [2, 4]

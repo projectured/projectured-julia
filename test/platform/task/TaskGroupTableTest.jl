@@ -76,6 +76,19 @@ function test_task_group_table()
         stop_task_group_document!(group)
     end
 
+    @testset "the shares divide the width of the columns under a filter header" begin
+        group = make_group()
+        (editor, backend, window) = make_editor(group)
+        entries = drawn(window)
+        x_of(label) = entries[findfirst(e -> e[1] == label, entries)][2]
+        progress_width = x_of("elapsed") - x_of("progress")
+        elapsed_width = x_of("process") - x_of("elapsed")
+        # A field under a key does not hold its column at a width of its own, so the
+        # column of share 2 is wider than the column of share 1.
+        @test progress_width > elapsed_width
+        stop_task_group_document!(group)
+    end
+
     @testset "the choice of rows chooses the tasks that the roster lists" begin
         group = make_group()
         roster = roster_of(group)
@@ -149,8 +162,8 @@ function test_task_group_table()
         # typing in another field is one step of undo.
         function type_in!(label, text)
             (x, y) = _arrangement_place(backend, label)
-            _arrangement_press!(editor, backend, MouseMove(x + 78, y + 30; time = 0.0),
-                                MouseClick(:left, x + 78, y + 30, 1, ModifierKeys(); time = 0.0))
+            _arrangement_press!(editor, backend, MouseMove(x + 10, y + 30; time = 0.0),
+                                MouseClick(:left, x + 10, y + 30, 1, ModifierKeys(); time = 0.0))
             frame!(editor)
             for char in text
                 _arrangement_press!(editor, backend, KeyPress(char; time = 0.0))
@@ -193,7 +206,7 @@ function test_task_group_table()
         getfield(group, :row_filter)[].value = "running"
         frame!(editor)
         (x, y) = place(window, "test")
-        press!(editor, backend, window, x + 78, y + 30)
+        press!(editor, backend, window, x + 10, y + 30)
         for char in "delta"
             push_event!(backend, WindowInput(window.id, KeyPress(char; time = 0.0)))
             frame!(editor)
@@ -212,7 +225,7 @@ function test_task_group_table()
         group = make_group()
         (editor, backend, window) = make_editor(group)
         (x, y) = place(window, "test")
-        press!(editor, backend, window, x + 78, y + 30)
+        press!(editor, backend, window, x + 10, y + 30)
         push_event!(backend, WindowInput(window.id, KeyPress('a'; time = 0.0)))
         frame!(editor)
         @test length(group.table.entries) == 1
@@ -222,7 +235,7 @@ function test_task_group_table()
         @test names_of(table_of(editor).input) == ["alpha", "beta", "gamma", "delta", "epsilon"]
         # The next filter has an arrangement to go to.
         (x, y) = place(window, "test")
-        press!(editor, backend, window, x + 78, y + 30)
+        press!(editor, backend, window, x + 10, y + 30)
         push_event!(backend, WindowInput(window.id, KeyPress('g'; time = 0.0)))
         frame!(editor)
         @test names_of(table_of(editor).input) == ["gamma"]

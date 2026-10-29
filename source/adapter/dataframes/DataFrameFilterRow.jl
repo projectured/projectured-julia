@@ -99,7 +99,7 @@ function _make_filter_header(p, view, name::String)
     label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))), glyph...];
                              gap = p.header_gap)
     make_labeled_field(label, make_filter_field(text, () -> _find_filter_range(view, name), reason,
-                                                p.header_field_width, p.invalid_filter))
+                                                0, p.invalid_filter))
 end
 
 # The corner: the count of the kept rows, padded with figure spaces, which are
@@ -115,7 +115,7 @@ function _make_query_corner(p, view)
         keep isa String ? keep : nothing
     end
     field = make_filter_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),
-                              reason, p.header_field_width, p.invalid_filter)
+                              reason, 0, p.invalid_filter)
     make_labeled_field(label, field)
 end
 

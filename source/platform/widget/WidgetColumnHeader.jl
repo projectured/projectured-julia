@@ -162,19 +162,20 @@ make_field_child_reference(path) =
     make_labeled_field(label, field) -> VerticalLayout
 
 `label` above `field`, with the selection of the field. The field is the second
-child of the layout.
+child of the layout. The layout fills the width that its column offers, so a
+field made with width 0 is as wide as its column.
 
 Use it for the header of a column: its name and its glyph above the field of its
 filter.
 
 # Example
 
-    make_labeled_field(WidgetLabel("age"), make_filter_field(text, range, reason, 80, color))
+    make_labeled_field(WidgetLabel("age"), make_filter_field(text, range, reason, 0, color))
 
 See also `make_filter_field`, `make_field_child_reference`.
 """
 function make_labeled_field(label, field)
-    layout = VerticalLayout(Any[label, field])
+    layout = VerticalLayout(Any[label, field]; child_width = Fill)
     set_cell_computation!(getfield(layout, :selection), () -> make_field_child_reference(field.selection))
     layout
 end

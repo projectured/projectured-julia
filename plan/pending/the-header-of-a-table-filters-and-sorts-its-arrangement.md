@@ -479,6 +479,21 @@ Each step is one commit on the branch, with its test.
     its six first names. The image of the pane before and after (30 probe tasks, 15 done,
     3 unexpected, 4 running, 8 waiting) shows the same rows, state colours and marked row;
     it differs in the header (sort glyphs and filter fields) and in the columns of item 3.
+  - Fact (the header fields held the shares): the filter field had a fixed width,
+    `header_field_width` of 80, so each column of a table with a filter header was at
+    least about 131 px wide; the 11 columns of a group in 1500 px took the whole width
+    and every column was equally wide.
+  - Decision 7 (coordinator): the field fills its column. `make_labeled_field` makes
+    its layout with `child_width = Fill`, and the header fields are made with width 0,
+    so the field is as wide as the column that the table gives. The style
+    `header_field_width` is removed (WidgetTheme, `DataFrameViewToWidget`, and the
+    tests that listed it): the label row (key and glyph) already holds a column at its
+    own width, so a minimum of the field decides nothing. The columns of a group then
+    stand at the width of the label row at least (107 to 201 px at 1500 px) and divide
+    the rest by their shares. Test: "the shares divide the width of the columns under
+    a filter header" in `TaskGroupTableTest.jl` (the column of share 2 is wider than a column
+    of share 1); the clicks of the header tests are at 10 px in the field, which is as wide
+    as its column; image `group-after2.png`.
 
 - [ ] **Step 6 — Measure, and the documents.** The filter and the sort of a group
   of 22,731 tasks through its page: the first open, and the end of one task.
