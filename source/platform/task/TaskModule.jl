@@ -15,12 +15,14 @@ module TaskModule
 using Base.ScopedValues: ScopedValue, with
 using ..AgentModule
 using ..ArrangementModule
+using ..BackendModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EditorModule
 using ..EventModule
+using ..FaultModule
 using ..FeedModule
 using ..FocusModule
 using ..GestureBindingModule
