@@ -424,6 +424,11 @@ function _follow_detail_part!(detail, part, position::Int)
                              is_followed = _is_followed_by_selection)
 end
 
+# The share of the height that the card of a result takes against the two output
+# panes, which take 2 and 1: the detail alone gives the card most of the place.
+const _CARD_WEIGHT = 2.0
+const _ALONE_CARD_WEIGHT = 12.0
+
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
     detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
@@ -484,8 +489,10 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             shown = getfield(document, field)[]
             shown === nothing && continue
             card = make_embed_card(shown, something(get_document_title(shown), "Result"))
-            push!(parts, _follow_detail_part!(detail, LayoutConstraint(card; height = Relative(2), width = Fill),
-                                              length(parts)))
+            place = LayoutConstraint(card; height = Relative(_CARD_WEIGHT), width = Fill)
+            set_cell_computation!(getfield(place, :weight_height), () ->
+                getfield(doc, :is_detail_alone)[] ? _ALONE_CARD_WEIGHT : _CARD_WEIGHT)
+            push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
         push!(parts, _make_label("stdout", p.muted_color))
         push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
