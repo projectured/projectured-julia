@@ -1,9 +1,10 @@
 # The Explorer stays fast when a group ends
 
 Status: pending. Written 2026-10-30. Work on the branch `explorer-open-paths`
-(worktree `projectured-julia-explorer-open-paths`), from main e52478247. The
-three steps are done (2026-10-30); the switch back to the Explorer after a group
-still takes 3.90 s, and the next fix waits for the owner (step 3).
+(worktree `projectured-julia-explorer-open-paths`), from main e52478247. Steps
+1 to 3 are done (2026-10-30); the switch back to the Explorer after a group
+still took 3.90 s, and the owner chose the next fix: the read rule of a
+provisional value. Step 4 is done: the switch takes 0.12 s.
 
 ## The ask
 
@@ -195,7 +196,66 @@ test showing its last result. On 2026-10-30 the owner said: "Fix the explorer".
     place of at each read (`BackgroundCells.jl`, `ReactiveCell.jl`), or
     `_unregister_dependent!` stops scanning the whole list of a cell.
 
+- [x] **Step 4 — A waiting value computes again only until it asked.** The owner,
+  2026-10-30, after step 3: "Yes" to the change of the read rule. A provisional
+  value computes again at a read by a computation only until a run of it asked
+  for its newer value. After that, each read gets the same value, and the arrival
+  of the newer value makes it compute once more.
+
+  The design (mine):
+  - The cell kernel: a `ReactiveCell` has a second flag beside `is_provisional`,
+    `is_asking_again`. A provisional cell computes again at a read by a
+    computation only when it asks again. The flag goes up through the readers as
+    the provisional flag does, a run and a write clear it, and the stop rule
+    compares it too, so a reader that read the value while it asked again
+    computes again.
+  - `mark_computation_provisional!(; ask_again = false)`. The default says that
+    the computation reads the cell that its newer value arrives in, as the
+    docstring asks already; the formula document and the background cell that
+    asked do so. `ask_again = true` says that the computation asked for its newer
+    value nowhere that keeps the ask.
+  - The background cell asks again when the editor keeps no demand for its
+    inputs: in a walk that starts no background work, with no editor, and in the
+    collector of `wait_for_cell!` on the task that owns the documents, which
+    lasts only for the wait. A cell whose inputs wait takes their flag.
+  - `run_recomputing_provisional_cells(f)`: inside `f`, a read by a computation
+    computes each provisional cell again, as every read did before this step.
+    `wait_for_cell!` reads through it on the task that owns the documents: its
+    collector is new, so each background cell below must ask it, also a cell
+    that asked the editor, whose answer comes through the inbox that nothing
+    drains during the wait.
+
+  Measure the switch frame with the harness of step 1. Tests: `test_cell`, the
+  background cell tests, the tests of step 2, the formula, text and language
+  server tests that read provisional values, then `test_kernel()`.
+
+  **Done.**
+  - The switch frame of step 1, with no probe: **0.12 s and 21 MB**, of which
+    0.10 s is compilation (3.90 s and 2.8 GB after step 2, 6.64 s and 3.9 GB
+    before it); the next frame 0.29 s (0.27 s compile), then 0.001 s. The end
+    of the 57 tests with the Explorer shown 0.042 s, the end of the Gate group
+    with the Explorer hidden 0.011 s, the control 0.0015 s: as before.
+  - The cells of the two switch frames (probe): 1,198 computes at 127 places,
+    each cell about once (190,113 computes after step 2), and 141,555 entries
+    scanned at a detach (204 million).
+  - A fact found in the work: `wait_for_cell!` on the task that owns the
+    documents depended on the old rule, because its collector is new for each
+    wait; so it reads through `run_recomputing_provisional_cells`. The new test
+    "wait_for_cell! on the task of the documents computes a value whose demand
+    the editor keeps" holds it.
+  - `source/kernel/cell/CellModule.jl` is sealed. The owner allowed, on
+    2026-10-30, the one line that exports `run_recomputing_provisional_cells`
+    from it; the rules allow no use of a name that a module does not export.
+  - Tests, all on this branch, in `environment/all`: `test_cell` (331),
+    `test_editor_background_cell` (68), `test_provisional_output`,
+    `test_document_walk`, `test_arrangement_filter_sort`, the four formula
+    tests, `test_formula_grid`, `test_source_file` and the tests of step 2:
+    1,336 Pass; `test_kernel()`: 4,997 Pass; 0 Fail, 0 Error, 0 Broken. In
+    omnet-julia, through the scratch environment: the Explorer and project
+    tests of step 2, `test_test_verbs`, `test_project_ned_files`,
+    `test_result_folder`, `test_test_runner` and `test_result_file_document`:
+    427 Pass, 0 Fail, 0 Error, 0 Broken.
+
 ## Not in this plan
 
 - A change of the data model of the last task of a test in omnet-julia.
-- A change of the reactive cell kernel, unless the owner decides it after step 3.
