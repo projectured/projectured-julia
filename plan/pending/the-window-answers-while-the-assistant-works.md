@@ -1,6 +1,6 @@
 # The window answers while the assistant works
 
-Status: PENDING, 2026-10-21. Not started. No decision is open.
+Status: PENDING, 2026-10-30. Steps 1–4 ran. Step 4 found two more causes, which [every-kind-of-julia-code-prints-with-no-compile.md](every-kind-of-julia-code-prints-with-no-compile.md) removes. The two plans move to `plan/done/` together.
 
 ## The ask
 
@@ -146,7 +146,7 @@ prints again. Step 4 counts it.
      omnet-julia `record_package_calls!("OmnetIde")` and
      `record_application_calls!("OmnetIdeBuild", "omnet_ide")`.
    - The guide `assistant.md` says what the warm-up covers.
-4. [ ] **The live check.** The profile scripts of `/var/tmp/ide-profile-20261021/scripts/`
+4. [x] **The live check.** (Ran 2026-10-30. One check fails: see "As built".) The profile scripts of `/var/tmp/ide-profile-20261021/scripts/`
    again, with one long turn of the same kind. Counts, which do not depend on the
    load of the machine:
    - no sample of the loop in the unwinder below `annotate_reference_types`;
