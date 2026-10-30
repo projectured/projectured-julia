@@ -153,6 +153,12 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   a method lookup, `_strict_check` of `ChartToChartPlot`, `_get_field` in
   `read_gesture_outward` and in `PathChain`, and the zero-argument constructors of
   `get_insertion_candidates`.
+- The top level of a file of many statements prints as a body: the saved text
+  starts with a break and indents each top-level line by two spaces. Julia reads
+  the same code.
+- A lambda with keyword parameters, such as `(x; y = 1) -> x`, has the fault that
+  step 2 fixed for `function`: the parser puts the keyword parameters among the
+  positional ones as a named tuple.
 - The reader of each kind of Julia code, at a click or a key in it. The sample file
   gets one click. Step 4 measures what remains.
 
