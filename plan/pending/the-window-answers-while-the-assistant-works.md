@@ -337,3 +337,52 @@ prints again. Step 4 counts it.
 
   No computation of an earlier part runs, and none of the syntax print. A delta
   does not print the parts before it again.
+
+- The live check, 2026-10-30 09:36–09:43, in `/var/tmp/ide-profile-20261030/`:
+  `omnet_ide --assistant=acp --context=32768 --mcp ~/workspace/inet-cpp` on both
+  branches, with the lists of step 3. The owner ran one assistant turn of another
+  kind than the first profile: no simulation tests, other Julia code. The profile
+  sampled every 20 ms; the profile started again after the window opened.
+  - 3,749 frames. Over 1 s: 17. Over 5 s: 2.
+  - The samples of the loop thread inside frames, without the held frames of code
+    units (728 samples, where the loop waits for window events while a unit runs):
+
+    | Work | Samples | Share | First profile |
+    | --- | --- | --- | --- |
+    | JIT compile (read 744, print 376, feeds 105, evaluate 53) | 1281 | 50% | 52% |
+    | A thrown error (print 24, read 11, other 4) | 39 | 1.5% | 32% |
+    | Real work | 980 | 38% | 15% |
+    | Garbage collector | 263 | 10% | 1% |
+
+  - No sample of the loop is in the unwinder below `annotate_reference_types`. The
+    39 samples of a thrown error come from other places: a method lookup, a
+    `_strict_check` of `ChartToChartPlot`, `_get_field` in `read_gesture_outward`
+    and in `PathChain`, and the zero-argument constructors of
+    `get_insertion_candidates`.
+  - The drain of the agent feed took about 4 samples. The incremental print holds.
+  - No `ConversationPart` print and no `EvaluatorForm` print compiled.
+  - **35 `print_document` methods of Julia projections compiled, 8.9 s.** They are
+    the kinds that the code of the owner's turn used and the warm turn does not:
+    function, using, curly, try, while, do, if, const, return, break, continue,
+    comment, broadcast, unary operation, field access, toplevel. One method takes
+    0.4–0.6 s to compile. The frame of 09:40:09 took 18.9 s, of which 16.5 s were in
+    the input part, where the backend reads the output and so runs the print of the
+    new code: 350 compiles, 18.6 s, with these prints, `_walk_markers`,
+    `_dispatch_print` and closures of the syntax print.
+  - **The key of `_make_output_line` (`SyntaxToText.jl`) is a tuple with one object
+    id for each span of a line.** Each new count of spans in a line is a new tuple
+    type, and `_deco_span` with the `get!`, `setindex!`, `in` and `hashindex` of its
+    dictionary compiles again for it: 42 compiles of `_deco_span`, 5.0 s. No workload
+    covers every count. The frames of 2–4 s (09:40:26, 09:40:38, 09:41:21) are
+    mostly these.
+  - The held frame of 09:38:46 (17.6 s) is a code unit that compiled 364
+    `_walk_document!` methods (13.2 s), one for each type of document and type of
+    predicate. The loop ran held frames meanwhile, so the window answered. The
+    unit, and so the tool call of the agent, took 13 s longer.
+
+  The cause of the remaining long frames: the domain workload of `ProjecturedJulia`
+  opens the file of `make_workload_file(::Type{JuliaFile})`, which is
+  `alice = 1 + 2`. So every other kind of Julia code compiles its print on the
+  loop the first time any window shows it, in a file and in a turn. The warm turn
+  of step 3 covers only the kinds of its own code. Step 4 is not done: the window
+  still freezes for a turn with code of new kinds.
