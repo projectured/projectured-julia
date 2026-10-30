@@ -1,10 +1,10 @@
 # The Explorer stays fast when a group ends
 
-Status: pending. Written 2026-10-30. Work on the branch `explorer-open-paths`
-(worktree `projectured-julia-explorer-open-paths`), from main e52478247. Steps
-1 to 3 are done (2026-10-30); the switch back to the Explorer after a group
-still took 3.90 s, and the owner chose the next fix: the read rule of a
-provisional value. Step 4 is done: the switch takes 0.12 s.
+Status: done (2026-10-30), on the branch `explorer-open-paths` (worktree
+`projectured-julia-explorer-open-paths`), from main e52478247, not landed. The
+first frame that shows the Explorer after a group took 6.64 s; the walk of the
+open nodes (step 2) made it 3.90 s, and the read rule of a provisional value,
+which the owner chose after step 3 (step 4), made it 0.12 s.
 
 ## The ask
 
