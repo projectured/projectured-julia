@@ -121,6 +121,26 @@ not know.
 format_task_column(::AbstractTask, ::AbstractString) = ""
 
 """
+    get_task_column_value(task, result, column) -> value
+
+The value of `task` in `column` when its execution has `result`, or `nothing`
+for no result yet: a value that a table of tasks shows, filters and sorts. A
+kind gives a method for a column whose value comes from the result, such as a
+count that a test found. The default is the text of [`format_task_column`](@ref),
+which the task alone gives.
+
+Use it to give a column of a kind of task a number that the result holds, so a
+filter such as `> 10` and a sort by size read it as a number.
+
+# Example
+
+    get_task_column_value(task, result, "changed")    # 14
+
+See also `get_task_columns`.
+"""
+get_task_column_value(task::AbstractTask, result, column::AbstractString) = format_task_column(task, column)
+
+"""
     get_task_actions(task) -> Vector{Pair{String,Function}}
 
 The buttons that a kind of task adds to the detail of a task, beside Stop and

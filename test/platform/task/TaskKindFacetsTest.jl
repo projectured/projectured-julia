@@ -1,6 +1,7 @@
 # The columns of the kind of a task as values of the task in a roster of tasks:
 # a filter and a sort by a column of the kind, `expected_result` before and after
-# a task ends, and the label of a header with a space for each underscore.
+# a task ends, a column whose value the result gives, and the label of a header
+# with a space for each underscore.
 
 # A kind of task with columns: the suite and the test it runs, and the code that
 # its result is expected to take.
@@ -11,9 +12,14 @@ struct _KindFacetTask <: AbstractTask
 end
 TaskModule.get_result_codes(::_KindFacetTask) = TEST_RESULT_CODES
 TaskModule.format_task_parameters(task::_KindFacetTask) = task.suite * "/" * task.test
-TaskModule.get_task_columns(::_KindFacetTask) = ["suite" => 1, "test" => 2, "expected_result" => 1]
+TaskModule.get_task_columns(::_KindFacetTask) = ["suite" => 1, "test" => 2, "expected_result" => 1, "size" => 1]
 TaskModule.format_task_column(task::_KindFacetTask, column::AbstractString) =
     column == "suite" ? task.suite : column == "test" ? task.test : column == "expected_result" ? "PASS" : ""
+# The size is a number that the result gives: the order of the numbers is not the
+# order of their texts.
+TaskModule.get_task_column_value(task::_KindFacetTask, result, column::AbstractString) =
+    column != "size" ? format_task_column(task, column) : result === nothing ? nothing :
+    task.test == "queue10" ? 10 : task.test == "queue2" ? 9 : 2
 
 struct _KindFacetResult <: TaskResult
     task::_KindFacetTask
@@ -89,6 +95,18 @@ function test_task_kind_facets()
         @test any(document -> compute_item_facet(document, Val(:process)) !== nothing, documents)
         fails = show_tasks(documents; filter = Any["expected" => "= false"])
         @test shown(fails) == ["net/queue10"]
+    end
+
+    @testset "a column whose value the result gives follows the result" begin
+        documents = make_documents()
+        @test compute_item_facet(documents[2], Val(:size)) === nothing
+        rows = show_tasks(documents; columns = ["name", "size"], filter = Any["size" => "> 5"])
+        @test isempty(shown(rows))
+        foreach(document -> wait_task_document(start_task!(document)), documents)
+        @test compute_item_facet(documents[2], Val(:size)) == 10
+        @test shown(rows) == ["net/queue2", "net/queue10"]
+        sorted = show_tasks(documents; columns = ["name", "size"], sort = Any["size"])
+        @test shown(sorted) == ["disk/alpha", "net/queue2", "net/queue10"]
     end
 
     @testset "elapsed is nothing before a task ends" begin

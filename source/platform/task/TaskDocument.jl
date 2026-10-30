@@ -250,7 +250,8 @@ struct TaskKindFacets{T} end
 get_item_facet_type(document::TaskDocument) = TaskKindFacets{typeof(getfield(document, :task)[])}
 
 # A field of the document wins over a column of the same name, as it wins over a
-# facet; a column of the kind is a value of the task that `format_task_column` gives.
+# facet; a column of the kind is the value that `get_task_column_value` gives for
+# the task and its result.
 function has_item_facet(document::TaskDocument, name::AbstractString)
     _has_item_facet(TaskDocument, name) && return true
     Symbol(name) in fieldnames(TaskDocument) && return false
@@ -259,7 +260,8 @@ end
 compute_item_facet(document::TaskDocument, name::Val{:type}) =
     invoke(compute_item_facet, Tuple{Document,Val{:type}}, document, name)
 compute_item_facet(document::TaskDocument, name::Val) =
-    format_task_column(getfield(document, :task)[], String(only(typeof(name).parameters)))
+    get_task_column_value(getfield(document, :task)[], get_task_document_result(document),
+                          String(only(typeof(name).parameters)))
 
 # The node of a task in a tree: its name; its decoration says its status as its
 # icon, the code of its result as a count, and the time when it started or how

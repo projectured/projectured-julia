@@ -272,8 +272,9 @@ _get_task_codes(document::TaskDocument) =
 
 # A table of the tasks of a group draws the state in the colour of its code, the
 # progress as a ring, the time that counts on while the task runs, the load and the
-# memory in their units, and the columns of the kind of the task as the text that
-# the kind gives. Any other item has the cells of the table.
+# memory in their units, and the columns of the kind of the task as the value that
+# the kind gives, which follows the result. Any other item has the cells of the
+# table.
 make_roster_cell(::TaskCells, item, key, value) = nothing
 
 function make_roster_cell(cells::TaskCells, item::TaskDocument, key, value)
@@ -284,9 +285,7 @@ function make_roster_cell(cells::TaskCells, item::TaskDocument, key, value)
                                                    load === nothing ? "" : string(round(Int, load), "%")))
     key == "memory" && return WidgetLabel(() -> (bytes = value[];
                                                 bytes === nothing ? "" : format_memory_size(bytes)))
-    task = getfield(item, :task)[]
-    (!_has_item_facet(TaskDocument, key) && any(column -> first(column) == key, get_task_columns(task))) ?
-        WidgetLabel(format_task_column(task, key)) : make_roster_cell(nothing, item, key, value)
+    make_roster_cell(nothing, item, key, value)
 end
 
 # The path from a group to its table.
