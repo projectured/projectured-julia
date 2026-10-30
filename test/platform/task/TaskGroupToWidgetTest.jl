@@ -289,7 +289,8 @@ function test_task_views()
             @test roster.marked === task(2)
             row = only(t for t in texts if t[3] == "alpha")
             shown = press(projection, iomap, row)
-            @test shown isa ReplaceViewStateOperation
+            @test shown isa CompoundOperation && shown.operations[1] isa ReplaceViewStateOperation &&
+                  shown.operations[2] isa ReplaceSelectionOperation
             _nav_apply!(_NavHolder(document), shown)
             @test getfield(document, :selected)[] == 1 && roster.marked === task(1)
             opened = press(projection, iomap, row; count = 2)

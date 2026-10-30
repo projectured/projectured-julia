@@ -311,11 +311,14 @@ const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1
 # pane maps that path to its card, `content + rest`, and back, as a page maps an
 # embedded file. Every other path takes the defaults of `Projection`.
 
-# The steps from the root of the pane to the detail: the split is the second
-# child of the root, in a constraint, and the detail is the second pane of the
-# split, in a constraint too (`_build_group_parts`).
-const _DETAIL_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                       FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+# The steps from the root of the pane to the detail: the place below the card is
+# the second child of the root, in a constraint. It holds the split, whose second
+# pane is the detail, in a constraint too, or the detail alone
+# (`_build_group_parts`).
+const _PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(1, 2),
+                       FieldReferenceStep("child"))
+_get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
 # The parts of the detail of a task before its cards: its state, its facts, its
 # process, its result, its earlier executions and its buttons.
@@ -340,7 +343,7 @@ function _find_card_places(doc::TaskGroupDocument)
         position = _PARTS_BEFORE_CARDS + length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
-                       (_DETAIL_STEPS..., FieldReferenceStep("children"),
+                       (_get_detail_steps(doc)..., FieldReferenceStep("children"),
                         RangeReferenceStep(position, position + 1), FieldReferenceStep("child"))))
     end
     places
@@ -662,13 +665,17 @@ get_document_decoration(group::ClosedTaskGroup) =
 # ── The pane ─────────────────────────────────────────────────────────────────
 
 # The card of a group, and below it its table above the detail of the task that
-# a person picked, in a split a person can drag.
+# a person picked, in a split a person can drag, or the detail alone in the whole
+# place of the split while `is_detail_alone` is set.
 function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
     card = _build_summary_card(p, doc; actions)
     table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Fill)
-    detail = LayoutConstraint(_build_detail(p, doc, bounded); width = Fill, height = Fill)
-    split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)
-    Any[card, split]
+    detail = _build_detail(p, doc, bounded)
+    split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
+    place = LayoutConstraint(split; width = Fill, height = Fill)
+    set_cell_computation!(getfield(place, :child), () ->
+        getfield(doc, :is_detail_alone)[] ? detail : split)
+    Any[card, place]
 end
 
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
@@ -709,7 +716,7 @@ function _collect_detail_groups(doc::TaskGroupDocument, steps = (), output = (),
     index = getfield(doc, :selected)[]
     below = index == -1 ? (FieldReferenceStep("preparation"),) :
             (FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index), FieldReferenceStep("inner_group"))
-    _collect_detail_groups(inner, (steps..., below...), (output..., _DETAIL_STEPS...), found)
+    _collect_detail_groups(inner, (steps..., below...), (output..., _get_detail_steps(doc)...), found)
 end
 
 # The group whose parts the detail of `doc` shows: the selected task when it is a
@@ -724,7 +731,8 @@ end
 # pane to the table, and from the root of the pane to it.
 _collect_table_places(doc::TaskGroupDocument) =
     Tuple{Tuple,Tuple}[((steps..., _TABLE_STEP), (output..., _TABLE_PLACE_STEPS...))
-                       for (_, steps, output) in _collect_detail_groups(doc)]
+                       for (group, steps, output) in _collect_detail_groups(doc)
+                       if !getfield(group, :is_detail_alone)[]]
 
 # `table.<rest>` of each table ↔ the table in the output.
 function map_reference_forward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
@@ -777,6 +785,62 @@ function _make_row_press_operation(group::TaskGroupDocument, index::Int, gesture
         gesture.count == 2 && return OpenPageOperation(group, reference, :here)
     end
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(group, "selected", index))
+end
+
+# ── The detail alone ─────────────────────────────────────────────────────────
+#
+# The keys of the group answer when no part nearer the caret answers them: Return
+# shows the detail of the selected task alone, and Escape shows the table again.
+# While the detail is alone, Up and Down select the previous or the next task in
+# the order of the table, and the detail follows. Every other key, such as Left and
+# Right, goes to the part that reads it.
+
+# What a key does to the state of the view: it is not recorded for undo.
+_make_view_write_operation(doc::TaskGroupDocument, field::AbstractString, value) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(doc, field, value))
+
+# The task documents that the table shows, in its order: its filter, its sort and
+# its first items count.
+function _collect_shown_task_documents(doc::TaskGroupDocument)
+    found = find_arranged_collection(doc, extend_reference(EmptyReference(), _TABLE_STEP,
+                                                           FieldReferenceStep("document"), FieldReferenceStep("rows")))
+    found === nothing && return TaskDocument[]
+    TaskDocument[peek(getfield(row, :item)) for row in collect_shown_items(found.entry, found.items)
+                 if row isa RosterRow]
+end
+
+# The place in the group of the task that is `step` rows after the selected task in
+# the table, or before it with a negative `step`, or `nothing` where the table has
+# no such row. With no selected task in the table, a step forward gives the first
+# row and a step back the last.
+function _find_neighbour_task(doc::TaskGroupDocument, step::Int)
+    shown = _collect_shown_task_documents(doc)
+    isempty(shown) && return nothing
+    documents = _task_documents(doc)
+    selected = getfield(doc, :selected)[]
+    here = (1 <= selected <= length(documents)) ? findfirst(task -> task === documents[selected], shown) : nothing
+    target = here === nothing ? (step > 0 ? 1 : length(shown)) : here + step
+    (1 <= target <= length(shown)) || return nothing
+    findfirst(task -> task === shown[target], documents)
+end
+
+function _make_detail_move_operation(doc::TaskGroupDocument, step::Int)
+    getfield(doc, :is_detail_alone)[] || return nothing
+    index = _find_neighbour_task(doc, step)
+    index === nothing ? DoNothingOperation() : _make_view_write_operation(doc, "selected", index)
+end
+
+function _make_detail_alone_operation(doc::TaskGroupDocument, is_alone::Bool)
+    getfield(doc, :is_detail_alone)[] == is_alone && return nothing
+    is_alone && !(1 <= getfield(doc, :selected)[] <= length(getfield(doc, :tasks)[])) && return nothing
+    _make_view_write_operation(doc, "is_detail_alone", is_alone)
+end
+
+@gestures TaskGroupDocument begin
+    KeyPress('\n') => "Show the detail alone" => _make_detail_alone_operation(doc, true)
+    KeyDown(:escape) => "Show the table and the detail" => _make_detail_alone_operation(doc, false)
+    KeyDown(:up) => "Select the previous task of the table" => _make_detail_move_operation(doc, -1)
+    KeyDown(:down) => "Select the next task of the table" => _make_detail_move_operation(doc, 1)
 end
 
 # The group of a table that `path`, a path of the pane's group, goes into at a row
@@ -838,14 +902,18 @@ function _retarget_task_open(doc::TaskGroupDocument, operation)
 end
 
 # The pane's answer to a selection of a row of a table of a group, and to a write
-# of the head of the list of one: the press of the row, and the write of the
-# anchor of the group. A double click on a row is a selection and an open that the
+# of the head of the list of one: the press of the row with the caret on the group,
+# and the write of the anchor of the group. A double click on a row is a selection and an open that the
 # roster adds, which the press already is.
 function _convert_table_answer(doc::TaskGroupDocument, operation, gesture)
     if operation isa ReplaceSelectionOperation
         found = _find_row_task(doc, operation.path)
         found === nothing && return operation
-        return _make_row_press_operation(found[1], found[2], gesture)
+        press = _make_row_press_operation(found[1], found[2], gesture)
+        # A plain press puts the caret on the group, so the keys of the group reach it.
+        return press isa ReplaceViewStateOperation ?
+               CompoundOperation(Any[press, ReplaceSelectionOperation(extend_reference(EmptyReference(), found[3]...))]) :
+               press
     end
     if operation isa CompoundOperation
         parts = Any[_convert_table_answer(doc, part, gesture) for part in operation.operations]

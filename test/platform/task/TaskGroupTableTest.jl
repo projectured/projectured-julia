@@ -159,8 +159,10 @@ function test_task_group_table()
         @test opened isa OpenPageOperation && opened.document === group && opened.place === :here
         @test evaluate_reference(group, opened.reference) === tasks_of(group)[3]
         @test click_answer(group, "gamma"; ctrl = true).place === :new_tab
-        written = click_answer(group, "gamma")
+        answer = click_answer(group, "gamma")
+        written = get_wrapped_operation(answer.operations[1])
         @test written isa ReplaceReferencedValueOperation && written.value == 3
+        @test answer.operations[2] isa ReplaceSelectionOperation
         stop_task_group_document!(group)
     end
 
@@ -205,6 +207,65 @@ function test_task_group_table()
         _arrangement_press!(editor, backend, KeyDown(:z, ModifierKeys(; ctrl = true); time = 0.0))
         frame!(editor)
         @test names_of(table_of(editor).input) == ["alpha", "gamma", "epsilon"]
+        stop_task_group_document!(group)
+    end
+
+    @testset "Return shows the detail alone, Up and Down follow the order of the table, Escape shows the table" begin
+        group = make_group()
+        (editor, backend, window) = make_editor(group)
+        key!(event) = (push_event!(backend, WindowInput(window.id, event)); frame!(editor))
+        # The filter keeps the debug tasks, and the sort puts their names in the reverse order.
+        (x, y) = place(window, "configuration")
+        press!(editor, backend, window, x + 10, y + 30)
+        for char in "debug"
+            key!(KeyPress(char; time = 0.0))
+        end
+        push!(only(group.table.entries).projections,
+              ArrangementSort(Any[ArrangementSortKey(key_of("test"), :descending)]))
+        frame!(editor)
+        @test names_of(table_of(editor).input) == ["gamma", "epsilon", "alpha"]
+        # While the detail is not alone, Up and Down are not the group's: they do not change the task.
+        press!(editor, backend, window, place(window, "gamma")...)
+        @test getfield(group, :selected)[] == 3 && !getfield(group, :is_detail_alone)[]
+        key!(KeyDown(:down, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 3 && !getfield(group, :is_detail_alone)[]
+        key!(KeyPress('\n'; time = 0.0))
+        @test getfield(group, :is_detail_alone)[] && getfield(group, :selected)[] == 3
+        @test !("configuration" in texts(window)) && !("alpha" in texts(window))
+        @test any(startswith("gamma"), texts(window))
+        key!(KeyDown(:down, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 5 && getfield(group, :is_detail_alone)[]
+        @test any(startswith("epsilon"), texts(window))
+        key!(KeyDown(:down, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 1 && any(startswith("alpha"), texts(window))
+        key!(KeyDown(:down, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 1
+        key!(KeyDown(:up, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 5 && getfield(group, :is_detail_alone)[]
+        key!(KeyDown(:up, ModifierKeys(); time = 0.0))
+        key!(KeyDown(:up, ModifierKeys(); time = 0.0))
+        @test getfield(group, :selected)[] == 3 && getfield(group, :is_detail_alone)[]
+        key!(KeyDown(:escape, ModifierKeys(); time = 0.0))
+        @test !getfield(group, :is_detail_alone)[] && "configuration" in texts(window)
+        @test names_of(table_of(editor).input) == ["gamma", "epsilon", "alpha"]
+        @test getfield(group, :selected)[] == 3
+        stop_task_group_document!(group)
+    end
+
+    @testset "the group reads Return, Escape, Up and Down only, and the others pass" begin
+        patterns = [string(binding.pattern) for binding in collect_document_gesture_bindings(TaskGroupDocument)]
+        @test length(patterns) == 4 && !any(occursin("left", lowercase(p)) || occursin("right", lowercase(p)) for p in patterns)
+        group = make_group()
+        (editor, backend, window) = make_editor(group)
+        key!(event) = (push_event!(backend, WindowInput(window.id, event)); frame!(editor))
+        press!(editor, backend, window, place(window, "gamma")...)
+        key!(KeyPress('\n'; time = 0.0))
+        @test getfield(group, :is_detail_alone)[]
+        for event in (KeyDown(:left, ModifierKeys(); time = 0.0), KeyDown(:right, ModifierKeys(); time = 0.0),
+                      KeyPress('x'; time = 0.0))
+            key!(event)
+            @test getfield(group, :is_detail_alone)[] && getfield(group, :selected)[] == 3
+        end
         stop_task_group_document!(group)
     end
 

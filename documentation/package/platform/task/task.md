@@ -388,7 +388,7 @@ into what the press does to the task of the row, at the place of the anchor: a
 press shows the task in the detail, a double press opens the page of the task,
 and Ctrl+press opens it in a new tab. A double press opens the page in the
 navigator around the pane, or in a new tab when no navigator is there. The press writes `selected` of the group as
-view state, so the undo does not record it. The table selects the
+view state, so the undo does not record it, and puts the caret on the group, so the keys of the group reach it. The table selects the
 row of the task of the detail, and its tooltip says what a press does. The row
 takes no key: the walk of the selection leaves the table out. The detail has
 Open the task page, and in the Tasks pane the title of a group
@@ -396,6 +396,8 @@ opens the page of the group. Each answers `OpenPageOperation` with the document
 that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
 holds it, and an open that no navigator takes opens a tab.
+
+**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing.
 
 In a tree, the text of a task is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does. A task is a leaf, but a task that is a group has the tasks of its inner group under its node. A group has its tasks under its node, and its text says its identifier, its title, how many of its tasks finished and each code that came back unexpected (`T3 fingerprint tests · 37/40 · 2 FAIL`), with the icon of its tab. The list of groups has a node for each group, and a closed group says that it closed.
 

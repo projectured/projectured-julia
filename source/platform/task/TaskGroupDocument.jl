@@ -61,6 +61,10 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `table` — an `ArrangementDocument` around a [`Roster`](@ref) of the tasks in
   `shown`, which the pane draws as its table. The roster marks the task at
   `selected`, and starts its list at the task of `anchor`.
+- `is_detail_alone::Bool` — whether the pane shows the detail of the selected task
+  alone, in the whole place of the table and the split. Return on the table sets
+  it, and Escape clears it. While it is set, Up and Down select the previous or
+  the next task in the order of the table.
 """
 @document struct TaskGroupDocument <: Document
     title::String
@@ -76,6 +80,7 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     preparation::Any
     shown::Any
     table::Any
+    is_detail_alone::Bool
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -137,7 +142,8 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),
-                            Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing))
+                            Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing),
+                            Cell(false))
     _make_task_group_table!(doc)
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.
