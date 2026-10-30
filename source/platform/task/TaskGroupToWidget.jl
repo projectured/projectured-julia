@@ -1168,8 +1168,12 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
                             Roster => RosterToGraphics(),
                             CellVector{RosterRow} => ChainingProjection(RosterRowsToWidget(widget_theme, cells),
                                                                         GridLayoutToGraphicsCanvas())]
+    # A primitive in a document of a result, such as a cell of its table, draws as
+    # it draws in a tab.
+    primitives = Pair{Type,Any}[make_natural_primitive_row(; measure = measured, appearance)]
     widgets() = RecursiveProjection(make_arranged_dispatch(
-        TypeDispatchingProjection(vcat(tables, make_widget_rows(), documents)); bar = ArrangementBarProjection))
+        TypeDispatchingProjection(vcat(tables, make_widget_rows(), documents, primitives));
+        bar = ArrangementBarProjection))
     # The page of a stream draws the fields of its bar and its lines too. A row of lines is a line of the font of the widgets with the padding of
     # a cell and a rule, as the table draws it.
     table = last(only(row for row in make_widget_rows() if first(row) === WidgetTable))

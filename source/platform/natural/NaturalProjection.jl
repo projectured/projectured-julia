@@ -90,6 +90,22 @@ _unsupported_message(document) =
     "no natural rendering for " * String(nameof(typeof(document)))
 
 """
+    make_natural_primitive_row(; measure, appearance = Appearance()) -> Pair
+
+The row that draws a primitive document that is no part of a syntax tree as
+plain text, with no quotes: a cell of a table, an element of a collection, a
+value in a tab. The natural projection has it, and a view with a table of its
+own puts it there, so the primitives of a document in that view draw as in a tab.
+"""
+function make_natural_primitive_row(; measure::TextMeasure, appearance::Appearance = Appearance())
+    text_theme = get_scaled_theme!(appearance, TextTheme)
+    text = TextToGraphics(; measure, theme = text_theme,
+                          line_spacing = make_style_field(TextTheme, text_theme, LineSpacing;
+                                                          name = :prose_line_spacing))
+    PrimitiveDocument => ChainingProjection(PrimitiveToText(; theme = text_theme), text)
+end
+
+"""
     NaturalToGraphics(; measure, font=nothing,
                         wrap=true, extra=Pair{Type,Any}[], appearance=Appearance())
         -> RecursiveProjection
@@ -170,11 +186,10 @@ function NaturalToGraphics(; measure::TextMeasure,
                        for type in collect_graphics_projection_types()],
         get_natural_graphics_entries(measure = measure, appearance = appearance),
         # A primitive document that is no part of a syntax tree draws as plain
-        # text, with no quotes: a cell of a table, an element of a collection, a
-        # value in a tab. A column or a field says its type, so no quote has to.
-        # A primitive inside a syntax tree keeps its syntax leaf, because the
+        # text. A column or a field says its type, so no quote has to. A
+        # primitive inside a syntax tree keeps its syntax leaf, because the
         # syntax table prints that tree, child by child.
-        Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(; theme = text_theme), text)],
+        Pair{Type,Any}[make_natural_primitive_row(; measure, appearance)],
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the abstract rows below — a
         # `TextInsertion` is a `TextDocument`, and prose is not what it is, and a
