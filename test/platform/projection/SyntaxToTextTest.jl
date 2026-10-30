@@ -880,4 +880,16 @@ end # let
 
 end # @testset "Syntax wrappers"
 
+@testset "the key of an output line has one type for every count of spans" begin
+    line(spans) = SyntaxModule._LineRecord(spans, 0, false, nothing)
+    key(record) = SyntaxModule._make_output_line_key(record)
+    five = line([TextString(string(k)) for k in 1:5])
+    @test isconcretetype(typeof(key(five)))
+    @test typeof(key(line([TextString("a")]))) === typeof(key(five))
+    # The same spans in the same order give the same key, so the line is reused.
+    @test isequal(key(line(copy(five.spans))), key(five))
+    @test hash(key(line(copy(five.spans)))) == hash(key(five))
+    @test !isequal(key(line(reverse(five.spans))), key(five))
+end
+
 end # test_syntax_to_text

@@ -1,6 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: PENDING, 2026-10-30. Not started. No decision is open.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. No decision is open.
 
 ## The ask
 
@@ -76,7 +76,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
 
 ## Steps
 
-1. [ ] **The key of an output line has one type.**
+1. [x] **The key of an output line has one type.**
    - `_make_output_line` in `SyntaxToText.jl` makes its key with D3, in a small
      function of its own, `_make_output_line_key(line)`.
    - A test in `test/platform/projection/SyntaxToTextTest.jl`: the keys of a line
@@ -129,3 +129,15 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   gets one click. Step 4 measures what remains.
 
 ## As built
+
+### Step 1
+
+- `_make_output_line_key(line)` in `SyntaxToText.jl` gives
+  `(:line, indentation, objectid(fold), UInt[objectid(span) for span in spans])`, and
+  `_make_output_line` adds the count to it. `counts` and the cache of `_deco_span`
+  now see one key type.
+- The test "the key of an output line has one type for every count of spans" in
+  `SyntaxToTextTest.jl`: one concrete type for 1 and 5 spans, equal keys and
+  hashes for the same spans, a different key for the spans in another order.
+- `test_syntax_to_text()`: every test set passes, the new one 5 of 5.
+  `test_julia_to_syntax()`: 18 of 18.

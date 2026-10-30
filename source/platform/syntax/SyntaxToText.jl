@@ -799,13 +799,20 @@ end
 
 _make_leaf_chrome_lines(output::TextBlock) = Bool[k > 1 for k in eachindex(output.elements)]
 
+# The key of the `TextLine` of `line`: its indentation, its fold and the identity of
+# each of its spans. The identities are in one vector, which hashes and compares by
+# its content, so the key has one type for every count of spans, and a line with a
+# new count of spans compiles no method of the cache again.
+_make_output_line_key(line::_LineRecord) =
+    (:line, line.indentation, objectid(line.fold), UInt[objectid(span) for span in line.spans])
+
 # The `TextLine` of `line`, the same object as the last layout when its spans and
 # its indentation are the same. Lines with no span and one indentation have one
 # key, so `counts` counts the lines of each key in the layout, and the count is a
 # part of the key: each line is its own object, as `TextToGraphics` keeps the
 # cells of a line by the identity of its `TextLine`.
 function _make_output_line(deco, line::_LineRecord, counts::Dict{Any,Int})
-    key = (:line, line.indentation, objectid(line.fold), map(objectid, line.spans)...)
+    key = _make_output_line_key(line)
     count = counts[key] = get(counts, key, 0) + 1
     _deco_span(deco, (key..., count),
                () -> TextLine(line.spans; indentation = line.indentation, fold = line.fold))
