@@ -913,17 +913,71 @@ end
     @test own[] == 5 && !is_cell_provisional(own)
 end
 
-@testset "a provisional cell computes again at each read by a computation" begin
+@testset "a provisional cell that asked computes once, and the write of its answer computes it again" begin
     runs = Ref(0)
-    waiting = Cell(@computation (runs[] += 1; mark_computation_provisional!(); 1))
-    @test waiting[] == 1 && runs[] == 1
-    # A read outside a computation takes the value as it is.
+    answer = Cell(nothing)
+    waiting = Cell(@computation (runs[] += 1; given = answer[];
+                                 given === nothing ? (mark_computation_provisional!(); 1) : given))
     @test waiting[] == 1 && runs[] == 1
     first_reader = Cell(@computation waiting[] + 1)
     second_reader = Cell(@computation waiting[] + 2)
-    @test first_reader[] == 2 && second_reader[] == 3
-    @test runs[] == 3
-    # A final cell computes once.
+    @test first_reader[] == 2 && second_reader[] == 3 && runs[] == 1
+    @test is_cell_provisional(first_reader) && is_cell_provisional(second_reader)
+    answer[] = 10
+    @test first_reader[] == 11 && second_reader[] == 12 && runs[] == 2
+    @test !is_cell_provisional(first_reader)
+end
+
+@testset "a provisional cell that asks again computes again at each read by a computation, until a run asks" begin
+    can_ask = Ref(false)
+    runs = Ref(0)
+    waiting = Cell(@computation (runs[] += 1; mark_computation_provisional!(; ask_again = !can_ask[]); 1))
+    @test waiting[] == 1 && runs[] == 1
+    # A read outside a computation takes the value as it is.
+    @test waiting[] == 1 && runs[] == 1
+    first_reader_runs = Ref(0)
+    first_reader = Cell(@computation (first_reader_runs[] += 1; waiting[] + 1))
+    second_reader = Cell(@computation waiting[] + 2)
+    third_reader = Cell(@computation waiting[] + 3)
+    @test first_reader[] == 2 && runs[] == 2
+    can_ask[] = true
+    @test second_reader[] == 3 && runs[] == 3
+    @test third_reader[] == 4 && runs[] == 3
+    # The first reader read the value while it asked again, so it asks again: a
+    # read by a computation computes it again, and it reads the value as it is.
+    @test first_reader_runs[] == 1
+    @test Cell(@computation first_reader[] * 10)[] == 20 && first_reader_runs[] == 2 && runs[] == 3
+    @test Cell(@computation first_reader[] * 10)[] == 20 && first_reader_runs[] == 2
+    @test is_cell_provisional(first_reader) && is_cell_provisional(third_reader)
+end
+
+@testset "a value that starts to ask again is a change for its readers" begin
+    can_ask = Ref(true)
+    source = Cell(0)
+    runs = Ref(0)
+    waiting = Cell(@computation (runs[] += 1; source[]; mark_computation_provisional!(; ask_again = !can_ask[]); 1))
+    reader = Cell(@computation waiting[] + 1)
+    @test reader[] == 2 && runs[] == 1
+    # The same plain value, now asking again: the reader computes again, and its
+    # read computes the value again. The reader asks again too, so a read of it by
+    # a computation reaches the value.
+    can_ask[] = false
+    source[] = 1
+    @test reader[] == 2 && runs[] == 3
+    @test Cell(@computation reader[])[] == 2 && runs[] == 4
+end
+
+@testset "run_recomputing_provisional_cells computes each provisional cell again" begin
+    runs = Ref(0)
+    waiting = Cell(@computation (runs[] += 1; mark_computation_provisional!(); 1))
+    read_through_computation() = Cell(@computation waiting[])[]
+    @test read_through_computation() == 1 && runs[] == 1
+    @test read_through_computation() == 1 && runs[] == 1
+    @test run_recomputing_provisional_cells(read_through_computation) == 1 && runs[] == 2
+    @test read_through_computation() == 1 && runs[] == 2
+end
+
+@testset "a final cell computes once" begin
     final_runs = Ref(0)
     done = Cell(@computation (final_runs[] += 1; 1))
     readers = [Cell(@computation done[] + k) for k in 1:3]

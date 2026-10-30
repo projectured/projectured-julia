@@ -124,8 +124,8 @@ end
     _sf_give_server!(editor, path, connection)
     acquire_document!(editor, file)
     @test file.server === connection
-    # The marks are final while the answer is to come: a provisional value would
-    # compute again at each read, once for each line of the view.
+    # The marks are final while the answer is to come: a provisional value that
+    # asks again would compute again at each read, once for each line of the view.
     _sf_frame!(editor, backend)
     @test !is_cell_provisional(getfield(file.content, :marks))
     expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]

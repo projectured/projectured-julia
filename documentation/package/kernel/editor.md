@@ -784,7 +784,7 @@ The keyword `apply` is a function `apply(inputs, value)` that answers an `Operat
 
 A document that stores what a task read, such as a folder, uses these two keywords to keep its own state: its `reading` flag and its entries. See [FileSystemDocument.jl](../../../source/platform/filesystem/FileSystemDocument.jl) (`_make_unread_folder`).
 
-A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come.
+A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come. A cell whose demand the editor keeps answers the same at each further read, until the answer comes. A cell that computed where no editor keeps its demand, such as inside a walk that starts no background work, asks again: each read by a computation computes it again, until a read records the demand.
 
 The demands of an editor are a session document, `BackgroundDemands`. A computation adds to it as to a collector outside the graph, and the record wakes the editor. After the print of a frame, `start_background_cell_work!` takes the demands and starts the work of each source on one task. The loop calls it after its first print too. The work posts one `WriteBackgroundAnswersOperation` to the inbox. The operation writes each answer into its cell in a write phase, so only the editor task writes cells. An answer to a demand older than the answer in the cell is dropped. A work that throws is the answer of each cell of its batch, and a read of such a cell throws that exception. `make_editor` prints with its editor in scope, so the first print records its demands.
 
@@ -799,7 +799,7 @@ An example: a folder of a simulation has 2,000 result files, and each file entry
 | After the frame, and the answer | One task reads 1,970 heads. All cells are final, and the table shows the sorted rows. |
 | A file changes on disk | The listing gives a new size. That record answers its last record, provisional, until its new answer comes. |
 
-`wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
+`wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. There each provisional cell below asks the wait again, also a cell that asked the editor (`run_recomputing_provisional_cells`). From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
 
 ### The record of each work
 

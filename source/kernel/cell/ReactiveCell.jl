@@ -21,7 +21,9 @@
 # but a newer value comes later, such as the default of a value that a task still
 # reads. A computation that reads a provisional cell is provisional itself, and a
 # write of a value is final. The flag is no state of invalidation: a provisional
-# cell is valid, and the walk of a write treats it as any valid cell.
+# cell is valid, and the walk of a write treats it as any valid cell. A provisional
+# value that asks again, because its run asked for its newer value nowhere that
+# keeps the ask, computes again at each read by a computation until a run asks.
 @enum _CellState::UInt8 begin
     _VALID
     _INVALID
@@ -80,6 +82,9 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # cell, or marked itself provisional. The field fits beside `state`, so it does
     # not make a cell larger.
     is_provisional::Bool
+    # Whether the provisional value asks again: the last computation read a cell
+    # that asks again, or marked itself so. It fits beside `is_provisional`.
+    is_asking_again::Bool
     # The length of `dependents` after its last sweep of collected readers.
     swept_length::UInt32
     # The cells that the last computation read, in the order of the first read of
@@ -91,7 +96,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, _VALID, false, UInt32(0), nothing, nothing)
+        new{T}(value, nothing, _VALID, false, false, UInt32(0), nothing, nothing)
     # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
     # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
     # field can not hold a placeholder. An invalid cell makes `_recompute!` assign
@@ -102,6 +107,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         c.computation = marker.computation
         c.state = _INVALID
         c.is_provisional = false
+        c.is_asking_again = false
         c.swept_length = UInt32(0)
         c.dependencies = nothing
         c.dependents = nothing
@@ -282,15 +288,25 @@ function Base.getindex(c::ReactiveCell)
     observer = _record_read!(c)
     if c.state !== _VALID
         _bring_up_to_date_for!(c, observer)
-    elseif c.is_provisional && observer !== nothing && c.computation !== nothing
-        # A provisional value computes again for each computation that reads it,
-        # so a value that is still to come asks again where it is used now, also
-        # when it computed before in a place that asked nobody.
+    elseif c.is_provisional && observer !== nothing && c.computation !== nothing &&
+           (c.is_asking_again || _IS_RECOMPUTING_PROVISIONAL_CELLS[])
+        # A provisional value that asks again computes again for each computation
+        # that reads it, so it asks where it is used now, also when it computed
+        # before in a place that kept no ask. A value that asked stays as it is
+        # until its newer value comes.
         _recompute_for!(c, observer)
     end
     # A reader of a provisional value is provisional too.
-    c.is_provisional && observer !== nothing && (observer.is_provisional = true)
+    c.is_provisional && observer !== nothing && _mark_provisional_reader!(observer, c)
     return c.value
+end
+
+# Make `observer`, which read the provisional cell `c`, provisional, and make it
+# ask again when `c` asks again.
+@inline function _mark_provisional_reader!(observer::ReactiveCell, c::ReactiveCell)
+    observer.is_provisional = true
+    c.is_asking_again && (observer.is_asking_again = true)
+    nothing
 end
 
 # Compute `c` again for a read by `observer`, as `_bring_up_to_date_for!` does.
@@ -298,7 +314,7 @@ end
     try
         _recompute!(c)
     catch
-        c.is_provisional && (observer.is_provisional = true)
+        c.is_provisional && _mark_provisional_reader!(observer, c)
         rethrow()
     end
     nothing
@@ -310,7 +326,7 @@ end
     try
         _bring_up_to_date!(c)
     catch
-        c.is_provisional && observer !== nothing && (observer.is_provisional = true)
+        c.is_provisional && observer !== nothing && _mark_provisional_reader!(observer, c)
         rethrow()
     end
     nothing
@@ -402,6 +418,7 @@ function _recompute!(c::ReactiveCell)
     had_value = c.state !== _FAILED && isdefined(c, :value)
     old = had_value ? c.value : nothing
     was_provisional = c.is_provisional
+    was_asking_again = c.is_asking_again
     stack = _get_computing_stack()
     _detach_upstream!(c)
     @count_performance :computes
@@ -409,6 +426,7 @@ function _recompute!(c::ReactiveCell)
     c.state = _COMPUTING
     # The run starts final; a read of a provisional cell makes it provisional.
     c.is_provisional = false
+    c.is_asking_again = false
     value = try
         _run_computation(c.computation)
     catch
@@ -429,13 +447,15 @@ function _recompute!(c::ReactiveCell)
     if c.state === _COMPUTING
         c.value = value
         c.state = _VALID
-        if had_value && _is_plain_value(value) && old === value && was_provisional == c.is_provisional
+        if had_value && _is_plain_value(value) && old === value && was_provisional == c.is_provisional &&
+           was_asking_again == c.is_asking_again
             @count_performance :stops
         else
             _invalidate_maybe_invalid_readers!(c)
         end
     else
         c.is_provisional = false
+        c.is_asking_again = false
         isdefined(c, :value) || (c.value = value)
     end
 end
@@ -530,6 +550,7 @@ function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     c.value = converted
     c.state = _VALID
     c.is_provisional = false
+    c.is_asking_again = false
     _invalidate_dependents!(c)
     return value
 end
@@ -604,6 +625,7 @@ function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where 
     nothing isa T && (c.value = nothing)
     c.state = _INVALID
     c.is_provisional = false
+    c.is_asking_again = false
     _invalidate_dependents!(c)
     return c
 end
@@ -651,7 +673,7 @@ of cells, to refuse at once.
 is_computation_running() = !isempty(_get_computing_stack())
 
 """
-    mark_computation_provisional!() -> nothing
+    mark_computation_provisional!(; ask_again = false) -> nothing
 
 Make the value of the computation that runs now provisional: a newer value comes
 later. The computation answers what it has, such as its last value or a default,
@@ -661,7 +683,12 @@ from final values only.
 Use it in a computation whose value comes from outside the loop and is not there
 yet, such as the record of a file that a task still reads. The computation must
 also read the cell that the final value arrives in, so the write of that cell
-makes it compute again.
+makes it compute again. Until then, a read takes the provisional value as it is.
+
+`ask_again = true` says that the computation could ask for its newer value
+nowhere that keeps the ask, such as a read inside a walk that starts no work: the
+value then computes again at each read by a computation, and so does each
+computation that reads it, until a run asks.
 
 # Example
 
@@ -677,17 +704,40 @@ computation that runs, and so does code that runs with no reader, such as
 computation whose first attempt fails in an older world, and that runs again in
 the newest one, keeps the flag of both attempts, as it keeps the cells that both
 read; the next change of a cell that it read clears it. See also
-`is_cell_provisional`.
+`is_cell_provisional` and `run_recomputing_provisional_cells`.
 """
-function mark_computation_provisional!()
+function mark_computation_provisional!(; ask_again::Bool = false)
     stack = _get_computing_stack()
     isempty(stack) && throw(ArgumentError(
         "mark_computation_provisional! marks the computation that records its reads, and none " *
         "does here: no computation runs, or the code runs with no reader, as in " *
         "run_without_cell_tracking, an UntrackedCell or a read on another task"))
     stack[end].is_provisional = true
+    ask_again && (stack[end].is_asking_again = true)
     nothing
 end
+
+# Whether a read by a computation computes each provisional cell again, also one
+# that asked for its newer value.
+const _IS_RECOMPUTING_PROVISIONAL_CELLS = ScopedValue(false)
+
+"""
+    run_recomputing_provisional_cells(f) -> value of f()
+
+Run `f()`, and compute each provisional cell again at each read by a computation
+inside it, also a cell that asked for its newer value already. Outside it, a
+provisional value computes again only while it asks again
+(`mark_computation_provisional!`).
+
+Use it where the computations below a value must ask again for a new collector of
+the asks, such as a wait for the final value that computes the asked values
+itself, on the calling task.
+
+# Example
+
+    value = run_recomputing_provisional_cells(() -> Cell(@computation shown[])[])
+"""
+run_recomputing_provisional_cells(f) = with(f, _IS_RECOMPUTING_PROVISIONAL_CELLS => true)
 
 # ── untracked read ───────────────────────────────────────────────────────────
 

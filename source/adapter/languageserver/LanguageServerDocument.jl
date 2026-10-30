@@ -53,8 +53,8 @@ frame. With no server, or a server that fails, the text has no marks.
 
 The marks read `answer`, which is final, and read `request` with no tracking.
 So the marks are final while an answer is still to come: a provisional value
-computes again at each read, and the lines of a text read the marks once for
-each line.
+that asks again computes again at each read, and the lines of a text read the
+marks once for each line.
 
 # Example
 

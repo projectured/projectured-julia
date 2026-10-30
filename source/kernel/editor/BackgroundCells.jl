@@ -190,13 +190,14 @@ A read never waits. When the cell has an answer for its inputs now, it answers
 it. Else it answers its last answer, or `default` when it has none, it is
 provisional (`is_cell_provisional`), and it records a demand: after the print of
 the frame, the editor starts the work of `source`, and the answer makes the cell
-final. A provisional cell computes again at each read by a computation, so it asks
-wherever a computation uses it, also when it computed before where it asked
-nobody. A cell whose inputs are provisional records no demand, so a work never
-runs on values that are still to come, and neither does a read inside a walk of
-the documents that starts no background work (`is_background_work_allowed`). A
-change of an input makes the cell provisional again, and it answers its last
-answer until the new one comes.
+final. A cell whose demand the editor keeps answers the same at each further read,
+until the answer comes. A cell that computed where no editor keeps its demand asks
+again: it computes again at each read by a computation, so it asks wherever a
+computation uses it, until a read asks the editor. A cell whose inputs are
+provisional records no demand, so a work never runs on values that are still to
+come, and neither does a read inside a walk of the documents that starts no
+background work (`is_background_work_allowed`). A change of an input makes the
+cell provisional again, and it answers its last answer until the new one comes.
 
 `working`, when given, is a cell of a `Bool` that the editor makes `true` when it
 starts the work of the cell, after the print of a frame, and `false` when it writes
@@ -239,33 +240,37 @@ function _compute_background_value(state::_BackgroundCellState, inputs_cell::Cel
         answer.value isa _BackgroundFailure && throw(answer.value.exception)
         return answer.value
     end
-    is_waiting || _record_background_demand!(state, inputs)
-    mark_computation_provisional!()
+    # Inputs that wait give their own flag by the read. Else the cell asks again
+    # when no editor keeps its demand.
+    is_asked = is_waiting || _record_background_demand!(state, inputs)
+    mark_computation_provisional!(; ask_again = !is_asked)
     (answer === nothing || answer.value isa _BackgroundFailure) ? default : answer.value
 end
 
-# Record the demand of `state` for `inputs`, unless a demand for them waits or runs:
-# in the collector of `wait_for_cell!` on this task, or else in the one of the editor
-# of the evaluation, which it wakes, so a frame follows and starts the work. Outside
-# both, and inside a walk that starts no background work, a read records nothing.
+# Record the demand of `state` for `inputs`: in the collector of `wait_for_cell!` on
+# this task, or else in the one of the editor of the evaluation, unless a demand for
+# them waits or runs there, and wake the editor, so a frame follows and starts the
+# work. Outside both, and inside a walk that starts no background work, a read
+# records nothing. Answers whether the editor keeps a demand for `inputs` until its
+# answer comes; the collector of a wait lasts only for the wait.
 function _record_background_demand!(state::_BackgroundCellState, inputs)
-    is_background_work_allowed() || return nothing
+    is_background_work_allowed() || return false
     local_demands = get(task_local_storage(), :projectured_background_demands, nothing)
     if local_demands !== nothing
         state.demand_count += 1
         lock(() -> push!(local_demands.entries, (state, inputs, state.demand_count)), local_demands.lock)
-        return nothing
+        return false
     end
     editor = find_evaluation_editor()
-    editor isa Editor || return nothing
-    state.has_demand && isequal(state.demanded, inputs) && return nothing
+    editor isa Editor || return false
+    state.has_demand && isequal(state.demanded, inputs) && return true
     state.has_demand = true
     state.demanded = inputs
     state.demand_count += 1
     demands = get_session_document!(BackgroundDemands, editor, BackgroundDemands)
     lock(() -> push!(demands.entries, (state, inputs, state.demand_count)), demands.lock)
     wake_editor!(editor)
-    nothing
+    true
 end
 
 # Take the demands of `demands`, grouped by their source, in the order of the asks.
@@ -435,8 +440,9 @@ function wait_for_cell!(cell::AbstractCell; editor = find_evaluation_editor(), t
 end
 
 # The value of `cell` and whether it is provisional, as a computation reads it: a
-# provisional cell below it computes again at that read, so each background cell
-# below it records its demand where this read runs.
+# provisional cell below it that asks again computes again at that read, so each
+# background cell below it whose demand no editor keeps records its demand where
+# this read runs.
 function _read_through_computation(cell::AbstractCell)
     probe = Cell(@computation cell[])
     value = probe[]
@@ -449,10 +455,11 @@ function _wait_for_cell_here(editor, cell::AbstractCell, deadline::Real, timeout
     while true
         # The collector of this call records each demand, also one that a task of
         # the editor computes already: its answer would come through the inbox,
-        # which nothing drains while this call waits.
+        # which nothing drains while this call waits. So each provisional cell
+        # below computes again at the read, also one that asked the editor.
         demands = BackgroundDemands()
         (value, is_provisional) = task_local_storage(:projectured_background_demands, demands) do
-            _read_through_computation(cell)
+            run_recomputing_provisional_cells(() -> _read_through_computation(cell))
         end
         is_provisional || return value
         batches = _take_background_demands!(demands)

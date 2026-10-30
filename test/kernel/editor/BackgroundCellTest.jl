@@ -4,9 +4,11 @@
 # through the inbox and makes the cell final. A demand that waits or runs is not
 # asked again, a cell whose inputs are provisional asks for nothing, and a work
 # that throws makes a read of its cells throw. A cell that computed where it asked
-# nobody asks when a computation of the editor reads it, and the first print of an
-# editor asks that editor. A search starts no background work by default, and
-# waits for it when it is asked to. `wait_for_cell!` computes the final value. A
+# nobody asks when a computation of the editor reads it, a cell that asked the
+# editor stays as it is until its answer comes, and the first print of an editor
+# asks that editor. A search starts no background work by default, and waits for
+# it when it is asked to. `wait_for_cell!` computes the final value, also of a
+# cell that asked the editor. A
 # cell can say that its work runs, and store its answer in its document. Each
 # work leaves a plain record in the store of its editor.
 
@@ -260,6 +262,31 @@ function test_editor_background_cell()
         start_background_cell_work!(editor)
         @test _wait_until_final(editor, reader)
         @test reader[] == 71 && calls == [[7]]
+    end
+
+    @testset "a cell that asked the editor stays as it is at each further read, until its answer comes" begin
+        calls = Vector{Any}[]
+        value = make_background_cell(_make_counting_source(calls), () -> 5; default = 0)
+        middle_runs = Ref(0)
+        middle = Cell(@computation (middle_runs[] += 1; value[] + 1))
+        readers = [Cell(@computation middle[] + k) for k in 1:20]
+        total = Cell(@computation sum(reader[] for reader in readers))
+        editor = _make_background_editor()
+        @test _read_in_editor(editor, total) == 230 && middle_runs[] == 1
+        @test _count_waiting_demands(editor) == 1
+        start_background_cell_work!(editor)
+        @test _wait_until_final(editor, total)
+        @test total[] == 1230 && middle_runs[] == 2 && calls == [[5]]
+    end
+
+    @testset "wait_for_cell! on the task of the documents computes a value whose demand the editor keeps" begin
+        calls = Vector{Any}[]
+        value = make_background_cell(_make_counting_source(calls), () -> 6; default = 0)
+        reader = Cell(@computation value[] + 1)
+        editor = _make_background_editor()
+        @test _read_in_editor(editor, reader) == 1 && _count_waiting_demands(editor) == 1
+        # No frame starts the work that the editor keeps, so the wait asks again.
+        @test wait_for_cell!(reader; editor) == 61 && calls == [[6]]
     end
 
     @testset "the first print of an editor asks that editor" begin

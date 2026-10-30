@@ -44,7 +44,8 @@ export AbstractCell, is_cell_valid, is_cell_provisional, invalidate_cell!, unwra
        has_dependent_cells, record_cell_fault!
 export Computation, @computation
 export ReactiveCell, Cell, run_without_cell_tracking, CellCycleException, set_cell_value!,
-       set_cell_computation!, is_computation_running, mark_computation_provisional!
+       set_cell_computation!, is_computation_running, mark_computation_provisional!,
+       run_recomputing_provisional_cells
 export ForeignCellWriteException, add_cell_writer!, remove_cell_writer!,
        take_foreign_cell_writes!
 export run_in_cell_fault_scope, RecordedCellFaultException, get_cell_fault_scope,
