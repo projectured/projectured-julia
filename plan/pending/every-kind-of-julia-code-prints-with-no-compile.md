@@ -1,6 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 to 3 are done. Step 4 is next.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 to 4 are done. Step 5, the live check, needs a turn of the owner.
 
 ## The ask
 
@@ -119,7 +119,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
      domain, walks the document, and compares the kinds.
    - Tests: the new test; `test_julia_file_view()`; the file workload of the
      Julia file in `test/projectured/editor/FileWorkloadTest.jl`.
-4. [ ] **Record the lists again**, in this order, with
+4. [x] **Record the lists again**, in this order, with
    `precompile_calls = "none"` for the packages that each one records (Decision 7
    of `documentation/design/compile-ahead.md`):
    `record_package_calls!("ProjecturedPlatform")`,
@@ -271,3 +271,31 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   passes 6 of 6, inside `test_julia()` (744 of 744) with `test_julia_file_view()`.
   `run_file_workload(JuliaFile)` passes: the click, the key, the save, the undo and
   the name buffer find their targets, and no barrier catches a fault.
+
+### Step 4
+
+- The four recordings of the step, each with no failure of its workload:
+  `ProjecturedPlatform` 4 min, `ProjecturedJulia` 3 min, the binary `projectured`
+  19 min, the IDE (`OmnetIde`, `OmnetIdeBuild`) 16 min.
+- Check 1 passes: `ProjecturedJulia/precompile/workload.txt` holds a
+  `print_document` of 57 of the 59 Julia projections (main: 4). The two others are
+  `JuliaInsertionToSyntaxLeaf` and `JuliaObjectToSyntaxLeaf`, the kinds that only an
+  edit makes. The list gains 1295 lines and loses 148.
+- Check 2 found seven more lists with a `_deco_span` of the old key, which only the
+  own workload of their package records: `ProjecturedMath`, `ProjecturedJSON`,
+  `ProjecturedYAML`, `ProjecturedExample`, and in omnet-julia `OmnetLegacyFormat`,
+  `OmnetLegacyResultPresentation`, `OmnetPresentationExample`. Step 1 makes such a
+  line stale in every list, so the step recorded these seven too, in the order of
+  their dependencies. After that, no list of either repository holds a
+  `_deco_span` with the old key.
+- `ProjecturedExample` loses 861 lines and gains 215, `OmnetPresentationExample`
+  loses 451 and gains 103. The lost lines are the calls that a lower list holds
+  now: 58 and 84 `print_document` lines of Julia projections and 16 `_convert_head`
+  lines, which `ProjecturedJulia` compiles, and 58 dictionary calls with the old
+  key.
+- The workload of `ProjecturedExample` fails for 3 of 135 examples (`json_sorted`,
+  `filesystem`, `files`). Clean main fails the same three with the same errors, so
+  this step does not cause them.
+- `Pkg.precompile()` of `environment/all` (61 packages) and of the omnet scratch
+  environment (65 packages) with the new lists: no package prints output or a
+  warning.
