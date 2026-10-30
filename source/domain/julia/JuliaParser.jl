@@ -807,9 +807,19 @@ function _convert_head(::Val{:function}, x::Expr)
     (sig isa Expr && sig.head === :call) ||
         error("unsupported function signature: $(repr(sig))")
     name = convert_expr(sig.args[1])
-    params = JuliaDocument[convert_expr(p) for p in sig.args[2:end]]
+    # The keyword parameters after `;` arrive as a leading `Expr(:parameters, kw…)`,
+    # as the keyword arguments of a call do, and they are kept apart in the same way.
+    params = JuliaDocument[]
+    keyword_params = JuliaDocument[]
+    for p in sig.args[2:end]
+        if p isa Expr && p.head === :parameters
+            append!(keyword_params, JuliaDocument[convert_expr(k) for k in p.args])
+        else
+            push!(params, convert_expr(p))
+        end
+    end
     body = convert_expr(x.args[2])
     where_clause = isempty(type_parameters) ? JuliaEmpty() :
                                             JuliaWhereParameters(type_parameters)
-    return JuliaFunction(name, params, body, result_type, where_clause)
+    return JuliaFunction(name, params, body, result_type, where_clause, keyword_params)
 end

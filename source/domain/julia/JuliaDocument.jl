@@ -616,15 +616,14 @@ end
 """
 A function definition. `result_type` is the declared return type and
 `where_clause` a [`JuliaWhereParameters`](@ref); both are `JuliaEmpty`
-when absent, and print as nothing.
+when absent, and print as nothing. `keyword_parameters` are the parameters
+after `;`, each a `key = value` or a bare name, as in
+`function f(x; scale = 1)`. They print after the positional ones, as the
+keyword arguments of a [`JuliaCall`](@ref) do.
 
 The `where` lives here rather than wrapping the whole definition in a
 [`JuliaWhere`](@ref), because that is where it is written: after the
-parameter list, not after `end`. It is a single document rather than a
-collection because **`params` is this struct's one vector field** — a
-`@document` with two of them loses the sugar that wraps a raw `Vector`
-into a `CellVector`, and `params` would stop being a place the
-selection walker can descend.
+parameter list, not after `end`.
 """
 @document struct JuliaFunction <: JuliaDocument
     name::JuliaDocument
@@ -632,7 +631,16 @@ selection walker can descend.
     body::JuliaDocument
     result_type::JuliaDocument = JuliaEmpty()
     where_clause::JuliaDocument = JuliaEmpty()
+    keyword_parameters::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
+
+# Most callers give the lists of a function as plain vectors, and each becomes the
+# collection that the function holds. `@document` makes such a constructor only for
+# a struct with one collection (its Rule C), and a function has two.
+JuliaFunction(name, params::AbstractVector, body, result_type = JuliaEmpty(), where_clause = JuliaEmpty(),
+              keyword_parameters::AbstractVector = JuliaDocument[]) =
+    JuliaFunction(name, CellVector{JuliaDocument}(params), body, result_type, where_clause,
+                  CellVector{JuliaDocument}(keyword_parameters))
 
 """
 The type variables a `where` introduces, as one document — `where {T,
@@ -688,6 +696,8 @@ _julia_signature_name(node::JuliaIdentifier) = node.name
 _julia_signature_name(node::JuliaTypeAnnotation) =
     _julia_signature_name(node.value) * "::" * _julia_signature_name(node.type)
 _julia_signature_name(::JuliaEmpty) = ""
+# A parameter with a default value: a caller passes it by its name.
+_julia_signature_name(node::JuliaAssignment) = _julia_signature_name(node.target)
 _julia_signature_name(node) = string(nameof(typeof(node)))
 
 """
@@ -700,6 +710,9 @@ a tooltip says what to pass, and a person who needs the rest opens the file.
 function compute_julia_signature(function_::JuliaFunction)
     parameters = join((_julia_signature_name(function_.params[i])
                        for i in 1:length(function_.params)), ", ")
+    keywords = join((_julia_signature_name(function_.keyword_parameters[i])
+                     for i in 1:length(function_.keyword_parameters)), ", ")
+    isempty(keywords) || (parameters *= "; " * keywords)
     signature = _julia_signature_name(function_.name) * "(" * parameters * ")"
     result = _julia_signature_name(function_.result_type)
     isempty(result) ? signature : signature * "::" * result

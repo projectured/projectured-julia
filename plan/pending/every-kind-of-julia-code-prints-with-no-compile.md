@@ -1,6 +1,7 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. No decision is open.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. Step 2 is half done: the keyword
+parameters print correctly; the empty body waits for a choice of the owner.
 
 ## The ask
 
@@ -84,14 +85,26 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
      two lines with the same spans in the same order have equal keys.
    - Tests: `test_syntax_to_text()`; then `test_julia_to_syntax()`, because the
      Julia print reuses lines through this cache.
-2. [ ] **The Julia sample file holds each kind.**
+2. [ ] **The Julia print writes each kind back as code.** The sample text of step 3
+   found two faults of the print, which are on main too, and the save of the sample
+   file writes text that does not parse. The owner answered "Yes" to "Shall I add
+   this step to the plan and fix both faults?"
+   - [x] `JuliaFunction` keeps its keyword parameters in a list of its own,
+     `keyword_parameters`, as `JuliaCall` keeps its keyword arguments. The parser
+     fills it, and the print writes `; …` after the positional parameters. The
+     evaluation parses the print (`make_julia_expression`), so it needs no change.
+   - [ ] A body with no statement prints a break before `end`.
+   - Tests: round-trip tests in `JuliaParserTest.jl`; `test_julia_tooltip()`;
+     `test_julia_to_syntax()`; `test_example` of `julia_example` and
+     `julia_code_example`; `test_formula_names()`, `test_formula_evaluation()`.
+3. [ ] **The Julia sample file holds each kind.**
    - `make_workload_file(::Type{JuliaFile})` gets the new text (D1). Its `shown`
      stays `r"alice"`.
    - A test in `test/domain/julia/` (D2) parses the text with the parser of the
      domain, walks the document, and compares the kinds.
    - Tests: the new test; `test_julia_file_view()`; the file workload of the
      Julia file in `test/projectured/editor/FileWorkloadTest.jl`.
-3. [ ] **Record the lists again**, in this order, with
+4. [ ] **Record the lists again**, in this order, with
    `precompile_calls = "none"` for the packages that each one records (Decision 7
    of `documentation/design/compile-ahead.md`):
    `record_package_calls!("ProjecturedPlatform")`,
@@ -102,7 +115,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
    - Check: `ProjecturedJulia/precompile/workload.txt` holds a `print_document` of
      each `Julia…ToSyntax…` projection, and no list holds a `_deco_span` with a
      tuple key of a variable length.
-4. [ ] **The live check.** The profile harness of `/var/tmp/ide-profile-20261030/`
+5. [ ] **The live check.** The profile harness of `/var/tmp/ide-profile-20261030/`
    again, with one long turn of the owner whose code uses many kinds. Counts:
    - no compile of a `print_document` of a Julia projection in the trace of the
      turn;
@@ -141,3 +154,47 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   hashes for the same spans, a different key for the spans in another order.
 - `test_syntax_to_text()`: every test set passes, the new one 5 of 5.
   `test_julia_to_syntax()`: 18 of 18.
+
+### Step 2
+
+- The keyword parameters: `JuliaFunction` has the field `keyword_parameters`, last,
+  with an empty default. With two collections, `@document` makes no constructor that
+  wraps a plain vector (its Rule C), so an outer constructor
+  `JuliaFunction(name, params::AbstractVector, body, …, keyword_parameters::AbstractVector)`
+  wraps both, as the one of `JuliaCall` does. Its typed `params` makes it a
+  different signature from the untyped Rule Y forms.
+- The print has the form of the print of a call: `(x, y` from `params`, and
+  `; k = 1)` from `keyword_parameters`, whose open text is `; ` only when it holds a
+  parameter.
+- Two readers of a function read the keyword parameters too: the signature of the
+  tooltip (`scale(p, factor; by, unit)`, and a parameter with a default shows its
+  name), and the walk of the formula domain that finds the free names of a body.
+- Tests: `test_julia_parser()` 149 of 149, `test_julia_tooltip()` 14 of 14,
+  `test_julia_to_syntax()` 18 of 18, `test_julia_workload_file()` 5 of 5,
+  `test_formula_names()` and `test_formula_evaluation()` pass. `test_example` of
+  `julia_example`: 3,445 pass and 84 fail; the 84 are the known baseline of main
+  (no caret on the 6 name leaves of the `factorial` example, 28 places × 3 edits).
+  `julia_code_example` passes.
+- A third fault of the print, found in the print of the sample: `begin … end` prints
+  with no `begin` and no `end`, because the parser makes a bare `JuliaBlock` of it.
+  It is not in this step.
+
+### Step 3 (stopped: two faults of the Julia print, see step 2)
+
+- The sample text (`_WORKLOAD_FILE_TEXT` in `JuliaModule.jl`, a module `Sample`)
+  holds 57 of the 60 kinds. The three others come only from an edit:
+  `JuliaBegin` (the parser makes a `JuliaBlock` of `begin … end`), `JuliaInsertion`
+  and `JuliaObject`. A walk of the names of `JuliaModule` finds the kinds, so the
+  test package needs no `InteractiveUtils`.
+- `test_julia_workload_file()` passes, 5 of 5. `run_file_workload(JuliaFile)`
+  fails: the save writes the print of the sample, and the file change feed reads
+  `ready = true; done = false` with "Expected `end`".
+- The cause is two faults of the Julia print, the same on main
+  (`/var/tmp/every-kind/snippets.jl`):
+  - A block with an empty body prints no break before `end`: `while falseend`,
+    `for x in 1:2end`, `if trueend`, `trycatchend`, `struct Send`, `module Mend`.
+  - `JuliaFunction` has no list of keyword parameters, as `JuliaCall` has. The
+    parser puts the `Expr(:parameters)` of `function g(x; y = 1)` among the
+    positional parameters as a named tuple, and it prints
+    `function g((; y = 1), x)`, which is other code. A call and a short definition
+    print correctly.

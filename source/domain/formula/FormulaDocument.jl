@@ -302,7 +302,8 @@ function _collect_free_identifiers!(found, node::JuliaFunction, bound::Set{Strin
     clause = node.where_clause
     clause isa JuliaWhereParameters && (inner = _bind_parameters!(found, clause.parameters, inner))
     _collect_free_identifiers!(found, node.result_type, inner)
-    _collect_free_identifiers!(found, node.body, _bind_parameters!(found, node.params, inner))
+    inner = _bind_parameters!(found, node.params, inner)
+    _collect_free_identifiers!(found, node.body, _bind_parameters!(found, node.keyword_parameters, inner))
 end
 
 function _collect_free_identifiers!(found, node::JuliaTry, bound::Set{String})

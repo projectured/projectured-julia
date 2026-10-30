@@ -23,6 +23,12 @@ _function() = parse_julia("function add(a::Int, b)::Int\n    a + b\nend")
     @test note.code == "add(a::Int, b)::Int"
 end
 
+@testset "a signature names the keyword parameters after the `;`" begin
+    found = search_documents(parse_julia("function scale(p, factor = 2; by = 1.5, unit)\n    p\nend"),
+                             node -> node isa JuliaFunction)
+    @test compute_julia_signature(first(found)) == "scale(p, factor; by, unit)"
+end
+
 @testset "a documented function answers the prose as well" begin
     source = "\"\"\"\nAdd two numbers.\n\"\"\"\nfunction add(a, b)\n    a + b\nend"
     found = search_documents(parse_julia(source), node -> node isa JuliaDocstring)

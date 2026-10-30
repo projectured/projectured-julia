@@ -142,6 +142,17 @@ function test_julia_parser()
                        _julia_round_trip("function f(x)::Int\n    x\nend"))
     end
 
+    @testset "a long function keeps its keyword parameters after the `;`" begin
+        for code in ("function g(x; y = 1)\n  x\nend", "function g(; y = 1, z)\n  y\nend",
+                     "function g(x::T; scale = 1.5)::T where {T}\n  x\nend")
+            @test _julia_round_trip(code) == code
+        end
+        # The positional and the keyword parameters are two lists, as the
+        # arguments of a call are.
+        g = parse_julia("function g(x; y = 1)\n    x\nend")
+        @test length(g.params) == 1 && length(g.keyword_parameters) == 1
+    end
+
     @testset "blocks that carry a body" begin
         @test _julia_round_trip("let x = 1\n    x + 1\nend") ==
               "let x = 1\n  x + 1\nend"

@@ -878,12 +878,21 @@ end
 
 # The result type prints after the parameter list; `JuliaEmpty` prints nothing,
 # so a function without one needs no separate rule.
+#
+# The parameters and the keyword parameters are two sub-nodes, `(x, y` and
+# `; k = 1)`, as the arguments of a call are: the second one opens with `; ` only
+# when it holds a parameter, and it closes the list.
 @projection_template JuliaFunctionToSyntaxNode JuliaFunction (p, f) ->
     SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("function", p.keyword);
                                                            close=TextString(" ", p.keyword.font)),
                                                 project(:name; as = _style_identifier(p.name)),
                                                 SyntaxNode(collection(:params);
                                                            open=TextString("(", p.delim),
+                                                           sep=TextString(", ", p.delim)),
+                                                SyntaxNode(collection(:keyword_parameters);
+                                                           open=TextString(Cell(@computation isempty(f.keyword_parameters) ? "" : "; "),
+                                                                           Cell(p.delim.font), Cell(p.delim.color),
+                                                                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                                            close=TextString(")", p.delim),
                                                            sep=TextString(", ", p.delim)),
                                                 SyntaxNode([project(:result_type; as = _style_identifier(p.type))];
