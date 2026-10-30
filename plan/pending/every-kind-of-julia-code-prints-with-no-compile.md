@@ -1,6 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. Step 2 is done. Step 3 is next.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 and 2 are done. Step 3 is next.
 
 ## The ask
 
@@ -105,6 +105,10 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
      - An empty block offers no caret of its own. The owner: "A person can press
        insert or enter to add a statement in an empty block, so there are easy
        ways out."
+   - [x] `begin … end` prints with its `begin` and its `end`. The owner answered
+     "Yes" to "Shall I fix `begin … end` as a third part of step 2?" A `:block` in
+     the place of a value, an argument or a statement becomes a `JuliaBegin`; the
+     body of a construct stays a `JuliaBlock`.
    - Tests: round-trip tests in `JuliaParserTest.jl`; `test_julia_tooltip()`;
      `test_julia_to_syntax()`; `test_example` of `julia_example` and
      `julia_code_example`; `test_formula_names()`, `test_formula_evaluation()`.
@@ -210,9 +214,23 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   the same 346 drawn places on both. The one lost state is the place after the last
   break of the top-level block, the empty line at the end of the view, which draws
   no caret on main either.
-- A third fault of the print, found in the print of the sample: `begin … end` prints
-  with no `begin` and no `end`, because the parser makes a bare `JuliaBlock` of it.
-  It is not in this step.
+- `begin … end` (the third part): `_convert_head(::Val{:block})` makes a
+  `JuliaBegin`, and a new `_convert_body` makes the `JuliaBlock` of the body of
+  `module`, `function`, `for`, `while`, `let`, `do`, `try` and `if`; `struct` builds
+  its block itself. A lambda takes its body with `_convert_lambda_body`: one
+  statement stays as it is, several go into a `JuliaBegin`, because a lambda writes
+  no `end` of its own. The short definition `f(x) = begin x end` still prints as
+  `f(x) = x`: Julia reads both as the same `Expr`. The header of `JuliaParser.jl`
+  states the rule by place in the place of the old line "never `JuliaBegin`".
+- Tests: round trips of `begin … end` as a value, a macro argument, a statement of a
+  body, a call argument, and a lambda of two statements. One assertion of
+  `JuliaParserTest` named the old behavior (`parse_julia("begin a; b end") isa
+  JuliaBlock`); it now asserts its intent, two statements in the block of the
+  `JuliaBegin`. `JuliaBegin` leaves the list of kinds that only an edit makes.
+- `test_julia()` 744 of 744; `test_fsm()` 271, `test_process()` 316,
+  `test_formula()` 308, each with no failure. The two Julia examples: the same
+  counts as after the empty body, and the 423 type-in failures of `julia_code` are
+  the lines of clean main.
 
 ### Step 3 (stopped: two faults of the Julia print, see step 2)
 
@@ -233,3 +251,18 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
     positional parameters as a named tuple, and it prints
     `function g((; y = 1), x)`, which is other code. A call and a short definition
     print correctly.
+- After step 2: the sample writes the docstring as `"""…"""` and the named tuple as
+  `(; …)`, the forms that the print writes. The test gets the guard: the sample
+  prints back to the same code, compared with no line numbers (a strip of its own,
+  because `Base.remove_linenums!` keeps the line numbers of the top level and of a
+  macro call). `test_julia_file_view()` and `run_file_workload(JuliaFile)` pass.
+  The guard fails on one statement: `else begin nothing end` prints as
+  `else nothing`.
+- That is the third fault. The parser maps every `:block` to a `JuliaBlock` (its
+  header says so: "`begin … end` parses to a block, so it becomes `JuliaBlock`
+  (never `JuliaBegin`)"), so a `begin … end` prints with no `begin` and no `end`.
+  As a body this keeps the code; in other places it does not
+  (probe `begin-probe.jl` in the scratchpad of the session):
+  `@testset "a" begin … end` prints as a `@testset` with no body and the statements
+  after it, and `x = begin a = 1; a + 1 end` prints as `x = a = 1` and `a + 1`.
+  Both parse, so nothing reports them. A question for the owner.

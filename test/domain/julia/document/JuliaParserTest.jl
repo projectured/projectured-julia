@@ -10,7 +10,7 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, JuliaDocstring,
+using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaBegin, JuliaToplevel, JuliaDocstring,
                                     JuliaComment, JuliaMultilineComment, JuliaEndOfLineComment
 using ProjecturedPlatform.NaturalModule: print_natural_text
 
@@ -173,6 +173,21 @@ function test_julia_parser()
         end
     end
 
+    @testset "a `begin … end` that is not a body keeps its `begin` and its `end`" begin
+        for code in ("x = begin\n  a = 1\n  a + 1\nend", "@testset \"a\" begin\n  x = 1\nend",
+                     "if c\n  begin\n    y\n  end\nend", "f(begin\n  a\nend)",
+                     "g = x -> begin\n  a\n  b\nend")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+        # The body of a construct is a block of its own, not a `begin … end`.
+        @test parse_julia("while c\n    x\nend").body isa JuliaBlock
+        @test parse_julia("x = begin\n    1\nend").value isa JuliaBegin
+        # A long anonymous function of several statements prints as a lambda with a
+        # `begin … end`, because a lambda writes no `end` of its own.
+        @test _julia_round_trip("g = function (x)\n    a\n    b\nend") == "g = (x) -> begin\n  a\n  b\nend"
+    end
+
     @testset "the smaller gaps" begin
         @test _julia_round_trip("nt = (; a = 1, b = 2)") == "nt = (; a = 1, b = 2)"
         @test _julia_round_trip("xs = Vector{<:Real}()") == "xs = Vector{<:Real}()"
@@ -303,7 +318,8 @@ function test_julia_parser()
         # A line of its own in a block of lines keeps its `;` too.
         @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\n  y = 2;"
         # A `;` inside a `begin` block separates statements of that block.
-        @test parse_julia("begin a; b end") isa JuliaBlock
+        semicolons = parse_julia("begin a; b end")
+        @test semicolons isa JuliaBegin && length(semicolons.body.statements) == 2
     end
 
     @testset "a whole file is a document" begin
