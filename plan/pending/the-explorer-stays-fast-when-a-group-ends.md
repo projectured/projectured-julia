@@ -1,7 +1,9 @@
 # The Explorer stays fast when a group ends
 
 Status: pending. Written 2026-10-30. Work on the branch `explorer-open-paths`
-(worktree `projectured-julia-explorer-open-paths`), from main e52478247.
+(worktree `projectured-julia-explorer-open-paths`), from main e52478247. The
+three steps are done (2026-10-30); the switch back to the Explorer after a group
+still takes 3.90 s, and the next fix waits for the owner (step 3).
 
 ## The ask
 
@@ -98,8 +100,8 @@ test showing its last result. On 2026-10-30 the owner said: "Fix the explorer".
   - The cause: a provisional cell computes again at each read by a computation
     (`make_background_cell`). While the Explorer is hidden nothing reads the
     listing, so it stays provisional until the switch. Then every read of a child
-    of "Queueing tests" computes the listing, the entries of the folder and the
-    elements of `entries` again, and the elements make 57 new slots each time.
+    of "Queueing tests" computes the listing and the elements of `entries` again
+    (step 3 says why), and the elements make 57 new slots each time.
     `_collect_open_paths!` reads every child (`entries[k]`) of the open node
     "Queueing tests", and the open paths, provisional too, compute again at each
     read by the widget. With the Explorer shown, the listing is provisional for
@@ -146,10 +148,52 @@ test showing its last result. On 2026-10-30 the owner said: "Fix the explorer".
     that loads this worktree: `test_campaign_explorer_content`,
     `test_campaign_explorer` and `test_project_tests`: 154 Pass, 0 Fail, 0 Error,
     0 Broken.
-- [ ] **Step 3 — The result.** If the frame at the end of a group is fast (under
+- [x] **Step 3 — The result.** If the frame at the end of a group is fast (under
   0.1 s with 57 tests), write the numbers here. If it is not, write the next cause
   with its numbers, and stop for the owner: a second fix (the shared `last_tasks`
   cell, or the scan of `_unregister_dependent!`) is a separate decision.
+
+  **Done: not fast; the work stops here for the owner.** The frame at the end of
+  the group is under 0.1 s before and after (0.010 s with the Explorer hidden,
+  0.035 s with it shown), but the first frame that shows the Explorer after the
+  group takes 3.90 s (6.64 s before step 2).
+
+  The next cause is the provisional listing of the folder, not `last_tasks`: the
+  `dependents` list of `last_tasks` is not among the ten that cost the most scan
+  at a detach, and the cells that compute most are the listing and the lists of
+  the tree node. A background cell that waits for its answer is provisional, a
+  provisional cell computes again at each read by a computation
+  (`make_background_cell`, `BackgroundCells.jl`), and so does each cell that read
+  it. The write of `work/` in `tests/queueing` makes the listing provisional, and
+  nothing reads it while the Explorer is hidden. The keys of `entries` of a node
+  (`_make_tree_entry`, `DocumentTreeToWidgetTree.jl:72`) ask for the children
+  first (`demand_tree_children`), and for "Queueing tests" the ask reads the
+  listing; so the keys are provisional though their value, `1:57`, does not
+  change. At the switch, each read of the children of "Queueing tests" by the
+  print of the widget computes the elements of `entries` again (55,769 times in
+  the frame, and the listing 55,770 times), and the elements of `nodes`, which
+  read the length of `entries`, 37,382 times. Each compute of a `CellVector` with
+  `element` makes a new slot for every one of the 57 keys (`CellVector.jl:186`),
+  so the frame makes 18,281 new entries and 18,309 new nodes, and the print of
+  the `WidgetTree` computes 610 times. Each reader that a compute replaced stays
+  in the `dependents` lists of the cells that the children of the node read (the
+  `runners` and the `folder` of the kind, the `entries` of the folder, and their
+  elements) until a GC: 1,322 entries, 204 million entries scanned by
+  `_unregister_dependent!`.
+
+  Three places could take the rest; none is measured, and each is the owner's
+  decision:
+  - the tree: the ask for the children of a node moves out of the keys of
+    `entries` into a cell of its own that the node reads with no dependency, so
+    the keys of "Queueing tests" stay final while the listing waits
+    (`DocumentTreeToWidgetTree.jl`);
+  - the collection: a `CellVector` with `element` keeps the slot of a key that
+    stays when its keys compute again, so a compute of `entries` and `nodes` of a
+    node makes no new entry and no new node for a child that stays
+    (`CellVector.jl`);
+  - the kernel: a provisional cell computes once for each new input or answer in
+    place of at each read (`BackgroundCells.jl`, `ReactiveCell.jl`), or
+    `_unregister_dependent!` stops scanning the whole list of a cell.
 
 ## Not in this plan
 
