@@ -1,6 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 and 2 are done. Step 3 is next.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 to 3 are done. Step 4 is next.
 
 ## The ask
 
@@ -112,7 +112,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
    - Tests: round-trip tests in `JuliaParserTest.jl`; `test_julia_tooltip()`;
      `test_julia_to_syntax()`; `test_example` of `julia_example` and
      `julia_code_example`; `test_formula_names()`, `test_formula_evaluation()`.
-3. [ ] **The Julia sample file holds each kind.**
+3. [x] **The Julia sample file holds each kind.**
    - `make_workload_file(::Type{JuliaFile})` gets the new text (D1). Its `shown`
      stays `r"alice"`.
    - A test in `test/domain/julia/` (D2) parses the text with the parser of the
@@ -232,15 +232,15 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   counts as after the empty body, and the 423 type-in failures of `julia_code` are
   the lines of clean main.
 
-### Step 3 (stopped: two faults of the Julia print, see step 2)
+### Step 3
 
 - The sample text (`_WORKLOAD_FILE_TEXT` in `JuliaModule.jl`, a module `Sample`)
-  holds 57 of the 60 kinds. The three others come only from an edit:
-  `JuliaBegin` (the parser makes a `JuliaBlock` of `begin … end`), `JuliaInsertion`
-  and `JuliaObject`. A walk of the names of `JuliaModule` finds the kinds, so the
+  holds 58 of the 60 kinds. The two others come only from an edit:
+  `JuliaInsertion` and `JuliaObject`. (Before step 2 had its third part, the parser
+  made no `JuliaBegin` either, and the list held it.) A walk of the names of `JuliaModule` finds the kinds, so the
   test package needs no `InteractiveUtils`.
-- `test_julia_workload_file()` passes, 5 of 5. `run_file_workload(JuliaFile)`
-  fails: the save writes the print of the sample, and the file change feed reads
+- First run: `test_julia_workload_file()` passed, 5 of 5. `run_file_workload(JuliaFile)`
+  failed: the save writes the print of the sample, and the file change feed reads
   `ready = true; done = false` with "Expected `end`".
 - The cause is two faults of the Julia print, the same on main
   (`/var/tmp/every-kind/snippets.jl`):
@@ -265,4 +265,9 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   (probe `begin-probe.jl` in the scratchpad of the session):
   `@testset "a" begin … end` prints as a `@testset` with no body and the statements
   after it, and `x = begin a = 1; a + 1 end` prints as `x = a = 1` and `a + 1`.
-  Both parse, so nothing reports them. A question for the owner.
+  Both parse, so nothing reports them. The owner answered "Yes" to fix it as a
+  third part of step 2.
+- After the third part of step 2: the guard passes. `test_julia_workload_file()`
+  passes 6 of 6, inside `test_julia()` (744 of 744) with `test_julia_file_view()`.
+  `run_file_workload(JuliaFile)` passes: the click, the key, the save, the undo and
+  the name buffer find their targets, and no barrier catches a fault.

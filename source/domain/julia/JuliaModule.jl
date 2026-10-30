@@ -140,8 +140,83 @@ function __init__()
                                                            LineSpacing; name = :code_line_spacing)))])
 end
 
+# The text of the file that a workload of the window opens. It holds each kind of
+# Julia code that the parser makes, so the image of this package holds the print
+# of each kind, for a file and for the code of an assistant; the test
+# `test_julia_workload_file` names the kinds that only an edit makes, and checks
+# that the text prints back to the same code. The text writes a docstring and a
+# named tuple in the form that the print writes. The workload clicks the text of
+# its first line.
+const _WORKLOAD_FILE_TEXT = raw"""
+alice = 1 + 2
+# A module with each kind of Julia code that the editor shows.
+module Sample
+
+using Base: show
+import Base.length
+export Point, area
+
+#= A comment of
+   two lines. =#
+
+const LIMIT = 10
+
+abstract type Shape end
+
+\"\"\"
+A point of the plane.
+\"\"\"
+struct Point{T} <: Shape
+    x::T
+    y::T
+end
+
+const Points = Vector{Point{T}} where {T}
+
+function area end
+
+function area(p::Point{T}; scale = 1.5) where {T<:Real}
+    total = p.x * p.y * scale  # the area
+    return -total
+end
+
+describe(::Point) = "point"
+double(f, xs...) = f.(xs)
+
+let names = (:a, 'b', "c $(LIMIT) d", nothing, true, [1, 2.5]), entry = (; count = 2, label = "two")
+    for (index, value) in enumerate(names)
+        index > 3 && break
+        isodd(index) ? println(value) : continue
+    end
+    while false
+    end
+    if entry.count == 1
+        @show entry
+    elseif entry.count == 2
+        squares = [x^2 for x in 1:LIMIT if iseven(x)]
+    else
+        begin
+            nothing
+        end
+    end
+    try
+        map(names) do name
+            name
+        end
+    catch exception
+        rethrow()
+    end
+    x -> x + 1
+    words = Vector{String}(undef, 1)[1:end]; first(words)
+end
+
+end
+
+ready = true; done = false
+"""
+
 # The file that a workload of the window opens (`run_file_workload`).
 make_workload_file(::Type{JuliaFile}) =
-    (; name = "a.jl", text = "alice = 1 + 2\n", shown = r"alice")
+    (; name = "a.jl", text = _WORKLOAD_FILE_TEXT, shown = r"alice")
 
 end # module
