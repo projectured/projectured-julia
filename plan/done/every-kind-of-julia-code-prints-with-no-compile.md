@@ -1,6 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. Steps 1 to 4 are done. Step 5, the live check, needs a turn of the owner.
+Status: DONE, 2026-10-31. Steps 1 to 5 are done.
 
 ## The ask
 
@@ -130,7 +130,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
    - Check: `ProjecturedJulia/precompile/workload.txt` holds a `print_document` of
      each `Julia…ToSyntax…` projection, and no list holds a `_deco_span` with a
      tuple key of a variable length.
-5. [ ] **The live check.** The profile harness of `/var/tmp/ide-profile-20261030/`
+5. [x] **The live check.** The profile harness of `/var/tmp/ide-profile-20261030/`
    again, with one long turn of the owner whose code uses many kinds. Counts:
    - no compile of a `print_document` of a Julia projection in the trace of the
      turn;
@@ -305,3 +305,53 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
 - `Pkg.precompile()` of `environment/all` (61 packages) and of the omnet scratch
   environment (65 packages) with the new lists: no package prints output or a
   warning.
+
+### Step 5
+
+- The owner, asked to give the turn: "I can't now, I'm in bed, you should do it". So
+  a driver gave the turn, 2026-10-31 00:09–00:20, in
+  `/var/tmp/ide-profile-20261030-every-kind/` (`driver.jl`, `turn.tsv`,
+  `driver.log`): `omnet_ide --assistant=acp --context=32768 --mcp` on a copy of
+  inet-cpp (`/var/tmp/every-kind-inet-cpp`, with no `out/`), because a run that a
+  session drives runs no task in a real project.
+  - The driver is a task in the IDE that one MCP call starts. It gives the steps of
+    the window workload (`_run_workload_step!`): a click on the draft, the typed
+    prompt, Return. Each 2 s it reads the status of the assistant on the loop, and
+    it would allow a permission request of `execute_julia_code` and reject any
+    other; the agent asked none. At the end of the turn it waits 25 s and quits the
+    window, which writes the profile.
+  - The loop runs in the world of its start, so a function of the driver reaches
+    it only through `Base.invokelatest`, wrapped in callable types of Base
+    (`ComposedFunction(Base.Fix1(Base.invokelatest, f), Returns(x))`, and
+    `Base.Fix2(isa, ConversationDraft)` for the target of the click). A task that
+    a code unit starts waits for its unit to end before a call on the loop.
+  - The prompt asks for one exercise in about six calls of `execute_julia_code`: a
+    module with a docstring, an abstract type, a parametric struct, a constant, a
+    function with keyword arguments and `where`; a comprehension, `for` with
+    `break` and `continue`, `while`, `let`; `if`/`elseif`/`else`, a ternary,
+    `try`/`catch`/`finally`, a `begin … end` value; `map` with `do`, a lambda,
+    broadcasting, interpolation, a named tuple, a splat; a table. No file, no
+    simulation, no build. The copy of inet-cpp has no change after the turn.
+- The turn took 649 s. The counts:
+
+  | Count | Plan 1 (2026-10-30) | This run |
+  | --- | --- | --- |
+  | `print_document` of a Julia projection compiled in the turn | 35, 8.9 s | 4, 0.1 s |
+  | `_deco_span` compiled after the window opened | 42, 5.0 s | 0 |
+  | Frames over 5 s outside held frames | 2 | 0 |
+  | Frames over 1 s | 17 of 3,749 | 2 of 672 |
+  | Loop samples inside frames, without held frames | 2,563 | 246 |
+  | of them JIT compile | 1,281 (50%) | 96 (39%) |
+  | of them a thrown error | 39 | 0 |
+
+  The two turns had other prompts, so a share is a guide; the counts of compiles
+  and of long frames are the measure.
+- The two frames over 1 s: a held frame of 1.7 s, 276 s before the turn, while my
+  MCP calls ran; and a frame of 1.9 s, 27 s into the turn, with 1.1 s in the feed,
+  where the agent starts (`_start_claude!`, the permission server).
+- The 4 Julia compiles are `print_document` of `JuliaIf` and `JuliaToplevel` in a
+  `FaultCatchingProjection` and in a `ChainingProjection`: the root of a code unit
+  of another kind than the roots that the workload prints. They are 25–30 ms each.
+- The rest of the compiles of the turn, 361 in 11.7 s, run on the threads of the
+  agent connection (the start of Claude, the permission server, the listen loop),
+  not on the loop.

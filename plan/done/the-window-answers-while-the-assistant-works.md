@@ -1,6 +1,6 @@
 # The window answers while the assistant works
 
-Status: PENDING, 2026-10-30. Steps 1–4 ran. Step 4 found two more causes, which [every-kind-of-julia-code-prints-with-no-compile.md](every-kind-of-julia-code-prints-with-no-compile.md) removes. The two plans move to `plan/done/` together.
+Status: DONE, 2026-10-31. Steps 1–4 ran. Step 4 found two more causes, which [every-kind-of-julia-code-prints-with-no-compile.md](every-kind-of-julia-code-prints-with-no-compile.md) removes; its live check (step 5) covers the checks of step 4 of this plan: 0 frames over 5 s outside held frames, 2 frames over 1 s, 96 compile samples of the loop against 1,281. The two plans move to `plan/done/` together.
 
 ## The ask
 
