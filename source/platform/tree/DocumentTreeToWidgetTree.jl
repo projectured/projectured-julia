@@ -311,7 +311,10 @@ end
 # The index paths of the open nodes: from the root, through the open places only,
 # each node whose document is a key of the open places below its parent. A
 # document that is on the path to its own node again stays closed there, so a
-# cycle of documents ends.
+# cycle of documents ends. The walk reads the children of an open node only when
+# a place below it is open, and it makes the entry of an open child only: the
+# document of a child says whether it is open. So the open paths read no child of
+# a node that is open with every child closed.
 function _compute_open_paths(root::_TreeEntry, places)
     paths = Set{Vector{Int}}()
     _collect_open_paths!(paths, root, places, Any[])
@@ -322,6 +325,7 @@ function _collect_open_paths!(paths, entry::_TreeEntry, places, above)
     below = get(places, entry.document, nothing)
     (below !== nothing && !any(document -> document === entry.document, above)) || return
     push!(paths, entry.path)
+    isempty(below) && return
     push!(above, entry.document)
     (entries, _) = _compute_tree_children_lists!(entry)
     if entries isa ListNode
@@ -333,8 +337,9 @@ function _collect_open_paths!(paths, entry::_TreeEntry, places, above)
             true
         end
     else
-        for k in 1:length(entries)
-            _collect_open_paths!(paths, entries[k], below, above)
+        # The children in the order of `entries`, each read from its collection.
+        for (k, (_, document)) in enumerate(collect_read_tree_children(entry.document))
+            haskey(below, document) && _collect_open_paths!(paths, entries[k], below, above)
         end
     end
     pop!(above)

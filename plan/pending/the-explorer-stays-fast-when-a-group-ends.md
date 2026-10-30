@@ -116,6 +116,36 @@ test showing its last result. On 2026-10-30 the owner said: "Fix the explorer".
   of the open places below its node). Measure again with the harness of step 1.
   Tests: the tests of the document tree, `test_explorer`, and the explorer tests of
   omnet-julia in the scratch environment.
+
+  **Done.** `_collect_open_paths!` returns after it records an open node whose
+  open places below are empty, so it reads no child of a node that is open with
+  every child closed, such as "Queueing tests". For a node with an open place
+  below it, it reads the documents of the children with
+  `collect_read_tree_children` (the children in the order of `entries`, from
+  their collections), and reads `entries[k]` only for a child whose document is
+  a key of the open places below. The lazy branch already did so. The tree guide
+  says it under the design decisions.
+
+  - The switch frame of step 1, with no probe: **3.90 s and 2.8 GB** (6.64 s and
+    3.9 GB before); the next frame 0.24 s, then 0.001 s. The end of the 57 tests
+    with the Explorer shown 0.035 s (0.040 s before), the end of the Gate group
+    with the Explorer hidden 0.010 s (0.011 s), the control 0.0014 s (0.0024 s).
+  - The cells of the switch frame (probe): 190,113 computes (298,083 before),
+    204 million entries scanned at a detach (660 million). The open paths no
+    longer compute again in the frame (611 times before). The listing computes
+    55,770 times (91,760), the elements of `entries` of "Queueing tests" 55,769
+    times (91,759) with 18,444 computes of 18,281 new slots (53,824 of 52,666),
+    the elements of `nodes` 37,382 times and its slots 18,448 times (both as
+    before), the print of the `WidgetTree` 610 times (610). The longest
+    `dependents` lists at a detach have 1,322 entries (4,001), the same four
+    cells of the folder.
+  - Tests, all on this branch: `test_document_tree`, `test_explorer`,
+    `test_explorer_row_notes`, `test_help_tree`, `test_document_decoration`,
+    `test_system_process` and `test_work_plan` in `environment/all`: 726 Pass,
+    0 Fail, 0 Error, 0 Broken. In omnet-julia, through the scratch environment
+    that loads this worktree: `test_campaign_explorer_content`,
+    `test_campaign_explorer` and `test_project_tests`: 154 Pass, 0 Fail, 0 Error,
+    0 Broken.
 - [ ] **Step 3 — The result.** If the frame at the end of a group is fast (under
   0.1 s with 57 tests), write the numbers here. If it is not, write the next cause
   with its numbers, and stop for the owner: a second fix (the shared `last_tasks`
