@@ -55,7 +55,9 @@ invalid (about 245 ms).
    with an abstract `Type`, which inference follows into the one kernel method.
    The earlier rounds measured it at 10 ms only because other roots made its
    callers invalid first. `append_fault!` does not show any more.
-4. [ ] Run the narrow tests: `test_dataframes()`, `test_sdl()`.
+4. [x] Run the narrow tests: `test_dataframes()`, `test_sdl()`.
+   `test_dataframes()` 628 of 628; `test_sdl()` 1083 passed, 1 failed, 1 error,
+   the counts of the known failure of `SdlWorkloadTest` on main.
 
 Not in this plan:
 - `append_fault!` (122 ms): its call and its only kernel method are in the
