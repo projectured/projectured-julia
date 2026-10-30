@@ -26,6 +26,8 @@ appearance.
     error_color::ThemeColor = ColorRole(:error_text)
     "A task that runs."
     running_color::ThemeColor = ColorRole(:accent_text)
+    "The height of a picture in a cell of the table of tasks, at most; its width follows its shape."
+    picture_height::Int = 120
     "A task that waits, and a value that says little."
     muted_color::ThemeColor = ColorRole(:text_muted)
 end

@@ -54,6 +54,52 @@ WidgetModule.make_graphics_projection(::Type{_TaskViewResultDocument}; measure, 
 TaskModule.get_task_result_document(task::_TaskViewProbeTask, result) =
     _TaskViewResultDocument("the result of " * task.name * " is " * result.result)
 
+# A kind of task whose column `picture` gives a picture once the task has a
+# result: the picture of the shape that the task name says, `wide` or `tall`, with
+# its pixels in hand so that no backend decodes; any other name gives no picture.
+# The column `note` gives text.
+struct _TaskPictureProbeTask <: AbstractTask
+    name::String
+end
+const _TASK_PICTURE_SHAPES = Dict("wide" => (1000, 200), "tall" => (200, 1000), "small" => (60, 30))
+TaskModule.get_result_codes(::_TaskPictureProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskPictureProbeTask) = task.name
+TaskModule.get_task_columns(::_TaskPictureProbeTask) = ["name" => 1, "picture" => 2, "note" => 1]
+TaskModule.format_task_column(task::_TaskPictureProbeTask, column::AbstractString) = column == "name" ? task.name : ""
+function TaskModule.get_task_column_value(task::_TaskPictureProbeTask, result, column::AbstractString)
+    column == "name" && return task.name
+    result === nothing && return nothing
+    column == "note" && return "note of " * task.name
+    shape = get(_TASK_PICTURE_SHAPES, task.name, nothing)
+    shape === nothing ? nothing :
+        ImageFile(Cell(task.name * ".png"), Cell((fill(UInt8(255), 4 * shape[1] * shape[2]), shape[1], shape[2])))
+end
+TaskModule.start_task(task::_TaskPictureProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, "exit 0"); on_finish)
+
+# Each image of a drawn pane as `(x, y, width, height)` on the canvas.
+function _collect_task_view_images(node, x = 0, y = 0, found = NTuple{4,Int}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            link = elements
+            while link !== nothing
+                _collect_task_view_images(link.value, x + Int(node.x), y + Int(node.y), found)
+                link = link.next
+            end
+        else
+            for element in elements
+                _collect_task_view_images(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        _collect_task_view_images(node.content, x + Int(node.x), y + Int(node.y), found)
+    elseif node isa GraphicsImage
+        push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    found
+end
+
 # Each text of a drawn pane with its place on the canvas.
 function _collect_task_view_texts(node, x = 0, y = 0, found = Tuple{Int,Int,String}[])
     if node isa GraphicsCanvas
@@ -167,6 +213,34 @@ function test_task_views()
             words = _collect_task_view_words(document)
             @test "Earlier executions" in words
             @test any(w -> occursin(r"^1\. started \d\d:\d\d:\d\d — ERROR", w), words)
+        end
+
+        @testset "a column that gives a picture shows it small, in its shape, with its row as high as it" begin
+            tasks = [_TaskPictureProbeTask(name) for name in ("wide", "tall", "small", "none")]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "pictures", jobs = 4))
+            images(width) = _collect_task_view_images(last(_print_task_view(document; width)).output)
+            @test isempty(images(1800))
+            wait_task_group_document(start_task_group_document!(document))
+            height = Int(get_scaled_theme!(Appearance(), TaskTheme).picture_height)
+            shown = sort(images(1800); by = image -> image[2])
+            # A task with no picture has no image; a picture is at most the picture height high.
+            @test length(shown) == 3 && all(image -> image[4] <= height, shown)
+            # A picture keeps its shape, and one smaller than the height is not made bigger.
+            wide, tall, small = shown[1], shown[2], shown[3]
+            @test wide[4] == height && abs(wide[3] / wide[4] - 5) < 0.1
+            @test tall[4] == height && abs(tall[3] / tall[4] - 0.2) < 0.02
+            @test small[3:4] == (60, 30)
+            # A row is as high as its picture: the row of a picture is taller than a line of text.
+            texts = _collect_task_view_texts(last(_print_task_view(document; width = 1800)).output)
+            rows = sort([t[2] for t in texts if t[3] == "note of wide" || t[3] == "note of tall" ||
+                                                t[3] == "note of small" || t[3] == "note of none"])
+            @test rows[2] - rows[1] >= height && rows[3] - rows[2] >= 30
+            # A cell is offered no width, so in a narrow window the picture keeps its height and its shape.
+            narrow = sort(images(700); by = image -> image[2])
+            @test length(narrow) == 3 && narrow[1][3:4] == wide[3:4] && narrow[2][3:4] == tall[3:4]
+            # Any other value stays text, and a value of nothing is an empty cell.
+            words = _collect_task_view_words(document)
+            @test "note of wide" in words && !("nothing" in words)
         end
 
         @testset "the detail draws the document that the kind gives for a result" begin

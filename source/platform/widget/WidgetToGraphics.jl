@@ -1109,6 +1109,19 @@ function _content_size(measure, font::StyleFont, content)
     _text_size(measure, font, string(content))
 end
 
+# The size an image draws at: its natural size, or smaller, in its shape, to
+# fit the maximum of the range the parent gave on each axis less the box. A free
+# axis does not bound the image. The image keeps at least one pixel.
+function _fit_image_size(width::Int, height::Int, ctx, inset_width::Int, inset_height::Int)
+    (width > 0 && height > 0 && ctx !== nothing) || return (width, height)
+    scale = 1.0
+    ctx.maximum_width === nothing ||
+        (scale = min(scale, max(1, Int(ctx.maximum_width[]) - inset_width) / width))
+    ctx.maximum_height === nothing ||
+        (scale = min(scale, max(1, Int(ctx.maximum_height[]) - inset_height) / height))
+    scale == 1.0 ? (width, height) : (max(1, round(Int, width * scale)), max(1, round(Int, height * scale)))
+end
+
 # Push a widget's polymorphic `content` into `elems` at (x, y). An ImageDocument
 # becomes a GraphicsImage (a rect in `placeholder_color` when not yet decoded);
 # everything else is drawn as label text. `cw`/`ch` are the resolved content box.
@@ -1654,6 +1667,9 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
         content_width, content_height = _content_size(p.measure, style.font, content)
+        content isa ImageDocument &&
+            ((content_width, content_height) = _fit_image_size(content_width, content_height, ctx,
+                                                               inset_width, inset_height))
         elements = Any[]
         # Text breaks at the edge of the range the parent gave, exact or bounded,
         # less the box. A label in a column holds prose in that column, and a line
