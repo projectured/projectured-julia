@@ -161,6 +161,18 @@ function test_julia_parser()
         @test occursin("module M", _julia_round_trip("module M\n    const A = 1\nend"))
     end
 
+    @testset "a body with no statement keeps its `end` on a line of its own" begin
+        for code in ("while false\nend", "for x in 1:2\nend", "if true\nend",
+                     "if a\n  x\nelseif b\nend", "if a\nelse\n  x\nend",
+                     "try\ncatch\nend", "try\n  f()\ncatch exception\nend",
+                     "try\n  f()\nfinally\nend", "struct S\nend", "module M\nend",
+                     "function h()\nend", "map(xs) do x\nend",
+                     "while a\n  while b\n  end\n  x\nend")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+    end
+
     @testset "the smaller gaps" begin
         @test _julia_round_trip("nt = (; a = 1, b = 2)") == "nt = (; a = 1, b = 2)"
         @test _julia_round_trip("xs = Vector{<:Real}()") == "xs = Vector{<:Real}()"

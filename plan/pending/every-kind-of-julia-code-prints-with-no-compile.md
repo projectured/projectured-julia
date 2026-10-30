@@ -1,7 +1,6 @@
 # Every kind of Julia code prints with no compile
 
-Status: IN PROGRESS, 2026-10-30. Step 1 is done. Step 2 is half done: the keyword
-parameters print correctly; the empty body waits for a choice of the owner.
+Status: IN PROGRESS, 2026-10-30. Step 1 is done. Step 2 is done. Step 3 is next.
 
 ## The ask
 
@@ -85,7 +84,7 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
      two lines with the same spans in the same order have equal keys.
    - Tests: `test_syntax_to_text()`; then `test_julia_to_syntax()`, because the
      Julia print reuses lines through this cache.
-2. [ ] **The Julia print writes each kind back as code.** The sample text of step 3
+2. [x] **The Julia print writes each kind back as code.** The sample text of step 3
    found two faults of the print, which are on main too, and the save of the sample
    file writes text that does not parse. The owner answered "Yes" to "Shall I add
    this step to the plan and fix both faults?"
@@ -93,7 +92,19 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
      `keyword_parameters`, as `JuliaCall` keeps its keyword arguments. The parser
      fills it, and the print writes `; …` after the positional parameters. The
      evaluation parses the print (`make_julia_expression`), so it needs no change.
-   - [ ] A body with no statement prints a break before `end`.
+   - [x] A body with no statement prints a break before `end`. The owner answered
+     "Yes" to "Shall I fix the empty body with A, with that guard?":
+     - **A.** A block writes the break before each statement and no break after
+       the last one. Each statement with a body writes the break before its `end`,
+       `else`, `elseif`, `catch` and `finally`, as a pretty printer does. An empty
+       block then prints nothing, and the statement still writes its `end` on a line
+       of its own. A template that forgets the break prints every body wrong, not
+       only an empty one, so any test of an example finds it.
+     - **The guard.** The test of the sample text (step 3) also checks that the
+       sample prints back to the same code.
+     - An empty block offers no caret of its own. The owner: "A person can press
+       insert or enter to add a statement in an empty block, so there are easy
+       ways out."
    - Tests: round-trip tests in `JuliaParserTest.jl`; `test_julia_tooltip()`;
      `test_julia_to_syntax()`; `test_example` of `julia_example` and
      `julia_code_example`; `test_formula_names()`, `test_formula_evaluation()`.
@@ -174,7 +185,31 @@ new tuple type. `_deco_span`, and the `get!`, `get`, `setindex!`, `in` and
   `test_formula_names()` and `test_formula_evaluation()` pass. `test_example` of
   `julia_example`: 3,445 pass and 84 fail; the 84 are the known baseline of main
   (no caret on the 6 name leaves of the `factorial` example, 28 places × 3 edits).
-  `julia_code_example` passes.
+  `julia_code_example` did not run in that process: the failure of the first
+  example stopped it. The run of the empty body measures it.
+- The empty body (A): `JuliaBlockToSyntaxNode` writes `open` and `sep` breaks and
+  no `close`. `_make_julia_body_keyword(text, style)` makes the leaf of `end`,
+  `else`, `catch` and `finally` with the break as its `open` text, and `struct`,
+  `module`, `for`, `while`, `do`, `let`, `begin`, `function` and `try` use it. The
+  `if` keeps its fixed parts: its `else` and its `end` are `make_text_block` texts
+  of a function (`"\nelse"`, `"\nend"`, or `""`), because the nested `if` of an
+  `elseif` writes its own `end`.
+- A file of many statements is one block, whose close break was the last
+  character of the saved text. `emit_text(::JuliaFile)` now writes the final break
+  (`* "\n"`, as `MathFile` does). The saved text still starts with a break and
+  indents the top level by two spaces, because the top level prints as a body; that
+  is a fault of its own, not in this plan.
+- Tests: 13 new round trips in `JuliaParserTest.jl` (each kind with an empty body,
+  an `elseif`, a nested loop); `test_julia()` 730 of 730; `test_fsm()`,
+  `test_process()`, `test_formula()` 895 of 895. `test_example(julia_example)`:
+  the 84 known failures. `test_example(julia_code_example)`: 423 type-in failures,
+  the same lines as on clean main (`no cursor in Graphics image` on name leaves).
+  Its printer test makes 16,938 checks against 17,030 on main, and its position
+  navigation reaches 420 states against 421. A probe that records the drawn caret
+  of each reached state (`caret-places.jl` in the scratchpad of the session) finds
+  the same 346 drawn places on both. The one lost state is the place after the last
+  break of the top-level block, the empty line at the end of the view, which draws
+  no caret on main either.
 - A third fault of the print, found in the print of the sample: `begin … end` prints
   with no `begin` and no `end`, because the parser makes a bare `JuliaBlock` of it.
   It is not in this step.

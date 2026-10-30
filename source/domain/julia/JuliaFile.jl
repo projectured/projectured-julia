@@ -22,7 +22,9 @@ docstring for the `pred_ref(...)` marker convention.
     content::Document = JuliaNothing()
 end
 
-emit_text(f::JuliaFile) = print_natural_text(get_file_content(f))
+# The text of the file ends with a line break, which the print of its last statement
+# does not write.
+emit_text(f::JuliaFile) = print_natural_text(get_file_content(f)) * "\n"
 
 function _is_marker_call(node::JuliaCall)
     callee = node.callee

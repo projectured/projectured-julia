@@ -346,18 +346,17 @@ end
     SyntaxConcatenation([
         SyntaxLeaf(TextString(() -> s.mutable ? "mutable struct " : "struct ", p.keyword_style)),
         project(:header; as = _style_type_header(p)),
-        # `body` is a `JuliaBlock`, whose texts put each field on a line of its
-        # own and `end` on the line after the last one.
+        # `body` is a `JuliaBlock`, whose texts put each field on a line of its own.
         project(:body),
-        SyntaxLeaf(TextString("end", p.keyword_style)),
+        _make_julia_body_keyword("end", p.keyword_style),
     ])
 
 # ── JuliaModuleDefinitionToSyntaxNode ─────────────────────────────────────────────
 #
-# The body is a `JuliaBlock`, so its texts hold the breaks around its statements —
-# the same shape `JuliaStructToSyntaxNode` relies on, and the reason neither node
-# writes a break before `end`. The node writes no comment after `end`: a
-# `# module Name` that a file holds is an end-of-line comment of the module.
+# The body is a `JuliaBlock`, so its texts hold the break before each statement,
+# and `end` starts a line of its own after it, as in `JuliaStructToSyntaxNode`. The
+# node writes no comment after `end`: a `# module Name` that a file holds is an
+# end-of-line comment of the module.
 
 @projection UntrackedCell struct JuliaModuleDefinitionToSyntaxNode
     keyword_style::StyleText = get_julia_style(nothing, :keyword_text)
@@ -373,7 +372,7 @@ end
                                           placeholder = "enter module name",
                                           style = p.name_style))),
         project(:body),
-        SyntaxLeaf(TextString("end", p.keyword_style)),
+        _make_julia_body_keyword("end", p.keyword_style),
     ])
 
 # ── JuliaSubtypeToSyntaxNode ───────────────────────────────────────────────
@@ -561,7 +560,7 @@ end
                                                            close=TextString(" ", p.keyword.font)),
                                                 SyntaxNode(collection(:iterators); sep=TextString(", ", p.delim)) ]),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
@@ -574,7 +573,7 @@ end
                                                            close=TextString(" ", p.keyword.font)),
                                                 project(:condition) ]),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
@@ -699,15 +698,15 @@ end
 end
 
 # `call do params` … `end`, in the shape every other block-bodied construct
-# uses: a header concatenation, the body (which supplies its own newline and
-# indentation), then `end`.
+# uses: a header concatenation, the body (which supplies the break and the
+# indentation before each statement), then `end` on a line of its own.
 @projection_template JuliaDoToSyntaxNode JuliaDo (p, d) ->
     SyntaxConcatenation([ SyntaxConcatenation([ project(:call),
                                                 SyntaxNode(collection(:parameters);
                                                            open=TextString(" do ", p.keyword),
                                                            sep=TextString(", ", p.keyword)) ]),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 @projection UntrackedCell struct JuliaLetToSyntaxNode
     keyword::StyleText = get_julia_style(nothing, :keyword_text)
@@ -719,7 +718,7 @@ end
                                      open=TextString("let ", p.keyword),
                                      sep=TextString(", ", p.delim)),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 @projection UntrackedCell struct JuliaNamedTupleToSyntaxNode
     delim::StyleText = get_julia_style(nothing, :punctuation_text)
@@ -778,16 +777,17 @@ end
                             kids = Any[ SyntaxLeaf(TextString("try", p.keyword)), project(:body) ]
                             if t.catch_branch !== nothing
                                 push!(kids, t.catch_var === nothing ?
-                                    SyntaxLeaf(TextString("catch", p.keyword)) :
+                                    _make_julia_body_keyword("catch", p.keyword) :
                                     SyntaxConcatenation([ SyntaxLeaf(TextString("catch", p.keyword);
+                                                                     open="\n",
                                                                      close=TextString(" ", p.keyword.font)),
                                                           project(:catch_var) ]))
                                 push!(kids, project(:catch_branch))
                             end
                             if t.finally_branch !== nothing
-                                push!(kids, SyntaxLeaf(TextString("finally", p.keyword)), project(:finally_branch))
+                                push!(kids, _make_julia_body_keyword("finally", p.keyword), project(:finally_branch))
                             end
-                            push!(kids, SyntaxLeaf(TextString("end", p.keyword)))
+                            push!(kids, _make_julia_body_keyword("end", p.keyword))
                             kids
                         end)
 
@@ -800,7 +800,7 @@ end
 @projection_template JuliaBeginToSyntaxNode JuliaBegin (p, b) ->
     SyntaxConcatenation([ SyntaxLeaf(TextString("begin", p.keyword)),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 # ── JuliaBlockToSyntaxNode ──────────────────────────────────────────────────
 
@@ -808,8 +808,17 @@ end
     indentation::Int = 1
 end
 
+# The block writes the break before each statement and none after the last one.
+# The statement that holds the block writes the break before its `end`, `else`,
+# `catch` or `finally` (`_make_julia_body_keyword`), so a block with no statement
+# prints nothing and the keyword still starts a line of its own.
 @projection_template JuliaBlockToSyntaxNode JuliaBlock (p, b) ->
-    SyntaxNode(collection(:statements); open="\n", sep="\n", close="\n", indentation=p.indentation)
+    SyntaxNode(collection(:statements); open="\n", sep="\n", indentation=p.indentation)
+
+# A keyword that ends a body, such as `end`, `else`, `catch` or `finally`, on a
+# line of its own after the body.
+_make_julia_body_keyword(text::AbstractString, style::StyleText) =
+    SyntaxLeaf(TextString(text, style); open = "\n")
 
 # ── JuliaToplevelToSyntaxNode ───────────────────────────────────────────────
 
@@ -831,33 +840,30 @@ end
 end
 
 # `if cond … [else …] end`. The template renders every element
-# unconditionally; we make the surrounding whitespace + `else`
-# keyword thunks so an empty else-branch collapses to nothing, and
-# a `JuliaIf` else-branch renders as `elseif` (dropping the plain
-# `else` line — the nested if prints its own `if`).
+# unconditionally; the `else` and the `end` are texts of a function, so an
+# empty else-branch collapses to nothing, and a `JuliaIf` else-branch renders
+# as `elseif` (dropping the plain `else` line — the nested if prints its own
+# `if`).
 @projection_template JuliaIfToSyntaxNode JuliaIf (p, m) ->
     SyntaxConcatenation([
         SyntaxLeaf(TextString("if ", p.keyword)),
         project(:condition),
         project(:then_branch),
-        SyntaxLeaf(TextString(() -> _if_else_prefix(m.else_branch), p.keyword)),
+        SyntaxLeaf(make_text_block(() -> _if_else_prefix(m.else_branch), p.keyword)),
         project(:else_branch),
-        SyntaxLeaf(TextString(() -> _if_end_line(m.else_branch), p.keyword)),
+        SyntaxLeaf(make_text_block(() -> _if_end_line(m.else_branch), p.keyword)),
     ])
 
-# The keyword that leads the else-branch. The texts of `JuliaBlock`
-# hold a break before each statement and one after the last. So the
-# prefix is a plain `else` — the block on either side supplies the
-# breaks, and any extra "\n" here would double-space.
-#   empty   → ""     (no else clause)
-#   JuliaIf → "else" (nested child prints its own `if` → `elseif`)
-#   other   → "else"
-_if_else_prefix(else_branch) = _is_empty_else(else_branch) ? "" : "else"
+# The keyword that leads the else-branch, on a line of its own after the
+# then-branch, whose block writes no break after its last statement.
+#   empty   → ""       (no else clause)
+#   JuliaIf → "\nelse" (nested child prints its own `if` → `elseif`)
+#   other   → "\nelse"
+_if_else_prefix(else_branch) = _is_empty_else(else_branch) ? "" : "\nelse"
 
-# The closing `end` line. The closing break of the then/else block
-# puts it on a line of its own. Nested JuliaIf else-branches print
+# The closing `end`, on a line of its own. Nested JuliaIf else-branches print
 # their own `end`, so suppress ours.
-_if_end_line(else_branch) = else_branch isa JuliaIf ? "" : "end"
+_if_end_line(else_branch) = else_branch isa JuliaIf ? "" : "\nend"
 
 # `if … end` with no explicit else parses to `JuliaEmpty`; also
 # treat `JuliaNothing` and empty blocks as absent so hand-crafted
@@ -900,7 +906,7 @@ end
                                                                            p.delim)),
                                                 project(:where_clause) ]),
                           project(:body),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+                          _make_julia_body_keyword("end", p.keyword) ])
 
 # ── JuliaFunctionDeclarationToSyntaxNode ────────────────────────────────────
 
