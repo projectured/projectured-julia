@@ -7,6 +7,7 @@
 #
 #     abc          the printed value contains `abc`, in any case
 #     /re/         the printed value matches the regular expression `re`
+#     !/re/        the printed value does not match the regular expression `re`
 #     = a, b       the value is `a` or `b`; a value with a comma is written in quotes
 #     != a         the value is not `a`
 #     > 30         a comparison, also `>=`, `<` and `<=`, for a `T` that is a number
@@ -31,6 +32,11 @@ struct _MatchCondition
     regex::Regex
 end
 (c::_MatchCondition)(value) = !ismissing(value) && occursin(c.regex, _get_filter_text(value))
+
+struct _NotMatchCondition
+    regex::Regex
+end
+(c::_NotMatchCondition)(value) = !ismissing(value) && !occursin(c.regex, _get_filter_text(value))
 
 struct _EqualCondition{T}
     values::Vector{T}
@@ -80,7 +86,8 @@ The condition of the filter text `text` for values of the type `type`: a
 callable that gives whether a value passes, `nothing` for an empty text, which
 keeps every value, or a `String`, the reason, for a text that does not parse.
 The language: `abc` (the printed value contains it, in any case), `/re/`,
-`= a, b`, `!= a`, `> 30`, `>=`, `<`, `<=`, `10..20`, `missing` and `!missing`.
+`!/re/` (does not match), `= a, b`, `!= a`, `> 30`, `>=`, `<`, `<=`, `10..20`,
+`missing` and `!missing`.
 
 Use it to read the text of a filter field, or the value of a condition of the
 operator `:matches`, as a test of a value.
@@ -99,6 +106,8 @@ function parse_filter_text(text::AbstractString, type::Type = Any)
     text == "!missing" && return _MissingCondition(false)
     T = nonmissingtype(type)
     _is_regular_expression(text) && return _parse_regular_expression(text)
+    startswith(text, "!") && _is_regular_expression(text[2:end]) &&
+        return _parse_regular_expression(text[2:end]; negated = true)
     startswith(text, "!=") && return _parse_equal_filter(text[3:end], T; negated = true)
     startswith(text, "=") && return _parse_equal_filter(text[2:end], T)
     for (prefix, order) in ((">=", >=), ("<=", <=), (">", >), ("<", <))
@@ -120,9 +129,10 @@ end
 _is_regular_expression(text::AbstractString) =
     length(text) >= 2 && startswith(text, "/") && endswith(text, "/")
 
-function _parse_regular_expression(text::AbstractString)
+function _parse_regular_expression(text::AbstractString; negated::Bool = false)
     try
-        _MatchCondition(Regex(text[2:prevind(text, lastindex(text))]))
+        regex = Regex(text[2:prevind(text, lastindex(text))])
+        negated ? _NotMatchCondition(regex) : _MatchCondition(regex)
     catch exception
         "the regular expression does not parse: " * sprint(showerror, exception)
     end

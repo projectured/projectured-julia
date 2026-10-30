@@ -33,6 +33,7 @@ function test_arrangement_filter_language()
         @test kept("1", numbers[1:12]) == [1, 10, 11, 12]
         @test kept("ITEM", words) == ["item 1", "Item 2", "item 12"]
         @test kept("/^item [0-9]\$/", words) == ["item 1"]
+        @test kept("!/^item/", words) == ["Item 2", "other", "a, b"]
         @test kept("= item 1, other", words) == ["item 1", "other"]
         @test kept("= \"a, b\"", words) == ["a, b"]
         @test kept("= true", [true, false, true]) == [true, true]
@@ -44,6 +45,7 @@ function test_arrangement_filter_language()
         @test kept("!missing", values) == [1, 3]
         @test kept("> 0", values) == [1, 3]
         @test kept("!= 1", values) == [3]
+        @test kept("!/1/", values) == [3]
     end
 
     @testset "a text that does not parse gives its reason" begin
@@ -51,6 +53,7 @@ function test_arrangement_filter_language()
         @test parse_filter_text("> 3", String) isa String
         @test parse_filter_text("1..x", Int) isa String
         @test parse_filter_text("/[/", String) isa String
+        @test parse_filter_text("!/[/", String) isa String
         @test parse_filter_text("=", String) isa String
         @test parse_filter_text("= maybe", Bool) isa String
     end
