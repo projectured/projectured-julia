@@ -1,6 +1,6 @@
 # The recorded calls of a data frame fit every frame
 
-Status: in progress, branch `frame-fit`.
+Status: done, landed on main.
 
 ## The issue
 
@@ -63,6 +63,7 @@ Not in this plan:
 - `append_fault!` (122 ms): its call and its only kernel method are in the
   sealed fault layer (`fault/FaultStore.jl`, `fault/FaultDefaults.jl`). A fix
   needs the permission of the owner for each file.
-- `get_document_gesture_bindings_own` (10 ms): the kernel has one method, so
-  `@max_methods 1` does not close the call, and `Base.invokelatest` changes the
-  world in which a binding is read.
+- `get_document_gesture_bindings_own` (the 0.27 s that the first frame still
+  compiles again): the kernel has one method, so `@max_methods 1` does not close
+  the call. `Base.invokelatest` closes it, but it changes the world in which a
+  binding is read. The owner decided on 2026-10-30: no `invokelatest`.
