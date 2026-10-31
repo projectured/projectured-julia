@@ -211,7 +211,7 @@ end
 function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
     preparation = get_task_group_preparation(doc)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
-    preparation isa TaskGroupDocument && return _build_group_parts(p, preparation, bounded; actions = false)
+    preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, bounded; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
         _build_task_details(p, getfield(preparation, :task)[], preparation),
         _build_earlier_executions(p, preparation),
@@ -442,7 +442,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         # the detail of the task picked in it.
         inner = find_task_group_document(doc, index)
         inner === nothing ||
-            return Cell[Cell(x) for x in _build_group_parts(p, inner, bounded; actions = false)]
+            return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
         parts = Any[]
@@ -715,23 +715,31 @@ function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::B
     place = LayoutConstraint(split; width = Fill, height = Fill)
     set_cell_computation!(getfield(place, :child), () ->
         getfield(doc, :is_detail_alone)[] ? detail : split)
-    Any[card, place]
+    (Any[card, place], detail)
 end
 
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
     bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
-    root = VerticalLayout(_build_group_parts(p, doc, bounded); horizontal_align = :left,
-                          gap = p.stack_gap)
+    (parts, detail) = _build_group_parts(p, doc, bounded)
+    root = VerticalLayout(parts; horizontal_align = :left, gap = p.stack_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path));
+    forward_mouse_target = () -> map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path))
+    follow_output_mouse_target!(root, forward_mouse_target;
         is_followed = node -> !_is_embed_card(node) && !(node isa ArrangementDocument))
     # The caret, so a key reaches the document of a result in the detail.
-    follow_output_selection!(root, () -> begin
+    forward_selection = () -> begin
         path = getfield(doc, :selection)[]
         path === nothing ? nothing : map_reference_forward(p, iomap, path)
-    end; is_followed = _is_followed_by_selection)
+    end
+    follow_output_selection!(root, forward_selection; is_followed = _is_followed_by_selection)
+    # The detail stands in the split and, while it is alone, in the place below the
+    # card, so it takes the part of the path below the place where it stands now.
+    below_detail(forward) = () -> (path = forward(); path === nothing ? nothing :
+                                   _find_path_below(path, _get_detail_steps(doc)))
+    follow_output_mouse_target!(detail, below_detail(forward_mouse_target);
+        is_followed = node -> !_is_embed_card(node) && !(node isa ArrangementDocument))
+    follow_output_selection!(detail, below_detail(forward_selection); is_followed = _is_followed_by_selection)
     iomap
 end
 
@@ -864,16 +872,33 @@ function _find_neighbour_task(doc::TaskGroupDocument, step::Int)
     findfirst(task -> task === shown[target], documents)
 end
 
+# The caret in the document of the result of task `index`, so a key reaches that
+# document first; the caret on the group when the task has none.
+function _make_result_caret_operation(doc::TaskGroupDocument, index::Int)
+    documents = getfield(doc, :tasks)[]
+    (1 <= index <= length(documents) && getfield(documents[index], :result_document)[] !== nothing) ||
+        return ReplaceSelectionOperation(EmptyReference())
+    ReplaceSelectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("tasks"),
+                                               RangeReferenceStep(index - 1, index),
+                                               FieldReferenceStep("result_document")))
+end
+
 function _make_detail_move_operation(doc::TaskGroupDocument, step::Int)
     getfield(doc, :is_detail_alone)[] || return nothing
     index = _find_neighbour_task(doc, step)
-    index === nothing ? DoNothingOperation() : _make_view_write_operation(doc, "selected", index)
+    index === nothing && return DoNothingOperation()
+    CompoundOperation(Any[_make_view_write_operation(doc, "selected", index), _make_result_caret_operation(doc, index)])
 end
 
+# Return writes the caret into the result of the selected task, so Left and Right
+# reach the document of the result, and Escape puts it back on the group.
 function _make_detail_alone_operation(doc::TaskGroupDocument, is_alone::Bool)
     getfield(doc, :is_detail_alone)[] == is_alone && return nothing
-    is_alone && !(1 <= getfield(doc, :selected)[] <= length(getfield(doc, :tasks)[])) && return nothing
-    _make_view_write_operation(doc, "is_detail_alone", is_alone)
+    index = getfield(doc, :selected)[]
+    is_alone && !(1 <= index <= length(getfield(doc, :tasks)[])) && return nothing
+    write = _make_view_write_operation(doc, "is_detail_alone", is_alone)
+    caret = is_alone ? _make_result_caret_operation(doc, index) : ReplaceSelectionOperation(EmptyReference())
+    CompoundOperation(Any[write, caret])
 end
 
 @gestures TaskGroupDocument begin
