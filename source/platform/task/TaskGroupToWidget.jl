@@ -211,7 +211,7 @@ end
 function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
     preparation = get_task_group_preparation(doc)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
-    preparation isa TaskGroupDocument && return _build_group_parts(p, preparation, bounded; actions = false)
+    preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, bounded; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
         _build_task_details(p, getfield(preparation, :task)[], preparation),
         _build_earlier_executions(p, preparation),
@@ -338,13 +338,13 @@ const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1
 # ── The documents of a task, edited where they show ─────────────────────────
 #
 # The detail of a task draws the tree of the processes of the task while it runs,
-# and the document of its result, each in the card of an embedded document
-# (`make_embed_card`). A path from the group reaches each document,
-# `tasks[i].process_tree + rest` and `tasks[i].result_document + rest`, so the
-# pane maps that path to its card, `content + rest`, and back, as a page maps an
-# embedded file. Every other path takes the defaults of `Projection`.
+# and the document of its result, each in a place of its own: a constraint that
+# gives the document its share of the height, in the split and alone. A path from
+# the group reaches each document, `tasks[i].process_tree + rest` and
+# `tasks[i].result_document + rest`, so the pane maps that path to the place and
+# back, with the same `rest`. Every other path takes the defaults of `Projection`.
 
-# The steps from the root of the pane to the detail: the place below the card is
+# The steps from the root of the pane to the detail: the place below the summary card is
 # the second child of the root, in a constraint. It holds the split, whose second
 # pane is the detail, in a constraint too, or the detail alone
 # (`_build_group_parts`).
@@ -353,27 +353,27 @@ const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeRef
                        FieldReferenceStep("child"))
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
-# The parts of the detail of a task before its cards: its state, its facts, its
+# The parts of the detail of a task before its documents: its state, its facts, its
 # process, its result, its earlier executions and its buttons.
-const _PARTS_BEFORE_CARDS = 6
+const _PARTS_BEFORE_DOCUMENTS = 6
 
-# The fields of a task document that the detail shows in a card, in this order,
+# The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
-const _CARD_FIELDS = (:process_tree, :result_document)
+const _DOCUMENT_FIELDS = (:process_tree, :result_document)
 
-# The card of each document that the detail of the pane shows: the steps from the
-# group to the document, and the steps from the root of the pane to its card. A
+# The place of each document that the detail of the pane shows: the steps from the
+# group to the document, and the steps from the root of the pane to its place. A
 # task of an inner group shows in the detail of that group, which no path from
 # this group reaches.
-function _find_card_places(doc::TaskGroupDocument)
+function _find_document_places(doc::TaskGroupDocument)
     places = Tuple{Tuple,Tuple}[]
     index = getfield(doc, :selected)[]
     documents = getfield(doc, :tasks)[]
     (1 <= index <= length(documents)) || return places
     find_task_group_document(doc, index) === nothing || return places
-    for field in _CARD_FIELDS
+    for field in _DOCUMENT_FIELDS
         getfield(documents[index], field)[] === nothing && continue
-        position = _PARTS_BEFORE_CARDS + length(places)
+        position = _PARTS_BEFORE_DOCUMENTS + length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
                        (_get_detail_steps(doc)..., FieldReferenceStep("children"),
@@ -401,21 +401,17 @@ function _find_path_below(path, head)
 end
 
 # A key goes to the child that the selection of each container names, so each
-# widget and layout from the root of the pane to the card holds its part of the
-# path. The walk stops at a card that holds a document of a domain: the card
-# follows the paths of its document (`make_embed_card`), and the document holds
-# its own. It leaves out the table, whose rows take no key and which selects the
-# row of the task of the detail itself. A constraint is on the way: the split and
+# widget and layout from the root of the pane to the place of a document holds its
+# part of the path. The walk stops at a document of a domain, which holds its own.
+# It leaves out the table, whose rows take no key and which selects the row of the
+# task of the detail itself. A constraint is on the way: the split and
 # the detail each stand in one.
-_is_embed_card(node) =
-    node isa WidgetCard && node.content isa Document &&
-    !(node.content isa WidgetDocument || node.content isa LayoutDocument)
 _is_followed_by_selection(node) =
     (node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint) &&
-    !(node isa WidgetTable) && !_is_embed_card(node)
+    !(node isa WidgetTable)
 
 # A part that the detail builds holds its part of the paths of the detail, so a
-# key reaches the card after the person picks another task: the walk of the pane
+# key reaches the document after the person picks another task: the walk of the pane
 # reaches only the parts that were there when the pane was drawn.
 function _follow_detail_part!(detail, part, position::Int)
     steps = (FieldReferenceStep("children"), RangeReferenceStep(position, position + 1))
@@ -423,6 +419,12 @@ function _follow_detail_part!(detail, part, position::Int)
     follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target),
                              is_followed = _is_followed_by_selection)
 end
+
+# The share of the height that the place of a document takes against the two output
+# panes, which take 2 and 1: the split gives the document two thirds of the rest, and
+# the detail alone gives it most of the place.
+const _PLACE_WEIGHT = 6.0
+const _ALONE_PLACE_WEIGHT = 12.0
 
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
@@ -437,7 +439,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         # the detail of the task picked in it.
         inner = find_task_group_document(doc, index)
         inner === nothing ||
-            return Cell[Cell(x) for x in _build_group_parts(p, inner, bounded; actions = false)]
+            return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
         parts = Any[]
@@ -475,17 +477,18 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
         # The tree of the processes of the task while it runs, and the document
-        # that the kind gives for the result, each in the card of an embedded
-        # document, between the facts and the output. The maps of the pane find
-        # each card by its place.
-        length(parts) == _PARTS_BEFORE_CARDS ||
-            error("the cards of the task are not where the maps of the pane find them")
-        for field in _CARD_FIELDS
+        # that the kind gives for the result, each in a place that gives it an
+        # exact share of the height, between the facts and the output. The maps of
+        # the pane find each document by its place.
+        length(parts) == _PARTS_BEFORE_DOCUMENTS ||
+            error("the documents of the task are not where the maps of the pane find them")
+        for field in _DOCUMENT_FIELDS
             shown = getfield(document, field)[]
             shown === nothing && continue
-            card = make_embed_card(shown, something(get_document_title(shown), "Result"))
-            push!(parts, _follow_detail_part!(detail, LayoutConstraint(card; height = Relative(2), width = Fill),
-                                              length(parts)))
+            place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill)
+            set_cell_computation!(getfield(place, :weight_height), () ->
+                getfield(doc, :is_detail_alone)[] ? _ALONE_PLACE_WEIGHT : _PLACE_WEIGHT)
+            push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
         push!(parts, _make_label("stdout", p.muted_color))
         push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
@@ -708,23 +711,31 @@ function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::B
     place = LayoutConstraint(split; width = Fill, height = Fill)
     set_cell_computation!(getfield(place, :child), () ->
         getfield(doc, :is_detail_alone)[] ? detail : split)
-    Any[card, place]
+    (Any[card, place], detail)
 end
 
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
     bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
-    root = VerticalLayout(_build_group_parts(p, doc, bounded); horizontal_align = :left,
-                          gap = p.stack_gap)
+    (parts, detail) = _build_group_parts(p, doc, bounded)
+    root = VerticalLayout(parts; horizontal_align = :left, gap = p.stack_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path));
-        is_followed = node -> !_is_embed_card(node) && !(node isa ArrangementDocument))
+    forward_mouse_target = () -> map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path))
+    follow_output_mouse_target!(root, forward_mouse_target;
+        is_followed = node -> !(node isa ArrangementDocument))
     # The caret, so a key reaches the document of a result in the detail.
-    follow_output_selection!(root, () -> begin
+    forward_selection = () -> begin
         path = getfield(doc, :selection)[]
         path === nothing ? nothing : map_reference_forward(p, iomap, path)
-    end; is_followed = _is_followed_by_selection)
+    end
+    follow_output_selection!(root, forward_selection; is_followed = _is_followed_by_selection)
+    # The detail stands in the split and, while it is alone, in the place below the
+    # summary card, so it takes the part of the path below the place where it stands now.
+    below_detail(forward) = () -> (path = forward(); path === nothing ? nothing :
+                                   _find_path_below(path, _get_detail_steps(doc)))
+    follow_output_mouse_target!(detail, below_detail(forward_mouse_target);
+        is_followed = node -> !(node isa ArrangementDocument))
+    follow_output_selection!(detail, below_detail(forward_selection); is_followed = _is_followed_by_selection)
     iomap
 end
 
@@ -770,10 +781,10 @@ _collect_table_places(doc::TaskGroupDocument) =
 # `table.<rest>` of each table ↔ the table in the output.
 function map_reference_forward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
     if reference isa ConcreteReference
-        for (document_steps, card_steps) in _find_card_places(iomap.input)
+        for (document_steps, place_steps) in _find_document_places(iomap.input)
             inside = _find_path_below(reference, document_steps)
             inside === nothing || return annotate_reference_types(iomap.output,
-                concat_references(_make_steps_reference(card_steps), make_embed_card_path(inside)))
+                concat_references(_make_steps_reference(place_steps), inside))
         end
         for (document_steps, output_steps) in _collect_table_places(iomap.input)
             inside = _find_path_below(reference, document_steps)
@@ -789,11 +800,10 @@ end
 
 function map_reference_backward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
     if reference isa ConcreteReference
-        for (document_steps, card_steps) in _find_card_places(iomap.input)
-            below = _find_path_below(reference, card_steps)
-            inside = below === nothing ? nothing : find_embed_card_path_inside(below)
-            inside === nothing || return annotate_reference_types(iomap.input,
-                concat_references(_make_steps_reference(document_steps), inside))
+        for (document_steps, place_steps) in _find_document_places(iomap.input)
+            below = _find_path_below(reference, place_steps)
+            below === nothing || return annotate_reference_types(iomap.input,
+                concat_references(_make_steps_reference(document_steps), below))
         end
         for (document_steps, output_steps) in _collect_table_places(iomap.input)
             below = _find_path_below(reference, output_steps)
@@ -857,16 +867,33 @@ function _find_neighbour_task(doc::TaskGroupDocument, step::Int)
     findfirst(task -> task === shown[target], documents)
 end
 
+# The caret in the document of the result of task `index`, so a key reaches that
+# document first; the caret on the group when the task has none.
+function _make_result_caret_operation(doc::TaskGroupDocument, index::Int)
+    documents = getfield(doc, :tasks)[]
+    (1 <= index <= length(documents) && getfield(documents[index], :result_document)[] !== nothing) ||
+        return ReplaceSelectionOperation(EmptyReference())
+    ReplaceSelectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("tasks"),
+                                               RangeReferenceStep(index - 1, index),
+                                               FieldReferenceStep("result_document")))
+end
+
 function _make_detail_move_operation(doc::TaskGroupDocument, step::Int)
     getfield(doc, :is_detail_alone)[] || return nothing
     index = _find_neighbour_task(doc, step)
-    index === nothing ? DoNothingOperation() : _make_view_write_operation(doc, "selected", index)
+    index === nothing && return DoNothingOperation()
+    CompoundOperation(Any[_make_view_write_operation(doc, "selected", index), _make_result_caret_operation(doc, index)])
 end
 
+# Return writes the caret into the result of the selected task, so Left and Right
+# reach the document of the result, and Escape puts it back on the group.
 function _make_detail_alone_operation(doc::TaskGroupDocument, is_alone::Bool)
     getfield(doc, :is_detail_alone)[] == is_alone && return nothing
-    is_alone && !(1 <= getfield(doc, :selected)[] <= length(getfield(doc, :tasks)[])) && return nothing
-    _make_view_write_operation(doc, "is_detail_alone", is_alone)
+    index = getfield(doc, :selected)[]
+    is_alone && !(1 <= index <= length(getfield(doc, :tasks)[])) && return nothing
+    write = _make_view_write_operation(doc, "is_detail_alone", is_alone)
+    caret = is_alone ? _make_result_caret_operation(doc, index) : ReplaceSelectionOperation(EmptyReference())
+    CompoundOperation(Any[write, caret])
 end
 
 @gestures TaskGroupDocument begin
