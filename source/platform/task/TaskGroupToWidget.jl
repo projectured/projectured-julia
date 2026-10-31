@@ -402,8 +402,9 @@ end
 
 # A key goes to the child that the selection of each container names, so each
 # widget and layout from the root of the pane to the place of a document holds its
-# part of the path. The walk stops at a document of a domain, which holds its own. It leaves out the table, whose rows take no key and which selects the
-# row of the task of the detail itself. A constraint is on the way: the split and
+# part of the path. The walk stops at a document of a domain, which holds its own.
+# It leaves out the table, whose rows take no key and which selects the row of the
+# task of the detail itself. A constraint is on the way: the split and
 # the detail each stand in one.
 _is_followed_by_selection(node) =
     (node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint) &&
@@ -420,8 +421,9 @@ function _follow_detail_part!(detail, part, position::Int)
 end
 
 # The share of the height that the place of a document takes against the two output
-# panes, which take 2 and 1: the detail alone gives the document most of the place.
-const _PLACE_WEIGHT = 2.0
+# panes, which take 2 and 1: the split gives the document two thirds of the rest, and
+# the detail alone gives it most of the place.
+const _PLACE_WEIGHT = 6.0
 const _ALONE_PLACE_WEIGHT = 12.0
 
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
@@ -800,9 +802,8 @@ function map_reference_backward(p::TaskGroupDocumentToWidgetPane, iomap, referen
     if reference isa ConcreteReference
         for (document_steps, place_steps) in _find_document_places(iomap.input)
             below = _find_path_below(reference, place_steps)
-            inside = below
-            inside === nothing || return annotate_reference_types(iomap.input,
-                concat_references(_make_steps_reference(document_steps), inside))
+            below === nothing || return annotate_reference_types(iomap.input,
+                concat_references(_make_steps_reference(document_steps), below))
         end
         for (document_steps, output_steps) in _collect_table_places(iomap.input)
             below = _find_path_below(reference, output_steps)
