@@ -24,6 +24,10 @@ are plain values:
 - `get_task_columns(task)` names its columns, each the word of its header and
   its share of the width, such as `"directory" => 4`;
 - `format_task_column(task, column)` gives the text of one;
+- `get_task_column_value(task, result, column)` gives the value of one when the
+  execution has a result, so a column can show a number that a test found. A table
+  filters and sorts that value as a number. The default is the text of
+  `format_task_column`;
 - `format_task_details(task, result)` gives its facts, one a line, such as the
   command, the exit code and the error line, from what the task ended with;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
@@ -396,6 +400,8 @@ opens the page of the group. Each answers `OpenPageOperation` with the document
 that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
 holds it, and an open that no navigator takes opens a tab.
+
+**A picture in a column.** A cell of a kind column shows the value that `get_task_column_value` gives. When the value is an `ImageFile`, the cell shows a small picture of the file: at most `picture_height` high (a field of `TaskTheme`, 120 by default), in its shape, and the row is as high as its highest cell. The view decodes the file when it draws, and a file that does not exist shows an empty box. Any other value shows as text. The table gives a cell no width, so a column that is narrower than the picture clips it.
 
 **The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the result document of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no result document keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail holds the document of the result and the tree of the processes each in a place of its own, with no card: a constraint that gives the document an exact share of the height, in the split and alone. The place of the result takes 12 shares of the height that the lines above it leave while the detail is alone, and 6 in the split, against 2 and 1 for the two output panes, so a picture or a table in the result fills its share and the two panes stay in the window. A path into the document is the path below its place.
 
