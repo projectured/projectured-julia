@@ -259,7 +259,7 @@ function test_task_views()
                   only(t for t in texts if t[3] == "stdout")[2]
         end
 
-        @testset "a path into the document of a result goes to its card and back" begin
+        @testset "a path into the document of a result goes to its place and back" begin
             document = wrap_task_group_document(
                 TaskGroup([_TaskViewProbeTask("gamma", "exit 0")]; name = "result path", jobs = 1))
             wait_task_group_document(start_task_group_document!(document))
@@ -273,28 +273,27 @@ function test_task_views()
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
             result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("result_document"))
-            # The card is the seventh part of the detail, the second pane of the
-            # split below the card of the group.
-            card = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+            # The place is the seventh part of the detail, the second pane of the
+            # split below the card of the group; it holds the document itself.
+            place = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                     FieldReferenceStep("children"), RangeReferenceStep(6, 7), FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
-            @test steps_of(drawn) == [card..., FieldReferenceStep("content"), FieldReferenceStep("line")]
+            @test steps_of(drawn) == [place..., FieldReferenceStep("line")]
             @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
-            # A selection in the document reaches the card: each container on the
+            # A selection in the document reaches its place: each container on the
             # way holds the part of the path below it, so a key goes there.
             replace_selection!(document, inside)
-            around_card = foldl((node, step) -> ProjecturedKernel.CellModule.unwrap_cell(
+            around_place = foldl((node, step) -> ProjecturedKernel.CellModule.unwrap_cell(
                                     ProjecturedKernel.ReferenceModule.evaluate_reference_step(step, node)),
-                                card[1:(end - 1)]; init = pane_iomap.output)
-            @test around_card isa ProjecturedPlatform.LayoutModule.LayoutConstraint
-            @test steps_of(getfield(around_card, :selection)[]) ==
-                  [FieldReferenceStep("child"), FieldReferenceStep("content"), FieldReferenceStep("line")]
-            # The title of the card names the whole document.
-            @test steps_of(map_reference_backward(pane, pane_iomap, make_path(card..., FieldReferenceStep("title")))) ==
-                  collect(result)
-            # The document of a task that the detail does not show has no card.
+                                place[1:(end - 1)]; init = pane_iomap.output)
+            @test around_place isa ProjecturedPlatform.LayoutModule.LayoutConstraint
+            @test steps_of(getfield(around_place, :selection)[]) ==
+                  [FieldReferenceStep("child"), FieldReferenceStep("line")]
+            # The whole place is the whole document.
+            @test steps_of(map_reference_backward(pane, pane_iomap, make_path(place...))) == collect(result)
+            # The document of a task that the detail does not show has no place.
             select_task_document!(document, 0)
             @test map_reference_forward(pane, pane_iomap, inside) === nothing
         end
