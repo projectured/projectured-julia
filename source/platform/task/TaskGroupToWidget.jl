@@ -361,6 +361,17 @@ const _PARTS_BEFORE_DOCUMENTS = 6
 # each when it holds a document.
 const _DOCUMENT_FIELDS = (:process_tree, :result_document)
 
+# The document of the result that the place below the card of the group holds while
+# the detail is alone: the one of the selected task, or `nothing` for a task that
+# has none and for a row that is an inner group, which shows its detail.
+function _find_alone_document(doc::TaskGroupDocument)
+    index = getfield(doc, :selected)[]
+    documents = getfield(doc, :tasks)[]
+    (1 <= index <= length(documents)) || return nothing
+    find_task_group_document(doc, index) === nothing || return nothing
+    getfield(documents[index], :result_document)[]
+end
+
 # The place of each document that the detail of the pane shows: the steps from the
 # group to the document, and the steps from the root of the pane to its place. A
 # task of an inner group shows in the detail of that group, which no path from
@@ -371,6 +382,13 @@ function _find_document_places(doc::TaskGroupDocument)
     documents = getfield(doc, :tasks)[]
     (1 <= index <= length(documents)) || return places
     find_task_group_document(doc, index) === nothing || return places
+    # The document of the result alone in the place below the card of the group: the
+    # tree of the processes has no place, and the detail is not in the output.
+    if getfield(doc, :is_detail_alone)[] && _find_alone_document(doc) !== nothing
+        push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
+                        FieldReferenceStep("result_document")), _PLACE_STEPS))
+        return places
+    end
     for field in _DOCUMENT_FIELDS
         getfield(documents[index], field)[] === nothing && continue
         position = _PARTS_BEFORE_DOCUMENTS + length(places)
@@ -421,10 +439,8 @@ function _follow_detail_part!(detail, part, position::Int)
 end
 
 # The share of the height that the place of a document takes against the two output
-# panes, which take 2 and 1: the split gives the document two thirds of the rest, and
-# the detail alone gives it most of the place.
+# panes, which take 2 and 1: the document gets two thirds of the rest.
 const _PLACE_WEIGHT = 6.0
-const _ALONE_PLACE_WEIGHT = 12.0
 
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
@@ -486,8 +502,6 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             shown = getfield(document, field)[]
             shown === nothing && continue
             place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill)
-            set_cell_computation!(getfield(place, :weight_height), () ->
-                getfield(doc, :is_detail_alone)[] ? _ALONE_PLACE_WEIGHT : _PLACE_WEIGHT)
             push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
         push!(parts, _make_label("stdout", p.muted_color))
@@ -701,16 +715,19 @@ get_document_decoration(group::ClosedTaskGroup) =
 # ── The pane ─────────────────────────────────────────────────────────────────
 
 # The card of a group, and below it its table above the detail of the task that
-# a person picked, in a split a person can drag, or the detail alone in the whole
-# place of the split while `is_detail_alone` is set.
+# a person picked, in a split a person can drag. While `is_detail_alone` is set, the
+# place of the split holds the document of the result of the selected task and
+# nothing else, or the detail alone when the task has no such document.
 function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
     card = _build_summary_card(p, doc; actions)
     table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Fill)
     detail = _build_detail(p, doc, bounded)
     split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
     place = LayoutConstraint(split; width = Fill, height = Fill)
-    set_cell_computation!(getfield(place, :child), () ->
-        getfield(doc, :is_detail_alone)[] ? detail : split)
+    set_cell_computation!(getfield(place, :child), () -> begin
+        getfield(doc, :is_detail_alone)[] || return split
+        something(_find_alone_document(doc), detail)
+    end)
     (Any[card, place], detail)
 end
 
@@ -731,8 +748,12 @@ function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGr
     follow_output_selection!(root, forward_selection; is_followed = _is_followed_by_selection)
     # The detail stands in the split and, while it is alone, in the place below the
     # summary card, so it takes the part of the path below the place where it stands now.
-    below_detail(forward) = () -> (path = forward(); path === nothing ? nothing :
-                                   _find_path_below(path, _get_detail_steps(doc)))
+    below_detail(forward) = () -> begin
+        path = forward()
+        (path === nothing || (getfield(doc, :is_detail_alone)[] && _find_alone_document(doc) !== nothing)) &&
+            return nothing
+        _find_path_below(path, _get_detail_steps(doc))
+    end
     follow_output_mouse_target!(detail, below_detail(forward_mouse_target);
         is_followed = node -> !(node isa ArrangementDocument))
     follow_output_selection!(detail, below_detail(forward_selection); is_followed = _is_followed_by_selection)

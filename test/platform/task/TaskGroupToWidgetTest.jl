@@ -298,6 +298,30 @@ function test_task_views()
             @test map_reference_forward(pane, pane_iomap, inside) === nothing
         end
 
+        @testset "the detail alone of a task with a result shows the result document only" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewProbeTask("gamma", "exit 0")]; name = "alone result", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            words() = _collect_task_view_words(document)
+            @test "stdout" in words() && any(startswith("the result of gamma"), words())
+            ProjecturedKernel.CellModule.set_cell_value!(getfield(document, :is_detail_alone), true)
+            @test any(startswith("the result of gamma"), words()) && !("stdout" in words()) && !("stderr" in words())
+            # The document is at the place below the card of the group, and a path maps both ways.
+            projection, iomap = _print_task_view(document)
+            pane, pane_iomap = projection.projections[1], iomap.step_iomaps[1][]
+            steps_of(path) = get_reference_steps(strip_reference_types(path))
+            make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
+            inside = make_path(FieldReferenceStep("tasks"), RangeReferenceStep(0, 1),
+                               FieldReferenceStep("result_document"), FieldReferenceStep("line"))
+            drawn = map_reference_forward(pane, pane_iomap, inside)
+            @test steps_of(drawn) == [FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                                      FieldReferenceStep("child"), FieldReferenceStep("line")]
+            @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
+            ProjecturedKernel.CellModule.set_cell_value!(getfield(document, :is_detail_alone), false)
+            @test "stdout" in words()
+        end
+
         @testset "the progress of a task that runs is a ring" begin
             running = TaskDocument(_TaskGroupProbeTask("r", "exit 0"); status = :running, progress = 0.45)
             ring = TaskModule._make_task_progress_ring(running)
