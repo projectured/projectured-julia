@@ -382,6 +382,13 @@ function _find_card_places(doc::TaskGroupDocument)
     places
 end
 
+# The path in a place of a document of a task: below the card, behind its `content`
+# step, in the split; below the place itself while the detail is alone.
+_make_place_path(doc::TaskGroupDocument, inside) =
+    getfield(doc, :is_detail_alone)[] ? inside : make_embed_card_path(inside)
+_find_place_path_inside(doc::TaskGroupDocument, below) =
+    getfield(doc, :is_detail_alone)[] ? below : find_embed_card_path_inside(below)
+
 # What a step names, so a step that a reader answers and a step written here
 # compare by what they select.
 _get_step_key(step::FieldReferenceStep) = (:field, step.name)
@@ -482,7 +489,8 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         # The tree of the processes of the task while it runs, and the document
         # that the kind gives for the result, each in the card of an embedded
         # document, between the facts and the output. The maps of the pane find
-        # each card by its place.
+        # each card by its place. While the detail is alone, the place holds the
+        # document itself, with no card, so the place gives it its exact share.
         length(parts) == _PARTS_BEFORE_CARDS ||
             error("the cards of the task are not where the maps of the pane find them")
         for field in _CARD_FIELDS
@@ -492,6 +500,8 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             place = LayoutConstraint(card; height = Relative(_CARD_WEIGHT), width = Fill)
             set_cell_computation!(getfield(place, :weight_height), () ->
                 getfield(doc, :is_detail_alone)[] ? _ALONE_CARD_WEIGHT : _CARD_WEIGHT)
+            set_cell_computation!(getfield(place, :child), () ->
+                getfield(doc, :is_detail_alone)[] ? shown : card)
             push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
         push!(parts, _make_label("stdout", p.muted_color))
@@ -788,7 +798,7 @@ function map_reference_forward(p::TaskGroupDocumentToWidgetPane, iomap, referenc
         for (document_steps, card_steps) in _find_card_places(iomap.input)
             inside = _find_path_below(reference, document_steps)
             inside === nothing || return annotate_reference_types(iomap.output,
-                concat_references(_make_steps_reference(card_steps), make_embed_card_path(inside)))
+                concat_references(_make_steps_reference(card_steps), _make_place_path(iomap.input, inside)))
         end
         for (document_steps, output_steps) in _collect_table_places(iomap.input)
             inside = _find_path_below(reference, document_steps)
@@ -806,7 +816,7 @@ function map_reference_backward(p::TaskGroupDocumentToWidgetPane, iomap, referen
     if reference isa ConcreteReference
         for (document_steps, card_steps) in _find_card_places(iomap.input)
             below = _find_path_below(reference, card_steps)
-            inside = below === nothing ? nothing : find_embed_card_path_inside(below)
+            inside = below === nothing ? nothing : _find_place_path_inside(iomap.input, below)
             inside === nothing || return annotate_reference_types(iomap.input,
                 concat_references(_make_steps_reference(document_steps), inside))
         end

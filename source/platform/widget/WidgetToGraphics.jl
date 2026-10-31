@@ -8072,23 +8072,6 @@ function _card_body(content, inner_ctx)
      with_exact_size(inner_ctx; height = Cell(Int32(Int(pinned)))))
 end
 
-# A card that stands in an exact height and has a title document, and nothing else
-# above or below its body, offers the body what is left of that height after the
-# insets and the title, as an exact height, so a body that fills, such as a
-# picture or a table, fills the card. Any other card keeps its body free on that
-# axis.
-function _fill_card_slot(p, w::WidgetCard, ctx, tim, body, body_ctx)
-    slot = ctx === nothing ? nothing : get_exact_height(ctx)
-    (slot === nothing || tim === nothing || !(body isa Document) || get_exact_height(body_ctx) !== nothing) &&
-        return body_ctx
-    (w.description === nothing && w.footer === nothing) || return body_ctx
-    _, inset_height = _inset_total(p, w)
-    header = tim.output
-    header isa GraphicsCanvas || return body_ctx
-    with_exact_size(body_ctx; height = Cell(@computation Int32(max(0, Int(slot[]) - inset_height -
-                                                                 Int(header.h[]) - p.title_gap))))
-end
-
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     position = w.position::Point2D
@@ -8123,7 +8106,6 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # With no width to give — nothing offered — there is no viewport to build, so
     # the body draws in full. A clip is a promise about a width, and there is none.
     body, body_ctx = _card_body(w.content, inner_ctx)
-    body_ctx = _fill_card_slot(p, w, ctx, tim, body, body_ctx)
     cim = body isa Document ? print_child(recursion, body, body_ctx) : nothing
     build = Cell(@computation _card_build(p, w, ctx, tim, cim))
     # The ring over the slot the card's selection names as a whole.
