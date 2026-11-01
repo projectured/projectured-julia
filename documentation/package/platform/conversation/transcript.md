@@ -97,6 +97,7 @@ section card means the `ToggleEvaluatorSectionOperation` its part listed in
 | a thinking part | folded |
 | an evaluation, its code and its result | open |
 | the result of a failed evaluation | folded |
+| the result of a call of an external agent that fails | folded when the update that says so comes; a later update keeps the fold |
 | a resource read (`read_resource`, `list_resources`) | folded as a whole; its sections open |
 
 A prose part has no chrome, so it has no header and does not fold. A folded

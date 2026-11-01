@@ -51,6 +51,8 @@ The handler runs on the task of the server, and a frame of the editor reads and 
 
 Inside the call on the editor task, the handler calls `tool.handler(editor, args)` inside a `try`. A tool that throws writes a fault record into `editor.faults` under the name of the tool, and the client gets the error text as the answer. So the client always gets an answer, the server task keeps running, and the fault log shows what the client ran into. A new fault record wakes the editor, so the fault draws on the next frame.
 
+The answer of a call that faults is a `CallToolResult` with `is_error = true`, so the client reports the call as failed. A call faults when its tool throws, when code that it runs throws (a new exception in the last evaluation result), when its background work throws, and when the editor does not start it in time. Any other call answers its content alone.
+
 When `start_mcp!` can not connect the transport, it writes a fault record and a warning, and the editor runs with no server.
 
 ### The MCP log

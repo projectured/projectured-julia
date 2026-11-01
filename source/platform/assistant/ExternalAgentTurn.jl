@@ -792,7 +792,13 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
                                                    mime_type = update.output_mime_type,
                                                    uri = update.output_uri))
     end
-    update.status === :failed && (form.is_error = true)
+    # The result folds when an update first marks the call as failed, as the
+    # result of an error starts folded. A later update keeps the fold that a
+    # person chose.
+    if update.status === :failed && !form.is_error
+        form.is_error = true
+        form.result_collapsed = true
+    end
     nothing
 end
 

@@ -335,7 +335,11 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                                  name = tool.name, arguments = _format_mcp_arguments(args),
                                  answer = is_picture ? "A picture of $(length(text.data)) bytes." : string(text),
                                  duration = held[], fault = fault[])
-                is_picture ? ImageContent(data = text.data, mime_type = text.media_type) : TextContent(text = text)
+                content = is_picture ? ImageContent(data = text.data, mime_type = text.media_type) :
+                          TextContent(text = text)
+                # A fault answers its text marked as an error, so the client reports
+                # the call as failed.
+                fault[] ? CallToolResult(content = [content], is_error = true) : content
             end
             push!(out, MCPTool(
                 name        = tool.name,

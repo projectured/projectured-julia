@@ -45,6 +45,27 @@ function test_external_agent_turn()
                   findfirst(part -> part.content isa EvaluatorForm, parts)
         end
 
+        @testset "a call that fails folds its result once" begin
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", title = "Run",
+                                    kind = :execute, status = :pending,
+                                    input = Dict{String,Any}("code" => "error(\"x\")")),
+                AgentToolCallUpdate("t1"; status = :failed, output = "ERROR: x")]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Throw an error.")
+            turn = collect(a.conversation.turns)[2]
+            form = only(part.content for part in collect(turn.parts) if part.content isa EvaluatorForm)
+            # The form was made while the call was pending, and the failure folds it.
+            @test form.is_error && form.result_collapsed
+            # A person opens the result, and a later update of the call keeps it open.
+            form.result_collapsed = false
+            state = AssistantModule._make_agent_turn_state(turn)
+            state[:tool_forms]["t1"] = form
+            AssistantModule._apply_tool_call_update!(turn, state,
+                AgentToolCallUpdate("t1"; status = :failed, output = "ERROR: x"), nothing)
+            @test form.is_error && !form.result_collapsed
+        end
+
         @testset "a warm-up gives the feed one turn with each kind of part, and no agent" begin
             a = Assistant(; backend = :acp)
             editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
