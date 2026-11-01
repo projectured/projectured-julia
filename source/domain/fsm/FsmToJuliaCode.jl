@@ -409,8 +409,8 @@ declares is present: its `usings`, the state and event constants, the host
 struct and its constructor, one dispatch function per machine, the timer
 expiry callbacks, and the author's own helpers spliced verbatim at the end.
 
-`wrap_module = false` returns the bare `JuliaBlock` of top-level statements
-instead of a module. That is what a host package needs when the generated file
+`wrap_module = false` returns the `JuliaToplevel` of the statements instead of a
+module. That is what a host package needs when the generated file
 is `include`d into an existing module rather than standing alone as a file —
 the 10BASE-T1S slice, where nine files make up one module, is the case that
 asked for it.
@@ -433,8 +433,8 @@ function generate_component(component::FsmComponent; wrap_module::Bool = true)
     for helper in component.helpers
         push!(statements, helper)
     end
-    body = JuliaBlock(statements)
-    wrap_module ? JuliaModuleDefinition(module_name(component), body) : body
+    wrap_module ? JuliaModuleDefinition(module_name(component), JuliaBlock(statements)) :
+                  JuliaToplevel(statements)
 end
 
 """

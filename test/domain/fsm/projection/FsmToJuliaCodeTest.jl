@@ -49,6 +49,11 @@ end
     @test occursin("mutable struct ToggleState", bare)
     @test occursin("function toggle_dispatch!", bare)
     @test (Meta.parseall(bare); true)
+    # The statements are the top level of the file: one empty line after the
+    # header, and no indentation.
+    lines = split(bare, '\n')
+    @test lines[2] == "" && !isempty(lines[3]) && !startswith(lines[3], ' ')
+    @test occursin("\nmutable struct ToggleState", bare)
 end
 
 @testset "helpers and usings come along" begin

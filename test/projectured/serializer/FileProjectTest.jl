@@ -35,7 +35,7 @@ _marker_of(::Any) = nothing
 "The last element of a root document: where each page above holds its reference."
 _last_child(root::MarkdownRoot) = getfield(root, :elements)[][end]
 _last_child(root::RstRoot)      = getfield(root, :elements)[][end]
-_last_child(root::JuliaBlock)   = getfield(root, :statements)[][end]
+_last_child(root::JuliaToplevel) = getfield(root, :statements)[][end]
 
 "A fresh directory, and a project of `files` in it."
 _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
@@ -374,7 +374,7 @@ function test_file_project()
                  MarkdownFile, "page.md",  "```pred-ref"),
                 ("rst",      obj -> RstRoot([RstParagraph([RstText("Hi")]), obj]),
                  RstFile,      "page.rst", ".. pred-ref::"),
-                ("julia",    obj -> JuliaBlock([JuliaIdentifier("x"), obj]),
+                ("julia",    obj -> JuliaToplevel([JuliaIdentifier("x"), obj]),
                  JuliaFile,    "page.jl",  "pred_ref("))
             @testset "$label" begin
                 try
@@ -389,7 +389,7 @@ function test_file_project()
                     @test _last_child(page) === get_file_content(loaded.files[2])
                 catch e
                     label == "julia" || rethrow()
-                    # @broken: a JuliaBlock admits no node of another domain, and the owner defers how Julia code holds one; plan/pending/strict-document-types.md
+                    # @broken: a JuliaToplevel admits no node of another domain, and the owner defers how Julia code holds one; plan/pending/strict-document-types.md
                     @test_broken (@warn "setup threw: $e"; false)
                 end
             end

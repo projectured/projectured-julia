@@ -1,6 +1,6 @@
 # A Julia file saves its top level as written
 
-Status: PENDING. No step is done.
+Status: IN PROGRESS. Step 1 is done.
 
 ## The ask
 
@@ -61,12 +61,31 @@ statements on one line, `a = 1; b = 2`. The only difference is the layout.
    - The formula walk of free names and the statement helper of the FSM generator
      already take a `JuliaToplevel`.
 
-What this plan does not change: the indentation of the body of a `module`, and the
-keyword parameters of an anonymous function (the next open item).
+5. **Found in step 1: the evaluator and the conversation.** The evaluator keeps
+   typed code as a plain string when the print of the parsed code puts a token
+   on another line (`find_form_document`, `_has_same_tokens` in
+   `source/platform/conversation/Evaluator.jl`). The old print added a first
+   break, so code of several statements always stayed a plain string. Now it
+   parses to a `JuliaToplevel` with its colours, which is what the check is for.
+   The conversation of the assistant parses the code of a call with no such check
+   (`_eval_form_doc`), so it showed the first empty line and the indentation; now
+   it shows the code as written. `EvaluatorToplevelTest.jl` asserted the plain
+   string and asserts the `JuliaToplevel` now. Its history test made a string
+   form from two statements; it makes one from a juxtaposed product, `x = 2pi`,
+   which the print writes as `2 * pi`.
+
+What this plan does not change:
+- the indentation of the body of a `module`;
+- the keyword parameters of an anonymous function (the next open item);
+- the unit of indentation of the print, two spaces: a body written with four
+  spaces saves with two;
+- the generated files of inet-julia, `t1s/MacFsm.jl` and `t1s/PlcaFsm.jl`, which
+  show the fault now (two empty lines, two spaces before each top-level line). A
+  new generation with this change writes them without it.
 
 ## The steps
 
-1. [ ] **The top level is a `JuliaToplevel`.** The design above, its docstrings,
+1. [x] **The top level is a `JuliaToplevel`.** The design above, its docstrings,
    and the paragraph of `documentation/package/domain/julia/julia.md` that names
    the top level. That paragraph also says that `begin … end` becomes a
    `JuliaBlock`, which is wrong since 5a65e8d69; it becomes a `JuliaBegin`.
@@ -79,6 +98,14 @@ keyword parameters of an anonymous function (the next open item).
      whose print starts with its first statement.
    - `FileProjectTest.jl:377` makes its Julia page as a `JuliaToplevel`.
    - The FSM test of a component without a module.
+
+   As built: the parser passes the field by position,
+   `JuliaToplevel(statements, false, true)`, as it passes the other layout fields;
+   the `@document` constructor takes no keyword next to a raw vector. The
+   docstrings of `JuliaBlock` and `JuliaEmpty` say what they are now. Tests:
+   `test_julia_parser()`, `test_julia_workload_file()`, `test_julia_to_syntax()`
+   227 of 227; `test_fsm_to_julia_code()` 46 of 46; `test_evaluator_toplevel()` and
+   `test_file_project()` 408 of 409, with 1 known `@test_broken` (the Julia page).
 2. [ ] **The wider check.** On the branch and on main 50f94f5b9, each in a process
    of its own:
    - `test_julia()` (744 on main), `test_fsm()`, `test_process()`, `test_formula()`;
@@ -87,7 +114,8 @@ keyword parameters of an anonymous function (the next open item).
      change, because the empty first line goes away. So a probe compares the
      drawn caret places of each reached state, on the branch and on main.
    - `test_julia_file_view()`, the view of a file as the window draws it;
-   - the test of `FileProjectTest.jl` that saves a Julia page.
+   - `test_evaluator_toplevel()`, `test_file_project()` and `test_application()`
+     of the umbrella suite: an evaluated form of several lines draws as Julia now.
 3. [ ] **The precompile lists.** The template of `JuliaToplevelToSyntaxNode`
    changes, so recorded calls that name it or a later closure of its file no
    longer resolve. Record again, in this order: `ProjecturedJulia`,

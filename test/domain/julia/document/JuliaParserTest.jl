@@ -34,14 +34,14 @@ function _julia_prints_back(source::AbstractString)
         print_natural_text(parse_julia(printed)) == printed
 end
 
-# Whether the statements of `block`, or of the block that `source` parses to, are
-# of `types`, in order.
-function _has_julia_statements(block::JuliaBlock, types...)
+# Whether the statements of `block`, or of the top level that `source` parses to,
+# are of `types`, in order.
+function _has_julia_statements(block::Union{JuliaBlock, JuliaToplevel}, types...)
     statements = [s for s in block.statements]
     length(statements) == length(types) && all(map(isa, statements, collect(types)))
 end
 _has_julia_statements(source::AbstractString, types...) =
-    (document = parse_julia(source); document isa JuliaBlock && _has_julia_statements(document, types...))
+    (document = parse_julia(source); document isa JuliaToplevel && _has_julia_statements(document, types...))
 
 # The statements of the body of the one struct in `text`, as Julia parses them,
 # with no line numbers. A docstring loses the break at its end, which a single
@@ -316,10 +316,23 @@ function test_julia_parser()
         @test parse_julia("x = 1;").trailing_semicolon
         @test !parse_julia("a; b").trailing_semicolon
         # A line of its own in a block of lines keeps its `;` too.
-        @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\n  y = 2;"
+        @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\ny = 2;"
         # A `;` inside a `begin` block separates statements of that block.
         semicolons = parse_julia("begin a; b end")
         @test semicolons isa JuliaBegin && length(semicolons.body.statements) == 2
+    end
+
+    @testset "the top level of a file prints each statement on its line, with no indentation" begin
+        for code in ("x = 1\ny = x + 1", "function f(x)\n  x + 1\nend\nf(2)",
+                     "a = 1\nb = 2; c = 3\nd = 4", "x = 1\ny = 2;", "# c\nx = 1")
+            document = parse_julia(code)
+            @test document isa JuliaToplevel && !document.on_one_line
+            @test print_natural_text(document) == code
+        end
+        @test parse_julia("a; b").on_one_line
+        empty = parse_julia("")
+        @test empty isa JuliaToplevel && isempty(empty.statements)
+        @test print_natural_text(empty) == ""
     end
 
     @testset "a whole file is a document" begin

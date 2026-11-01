@@ -235,10 +235,8 @@ end
 """
 An empty placeholder that renders as no text at all. The parser
 uses it for the else-branch of an `if …end` with no else clause —
-distinct from `JuliaNothing` (which renders the literal
-`nothing`) and from an empty `JuliaBlock` (which still emits its
-trailing line-chrome, producing a stray blank line before the
-closing `end`).
+distinct from `JuliaNothing`, which renders the literal
+`nothing`.
 """
 @document struct JuliaEmpty <: JuliaDocument
 end
@@ -246,21 +244,25 @@ end
 # ── Statements ────────────────────────────────────────────────────────────────
 
 """
-A sequence of statements/expressions.
+The statements of a body: of a function, a loop, a `begin … end` and the other
+constructs. Each prints on a line of its own, indented under the header of the
+construct.
 """
 @document struct JuliaBlock <: JuliaDocument
     statements::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
-Statements on one line with `;` between them, `a; b`, which the Julia parser
-gives as an `Expr(:toplevel, …)` of their own. `trailing_semicolon` is a `;`
-after the last statement, `x = 1;`, which the Julia REPL reads as "do not show
-the value".
+The statements of the top level, which the Julia parser gives as an
+`Expr(:toplevel, …)`: the statements of a file, each on a line of its own with no
+indentation, or with `on_one_line`, statements on one line with `;` between them,
+`a; b`. `trailing_semicolon` is a `;` after the last statement, `x = 1;`, which
+the Julia REPL reads as "do not show the value".
 """
 @document struct JuliaToplevel <: JuliaDocument
     statements::CellVector{JuliaDocument}
     trailing_semicolon::Bool = false
+    on_one_line::Bool = false
 end
 
 """
@@ -361,15 +363,15 @@ end
     get_julia_expression_without_comments(document) -> document
 
 The expression that `document` holds without its comments: the subject of an
-end-of-line comment, or the one statement of a block whose other statements are
-comments. Any other document comes back as it is. A domain that puts the code of
+end-of-line comment, or the one statement of a block or a top level whose other
+statements are comments. Any other document comes back as it is. A domain that puts the code of
 a person into an expression place, such as the condition of an `if`, calls it,
 because a comment there holds the code that the print puts after it.
 """
 function get_julia_expression_without_comments(document)
     document isa JuliaEndOfLineComment &&
         return get_julia_expression_without_comments(document.subject)
-    if document isa JuliaBlock
+    if document isa Union{JuliaBlock, JuliaToplevel}
         statements = [s for s in document.statements if !(s isa Union{JuliaComment, JuliaMultilineComment})]
         length(statements) == 1 && return get_julia_expression_without_comments(statements[1])
     end

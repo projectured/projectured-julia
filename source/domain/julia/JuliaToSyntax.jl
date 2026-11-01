@@ -826,11 +826,12 @@ _make_julia_body_keyword(text::AbstractString, style::StyleText) =
     delim::StyleText = get_julia_style(nothing, :punctuation_text)
 end
 
-# The statements on one line, with `; ` between them, and a `;` after the last
-# one when the line ends with it.
+# The statements of the top level, each on a line of its own with no indentation,
+# or on one line with `; ` between them, and a `;` after the last one when the
+# line ends with it.
 @projection_template JuliaToplevelToSyntaxNode JuliaToplevel (p, t) ->
     SyntaxNode(collection(:statements);
-               sep=TextString("; ", p.delim),
+               sep=make_text_block(() -> t.on_one_line ? "; " : "\n", p.delim),
                close=TextString(() -> t.trailing_semicolon ? ";" : "", p.delim))
 
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 # kind, and a window that shows new code compiles none.
 
 using ProjecturedJulia.JuliaModule: JuliaModule, JuliaFile, JuliaDocument, JuliaFunction,
-                                    JuliaInsertion, JuliaObject, parse_julia
+                                    JuliaInsertion, JuliaObject, JuliaToplevel, parse_julia
 using ProjecturedPlatform.NaturalModule: print_natural_text
 
 # The kinds that the parser never makes, each with what makes it.
@@ -54,7 +54,12 @@ function test_julia_workload_file()
     @test occursin(file.shown, "alice")
     domain_kinds = _collect_julia_domain_kinds()
     @test supertype(JuliaFunction) in domain_kinds
-    kinds = _collect_julia_kinds!(Set{Type}(), parse_julia(file.text))
+    document = parse_julia(file.text)
+    # The top level of the file prints its first statement first, with no
+    # indentation.
+    @test document isa JuliaToplevel && !document.on_one_line
+    @test startswith(print_natural_text(document), "alice = 1 + 2\n")
+    kinds = _collect_julia_kinds!(Set{Type}(), document)
     # A new kind of the domain goes into the file, or into the list of the kinds
     # that only an edit makes.
     @test setdiff(domain_kinds, kinds, keys(_JULIA_KINDS_OF_AN_EDIT)) == Set{Type}()

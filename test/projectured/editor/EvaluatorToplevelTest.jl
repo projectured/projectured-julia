@@ -364,11 +364,11 @@ end
     form = evaluated_form("x = 1 + 2  # three")
     @test !(form.form isa PrimitiveString)
     @test print_natural_text(form.form) == "x = 1 + 2  # three"
-    # Code of several statements prints as an indented block with an empty first
-    # and last line, so it keeps the lines it was typed on.
+    # Code of several statements prints each statement on the line it was typed
+    # on, so it parses to the top level of Julia code.
     form = evaluated_form("x = 1\nx + 1")
-    @test form.form isa PrimitiveString
-    @test form.form.value == "x = 1\nx + 1"
+    @test form.form isa JuliaToplevel
+    @test print_natural_text(form.form) == "x = 1\nx + 1"
     # A space inside a string is part of the string, not spacing between tokens,
     # and a line break counts where a space does not.
     same_tokens = parentmodule(EvaluatorToplevel)._has_same_tokens
@@ -487,17 +487,18 @@ end
 end
 
 @testset "the history holds string forms and Julia forms alike" begin
-    # Two statements keep the first form a string, and the second becomes Julia.
-    s = history_session("x = 1\n# one", "y = 2")
+    # A juxtaposed product, which the print writes with `*`, keeps the first form
+    # a string, and the second becomes Julia.
+    s = history_session("x = 2pi\n# one", "y = 2")
     @test s.toplevel.elements[1].form isa PrimitiveString
     @test s.toplevel.elements[2].form isa JuliaAssignment
     s.press!(:up); @test s.shown() == "y = 2"
     # The string form comes back with its comment.
-    s.press!(:up); @test s.shown() == "x = 1\n# one"
+    s.press!(:up); @test s.shown() == "x = 2pi\n# one"
     s.press!(:down); s.press!(:down); @test s.shown() == ""
     # The prefix finds both kinds.
     s.type!("x")
-    s.press!(:up); @test s.shown() == "x = 1\n# one"
+    s.press!(:up); @test s.shown() == "x = 2pi\n# one"
     # A Julia form comes back as it prints, which is the code without the blank
     # space around it.
     s = history_session("\nz = 3\n")

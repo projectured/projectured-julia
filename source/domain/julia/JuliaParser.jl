@@ -15,6 +15,10 @@
 # Some constructs the `Expr` AST collapses are mapped to a default:
 # - `a ? b : c` parses identically to an `if`, so it becomes `JuliaIf` (never `JuliaTernary`).
 #
+# A file of many statements becomes a `JuliaToplevel`, which prints each statement
+# on a line of its own with no indentation, as Julia gives a file `:toplevel` and
+# a body `:block`.
+#
 # A body and `begin … end` both parse to a block, and the place of the block tells
 # them apart: the body of a construct becomes a `JuliaBlock` (`_convert_body`), and
 # a block in the place of a value, an argument or a statement becomes a
@@ -45,9 +49,10 @@ const COMPOUND_ASSIGNMENTS = Set{Symbol}([:(+=), :(-=), :(*=), :(/=)])
 
 Parse a Julia source string into a `JuliaDocument` tree.
 
-Top-level source with several statements becomes a `JuliaBlock`; a single
-expression is returned bare. A line that ends with `;` is a `JuliaToplevel`
-with `trailing_semicolon`. A comment becomes a `JuliaComment`, a
+Top-level source with several statements becomes a `JuliaToplevel` with a
+statement on each line; a single expression is returned bare. Statements on one
+line with `;` between them are a `JuliaToplevel` with `on_one_line`, and a line
+that ends with `;` sets its `trailing_semicolon`. A comment becomes a `JuliaComment`, a
 `JuliaMultilineComment` or a `JuliaEndOfLineComment` (see "Comments" below).
 """
 function parse_julia(text::AbstractString)
@@ -56,7 +61,7 @@ function parse_julia(text::AbstractString)
     parsed = Meta.parseall(isempty(comments) ? source :
                            _format_julia_source_with_comment_markers(source, comments))
     # `parseall` always wraps in `Expr(:toplevel, …)` interleaved with
-    # `LineNumberNode`s. Flatten: one real statement → bare, otherwise a block.
+    # `LineNumberNode`s. Flatten: one real statement → bare, otherwise the top level.
     stmts = _convert_statements(parsed.args)
     # The parser gives a line that ends with `;` a `:toplevel` of its own, but the
     # `Expr` does not say whether the `;` follows its last statement: the text does.
@@ -66,7 +71,7 @@ function parse_julia(text::AbstractString)
         statement isa JuliaToplevel && (statement.trailing_semicolon = true)
     end
     length(stmts) == 1 && return stmts[1]
-    return JuliaBlock(stmts)
+    return JuliaToplevel(stmts)
 end
 
 # Whether the last token of `text`, apart from spaces and comments, is `;`.
@@ -554,9 +559,9 @@ function _convert_lambda_body(x)
 end
 
 # `a; b` written on ONE line parses to a `:toplevel` *nested* inside the outer
-# one. It runs as a `:block` does, and it is a `JuliaToplevel`, which keeps the
-# statements on their line with the `;` between them.
-_convert_head(::Val{:toplevel}, x::Expr) = JuliaToplevel(_convert_statements(x.args))
+# one. It runs as a `:block` does, and it is a `JuliaToplevel` on one line, which
+# keeps the statements on their line with the `;` between them.
+_convert_head(::Val{:toplevel}, x::Expr) = JuliaToplevel(_convert_statements(x.args), false, true)
 
 function _convert_head(::Val{:tuple}, x::Expr)
     # `(; a = 1)` puts its entries in a `:parameters` child; `(a = 1,)` writes

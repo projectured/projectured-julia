@@ -754,8 +754,8 @@ end
 # Whether two pieces of Julia code are the same tokens on the same lines, apart
 # from the spaces between the tokens. A space inside a string is part of the
 # string's token, and a comment is a token of its own. A line break counts, so
-# code of several statements, which the Julia notation prints as an indented
-# block with an empty first and last line, keeps its string.
+# code whose print puts a token on another line, or adds an empty line, keeps its
+# string.
 _has_same_tokens(code, other) = _collect_code_tokens(code) == _collect_code_tokens(other)
 
 const _JuliaSyntax = Base.JuliaSyntax

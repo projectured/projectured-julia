@@ -126,7 +126,7 @@ function find_julia_definition(document, name::AbstractString)
     matches[1]
 end
 
-_julia_toplevel_statements(doc::JuliaBlock) =
+_julia_toplevel_statements(doc::JuliaToplevel) =
     Any[s isa Cell ? s[] : s for s in getfield(doc, :statements)[]]
 _julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
 
