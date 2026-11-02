@@ -85,11 +85,7 @@ The options of the front end:
 | `--log-level=<level>` | the level the binary logs from |
 | `--no-compile` | write the package of the binary under `build/app/`, and compile nothing |
 | `--no-prelink` | leave the restore of the image to every start |
-| `--no-reactive` | compile the whole program, and found no store |
-| `--found` | found the store again now: a whole build |
-| `--refresh-trace` | before a rebuild, add what the workload compiles from the current binary to the trace of the store |
-| `--status` | print what the store of the output holds, and exit |
-| `--stop-server` | stop the compiler server of the store of the output, and exit |
+| the options of the reactive build | see [Rebuild in seconds](#rebuild-in-seconds) |
 
 `--no-compile` is the fast way to see what a build would make. It writes the
 package in a second and compiles nothing.
@@ -124,6 +120,37 @@ compiles the edit and no more, and writes an overlay beside the image. The
 tracked sources are the files of every package of this repository that the
 binary holds. Nothing runs the program during a build.
 
+`--dev --watch` is the loop in one process:
+
+```bash
+bin/build_projectured --dev --watch
+```
+
+`--dev` compiles the code of a rebuild at `-O1`, and `--watch` rebuilds at
+every save of a tracked file until Ctrl-C. Do not press Ctrl-C before the line
+`watch: N tracked files` appears: before it, the first build runs.
+
+Every build command made with `ProjecturedBuilder` takes the same options of
+the reactive build. `REACTIVE_BUILD_OPTIONS` lists them,
+`apply_reactive_build_option!` reads one, and `run_reactive_build_action!`
+runs `--status`, `--stop-server` and `--watch`:
+
+| Option | What it does |
+| --- | --- |
+| `--reactive` | found the store or rebuild it, as a build does by default, and stop when this Julia has no reactive compiler |
+| `--no-reactive` | compile the whole program, and found no store; a store under the output goes with the old output |
+| `--found` | found the store again now: a whole build, and the chain starts over |
+| `--dev` | `--reactive --delta-optimization=1 --debug-info=1` |
+| `--watch` | build now, then rebuild at every save of a tracked file until Ctrl-C |
+| `--refresh-trace` | before a rebuild, add what the workload compiles from the current binary to the trace of the store |
+| `--no-server` | rebuild in a child process, not in the compiler server |
+| `--image=overlay\|pages\|whole` | how a rebuild writes the image (default: `overlay`); on Linux only `overlay` |
+| `--delta-optimization=N` | the `-O` level of the code of a rebuild, 0 to 3 (default: the level of the build) |
+| `--compact=N,F` | found again by itself after a growth of F of the image, or after N rebuilds for `--image=pages` and `--image=whole` (default: `50,0.25`) |
+| `--trim` | write the trimmed product too, under `<output>/trimmed` |
+| `--status` | print what the store of the output holds, and exit |
+| `--stop-server` | stop the compiler server of the store of the output, and exit |
+
 - **The reactive Julia** is the branch `merged` of
   https://github.com/levy/julia, which also writes a pre-relocated image. The
   build environment takes PackageCompiler from the branch `reactive` of
@@ -142,7 +169,11 @@ binary holds. Nothing runs the program during a build.
   quarter since the founding.
 - **The program starts prelinked.** The founding links the image into
   `bin/projectured` and prelinks it, and a start applies the overlay of the
-  last rebuild on top. `--no-prelink` turns the prelink off.
+  last rebuild on top: about 60 ms after a founding, and about 110 ms with an
+  overlay. `--no-prelink` turns the prelink off. The program reads no other
+  image, so on Linux a build refuses `--image=pages` and `--image=whole`. A
+  store founded before the program held its image keeps the slower launcher of
+  PackageCompiler until `--found`.
 - `--no-incremental`, `--distribution` and `PROJECTURED_PERFORMANCE_COUNTERS`
   compile the whole program: a rebuild keeps the image of its founding build.
 

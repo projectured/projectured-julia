@@ -60,6 +60,15 @@ before it compiles, so the shared part adds no check of its own except for
       `juliac`. Both scripts give the same answers: `--status` prints the
       store, `--status --watch` and `--compact=10` stop with exit 1 and a
       message, and the omnet parser gives the keywords of the projectured test.
-- [ ] 3. **The guides**: `builder.md` and `build-guide.md` of projectured,
+- [x] 3. **The guides**: `builder.md` and `build-guide.md` of projectured,
       and `reactive-build-guide.md` of omnet, name the options once for both
       commands. Then the plan moves to `plan/done/`.
+      **Done 2026-11-02.** The front-end table of `build-guide.md` points to
+      the table of the reactive options under "Rebuild in seconds", with the
+      `--dev --watch` loop. The omnet guide says that `bin/build_projectured`
+      takes the same options, and gives the start of the prelinked program.
+      Found on the way: on Linux the program holds the founding image and reads
+      only an overlay, so `--image=pages` and `--image=whole` would leave it
+      with the code of the founding. `_check_reactive_options` refuses them
+      there (projectured 2aa7839cf, a fix of step 5 of the plan
+      `reactive-prelinked-start.md` of omnet-julia).
