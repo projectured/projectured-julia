@@ -1,10 +1,16 @@
-# The build environment: `ProjecturedBuilder` and the released PackageCompiler,
-# so a Julia session started here can compile a binary. No other environment
-# holds PackageCompiler.
+# The build environment: `ProjecturedBuilder` and PackageCompiler, so a Julia
+# session started here can compile a binary. No other environment holds
+# PackageCompiler.
+#
+# PackageCompiler is the branch `reactive` of the fork: the released compiler
+# and `materialize_app`, which a reactive build compiles through. On a stock
+# Julia it builds like the released one. `Pkg.update("PackageCompiler")` takes
+# a newer commit of the branch.
 
 [deps]
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 
 [sources]
+PackageCompiler = {url = "https://github.com/projectured/PackageCompiler.jl", rev = "reactive"}
 ProjecturedBuilder = {path = "../../package/ProjecturedBuilder"}
