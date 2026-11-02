@@ -111,7 +111,7 @@ export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, 
        TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
        get_task_output, wait_for_task_group!, wait_for_tasks!, is_task_group_running, stop_tasks!,
-       rerun_tasks!, close_task_group!, make_task_api
+       rerun_tasks!, close_task_group!
 
 include("TaskResult.jl")
 include("ImitatedProcess.jl")

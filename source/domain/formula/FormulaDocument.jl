@@ -657,6 +657,8 @@ it, or to state an expectation from it.
     println(get_formula_value(p_block_1))
 
 See also `get_edited_document`, `print_natural_text`.
+
+For the assistant.
 """
 function get_formula_value end
 

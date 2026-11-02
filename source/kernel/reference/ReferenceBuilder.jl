@@ -207,6 +207,8 @@ same grammar.
 
 See also [`@reference_step`](@ref), which builds a single step, and
 [`@reference_case`](@ref), which matches the same grammar.
+
+For the assistant.
 """
 macro reference()
     return _gen_build_path(ReferenceSyntaxStep[])

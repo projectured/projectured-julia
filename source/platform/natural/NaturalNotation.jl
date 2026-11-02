@@ -243,6 +243,8 @@ rather than the constructors of its documents.
     note_1 = parse_natural_text(:md, "# Notes\\n\\nThe first line.")
 
 See also `describe_natural_formats`, `print_natural_text`.
+
+For the assistant.
 """
 function parse_natural_text end
 
@@ -269,6 +271,8 @@ documents can be written as text at all.
     println(describe_natural_formats())
 
 See also `parse_natural_text`, `print_natural_text`.
+
+For the assistant.
 """
 function describe_natural_formats end
 
@@ -391,6 +395,8 @@ Use it to read a document as text.
     people_text_1 = print_natural_text(people_1)
 
 See also `parse_natural_text` and `export_document`.
+
+For the assistant.
 """
 function print_natural_text end
 

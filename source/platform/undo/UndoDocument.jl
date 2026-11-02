@@ -449,6 +449,8 @@ the tool `undo` would take back before you call it.
     println(describe_undo_history())
 
 See also `find_selected_part`, `print_natural_text`.
+
+For the assistant.
 """
 function describe_undo_history end
 

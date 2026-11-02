@@ -189,6 +189,8 @@ each gesture, with its keys or its click and the operation that it ran.
     println(print_natural_text(get_session_gesture_log()))
 
 See also `describe_undo_history`, `find_selected_part`.
+
+For the assistant.
 """
 function get_session_gesture_log end
 

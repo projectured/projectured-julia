@@ -42,9 +42,9 @@
 #
 # A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`.
 # `PaneSplit` and `PaneGroup` are this module's own types; `GridLayout` and
-# `@reference` belong to `LayoutModule` and `ReferenceModule` — and
-# [`make_pane_api`](@ref) declares all four **by name** to the model rather than
-# declaring any of their modules whole. A declaration is not an export, so each
+# `@reference` belong to `LayoutModule` and `ReferenceModule`. Each of the four
+# names carries the mark `For the assistant.` in its docstring, so the model is
+# offered those names and not their modules whole. A mark is not an export, so each
 # of those names still has exactly one owning module.
 #
 # Their modules are not declared, and that is the point. `@document` exports about
@@ -65,78 +65,6 @@
 # beside the ones below.
 # The pane package binds it, so a layout costs this package no dependency of its
 # own and the window's closure is what it was.
-
-
-"""
-    make_pane_api() -> Vector
-
-What a model needs declared to read the layout that [`show_layout`](@ref) prints
-and to change it: this module's verbs, and the borrowed names a write at a path
-of the layout uses.
-
-The borrowed ones are listed **by name**. Their modules export far more than a
-layout needs, and a declared module puts every one of its exported names in the
-model's search — this module's own documentation says what that costs.
-"""
-make_pane_api() = Any[
-    # The verbs and not the module: `make_pane_api` builds this very list, and a model
-    # has no use for the function that builds its own surface.
-    # `get_document_title` is not declared either: a caller names a pane by
-    # passing `title`, and what a document calls itself is `open_pane!`'s
-    # business, not something to be asked separately.
-    #
-    # `describe_document` is here because it is two things at once — the
-    # extension point `show_layout` writes its notes with, and the sentence a
-    # caller asks about a value it holds: how far a set of runs has got, whether
-    # that set is in a pane or in a hand.
-    #
-    # `get_window_tree` is not declared: it answers the first window's tree, and
-    # a model names a part by a complete reference from the root.
-    PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
-                          :open_pane!, :show_pane!, :focus_pane!, :close_pane!, :move_pane!,
-                          :duplicate_pane!, :find_pane, :find_focused_pane, :find_pane_reference,
-                          :find_pane_tree_reference, :describe_document),
-    PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
-    LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
-                        :FlowLayout, :StackLayout),
-    # `find_pane` answers a referenced document, and `get_edited_document` reaches
-    # the document a tab shows through it; `get_document` answers the document of
-    # a referenced document.
-    ReferenceModule => (Symbol("@reference"), :ReferencedDocument,
-                        :get_reference, :DocumentLocator, :find_referenced_document,
-                        :get_edited_document, :get_parent),
-    DocumentModule  => (:get_document,),
-]
-
-"""
-    make_interface_api() -> Vector
-
-What a model needs declared to build what a pane shows: the widgets a person
-asks for by name, the policies a layout sizes a child with, and the two geometry
-values a widget takes. The layouts are in [`make_pane_api`](@ref), because a
-write at a path of the layout uses them.
-
-Every name is listed, as `make_pane_api` lists its borrowed ones. `WidgetModule`
-exports about a hundred names, and most of them are projections, operations and
-readers a model has no use for; a search for "a card around the plot" must answer
-`WidgetCard` and not `WidgetCardToGraphicsCanvas`.
-"""
-make_interface_api() = Any[
-    WidgetModule => (
-        # What holds other widgets.
-        :WidgetCard, :WidgetTitlePane, :WidgetTabbedPane, :WidgetSplitPane,
-        :WidgetScrollPane, :WidgetAccordion, :WidgetComposite,
-        # What shows a value.
-        :WidgetLabel, :WidgetText, :WidgetTextarea, :WidgetTable, :WidgetBadge,
-        :WidgetAlert, :WidgetProgressBar, :WidgetProgressRing, :WidgetSeparator,
-        # What a person acts on.
-        :WidgetButton, :WidgetLink, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
-        :WidgetRadioGroup, :WidgetSelect, :WidgetSlider, :WidgetSpinBox, :WidgetList,
-        # A position or a size, and a spacing.
-        :Point2D, :Inset),
-    # How a layout sizes a child on an axis.
-    LayoutModule => (:Fixed, :Content, :Relative, :Fill),
-]
 
 # ── The window a verb acts on ───────────────────────────────────────────────
 
@@ -226,6 +154,8 @@ The default answers the type's name, so a document with no method of its own
 still says something. **Each application writes the methods for the documents it
 holds**, beside those documents — this package can only describe what it knows,
 which is a layout and an empty pane.
+
+For the assistant.
 """
 function describe_document end
 
@@ -360,6 +290,8 @@ example to put a file that the Files pane opens beside the other files. `group` 
 
 The answer holds the new tab and its complete reference, from the root of the
 editor's document.
+
+For the assistant.
 """
 function open_pane! end
 
@@ -552,6 +484,8 @@ reference from the tree.
 
 Throws when the path reaches nothing, naming the path, because a path that no
 longer resolves is a layout that moved under the caller.
+
+For the assistant.
 """
 function get_referenced_value end
 
@@ -632,6 +566,8 @@ second tab goes on showing that tab.
 It refuses a write it can see is wrong — an empty reference, a range outside its
 collection, or a value of a type that slot can not hold — rather than leaving the
 window in a shape nothing can draw.
+
+For the assistant.
 """
 function replace_referenced_value! end
 
@@ -832,6 +768,8 @@ The reference is complete: it starts at the root of the editor's document, and
 of the editor and evaluated at once, so every document from the root down holds
 its part of the new selection. A caller that holds a tree and no editor passes
 the tree as `editor`, and a reference from the tree.
+
+For the assistant.
 """
 function focus_pane! end
 
@@ -901,6 +839,8 @@ See also `open_pane!`, `focus_pane!`, `find_pane`, `show_layout`.
 nothing, because what the person looks at is theirs; a program shows a pane
 when it wants the person to look. [`focus_pane!`](@ref) also moves the focus,
 which is a step for a person, never for a program.
+
+For the assistant.
 """
 function show_pane! end
 
@@ -958,6 +898,8 @@ the tree, and put the two together.
     groups = concat_references(tree_reference, @reference(tree, root.elements))
 
 See also `find_pane_reference` and `show_layout`.
+
+For the assistant.
 """
 function find_pane_tree_reference end
 
@@ -1070,6 +1012,8 @@ See also `find_pane_reference`, `open_pane!`, `show_layout`.
 The reference is complete: it starts at the root of the editor's document. The
 close is made through the readers of the editor and evaluated at once, as the
 close button of the tab does it, so the person undoes it with one press.
+
+For the assistant.
 """
 function close_pane! end
 
@@ -1132,6 +1076,8 @@ The search goes down only into the documents that can hold a pane
 ([`is_pane_search_step`](@ref)); `descend` names another rule.
 
 See also `find_pane` and `focus_pane!`.
+
+For the assistant.
 """
 function find_pane_reference end
 
@@ -1170,6 +1116,8 @@ closes it.
     items_group_1 = get_parent(editor, items_tab_1)  # the group that holds the tab
 
 See also `get_edited_document`, `find_pane_reference` and `open_pane!`.
+
+For the assistant.
 """
 function find_pane end
 
@@ -1201,6 +1149,8 @@ with [`open_pane!`](@ref) and its `target`.
     println(print_natural_text(data_1))
 
 See also `find_pane`, `find_selected_part`, `show_layout`.
+
+For the assistant.
 """
 function find_focused_pane end
 
@@ -1310,6 +1260,8 @@ group is the one [`pane_group_to_avoid`](@ref) names, the duplicate goes where
 [`open_pane!`](@ref) puts a pane, so the conversation stays in view. A pane
 whose content has no duplicate, such as a set of runs that goes on, raises an
 `ArgumentError` that says why.
+
+For the assistant.
 """
 function duplicate_pane! end
 
@@ -1389,6 +1341,8 @@ pane goes before that tab. With `side` — `:left`, `:right`, `:above` or `:belo
 complete, and both name parts of one pane tree. The move is made through the
 readers of the editor and evaluated at once, so the person undoes it with one
 press.
+
+For the assistant.
 """
 function move_pane! end
 
@@ -1498,6 +1452,8 @@ groups and the tabs, and a pane tree inside a tab below that tab.
 
 It answers a `Text`, not a `String`, so the tree arrives as the lines it is. A
 `String` would reach a model through `repr`, as one line of `\\n` escapes.
+
+For the assistant.
 """
 function show_layout end
 

@@ -63,7 +63,7 @@ A study saves as a `.pred` file. An item that a link holds is written once, in i
 
 ### The assistant
 
-The `__init__` calls `register_assistant_api!(ResearchModule => RESEARCH_ASSISTANT_API)` with the sentence of the domain. Each verb takes the study, or a `ReferencedDocument` of it, writes as the assistant, and lets the readers of the editor carry its operation from the study to the root, so the history of the tab records it.
+The `__init__` calls `register_assistant_api!(Any[]; description = …)` with the sentence of the domain; the documents and verbs carry the mark `For the assistant.` in their docstrings. Each verb takes the study, or a `ReferencedDocument` of it, writes as the assistant, and lets the readers of the editor carry its operation from the study to the root, so the history of the tab records it.
 
 | Verb | What it does |
 | --- | --- |

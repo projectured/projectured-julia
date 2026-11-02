@@ -35,6 +35,8 @@ Use it to read or build the question of a study.
     question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer keeps the drop rate under 1 %?"))
 
 See also `add_question!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchQuestion <: ResearchItem
     id::String = ""
@@ -65,6 +67,8 @@ Use it to read or build a source of a study.
     source_1 = ResearchSource(id = "S1", citation = PrimitiveString("Kleinrock, Queueing Systems, 1975"))
 
 See also `add_source!`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchSource <: ResearchItem
     id::String = ""
@@ -98,6 +102,8 @@ Use it to read or build a hypothesis of a study.
                                       question = question_1)
 
 See also `add_hypothesis!`, `ResearchExpectation`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchHypothesis <: ResearchItem
     id::String = ""
@@ -131,6 +137,8 @@ Use it to read or build the evidence of a study.
                                   supports = [hypothesis_1])
 
 See also `add_evidence!`, `check_predictions!`.
+
+For the assistant.
 """
 @document struct ResearchEvidence <: ResearchItem
     id::String = ""
@@ -164,6 +172,8 @@ Use it to read or build a decision of a study.
     decision_1 = ResearchDecision(id = "D1", statement = PrimitiveString("H1 holds."), accepts = [hypothesis_1])
 
 See also `record_decision!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchDecision <: ResearchItem
     id::String = ""
@@ -195,6 +205,8 @@ Use it to read or build the answer of a study.
     answer_1 = ResearchAnswer(id = "A1", statement = PrimitiveString("13 packets."), question = question_1)
 
 See also `add_answer!`, `ResearchQuestion`.
+
+For the assistant.
 """
 @document struct ResearchAnswer <: ResearchItem
     id::String = ""
@@ -229,6 +241,8 @@ Use it to read or build an experiment of a study.
     experiment_1 = ResearchExperiment(id = "X1", title = PrimitiveString("Sweep K = 1 … 20"), tests = [hypothesis_1])
 
 See also `add_experiment!`, `ResearchResult`.
+
+For the assistant.
 """
 @document struct ResearchExperiment <: ResearchItem
     id::String = ""
@@ -259,6 +273,8 @@ Use it to read or build an analysis of a study.
     analysis_1 = ResearchAnalysis(id = "N1", title = PrimitiveString("Blocking in closed form"))
 
 See also `add_analysis!`, `add_study_formula!`.
+
+For the assistant.
 """
 @document struct ResearchAnalysis <: ResearchItem
     id::String = ""
@@ -292,6 +308,8 @@ Use it to read or build a result of a study.
     result_1 = ResearchResult(id = "R1", title = PrimitiveString("Drop rate by K"), origin = experiment_1)
 
 See also `add_result!`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchResult <: ResearchItem
     id::String = ""
@@ -324,6 +342,8 @@ Use it as the `prediction` of a hypothesis that a check of the results tests.
     ResearchExpectation(result_selection = selection_1, upper = 0.01)
 
 See also `check_predictions!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchExpectation <: ResearchDocument
     result_selection::Any = nothing
@@ -389,6 +409,8 @@ Use it to read or build a study. A tab draws it as an outline of its items.
                             questions = [question_1], hypotheses = [hypothesis_1])
 
 See also `start_study!`, `describe_study`, `find_study_item`.
+
+For the assistant.
 """
 @document struct ResearchStudy <: ResearchDocument
     title::Any = PrimitiveString("")

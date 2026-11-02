@@ -22,6 +22,8 @@ const _RESEARCH_LINK_LIST_FIELDS = (:basis, :tests, :uses, :supports, :opposes, 
 
 The item of `study` whose id is `id`, such as `"H1"`, or `nothing` when the study
 holds none.
+
+For the assistant.
 """
 function find_study_item end
 

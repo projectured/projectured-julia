@@ -23,6 +23,8 @@ Use it to open a file in the editor.
     evaluate_operation(editor, OpenFileOperation("notes.json"))
 
 See also `make_file_tab_content` and `SaveFileOperation`.
+
+For the assistant.
 """
 struct OpenFileOperation <: Operation
     path::String

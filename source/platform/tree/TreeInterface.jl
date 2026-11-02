@@ -37,6 +37,8 @@ Use it to name an entry of the explorer or a node of a tree as the person sees i
     [format_tree_node_label(entry) for entry in content_1.entries]
 
 See also `find_explorer_content`, `show_document_tree!`.
+
+For the assistant.
 """
 function format_tree_node_label end
 

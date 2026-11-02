@@ -67,7 +67,6 @@ using ..WidgetModule
 import ..DisplayModule: make_workload_file
 import ..LlmModule: stream_turn
 import ..SettingsModule: is_settings_group_read_at_start
-import ..TaskModule: make_task_api
 
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,

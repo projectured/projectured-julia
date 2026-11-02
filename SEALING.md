@@ -262,6 +262,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/DocstringSummary.jl`
   - ⬜ `tool/MeaningSearch.jl`
   - ⬜ `tool/RelevanceSearch.jl`
+  - ⬜ `tool/AssistantMark.jl`
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 19 — llm** (`llm/`)
   - ⬜ `llm/LlmModule.jl`

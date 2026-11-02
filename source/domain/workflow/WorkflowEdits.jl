@@ -181,17 +181,6 @@ end
 
 # ── The verbs of the assistant ───────────────────────────────────────────
 
-"""
-The names that the workflow domain offers to the model of an assistant: the
-documents of a workflow, the verbs that record the work as the assistant, the
-read of the journal of a tree, and the list of the workflows of the open files.
-"""
-const WORKFLOW_ASSISTANT_API = (
-    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
-    :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
-    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_element!,
-    :collect_workflow_entries, :WorkflowList, :get_session_workflow_list,
-)
 #
 # Each verb takes a node as a `ReferencedDocument`, makes the operation above, and
 # lets the readers of the editor carry it from the node to the root, so the
@@ -229,6 +218,8 @@ tried. Do not record every turn.
                               chosen = 2, reason = "a reference into another file is durable")
 
 See also `choose_workflow_option!`, `reject_workflow_option!`.
+
+For the assistant.
 """
 function record_workflow_decision! end
 
@@ -261,6 +252,8 @@ Use it to settle a decision with one of its options.
     choose_workflow_option!(decision_1, 2; reason = "it needs no new tool")
 
 See also `reject_workflow_option!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function choose_workflow_option! end
 
@@ -290,6 +283,8 @@ Use it to record that an option of a decision is not taken.
     reject_workflow_option!(decision_1, 1; reason = "no domain can add a tool")
 
 See also `choose_workflow_option!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function reject_workflow_option! end
 
@@ -324,6 +319,8 @@ a link to a document. Do not record every turn.
     add_workflow_entry!(step_1, "The view embeds an element through the renderer."; kind = :comment)
 
 See also `add_element!`, `collect_workflow_entries`.
+
+For the assistant.
 """
 function add_workflow_entry! end
 
@@ -362,6 +359,8 @@ Keep the steps at the level of the stages; mark each `:active` when it starts an
                              steps = ["Read the model", "Run the sweep", "Answer the question"])
 
 See also `add_workflow_step!`, `change_workflow_state!`, `add_element!`.
+
+For the assistant.
 """
 function start_workflow! end
 
@@ -417,6 +416,8 @@ Use it to add a sub-step to a step or to an option.
     step_2 = add_workflow_step!(step_1, "Write the view")
 
 See also `change_workflow_state!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function add_workflow_step! end
 
@@ -447,6 +448,8 @@ Use it to mark a step or an option as active, done, dropped or parked.
     change_workflow_state!(step_1, :done)
 
 See also `add_workflow_step!`, `choose_workflow_option!`.
+
+For the assistant.
 """
 function change_workflow_state! end
 
@@ -483,6 +486,8 @@ Use it to read what was decided and found before you continue a workflow.
     entries_1 = collect_workflow_entries(workflow_1; kind = :decision)
 
 See also `add_workflow_entry!`, `WorkflowJournal`.
+
+For the assistant.
 """
 function collect_workflow_entries end
 

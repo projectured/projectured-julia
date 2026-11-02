@@ -66,6 +66,8 @@ with an alpha below one lets what is behind it show through.
     faint = StyleColor(0.0, 0.0, 0.0, 0.25)
 
 See also `StyleText`, which pairs a colour with a font, and `GraphicsRect`.
+
+For the assistant.
 """
 @document ImmutableCell [DC] struct StyleColor
     red::Float64

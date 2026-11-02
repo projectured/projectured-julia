@@ -77,7 +77,7 @@ In the tree, the list has its files as nodes. A file is a layer, so it has the t
 
 ### The assistant
 
-The `__init__` calls `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)`: the five document types, the verbs below, `collect_workflow_entries`, `WorkflowList` and `get_session_workflow_list`. The assistant sees the list in the explorer, as `find_explorer_content()` answers it, and reads its rows with the verbs of the roster. A model finds them with `search_api` and calls them through `execute_julia_code`. Each verb writes as the assistant, takes a node or a `ReferencedDocument` of it, and lets the readers of the editor carry the operation from the node to the root, so the history of the tab records it.
+The `__init__` calls `register_assistant_api!(Any[]; description = …)` with the sentence of the domain. The names carry the mark `For the assistant.` in their docstrings: the five document types, the verbs below, `collect_workflow_entries`, `WorkflowList` and `get_session_workflow_list`. The assistant sees the list in the explorer, as `find_explorer_content()` answers it, and reads its rows with the verbs of the roster. A model finds them with `search_api` and calls them through `execute_julia_code`. Each verb writes as the assistant, takes a node or a `ReferencedDocument` of it, and lets the readers of the editor carry the operation from the node to the root, so the history of the tab records it.
 
 | Verb | What it does |
 | --- | --- |

@@ -26,6 +26,8 @@ Use it to add a folder to the explorer.
     workspace_1 = Workspace([folder_1])
 
 See also `Workspace` and `OpenFileOperation`.
+
+For the assistant.
 """
 @document struct WorkspaceFolder <: WorkspaceDocument
     name::String
@@ -88,6 +90,8 @@ Use it to show the files of a folder in a tab.
     open_pane!(workspace_1; title = "Explorer")
 
 See also `WorkspaceFolder` and `make_file_tab_content`.
+
+For the assistant.
 """
 @document struct Workspace <: WorkspaceDocument
     folders::CellVector = CellVector()
@@ -123,6 +127,8 @@ Use it to show the files of a workspace in a tab.
     open_pane!(explorer_1; title = "Files")
 
 See also `Workspace` and `WorkspaceFolder`.
+
+For the assistant.
 """
 @document struct WorkspaceExplorer <: WorkspaceDocument
     workspace::Any                    # Workspace

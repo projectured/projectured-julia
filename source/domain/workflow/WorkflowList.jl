@@ -26,6 +26,8 @@ from the start.
 
     list = get_session_workflow_list()
     [get_document_title(get_edited_document(file)) for file in list.files]
+
+For the assistant.
 """
 @document struct WorkflowList <: WorkflowDocument
     file_list::Any
@@ -75,6 +77,8 @@ Use it to read which workflows the person has open, and how far each one is.
     [get_document_title(get_edited_document(file)) for file in list.files]
 
 See also `WorkflowList` and `get_session_open_file_list`.
+
+For the assistant.
 """
 function get_session_workflow_list end
 

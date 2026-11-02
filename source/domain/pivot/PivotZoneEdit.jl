@@ -247,6 +247,8 @@ across, and which split a cell.
     move_pivot_field!(pivot_1, "year", :rows; place = 1)
 
 See also `find_pivot_value`, `replace_referenced_value!`, `insert_elements!`.
+
+For the assistant.
 """
 function move_pivot_field! end
 

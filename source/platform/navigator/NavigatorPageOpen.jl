@@ -74,6 +74,8 @@ such as one record of a table or one section of a file.
     show_pane!(page_tab_1)
 
 See also `open_pane!`, `show_pane!`, `select_part!`.
+
+For the assistant.
 """
 function open_page! end
 

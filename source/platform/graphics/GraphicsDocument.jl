@@ -86,6 +86,8 @@ A reactive text element for rendering.
 Each field is a `Cell`, so changes to any property are tracked
 and can trigger incremental redraws. `color` is a [`StyleColor`](@ref); each
 backend converts it to its own device encoding at draw time.
+
+For the assistant.
 """
 @document struct GraphicsText <: GraphicsDocument
     text::String
@@ -131,6 +133,8 @@ paints a rounded outline *inside* the rect, so a single primitive can express
 the "rounded fill + 1px outline" idiom without stacking rects. `border_color`
 may be passed as `nothing` for "no border" (a transparent default).
 Each field is a `Cell`.
+
+For the assistant.
 """
 @document struct GraphicsRect <: GraphicsDocument
     x::Int32
@@ -187,6 +191,8 @@ Use it to draw a straight line on a canvas: an axis, a rule or a link.
     open_pane!(GraphicsCanvas([GraphicsLine(10, 10, 110, 50; color = color_red, width = 2)]; w = 120, h = 60); title = "Line")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsLine <: GraphicsDocument
     x1::Int32
@@ -232,6 +238,8 @@ Use it to draw a round dot or a disc on a canvas: a point, a marker or a badge.
     open_pane!(GraphicsCanvas([GraphicsCircle(60, 30, 20; color = color_blue)]; w = 120, h = 60); title = "Dot")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsArc`.
+
+For the assistant.
 """
 @document struct GraphicsCircle <: GraphicsDocument
     cx::Int32
@@ -277,6 +285,8 @@ Use it to draw a part of a ring on a canvas: a gauge or a progress mark.
     open_pane!(GraphicsCanvas([GraphicsArc(60, 40, 30; width = 6, start_angle = 0, sweep_angle = 270, color = color_green)]; w = 120, h = 80); title = "Gauge")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsCircle`.
+
+For the assistant.
 """
 @document struct GraphicsArc <: GraphicsDocument
     cx::Int32
@@ -336,6 +346,8 @@ Use it to draw a path of connected straight segments on a canvas, with an arrow 
     open_pane!(GraphicsCanvas([GraphicsPolyline(points_1; color = color_red, width = 2, end_arrow = true)]; w = 120, h = 60); title = "Path")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsSpline`.
+
+For the assistant.
 """
 @document struct GraphicsPolyline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -380,6 +392,8 @@ Use it to draw a closed filled shape on a canvas: a triangle, an arrow head or a
     open_pane!(GraphicsCanvas([GraphicsPolygon(points_1; color = color_blue)]; w = 120, h = 60); title = "Triangle")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsPolygon <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -420,6 +434,8 @@ Use it to draw a smooth curve through points on a canvas.
     open_pane!(GraphicsCanvas([GraphicsSpline(points_1; color = color_red, width = 2)]; w = 120, h = 60); title = "Curve")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsSpline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -618,6 +634,8 @@ to stop painting when elements are past the viewport edge.
 When `overlapping_elements` is `false`, elements are guaranteed not to
 overlap along the layout axis. This enables the renderer and hit-testing
 to stop early once past the viewport or click point.
+
+For the assistant.
 """
 @document struct GraphicsCanvas <: GraphicsDocument
     x::Int32 = Int32(0)
@@ -747,6 +765,8 @@ Use it to draw a picture that is already a grid of pixels, such as a decoded pho
     open_pane!(GraphicsCanvas([GraphicsImage(10, 10, 40, 40, (pixels_1, 4, 4))]; w = 60, h = 60); title = "Picture")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsRect`.
+
+For the assistant.
 """
 @document struct GraphicsImage <: GraphicsDocument
     x::Int32

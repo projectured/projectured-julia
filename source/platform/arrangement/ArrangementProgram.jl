@@ -163,6 +163,8 @@ carry the edit of a chip that a person presses. It reads the IoMap that the fram
 prints, so it runs on the editor's task.
 
 See also `sort_collection!`.
+
+For the assistant.
 """
 function filter_collection! end
 
@@ -191,6 +193,8 @@ order that a person asks for, without a change of the data.
     sort_collection!(runs_1)            # the runs in their own order
 
 See also `filter_collection!`.
+
+For the assistant.
 """
 function sort_collection! end
 
@@ -222,6 +226,8 @@ runs of each state, without a change of the data.
     group_collection!(runs_1)           # the runs again, one row each
 
 See also `limit_collection!`, `filter_collection!` and `sort_collection!`.
+
+For the assistant.
 """
 function group_collection! end
 
@@ -248,6 +254,8 @@ runs after a sort.
     limit_collection!(runs_1)           # every run again
 
 See also `group_collection!` and `sort_collection!`.
+
+For the assistant.
 """
 function limit_collection! end
 

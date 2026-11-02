@@ -109,7 +109,9 @@ function test_task_group_verbs()
         end
 
         @testset "a model may call every verb" begin
-            names = only(names for (owner, names) in make_task_api() if owner === TaskModule)
+            names = ProjecturedKernel.ToolModule.get_api_entry_names(
+                only(entry for entry in ProjecturedKernel.ToolModule.collect_marked_api()
+                     if entry.module_ === TaskModule))
             @test :describe_task_group in names && :close_task_group! in names
             @test all(name -> isdefined(TaskModule, name), names)
         end

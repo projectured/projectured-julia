@@ -21,6 +21,8 @@ of a simulation, the shells and the commands of a terminal.
 
 See also `describe_system_process_tree`, which writes the same tree once as
 text, and `show_document_tree!`.
+
+For the assistant.
 """
 function show_system_process_tree! end
 
@@ -62,6 +64,8 @@ does now.
 
 See also `show_system_process_tree!`, which shows the tree in a tab and keeps it
 up to date.
+
+For the assistant.
 """
 function describe_system_process_tree end
 

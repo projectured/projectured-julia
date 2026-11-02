@@ -1244,9 +1244,9 @@ function __init__()
                                GraphLayoutToGraphicsCanvas(theme = get_scaled_theme!(appearance, GraphTheme)));
             measure, widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
-    # The names a model draws a graph with: the vertices, the edges between them,
-    # and the graph that holds both.
-    register_assistant_api!(GraphModule => (:GraphGraph, :GraphVertex, :GraphEdge);
+    # The sentence that the system text of a window says about a graph: the
+    # vertices, the edges between them, and the graph that holds both.
+    register_assistant_api!(Any[];
         description = "A graph is `GraphGraph(vertices, edges)` of `GraphVertex(content)` " *
                       "and `GraphEdge(source, target)`; the content of a vertex is a " *
                       "document, such as `WidgetLabel(\"Paris\")`, and `open_pane!` draws " *

@@ -31,6 +31,8 @@ session: the files with edits, the documents of each type, the errors of the log
 
 See also `describe_roster_sources` and `describe_item_facets`, which say what a
 roster can show, and `edit_shown_items!`.
+
+For the assistant.
 """
 function show_roster! end
 
@@ -98,6 +100,8 @@ Use it to choose the source of a roster before `show_roster!`.
     describe_roster_sources()
 
 See also `show_roster!` and `describe_item_facets`.
+
+For the assistant.
 """
 function describe_roster_sources end
 
@@ -162,6 +166,8 @@ Use it to choose the columns, the conditions and the keys of a roster.
     describe_item_facets(TabDocuments(FileDocument))
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 function describe_item_facets end
 
@@ -198,6 +204,8 @@ parameter in all the modules that a filter keeps.
     edit_shown_items!(rows, "status" => "checked")
 
 See also `show_roster!` and `describe_item_facets`.
+
+For the assistant.
 """
 function edit_shown_items! end
 

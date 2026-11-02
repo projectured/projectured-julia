@@ -21,6 +21,8 @@ Use it to name a total in a key, such as a key that `find_pivot_value` reads.
     find_pivot_value(pivot_1, ("EU", PivotTotal()), PivotTotal())
 
 See also `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotTotal end
 
@@ -39,6 +41,8 @@ Use it to name a bin in a key of a dimension with bins.
     find_pivot_value(pivot_1, PivotBin(10.0, 20.0), 2025)
 
 See also `PivotDimension`, `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotBin
     low::Float64
@@ -60,6 +64,8 @@ Use it to name a month in a key of a dimension of dates by month.
     find_pivot_value(pivot_1, PivotMonth(2025, 3), ())
 
 See also `PivotDimension`, `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotMonth
     year::Int
@@ -141,6 +147,8 @@ Use it to find which rows of the source a cell of a pivot counts.
     rows_1 = find_pivot_part_rows(pivot_1.cross_table, ("EU", "DE"), (2025,))
 
 See also `find_pivot_value`, `PivotRowsView`.
+
+For the assistant.
 """
 function find_pivot_part_rows end
 
@@ -482,6 +490,8 @@ Use it to read one value of a pivot that is too large to read in its display.
     find_pivot_value(pivot_1, ("EU", PivotTotal()), 2025; measure = 2)
 
 See also `move_pivot_field!`, `make_pivot_table`.
+
+For the assistant.
 """
 function find_pivot_value end
 

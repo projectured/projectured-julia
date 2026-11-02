@@ -86,6 +86,8 @@ its level.
     println(print_natural_text(get_session_message_log()))
 
 See also `get_session_fault_log`, `get_session_gesture_log`.
+
+For the assistant.
 """
 function get_session_message_log end
 

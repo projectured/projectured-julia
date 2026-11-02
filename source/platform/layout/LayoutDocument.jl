@@ -59,6 +59,8 @@ of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
                title = "Fixed width")
 
 See also `Content`, `Relative` and `Fill`, the other three policies.
+
+For the assistant.
 """
 function Fixed end
 
@@ -80,6 +82,8 @@ button beside a field that fills the rest. It is the default of every layout.
                title = "Form")
 
 See also `Fixed`, `Relative` and `Fill`.
+
+For the assistant.
 """
 const Content = SizePolicy(nothing, nothing, nothing, 0.0)
 
@@ -99,6 +103,8 @@ takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
     open_pane!(GridLayout(Any[wide, narrow], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
 
 See also `Fill`, `Fixed` and `Content`.
+
+For the assistant.
 """
 function Relative end
 
@@ -119,6 +125,8 @@ that takes the whole pane, two plots that share a row equally.
     open_pane!(VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
 
 See also `Relative`, `Fixed` and `Content`.
+
+For the assistant.
 """
 const Fill = Relative(1.0)
 
@@ -144,6 +152,8 @@ Use it to put widgets or documents side by side in one row, from left to right.
     open_pane!(HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
 
 See also `VerticalLayout`, `GridLayout`.
+
+For the assistant.
 """
 @document struct HorizontalLayout <: LayoutDocument
     children::ListDocument = CellVector()
@@ -191,6 +201,8 @@ bottom.
     open_pane!(VerticalLayout([plot, table]; gap = 8); title = "Stacked")
 
 See also `HorizontalLayout`, `GridLayout`.
+
+For the assistant.
 """
 @document struct VerticalLayout <: LayoutDocument
     children::ListDocument = CellVector()
@@ -270,6 +282,8 @@ that another grid sizes.
 its end, or `nothing`, is `vertical_gap`, and the entry of the first row is not
 used. A form uses it to keep the description of a field close to the row of the
 field, and the next field further away.
+
+For the assistant.
 """
 @document struct GridLayout <: LayoutDocument
     children::ListDocument
@@ -397,6 +411,8 @@ Use it to put many widgets in a row that wraps to the next line when it is full
     open_pane!(FlowLayout(cards; max_width = 800); title = "Cards")
 
 See also `GridLayout` for fixed columns.
+
+For the assistant.
 """
 @document struct FlowLayout <: LayoutDocument
     children::CellVector = CellVector()
@@ -440,6 +456,8 @@ label over a plot — the last child on top.
     StackLayout([plot, badge])
 
 See also `GridLayout`, `VerticalLayout`.
+
+For the assistant.
 """
 @document struct StackLayout <: LayoutDocument
     children::CellVector = CellVector()

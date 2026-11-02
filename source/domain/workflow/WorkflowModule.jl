@@ -39,7 +39,7 @@ export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, Workflo
 export make_add_workflow_entry_operation, make_workflow_entry, make_workflow_state_operation,
        get_next_workflow_state, make_insert_workflow_node_operation, make_delete_workflow_node_operation,
        make_workflow_decision,
-       make_choose_workflow_option_operation, WORKFLOW_ASSISTANT_API, start_workflow!,
+       make_choose_workflow_option_operation, start_workflow!,
        record_workflow_decision!,
        choose_workflow_option!, reject_workflow_option!, add_workflow_entry!, add_workflow_step!,
        change_workflow_state!, collect_workflow_entries
@@ -67,10 +67,9 @@ function __init__()
                             description = "the workflows of the open files of the session, each with its file " *
                                           "as within")
 
-    # What the model of an assistant may write about a workflow: the documents,
-    # the verbs that record the work as the assistant, and the read of a journal.
-    # Each verb is an edit of the editor, which a person takes back with Ctrl+Z.
-    register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API;
+    # The sentence that the system text of a window says about a workflow: the
+    # documents, the verbs that record the work, and the read of a journal.
+    register_assistant_api!(Any[];
         description = "A workflow records the work as steps, decisions and elements: " *
                       "`add_workflow_step!` and `record_workflow_decision!` add to it, " *
                       "`add_element!` adds a document of any domain to a node, and " *

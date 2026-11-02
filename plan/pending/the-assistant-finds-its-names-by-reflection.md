@@ -1,7 +1,7 @@
 # The assistant finds its names by reflection
 
 Status: a plan. Written 2026-11-02 from the answers of the owner on that day.
-Nothing is built yet.
+Step 1 is in progress on the branch `reflection-api` of both repositories.
 
 Spans two repositories. projectured-julia holds the rule, the index, the
 tools, the guides and the verbs of the editor. omnet-julia holds the verbs of
@@ -229,6 +229,7 @@ Each step is done in a worktree, runs the narrowest tests that cover it, and
 ends with a commit in each repository that it changes.
 
 1. **The mark and the surface by reflection, with no change of the surface.**
+   *In progress (2026-11-02); the facts are in §5.1.*
    Read the mark, compute the surface, declare it. Mark the 307 names that are
    offered now. Check that the computed surface is exactly today's declared list
    in both windows. Tests: `test_assistant_documentation`,
@@ -256,6 +257,41 @@ ends with a commit in each repository that it changes.
    the calls before the first useful act (6 today) and the failures by cause,
    and compare them with §2. Then move this plan to `plan/done/`.
 
+### 5.1 Facts found in step 1
+
+- `collect_marked_api` in the tool layer (`source/kernel/tool/AssistantMark.jl`)
+  reads `Base.Docs.meta` of every documenting module. It takes 1.4 s at its first
+  call, most of it compilation, and 0.02 s after that.
+- The computed surface equals the old lists in both windows, except for three
+  names. `ChartFunctionSeries` is new in the editor, because the IDE offered it and
+  its mark is in the chart domain. `get_clock_time` and `get_reactive_clock_time`
+  are missing until the sealed `kernel/clock/Clock.jl` gets the mark, which needs
+  the owner's permission.
+- The storage variants that `@document` writes beside a type share its docstring,
+  so `ACStyleColor` came in with `StyleColor`. The collection skips a variant, as
+  the search index does.
+- 300 docstrings got the mark: 222 in projectured-julia and 78 in omnet-julia.
+  `add_element!` had its docstring on its one method; it now documents the generic
+  function.
+- The verbs of `DataFrames` stay a declaration of the DataFrames adapter
+  (`register_assistant_api!`), because no mark can reach the docstrings of a
+  foreign package. `register_assistant_api!` keeps that job and the sentence of
+  each domain.
+- Step 1 marks each offered type itself, so the mark on a supertype (open item
+  2) is not needed before step 2.
+- `register_assistant_api!` stores each entry as an `ApiEntry`, so
+  `make_editor_api` answers one shape and a test reads every entry by its module.
+- The deleted `make_pane_api` held two reasons that step 2 must keep.
+  `get_window_tree` stays unmarked: it answers the tree of the first window only,
+  and a model names a part by a complete reference from the root. The IDE guide
+  names it in its section on refusals, so the guide changes in step 6.
+  `get_document_title` stays unmarked: a caller names a pane with the `title` of
+  `open_pane!`.
+- On main, `test_interface_api` (2 failures) and `test_assistant_documentation`
+  (11 errors, nine names without the full docstring form) fail already. The
+  platform layering guard fails on main too, for `filechange/FileChangeModule.jl`
+  and `shell/ShellModule.jl`. Step 1 changes none of these files.
+
 ## 6. What else changes
 
 - omnet-julia loses its API lists, and its texts change. Its precompile lists
@@ -265,6 +301,11 @@ ends with a commit in each repository that it changes.
 - The rank of `search_api` moves when docstrings change. Run
   `test_referenced_document_editor` after step 2.
 - The search corpora of `measure_search_scale!` change with the surface.
+- Step 1 removes the exported list functions `make_pane_api`,
+  `make_interface_api`, `make_file_api` and `make_task_api` of
+  `ProjecturedPlatform`, and the constants `RESEARCH_ASSISTANT_API` and
+  `WORKFLOW_ASSISTANT_API`. By decision R36 of the release plan, each package that
+  loses an exported name takes a minor version step at its next release.
 
 ## 7. Related plans
 
@@ -283,7 +324,7 @@ ends with a commit in each repository that it changes.
    it, the other way is a group that applies each verb at once and joins only
    the undo steps. That changes the undo buffer, so it is a new mechanism, and
    the owner decides first.
-2. **The mark on a supertype** (§4.1). The owner confirms it at step 1.
+2. **The mark on a supertype** (§4.1). The owner confirms it before step 2.
 3. **The text answers.** My recommendation: a verb answers a `String`, and the
    code tool shows a `String` answer as its plain text. The owner confirms it at
    step 2.

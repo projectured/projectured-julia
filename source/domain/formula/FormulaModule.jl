@@ -44,12 +44,12 @@ include("FormulaToSyntax.jl")
 include("FormulaToGraphics.jl")
 include("FormulaToTable.jl")
 
-# The row that lets the natural renderer draw a formula, and the name a model
-# reads the value of a formula with. The registries are runtime state, so both
-# are added here and not at the top level.
+# The row that lets the natural renderer draw a formula, and the sentence that the
+# system text of a window says about the value of a formula. The registries are
+# runtime state, so both are added here and not at the top level.
 function __init__()
     register_natural_graphics!(:formula, make_formula_graphics_entry)
-    register_assistant_api!(FormulaModule => (:get_formula_value,);
+    register_assistant_api!(Any[];
         description = "`get_formula_value(formula)` answers the value that a formula of " *
                       "a sheet computes now.")
 end

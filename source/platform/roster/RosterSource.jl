@@ -19,6 +19,8 @@ Use it to give a roster the items of a collection in a document.
     Roster(CollectionItems(@reference(results)); columns = ["name", "status"])
 
 See also `Roster` and `show_roster!`.
+
+For the assistant.
 """
 struct CollectionItems
     collection::Any
@@ -70,6 +72,8 @@ Use it to give a roster the documents of one type that lie inside other items.
     Roster(ItemsWithin(CollectionItems(@reference(groups)), TaskDocument; enter_field = is_task_search_field))
 
 See also `Roster` and `TabDocuments`.
+
+For the assistant.
 """
 struct ItemsWithin
     source::Any
@@ -186,6 +190,8 @@ Use it to give a roster the records of a store, such as the log.
     show_roster!(StoreRecords(:log); columns = ["level", "message"])
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 struct StoreRecords
     name::Symbol

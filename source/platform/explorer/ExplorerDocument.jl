@@ -19,6 +19,8 @@ and as the root of an [`Explorer`](@ref).
     section_1 = ExplorerSection("Tools", Any[get_session_task_group_list()])
 
 See also `Explorer` and `find_explorer_content`.
+
+For the assistant.
 """
 @document struct ExplorerSection <: Document
     title::String
@@ -230,6 +232,8 @@ dashboard, and to find an entry for `describe_commands` and `open_explorer_page!
                      [Dashboard("Queue study", [DashboardCard("Tasks", get_session_task_group_list())])])
 
 See also `ExplorerSection`, `Dashboard`, `describe_commands`, `open_explorer_page!`.
+
+For the assistant.
 """
 function find_explorer_content end
 
@@ -273,6 +277,8 @@ place of a new tab.
     open_explorer_page!(content_1.entries[1])
 
 See also `find_explorer_content`, `open_page!`.
+
+For the assistant.
 """
 function open_explorer_page! end
 

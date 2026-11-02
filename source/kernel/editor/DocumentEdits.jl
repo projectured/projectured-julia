@@ -80,6 +80,8 @@ collection of a document that the editor shows.
     insert_elements!(items_1, length(items_1) + 1, [item_1])   # appends item_1
 
 See also `delete_elements!` and `replace_referenced_value!`.
+
+For the assistant.
 """
 function insert_elements! end
 
@@ -107,6 +109,8 @@ any collection of a document that the editor shows.
     delete_elements!(items_1, 2)      # the second item
 
 See also `insert_elements!` and `replace_referenced_value!`.
+
+For the assistant.
 """
 function delete_elements! end
 

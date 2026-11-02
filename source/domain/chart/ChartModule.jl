@@ -68,9 +68,7 @@ function __init__()
                                     ChartPlotToGraphicsCanvas(measure = measure,
                                         theme = get_scaled_theme!(appearance, ChartTheme))),
     ])
-    register_assistant_api!(ChartModule => (:Chart, :ChartLineSeries, :ChartScatterSeries,
-                                            :ChartBarSeries, :ChartPieSeries, :ChartHistogramSeries,
-                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend);
+    register_assistant_api!(Any[];
         description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
                       "a series of each kind, and `open_pane!` draws it.")
 end

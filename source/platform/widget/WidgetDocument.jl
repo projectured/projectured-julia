@@ -49,6 +49,8 @@ what the chip names.
 
 See also `WidgetText`, which a person edits, `WidgetBadge` for one status word,
 and `WidgetAlert` for a message with a title.
+
+For the assistant.
 """
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
@@ -157,6 +159,8 @@ such as the rows of an outline, reads as text and shows where the person types.
 
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
+
+For the assistant.
 """
 @document struct WidgetText <: WidgetDocument
     position::Point2D
@@ -252,6 +256,8 @@ The `validator` is a hook for typed entry; a step is always numeric.
 
 See also `WidgetSlider` for a share between zero and one, and `WidgetText` for
 a value typed as text.
+
+For the assistant.
 """
 @document struct WidgetSpinBox <: WidgetDocument
     position::Point2D
@@ -312,6 +318,8 @@ rows. `scroll_position` is the offset of the rows, and `vertical_scroll_bar` and
 
 See also `WidgetTable` for rows with columns, `WidgetSelect` for a list that
 opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
+
+For the assistant.
 """
 @document struct WidgetList <: WidgetDocument
     position::Point2D
@@ -396,6 +404,8 @@ operation.
 
 See also `WidgetSwitch`, which is the same choice drawn as a slide, and
 `WidgetToggleGroup` for one choice among several.
+
+For the assistant.
 """
 @document struct WidgetCheckbox <: WidgetDocument
     position::Point2D
@@ -481,6 +491,8 @@ document's content and is not meant to be serialised.
 
 See also `Action`, `WidgetSwitch` for a state that stays, and `WidgetToggleGroup`
 for one choice among several.
+
+For the assistant.
 """
 @document struct WidgetButton <: WidgetDocument
     position::Point2D
@@ -585,6 +597,8 @@ of a step. A label that names a command, such as "Open stdout", is a
     WidgetLink(() -> format_tree_node_label(page), page)
 
 See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
+
+For the assistant.
 """
 @document struct WidgetLink <: WidgetDocument
     position::Point2D
@@ -949,6 +963,8 @@ child reach the edge; a `LayoutConstraint` gives one child its own.
                title = "Placed")
 
 See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`.
+
+For the assistant.
 """
 @document struct WidgetComposite <: WidgetDocument
     position::Point2D
@@ -1261,6 +1277,8 @@ documents.
 
 See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
 whose `title` names a tab.
+
+For the assistant.
 """
 @document struct WidgetTitlePane <: WidgetDocument
     title::Any
@@ -1316,6 +1334,8 @@ sticks instead of being undone by weighted redistribution. They are not part of
 the document's content and are not meant to be serialised.
 
 See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
+
+For the assistant.
 """
 @document struct WidgetSplitPane <: WidgetDocument
     orientation::Symbol
@@ -1448,6 +1468,8 @@ that owns the tabs decides.
 
 See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
 children shown at once.
+
+For the assistant.
 """
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
@@ -1559,6 +1581,8 @@ projection that makes a new pane at each print passes the cell of a field of
 its document, so the pane keeps its place across the prints.
 
 See also `WidgetCard`, whose `height` bounds a body that scrolls.
+
+For the assistant.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
@@ -1776,6 +1800,8 @@ The same badge is drawn by every widget that holds badges, such as the label of
 a tab ([`WidgetTabLabel`](@ref)).
 
 See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
+
+For the assistant.
 """
 @document struct WidgetBadge <: WidgetDocument
     position::Point2D
@@ -1875,6 +1901,8 @@ Use it to put a line between two groups in a column or a row. `orientation` is
                title = "Divided")
 
 See also `WidgetCard`, which frames a group instead of dividing two.
+
+For the assistant.
 """
 @document struct WidgetSeparator <: WidgetDocument
     position::Point2D
@@ -1970,6 +1998,8 @@ shared a color would draw one shape.
 
 See also `WidgetTitlePane` for a title bar alone, `WidgetAccordion` for several
 folding sections, and `VerticalLayout` to stack cards.
+
+For the assistant.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D
@@ -2080,6 +2110,8 @@ slide: a slide needs a start time on the editor's clock, and the reader of the
 switch has no context that reaches that clock.
 
 See also `WidgetCheckbox` and `WidgetToggleGroup`.
+
+For the assistant.
 """
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
@@ -2125,6 +2157,8 @@ start to its end once a second. `width` is the bar's length in pixels.
 
 See also `WidgetProgressRing`, which shows the same value in one line of text,
 `WidgetSlider`, which a person drags, and `WidgetBadge` for a state in one word.
+
+For the assistant.
 """
 @document struct WidgetProgressBar <: WidgetDocument
     position::Point2D
@@ -2173,6 +2207,8 @@ ring takes no width: its diameter is one line of the text of the theme.
     open_pane!(WidgetProgressRing(0.4); title = "Progress")
 
 See also `WidgetProgressBar`, which shows the same value as a bar.
+
+For the assistant.
 """
 @document struct WidgetProgressRing <: WidgetDocument
     position::Point2D
@@ -2209,6 +2245,8 @@ the runs. `value` is the share, and `width` is the track's length in pixels.
 
 See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgressBar` for
 a share that is only shown.
+
+For the assistant.
 """
 @document struct WidgetSlider <: WidgetDocument
     position::Point2D
@@ -2286,6 +2324,8 @@ select the next or the previous option.
 
 See also `WidgetToggleGroup` for the same choice in one row, and `WidgetSelect`
 for many choices that open on a click.
+
+For the assistant.
 """
 @document struct WidgetRadioGroup <: WidgetDocument
     position::Point2D
@@ -2353,6 +2393,8 @@ fault; `:default` is calm.
 
 See also `WidgetBadge` for one word of status, and `WidgetLabel` for a plain
 line.
+
+For the assistant.
 """
 @document struct WidgetAlert <: WidgetDocument
     position::Point2D
@@ -2518,6 +2560,8 @@ choice that a person seldom changes.
 
 See also `WidgetRadioGroup` for the same choice in a column, and `WidgetSwitch`
 for on or off.
+
+For the assistant.
 """
 @document struct WidgetToggleGroup <: WidgetDocument
     position::Point2D
@@ -2580,6 +2624,8 @@ box is inert (renders the closed state only).
 
 See also `WidgetRadioGroup` and `WidgetToggleGroup` for a few choices that stay
 visible, and `WidgetList` for a list that stays open.
+
+For the assistant.
 """
 @document struct WidgetSelect <: WidgetDocument
     position::Point2D
@@ -2659,6 +2705,8 @@ types a line break.
 
 See also `WidgetText` for one line, and `WidgetLabel` for text that is only
 read.
+
+For the assistant.
 """
 @document struct WidgetTextarea <: WidgetDocument
     position::Point2D
@@ -2717,6 +2765,8 @@ Each item is wrapped in a [`WidgetAccordionItem`](@ref).
 
 See also `WidgetTabbedPane` for sections behind tabs, and `WidgetCard` for one
 section that folds.
+
+For the assistant.
 """
 @document struct WidgetAccordion <: WidgetDocument
     position::Point2D
@@ -2943,6 +2993,8 @@ The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
 
 See also `make_result_table` and `WidgetList` for one column.
+
+For the assistant.
 """
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
@@ -3562,6 +3614,8 @@ name of an icon drawn before the label. A click invokes it through
 [`InvokeActionOperation`].
 
 See also `WidgetButton`, which shows one.
+
+For the assistant.
 """
 @document struct Action
     label::Any

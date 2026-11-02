@@ -24,6 +24,8 @@ Use it to draw one node of a graph: a box that shows its content, such as a name
     open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
 
 See also `GraphGraph`, which holds it, and `GraphEdge`.
+
+For the assistant.
 """
 @document struct GraphVertex <: GraphDocument
     content::Any          # required: keeps the 1-arg `GraphVertex(content)` ctor
@@ -47,6 +49,8 @@ Use it to draw a link between two nodes of a graph, with an arrow or a label.
     open_pane!(GraphGraph([vertex_1, vertex_2], [edge_1]); title = "Roads")
 
 See also `GraphGraph`, which holds it, and `GraphVertex`.
+
+For the assistant.
 """
 @document struct GraphEdge <: GraphDocument
     source::Document
@@ -95,6 +99,8 @@ Use it to draw nodes and the links between them: a map, a network or a state mac
     open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
 
 See also `GraphVertex` and `GraphEdge`.
+
+For the assistant.
 """
 @document struct GraphGraph <: GraphDocument
     vertices::CellVector = CellVector()

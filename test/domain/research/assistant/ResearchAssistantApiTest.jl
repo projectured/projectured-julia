@@ -1,3 +1,15 @@
+# The names of the research domain that the assistant is offered, each by the mark
+# `For the assistant.` in its docstring. `add_element!` is the outline module's.
+const OFFERED_RESEARCH_NAMES = (
+    :ResearchStudy, :ResearchQuestion, :ResearchSource, :ResearchHypothesis, :ResearchExperiment,
+    :ResearchAnalysis, :ResearchResult, :ResearchEvidence, :ResearchDecision, :ResearchAnswer,
+    :ResearchExpectation, :ResearchMap, :StudyItems,
+    :start_study!, :add_question!, :add_source!, :add_hypothesis!, :add_experiment!, :add_analysis!,
+    :add_result!, :add_evidence!, :add_answer!, :record_decision!, :check_predictions!,
+    :add_study_section!, :add_study_prose!, :embed_in_study!, :add_study_formula!,
+    :describe_study, :find_study_item, :save_study_folder!, :load_study_folder,
+)
+
 # A study of one question that holds a note as its element.
 function _make_api_element_study()
     study = ResearchStudy(title = PrimitiveString("Notes"), author = :person, time = "2026-10-22T07:00:00Z")
@@ -20,12 +32,12 @@ the report grow the report, a formula goes to the sheet of the closed form, and
 """
 function test_research_assistant_api()
     @testset "ResearchAssistantApi" begin
-        entries = [e for e in get_registered_assistant_api() if e isa Pair && first(e) === ResearchModule]
+        entries = [e for e in ProjecturedKernel.ToolModule.collect_marked_api() if e.module_ === ResearchModule]
 
         @testset "the domain offers its documents and its verbs" begin
             @test length(entries) == 1
-            offered = collect(last(only(entries)))
-            @test Set(offered) == Set(RESEARCH_ASSISTANT_API)
+            offered = ProjecturedKernel.ToolModule.get_api_entry_names(only(entries))
+            @test Set(offered) == Set(OFFERED_RESEARCH_NAMES)
             @test all(name -> isdefined(ResearchModule, name), offered)
             set = declare_api!(ToolSet(), entries)
             @test occursin("record_decision!", search_api(set, "record_decision!"))
@@ -195,7 +207,8 @@ function test_research_assistant_api()
             add_element!(item, PrimitiveString("one more"); editor = nothing)
             @test length(item.elements) == count + 1
             @test item.elements[end].value == "one more"
-            @test :add_element! in RESEARCH_ASSISTANT_API
+            @test any(entry -> :add_element! in ProjecturedKernel.ToolModule.get_api_entry_names(entry),
+                      ProjecturedKernel.ToolModule.collect_marked_api())
         end
 
         @testset "a study saves to a folder and loads to the same graph" begin

@@ -98,6 +98,8 @@ to put into a document.
     copied_1 = read_os_clipboard()
 
 See also `write_os_clipboard!`, `parse_natural_text`.
+
+For the assistant.
 """
 function read_os_clipboard end
 
@@ -118,6 +120,8 @@ or a line of code.
     write_os_clipboard!(print_natural_text(find_selected_part()))
 
 See also `read_os_clipboard`, `print_natural_text`.
+
+For the assistant.
 """
 function write_os_clipboard! end
 

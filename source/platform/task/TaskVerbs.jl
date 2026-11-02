@@ -57,6 +57,8 @@ Use it to find a group that another person or another conversation started.
     list_task_groups()
 
 See also `find_task_group`, `describe_task_group`.
+
+For the assistant.
 """
 function list_task_groups end
 
@@ -83,6 +85,8 @@ started is the value its start verb answered.
     t3 = find_task_group("T3")
 
 See also `list_task_groups`.
+
+For the assistant.
 """
 function find_task_group end
 
@@ -131,6 +135,8 @@ Use it to tell the person how a group of tasks went, and which tasks failed.
     describe_task_group(t1; tasks = :all, limit = 10)
 
 See also `describe_task`, `get_task_output`, `list_task_groups`.
+
+For the assistant.
 """
 function describe_task_group end
 
@@ -180,6 +186,8 @@ Use it to tell the person why one task failed.
     describe_task(t1, 3)
 
 See also `get_task_output`, `describe_task_group`.
+
+For the assistant.
 """
 function describe_task end
 
@@ -228,6 +236,8 @@ Use it to read what a task printed, such as the error of a task that failed.
     get_task_output(t1, 3; stream = :stderr)
 
 See also `describe_task`.
+
+For the assistant.
 """
 function get_task_output end
 
@@ -310,6 +320,8 @@ Use it to stop, cancel or abort a group of tasks.
     stop_tasks!(t1)
 
 See also `stop_task!` for one task, `rerun_tasks!`.
+
+For the assistant.
 """
 function stop_tasks! end
 
@@ -332,6 +344,8 @@ Use it to stop one task of a group and let the others run.
     stop_task!(t1, 3)
 
 See also `stop_tasks!`.
+
+For the assistant.
 """
 function stop_task! end
 
@@ -361,6 +375,8 @@ Use it to repeat the tasks that failed after a fix.
 ends. A person at the REPL can: there the call waits, and the window draws.
 
 See also `stop_task!` and `describe_task_group`.
+
+For the assistant.
 """
 function rerun_tasks! end
 
@@ -391,6 +407,8 @@ read what they wrote.
     wait_for_tasks!(t1; timeout = 20)
 
 See also `describe_task_group`, `stop_tasks!`.
+
+For the assistant.
 """
 function wait_for_tasks! end
 
@@ -420,6 +438,8 @@ Use it to close a group when its work is over.
     close_task_group!(t1)
 
 See also `stop_task!` and `list_task_groups`.
+
+For the assistant.
 """
 function close_task_group! end
 
@@ -436,19 +456,3 @@ function close_task_group!(group; editor = get_evaluation_editor())
     end
 end
 
-# ── The verbs a model may call ─────────────────────────────────────────────
-
-"""
-    make_task_api() -> Vector
-
-The verbs of tasks that a model may call, as the module and the names: list,
-find and describe the groups of the session and their tasks, read the output of
-a task, wait a short while, stop, run again and close, and the title of the tab
-of a group. A window
-declares them beside the verbs of its domain, which start the groups.
-"""
-make_task_api() = Any[
-    TaskModule => (:list_task_groups, :find_task_group, :describe_task_group, :describe_task,
-                   :get_task_output, :wait_for_tasks!, :stop_tasks!, :stop_task!, :rerun_tasks!,
-                   :close_task_group!, :make_task_group_tab_title),
-]

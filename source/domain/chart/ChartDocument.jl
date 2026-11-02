@@ -75,6 +75,8 @@ Use it to set the range, the title and the grid of a numeric axis of a chart.
     open_pane!(chart_1; title = "Sales")
 
 See also `Chart`, which holds it, and `ChartCategoryAxis`.
+
+For the assistant.
 """
 @document struct ChartAxis <: ChartDocument
     title::String = ""
@@ -100,6 +102,8 @@ Use it to name the groups on the axis of a chart of bars.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartCategoryAxis <: ChartDocument
     title::String = ""
@@ -126,6 +130,8 @@ Use it to place the box that names the series of a chart.
     open_pane!(chart_1; title = "Sales")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartLegend <: ChartDocument
     visible::Bool = true
@@ -165,6 +171,8 @@ mean with its interval.
                                                    lower = means .- 0.01, upper = means .+ 0.01)])
 
 See also `Chart`, which holds it, and `ChartScatterSeries`.
+
+For the assistant.
 """
 @document struct ChartLineSeries <: ChartSeries
     label::String
@@ -224,6 +232,8 @@ Use it to draw a cloud of points: it shows how two measures relate.
     open_pane!(chart_1; title = "Delay")
 
 See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
 """
 @document struct ChartScatterSeries <: ChartSeries
     label::String
@@ -269,6 +279,8 @@ Use it to draw a closed form against measured points.
     open_pane!(chart_1; title = "Sine")
 
 See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
 """
 @document struct ChartFunctionSeries <: ChartSeries
     label::String
@@ -309,6 +321,8 @@ Use it to draw one bar for each category: it compares a value between groups.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, `ChartCategoryAxis` and `ChartHistogramSeries`.
+
+For the assistant.
 """
 @document struct ChartBarSeries <: ChartSeries
     label::String
@@ -334,6 +348,8 @@ Use it to draw the share of each part in a whole.
     open_pane!(chart_1; title = "Share")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartPieSeries <: ChartSeries
     label::String
@@ -365,6 +381,8 @@ Use it to draw how the values of a sample spread over equal bins.
     open_pane!(chart_1; title = "Delays")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartHistogramSeries <: ChartSeries
     label::String
@@ -527,6 +545,8 @@ Use it to draw data for the person: it shows one or more series with a title, ax
     open_pane!(Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))]); title = "Sales")
 
 See also `ChartLineSeries`, `ChartBarSeries` and `ChartAxis`.
+
+For the assistant.
 """
 @document struct Chart <: ChartDocument
     title::String

@@ -95,6 +95,8 @@ subagents and background tasks run.
     show_assistant_work!(get_session_assistant_list().assistants[1])
 
 See also `show_document_tree!`, which shows any document as a tree.
+
+For the assistant.
 """
 function show_assistant_work! end
 

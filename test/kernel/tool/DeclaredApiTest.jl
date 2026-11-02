@@ -151,6 +151,46 @@ export search_api
 search_api(query) = "toys"
 end
 
+# A module whose docstrings offer two of its names with the mark. The mark on the
+# docstring of one method offers nothing, because a model reads the docstring of
+# the generic function.
+module ToyMarked
+export toy_offered, toy_hidden, toy_on_method, ToyOffered
+"""
+    toy_offered(x)
+
+A verb that a model may write.
+
+For the assistant.
+"""
+function toy_offered end
+toy_offered(x) = x
+"""A verb that no docstring offers."""
+toy_hidden() = 1
+"""
+    toy_on_method(x)
+
+The generic function, with no mark.
+"""
+function toy_on_method end
+"""
+    toy_on_method(x::Int)
+
+A method whose docstring has the mark.
+
+For the assistant.
+"""
+toy_on_method(x::Int) = x
+"""
+    ToyOffered
+
+A type that a model may write.
+
+For the assistant.
+"""
+struct ToyOffered end
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -728,6 +768,16 @@ function test_declared_api()
         set = ToolSet()
         @test_throws KeyError call_tool(set, "toy_missing_tool";
                                         args = Dict{String,Any}(), target = nothing)
+    end
+
+    @testset "the mark in a docstring offers a name" begin
+        @test has_assistant_mark("A verb.\n\n" * ASSISTANT_MARK)
+        @test !has_assistant_mark("A verb for the assistant.")
+        toy = only(entry for entry in collect_marked_api() if entry.module_ === ToyMarked)
+        @test sort(get_api_entry_names(toy)) == [:ToyOffered, :toy_offered]
+        set = declare_api!(ToolSet(), [toy])
+        @test strip(execute_julia_code!(set, nothing, "toy_offered(5)")) == "5"
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "toy_hidden()"))
     end
 
 end

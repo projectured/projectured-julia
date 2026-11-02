@@ -582,6 +582,8 @@ Use it to give the tab of a group a title that shows how far the group is.
     start_task_group_document!(group)
 
 See also `describe_task_group` and `open_pane!`.
+
+For the assistant.
 """
 function make_task_group_tab_title end
 

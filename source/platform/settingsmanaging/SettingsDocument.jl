@@ -78,6 +78,8 @@ Use it to find the name of a setting before you change it with
     println(describe_settings())
 
 See also `change_setting!`.
+
+For the assistant.
 """
 function describe_settings end
 
@@ -118,6 +120,8 @@ Use it to change how the window looks or works when the person asks for it.
     change_setting!(:partial_render, false)
 
 See also `describe_settings`.
+
+For the assistant.
 """
 function change_setting! end
 

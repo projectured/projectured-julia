@@ -38,6 +38,8 @@ replaces what the reference names.
     first_child.name                   # the name, a plain string
 
 See also `get_document`, `get_reference` and `find_referenced_document`.
+
+For the assistant.
 """
 struct ReferencedDocument{T}
     document::T
@@ -62,6 +64,8 @@ extend, to compare, or to evaluate again.
     tab_reference_1 = get_reference(tab_1)   # from the root of the editor's document
 
 See also `get_document` and `find_pane_reference`.
+
+For the assistant.
 """
 function get_reference end
 
@@ -256,6 +260,8 @@ document that the locator names.
     x = find_referenced_document(locator)
 
 See also `find_referenced_document` and `get_reference`.
+
+For the assistant.
 """
 struct DocumentLocator{S}
     start::S
@@ -285,6 +291,8 @@ Use it to find a document again after the tree changed, or to bring a
     tab_2 = find_referenced_document(locator_1)   # the tab as it is now
 
 See also `DocumentLocator` and `get_reference`.
+
+For the assistant.
 """
 function find_referenced_document end
 
@@ -326,6 +334,8 @@ part, read fresh at the call.
     get_parent(parent, @reference(parent, child))   # parent itself
 
 See also `find_pane` and `get_reference`.
+
+For the assistant.
 """
 function get_parent end
 
@@ -366,6 +376,8 @@ without knowing which layers hold it.
     data = get_edited_document(tab)      # the document the tab shows, through its layers
 
 See also `get_document` and `find_pane`.
+
+For the assistant.
 """
 function get_edited_document end
 

@@ -493,9 +493,8 @@ answers how the group stands, "Ended: …" or "Still running after …: …". Fo
 group that runs for minutes, a model ends its turn, and an assistant whose wake
 is on starts a turn when the group ends ([assistant.md](../assistant/assistant.md)).
 
-`make_task_api()` is what a window declares that a model may call of the slice,
-as a `TaskModule => names` pair, beside the verbs of its domain that start the
-groups.
+The verbs of the slice that a model may call carry the mark `For the assistant.`
+in their docstrings, beside the verbs of the domain that start the groups.
 
 ## Add a kind of task
 
@@ -511,8 +510,8 @@ A domain adds a kind of task in five steps. The example is a build that runs
 4. If the views must show more than every task has, answer the functions of the
    views: `get_task_columns`, `format_task_column`, `format_task_details`,
    `get_task_actions`, `get_task_links` and `get_task_result_document`.
-5. Give a model the verbs: the verbs of the domain that start a group, and
-   `make_task_api()` for the rest.
+5. Give a model the verbs: the verbs of the domain that start a group, each
+   with the mark `For the assistant.` in its docstring; the verbs of the slice carry it already.
 
 ```julia
 struct BuildTask <: AbstractTask

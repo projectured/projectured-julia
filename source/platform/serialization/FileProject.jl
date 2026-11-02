@@ -102,6 +102,8 @@ Use it to read what an open file holds.
     content_1 = get_file_content(file_1)
 
 See also `get_edited_document` and `make_file_tab`.
+
+For the assistant.
 """
 function get_file_content end
 

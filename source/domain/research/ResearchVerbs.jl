@@ -11,21 +11,6 @@
 # `ReferencedDocument`, when it was given the study as one, and as the item
 # itself otherwise; a link takes either.
 
-"""
-The names that the research domain offers to the model of an assistant: the
-documents of a study, the verbs that write it as the assistant, and the reads of
-a study.
-"""
-const RESEARCH_ASSISTANT_API = (
-    :ResearchStudy, :ResearchQuestion, :ResearchSource, :ResearchHypothesis, :ResearchExperiment,
-    :ResearchAnalysis, :ResearchResult, :ResearchEvidence, :ResearchDecision, :ResearchAnswer,
-    :ResearchExpectation, :ResearchMap, :StudyItems,
-    :start_study!, :add_question!, :add_source!, :add_hypothesis!, :add_experiment!, :add_analysis!,
-    :add_result!, :add_evidence!, :add_answer!, :record_decision!, :check_predictions!,
-    :add_study_section!, :add_study_prose!, :embed_in_study!, :add_study_formula!, :add_element!,
-    :describe_study, :find_study_item, :save_study_folder!, :load_study_folder,
-)
-
 # `field` is the field of the study that the operation writes. The operation is
 # read from the study up to the root, so the reference names a place inside the
 # study: a study can be the whole content of a history, one step from the root.
@@ -78,6 +63,8 @@ evidence, decisions and answer.
                            question = "Which queue capacity keeps the drop rate under 1 %?")
 
 See also `add_question!`, `describe_study`.
+
+For the assistant.
 """
 function start_study! end
 
@@ -110,6 +97,8 @@ Use it to state a question of a study, or a narrower question under one.
                                purpose = "the capacity that the router ships with")
 
 See also `add_hypothesis!`, `add_answer!`.
+
+For the assistant.
 """
 function add_question! end
 
@@ -134,6 +123,8 @@ Use it to record what you read or found that the study rests on.
                            summary = "The blocking of M/M/1/K in closed form.")
 
 See also `add_hypothesis!`, `add_evidence!`.
+
+For the assistant.
 """
 function add_source! end
 
@@ -159,6 +150,8 @@ Use it to propose an answer to a question that an experiment or an analysis can 
         prediction = ResearchExpectation(result_selection = selection_1, upper = 0.01))
 
 See also `add_experiment!`, `add_evidence!`, `check_predictions!`.
+
+For the assistant.
 """
 function add_hypothesis! end
 
@@ -183,6 +176,8 @@ Use it to record how a hypothesis is tested by new data, before the runs.
     experiment_1 = add_experiment!(study_1, "Sweep K = 1 … 20"; design = selection_1, tests = ["H1"])
 
 See also `add_result!`, `record_decision!`.
+
+For the assistant.
 """
 function add_experiment! end
 
@@ -207,6 +202,8 @@ against.
     analysis_1 = add_analysis!(study_1, "Mean drop rate by K"; uses = ["R1"], tests = ["H1"])
 
 See also `add_study_formula!`, `add_result!`.
+
+For the assistant.
 """
 function add_analysis! end
 
@@ -230,6 +227,8 @@ Use it to keep the data of a run or an analysis in the study.
     result_1 = add_result!(study_1, "Drop rate by K", table_1; origin = "X1")
 
 See also `add_evidence!`.
+
+For the assistant.
 """
 function add_result! end
 
@@ -252,6 +251,8 @@ Use it to record what a result or a source shows about a hypothesis or an answer
                                basis = ["R1"], supports = ["H1"])
 
 See also `record_decision!`, `check_predictions!`.
+
+For the assistant.
 """
 function add_evidence! end
 
@@ -275,6 +276,8 @@ Use it to write down the conclusion of a study with its limits.
                            caveats = "Poisson arrivals only.", basis = ["E1"])
 
 See also `record_decision!`.
+
+For the assistant.
 """
 function add_answer! end
 
@@ -302,6 +305,8 @@ an item. The person decides; the record shows who decided.
                      basis = ["E1"], reason = "The interval of E1 is under the bound.")
 
 See also `add_evidence!`, `describe_study`.
+
+For the assistant.
 """
 function record_decision! end
 
@@ -408,6 +413,8 @@ Use it after the runs, to hold the results against what the hypotheses predicted
     check_predictions!(study_1, selection -> read_values(selection))
 
 See also `ResearchExpectation`, `add_hypothesis!`, `record_decision!`.
+
+For the assistant.
 """
 function check_predictions! end
 
@@ -471,6 +478,8 @@ method, the results, the answer.
     add_study_section!(study_1, "The model", "A source feeds a queue with a finite buffer.")
 
 See also `add_study_prose!`, `embed_in_study!`.
+
+For the assistant.
 """
 function add_study_section! end
 
@@ -491,6 +500,8 @@ Use it to write an explanation, a remark or a transition into the report.
     add_study_prose!(study_1, "The load is 0.8, so the queue is busy four fifths of the time.")
 
 See also `add_study_section!`.
+
+For the assistant.
 """
 function add_study_prose! end
 
@@ -512,6 +523,8 @@ Use it to put an item or a document into the report where the reader sees it.
     embed_in_study!(study_1, find_study_item(study_1, "E1"))
 
 See also `add_study_section!`.
+
+For the assistant.
 """
 function embed_in_study! end
 
@@ -541,6 +554,8 @@ sheet calls it, and a chart draws it.
     add_study_formula!(study_1, "S_{peak}", "S_{pure}(0.5)")     # a call from another formula
 
 See also `ResearchExpectation`, `check_predictions!`.
+
+For the assistant.
 """
 function add_study_formula! end
 
@@ -594,6 +609,8 @@ Use it to read a study before you add to it, or to say what it holds.
     describe_study(study_1)
 
 See also `find_study_item`, `StudyItems`.
+
+For the assistant.
 """
 function describe_study end
 

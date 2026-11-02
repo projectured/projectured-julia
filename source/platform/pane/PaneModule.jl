@@ -98,7 +98,7 @@ export show_layout, get_referenced_value, replace_referenced_value!,
        find_pane, find_focused_pane, find_pane_reference, find_pane_tree_reference, is_pane_search_step,
        post_pane_operation!,
        get_window_tree, describe_document,
-       pane_group_to_avoid, avoids_new_panes, make_pane_api, make_interface_api
+       pane_group_to_avoid, avoids_new_panes
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,

@@ -52,7 +52,7 @@ export ResearchItemToWidget, ResearchStudyToWidget, make_research_projections, m
 export ResearchMap, ResearchMapToGraph, ResearchMapToGraphIoMap,
        make_research_map_projection
 export StudyItems
-export RESEARCH_ASSISTANT_API, start_study!, add_question!, add_source!, add_hypothesis!,
+export start_study!, add_question!, add_source!, add_hypothesis!,
        add_experiment!, add_analysis!, add_result!, add_evidence!, add_answer!, record_decision!,
        get_expectation_bounds, check_predictions!, add_study_section!, add_study_prose!,
        embed_in_study!, add_study_formula!, describe_study
@@ -74,10 +74,9 @@ function __init__()
     # one as its card inside any other document.
     register_natural_graphics!(:research, make_research_graphics_entries)
 
-    # What the model of an assistant may write about a study: the documents, the
-    # verbs that write it as the assistant, and the reads of a study. Each verb is
-    # an edit of the editor, which a person takes back with Ctrl+Z.
-    register_assistant_api!(ResearchModule => RESEARCH_ASSISTANT_API;
+    # The sentence that the system text of a window says about a study: the
+    # documents, the verbs that write it as the assistant, and the reads of a study.
+    register_assistant_api!(Any[];
         description = "A study records the work on one problem by the scientific approach: " *
                       "questions, sources, hypotheses, experiments, analyses, results, evidence, " *
                       "decisions and answers, each with an id such as H1, its author and its time. " *

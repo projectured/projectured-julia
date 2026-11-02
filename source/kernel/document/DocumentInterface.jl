@@ -144,6 +144,8 @@ function that has no method for a referenced document.
     items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
 
 See also `get_reference` and `get_edited_document`.
+
+For the assistant.
 """
 function get_document end
 
@@ -467,6 +469,8 @@ for: the file holds the document, not the history of it.
     document = get_wrapped_document(node)   # what a save writes to the file
 
 See also `copy_document` and `replace_wrapped_document!`.
+
+For the assistant.
 """
 function get_wrapped_document end
 
@@ -535,5 +539,7 @@ Use it to list the documents that hold a text, or that a test accepts, anywhere 
     matches_1 = search_documents(editor.document, "temperature")
 
 See also `get_edited_document` and `get_wrapped_document`.
+
+For the assistant.
 """
 function search_documents end

@@ -164,7 +164,11 @@ Use it to keep a document that the work needs beside the record it belongs to.
 # Example
 
     add_element!(step_1, PrimitiveString("a note"))
+
+For the assistant.
 """
+function add_element! end
+
 function add_element!(holder, document; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_element!") do
         operation = make_add_element_operation(get_document(holder), get_document(document))

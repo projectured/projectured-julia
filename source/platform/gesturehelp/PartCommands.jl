@@ -83,6 +83,8 @@ of an entry of the explorer.
     println(describe_commands(find_explorer_content().entries[1]))
 
 See also `run_command!`, `find_selected_part`.
+
+For the assistant.
 """
 function describe_commands end
 
@@ -114,6 +116,8 @@ the end of a JSON array.
     run_command!(people_1, "Insert a new element")
 
 See also `describe_commands`, `replace_referenced_value!`.
+
+For the assistant.
 """
 function run_command! end
 

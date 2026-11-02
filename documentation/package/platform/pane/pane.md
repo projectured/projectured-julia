@@ -223,7 +223,7 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 To find a tab again after the layout changes, keep a `DocumentLocator` instead of a `ReferencedDocument`: `DocumentLocator(editor, find_pane_reference("items.json"))` is not resolved yet, and `find_referenced_document` resolves it again at each call, so it still finds the tab after a pane moves, after an unrelated sibling closes, or after `replace_referenced_value!` replaces the tab itself.
 
-`make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
+The names that a model may write carry the mark `For the assistant.` in their docstrings: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. The mark offers a name and not its module; a declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
 ### The shape of the pointer during the drag of a tab
 
@@ -249,7 +249,7 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 The pane slice depends on the kernel and on the widget, layout, clipboard, domain, dragging, focus, primitive, collection, projection and serialization slices. It adds methods to `find_clipboard_document`, `accepts_pasted_replacement`, `has_dormant_selection`, `pred_arguments` and `make_pred_document`.
 
-The shell slice puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system slice opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
+The shell slice puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system slice opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and marks the names of its own domain for its assistant.
 
 ## Design decisions
 

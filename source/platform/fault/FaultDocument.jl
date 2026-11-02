@@ -151,6 +151,8 @@ for each fault, with its place, its message and its count.
     println(print_natural_text(get_session_fault_log()))
 
 See also `get_session_message_log`, `get_session_gesture_log`.
+
+For the assistant.
 """
 function get_session_fault_log end
 

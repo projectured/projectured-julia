@@ -99,11 +99,11 @@ A page with no file answers `nothing` for `name`, `folder` and `has_edits`. The 
 
 ### The tool set
 
-`make_file_api()` lists the file verbs that a language model can call: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
+The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 
-The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) adds `make_file_api()` to its tool set.
+The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) offers its marked names to the assistant.
 
 It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FilePage` with `FilePageToWidget`; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
 

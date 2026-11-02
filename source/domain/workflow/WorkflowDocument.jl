@@ -37,6 +37,8 @@ Use it to read or build a thing to do in a workflow, with its sub-steps.
     step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
 
 See also `add_workflow_step!`, `change_workflow_state!`.
+
+For the assistant.
 """
 @document struct WorkflowStep <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -64,6 +66,8 @@ Use it to read or build a branch point of a workflow, with its options.
     decision_1 = WorkflowDecision(question = PrimitiveString("Where does the view live?"))
 
 See also `record_workflow_decision!`, `WorkflowOption`.
+
+For the assistant.
 """
 @document struct WorkflowDecision <: WorkflowDocument
     question::PrimitiveString = PrimitiveString("")
@@ -91,6 +95,8 @@ Use it to read or build one answer of a decision, with its state and reason.
     option_1 = WorkflowOption(title = PrimitiveString("a widget view"), state = :chosen)
 
 See also `choose_workflow_option!`, `WorkflowDecision`.
+
+For the assistant.
 """
 @document struct WorkflowOption <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -124,6 +130,8 @@ Use it to read a dated record in the journal of a node.
     entry_1 = make_workflow_entry("The view embeds an element."; author = :assistant)
 
 See also `add_workflow_entry!`, `collect_workflow_entries`.
+
+For the assistant.
 """
 @document struct WorkflowEntry <: WorkflowDocument
     time::String = ""
@@ -150,6 +158,8 @@ Use it to show the entries of a whole workflow as one document.
     journal_1 = WorkflowJournal(workflow = workflow_1, kind = :decision)
 
 See also `collect_workflow_entries`, `WorkflowEntry`.
+
+For the assistant.
 """
 @document struct WorkflowJournal <: WorkflowDocument
     workflow::Any = nothing

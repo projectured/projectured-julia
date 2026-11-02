@@ -16,6 +16,8 @@ Use it to show the structure of the argument of a study at one look.
     map_1 = ResearchMap(study = study_1)
 
 See also `ResearchStudy`, `collect_research_links`.
+
+For the assistant.
 """
 @document struct ResearchMap <: ResearchDocument
     study::Any = nothing

@@ -61,6 +61,8 @@ Use it to save a document to a file, in the format of the extension of the file.
     write_document_file(notes_1, "notes_copy.json")
 
 See also `read_document_file` and `export_document`.
+
+For the assistant.
 """
 function write_document_file end
 
@@ -88,6 +90,8 @@ Use it to read a file of any supported format into a document.
     notes_1 = read_document_file("notes.json")
 
 See also `write_document_file` and `import_document`.
+
+For the assistant.
 """
 function read_document_file end
 
@@ -155,6 +159,8 @@ Use it to make the document of a file, with the content that the file holds on t
     file_1 = make_file_tab("notes.json")
 
 See also `make_file_tab_content` and `read_document_file`.
+
+For the assistant.
 """
 function make_file_tab end
 
@@ -187,6 +193,8 @@ Use it to open a file in a tab.
     open_pane!(content_1; title = "notes.json")
 
 See also `make_file_tab` and `open_pane!`.
+
+For the assistant.
 """
 function make_file_tab_content end
 
@@ -219,6 +227,8 @@ Use it to write an open file to the disk, as Ctrl+S does.
     evaluate_operation(editor, SaveFileOperation(file_1))
 
 See also `ReloadFileOperation` and `write_document_file`.
+
+For the assistant.
 """
 struct SaveFileOperation <: Operation
     file::FileDocument
@@ -418,6 +428,8 @@ Use it to read an open file again from the disk, as F5 does.
     evaluate_operation(editor, ReloadFileOperation(file_1))
 
 See also `SaveFileOperation` and `make_file_tab`.
+
+For the assistant.
 """
 struct ReloadFileOperation <: Operation
     file::FileDocument
@@ -478,24 +490,3 @@ end
 OperationModule.is_self_contained_operation(::Union{SaveFileOperation,
                                                     ReloadFileOperation}) = true
 
-# ── What a model may write about a file ─────────────────────────────────────
-
-"""
-    make_file_api() -> Vector
-
-The file verbs a model may call, as [`declare_api!`](@ref) takes them.
-
-A host concatenates this with the other vocabularies it offers. It names only
-this slice's own verbs: opening a path as a tab, reading and writing a document,
-and the two operations a key answers. Where a file comes FROM — a workspace, a
-file list, a dialog — belongs to the host, because a host knows what it holds.
-"""
-make_file_api() = Any[
-    FileFormatModule => (
-        # A path becomes a tab, and a tab becomes a file again.
-        :make_file_tab, :make_file_tab_content, :read_document_file, :write_document_file,
-        # What Ctrl+S and F5 answer with.
-        :SaveFileOperation, :ReloadFileOperation,
-        # Text in, document out, and back.
-        :import_document, :export_document),
-]
