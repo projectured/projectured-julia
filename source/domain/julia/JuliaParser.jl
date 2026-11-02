@@ -54,7 +54,19 @@ statement on each line; a single expression is returned bare. Statements on one
 line with `;` between them are a `JuliaToplevel` with `on_one_line`, and a line
 that ends with `;` sets its `trailing_semicolon`. A comment becomes a `JuliaComment`, a
 `JuliaMultilineComment` or a `JuliaEndOfLineComment` (see "Comments" below).
+
+Use it to read Julia source into a document that you can open in a pane or edit.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1")
+
+See also `parse_math` and `find_julia_definition`.
+
+For the assistant.
 """
+function parse_julia end
+
 function parse_julia(text::AbstractString)
     source = String(text)
     comments = _collect_julia_comments(source)

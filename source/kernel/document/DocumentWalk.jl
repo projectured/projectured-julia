@@ -141,6 +141,8 @@ Use it to know whether a search found everything before you act on its answer.
     is_search_complete(search_documents(editor.document, "temperature"))
 
 See also `DocumentMatches`.
+
+For the assistant.
 """
 function is_search_complete end
 
@@ -246,7 +248,19 @@ the caller. An exception that is not a fault (`is_fault_exception`) never
 reaches `on_error`: it ends the walk.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
+
+Use it to walk a document with a walk of your own, such as `DocumentWalk()`, which answers the matching objects.
+
+# Example
+
+    matches_1 = walk_document(DocumentWalk(), document_1, value -> value isa String; limit = 10)
+
+See also `search_documents` and `search_references`.
+
+For the assistant.
 """
+function walk_document end
+
 function walk_document(walk::DocumentWalk, obj, predicate;
                        include_selection::Bool=false, maxdepth::Int=64,
                        limit::Union{Integer,Nothing} = 100, raw::Bool=false,

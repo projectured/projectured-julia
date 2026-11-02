@@ -316,7 +316,19 @@ end
 
 Parse a Markdown string into a `MarkdownRoot`. Never errors: unrecognised or
 malformed constructs degrade to plain paragraphs / literal text.
+
+Use it to read Markdown text into a document that you can open in a pane or edit.
+
+# Example
+
+    markdown_1 = parse_markdown("# Title\\n\\nA paragraph.")
+
+See also `parse_rst` and `get_markdown_section`.
+
+For the assistant.
 """
+function parse_markdown end
+
 function parse_markdown(text::AbstractString)
     normalized = replace(String(text), "\r\n" => "\n", "\r" => "\n")
     lines = String.(split(normalized, '\n'))

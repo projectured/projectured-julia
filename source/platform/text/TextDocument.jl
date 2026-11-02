@@ -421,7 +421,19 @@ keys a line by its object lays out the changed lines only.
 With a `placeholder` and an `empty_thunk`, the block is one line that shows the
 placeholder in a muted colour while `empty_thunk()` is true, as
 [`make_hinted_text`](@ref) does for one run; the line is the same object each time.
+
+Use it to make a text of lines from a string.
+
+# Example
+
+    block_1 = make_text_block("first line\\nsecond line")
+
+See also `get_flat_string`.
+
+For the assistant.
 """
+function make_text_block end
+
 make_text_block(content::AbstractString) =
     make_text_block(content, StyleText(UNSTYLED_TEXT_FONT, color_default))
 
@@ -912,7 +924,19 @@ end
 The text as one string, one character for each position of the flat caret space
 (`get_flat_offsets`): a break for the break before a `TextLine`, a space for a `TextSpacing` and for each column of indentation, and
 U+FFFC for an inline image. An offset into the string is a flat offset.
+
+Use it to read a text as one string, in which an offset is a flat offset.
+
+# Example
+
+    string_1 = get_flat_string(make_text_block("first line\\nsecond line"))
+
+See also `make_text_block`.
+
+For the assistant.
 """
+function get_flat_string end
+
 get_flat_string(text::TextBlock) = String(_flat_chars(text))
 
 # The text of one line, its indentation included, with no break.

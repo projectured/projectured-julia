@@ -92,7 +92,19 @@ exception, and the default counts it as no match; see `walk_document`.
 arrays, dicts), not only document trees. Searching derived/intermediate state for
 debugging is one such use; the debugging guide's "Searching the pipeline state"
 covers it (those paths are for inspection only, not selectable).
+
+Use it to find where in a document the matches are, as references that you can read, select or open.
+
+# Example
+
+    references_1 = search_references(document_1, "TODO")
+
+See also `search_documents` and `evaluate_reference`.
+
+For the assistant.
 """
+function search_references end
+
 function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
     locations = walk_document(_PATH_WALK, root, predicate; kwargs...)

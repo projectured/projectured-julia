@@ -335,7 +335,7 @@ A bound on recorded values: the prediction of a hypothesis that
   its value times `1 - tolerance` and `1 + tolerance`.
 - `tolerance` — the share of the reference that a value can differ by.
 
-Use it as the `prediction` of a hypothesis that a check of the results tests.
+Use it to give the `prediction` of a hypothesis that a check of the results tests.
 
 # Example
 
@@ -482,7 +482,19 @@ const RESEARCH_AUTHORS = (:person, :assistant)
 
 The entry of `RESEARCH_KINDS` for the item type `type` or for an item: its field,
 its type, its letter and its name.
+
+Use it to find the field, the letter and the name of a kind of item, such as the `H` of a hypothesis.
+
+# Example
+
+    kind_1 = get_research_kind(ResearchHypothesis)
+
+See also `get_research_item_text` and `has_research_status`.
+
+For the assistant.
 """
+function get_research_kind end
+
 function get_research_kind(type::Type{<:ResearchItem})
     for kind in RESEARCH_KINDS
         type <: kind.type && return kind
@@ -495,7 +507,21 @@ get_research_kind(item::ResearchItem) = get_research_kind(typeof(item))
     has_research_status(item) -> Bool
 
 Whether `item` has a status: every item but a decision.
+
+Use it to check whether an item takes a status such as `:open` or `:accepted`.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    is_status_1 = has_research_status(hypothesis_1)
+
+See also `get_research_kind`.
+
+For the assistant.
 """
+function has_research_status end
+
 has_research_status(item::ResearchItem) = !(item isa ResearchDecision)
 
 """
@@ -503,7 +529,22 @@ has_research_status(item::ResearchItem) = !(item isa ResearchDecision)
 
 The items of the lists of `study`, in the order of the kinds and, in a list, in
 the order that they were made. An item that a link holds is not given again.
+
+Use it to list every item of a study in one vector.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    study_1 = ResearchStudy(title = PrimitiveString("Buffer"), questions = [question_1], hypotheses = [hypothesis_1])
+    items_1 = collect_study_items(study_1)
+
+See also `collect_research_links` and `get_research_item_text`.
+
+For the assistant.
 """
+function collect_study_items end
+
 function collect_study_items(study::ResearchStudy)
     items = ResearchItem[]
     for kind in RESEARCH_KINDS
@@ -562,7 +603,21 @@ end
 
 The text that names `item`: the title of an experiment, an analysis or a result,
 the citation of a source, the statement of any other item.
+
+Use it to read the words that name an item of a study.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    text_1 = get_research_item_text(hypothesis_1)
+
+See also `get_research_kind` and `collect_study_items`.
+
+For the assistant.
 """
+function get_research_item_text end
+
 get_research_item_text(item::Union{ResearchExperiment, ResearchAnalysis, ResearchResult}) = item.title
 get_research_item_text(item::ResearchSource) = item.citation
 get_research_item_text(item::ResearchItem) = item.statement

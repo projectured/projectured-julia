@@ -70,7 +70,20 @@ A macro that DECLARES rather than decorates states the name itself
 instead of wrapping a definition that carries one, so its first
 argument is the name: `@header Ipv4Header begin … end` is found under
 `"Ipv4Header"`.
+
+Use it to find the name that a statement of a Julia file defines.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1")
+    name_1 = get_julia_definition_name(julia_1)
+
+See also `find_julia_definition` and `parse_julia`.
+
+For the assistant.
 """
+function get_julia_definition_name end
+
 get_julia_definition_name(::Any) = nothing
 get_julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
 get_julia_definition_name(n::JuliaStruct)       = _julia_header_name(n.header)
@@ -110,7 +123,20 @@ when there is more than one — an ambiguous embed would silently show
 the wrong half of a file, so it is not allowed. Method overloads of one
 function are the common case of that and must be embedded by wrapping
 them, not by name.
+
+Use it to take one definition out of a Julia file by its name.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1\\ng(x) = x * 2")
+    definition_1 = find_julia_definition(julia_1, "g")
+
+See also `get_julia_definition_name` and `parse_julia`.
+
+For the assistant.
 """
+function find_julia_definition end
+
 function find_julia_definition(document, name::AbstractString)
     doc = is_file_document(document) ? get_file_content(document) : document
     doc isa JuliaDocument ||

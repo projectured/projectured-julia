@@ -62,7 +62,19 @@ first 20 rows that show. `roster` is what [`show_roster!`](@ref) answers: the
 roster with its path in its window. The link of the roster is the document of the
 window, which holds the arrangement of its rows; a roster with no link shows every
 row.
+
+Use it to tell a person how a roster shows after its arrangement changed.
+
+# Example
+
+    text_1 = describe_roster(roster_1)
+
+See also `describe_arrangement` and `get_roster_source_names`.
+
+For the assistant.
 """
+function describe_roster end
+
 function describe_roster(handle::ReferencedDocument)
     roster = get_document(handle)
     roster isa Roster || throw(ArgumentError("describe_roster takes what show_roster! answers."))

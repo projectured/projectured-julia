@@ -341,7 +341,13 @@ It reads the live tree: a tab that an undo holds is not in it.
 # Example
 
     collect_pane_tab_contents(tree, Assistant)     # the assistant tabs of the window
+
+See also `get_wrapped_document` and `get_session_assistant_list`.
+
+For the assistant.
 """
+function collect_pane_tab_contents end
+
 function collect_pane_tab_contents(tree::PaneTree, T::Type)
     found = T[]
     for group in get_pane_groups(tree)

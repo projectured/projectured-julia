@@ -577,9 +577,8 @@ Use it to give the tab of a group a title that shows how far the group is.
 
 # Example
 
-    group = wrap_task_group_document(TaskGroup(tasks; name = "builds"))
-    open_pane!(group; title = "Builds")
-    start_task_group_document!(group)
+    group_1 = find_task_group("T3")
+    title_1 = make_task_group_tab_title(group_1)
 
 See also `describe_task_group` and `open_pane!`.
 

@@ -41,7 +41,21 @@ parse_file_content(::Type{<:RstFile}, text::AbstractString) = parse_rst(text)
 
 The plain text of a section's title, with every inline marker dropped. This is
 what addresses a section by name, so `:ned:`Foo`` in a title reads as `Foo`.
+
+Use it to read the words of a section title without its markup.
+
+# Example
+
+    rst_1 = parse_rst("Intro\\n=====\\n\\nText.")
+    section_1 = find_rst_section(rst_1, "Intro")
+    title_1 = get_rst_title_text(section_1)
+
+See also `find_rst_section` and `parse_rst`.
+
+For the assistant.
 """
+function get_rst_title_text end
+
 function get_rst_title_text(section::RstSection)
     buffer = IOBuffer()
     _collect_run_text!(buffer, section.title)
@@ -65,7 +79,20 @@ The section of `document` whose title reads `title`, searched depth first.
 The section tree already owns its blocks, so this returns the node itself —
 unlike the markdown counterpart, which has to gather the blocks that follow a
 heading because markdown headings do not nest.
+
+Use it to take one section out of a reStructuredText page by its title.
+
+# Example
+
+    rst_1 = parse_rst("Intro\\n=====\\n\\nText.")
+    section_1 = find_rst_section(rst_1, "Intro")
+
+See also `get_rst_title_text`, `parse_rst` and `get_markdown_section`.
+
+For the assistant.
 """
+function find_rst_section end
+
 function find_rst_section(document, title::AbstractString)
     for element in _elements_of(document)
         element isa RstSection || continue

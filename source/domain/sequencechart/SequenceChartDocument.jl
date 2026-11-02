@@ -96,7 +96,20 @@ end
 
 How many rows the table really has: the shortest of the columns that must be
 present, so a half-written table renders what it can instead of throwing.
+
+Use it to know how many events a sequence chart has.
+
+# Example
+
+    events_1 = SequenceChartEvents([0.0, 1.0], [1, 2]; labels = ["send", "receive"])
+    count_1 = get_event_count(events_1)
+
+See also `get_event_label` and `get_arrow_count`.
+
+For the assistant.
 """
+function get_event_count end
+
 get_event_count(e::SequenceChartEvents) = min(length(e.times), length(e.axes))
 
 """
@@ -119,7 +132,20 @@ get_event_kind(e::SequenceChartEvents, i::Integer) = i <= length(e.kinds) ? Int(
     get_event_label(events, i) -> String | nothing
 
 Row `i`'s label, when the table carries any.
+
+Use it to read the label of one event of a sequence chart.
+
+# Example
+
+    events_1 = SequenceChartEvents([0.0, 1.0], [1, 2]; labels = ["send", "receive"])
+    label_1 = get_event_label(events_1, 1)
+
+See also `get_event_count` and `get_arrow_label`.
+
+For the assistant.
 """
+function get_event_label end
+
 get_event_label(e::SequenceChartEvents, i::Integer) =
     e.labels === nothing || i > length(e.labels) ? nothing : String(e.labels[i])
 
@@ -157,7 +183,20 @@ end
     get_arrow_count(arrows) -> Int
 
 How many arrows the table really has — the shorter of the two endpoint columns.
+
+Use it to know how many arrows a sequence chart has.
+
+# Example
+
+    arrows_1 = SequenceChartArrows([1], [2]; labels = ["request"])
+    count_1 = get_arrow_count(arrows_1)
+
+See also `get_arrow_label` and `get_event_count`.
+
+For the assistant.
 """
+function get_arrow_count end
+
 get_arrow_count(a::SequenceChartArrows) = min(length(a.sources), length(a.targets))
 
 """
@@ -171,7 +210,20 @@ get_arrow_kind(a::SequenceChartArrows, k::Integer) = k <= length(a.kinds) ? Int(
     get_arrow_label(arrows, k) -> String | nothing
 
 Arrow `k`'s label, when the table carries any.
+
+Use it to read the label of one arrow of a sequence chart.
+
+# Example
+
+    arrows_1 = SequenceChartArrows([1], [2]; labels = ["request"])
+    label_1 = get_arrow_label(arrows_1, 1)
+
+See also `get_arrow_count` and `get_event_label`.
+
+For the assistant.
 """
+function get_arrow_label end
+
 get_arrow_label(a::SequenceChartArrows, k::Integer) =
     a.labels === nothing || k > length(a.labels) ? nothing : String(a.labels[k])
 
@@ -757,7 +809,23 @@ _chart_field_reference(chart::SequenceChart, field::AbstractString) =
     get_selected_event(chart) -> Int
 
 Which occurrence the selection names, or `0` when it names something else.
+
+Use it to find which event of a sequence chart the person has selected.
+
+# Example
+
+    events_1 = SequenceChartEvents([0.0, 1.0], [1, 2]; labels = ["send", "receive"])
+    arrows_1 = SequenceChartArrows([1], [2]; labels = ["request"])
+    chart_1 = SequenceChart("Request", [SequenceChartAxis("client"), SequenceChartAxis("server")];
+                           events = events_1, arrows = arrows_1)
+    event_1 = get_selected_event(chart_1)
+
+See also `get_selected_arrow` and `get_event_label`.
+
+For the assistant.
 """
+function get_selected_event end
+
 function get_selected_event(chart::SequenceChart)
     reference = chart.selection
     reference === nothing && return 0
@@ -772,7 +840,23 @@ end
     get_selected_arrow(chart) -> Int
 
 Which arrow the selection names, or `0`.
+
+Use it to find which arrow of a sequence chart the person has selected.
+
+# Example
+
+    events_1 = SequenceChartEvents([0.0, 1.0], [1, 2]; labels = ["send", "receive"])
+    arrows_1 = SequenceChartArrows([1], [2]; labels = ["request"])
+    chart_1 = SequenceChart("Request", [SequenceChartAxis("client"), SequenceChartAxis("server")];
+                           events = events_1, arrows = arrows_1)
+    arrow_1 = get_selected_arrow(chart_1)
+
+See also `get_selected_event` and `get_arrow_label`.
+
+For the assistant.
 """
+function get_selected_arrow end
+
 function get_selected_arrow(chart::SequenceChart)
     reference = chart.selection
     reference === nothing && return 0

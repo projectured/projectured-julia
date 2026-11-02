@@ -274,6 +274,16 @@ record_saved_state!(content) = nothing
 Whether `content`, what a file holds, has edits since its file was read or saved.
 A history answers it from its steps. The default answers `nothing`, for a content
 that keeps no history and so can not say.
+
+Use it to tell whether the file that holds a content differs from what the content is now.
+
+# Example
+
+    has_unsaved_edits(content_1)
+
+See also `compute_file_text`.
+
+For the assistant.
 """
 function has_unsaved_edits end
 
@@ -393,9 +403,20 @@ end
 
 The text that `SaveFileOperation` writes for `file` now: the document that the
 file holds, without a wrapper such as a history, in the notation of the file
-type. It writes nothing. Use it to compare a file document with its file on
-disk.
+type. It writes nothing.
+
+Use it to compare a file document with its file on disk.
+
+# Example
+
+    text_1 = compute_file_text(file_1)
+
+See also `has_unsaved_edits` and `SaveFileOperation`.
+
+For the assistant.
 """
+function compute_file_text end
+
 compute_file_text(file::FileDocument) =
     cut_file_text(_make_plain_file(file), dirname(abspath(get_filename(file))))
 

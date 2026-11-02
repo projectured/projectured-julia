@@ -205,8 +205,8 @@ correct by construction rather than by hand. Use this whenever the document is
 in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
 
-See also [`@reference_step`](@ref), which builds a single step, and
-[`@reference_case`](@ref), which matches the same grammar.
+See also `parse_reference_path`, which reads a path from text, and
+`extend_reference`.
 
 For the assistant.
 """

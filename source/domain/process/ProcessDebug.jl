@@ -63,7 +63,20 @@ that computes for long holds no frame.
 
 The task never throws `ProcessStoppedException` outward: a stopped process is a normal
 outcome of debugging, not a failure.
+
+Use it to run a process model on a task, to watch it or to step through it.
+
+# Example
+
+    process_1 = ProcessModel("transmit"; parameters = [parse_julia("frame")], body = ProcessSequence([]))
+    run_1 = start_process(process_1, 1; mode = :step)
+
+See also `realize_process_text`.
+
+For the assistant.
 """
+function start_process end
+
 function start_process(model::ProcessModel, arguments...;
                        context::Module = Module(:ProcessRunContext),
                        instrumentation::Symbol = :position,

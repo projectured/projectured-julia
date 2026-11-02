@@ -254,6 +254,18 @@ A hook that throws a [`DocumentCopyException`](@ref) stops the whole copy.
 
 The policy comes first, and a cell type never is a policy, so no method of one
 form is ambiguous with a method of the other.
+
+Use it to put a copy of a document in a second place, such as a new tab, so that
+an edit of one place leaves the other as it is.
+
+# Example
+
+    copy_1 = copy_document(get_document(get_edited_document(find_pane("items.json"))))
+    open_pane!(copy_1; title = "Items, a copy")
+
+See also `get_document` and `open_pane!`.
+
+For the assistant.
 """
 function copy_document end
 
@@ -468,7 +480,7 @@ for: the file holds the document, not the history of it.
 
     document = get_wrapped_document(node)   # what a save writes to the file
 
-See also `copy_document` and `replace_wrapped_document!`.
+See also `copy_document`.
 
 For the assistant.
 """

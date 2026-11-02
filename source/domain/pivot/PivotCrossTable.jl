@@ -125,6 +125,44 @@ end
 # finds its number too.
 _make_key_index(keys::Vector{Tuple}) = Dict{Tuple,Int}(key => k for (k, key) in enumerate(keys))
 
+"""
+    get_pivot_row_count(cross::PivotCrossTable) -> Int
+
+The number of rows of the cross table `cross`, the totals among them.
+
+Use it to know how many rows a pivot shows.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    count_1 = get_pivot_row_count(pivot_1.cross_table)
+
+See also `get_pivot_column_count` and `compute_pivot_cross_table`.
+
+For the assistant.
+"""
+function get_pivot_row_count end
+
+"""
+    get_pivot_column_count(cross::PivotCrossTable) -> Int
+
+The number of columns of the cross table `cross`, the totals among them.
+
+Use it to know how many columns a pivot shows.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    count_1 = get_pivot_column_count(pivot_1.cross_table)
+
+See also `get_pivot_row_count` and `compute_pivot_cross_table`.
+
+For the assistant.
+"""
+function get_pivot_column_count end
+
 get_pivot_row_count(cross::PivotCrossTable) = length(cross.row_keys)
 get_pivot_column_count(cross::PivotCrossTable) = length(cross.column_keys)
 
@@ -193,7 +231,21 @@ values does not make a table of thousands of columns.
 With `totals`, a subtotal row follows each run of an outer row dimension, a
 total row follows every row, and a total column every column. A run whose key
 prefix is in `collapsed` shows only its subtotal row, with or without `totals`.
+
+Use it to find which rows of a table fall in each cell of a pivot, with the keys of its rows and columns and their totals.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    cross_1 = compute_pivot_cross_table(pivot_1)
+
+See also `make_pivot_table`, `get_pivot_row_count` and `get_pivot_column_count`.
+
+For the assistant.
 """
+function compute_pivot_cross_table end
+
 function compute_pivot_cross_table(pivot::PivotTable)
     pivot.source_version
     compute_pivot_cross_table(pivot.source, collect(pivot.row_dimensions), collect(pivot.column_dimensions);

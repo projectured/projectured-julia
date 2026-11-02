@@ -38,7 +38,19 @@ end
 
 Construct a `RangeReferenceStep` representing the `index`-th element (1-based).
 Equivalent to `RangeReferenceStep(index - 1, index)`.
+
+Use it to name the n-th element of a collection in a reference.
+
+# Example
+
+    step_1 = ElementReferenceStep(3)
+
+See also `PositionReferenceStep` and `RangeReferenceStep`.
+
+For the assistant.
 """
+function ElementReferenceStep end
+
 ElementReferenceStep(index::Int) = RangeReferenceStep(index - 1, index)
 
 """
@@ -46,7 +58,19 @@ ElementReferenceStep(index::Int) = RangeReferenceStep(index - 1, index)
 
 Construct a `RangeReferenceStep` representing a cursor position (0-based).
 Equivalent to `RangeReferenceStep(index, index)`.
+
+Use it to name a place between two elements, such as a caret place, in a reference.
+
+# Example
+
+    step_1 = PositionReferenceStep(0)
+
+See also `ElementReferenceStep` and `RangeReferenceStep`.
+
+For the assistant.
 """
+function PositionReferenceStep end
+
 PositionReferenceStep(index::Int) = RangeReferenceStep(index, index)
 
 # The M (plain-layout) conveniences, for a hot path that builds VALUE steps.

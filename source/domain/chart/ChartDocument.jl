@@ -702,7 +702,20 @@ _chart_series_reference(chart::Chart, index::Integer) =
 Every selectable part of a chart, in reading order: the title, the x axis, the
 y axis, the legend, then each series. Navigation walks this list, and the
 projection draws whichever entry is selected.
+
+Use it to list the parts of a chart that a person can select or that an edit can act on.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))])
+    parts_1 = collect_chart_parts(chart_1)
+
+See also `Chart` and `ChartAxis`.
+
+For the assistant.
 """
+function collect_chart_parts end
+
 function collect_chart_parts(chart::Chart)
     parts = Reference[_chart_field_reference(chart, "title"),
                       _chart_field_reference(chart, "x_axis"),

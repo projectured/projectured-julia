@@ -173,7 +173,19 @@ end
 
 The names of the stores that the loaded slices registered as sources, in the order
 of their names.
+
+Use it to list the stores that a roster can take its rows from.
+
+# Example
+
+    names_1 = get_roster_source_names()
+
+See also `describe_roster`.
+
+For the assistant.
 """
+function get_roster_source_names end
+
 get_roster_source_names() = sort!(collect(keys(_ROSTER_SOURCES)))
 
 """

@@ -165,6 +165,8 @@ Use it to keep a document that the work needs beside the record it belongs to.
 
     add_element!(step_1, PrimitiveString("a note"))
 
+See also `add_workflow_entry!` and `add_study_section!`.
+
 For the assistant.
 """
 function add_element! end

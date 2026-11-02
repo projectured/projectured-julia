@@ -52,7 +52,19 @@ type that a person does not edit ([`is_editable_file_type`](@ref)) is read with
 it, so a type whose file is too large to read whole, such as the vector file of
 a simulation, reads only what it needs. The default reads the text through
 [`parse_file_content`](@ref).
+
+Use it to read the content of a file of a given file type without opening a window on it.
+
+# Example
+
+    content_1 = read_file_content(JsonFile, "data.json")
+
+See also `get_file_content`.
+
+For the assistant.
 """
+function read_file_content end
+
 read_file_content(T::Type{<:FileDocument}, path::AbstractString) = parse_file_content(T, read(path, String))
 
 # One file of a set: a file that a person edits from its text, any other from

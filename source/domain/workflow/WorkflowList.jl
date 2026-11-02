@@ -22,10 +22,13 @@ Every list of an editor is the list of the session of that editor
 ([`get_session_workflow_list`](@ref)), and the explorer of each window holds it
 from the start.
 
+Use it to see every workflow that the open files hold, as one document.
+
 # Example
 
-    list = get_session_workflow_list()
-    [get_document_title(get_edited_document(file)) for file in list.files]
+    list_1 = get_session_workflow_list()
+
+See also `get_session_workflow_list` and `start_workflow!`.
 
 For the assistant.
 """
@@ -73,8 +76,8 @@ Use it to read which workflows the person has open, and how far each one is.
 
 # Example
 
-    list = get_session_workflow_list()
-    [get_document_title(get_edited_document(file)) for file in list.files]
+    list_1 = get_session_workflow_list()
+    files_1 = list_1.files
 
 See also `WorkflowList` and `get_session_open_file_list`.
 

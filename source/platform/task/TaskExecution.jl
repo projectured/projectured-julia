@@ -393,7 +393,19 @@ _interrupt_process_group(process::ImitatedProcess) = kill(process, Base.SIGINT)
 The status that a result code leaves a task in. A code that says the work was
 done — a run, a test that passed, an update — is `:done`; `CANCEL` is
 `:cancelled`, `SKIP` is `:skipped`, and every other code is `:error`.
+
+Use it to turn the result code of a task into its status.
+
+# Example
+
+    status_1 = get_task_status("PASS")
+
+See also `describe_task`.
+
+For the assistant.
 """
+function get_task_status end
+
 get_task_status(code::AbstractString) =
     code in ("DONE", "PASS", "KEEP", "INSERT", "UPDATE") ? :done :
     code == "CANCEL" ? :cancelled : code == "SKIP" ? :skipped : :error

@@ -292,6 +292,45 @@ ends with a commit in each repository that it changes.
   platform layering guard fails on main too, for `filechange/FileChangeModule.jl`
   and `shell/ShellModule.jl`. Step 1 changes none of these files.
 
+### 5.2 Facts found in step 2
+
+- A review of the 219 functions that the study added checked each body against
+  the rules of the assistant. It kept 188: 173 that read and 15 with an outside
+  effect that a person asks for, such as a query of a database or a signal to a
+  process. It left out:
+  - 5 that write a document directly: `insert_row!`, `delete_row!`,
+    `insert_column!`, `delete_column!` (`cm.elements = …`) and `stop_work_item!`;
+  - 3 that write a database past its document: `insert_into_db!`,
+    `update_db!`, `delete_from_db!`;
+  - 10 whose argument no offered function answers, such as the trace of a
+    process or the cache of a fingerprint store;
+  - 7 that answer an operation and apply nothing (`move_series`,
+    `remove_series`, `jump_to_row`, `insert_events`, `delete_events`,
+    `move_axis`, `delete_axis`): they are make functions for step 3;
+  - `get_window_tree`, `get_document_title` (§5.1), `get_selection`
+    (`find_selected_part` answers the selected part), `get_cell_at` (it answers
+    a live cell), `open_url!` (it takes the backend; the command of a link opens
+    a URL) and `get_task_group` (it answers the mutable group of the engine).
+- The scratch module's `show` passes its keywords on, so `show(frame; allrows =
+  true)` works.
+- A verb that fails on a plain document is one of two kinds. `get_reference`,
+  `get_parent` and `replace_referenced_value!` need a place in the window, which a
+  plain document does not have. `get_formula_value` only needs to unwrap a
+  referenced document. The fix belongs in one general place and not in each verb;
+  it is a question for the owner before it is built.
+- The documentation tests of both repositories check two more rules: the "See
+  also" paragraph of an offered name names only what the assistant can write,
+  and its example calls only what the assistant can write (or `Base`). An agent
+  copies an example, so an example that calls a hidden function teaches a call
+  that fails. The first run found 159 gaps: 96 name a document type, which the
+  decision about types (open item 2) answers, and 63 are text fixes.
+- The examples of `OpenFileOperation`, `SaveFileOperation` and
+  `ReloadFileOperation` call `evaluate_operation`. These three are operation types
+  that the windows offer today; by D3 they give way to verbs in step 3.
+- The table interface takes a referenced document by one unwrapping method for each
+  of its functions (`source/platform/collection/TableInterface.jl`). This is the
+  kind of general place that the question of the two document forms looks for.
+
 ## 6. What else changes
 
 - omnet-julia loses its API lists, and its texts change. Its precompile lists

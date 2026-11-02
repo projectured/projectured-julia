@@ -18,13 +18,37 @@ A vector of named tuples, a named tuple of vectors of one length, and a
 table of its document. A package that owns a kind of table adds the methods for
 it: `ProjecturedDataFrames` adds them for an `AbstractDataFrame` and for its
 `DataFrameView`.
+
+Use it to check that the data of a tab can be read as rows and columns before
+you read it.
+
+# Example
+
+    data_1 = get_edited_document(find_pane("Sales"))
+    is_table(data_1)
+
+See also `get_table_column_names` and `get_table_value`.
+
+For the assistant.
 """
+function is_table end
+
 is_table(::Any) = false
 
 """
     get_table_row_count(table) -> Int
 
 The count of the rows of `table`.
+
+Use it to know how many rows a table holds before you read them.
+
+# Example
+
+    get_table_row_count(data_1)
+
+See also `get_table_value` and `get_table_column_names`.
+
+For the assistant.
 """
 function get_table_row_count end
 
@@ -32,6 +56,16 @@ function get_table_row_count end
     get_table_column_names(table) -> Vector{String}
 
 The names of the columns of `table`, in their order.
+
+Use it to learn the columns of a table before you read a value or a column.
+
+# Example
+
+    get_table_column_names(data_1)
+
+See also `get_table_column_type` and `find_table_column`.
+
+For the assistant.
 """
 function get_table_column_names end
 
@@ -40,13 +74,35 @@ function get_table_column_names end
 
 The type of the values in column `column` of `table`: `Any` when the kind of
 table does not know it.
+
+Use it to know what kind of value a column holds, such as a number or a text.
+
+# Example
+
+    get_table_column_type(data_1, "price")
+
+See also `get_table_column_names` and `get_table_value`.
+
+For the assistant.
 """
+function get_table_column_type end
+
 get_table_column_type(::Any, ::AbstractString) = Any
 
 """
     get_table_value(table, row::Integer, column::AbstractString)
 
 The value in row `row` and column `column` of `table`.
+
+Use it to read one value of a table by its row number and the name of its column.
+
+# Example
+
+    get_table_value(data_1, 2, "price")
+
+See also `find_table_column` and `get_table_row_count`.
+
+For the assistant.
 """
 function get_table_value end
 
@@ -57,7 +113,20 @@ The values of column `column` of `table` as a vector, in the order of the rows
 and with no copy, when the kind of table holds one; `nothing` when it does not.
 A stage that reads a whole column reads it here first, because a read of each
 value with [`get_table_value`](@ref) costs a call for each row.
+
+Use it to read all values of one column at once, for example to sum them.
+
+# Example
+
+    prices_1 = find_table_column(data_1, "price")
+    prices_1 === nothing || sum(prices_1)
+
+See also `get_table_value` and `get_table_column_names`.
+
+For the assistant.
 """
+function find_table_column end
+
 find_table_column(::Any, ::AbstractString) = nothing
 
 """
@@ -142,7 +211,20 @@ The document that shows the columns `columns` of `table` as a table, made by the
 package that owns the kind of table; `nothing` when no package gives one, and
 the caller then shows the table in its own way. `ProjecturedDataFrames` gives a
 `DataFrameView` of a data frame, so an edit in it writes the frame.
+
+Use it to show some columns of a table in a tab of their own.
+
+# Example
+
+    view_1 = make_table_document(data_1, ["name", "price"])
+    view_1 === nothing || open_pane!(view_1; title = "Prices")
+
+See also `open_pane!` and `get_table_column_names`.
+
+For the assistant.
 """
+function make_table_document end
+
 make_table_document(::Any, ::Vector{String}) = nothing
 
 # ── A table that a read answers ──────────────────────────────────────────────

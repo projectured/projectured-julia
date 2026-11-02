@@ -442,7 +442,20 @@ end
 
 The generated code as Julia source, through the ordinary `print_natural_text`
 path, with a header naming the machine it came from.
+
+Use it to see the Julia code that a state machine generates.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    text_1 = generate_component_text(component_1; wrap_module = false)
+
+See also `get_fsm_transitions`.
+
+For the assistant.
 """
+function generate_component_text end
+
 generate_component_text(component::FsmComponent; wrap_module::Bool = true) =
     "# Generated from the state machine `" * component.name *
     "` — edit the machine, not this file.\n\n" *

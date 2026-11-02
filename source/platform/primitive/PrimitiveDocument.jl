@@ -348,7 +348,19 @@ parse_primitive_document(::Type{PrimitiveString}, text::AbstractString) = Primit
 
 The text that a primitive document shows: the print of its value, and the empty
 text when it has no value.
+
+Use it to read the text that a primitive document shows.
+
+# Example
+
+    text_1 = get_primitive_text(PrimitiveString("gateway"))
+
+See also `convert_document_to_object`.
+
+For the assistant.
 """
+function get_primitive_text end
+
 get_primitive_text(document::PrimitiveDocument) =
     document.value === nothing ? "" : string(document.value)
 

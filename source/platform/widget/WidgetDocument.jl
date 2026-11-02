@@ -587,7 +587,7 @@ a function that answers `false`, the link draws muted and opens nothing, as for 
 target that is gone. The link keeps a document target as a locator of it, so a
 walk over the output of a view does not go from the link into its target.
 
-Use it for a face that names what it opens: a title, the name of a file, the id
+Use it to give a face that names what it opens: a title, the name of a file, the id
 of a step. A label that names a command, such as "Open stdout", is a
 `WidgetButton` with the gestures of `make_open_page_gestures`.
 

@@ -70,7 +70,9 @@ Use it to tell the person how a work item of the task list went.
 
     describe_work_item(find_task_group("S1"); limit = 5)
 
-See also `stop_work_item!` and `get_work_item_identifier`.
+See also `describe_task_group` and `find_task_group`.
+
+For the assistant.
 """
 function describe_work_item end
 

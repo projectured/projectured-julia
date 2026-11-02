@@ -298,7 +298,19 @@ end
 
 Whether the tasks of `group` still run: its scheduler started and has not
 ended.
+
+Use it to tell whether a group of tasks still runs.
+
+# Example
+
+    is_task_group_running(find_task_group("S1"))
+
+See also `describe_task_group` and `stop_tasks!`.
+
+For the assistant.
 """
+function is_task_group_running end
+
 function is_task_group_running(group::TaskGroupDocument)
     scheduler = get_task_group(group).runtime.scheduler
     scheduler !== nothing && !istaskdone(scheduler)

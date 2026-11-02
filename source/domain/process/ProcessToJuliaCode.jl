@@ -260,7 +260,20 @@ end
 
 The realized code as Julia source, through the ordinary `print_natural_text`
 path, with a header naming the process it came from.
+
+Use it to see the Julia code that a process model stands for.
+
+# Example
+
+    process_1 = ProcessModel("transmit"; parameters = [parse_julia("frame")], body = ProcessSequence([]))
+    text_1 = realize_process_text(process_1)
+
+See also `start_process`.
+
+For the assistant.
 """
+function realize_process_text end
+
 realize_process_text(model::ProcessModel; instrumentation::Symbol = :none) =
     "# Realized from the process `" * model.name *
     "` — edit the process, not this file.\n\n" *

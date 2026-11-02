@@ -35,7 +35,19 @@ made at the first call: the list that a tab of its window shows or holds in its
 content, which a window made before its editor existed, or else a new list. With no editor, such as a
 script that runs outside every window, a new list, which nothing keeps; so a
 group that starts there joins no list.
+
+Use it to read the groups of tasks and the other work items of the session.
+
+# Example
+
+    list_1 = get_session_task_group_list()
+
+See also `collect_work_items` and `list_task_groups`.
+
+For the assistant.
 """
+function get_session_task_group_list end
+
 get_session_task_group_list(; editor = find_evaluation_editor()) =
     editor isa Editor ?
         get_session_document!(() -> something(_find_window_task_group_list(editor), TaskGroupList()), editor,
@@ -142,9 +154,11 @@ Use it to read every work item of the session, whatever its kind.
 
 # Example
 
-    [get_work_item_identifier(item) for item in collect_work_items(get_session_task_group_list())]
+    items_1 = collect_work_items(get_session_task_group_list())
 
-See also `collect_task_group_documents`, which gives the groups only.
+See also `list_task_groups`, which lists them in lines for a person.
+
+For the assistant.
 """
 function collect_work_items end
 

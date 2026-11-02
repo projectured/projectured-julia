@@ -127,7 +127,7 @@ Use it to read a dated record in the journal of a node.
 
 # Example
 
-    entry_1 = make_workflow_entry("The view embeds an element."; author = :assistant)
+    entries_1 = collect_workflow_entries(workflow_1)
 
 See also `add_workflow_entry!`, `collect_workflow_entries`.
 
@@ -245,7 +245,20 @@ end
     get_workflow_states(node) -> Tuple
 
 The states that `node` can have, in the order that a press steps through them.
+
+Use it to list the states that a step or an option can have.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    states_1 = get_workflow_states(step_1)
+
+See also `get_next_workflow_state` and `change_workflow_state!`.
+
+For the assistant.
 """
+function get_workflow_states end
+
 get_workflow_states(::WorkflowStep) = WORKFLOW_STEP_STATES
 get_workflow_states(::WorkflowOption) = WORKFLOW_OPTION_STATES
 
@@ -262,7 +275,20 @@ is_workflow_node(document) = document isa Union{WorkflowStep, WorkflowDecision, 
 
 The text that names `node`: the title of a step or an option, the question of a
 decision.
+
+Use it to read the words that name a step, an option or a decision.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    title_1 = get_workflow_node_title(step_1)
+
+See also `get_workflow_node_children` and `get_workflow_states`.
+
+For the assistant.
 """
+function get_workflow_node_title end
+
 get_workflow_node_title(node::WorkflowStep) = node.title
 get_workflow_node_title(node::WorkflowOption) = node.title
 get_workflow_node_title(node::WorkflowDecision) = node.question
@@ -272,7 +298,20 @@ get_workflow_node_title(node::WorkflowDecision) = node.question
 
 The nodes below `node` in the tree: the children of a step or an option, the
 options of a decision.
+
+Use it to walk down the tree of a workflow one level at a time.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    children_1 = get_workflow_node_children(step_1)
+
+See also `get_workflow_node_title` and `add_workflow_step!`.
+
+For the assistant.
 """
+function get_workflow_node_children end
+
 get_workflow_node_children(node::WorkflowStep) = node.children
 get_workflow_node_children(node::WorkflowOption) = node.children
 get_workflow_node_children(node::WorkflowDecision) = node.options

@@ -42,7 +42,19 @@ Parse a SQL string into a `SqlStatement` (a `SqlSelectStatement` for queries, or
 `SqlCreateTableStatement` / `SqlCreateSchemaStatement` for DDL). A text of several
 statements separated by `;` gives a `SqlStatementList`. Raises an error if a
 statement of `text` is not parseable.
+
+Use it to read SQL text into a document that you can open in a pane or edit.
+
+# Example
+
+    sql_1 = parse_sql_text("SELECT id, name FROM people WHERE id = 1")
+
+See also `parse_json` and `parse_xml`.
+
+For the assistant.
 """
+function parse_sql_text end
+
 function parse_sql_text(text::AbstractString)
     parsed = parse_sql(String(text))
     parsed === nothing && error("SQL: not a parseable statement")

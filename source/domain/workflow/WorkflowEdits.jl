@@ -57,7 +57,20 @@ make_workflow_state_operation(::WorkflowDecision, state::Symbol; keywords...) =
 
 The state after the state of `node`, in the order of `get_workflow_states`,
 around the end.
+
+Use it to know which state a press on the state of a step or an option moves it to.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    state_1 = get_next_workflow_state(step_1)
+
+See also `get_workflow_states` and `change_workflow_state!`.
+
+For the assistant.
 """
+function get_next_workflow_state end
+
 function get_next_workflow_state(node::Union{WorkflowStep, WorkflowOption})
     states = get_workflow_states(node)
     index = something(findfirst(==(node.state), states), 0)
@@ -348,8 +361,8 @@ workflow on top, a third of the height, and the conversation below. A second
 workflow joins the tab group on top. A window with no conversation opens the tab
 as `open_pane!` places any pane.
 
-Use it at the start of work of several stages, before the first of them, so the
-person sees the stages ahead and the one that runs: a study, a port, a release.
+Use it to open a workflow at the start of work of several stages, before the first
+of them, so the person sees the stages ahead and the one that runs: a study, a port, a release.
 Keep the steps at the level of the stages; mark each `:active` when it starts and
 `:done` when it ends, and add to it what it made with `add_element!`.
 

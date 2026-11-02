@@ -65,7 +65,20 @@ How the place of `entry` shows `items`: how many items show, of all, and each
 part of the entry, such as `2 of 3 items: status ≠ "failed", ↑ delay`. A place
 with a group says how many groups show, such as `2 groups of 3 items: by status:
 count`. With `entry === nothing` every item shows, in its own order.
+
+Use it to tell a person how a collection shows after its arrangement changed.
+
+# Example
+
+    found_1 = find_arranged_collection(root_1, reference_1)
+    text_1 = describe_arranged_collection(found_1.entry, found_1.items)
+
+See also `describe_arrangement` and `find_arranged_collection`.
+
+For the assistant.
 """
+function describe_arranged_collection end
+
 function describe_arranged_collection(entry, items)
     total = length(items)
     entry === nothing && return string(total, total == 1 ? " item" : " items", ", all in their own order")
@@ -111,7 +124,19 @@ end
 How each collection that `arrangement` arranges shows, one after the other: its
 path and what [`describe_arranged_collection`](@ref) says of it, such as
 `runs: 2 of 3 items: status ≠ "failed", ↑ delay`.
+
+Use it to tell a person how every collection of an arrangement shows.
+
+# Example
+
+    text_1 = describe_arrangement(arrangement_1)
+
+See also `describe_arranged_collection` and `find_arranged_collection`.
+
+For the assistant.
 """
+function describe_arrangement end
+
 function describe_arrangement(arrangement::ArrangementDocument)
     texts = String[]
     for entry in arrangement.entries
@@ -413,7 +438,19 @@ entry)`, the path of the collection from `root` with the step `document` of each
 arrangement on it, the collection, and the entry of the nearest arrangement at it
 or `nothing`. A path below an arranged document can leave out the step `document`.
 `nothing` when the path reaches no collection.
+
+Use it to find a collection of a document and the arrangement that shows it.
+
+# Example
+
+    found_1 = find_arranged_collection(root_1, reference_1)
+
+See also `describe_arranged_collection` and `describe_arrangement`.
+
+For the assistant.
 """
+function find_arranged_collection end
+
 function find_arranged_collection(root, reference::Reference)
     (path, arrangement, at) = _find_arranged_path(root, strip_reference_types(reference))
     items = try_evaluate_reference(root, path, nothing)

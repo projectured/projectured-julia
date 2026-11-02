@@ -733,7 +733,19 @@ A plain, human-readable rendering of the whole conversation (for logging and as 
 non-API fallback): each turn labelled by role, an answer also by its backend and
 model, each part rendered with its kind
 (prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
+
+Use it to write a conversation as plain text, such as for a log.
+
+# Example
+
+    text_1 = format_conversation(assistant_1.conversation)
+
+See also `find_first_prompt` and `describe_assistant_activity`.
+
+For the assistant.
 """
+function format_conversation end
+
 function format_conversation(conversation::ConversationConversation)
     io = IOBuffer()
     for t in conversation.turns

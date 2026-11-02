@@ -351,7 +351,19 @@ get_math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
 
 The name of the symbol that a glyph draws, `ρ` is `:rho`, or `nothing` when the
 glyph is none of the named symbols.
+
+Use it to learn the name of a Greek or other symbol that a formula draws, so you can type it back.
+
+# Example
+
+    name_1 = find_math_symbol_name("ρ")
+
+See also `parse_math`.
+
+For the assistant.
 """
+function find_math_symbol_name end
+
 function find_math_symbol_name(glyph::AbstractString)
     for (name, text) in _MATH_SYMBOLS
         text == glyph && return name

@@ -331,13 +331,19 @@ _has_example_parse_error(expression) =
     test_assistant_documentation(api = make_editor_api())
 
 Every name of `api` from a package of the editor carries what a model reads to use
-it: a "Use it to" line, an example that parses, and a "See also" line. Every name
-that `EDITOR_SYSTEM` and the paragraph of the loaded domains write in backticks is
-a name that the model can write.
+it: a "Use it to" line, an example that parses, and a "See also" line, which names
+only what the model can write. Every name that `EDITOR_SYSTEM` and the paragraph of
+the loaded domains write in backticks is a name that the model can write.
 """
 function test_assistant_documentation(api = make_editor_api())
 @testset "every declared name carries its use, an example and its neighbours" begin
     set = register_editor_tools!(register_default_tools!(declare_api!(ToolSet(), api)))
+    writable = Set{String}(["editor"])
+    for entry in set.api
+        push!(writable, String(nameof(entry.module_)))
+        union!(writable, String.(get_api_entry_names(entry)))
+    end
+    union!(writable, [tool.name for tool in list_tools(set)])
     for entry in set.api, (name, _) in get_api_entry_bindings(entry)
         _is_documented_module(entry.module_) || continue
         doc = ToolModule._binding_doc(entry.module_, name)
@@ -346,6 +352,25 @@ function test_assistant_documentation(api = make_editor_api())
                    !isempty(example) && !_has_example_parse_error(Meta.parseall(example))
         @test complete || error(string(nameof(entry.module_), ".", name,
                                        " lacks a \"Use it to\" line, a \"See also\" line or an example that parses"))
+        # The example is what a model copies, so each function that it calls is one
+        # that the model can write, a function of Base, or one that the example defines.
+        for found in eachmatch(r"(?<![\w.])(@?[A-Za-z_][A-Za-z0-9_]*!?)\(", example)
+            called = String(found.captures[1])
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(called)), set.api)
+            @test called in writable || isdefined(Base, Symbol(called)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " calls `", called,
+                               "` in its example, which no model can write"))
+        end
+        for paragraph in split(doc, "\n\n"), found in eachmatch(r"`(@?[A-Za-z_][A-Za-z0-9_]*!?)", paragraph)
+            startswith(paragraph, "See also ") || continue
+            neighbour = String(found.captures[1])
+            # A word in backticks that no module of the editor defines, such as a
+            # keyword argument, names nothing to call.
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(neighbour)), set.api)
+            @test neighbour in writable || isdefined(Base, Symbol(neighbour)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " names `", neighbour,
+                               "` in its \"See also\" line, which no model can write"))
+        end
         # A function that the assistant calls carries its docstring on the generic
         # function, which the search answers. A macro has no generic form.
         value = getfield(entry.module_, name)
@@ -354,12 +379,6 @@ function test_assistant_documentation(api = make_editor_api())
         @test generic || error(string(nameof(entry.module_), ".", name,
                                       " has no docstring on its generic function"))
     end
-    writable = Set{String}(["editor"])
-    for entry in set.api
-        push!(writable, String(nameof(entry.module_)))
-        union!(writable, String.(get_api_entry_names(entry)))
-    end
-    union!(writable, [tool.name for tool in list_tools(set)])
     for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM * make_domain_system())
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue

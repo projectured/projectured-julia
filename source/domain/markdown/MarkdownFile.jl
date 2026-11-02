@@ -56,7 +56,20 @@ of a page. Duplicate headings error for the same reason.
 
 The returned root shares the page's own element objects, so what is embedded is
 the section itself and not a copy of it.
+
+Use it to take one section out of a Markdown page by the words of its heading.
+
+# Example
+
+    markdown_1 = parse_markdown("# Intro\\n\\nText.\\n\\n# Usage\\n\\nMore text.")
+    section_1 = get_markdown_section(markdown_1, "Usage")
+
+See also `parse_markdown` and `find_rst_section`.
+
+For the assistant.
 """
+function get_markdown_section end
+
 function get_markdown_section(document, title::AbstractString)
     root = is_file_document(document) ? get_file_content(document) : document
     root isa MarkdownRoot ||

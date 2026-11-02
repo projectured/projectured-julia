@@ -163,7 +163,22 @@ The formulas `formula` depends on in `env`: each formula of the sheet that a
 free name of its code resolves to. A formula refers to another by name, so a
 sheet read from a `.pred` file, `code = "(1 - rho) * rho^n"`, refers to the
 formula `rho` of the same sheet.
+
+Use it to find which formulas of a sheet a formula reads, so you know what a change of one reaches.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    dependencies_1 = get_formula_dependencies(queue_1, sheet_1)
+
+See also `get_formula_names`, `would_create_cycle` and `evaluate_formula`.
+
+For the assistant.
 """
+function get_formula_dependencies end
+
 function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironment)
     deps = FormulaFormula[]
     for name in get_formula_names(formula)
@@ -174,6 +189,28 @@ function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironme
     end
     deps
 end
+
+"""
+    get_formula_names(code) -> Vector{String}
+    get_formula_names(formula::FormulaFormula) -> Vector{String}
+
+The free names of a Julia or math tree `code`, or of the code of `formula`, in the
+order that the walk meets them. A name that the code binds itself is not free.
+
+Use it to find the names that a formula reads from its sheet.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    names_1 = get_formula_names(queue_1)
+
+See also `get_formula_dependencies` and `parse_julia`.
+
+For the assistant.
+"""
+function get_formula_names end
 
 """
     get_formula_names(code) -> Vector{String}
@@ -446,7 +483,22 @@ end
 True if adding a reference `from → to` would close a cycle, i.e. if `to` can
 already reach `from` through the existing dependency graph (or `to === from`).
 DFS over `get_formula_dependencies`.
+
+Use it to check that a formula may read another before you make it do so.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    is_cycle_1 = would_create_cycle(sheet_1, rho_1, queue_1)
+
+See also `get_formula_dependencies`.
+
+For the assistant.
 """
+function would_create_cycle end
+
 function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::FormulaFormula)
     from === to && return true
     visited = Set{FormulaFormula}()
@@ -575,7 +627,22 @@ that calls it, so no print calls it.
 
 An error that the code raises, a dependency whose value is a `FormulaError`,
 and a formula that depends on itself give a `FormulaError`.
+
+Use it to compute the value of a formula of a sheet from the values of the formulas it reads.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    value_1 = evaluate_formula(queue_1, sheet_1)
+
+See also `get_formula_result` and `get_formula_dependencies`.
+
+For the assistant.
 """
+function evaluate_formula end
+
 function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
                           scratch::Module = _make_formula_scratch_module())
     _depends_on_itself(formula, env) && return FormulaError("#CYCLE!")
@@ -708,7 +775,22 @@ end
 
 The value that the last computation of `formula` stored, which a view shows, or
 `nothing` before the first one. It runs no code.
+
+Use it to read the value that a sheet shows for a formula without computing it again.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    result_1 = get_formula_result(queue_1)
+
+See also `evaluate_formula`.
+
+For the assistant.
 """
+function get_formula_result end
+
 get_formula_result(formula::FormulaFormula) = formula.result
 
 # Whether the stored value of a formula is a function, which a row shows as its

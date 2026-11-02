@@ -111,7 +111,19 @@ The list of the open assistants of the session of `editor`: by default the edito
 of the evaluation, or of the loop that runs the calling code. Each editor has its
 own, made at the first call. With no editor, such as while a file loads before
 its window exists, a new list, which nothing keeps and no window links.
+
+Use it to read the assistants that the window holds open.
+
+# Example
+
+    list_1 = get_session_assistant_list()
+
+See also `describe_assistant_activity` and `collect_pane_tab_contents`.
+
+For the assistant.
 """
+function get_session_assistant_list end
+
 get_session_assistant_list(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(AssistantList, editor, AssistantList) : AssistantList()
 

@@ -42,7 +42,19 @@ named. A kernel thread has an empty command line, so its command is its name in
 brackets, such as `[kthreadd]`. A folder that the reader may not see is an empty
 `folder`. With no `root` folder, as on a system with no `/proc`, the answer is
 empty.
+
+Use it to list a process and its children with their state and command.
+
+# Example
+
+    records_1 = read_system_processes([process_id_1])
+
+See also `SystemProcessRecord` and `stop_system_process!`.
+
+For the assistant.
 """
+function read_system_processes end
+
 function read_system_processes(root_process_ids; root::AbstractString = "/proc")
     isdir(root) || return SystemProcessRecord[]
     boot_time = _read_boot_time(root)

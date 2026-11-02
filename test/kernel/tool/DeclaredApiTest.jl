@@ -191,6 +191,15 @@ For the assistant.
 struct ToyOffered end
 end
 
+# A value whose `show` takes a keyword, as the `show` of a data frame takes
+# `allrows`.
+module ToyShown
+export ToyLoud
+"""A value that shows itself loud or quiet."""
+struct ToyLoud end
+Base.show(io::IO, ::ToyLoud; loud::Bool = false) = print(io, loud ? "LOUD" : "quiet")
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -768,6 +777,13 @@ function test_declared_api()
         set = ToolSet()
         @test_throws KeyError call_tool(set, "toy_missing_tool";
                                         args = Dict{String,Any}(), target = nothing)
+    end
+
+    @testset "the show of the code passes its keywords on" begin
+        set = declare_api!(ToolSet(), [ToyShown])
+        @test occursin("LOUD", execute_julia_code!(set, nothing, "show(ToyLoud(); loud = true)"))
+        @test occursin("LOUD", execute_julia_code!(set, nothing, "show(stdout, ToyLoud(); loud = true)"))
+        @test occursin("quiet", execute_julia_code!(set, nothing, "show(ToyLoud())"))
     end
 
     @testset "the mark in a docstring offers a name" begin

@@ -719,7 +719,20 @@ _julia_signature_name(node) = string(nameof(typeof(node)))
 The signature of `function_` as a caller reads it: the name, the parameters, and
 the result type where one is declared. Not the body, and not the `where` clause:
 a tooltip says what to pass, and a person who needs the rest opens the file.
+
+Use it to read what a Julia function takes and returns without its body.
+
+# Example
+
+    julia_1 = parse_julia("f(x::Int; scale = 2)::Int = x * scale")
+    signature_1 = compute_julia_signature(julia_1)
+
+See also `parse_julia` and `find_julia_definition`.
+
+For the assistant.
 """
+function compute_julia_signature end
+
 function compute_julia_signature(function_::JuliaFunction)
     parameters = join((_julia_signature_name(function_.params[i])
                        for i in 1:length(function_.params)), ", ")

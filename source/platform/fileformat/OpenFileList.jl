@@ -70,6 +70,8 @@ Use it to read the files that a window shows, as the explorer does.
     length(get_session_open_file_list().files)
 
 See also `OpenFileList` and `find_open_file_document`.
+
+For the assistant.
 """
 function get_session_open_file_list end
 
@@ -101,6 +103,8 @@ Use it to reach the document of a file that is open.
     find_open_file_document("notes.json")
 
 See also `OpenFileList`.
+
+For the assistant.
 """
 function find_open_file_document end
 

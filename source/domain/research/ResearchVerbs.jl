@@ -296,8 +296,8 @@ becomes `:accepted`, and of each rejected one `:rejected`; a later decision abou
 the same item supersedes this one. The decision says that you made it. Answer the
 decision.
 
-Use it only when the person asks you to record a decision, or to accept or reject
-an item. The person decides; the record shows who decided.
+Use it to record a decision, or to accept or reject an item, only when the person
+asks you to. The person decides; the record shows who decided.
 
 # Example
 
@@ -406,7 +406,7 @@ in its basis, so a person follows the link from the hypothesis to what was read.
 `read` answers numbers, or `label => value` pairs, and the evidence names each
 labelled value that lies outside the bounds.
 
-Use it after the runs, to hold the results against what the hypotheses predicted.
+Use it to hold the results against what the hypotheses predicted, after the runs.
 
 # Example
 
