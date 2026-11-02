@@ -461,6 +461,6 @@ function test_conversation_transcript()
         stored = slice.slice
         @test stored isa ConversationPart
         @test stored !== conversation.turns[2].parts[2]
-        @test stored.content isa TextBlock
+        @test stored.content isa PrimitiveString
     end
 end

@@ -161,12 +161,25 @@ ends with a commit.
    `test_conversation_editor`, `test_parse_markdown_blocks`,
    `test_conversation_transcript`, `test_assistant_composer_panel`,
    `test_draft_press` and `test_conversation_theme`, 355 passes.
-3. **The editor text takes its type.** `ConversationPart(::AbstractString)`
+3. ✅ **Done.** **The editor text takes its type.** `ConversationPart(::AbstractString)`
    makes a `PrimitiveString`. The three agent notes become `ConversationNote`.
    The greeting, the prompt of a subagent and the fallback of a code fence
    become markdown; the greeting shows its keys and its command-line options as
    code spans. Tests: the greeting test of `ApplicationTest`, and the tests of
    the agent notes.
+
+   As built: the greeting also shows **Explorer** and **Files** in bold, and the
+   name `ProjecturedACP` and the variable `ANTHROPIC_API_KEY` as code spans.
+   `_content_to_string` of a `ConversationNote` gives its text, as `_block_text`
+   already did, so `_part_text` reads a note. The line "Starting Claude Code…"
+   is an editor text too, so it is a `PrimitiveString`. The tests:
+   `test_application` gives 389 passes and the two failures that main has
+   (memory `application-test-baseline-2026-10-15`, `:677` and `:789`);
+   `test_external_agent_turn` and `test_agent_work` give 466 passes in a process
+   that loads only `ProjecturedPlatformTest`. In a process that also loads
+   `ProjecturedTest`, the MCP package starts a server for each external turn, and
+   the stand-in editor `(document = a,)` of those tests has no `tools`, so they
+   must run without it.
 4. **The stream and the thinking text.** `LlmTextStart` opens a
    `PrimitiveString` part, a delta adds to its value, and `LlmTextStop` parses
    the value with `parse_markdown_blocks`. The text of a `ConversationThinking`

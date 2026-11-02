@@ -97,8 +97,7 @@ function test_external_agent_turn()
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
                                                  on_start = connection -> take!(gate))
             a = _make_agent_assistant(connection)
-            is_starting() = any(part -> part.content isa TextBlock &&
-                                        get_flat_string(part.content) == "Starting Claude Code…",
+            is_starting() = any(part -> AssistantModule._part_text(part) == "Starting Claude Code…",
                                 [part for turn in collect(a.conversation.turns) for part in collect(turn.parts)])
             _submit_to_agent!(a, "Hello"; wait = false)
             @test timedwait(is_starting, 10.0; pollint = 0.01) === :ok

@@ -13,7 +13,9 @@ abstract type ConversationDocument <: Document end
 """
     ConversationPart(content; collapsed = false)
 
-A collapsible slot around an arbitrary content document.
+A collapsible slot around an arbitrary content document. A string makes a part
+of plain text, a `PrimitiveString`, which the transcript draws in the style of a
+message; a producer of Markdown passes the document of `make_prose_document`.
 """
 @document struct ConversationPart <: ConversationDocument
     content::Document
@@ -23,7 +25,7 @@ end
 ConversationPart(content::Document; collapsed::Bool = false) =
     ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
 ConversationPart(s::AbstractString; collapsed::Bool = false) =
-    ConversationPart(Cell(make_text_block(String(s))), Cell(collapsed), Cell(nothing))
+    ConversationPart(Cell(PrimitiveString(String(s))), Cell(collapsed), Cell(nothing))
 
 # ── ConversationThinking ──────────────────────────────────────────────────────
 

@@ -396,7 +396,7 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
         deleteat!(turns, length(turns))
     end
     (assistant.agent_session === nothing && isempty(assistant.agent_session_id)) ||
-        push!(turns, ConversationTurn(:assistant, [ConversationPart(FORK_AGENT_NOTE)]))
+        push!(turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(FORK_AGENT_NOTE))]))
     fork
 end
 

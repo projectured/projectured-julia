@@ -147,6 +147,7 @@ _text_to_string(d) = _content_to_string(d)
 # the editor shows and therefore what the model should see.
 _content_to_string(t::TextBlock) = _text_to_string(t)
 _content_to_string(s::PrimitiveString) = _text_to_string(s)
+_content_to_string(n::ConversationNote) = n.text
 function _content_to_string(d)
     make_natural_projection(d, :string) === nothing || return _doc_source(d)
     hasproperty(d, :name) ? String(d.name) : string(d)
@@ -1212,7 +1213,8 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 # A fenced code block → a part whose content is the parsed domain document, with
-# a graceful fallback to fenced text when the language is unknown or won't parse.
+# a graceful fallback to a Markdown code block when the language is unknown or
+# won't parse.
 function _code_part(lang::AbstractString, body::AbstractString)
     kind = _fence_extension(lang)
     if has_natural_parser(kind)
@@ -1223,7 +1225,7 @@ function _code_part(lang::AbstractString, body::AbstractString)
         end
         doc === nothing || return ConversationPart(doc)
     end
-    ConversationPart("```" * lang * "\n" * body * "\n```")
+    _prose_part("```" * lang * "\n" * body * "\n```")
 end
 
 # A run of prose → one real markdown part, so headings / lists / **bold** /

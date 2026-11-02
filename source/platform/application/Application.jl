@@ -20,26 +20,27 @@ const APPLICATION_ASSISTANTS = (:ollama, :anthropic, :acp, :none)
 """
     get_application_greeting_text(backend::Symbol) -> String
 
-What the assistant pane says before a person types anything: what the window
-shows, the keys that open and save a file, and what the assistant needs to
-answer.
+What the assistant pane says before a person types anything, in Markdown: what
+the window shows, the keys that open and save a file, and what the assistant
+needs to answer. A key, an option of the command line and a name to type are
+code spans.
 """
 function get_application_greeting_text(backend::Symbol)
     body = """
-        This window shows what the editor holds. The Explorer lists the working \
+        This window shows what the editor holds. The **Explorer** lists the working \
         directory, the open files, the tasks, the assistants and the tools of the \
         editor, and a press on a row shows its page beside the tree. Each other \
         tab holds one open file.
 
-        Ctrl+click a row of the Explorer to open its page in a new tab. The Files \
-        button of the toolbar lists the working directory, where Enter on a file \
-        opens it in a new tab. Ctrl+S saves the tab that has the focus, and \
-        Ctrl+O reads it again from disk. F1 lists the keys that work where the focus is, and \
-        Ctrl+Shift+P runs a command by its name.
+        `Ctrl+click` a row of the Explorer to open its page in a new tab. The **Files** \
+        button of the toolbar lists the working directory, where `Enter` on a file \
+        opens it in a new tab. `Ctrl+S` saves the tab that has the focus, and \
+        `Ctrl+O` reads it again from disk. `F1` lists the keys that work where the focus is, and \
+        `Ctrl+Shift+P` runs a command by its name.
 
-        Alt+click anything in a tab to select it, and Alt with an arrow to move \
-        the selection. Ctrl+C copies what is selected, Ctrl+X cuts it, Ctrl+N \
-        notes it, and Ctrl+V pastes it into a new tab from Ctrl+T.
+        `Alt+click` anything in a tab to select it, and `Alt` with an arrow to move \
+        the selection. `Ctrl+C` copies what is selected, `Ctrl+X` cuts it, `Ctrl+N` \
+        notes it, and `Ctrl+V` pastes it into a new tab from `Ctrl+T`.
 
         Ask me to read or change an open file, to explain its structure, or to \
         show a value in a new tab. I write Julia code and run it in this window: \
@@ -48,16 +49,16 @@ function get_application_greeting_text(backend::Symbol)
         """
     requirement = backend === :none ?
         "No model backend is chosen, so I cannot answer yet. Choose one in the Start " *
-        "settings of the Settings tab, or start the window with --assistant=ollama, " *
-        "--assistant=anthropic or --assistant=acp." :
+        "settings of the Settings tab, or start the window with `--assistant=ollama`, " *
+        "`--assistant=anthropic` or `--assistant=acp`." :
         backend === :anthropic ?
-        "I use Claude. The environment variable ANTHROPIC_API_KEY must hold your key." :
+        "I use Claude. The environment variable `ANTHROPIC_API_KEY` must hold your key." :
         backend === :acp ?
         "I am an external agent that runs its own loop, through the Agent Client " *
-        "Protocol (ACP). The package ProjecturedACP must be loaded. Without an agent " *
+        "Protocol (ACP). The package `ProjecturedACP` must be loaded. Without an agent " *
         "command I am Claude Code, which must be installed and signed in; with one, " *
         "that agent must be installed and signed in with its own sign-in. " *
-        "Escape stops my turn." :
+        "`Escape` stops my turn." :
         "I use a local model through Ollama. The Ollama server must run on this " *
         "machine, and the model must be pulled."
     body * "\n" * requirement
@@ -87,7 +88,7 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
     greeting = ConversationConversation([
-        ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
+        ConversationTurn(:assistant, [ConversationPart(make_prose_document(get_application_greeting_text(backend)))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
                 context = context, system = make_application_system(),
                 api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm,

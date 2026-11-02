@@ -312,7 +312,7 @@ function _forget_agent_session!(a::Assistant, conversation::ConversationConversa
     a.agent_session_directory = ""
     a.agent_session_turn_count = 0
     a.agent_title = ""
-    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(NEW_SESSION_AGENT_NOTE)]))
+    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(NEW_SESSION_AGENT_NOTE))]))
     nothing
 end
 
@@ -551,7 +551,7 @@ function evaluate_operation(editor, operation::SignOutAgentOperation)
             "The sign-out failed: " * sprint(showerror, exception)
         end
         run_on_editor_task!(editor; wait = false) do
-            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(note)]))
+            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(ConversationNote(note))]))
         end
     end)
     nothing

@@ -411,10 +411,10 @@ function _add_subagent_request!(a::Assistant, child::AgentWork,
 end
 
 # The prompt of a subagent is a turn of the person in its transcript, after the
-# turn of the subagent before it.
+# turn of the subagent before it. A model wrote it, so it is Markdown.
 function _add_subagent_prompt!(a::Assistant, child::AgentWork, message::LlmMessage)
     _end_subagent_turn!(a, child)
-    parts = Any[ConversationPart(content.text) for content in message.content
+    parts = Any[ConversationPart(make_prose_document(content.text)) for content in message.content
                 if content isa LlmText]
     isempty(parts) || push!(child.conversation.turns, _make_instant_turn(:user, parts))
     nothing

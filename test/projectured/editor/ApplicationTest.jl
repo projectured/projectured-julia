@@ -342,6 +342,11 @@ function test_application()
             @test assistant.backend === :ollama && assistant.model == "small"
             @test_throws ErrorException make_application_assistant(:unknown)
             @test occursin("ANTHROPIC_API_KEY", get_application_greeting_text(:anthropic))
+            # The greeting is Markdown, so it draws in the theme of a reply, and
+            # the model reads the text that it was written as.
+            greeting = only(assistant.conversation.turns[1].parts)
+            @test greeting.content isa MarkdownDocument
+            @test AssistantModule._part_text(greeting) == get_application_greeting_text(:ollama)
         end
 
         @testset "the assistant's verbs" begin
@@ -1589,7 +1594,7 @@ function test_application()
                 @test again.model == "small"
                 @test again.context == 4096
                 @test get_pane_tab_title_string(group.tabs[index]) == "Assistant"
-                greeting(assistant) = get_flat_string(assistant.conversation.turns[1].parts[1].content)
+                greeting(assistant) = AssistantModule._part_text(assistant.conversation.turns[1].parts[1])
                 @test greeting(again) == greeting(started)
                 @test occursin("Ollama", greeting(again))
 
