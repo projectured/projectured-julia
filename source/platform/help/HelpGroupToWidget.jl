@@ -61,21 +61,23 @@ function print_document(p::HelpGroupToWidget, recursion, holder::_HelpPage, cont
     iomap
 end
 
-# The columns of the table: a name, then the count of the types of a group or
-# the names to type of a document type, each as wide as its widest cell, then the
-# description, which takes the rest of the width. A projection has no names to
-# type, so its table has no middle column.
+# The columns of the table: a name, then the count of the types of a group, or
+# for a document type whether an empty tab creates it without arguments and the
+# names to type there, each as wide as its widest cell, then the description,
+# which takes the rest of the width. A projection is drawn and not created, so
+# its table has neither.
 function _get_help_columns(children)
     first(children) isa HelpGroup && return ["name" => Content, "types" => Content, "description" => Fill]
     _is_projection_entry(first(children)) && return ["name" => Content, "description" => Fill]
-    ["name" => Content, "names to type" => Content, "description" => Fill]
+    ["name" => Content, "without arguments" => Content, "names to type" => Content, "description" => Fill]
 end
 
 _is_projection_entry(entry::HelpEntry) = entry.type isa Type && entry.type <: Projection
 
 _get_help_cells(group::HelpGroup) = Any[group.name, string(group.count), group.description]
 _get_help_cells(entry::HelpEntry) =
-    _is_projection_entry(entry) ? Any[entry.name, entry.description] : Any[entry.name, entry.typed, entry.description]
+    _is_projection_entry(entry) ? Any[entry.name, entry.description] :
+                                  Any[entry.name, entry.creatable ? "yes" : "no", entry.typed, entry.description]
 
 _make_help_table(children) =
     _make_help_widget_table(_get_help_columns(children), [_get_help_cells(child) for child in children];
@@ -99,10 +101,16 @@ function _format_help_line(list::Union{DocumentTypeList, ProjectionList})
     packages = _format_help_count_words(length(groups), "package", "packages")
     list isa DocumentTypeList ?
         string(_format_help_count_words(count, "document type", "document types"), " in ", packages,
-               ". Type one of the names in an empty tab to make a document of that type.") :
+               ". An empty tab creates ", _count_help_creatable(groups),
+               " of them without arguments: type one of their names in it.") :
         string(_format_help_count_words(count, "projection", "projections"), " in ", packages,
                ". A projection draws a document, and one that takes other projections combines them.")
 end
+
+# The count of the entries below `children` that an empty tab can create.
+_count_help_creatable(children) =
+    sum((child isa HelpGroup ? _count_help_creatable(child.children) : Int(child.creatable) for child in children);
+        init = 0)
 
 _format_help_line(group::HelpGroup) = isempty(group.description) ? "No description." : group.description
 

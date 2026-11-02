@@ -26,7 +26,15 @@ function test_help_tree()
     @test sort(rest; by = lowercase) == rest
     entries = _collect_help_entries(list)
     @test length(entries) == sum(group -> group.count, list.children)
-    @test issetequal([entry.type for entry in entries], get_insertion_candidates(Document))
+    # Every document type is in the tree, one for each schema, and an entry says
+    # whether an empty tab creates it.
+    types = compute_document_types(Document)
+    @test issetequal([entry.type for entry in entries], types)
+    # A layout variant of a schema, such as `MHelpGroup`, is no type of its own.
+    @test HelpGroup in types && !any(T -> nameof(T) in (:MHelpGroup, :IHelpGroup), types)
+    @test issubset(get_insertion_candidates(Document), types)
+    @test issetequal([entry.type for entry in entries if entry.creatable], get_insertion_candidates(Document))
+    @test all(entry -> entry.creatable || isempty(entry.typed), entries)
     # A package of many modules holds a group for each module, by name.
     platform = _find_help_child(list, "Platform")
     @test all(child -> child isa HelpGroup, platform.children)
@@ -37,15 +45,17 @@ function test_help_tree()
     @test startswith(platform.description, "The platform")
     # A module holds the entries of its types, by name, with what a person types.
     help = _find_help_child(platform, "Help")
-    @test [entry.name for entry in help.children] == ["AboutPage", "DocumentTypeList", "HelpTheme", "ProjectionList"]
+    @test [entry.name for entry in help.children] ==
+          ["AboutPage", "DocumentTypeList", "HelpEntry", "HelpGroup", "HelpTheme", "ProjectionList"]
     @test startswith(help.description, "What the Help menu of a window opens")
     documents = _find_help_child(help, "DocumentTypeList")
     @test documents.type === DocumentTypeList
-    @test occursin("documents", documents.typed)
+    @test documents.creatable && occursin("documents", documents.typed)
     @test startswith(documents.description, "The tree of every document type")
     @test startswith(documents.text, "    DocumentTypeList()")
-    # A group and an entry are no document that an empty tab makes.
-    @test !any(T -> T <: HelpGroup || T <: HelpEntry, get_insertion_candidates(Document))
+    # A group and an entry are documents that an empty tab does not create.
+    group = _find_help_child(help, "HelpGroup")
+    @test !group.creatable && group.typed == ""
 end
 
 @testset "the tree of the projections names no typed name" begin

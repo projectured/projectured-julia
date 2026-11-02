@@ -58,9 +58,9 @@ function test_help_pages()
     @test policies == [Content, Content, Fill]
     platform = _find_help_child(list, "Platform")
     (_, headers, names, policies) = _draw_help_table(_find_help_child(platform, "Widget"))
-    @test headers == ["name", "names to type", "description"]
+    @test headers == ["name", "without arguments", "names to type", "description"]
     @test names == [entry.name for entry in _find_help_child(platform, "Widget").children]
-    @test policies == [Content, Content, Fill]
+    @test policies == [Content, Content, Content, Fill]
     projections = update_help_groups!(ProjectionList())
     (_, headers, _, policies) = _draw_help_table(_find_help_child(_find_help_child(projections, "Platform"), "Widget"))
     @test headers == ["name", "description"]
@@ -92,7 +92,7 @@ end
     about = _find_help_child(help, "AboutPage")
     texts = _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, about, nothing).output)
     @test texts[1:4] == ["AboutPage", "ProjecturedPlatform.HelpModule", "AboutPage <: Document",
-                         "Names to type in an empty tab: " * about.typed]
+                         "An empty tab creates it without arguments. Names to type: " * about.typed]
     lines = split(about.text, '\n')
     @test texts[5:(4 + length(lines))] == lines
     @test texts[5] == "    AboutPage(; name, summary, version, homepage)"
@@ -111,7 +111,11 @@ end
     at = findfirst(==("font"), texts)
     @test texts[at + 1] == "StyleFont"
     @test startswith(texts[at + 2], "The font that the texts of this theme follow")
-    bare = HelpEntry("Bare", Int, "", "", "", "", ())
+    # A document type that needs arguments says so.
+    group = _find_help_child(help, "HelpGroup")
+    texts = _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, group, nothing).output)
+    @test texts[4] == "It needs arguments, so an empty tab can not create it."
+    bare = HelpEntry("Bare", Int, false, "", "", "", "", ())
     @test _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, bare, nothing).output) ==
           ["Bare", "Core", "No description.", "No fields."]
 end

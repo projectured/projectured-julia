@@ -9,15 +9,17 @@
 
 const _HelpList = Union{DocumentTypeList, ProjectionList}
 
-# The types of a tree: what an empty tab can make, or every concrete projection.
-_collect_help_types(::DocumentTypeList) = get_insertion_candidates(Document)
+# The types of a tree: every document type, or every concrete projection.
+_collect_help_types(::DocumentTypeList) = compute_document_types(Document)
 _collect_help_types(::ProjectionList) = compute_concrete_subtypes(Projection)
 
 """
     update_help_groups!(list) -> list
 
 Build the groups of a [`DocumentTypeList`](@ref) or a [`ProjectionList`](@ref)
-from the modules that are loaded now, and store them in `list.children`:
+from the modules that are loaded now, and store them in `list.children`. An entry
+of a document type records whether an empty tab can create it without
+arguments:
 
 - one [`HelpGroup`](@ref) for each package that defines a type of the list, the
   kernel first, then the platform, then the other packages by name;
@@ -34,6 +36,7 @@ in a print.
 function update_help_groups!(list::_HelpList)
     old_groups, old_entries = _index_help_nodes(list)
     typed = list isa DocumentTypeList
+    creatable = typed ? Set{Any}(get_insertion_candidates(Document)) : Set{Any}()
     packages = Dict{Module, Dict{Module, Vector{Any}}}()
     for T in _collect_help_types(list)
         defining = parentmodule(T)
@@ -45,11 +48,11 @@ function update_help_groups!(list::_HelpList)
         modules = packages[package]
         title = _get_help_package_title(package)
         children = if length(modules) == 1
-            _build_help_entries(only(values(modules)), old_entries; typed)
+            _build_help_entries(only(values(modules)), old_entries; creatable)
         else
             Any[_update_help_group!(old_groups, string(title, "/", _get_help_module_title(m)),
                                     _get_help_module_title(m), compute_docstring_summary(m),
-                                    _build_help_entries(modules[m], old_entries; typed))
+                                    _build_help_entries(modules[m], old_entries; creatable))
                 for m in _sort_help_modules(collect(keys(modules)))]
         end
         description = compute_docstring_summary(package)
@@ -104,20 +107,21 @@ end
 # The entries of `types`, by name with no regard to case. A permutation of plain
 # strings, because a sort of the entries by a key compiles the sort for their
 # type at the first build.
-function _build_help_entries(types, old_entries; typed::Bool)
+function _build_help_entries(types, old_entries; creatable::Set{Any})
     names = [String(nameof(T)) for T in types]
     order = sortperm([lowercase(name) for name in names])
-    Any[_update_help_entry!(old_entries, types[k], names[k]; typed) for k in order]
+    Any[_update_help_entry!(old_entries, types[k], names[k]; creatable = types[k] in creatable) for k in order]
 end
 
-function _update_help_entry!(old_entries, @nospecialize(T), name; typed::Bool)
-    words = typed ? join(_get_typed_names(T), ", ") : ""
+function _update_help_entry!(old_entries, @nospecialize(T), name; creatable::Bool)
+    words = creatable ? join(_get_typed_names(T), ", ") : ""
     description = compute_docstring_summary(T)
     text = something(find_docstring_text(T), "")
     supertypes = _format_help_supertypes(T)
     fields = _collect_help_fields(T)
     entry = get(old_entries, T, nothing)
-    entry === nothing && return HelpEntry(name, T, words, description, text, supertypes, fields)
+    entry === nothing && return HelpEntry(name, T, creatable, words, description, text, supertypes, fields)
+    entry.creatable == creatable || (entry.creatable = creatable)
     entry.typed == words || (entry.typed = words)
     entry.description == description || (entry.description = description)
     entry.text == text || (entry.text = text)

@@ -8,8 +8,8 @@
 
 Draw a [`HelpEntry`](@ref) as its page, in a scroll pane: the name of the type,
 the module that defines it, the type with its supertypes, such as
-`AboutPage <: Document`, for a document type the names that a person types into
-an empty tab to make one, the whole docstring, one line of the page for each
+`AboutPage <: Document`, for a document type whether an empty tab creates it
+without arguments and the names that a person types there, the whole docstring, one line of the page for each
 line of the text, or "No description." for a type with none, and a table of the
 fields that a person can set: the field and its type, each as wide as its widest
 cell, and the docstring of the field in the rest of the width. A type with no
@@ -58,8 +58,7 @@ function _make_help_entry_parts(p::HelpEntryToWidget, entry::HelpEntry)
     T isa Type && push!(parts, WidgetLabel(join(String.(fullname(parentmodule(T))), "."); text_style = p.detail))
     isempty(entry.supertypes) ||
         push!(parts, WidgetLabel(entry.name * " <: " * entry.supertypes; text_style = p.detail))
-    isempty(entry.typed) ||
-        push!(parts, WidgetLabel("Names to type in an empty tab: " * entry.typed; text_style = p.detail))
+    T isa Type && T <: Document && push!(parts, WidgetLabel(_format_help_creation(entry); text_style = p.detail))
     if isempty(entry.text)
         push!(parts, WidgetLabel("No description."; text_style = p.muted))
     else
@@ -71,6 +70,11 @@ function _make_help_entry_parts(p::HelpEntryToWidget, entry::HelpEntry)
                                              [[field.name, field.type, field.description] for field in entry.fields]))
     parts
 end
+
+# How a person creates a document of the type of `entry`.
+_format_help_creation(entry::HelpEntry) =
+    entry.creatable ? "An empty tab creates it without arguments. Names to type: " * entry.typed :
+                      "It needs arguments, so an empty tab can not create it."
 
 # The field and its type are as wide as their widest cell, and the docstring of
 # the field takes the rest of the width.

@@ -5,9 +5,10 @@
 """
     DocumentTypeList()
 
-The tree of every document type that an empty tab can make: the types that
-`get_insertion_candidates(Document)` finds in the loaded modules, grouped by
-package, and by module in a package of many modules. `children` holds the
+The tree of every document type in the loaded modules, one for each schema
+(`compute_document_types(Document)`), grouped by package, and by module in a
+package of many modules. An entry says whether an empty tab can create a
+document of its type without arguments. `children` holds the
 [`HelpGroup`](@ref)s of the packages. A new list holds none: its acquire builds
 them, and builds them again after a change of the loaded program
 ([`update_help_groups!`](@ref)). `world` is the world counter at the last build.
@@ -46,11 +47,13 @@ modules of a package, or the [`HelpEntry`](@ref)s of its types.
 end
 
 """
-    HelpEntry(name, type, typed, description, text, supertypes, fields)
+    HelpEntry(name, type, creatable, typed, description, text, supertypes, fields)
 
-One type in a tree of the help: `name` is its name, `type` the type; `typed`
-holds the names that a person types into an empty tab to make a document of the
-type, joined by ", ", and is empty for a projection. `description` is the first
+One type in a tree of the help: `name` is its name, `type` the type.
+`creatable` says whether an empty tab can create a document of the type without
+arguments (`get_insertion_candidates`), and is `false` for a projection. `typed`
+holds the names that a person types into an empty tab to create one, joined by
+", ", and is empty for a type that is not `creatable`. `description` is the first
 paragraph of its docstring, and `text` the whole docstring, or `""` for a type
 with none.
 
@@ -63,6 +66,7 @@ type in the form a person reads, and the docstring of the field on one line.
 @document struct HelpEntry
     name::String
     type::Any
+    creatable::Bool
     typed::String
     description::String
     text::String
@@ -117,7 +121,7 @@ _format_help_count(children) = isempty(children) ? "" : string(sum(group -> grou
 get_document_decoration(list::DocumentTypeList) =
     DocumentDecoration(; icon = :circle_help, detail = _format_help_count(list.children),
                        tooltip = () -> TooltipNote(; title = "Documents",
-                           text = "Every document type that an empty tab can make, by package and by slice."))
+                           text = "Every document type, by package and by slice, and whether an empty tab can create it."))
 get_document_decoration(list::ProjectionList) =
     DocumentDecoration(; icon = :circle_help, detail = _format_help_count(list.children),
                        tooltip = () -> TooltipNote(; title = "Projections",
