@@ -770,17 +770,33 @@ struct _ApiEntry
     summary::String    # what a hit shows under it: the first sentence of its description
     text::String       # what a hit is SCORED on: the signature and the description
     full::String       # the whole documentation, for a search that answers one thing
+    is_family_member::Bool  # a type that only the mark on a supertype offers
 end
 
 # An entry named `qualname`, read from its documentation. `source` is the name the
 # documentation uses, which a declaration can have renamed; every text of the
 # entry then shows the name the model writes.
 function _make_api_entry(kind::String, qualname::String, doc::AbstractString,
-                         source::AbstractString = last(split(qualname, '.')))
+                         source::AbstractString = last(split(qualname, '.'));
+                         is_family_member::Bool = false)
     shown = String(last(split(qualname, '.')))
     doc = source == shown ? String(doc) : _rename_signature_paragraph(doc, source, shown)
     signature, summary = _read_doc_heading(doc, shown)
-    _ApiEntry(kind, qualname, signature, summary, _search_text(doc), doc)
+    _ApiEntry(kind, qualname, signature, summary, _search_text(doc), doc, is_family_member)
+end
+
+# Whether `value` is a type that the mark on one of its supertypes offers, while its
+# own docstring has no mark: a member of a family, which a search ranks below the
+# names that carry the mark.
+function _is_family_member(value, doc::AbstractString)
+    (value isa Type && !has_assistant_mark(doc)) || return false
+    above = Base.unwrap_unionall(value)
+    above isa DataType || return false
+    while above !== Any
+        above = supertype(above)
+        has_assistant_mark(_doc_string(above)) && return true
+    end
+    false
 end
 
 # The docstring with `shown` in place of `source` in its signature paragraph, and
@@ -917,7 +933,8 @@ function _index_declared(api)
             qualname = "$mn." * String(sym)
             doc = _binding_doc(mod, source)
             if value isa Type
-                push!(entries, _make_api_entry("type", qualname, doc, String(source)))
+                push!(entries, _make_api_entry("type", qualname, doc, String(source);
+                                               is_family_member = _is_family_member(value, doc)))
             elseif value isa Function
                 push!(entries, _make_api_entry("function", qualname, doc, String(source)))
             else
@@ -1188,22 +1205,31 @@ function _rank_api_entries(query, entries::Vector{_ApiEntry})
         push!(lengths, max(1.0, Float64(length(prose))))
     end
     isempty(kept) && return Tuple{Tuple{Int,Float64},_ApiEntry}[]
-    average = sum(lengths) / length(kept)
-    holders = Int[count(one -> one[index] > 0, counts) for index in eachindex(terms)]
     scored = Tuple{Tuple{Int,Float64},_ApiEntry}[]
-    for place in eachindex(kept)
-        said = 0.0
-        for index in eachindex(terms)
-            frequency = counts[place][index]
-            frequency == 0 && continue
-            rarity = log(1 + (length(kept) - holders[index] + 0.5) / (holders[index] + 0.5))
-            said += rarity * frequency * (_WORD_SATURATION + 1) /
-                    (frequency + _WORD_SATURATION *
-                     (1 - _LENGTH_WEIGHT + _LENGTH_WEIGHT * lengths[place] / average))
+    # **A name with its own mark ranks above a name that only its family offers.**
+    # The members of a family carry short docstrings, and hundreds of them would
+    # set what a word and a length are worth for the verbs; so each tier weighs its
+    # words among its own entries, and a name that is the query comes first in both.
+    for tier in (false, true)
+        places = [place for place in eachindex(kept) if kept[place].is_family_member == tier]
+        isempty(places) && continue
+        average = sum(lengths[places]) / length(places)
+        holders = Int[count(place -> counts[place][index] > 0, places) for index in eachindex(terms)]
+        for place in places
+            said = 0.0
+            for index in eachindex(terms)
+                frequency = counts[place][index]
+                frequency == 0 && continue
+                rarity = log(1 + (length(places) - holders[index] + 0.5) / (holders[index] + 0.5))
+                said += rarity * frequency * (_WORD_SATURATION + 1) /
+                        (frequency + _WORD_SATURATION *
+                         (1 - _LENGTH_WEIGHT + _LENGTH_WEIGHT * lengths[place] / average))
+            end
+            push!(scored, ((named[place], said), kept[place]))
         end
-        push!(scored, ((named[place], said), kept[place]))
     end
-    sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
+    sort!(scored; by = x -> (x[1][1] >= 100 ? 0 : 1, x[2].is_family_member ? 1 : 0,
+                             -x[1][1], -x[1][2], length(x[2].qualname)))
 end
 
 _prefix_note(note, text::AbstractString) = note === nothing ? String(text) : note * "\n\n" * text
@@ -1468,6 +1494,7 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
                         relevance_model, context)
     scored = _rank_api_entries(read, entries)
     ranked = _ApiEntry[entry for (_, entry) in scored]
+    is_reranked = false
     note = nothing
     if read isa _DescriptionQuery
         # **The meaning decides, and the words only stand in for it.** Merged,
@@ -1483,10 +1510,11 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
         if by_relevance === nothing
             by_meaning, note = _rank_api_entries_by_meaning(
                 _add_query_context(read, context_text), entries, meaning_model)
-            by_meaning === nothing || (ranked = by_meaning)
+            by_meaning === nothing || (ranked = by_meaning; is_reranked = true)
             note = _join_notes(relevance_note, note)
         else
             ranked = by_relevance
+            is_reranked = true
         end
         # A sentence names no verb, so only a single hit is a clear answer.
         alone = length(ranked) == 1
@@ -1513,10 +1541,15 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
                 note = relevance_note
             else
                 ranked = by_relevance
+                is_reranked = true
                 alone = length(ranked) == 1
             end
         end
     end
+    # A ranking by meaning or by a relevance model keeps its order inside each tier,
+    # and the names with their own mark come first, as in the ranking by words.
+    is_reranked && (ranked = vcat(filter(entry -> !entry.is_family_member, ranked),
+                                  filter(entry -> entry.is_family_member, ranked)))
     (ranked, alone, note)
 end
 

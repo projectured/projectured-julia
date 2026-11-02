@@ -395,6 +395,8 @@ ends with a commit in each repository that it changes.
 3. **The text answers.** My recommendation: a verb answers a `String`, and the
    code tool shows a `String` answer as its plain text. The owner confirms it at
    step 2.
-4. **The rank of a family member in the search.** A name with its own mark could
-   rank above a name that only its family offers. The owner decides before
-   `search_api` changes.
+4. ~~**The rank of a family member in the search.**~~ Decided by the owner
+   (2026-11-02): a name with its own mark ranks above a name that only its family
+   offers. The word ranking ranks in tiers: an exact name first, then the marked
+   names, then the members; each tier weighs its words among its own entries. A
+   ranking by meaning or by a relevance model keeps its order inside each tier.
