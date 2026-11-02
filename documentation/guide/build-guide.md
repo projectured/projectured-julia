@@ -33,6 +33,12 @@ stops there. The script then starts `julia_main` of that package. A change is
 tried in the time that Julia needs to compile it, and not in the minutes that a
 build costs.
 
+When `build/projectured/` holds a reactive store and the Julia is the reactive
+one, the script rebuilds the binary, which compiles the edit and no more, and
+starts it; see [Rebuild in seconds](#rebuild-in-seconds). Else it runs from
+source, and it says why and what the reactive build gives. A start never founds
+a store.
+
 The first start after an install or an update installs and compiles the
 packages of the program, which takes some minutes. When that preparation runs
 longer than ten seconds, the script says why the wait comes and shows each
