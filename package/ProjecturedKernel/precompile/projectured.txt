@@ -15,8 +15,7 @@ Tuple{ProjecturedKernel.ToolModule.var"#_register_code_tool!##0#_register_code_t
 Tuple{Type{Array{Expr, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{Float64, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{String, 1}}, UndefInitializer, Tuple{Int64}}
-Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Bool}}, Base.ScopedValues.ScopedValue{Any}}
-Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}}, Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}
+Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Any}}, Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}}
 Tuple{Type{Base.Iterators.IterableStatePairs{T} where T}, Base.Iterators.Reverse{String}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Expr, 1}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Float64, 1}}
@@ -62,8 +61,9 @@ Tuple{typeof(Base.CoreLogging.handle_message), Base.CoreLogging.ConsoleLogger, B
 Tuple{typeof(Base.Filesystem.basename), String}
 Tuple{typeof(Base.Filesystem.contractuser), String}
 Tuple{typeof(Base.Filesystem.temp_cleanup_atexit)}
-Tuple{typeof(Base.HashArrayMappedTries.next), Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}}
+Tuple{typeof(Base.HashArrayMappedTries.next), Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}}}
 Tuple{typeof(Base.Iterators.enumerate), Array{Base.UnitRange{Int64}, 1}}
+Tuple{typeof(Base.Iterators.only), Array{Any, 1}}
 Tuple{typeof(Base.Iterators.reverse), Array{Any, 1}}
 Tuple{typeof(Base.Iterators.reverse), Base.Iterators.IterableStatePairs{String}}
 Tuple{typeof(Base.Iterators.reverse), String}

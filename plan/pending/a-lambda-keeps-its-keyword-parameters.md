@@ -102,12 +102,24 @@ What this plan does not change:
    (308 + 1). `test_example(julia_example)` 3443 pass and 84 failures,
    `test_example(julia_code_example)` 17554 pass and 423 failures: each failure
    is the known "no cursor" at `TypeinTest.jl:747`, as on main.
-3. [ ] **The precompile lists.** The template of `JuliaLambdaToSyntaxNode`
+3. [x] **The precompile lists.** The template of `JuliaLambdaToSyntaxNode`
    changes, and the workload file has a new line. Record again, in this order:
    `ProjecturedJulia`, `ProjecturedExample`, then the application `projectured`.
    Count the calls that no longer resolve in each changed list, against main,
    and check that a load of `ProjecturedAll`, `ProjecturedExample` and
    `ProjecturedBuild` gives no warning.
+   *Done:* the record changed eight lists: the two of `ProjecturedJulia`, the
+   workloads of `ProjecturedExample` and `ProjecturedBuild`, and the application
+   lists of `ProjecturedKernel`, `ProjecturedPlatform`, `ProjecturedSDL` and
+   `ProjecturedYAML`. The lambda has one more cell, so each call that names its
+   type changes. Stale calls on the code of the branch, the list of main against
+   the new list: `ProjecturedJulia` workload 29 of 1903 against 0 of 1900, its
+   application list 8 of 760 against 0 of 763, `ProjecturedExample` 29 of 7500
+   against 18 of 7484, `ProjecturedBuild` 11 of 3672 against 3 of 3711,
+   `ProjecturedKernel` 3 of 291 against 3 of 291, and 0 in the others. The 18, 3
+   and 3 that stay are the counts after the last record of main. The workload of
+   `ProjecturedExample` fails 3 of 135 examples, as on main. The precompile with
+   the new lists and a load of the three packages give no warning.
 4. [ ] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.
