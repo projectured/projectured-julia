@@ -592,6 +592,47 @@ function test_build_executable()
             @test isfile(joinpath(project, "extra.jl"))
         end
 
+        @testset "a reactive build writes what a rebuild runs, and refuses a wrong option" begin
+            # No compiler loads here: a build with `compile = false` writes the
+            # trace workload with the package, and only a compile reads the
+            # tracked files.
+            context = _test_context()
+            build(; kw...) = build_executable(context; name = "reactive", packages = [A_PACKAGE],
+                                               main = :(begin; 0; end),
+                                               compile = false, resolve = false, kw...)
+            record(project) = read(joinpath(project, "src", "ReactiveApp.jl"), String)
+            # The trace runs the workload of each package that compiles ahead.
+            project = build(; reactive = true,
+                              packages = ["ProjecturedKernel", "ProjecturedPrecompile"])
+            trace = read(joinpath(project, "trace_workload.jl"), String)
+            @test occursin("using ProjecturedKernel, ProjecturedPrecompile\n", trace)
+            @test occursin("ProjecturedKernel.run_package_workload()", trace)
+            @test !occursin("ProjecturedPrecompile.run_package_workload()", trace)
+            # The record names the build that founded the store.
+            @test occursin("reactive: founded", record(project))
+            # A store under the output makes the next build a rebuild, and a build
+            # that asks for a fresh image builds plain.
+            output = mktempdir()
+            build(; output, reactive = true)
+            mkdir(joinpath(output, REACTIVE_STORE))
+            @test occursin("reactive: founded", record(build(; output)))
+            @test !occursin("reactive: founded", record(build(; output, reactive = false)))
+            @test !occursin("reactive: founded", record(build(; output, incremental = false)))
+            # The app module is fixed when the store is founded, so a rebuild of
+            # a store founded for another module is refused.
+            @test_throws ErrorException build(; output)
+            # Every wrong combination is refused before anything is written.
+            @test_throws ErrorException build(; reactive = :nonsense)
+            @test_throws ErrorException build(; reactive = true, image = :nonsense)
+            @test_throws ErrorException build(; reactive = true, delta_optimization = 4)
+            @test_throws ErrorException build(; reactive = true, incremental = false)
+            @test_throws ErrorException build(; reactive = true, performance_counters = true)
+            @test_throws ErrorException build(; found = true)
+            @test_throws ErrorException build(; trimmed = true)
+            @test_throws ErrorException build(; refresh_trace = true)
+            @test_throws ErrorException build(; tracked = Pair{String,String}[])
+        end
+
         @testset "a build that would write the same module again leaves it alone" begin
             # A rewrite is a recompile: Julia decides a cache is stale from the
             # source file, and the generated module is the top of the tree.

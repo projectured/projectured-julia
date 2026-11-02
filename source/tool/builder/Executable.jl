@@ -166,7 +166,8 @@ end
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
-                       compile_app) -> String
+                       compile_app, reactive, tracked, refresh_trace, server, image,
+                       delta_optimization, found, compact, trimmed) -> String
 
 Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
@@ -187,7 +188,8 @@ output directory.
   frame. A build of packages that do not hold the kernel ignores it. The default
   is [`is_performance_counters_requested`](@ref), the environment variable
   `PROJECTURED_PERFORMANCE_COUNTERS`, so a script that builds, or that runs from
-  source, takes the switch from its environment.
+  source, takes the switch from its environment. A reactive rebuild keeps the
+  image of its founding build, so a reactive build refuses it.
 - `fonts` — bundle the text faces. A binary that draws needs them and a binary
   that draws nothing does not; see [`bundle_fonts!`](@ref) for why they cannot
   travel any other way.
@@ -230,9 +232,48 @@ output directory.
 - `compile_app` — the function that turns the written package into a bundle:
   `compile_app(project, output, name; force, optimization, debug_info,
   strip_metadata, cpu_target, incremental, filter_stdlibs)`. The
-  default, [`compile_app!`](@ref), is the plain path with the released
-  PackageCompiler and its own launcher. A caller that links its own launcher,
-  trims, or rebuilds reactively passes one of its own.
+  default, [`compile_app!`](@ref), is the plain path with the launcher of
+  PackageCompiler. A caller that links its own launcher or trims passes one of
+  its own. A reactive build does not call it.
+- `reactive` — compile through `PackageCompiler.materialize_app` in place of
+  `compile_app`. `true` founds a store under the output on the first build, and
+  every later build of the same output reads the tracked sources from disk and
+  compiles the edit and no more. `:auto`, the default, rebuilds when the output
+  holds a store and builds plain when it does not. `false` builds plain
+  although a store exists, and the store goes with the old output. It needs the
+  reactive Julia and the branch `reactive` of the fork of PackageCompiler, and
+  it builds on the image of the running Julia like `incremental`. See
+  `ReactiveBuild.jl`.
+- `server` — rebuild through the compiler server that stays between builds
+  (the default), or in a child process. The first rebuild starts the server.
+  The defaults of this keyword and of `image`, `delta_optimization`, `found`,
+  `compact` and `trimmed` are the variables of the reactive compiler
+  (`JULIA_REACTIVE_SERVER`, `_IMAGE_WRITE`, `_DELTA_OPT`, `_FOUNDING`,
+  `_COMPACT`, `_TRIM`), so a gate of the compiler drives a build through the
+  environment and a flag of the command line overrides it.
+- `image` — how a rebuild writes the image: `:overlay` (the default), a shared
+  object beside the base with the patches and the new objects of the edit, and
+  no link of the whole image; `:pages`, the pages of the base that the process
+  wrote; `:whole`, the whole image.
+- `delta_optimization` — the `-O` level of the code of a rebuild, 0 to 3; by
+  default the `optimization` of the build.
+- `found` — found the store again now: a whole build. `compact = (saves,
+  growth)` does the same by itself after that growth of the image since the
+  founding, or, for a store that writes pages or whole images, after that many
+  rebuilds.
+- `trimmed` — write the trimmed product of the image beside the bundle, under
+  `<output>/trimmed`; an edit that makes a call site dynamic is then refused.
+- `tracked` — the files that a reactive rebuild watches, as `file =>
+  "Module"`, the module being the one whose `include` loads the file. By
+  default the sources of every package in `packages`, by
+  [`collect_tracked_sources`](@ref). The store adds the sources of every path
+  package of the Manifest of the build, on the founding and on each rebuild,
+  so a file that joins one of them is tracked from that rebuild on.
+- `refresh_trace` — before a reactive rebuild, run the workload once more from
+  the current binary and add what it compiles to the trace of the store, the
+  roots of the image. An edit that calls new code needs it once, or the binary
+  compiles the new code at every start. It needs a store; a founding build
+  refuses it.
 
 The caller's active environment is restored on the way out: the build has to
 activate the package it wrote, and a prompt must not be left in it.
@@ -264,7 +305,16 @@ function build_executable(context::BuildContext; name::AbstractString,
                             force::Bool = true,
                             logfile::Union{AbstractString,Nothing} = nothing,
                             extra_info::AbstractString = "",
-                            compile_app = compile_app!)
+                            compile_app = compile_app!,
+                            reactive::Union{Bool,Symbol} = :auto,
+                            tracked::Union{Vector{Pair{String,String}},Nothing} = nothing,
+                            refresh_trace::Bool = false,
+                            server::Bool = get(ENV, "JULIA_REACTIVE_SERVER", "1") == "1",
+                            image::Symbol = Symbol(get(ENV, "JULIA_REACTIVE_IMAGE_WRITE", "overlay")),
+                            delta_optimization::Integer = parse(Int, get(ENV, "JULIA_REACTIVE_DELTA_OPT", string(optimization))),
+                            found::Bool = get(ENV, "JULIA_REACTIVE_FOUNDING", "") == "1",
+                            compact::Tuple{Int,Float64} = _get_reactive_compact_default(),
+                            trimmed::Bool = get(ENV, "JULIA_REACTIVE_TRIM", "off") != "off")
     0 <= optimization <= 3 ||
         error("build_executable: `optimization` is 0 to 3, not $optimization")
     0 <= debug_info <= 2 ||
@@ -277,6 +327,21 @@ function build_executable(context::BuildContext; name::AbstractString,
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
+    reactive = _choose_reactive_build(reactive, output, incremental)
+    _check_reactive_options(reactive, incremental, performance_counters, tracked,
+                            refresh_trace, image, delta_optimization, found, trimmed)
+    if reactive
+        extra_info *= REACTIVE_RECORD_LINE
+        caller_after_write = after_write
+        reactive_after_write, compile_app =
+            _make_reactive_steps(context, name, packages, output, tracked, found,
+                                 refresh_trace, server, image, delta_optimization,
+                                 compact, trimmed)
+        after_write = project -> begin
+            caller_after_write === nothing || caller_after_write(project)
+            reactive_after_write(project)
+        end
+    end
     # The switch of the counters is a preference of the kernel, which reads it when
     # it compiles. A binary that does not hold the kernel has no counters.
     performance_counters &&
@@ -341,12 +406,12 @@ end
     compile_app!(project, output, name; force, optimization, debug_info,
                   strip_metadata, cpu_target, incremental, filter_stdlibs) -> String
 
-Compile `project` into `output`, with the released PackageCompiler's own
-launcher: one executable, `name => "julia_main"`, and nothing more.
+Compile `project` into `output`, with the launcher of PackageCompiler: one
+executable, `name => "julia_main"`, and nothing more.
 
-**The plain path.** A caller that links its own launcher, prelinks, trims, or
-rebuilds reactively passes a `compile_app` of its own to
-[`build_executable`](@ref) instead of this one.
+**The plain path.** A caller that links its own launcher, prelinks or trims
+passes a `compile_app` of its own to [`build_executable`](@ref) instead of this
+one, and a reactive build compiles through `materialize_app`.
 """
 function compile_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                        force::Bool = true, optimization::Integer = 3, debug_info::Integer = 1,

@@ -18,6 +18,10 @@ this repository.
 runs. `PackageRelease.jl` writes the other form a user can install: a copy of the
 packages in which each package folder holds everything it reads, for a registry.
 `build_projectured_package_release!(output)` writes the one of this repository.
+
+`ReactiveBuild.jl` is the build that founds a store under the bundle and then
+compiles the edit and no more, through the branch `reactive` of the fork of
+PackageCompiler and the reactive Julia.
 """
 module BuilderModule
 
@@ -38,6 +42,8 @@ export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_i
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
+export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
+       print_reactive_status!, stop_reactive_server, watch_reactive_store!
 export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
        get_hidden_directories, make_hidden_command, check_relocation, write_readme,
        report_distribution
@@ -66,6 +72,7 @@ include("Preference.jl")
 include("Usage.jl")
 include("AppPackage.jl")
 include("Executable.jl")
+include("ReactiveBuild.jl")
 include("Distribution.jl")
 include("LicenceTexts.jl")
 include("SourceArchive.jl")

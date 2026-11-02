@@ -8,7 +8,7 @@
 
 ### Two halves
 
-The core names no program and no repository: `BuildContext`, `Preference`, `Usage`, `write_app_package`, `build_executable`, `build_distribution`, `build_package_release!` and `collect_outside_paths`. A `BuildContext` gives the root that a build writes into and the folders where `get_package_directory` finds a package by its name, in order. `ProjecturedProgram.jl` is the half of this repository. It describes the binary `projectured`: its backends, its options, its assets, its licences and the test of a copy. It also says which packages go into the registry, which folders each of them reads, and the oldest Julia they name. It names the packages as strings and loads none of them, so a downstream program can use the same core with a context of its own.
+The core names no program and no repository: `BuildContext`, `Preference`, `Usage`, `write_app_package`, `build_executable` with its reactive build, `build_distribution`, `build_package_release!` and `collect_outside_paths`. A `BuildContext` gives the root that a build writes into and the folders where `get_package_directory` finds a package by its name, in order. `ProjecturedProgram.jl` is the half of this repository. It describes the binary `projectured`: its backends, its options, its assets, its licences and the test of a copy. It also says which packages go into the registry, which folders each of them reads, and the oldest Julia they name. It names the packages as strings and loads none of them, so a downstream program can use the same core with a context of its own.
 
 The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and of ProjecturEd only on `ProjecturedPrecompile`, which tells which package compiles ahead. It loads PackageCompiler only in the step that compiles, through `Base.PkgId` and `Base.require`. So a build that only writes the package, and the tests, need no compiler, and no `import` at run time makes a binding in a later world age.
 
@@ -40,6 +40,16 @@ A build value travels as a preference and not as generated code. Julia records a
 `build_executable(context; name, packages, main, precompile_calls, …)` checks first that every local dependency has a path in the `[sources]` of the package that uses it, because Pkg can not resolve it otherwise. It then writes the build record, the package and the preferences, and resolves the package. A `Manifest.toml` that names a path with no package, or another path than the project, is deleted first. `compile_app!` calls `create_app` with one executable, `name => "julia_main"`. A caller that links its own launcher, prelinks or trims passes its own `compile_app`. Last, the build copies the fonts and the assets into `share/projectured/` of the bundle.
 
 A build is incremental by default: it compiles on top of the image of the running Julia, which already holds the standard libraries. It compiles for `native`, or for `PROJECTURED_CPU_TARGET`. A distribution passes `incremental = false` and `PORTABLE_CPU_TARGET`, the empty string, with which `create_app` compiles several variants of the architecture.
+
+### The reactive build
+
+`build_executable` can compile through `materialize_app` of the branch `reactive` of the fork of PackageCompiler, in place of `compile_app`. The code is `ReactiveBuild.jl`. The first build founds a store under the bundle, `reactive-store`: a whole build through the reactive Julia, which keeps what it compiled. Every later build of the same output is a rebuild. It reads the tracked sources from disk, applies what changed to a compiler server that keeps the image in memory, compiles the edit and no more, and writes an overlay beside the image. No build runs the program.
+
+- **The tracked files** are the includes of the root file of each package of the binary, which `collect_tracked_sources` reads. The store adds the files of every path package of the manifest of the app package.
+- **The trace workload**, `trace_workload.jl` in the app package, runs the workload of each package that compiles ahead. The founding traces it in a throwaway process, and a rebuild precompiles the statements of that trace after the edit. The build writes it with the package, so `compile = false` writes it too. Only a compile reads the tracked files, so a run from source loads no compiler.
+- **The app module is fixed at the founding.** The build reads the modification times of the app files before it writes them, and a rebuild refuses a store that was founded for another module.
+- **`reactive = :auto`**, the default, rebuilds when the output holds a store and the build asks for no fresh image. `found`, `compact`, `server`, `image`, `delta_optimization`, `trimmed` and `refresh_trace` control the store; their defaults are the variables of the reactive compiler, so a gate script of the compiler drives a build through the environment. `print_reactive_status!`, `stop_reactive_server` and `watch_reactive_store!` act on a store without a build.
+- The record of a reactive build says that `materialize_app` founded it, because a rebuild keeps the image and the record of its founding.
 
 ### Distribution
 
@@ -82,6 +92,7 @@ The last release is what the last commit of the release repository holds: an unc
 - **A package that did not change keeps its folder.** Its tree stays, so the registry sees no new version, and a user downloads nothing for it.
 - **A job of the release repository develops the folders of its test, and adds nothing from the registry.** A registry holds a version only after the commit that makes it, so a job that added the siblings from the registry would test the last release and not the commit, and a new `[compat]` bound would not resolve. A support package names a released sibling without `[sources]`, so the folders of a job come from the test project and every support package, not only from the package. The job develops the support packages too: the sandbox of `Pkg.test` keeps the version of a developed sibling only when the manifest of the environment reaches it, and only the test project names a support package, so a sibling that only a support package needs would be resolved again from the registry, where it is not. See [plan/done/release-repository-ci.md](../../../../plan/done/release-repository-ci.md).
 - **The last release is the last commit.** The builder reads no registry, and a release copy with an uncommitted change is refused, so a registration that was cut short is safe to run again.
+- **The reactive build is in the core.** Both repositories build reactively with one copy of the code. The `compile_app` of a caller is its plain path, and a reactive build does not call it: the reactive Julia links the delta of an edit in front of the image of the founding, and a launcher or a prelink of the caller has no part in that.
 - **The smoke test passes `--build-info`.** The builder writes that flag into every binary. `--version` reaches the `main` of a binary with no usage. A window program can take it for a folder to open, and the measure of the start then does not end.
 
 ## Usage
@@ -95,7 +106,7 @@ build_projectured_package_release!("../Projectured.jl")   # the release copy of 
 ```
 
 - Test: `test_builder()` of the test package `ProjecturedBuilderTest` runs the layering guard of the builder and the two suites below. The tests compile nothing.
-- Test: `test_build_executable()` in `test/tool/builder/BuilderTest.jl`: what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+- Test: `test_build_executable()` in `test/tool/builder/BuilderTest.jl`: what a build writes, which inputs stop it, the trace workload and the options of the reactive build, the manifest repair, the staging folder, the licences and the hidden folders.
 - Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`: the layout of the copy, the versions, the bounds, the scan, the test folders, the jobs of the workflow, and a release copy of this repository with its workflow.
 
 ## Limits
