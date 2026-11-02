@@ -123,3 +123,8 @@ What this plan does not change:
 4. [ ] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.
+   *Fact:* main moved to aaa8a0c79 during the work, with seven commits of the
+   reactive build. They change no file of this branch, and no list of this
+   branch names the builder, so the branch is rebased with no conflict. On the
+   rebased branch, `ProjecturedAll`, `ProjecturedExample` and `ProjecturedBuild`
+   load with no warning, and `test_julia_parser()` passes 210 of 210.
