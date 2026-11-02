@@ -39,7 +39,7 @@ export DocumentBase
 export compute_loaded_subtypes, var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
        get_domain_insertion, insertable, get_insertion_aliases, get_insertion_icon, is_element_type,
-       make_insertion_document, get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
+       make_insertion_document, get_insertion_names, get_insertion_candidates, compute_concrete_subtypes, compute_document_types,
        complete_insertion, name_completion, resolve_insertion, find_insertion_choices,
        find_declared_place_type,
        insert_document_operation, append_insertion_operation, move_to_field,

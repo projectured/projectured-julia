@@ -345,6 +345,17 @@ _is_layout_variant(T::Type) =
     isconcretetype(T) && get_document_family(T) !== Base.typename(T).wrapper
 
 """
+    compute_document_types(root::Type) -> Vector{Type}
+
+Every document type under `root` in the loaded modules, one for each schema: the
+types of [`compute_concrete_subtypes`](@ref) without a layout variant that
+`@document` makes of another schema, such as `MFoo` of `Foo`. A type that an
+empty tab can create with no argument is also one of
+[`get_insertion_candidates`](@ref).
+"""
+compute_document_types(root::Type) = filter(T -> !_is_layout_variant(T), compute_concrete_subtypes(root))
+
+"""
     get_insertion_candidates(root::Type) -> Vector{Type}
 
 Every insertable concrete document type under `root`, computed by reflection
@@ -361,9 +372,8 @@ function get_insertion_candidates(root::Type)
     cached !== nothing && cached[1] == world && return cached[2]
     own = Base.invokelatest(get_domain_insertion, root)
     # `insertable` goes last: it probes the constructor and compiles a method for
-    # each type, and a layout variant or a stray insertion cursor needs neither.
-    result = filter(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),
-                    compute_concrete_subtypes(root))
+    # each type, and a stray insertion cursor needs none.
+    result = filter(T -> T !== own && _is_domain_entry(T) && insertable(T), compute_document_types(root))
     _CANDIDATE_CACHE[root] = (world, result)
     result
 end
