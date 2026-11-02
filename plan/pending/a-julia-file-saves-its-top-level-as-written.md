@@ -1,6 +1,6 @@
 # A Julia file saves its top level as written
 
-Status: IN PROGRESS. Step 1 is done.
+Status: IN PROGRESS. Steps 1 and 2 are done.
 
 ## The ask
 
@@ -74,6 +74,24 @@ statements on one line, `a = 1; b = 2`. The only difference is the layout.
    form from two statements; it makes one from a juxtaposed product, `x = 2pi`,
    which the print writes as `2 * pi`.
 
+6. **Found in step 2: the notation of the FSM domain.** The FSM examples and the
+   generator scripts of inet-julia make the entry of a state and the action of a
+   transition with `parse_julia` of a snippet. An entry of two statements was a
+   `JuliaBlock` only because the parser made every snippet of many statements a
+   body; the notation printed it below `entry /`, indented, by the break and the
+   indentation of the block. As a `JuliaToplevel`, its first statement stayed on
+   the `entry /` line and the second went to the column of `entry`, so it read as
+   two lines of the state (`FsmToSyntaxTest.jl:29` failed). *My decision:* the
+   notation lays out the code itself. `_project_fsm_code` in `FsmToSyntax.jl`
+   puts code of statements on lines of their own on the next line, indented, and
+   keeps any other code on the line of the keyword; the entry and the action use
+   it. The template body gives it the `project(:entry)` or `project(:action)`
+   slot, because `@projection_template` resolves its marker words only in the
+   body. The document keeps what the parser gives, and the generator already makes
+   a body of any entry or action (`_block`). The other way was a parse of a body
+   in the Julia domain that the FSM authors call, which needs a new function and
+   a change at 15 sites of the examples and in the scripts of inet-julia.
+
 What this plan does not change:
 - the indentation of the body of a `module`;
 - the keyword parameters of an anonymous function (the next open item);
@@ -106,7 +124,7 @@ What this plan does not change:
    `test_julia_parser()`, `test_julia_workload_file()`, `test_julia_to_syntax()`
    227 of 227; `test_fsm_to_julia_code()` 46 of 46; `test_evaluator_toplevel()` and
    `test_file_project()` 408 of 409, with 1 known `@test_broken` (the Julia page).
-2. [ ] **The wider check.** On the branch and on main 50f94f5b9, each in a process
+2. [x] **The wider check.** On the branch and on main 50f94f5b9, each in a process
    of its own:
    - `test_julia()` (744 on main), `test_fsm()`, `test_process()`, `test_formula()`;
    - `test_example(julia_example)` and `test_example(julia_code_example)`. Main has
@@ -116,6 +134,25 @@ What this plan does not change:
    - `test_julia_file_view()`, the view of a file as the window draws it;
    - `test_evaluator_toplevel()`, `test_file_project()` and `test_application()`
      of the umbrella suite: an evaluated form of several lines draws as Julia now.
+
+   As run, branch against main 50f94f5b9:
+   - `test_julia()` 759 pass, with `test_julia_file_view()`; `test_process()` 316
+     and `test_formula()` 308 pass.
+   - `test_fsm()` 273 pass against 271. The notation fix of design item 6 makes
+     `FsmToSyntaxTest.jl:29` pass.
+   - The FSM examples have the same failures as main: `fsm_toggle` 488,
+     `fsm_crossing` 1929, `fsm_alternating_bit` 2664; each has about 100 more
+     passes. `fsm_example` passes its printer, reader and REPL tests on both;
+     its navigation does not end in 45 minutes on main either, so it is not run.
+   - `julia_example` has the same 84 type-in failures; `julia_code_example` the
+     same 423. The printer of `julia_code_example` has 16,529 checks against
+     16,938, and its navigation 373 against 420, because no state is on the empty
+     first line now. The probe finds 346 distinct caret places on both sides,
+     equal after a shift of (14, 14), the width of the line that went away.
+   - `test_application()` 387 pass against 386, with the same 2 failures as main
+     (`ApplicationTest.jl:677` and `:789`) and 2 broken. Two of its checks
+     changed: the evaluator check reads the column of a code line from the drawn
+     text, and a form of two statements prints as written.
 3. [ ] **The precompile lists.** The template of `JuliaToplevelToSyntaxNode`
    changes, so recorded calls that name it or a later closure of its file no
    longer resolve. Record again, in this order: `ProjecturedJulia`,

@@ -142,6 +142,13 @@ _trigger_text(doc) = begin
         trigger isa FsmTimer ? "on timeout($(trigger.name))" : "on $(_referent_name(trigger))"
 end
 
+# The code of an entry or an action after its keyword, given as its `project` slot.
+# Code of statements on lines of their own starts on the next line, indented, as a
+# body does; any other code stays on the line of the keyword.
+_project_fsm_code(code, slot) =
+    code isa JuliaToplevel && !code.on_one_line ?
+        SyntaxNode([slot]; open = "\n", indentation = 1) : slot
+
 @projection_template FsmTransitionToSyntaxNode FsmTransition (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[]
@@ -158,7 +165,7 @@ end
         push!(children, SyntaxLeaf(TextString(isempty(children) ? ending : " " * ending, ending_style)))
         if doc.action !== nothing
             push!(children, SyntaxLeaf(TextString(" / ", p.chrome)))
-            push!(children, project(:action))
+            push!(children, _project_fsm_code(doc.action, project(:action)))
         end
         children
     end)
@@ -185,12 +192,12 @@ end
                                    open=TextString("state ", p.keyword)) ]
         # One indented line: the wrapper indents its single child, and that
         # child concatenates the keyword with the projected entry code, so a
-        # one-expression entry stays on the line (a block still spills below,
-        # which is what a multi-statement entry should look like).
+        # one-expression entry stays on the line, and an entry of several lines
+        # starts below it (`_project_fsm_code`).
         if doc.entry !== nothing
             push!(children, SyntaxNode([ SyntaxConcatenation(
                                              [ SyntaxLeaf(TextString("entry / ", p.keyword)),
-                                               project(:entry) ]) ];
+                                               _project_fsm_code(doc.entry, project(:entry)) ]) ];
                                        open="\n", close="\n", indentation=1))
         end
         isempty(doc.transitions) ||

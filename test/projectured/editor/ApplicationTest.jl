@@ -1194,12 +1194,19 @@ function test_application()
                 @test "2" in drawn()
                 @test length(carets()) == 1
                 @test only(carets())[2] > y_of("2")
-                # The prompts stand in one column. The second line of the code and
-                # the result stand right of it, where the code starts.
-                x_of(word) = only(x for (text, x, _) in drawn_at() if text == word)
-                prompts_x = unique(x for (text, x, _) in drawn_at() if text in (">", "="))
+                # The prompts stand in one column. The evaluated code draws as
+                # Julia, whose `=` operator is a text too, so a prompt is a `>` or
+                # an `=` with no text left of it on its line.
+                texts = drawn_at()
+                is_line_start(x, y) = all(other -> other[3] != y || other[2] >= x, texts)
+                prompts_x = unique(x for (text, x, y) in texts if text in (">", "=") && is_line_start(x, y))
                 @test length(prompts_x) == 1
-                @test x_of("x + 1") == x_of("x = 1") == x_of("2") > only(prompts_x)
+                # The second line of the code and the result stand right of it,
+                # where the code starts: the `x` that starts each line of the code.
+                x_of(word) = only(x for (text, x, _) in texts if text == word)
+                starts = [x for (text, x, _) in texts if text == "x"]
+                @test length(starts) == 2 && allequal(starts)
+                @test first(starts) == x_of("2") > only(prompts_x)
             end
 
             @testset "Up and Down in the evaluator recall its history through the window" begin
@@ -1246,8 +1253,8 @@ function test_application()
                 press!(key(:down))
                 @test shown() == ""
                 # The forms above keep their code.
-                @test [print_natural_text(evaluator.elements[1].form),
-                       evaluator.elements[2].form.value] == ["a = 1", "b = 2\nb + 1"]
+                @test [print_natural_text(evaluator.elements[i].form) for i in 1:2] ==
+                      ["a = 1", "b = 2\nb + 1"]
             end
 
             @testset "a structured form takes keys through the window, and Enter evaluates it" begin
