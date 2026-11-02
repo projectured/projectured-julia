@@ -54,6 +54,8 @@ the animation.
 A time that is not a real number throws a `MethodError`.
 
 See also `get_clock_time`, the read that records nothing.
+
+For the assistant.
 """
 function get_reactive_clock_time end
 
@@ -76,6 +78,8 @@ animation does not run again on each write of the time.
 A time that is not a real number throws a `MethodError`.
 
 See also `get_reactive_clock_time`.
+
+For the assistant.
 """
 function get_clock_time end
 

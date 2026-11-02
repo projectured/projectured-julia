@@ -1,7 +1,7 @@
 # The assistant finds its names by reflection
 
 Status: a plan. Written 2026-11-02 from the answers of the owner on that day.
-Step 1 is in progress on the branch `reflection-api` of both repositories.
+Step 1 is done on the branch `reflection-api` of both repositories (2026-11-02).
 
 Spans two repositories. projectured-julia holds the rule, the index, the
 tools, the guides and the verbs of the editor. omnet-julia holds the verbs of
@@ -229,7 +229,7 @@ Each step is done in a worktree, runs the narrowest tests that cover it, and
 ends with a commit in each repository that it changes.
 
 1. **The mark and the surface by reflection, with no change of the surface.**
-   *In progress (2026-11-02); the facts are in §5.1.*
+   *Done (2026-11-02); the facts are in §5.1.*
    Read the mark, compute the surface, declare it. Mark the 307 names that are
    offered now. Check that the computed surface is exactly today's declared list
    in both windows. Tests: `test_assistant_documentation`,
@@ -265,8 +265,8 @@ ends with a commit in each repository that it changes.
 - The computed surface equals the old lists in both windows, except for three
   names. `ChartFunctionSeries` is new in the editor, because the IDE offered it and
   its mark is in the chart domain. `get_clock_time` and `get_reactive_clock_time`
-  are missing until the sealed `kernel/clock/Clock.jl` gets the mark, which needs
-  the owner's permission.
+  carry the mark in the sealed `kernel/clock/Clock.jl`, by the owner's permission
+  for that file (2026-11-02); the code of the file did not change.
 - The storage variants that `@document` writes beside a type share its docstring,
   so `ACStyleColor` came in with `StyleColor`. The collection skips a variant, as
   the search index does.
