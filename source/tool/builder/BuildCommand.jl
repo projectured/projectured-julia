@@ -76,6 +76,21 @@ const BUILD_OPTIONS = [
     ("--no-compile", "--no-compile",
      "write the package of the binary under build/app/,\n" *
      "and compile nothing"),
+    ("--no-reactive", "--no-reactive",
+     "compile the whole program, and found no store. A\n" *
+     "store under the output goes with the old output"),
+    ("--found", "--found",
+     "found the store again now: a whole build"),
+    ("--refresh-trace", "--refresh-trace",
+     "before a rebuild, run the workload from the current\n" *
+     "binary and add what it compiles to the trace of the\n" *
+     "store, so that the binary compiles no new code at\n" *
+     "its start"),
+    ("--status", "--status",
+     "print what the store of the output holds, and exit"),
+    ("--stop-server", "--stop-server",
+     "stop the compiler server of the store of the\n" *
+     "output, and exit"),
     ("-h", "-h, --help", "print this text and exit"),
 ]
 
@@ -103,6 +118,16 @@ function format_build_usage(; fixed::AbstractString = get_fixed_build_binary(),
     for (_, label, description) in BUILD_OPTIONS
         push!(lines, "  " * rpad(label, column - 2) * indent(description))
     end
+    append!(lines, ["", "Rebuilds:", "",
+                    "  With the reactive Julia, the first build founds a store under the",
+                    "  output: a whole build that keeps what it compiled. Every later build",
+                    "  of the output reads the sources from disk, applies what changed to a",
+                    "  compiler server that keeps the image in memory, and compiles the edit",
+                    "  and no more, in seconds. The binary keeps what its founding build",
+                    "  holds: a change of the backends or of the options of the package",
+                    "  needs --found. With another Julia, a build compiles the whole program",
+                    "  and says how to get the reactive one. --distribution always compiles",
+                    "  the whole program."])
     append!(lines, ["", "Environment:", "",
                     "  PROJECTURED_PERFORMANCE_COUNTERS=true",
                     " "^column * indent("compile the performance counters of the editor\n" *
@@ -128,16 +153,17 @@ function _parse_integer_build_option(argument, key)
 end
 
 """
-    parse_build_arguments(arguments; fixed = get_fixed_build_binary()) -> (binary, distribution, keywords)
+    parse_build_arguments(arguments; fixed = get_fixed_build_binary()) -> (binary, action, keywords)
 
-The binary a command line names, whether it asks for a distribution, and the
-keywords of the build function. `fixed` is the binary that a `bin/` script
+The binary a command line names, what it asks for, and the keywords of the
+build function. The action is `:executable`, `:distribution`, `:status` or
+`:stop_server`. `fixed` is the binary that a `bin/` script
 chose, and then the command line names none. A wrong command line raises an
 error.
 """
 function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_build_binary())
     binary = isempty(fixed) ? nothing : fixed
-    distribution = false
+    action = :executable
     keywords = Dict{Symbol,Any}()
     for argument in arguments
         if !startswith(argument, "-")
@@ -152,7 +178,17 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
         key = _find_build_option(argument)
         key === nothing && error("unknown option $(repr(argument))")
         if key == "--distribution"
-            distribution = true
+            action = :distribution
+        elseif key == "--status"
+            action = :status
+        elseif key == "--stop-server"
+            action = :stop_server
+        elseif key == "--no-reactive"
+            keywords[:reactive] = false
+        elseif key == "--found"
+            keywords[:found] = true
+        elseif key == "--refresh-trace"
+            keywords[:refresh_trace] = true
         elseif key == "--backends="
             keywords[:backends] = Tuple(Symbol.(split(_get_build_option_value(argument, key), ',')))
         elseif key == "--precompile-calls="
@@ -181,15 +217,17 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
             keywords[:compile] = false
         end
     end
-    if get(keywords, :filter_stdlibs, false) && get(keywords, :incremental, true) && !distribution
+    if get(keywords, :filter_stdlibs, false) && get(keywords, :incremental, true) &&
+       action !== :distribution
         error("--filter-stdlibs needs --no-incremental")
     end
-    if distribution
+    if action === :distribution
         get(keywords, :compile, true) || error("--distribution needs a compiled bundle, not --no-compile")
         haskey(keywords, :incremental) && error("--distribution always compiles a fresh image")
         haskey(keywords, :cpu_target) && error("--distribution sets the processors itself")
+        haskey(keywords, :found) && error("--distribution compiles the whole program, and founds no store")
     end
-    (binary, distribution, keywords)
+    (binary, action, keywords)
 end
 
 """
@@ -200,7 +238,9 @@ when the build ends, 1 for a wrong command line. The bundle goes to
 `build/<name>/`: the executable in `bin/`, the system image and the libraries in
 `lib/`, and the fonts in `share/`. With `--distribution`, the build also checks
 that a copy of the bundle runs outside this checkout, and writes the bundle as an
-archive under `build/`. A build is a Julia function, and this only reads a
+archive under `build/`. With `--status` and `--stop-server`, it acts on the
+reactive store of the output and builds nothing; `--status` answers 1 when the
+output holds no store. A build is a Julia function, and this only reads a
 command line and calls that function, so a decision about a build belongs in the
 function, where a test can reach it.
 """
@@ -209,7 +249,7 @@ function run_build_command(arguments)::Cint
         print(format_build_usage())
         return 0
     end
-    binary, distribution, keywords = try
+    binary, action, keywords = try
         parse_build_arguments(arguments)
     catch err
         err isa ErrorException || rethrow()
@@ -221,10 +261,21 @@ function run_build_command(arguments)::Cint
         print(stderr, format_build_usage())
         return 1
     end
-    if distribution
+    if action === :distribution
         println(build_projectured_distribution(; pairs(keywords)...))
+    elseif action === :status
+        return print_reactive_status!(_get_build_output(keywords)) ? 0 : 1
+    elseif action === :stop_server
+        output = _get_build_output(keywords)
+        println(stop_reactive_server(output) ? "the compiler server of $output was stopped" :
+                                               "no compiler server runs for $output")
     else
         println(build_projectured_executable(; pairs(keywords)...))
     end
     0
 end
+
+# The output of the build that a command line names, for an action on its store.
+_get_build_output(keywords) =
+    get(keywords, :output,
+        joinpath(make_projectured_build_context().root, "build", get(keywords, :name, "projectured")))

@@ -17,6 +17,11 @@
 # for several processor families, checks that a copy runs outside this checkout,
 # and writes it as an archive with a README.
 #
+# **With the reactive Julia, the second build takes seconds.** The first build
+# founds a store under the output, and every later build compiles the edit and
+# no more. With another Julia, a build compiles the whole program and says how
+# to get the reactive one. It uses the `julia` that it finds on PATH.
+#
 # `--help` lists every option. A build uses much memory and takes minutes; read
 # `documentation/guide/build-guide.md` before the first one.
 #

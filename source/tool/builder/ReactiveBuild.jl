@@ -12,8 +12,10 @@
 # after the edit. The part of the builder is to say which files to track and
 # what the trace runs.
 #
-# The store is the switch. `build_executable` founds one on `reactive = true`
-# and, by default, rebuilds whenever the output holds one. A rebuild goes
+# The store is the switch. By default `build_executable` founds one when the
+# output holds none and the Julia is the reactive one, and rebuilds whenever the
+# output holds one. Another Julia builds plain and says what the reactive build
+# gives. A rebuild goes
 # through the compiler server that stays between builds (`server`), writes an
 # overlay beside the image (`image = :overlay`), and compiles the edit at the
 # `-O` level of the build or a lower one (`delta_optimization`). The store
@@ -148,22 +150,92 @@ watch_reactive_store!(output::AbstractString, build; io::IO = stdout, settle::Re
 _collect_changed_files!(stamps::Dict{String,Float64}) =
     _call_reactive_compiler(:_changed_files!, stamps)::Set{String}
 
-# What `reactive = :auto` means: a rebuild when the output holds a store and the
-# build asks for nothing that a rebuild can not give, such as a fresh image;
-# else a plain build.
+"""
+    has_reactive_julia() -> Bool
+
+Whether the running Julia carries the reactive compiler: the stdlib
+`ReactiveCompiler` and the options of its compiler server. A reactive build
+needs it.
+"""
+has_reactive_julia() = :reactive_server in fieldnames(Base.JLOptions)
+
+"""
+    describe_reactive_build() -> String
+
+The words that tell a person that the reactive build exists, what it gives,
+and how to get it. A build and a script that runs from source print them when
+the reactive Julia is not there.
+"""
+describe_reactive_build() = """
+    With the reactive Julia, the first build of a binary founds a store under its
+    output, and every later build compiles the edit and no more: seconds, where a
+    whole build takes minutes. The reactive Julia is the branch `merged` of
+    https://github.com/levy/julia, which also writes a pre-relocated image. Build
+    it and select it:
+        git clone --branch merged https://github.com/levy/julia julia-merged
+        make -C julia-merged
+        juliaup link merged "\$PWD/julia-merged/usr/bin/julia"
+        juliaup default merged
+    """
+
+# What is missing for a reactive build, or `nothing`. Only a build that would
+# found a store asks, so only it loads the compiler.
+function _find_missing_reactive_part()
+    has_reactive_julia() || return "this Julia has no reactive compiler"
+    compiler = Base.require(PACKAGE_COMPILER)
+    isdefined(compiler, :materialize_app) ||
+        return "the PackageCompiler at $(pathof(compiler)) has no `materialize_app`; " *
+               "the `[sources]` of environment/build/Project.toml name the branch " *
+               "`reactive` of https://github.com/projectured/PackageCompiler.jl"
+    nothing
+end
+
+# What `reactive = :auto` means. A build that compiles founds a store when the
+# output holds none and rebuilds when it holds one, unless it asks for what a
+# rebuild can not give: a fresh image or the performance counters. Without the
+# reactive Julia it builds plain and says what it would give. A store is never
+# rebuilt plain by accident, because the store goes with the old output. A run
+# from source compiles nothing, and writes the package that the store was
+# founded for. The two facts about the Julia are keywords, so that a test does
+# not depend on the Julia that runs it.
 function _choose_reactive_build(reactive::Union{Bool,Symbol}, output::AbstractString,
-                                incremental::Bool)
+                                incremental::Bool, performance_counters::Bool, compile::Bool;
+                                reactive_julia::Bool = has_reactive_julia(),
+                                find_missing_part = _find_missing_reactive_part)
+    reactive === true && compile && !reactive_julia &&
+        error("build_executable: `reactive = true` needs the reactive Julia, and this " *
+              "Julia has no reactive compiler.\n" * describe_reactive_build())
     reactive === :auto || return reactive
     stored = isdir(joinpath(output, REACTIVE_STORE))
-    chosen = stored && incremental
-    if chosen
-        @info "build_executable: $output holds a reactive store, so this is a rebuild " *
-              "(reactive = false builds plain)"
-    elseif stored
-        @info "build_executable: $output holds a reactive store, but this build asks for " *
-              "a fresh image, so it builds plain"
+    compile || return stored && incremental && !performance_counters
+    if !incremental || performance_counters
+        stored && @info "build_executable: $output holds a reactive store, but this build " *
+                        "asks for " * (incremental ? "the performance counters" : "a fresh image") *
+                        ", which a rebuild can not give, so it builds plain, and the store " *
+                        "goes with the old output"
+        return false
     end
-    chosen
+    if stored
+        reactive_julia ||
+            error("build_executable: $output holds a reactive store, and this Julia has no " *
+                  "reactive compiler, so it can not rebuild it. Start the build with the " *
+                  "reactive Julia that founded the store, or build with --no-reactive " *
+                  "(reactive = false): a plain build, and the store goes with the old " *
+                  "output.\n" * describe_reactive_build())
+        @info "build_executable: $output holds a reactive store, so this build compiles " *
+              "the edit and no more (--no-reactive builds plain)"
+        return true
+    end
+    missing_part = find_missing_part()
+    if missing_part === nothing
+        @info "build_executable: $output holds no reactive store, so this build founds " *
+              "one: a whole build, and every later build compiles the edit and no more " *
+              "(--no-reactive builds plain)"
+        return true
+    end
+    @info "build_executable: $missing_part, so this build compiles the whole program. " *
+          "--no-reactive asks for this build and says nothing.\n" * describe_reactive_build()
+    false
 end
 
 # Every wrong combination of the options of a reactive build is refused before

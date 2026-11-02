@@ -77,6 +77,11 @@ The options of the front end:
 | `--log=<file>` | write the output of the compiler to a file |
 | `--log-level=<level>` | the level the binary logs from |
 | `--no-compile` | write the package of the binary under `build/app/`, and compile nothing |
+| `--no-reactive` | compile the whole program, and found no store |
+| `--found` | found the store again now: a whole build |
+| `--refresh-trace` | before a rebuild, add what the workload compiles from the current binary to the trace of the store |
+| `--status` | print what the store of the output holds, and exit |
+| `--stop-server` | stop the compiler server of the store of the output, and exit |
 
 `--no-compile` is the fast way to see what a build would make. It writes the
 package in a second and compiles nothing.
@@ -89,6 +94,46 @@ build_projectured_executable()
 build_projectured_executable(; compile = false, backends = (:sdl,))
 build_projectured_distribution()
 ```
+
+## Rebuild in seconds
+
+With the reactive Julia, a build compiles only what changed since the build
+before:
+
+```bash
+bin/build_projectured                 # the first build founds a store: a whole build
+# edit a file of a package of the binary
+bin/build_projectured                 # a rebuild: the edit and no more
+bin/build_projectured --status
+bin/build_projectured --stop-server
+```
+
+The first build founds a *store* under the output, `build/projectured/reactive-store`:
+the sources that the build tracks, the trace of the workloads, and the snapshots.
+Every later build of the output is a rebuild. It reads the tracked sources from
+disk, applies what changed to a compiler server that keeps the image in memory,
+compiles the edit and no more, and writes an overlay beside the image. The
+tracked sources are the files of every package of this repository that the
+binary holds. Nothing runs the program during a build.
+
+- **The reactive Julia** is the branch `merged` of
+  https://github.com/levy/julia, which also writes a pre-relocated image. The
+  build environment takes PackageCompiler from the branch `reactive` of
+  https://github.com/projectured/PackageCompiler.jl, which builds like the
+  released one on another Julia.
+- **With another Julia**, a build compiles the whole program, as before, and
+  says how to get the reactive Julia. Over an output that holds a store it
+  stops, because a plain build removes the store: start it with the reactive
+  Julia, or pass `--no-reactive`.
+- **The binary keeps what its founding build holds.** A change of the backends,
+  of the options of the package, or of `--precompile-calls` is refused with the
+  words "founded for another package": found the store again with `--found`.
+- **An edit that calls new code** compiles that code at each start of the
+  binary until `--refresh-trace` adds it to the trace.
+- **The store founds again by itself** when its overlay grew the image by a
+  quarter since the founding.
+- `--no-incremental`, `--distribution` and `PROJECTURED_PERFORMANCE_COUNTERS`
+  compile the whole program: a rebuild keeps the image of its founding build.
 
 ## What a build makes
 

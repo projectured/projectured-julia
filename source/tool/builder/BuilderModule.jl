@@ -43,7 +43,8 @@ export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executa
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
 export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
-       print_reactive_status!, stop_reactive_server, watch_reactive_store!
+       print_reactive_status!, stop_reactive_server, watch_reactive_store!,
+       has_reactive_julia, describe_reactive_build
 export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
        get_hidden_directories, make_hidden_command, check_relocation, write_readme,
        report_distribution

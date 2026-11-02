@@ -633,6 +633,39 @@ function test_build_executable()
             @test_throws ErrorException build(; tracked = Pair{String,String}[])
         end
 
+        @testset "a build founds a store with the reactive Julia, and says what it gives without it" begin
+            choose(reactive, stored; incremental = true, performance_counters = false,
+                   compile = true, reactive_julia = true, missing_part = nothing) =
+                mktempdir() do output
+                    stored && mkdir(joinpath(output, REACTIVE_STORE))
+                    ProjecturedBuilder.BuilderModule._choose_reactive_build(
+                        reactive, output, incremental, performance_counters, compile;
+                        reactive_julia, find_missing_part = () -> missing_part)
+                end
+            # With the reactive Julia, the first build founds a store, and every
+            # later build rebuilds it.
+            @test choose(:auto, false)
+            @test choose(:auto, true)
+            # Without it, a build compiles the whole program and says how to get it.
+            @test_logs (:info, r"no reactive compiler.*branch `merged`"s) begin
+                @test !choose(:auto, false; reactive_julia = false,
+                              missing_part = "this Julia has no reactive compiler")
+            end
+            @test occursin("juliaup default merged", describe_reactive_build())
+            # A plain build over a store would remove it, so it is refused, and so
+            # is a reactive build that this Julia can not do.
+            @test_throws ErrorException choose(:auto, true; reactive_julia = false)
+            @test_throws ErrorException choose(true, false; reactive_julia = false)
+            # What a rebuild can not give is a plain build.
+            @test !choose(:auto, true; incremental = false)
+            @test !choose(:auto, false; performance_counters = true)
+            @test !choose(false, true)
+            # A run from source compiles nothing: it writes the package that the
+            # store was founded for, with any Julia.
+            @test choose(:auto, true; compile = false, reactive_julia = false)
+            @test !choose(:auto, false; compile = false)
+        end
+
         @testset "a build that would write the same module again leaves it alone" begin
             # A rewrite is a recompile: Julia decides a cache is stale from the
             # source file, and the generated module is the top of the tree.
@@ -1171,24 +1204,30 @@ function test_build_executable()
             end
             @test occursin("projectured", usage)
 
-            binary, distribution, keywords = parse_arguments(String[])
-            @test binary === nothing && !distribution && isempty(keywords)
-            binary, distribution, keywords = parse_arguments(
+            binary, action, keywords = parse_arguments(String[])
+            @test binary === nothing && action === :executable && isempty(keywords)
+            binary, action, keywords = parse_arguments(
                 ["projectured", "--backends=web,sdl", "--precompile-calls=none", "--no-incremental",
                  "--filter-stdlibs", "--name=pr", "--optimization=2", "--debug-info=0",
                  "--strip-metadata", "--cpu-target=generic", "--log-level=info", "--no-compile"])
-            @test binary == "projectured" && !distribution
+            @test binary == "projectured" && action === :executable
             @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :precompile_calls => "none",
                 :incremental => false, :filter_stdlibs => true, :name => "pr",
                 :optimization => 2, :debug_info => 0, :strip_metadata => true,
                 :cpu_target => "generic", :log_level => :info, :compile => false)
             # A `bin/` script fixes the binary, and then the command line names none.
-            binary, distribution, keywords = parse_arguments(["--no-compile"], "projectured")
+            binary, action, keywords = parse_arguments(["--no-compile"], "projectured")
             @test binary == "projectured" && keywords == Dict{Symbol,Any}(:compile => false)
             @test_throws ErrorException parse_arguments(["projectured"], "projectured")
-            binary, distribution, keywords = parse_arguments(["projectured", "--distribution",
-                                                              "--filter-stdlibs"])
-            @test distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            binary, action, keywords = parse_arguments(["projectured", "--distribution",
+                                                        "--filter-stdlibs"])
+            @test action === :distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            # The command line reaches the store and the options of a rebuild.
+            @test parse_arguments(["--status"], "projectured")[2] === :status
+            @test parse_arguments(["--stop-server"], "projectured")[2] === :stop_server
+            @test parse_arguments(["--no-reactive", "--refresh-trace", "--found"], "projectured")[3] ==
+                  Dict{Symbol,Any}(:reactive => false, :refresh_trace => true, :found => true)
+            @test_throws ErrorException parse_arguments(["--distribution", "--found"], "projectured")
             # Every option the build function takes is a keyword of it.
             method = only(methods(build_projectured_executable))
             for key in (:backends, :precompile_calls)
@@ -1197,7 +1236,7 @@ function test_build_executable()
             method = only(methods(build_executable))
             for key in (:incremental, :filter_stdlibs, :name, :output, :optimization,
                         :debug_info, :strip_metadata, :cpu_target, :logfile, :log_level,
-                        :compile)
+                        :compile, :reactive, :refresh_trace, :found)
                 @test key in Base.kwarg_decl(method)
             end
 

@@ -238,12 +238,16 @@ output directory.
 - `reactive` — compile through `PackageCompiler.materialize_app` in place of
   `compile_app`. `true` founds a store under the output on the first build, and
   every later build of the same output reads the tracked sources from disk and
-  compiles the edit and no more. `:auto`, the default, rebuilds when the output
-  holds a store and builds plain when it does not. `false` builds plain
-  although a store exists, and the store goes with the old output. It needs the
-  reactive Julia and the branch `reactive` of the fork of PackageCompiler, and
-  it builds on the image of the running Julia like `incremental`. See
-  `ReactiveBuild.jl`.
+  compiles the edit and no more. `:auto`, the default, founds a store when the
+  output holds none and rebuilds when it holds one. With another Julia than the
+  reactive one, it builds plain and says what the reactive build gives, and it
+  refuses to build plain over a store. A build that asks for a fresh image or
+  for the performance counters builds plain. With `compile = false`, it writes
+  the package that the store of the output was founded for. `false` builds
+  plain although a store exists, and the store goes with the old output. A
+  reactive build needs the reactive Julia, see [`has_reactive_julia`](@ref),
+  and the branch `reactive` of the fork of PackageCompiler, and it builds on the
+  image of the running Julia like `incremental`. See `ReactiveBuild.jl`.
 - `server` — rebuild through the compiler server that stays between builds
   (the default), or in a child process. The first rebuild starts the server.
   The defaults of this keyword and of `image`, `delta_optimization`, `found`,
@@ -327,7 +331,7 @@ function build_executable(context::BuildContext; name::AbstractString,
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
-    reactive = _choose_reactive_build(reactive, output, incremental)
+    reactive = _choose_reactive_build(reactive, output, incremental, performance_counters, compile)
     _check_reactive_options(reactive, incremental, performance_counters, tracked,
                             refresh_trace, image, delta_optimization, found, trimmed)
     if reactive
