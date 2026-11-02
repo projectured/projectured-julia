@@ -527,19 +527,39 @@ _convert_head(::Val{:public}, x::Expr) =
     JuliaUsing(:public, join((_module_path_string(a) for a in x.args), ", "))
 
 # Anonymous function `args -> body`. `args` is a single symbol (`x -> …`), a
-# tuple (`(x, y) -> …`, `() -> …`), and the body is usually a `:block` wrapping
-# one expression.
+# tuple (`(x, y) -> …`, `() -> …`) or a block (`(x; y = 1) -> …`), and the body
+# is usually a `:block` wrapping one expression.
 function _convert_head(::Val{:->}, x::Expr)
     a = x.args[1]
-    params = if a isa Expr && a.head === :tuple
-        Any[p for p in a.args]
+    params, keyword_params = _convert_lambda_parameters(a)
+    JuliaLambda(params, _convert_lambda_body(x.args[2]), a isa Expr && a.head in (:tuple, :block),
+                keyword_params)
+end
+
+# The positional and the keyword parameters of a lambda, from its argument
+# expression. A tuple, `(x, z; y = 1, w)`, holds the keyword parameters in a
+# leading `Expr(:parameters, kw…)`, as a call does. A block, `(x; y = 1)`, is
+# the form with one parameter before the `;`: Julia reads its first element as
+# positional and its second as a keyword.
+function _convert_lambda_parameters(a)
+    params = JuliaDocument[]
+    keyword_params = JuliaDocument[]
+    if a isa Expr && a.head === :tuple
+        for p in a.args
+            if p isa Expr && p.head === :parameters
+                append!(keyword_params, JuliaDocument[convert_expr(k) for k in p.args])
+            else
+                push!(params, convert_expr(p))
+            end
+        end
     elseif a isa Expr && a.head === :block
-        Any[p for p in a.args if !(p isa LineNumberNode)]
+        elements = Any[p for p in a.args if !(p isa LineNumberNode)]
+        isempty(elements) || push!(params, convert_expr(elements[1]))
+        length(elements) >= 2 && push!(keyword_params, convert_expr(elements[2]))
     else
-        Any[a]
+        push!(params, convert_expr(a))
     end
-    JuliaLambda(JuliaDocument[convert_expr(p) for p in params], _convert_lambda_body(x.args[2]),
-                a isa Expr && a.head in (:tuple, :block))
+    return params, keyword_params
 end
 
 # ── Compound expressions ─────────────────────────────────────────────────────
@@ -814,8 +834,8 @@ function _convert_head(::Val{:function}, x::Expr)
     end
     # `function (x) … end` — anonymous, so it is a lambda written the long way.
     if sig isa Expr && sig.head === :tuple
-        return JuliaLambda(JuliaDocument[convert_expr(p) for p in sig.args],
-                           _convert_lambda_body(x.args[2]))
+        params, keyword_params = _convert_lambda_parameters(sig)
+        return JuliaLambda(params, _convert_lambda_body(x.args[2]), true, keyword_params)
     end
     (sig isa Expr && sig.head === :call) ||
         error("unsupported function signature: $(repr(sig))")

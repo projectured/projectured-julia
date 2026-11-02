@@ -153,6 +153,20 @@ function test_julia_parser()
         @test length(g.params) == 1 && length(g.keyword_parameters) == 1
     end
 
+    @testset "a lambda keeps its keyword parameters after the `;`" begin
+        # The block form `(x; y = 1)` and the tuple form `(x, z; y = 1, w)`.
+        for code in ("(x; y = 1) -> x + y", "(x, z; y = 1, w) -> x", "(; y = 1) -> y")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+        # The long anonymous form prints as a lambda, with its keyword parameters.
+        long_form = "g = function (x; y = 1)\n    x + y\nend"
+        @test _julia_round_trip(long_form) == "g = (x; y = 1) -> x + y"
+        @test _julia_prints_back(long_form)
+        l = parse_julia("(x, z; y = 1, w) -> x")
+        @test length(l.parameters) == 2 && length(l.keyword_parameters) == 2
+    end
+
     @testset "blocks that carry a body" begin
         @test _julia_round_trip("let x = 1\n    x + 1\nend") ==
               "let x = 1\n  x + 1\nend"

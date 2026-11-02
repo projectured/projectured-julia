@@ -273,8 +273,10 @@ function _collect_free_identifiers!(found, node::Union{JuliaBlock,JuliaToplevel}
     end
 end
 
-_collect_free_identifiers!(found, node::JuliaLambda, bound::Set{String}) =
-    _collect_free_identifiers!(found, node.body, _bind_parameters!(found, node.parameters, bound))
+function _collect_free_identifiers!(found, node::JuliaLambda, bound::Set{String})
+    inner = _bind_parameters!(found, node.parameters, bound)
+    _collect_free_identifiers!(found, node.body, _bind_parameters!(found, node.keyword_parameters, inner))
+end
 
 _collect_free_identifiers!(found, node::JuliaLet, bound::Set{String}) =
     _collect_free_identifiers!(found, node.body, _bind_parameters!(found, node.bindings, bound))

@@ -278,8 +278,10 @@ renders the keyword highlighted and the rest verbatim.
 end
 
 """
-An anonymous function `(p₁, p₂, …) -> body`. `parameters` are the argument
-documents (empty for `() -> …`); `body` is the returned expression.
+An anonymous function `(p₁, p₂, …; k₁, …) -> body`. `parameters` are the
+positional argument documents (empty for `() -> …`); `body` is the returned
+expression; `keyword_parameters` are the documents after the `;`, empty when the
+code has no `;`.
 """
 @document struct JuliaLambda <: JuliaDocument
     parameters::CellVector{JuliaDocument}
@@ -287,7 +289,16 @@ documents (empty for `() -> …`); `body` is the returned expression.
     # Whether the parameters stand in parentheses, as the code wrote them:
     # `(x) -> x` and `() -> 1` do, `x -> x` does not.
     parenthesized::Bool = true
+    keyword_parameters::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
+
+# Callers give the lists of a lambda as plain vectors, and each becomes the
+# collection that the lambda holds. `@document` makes such a constructor only for
+# a struct with one collection (its Rule C), and a lambda has two.
+JuliaLambda(parameters::AbstractVector, body, parenthesized::Bool = true,
+            keyword_parameters::AbstractVector = JuliaDocument[]) =
+    JuliaLambda(CellVector{JuliaDocument}(parameters), body, parenthesized,
+                CellVector{JuliaDocument}(keyword_parameters))
 
 """
 An assignment statement. `operator` is one of `:(=)`, `:(+=)`, `:(-=)`, `:(*=)`, `:(/=)`.

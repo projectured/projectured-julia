@@ -596,9 +596,17 @@ end
     arrow::StyleText = get_julia_style(nothing, :operator_text)
 end
 
+# The parameters and the keyword parameters are two sub-nodes, `(x, y` and
+# `; k = 1) -> `, as the ones of a named function are: the second one opens with
+# `; ` only when it holds a parameter, and it closes the list.
 @projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
     SyntaxConcatenation([ SyntaxNode(collection(:parameters);
                                      open=TextString(Cell(@computation l.parenthesized ? "(" : ""),
+                                                     Cell(p.delim.font), Cell(p.delim.color),
+                                                     Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
+                                     sep=TextString(", ", p.delim)),
+                          SyntaxNode(collection(:keyword_parameters);
+                                     open=TextString(Cell(@computation isempty(l.keyword_parameters) ? "" : "; "),
                                                      Cell(p.delim.font), Cell(p.delim.color),
                                                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                      close=TextString(Cell(@computation l.parenthesized ? ") -> " : " -> "),

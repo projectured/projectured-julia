@@ -207,6 +207,7 @@ let names = (:a, 'b', "c $(LIMIT) d", nothing, true, [1, 2.5]), entry = (; count
         rethrow()
     end
     x -> x + 1
+    (x; y = 1) -> x + y
     words = Vector{String}(undef, 1)[1:end]; first(words)
 end
 

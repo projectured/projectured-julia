@@ -79,7 +79,7 @@ What this plan does not change:
 
 ## The steps
 
-1. [ ] **A lambda holds its keyword parameters.** The design above, with its
+1. [x] **A lambda holds its keyword parameters.** The design above, with its
    docstring. Tests:
    - `JuliaParserTest.jl`, a new test set next to "a long function keeps its
      keyword parameters after the `;`": the round trips of
@@ -89,6 +89,11 @@ What this plan does not change:
      of the two lists of `(x, z; y = 1, w) -> x`.
    - `FormulaNameTest.jl`: the free names of a formula with `(x; y = a) -> x + y`.
    - `test_julia_workload_file()` with the new line of the workload file.
+   *Done:* `test_julia_parser()` 210 pass, `test_julia_workload_file()` 8,
+   `test_formula_names()` 39. The parser helper is `_convert_lambda_parameters`;
+   the long anonymous form uses it too, because its signature is always a tuple.
+   The printer puts the close `) -> ` on the second collection, so the first one
+   has no close, as the parameters of a named function have none.
 2. [ ] **The wider check.** On the branch, each in a process of its own:
    `test_julia()` (759 on main), `test_formula()` (308),
    `test_example(julia_example)` and `test_example(julia_code_example)`, against

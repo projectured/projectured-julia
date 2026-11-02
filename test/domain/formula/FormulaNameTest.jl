@@ -9,6 +9,7 @@ function test_formula_names()
     @testset "a local name is not free" begin
         @test _formula_names("x -> x * A") == ["A"]
         @test _formula_names("(x, y = x + B) -> x + y") == ["B"]
+        @test _formula_names("(x; y = A) -> x + y") == ["A"]
         @test _formula_names("let t = A + 1, u = t; u * B end") == ["A", "B"]
         @test _formula_names("[x * A for x in V if x > B]") == ["V", "A", "B"]
         @test _formula_names("begin s = 0; for i in 1:N; s += i * A; end; s end") == ["N", "A"]
