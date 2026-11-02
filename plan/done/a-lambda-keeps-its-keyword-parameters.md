@@ -1,6 +1,6 @@
 # A lambda keeps its keyword parameters
 
-Status: PENDING.
+Status: DONE.
 
 ## The ask
 
@@ -120,7 +120,7 @@ What this plan does not change:
    and 3 that stay are the counts after the last record of main. The workload of
    `ProjecturedExample` fails 3 of 135 examples, as on main. The precompile with
    the new lists and a load of the three packages give no warning.
-4. [ ] **The landing.** Report the result and ask the owner. After the landing of
+4. [x] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.
    *Fact:* main moved to aaa8a0c79 during the work, with seven commits of the
@@ -128,3 +128,13 @@ What this plan does not change:
    branch names the builder, so the branch is rebased with no conflict. On the
    rebased branch, `ProjecturedAll`, `ProjecturedExample` and `ProjecturedBuild`
    load with no warning, and `test_julia_parser()` passes 210 of 210.
+   *Done:* the owner approved the landing on 2026-11-02, and projectured main is
+   d079c4f53 by a fast-forward. The omnet-julia lists are recorded again on that
+   main: commit 287c2f61f, landed on omnet main by a fast-forward on the owner's
+   approval. The application list of `OmnetIde` goes from 12 stale calls of 1026
+   to 0 of 1034; the other lists keep the counts after the last record:
+   `OmnetIde` workload 1, `OmnetIdeBuild` 3, `OmnetLegacyFormat` 3,
+   `OmnetPresentationExample` 13. The record writes one new list,
+   `OmnetBuilder/precompile/omnet_ide.txt` with 2 calls, because the application
+   loads `OmnetBuilder` since the reactive build of omnet main. The precompile
+   with the new lists gives no warning. Neither main is pushed.
