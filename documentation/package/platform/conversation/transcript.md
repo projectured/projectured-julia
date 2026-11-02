@@ -5,8 +5,10 @@
 The transcript is the widget presentation of a `ConversationConversation`: the
 chat a person reads in the assistant pane. It is printed by
 [`ConversationToWidget.jl`](../../../../source/platform/conversation/ConversationToWidget.jl)
-and it is read, not written. A click names the part it landed in, an Alt+click
-names the object under the pointer, and an edit that reaches it is declined. In
+and it is read, not written. A click in the text of a text part names the place
+in that text, and a drag a range of it; a click in any other part names the part.
+An Alt+click names the object under the pointer, and the whole part in a text
+part. An edit that reaches the transcript is declined. In
 a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and
 note the selected object, and a paste over the transcript is refused.
 
@@ -31,15 +33,20 @@ say what it is:
 
 | Content | Chrome | Header |
 | --- | --- | --- |
+| plain text (`PrimitiveString`) | none | none |
 | prose, markdown | none | none |
 | code (`julia`, `json`, `xml`) | a muted panel | the language |
 | a thinking block | a muted panel | `thinking` |
 | an evaluation (`EvaluatorForm`) | a muted panel with two sections | see below |
 | a picture (`ImageFile`) | a muted panel with the image, at most `picture_height` high | `picture` |
 
-A typed message becomes a markdown document when the composer commits it and the
-markdown parser is loaded, so it draws with the same font and the same wrapping
-as a reply.
+A part stores its text by the source of the text. A text that the person types,
+a text of the editor such as an error, and a thinking text are plain text, a
+`PrimitiveString`. The transcript draws it in `message_text` of the
+`ConversationTheme`, with its line breaks as they were typed, and the composer
+draws a typed text in the same style. An answer of a model is markdown, and draws
+in the `MarkdownTheme`. A part that holds a plain text, a text block or prose is
+a text part: it draws no chrome, and a place in its text can be selected.
 
 ## The header of an evaluation
 

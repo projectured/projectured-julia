@@ -223,8 +223,9 @@ struct ComposerNewlineOperation <: Operation
 end
 
 """
-INSERT: commit the active text typein (→ `TextBlock`, dropped when blank) and
-append a `DocumentInsertion` kind chooser as the new active part.
+INSERT: commit the active text typein, which stays the `PrimitiveString` that the
+person typed and is dropped when blank, and append a `DocumentInsertion` kind
+chooser as the new active part.
 """
 struct ComposerInsertPartOperation <: Operation
     draft::ConversationDraft
@@ -273,8 +274,8 @@ struct ComposerRevertOperation <: Operation
 end
 
 """
-ENTER in a text typein: finalize the draft — convert every `PrimitiveString`
-part to `TextBlock`, dropping a trailing blank typein.
+ENTER in a text typein: finalize the draft — drop a trailing blank typein. Each
+other part, a typed text too, is sent as it is.
 """
 struct ComposerSubmitOperation <: Operation
     draft::ConversationDraft
@@ -344,13 +345,9 @@ has_text_form(content) =
 function evaluate_operation(editor, op::ComposerInsertPartOperation)
     d = op.draft
     p = _active_part(d)
-    if p !== nothing && p.content isa PrimitiveString
-        v = _value(p.content)
-        if isempty(strip(v))
-            deleteat!(d.parts, length(d.parts))    # drop the blank typein
-        else
-            p.content = make_text_block(v)    # commit the prose
-        end
+    # A blank typein goes; a typed text stays as it is, before the new part.
+    if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
+        deleteat!(d.parts, length(d.parts))
     end
     ins = DocumentInsertion("")
     ins.selection = _valpath(0)
@@ -442,20 +439,15 @@ end
 """
     finalize_draft!(draft) -> Bool
 
-Normalize a draft for submission: drop a trailing blank text typein and convert
-every remaining `PrimitiveString` part to committed prose (`make_prose_document`),
-so a typed message draws in the font and with the wrapping of a reply. Returns
-whether the draft still has any parts (i.e. is worth submitting).
+Normalize a draft for submission: drop a trailing blank text typein. A typed text
+stays the `PrimitiveString` that the person typed, so the transcript draws it in
+the style of a message, and the model reads its breaks and its marks as they were
+typed. Returns whether the draft still has any parts (i.e. is worth submitting).
 """
 function finalize_draft!(d::ConversationDraft)
     p = _active_part(d)
     if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
         deleteat!(d.parts, length(d.parts))
-    end
-    for i in eachindex(d.parts)
-        part = d.parts[i]
-        part.content isa PrimitiveString &&
-            (part.content = make_prose_document(_value(part.content)))
     end
     !isempty(d.parts)
 end
@@ -643,6 +635,9 @@ end
 # and an evaluation as its form stacked over its result.
 _committed_body(p, c::EvaluatorForm) = _eval_sections(p, c, nothing)
 _committed_body(p, c::ImageFile) = _make_picture_body(c, p.picture_height)
+# A committed text draws as the typein drew it, in the font of a message, and a
+# flat offset of its body is still an offset of its value.
+_committed_body(p, c::PrimitiveString) = _editable_body(p, c)
 _committed_body(p, c) = c
 
 # The composer draws the chrome the transcript draws, for the same reason: the
@@ -740,10 +735,10 @@ function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
     (rest.head isa FieldReferenceStep && rest.head.name == "content") || return nothing
     content = d.parts[i].content
     inner = rest.tail
-    # An editable part carries its value in a span of the body this projection
-    # built; a committed one carries the document itself, and its own projection
-    # owns everything below the card.
-    tail = if _is_editable(content) && i == length(d.parts)
+    # An editable part and a committed text carry their value in a span of the body
+    # this projection built; any other committed part carries the document itself,
+    # and its own projection owns everything below the card.
+    tail = if _has_value_body(d, i, content)
         (inner isa ConcreteReference && inner.head isa FieldReferenceStep &&
          inner.head.name == "value") || return nothing
         k = inner.tail
@@ -771,7 +766,7 @@ function map_reference_backward(::ConversationComposerToWidget, iomap, reference
     (rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
      rest.head.name == "content") || return EmptyReference()
     content = d.parts[i].content
-    tail = if _is_editable(content) && i == length(d.parts)
+    tail = if _has_value_body(d, i, content)
         body = _get_rendered_body(iomap, i)
         range = body === nothing ? :other : _map_body_to_value(content, body, rest.tail)
         range === nothing && return nothing
@@ -789,6 +784,11 @@ function map_reference_backward(::ConversationComposerToWidget, iomap, reference
         ConcreteReference(RangeReferenceStep(i - 1, i),
             ConcreteReference(FieldReferenceStep("content"), tail)))
 end
+
+# Whether part `i` of `d`, which holds `content`, draws its value in a body that
+# this projection built: the active typein, and a committed text.
+_has_value_body(d::ConversationDraft, i::Int, content) =
+    content isa PrimitiveString || (_is_editable(content) && i == length(d.parts))
 
 # The body the stack of cards holds for part `i`, or `nothing`.
 function _get_rendered_body(iomap, i::Int)

@@ -74,5 +74,11 @@ function test_parse_markdown_blocks()
         part = ConversationPart(PrimitiveString(text))
         @test AssistantModule._part_text(part) == text
         @test AssistantModule._block_text(part.content) == text
+        # A message that the composer sends is that same plain text.
+        draft = ConversationDraft([ConversationPart(PrimitiveString(text))])
+        @test finalize_draft!(draft)
+        sent = only(collect(draft.parts))
+        @test sent.content isa PrimitiveString
+        @test AssistantModule._part_text(sent) == text
     end
 end

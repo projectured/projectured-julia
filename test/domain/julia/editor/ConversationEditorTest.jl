@@ -7,10 +7,6 @@ using ProjecturedKernel.ToolModule: ToolSet
 
 # Flatten a TextBlock to its rendered string.
 _ce_flatten(t::TextBlock) = get_flat_string(t)
-# A committed paragraph is a markdown document when the markdown parser is
-# loaded and a text block when it is not; either way its words are its source.
-_ce_flatten(d::Document) = String(strip(print_natural_text(d)))
-_ce_is_prose(d) = d isa TextBlock || get_natural_format(typeof(d)) === :md
 
 # Apply an operation to the draft. No real editor is needed for the logic, but the
 # stand-in must carry a `ToolSet`: the composer's evaluate operation runs code
@@ -49,14 +45,34 @@ function test_conversation_editor()
 
             @test length(turn.parts) == 3
             p1, p2, p3 = turn.parts[1].content, turn.parts[2].content, turn.parts[3].content
-            @test _ce_is_prose(p1)
-            @test _ce_flatten(p1) == "hey assistant, look what I've got"
+            # A committed text is the text that the person typed.
+            @test p1 isa PrimitiveString
+            @test p1.value == "hey assistant, look what I've got"
             @test p2 isa EvaluatorForm
             @test p2.form isa JuliaDocument
             @test !p2.is_error
             @test occursin("4", _ce_flatten(p2.result))
-            @test _ce_is_prose(p3)
-            @test _ce_flatten(p3) == "see, it's not that complicated"
+            @test p3 isa PrimitiveString
+            @test p3.value == "see, it's not that complicated"
+        end
+
+        @testset "a committed text draws in the font of a message, and keeps its places" begin
+            turn = _ce_draft()
+            _ce_type!(turn, "first\nsecond")
+            _ce_apply!(ComposerInsertPartOperation(turn))
+            proj = ConversationComposerToWidget()
+            io = print_document(proj, turn)
+            body = io.output.children[1].content
+            @test get_flat_string(body) == "first\nsecond"
+            @test body.elements[1].elements[1].font == proj.message_text.font
+            place = ConcreteReference(FieldReferenceStep("parts"),
+                ConcreteReference(RangeReferenceStep(0, 1),
+                    ConcreteReference(FieldReferenceStep("content"),
+                        ConcreteReference(FieldReferenceStep("value"),
+                            ConcreteReference(RangeReferenceStep(2, 8), EmptyReference())))))
+            forward = map_reference_forward(proj, io, place)
+            @test forward isa Reference
+            @test string(strip_reference_types(map_reference_backward(proj, io, forward))) == string(place)
         end
 
         @testset "ESC reverts a structured insertion to a text typein" begin

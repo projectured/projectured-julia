@@ -147,11 +147,20 @@ ends with a commit.
    walks a path to its part for both `_is_live_path` and `_is_text_path`. The
    tests: `test_conversation_transcript`, `test_parse_markdown_blocks` and
    `test_conversation_theme`, 215 passes.
-2. **A sent message keeps its text.** `finalize_draft!` and
+2. ✅ **Done.** **A sent message keeps its text.** `finalize_draft!` and
    `ComposerInsertPartOperation` keep a `PrimitiveString` part as it is. Change
    the sentence of `transcript.md` that says a typed message becomes markdown.
    Tests: a sent message with line breaks reaches the model unchanged, and a
    person can select a range inside it.
+
+   As built: a committed text that stays in the draft before an inserted part
+   draws as the typein drew it (`_committed_body(p, ::PrimitiveString)`), and the
+   maps of the composer read its places as a value, as for the typein
+   (`_has_value_body`). `reset_draft!` already takes the caret out of each sent
+   part, so a sent message shows no caret. The tests:
+   `test_conversation_editor`, `test_parse_markdown_blocks`,
+   `test_conversation_transcript`, `test_assistant_composer_panel`,
+   `test_draft_press` and `test_conversation_theme`, 355 passes.
 3. **The editor text takes its type.** `ConversationPart(::AbstractString)`
    makes a `PrimitiveString`. The three agent notes become `ConversationNote`.
    The greeting, the prompt of a subagent and the fallback of a code fence
