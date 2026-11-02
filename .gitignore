@@ -1,8 +1,13 @@
 # The executable PackageCompiler writes, at the repository root: a package
 # directory holds a Project.toml and a src/, and nothing a build produced.
 # Anchored to the root, so it does not also catch environment/build/, which is
-# an environment like any other and holds a Project.toml and a Manifest.toml.
+# an environment like any other and holds a Project.toml.
 /build/
+
+# The manifest of the build environment. Each script of bin/ resolves it with
+# the Julia that runs it, and the reactive Julia and a stock one write other
+# versions into it.
+/environment/build/Manifest.toml
 *.log
 
 # Generated cost-weight calibration cache (analyze-session.jl)
