@@ -261,19 +261,35 @@ function run_build_command(arguments)::Cint
         print(stderr, format_build_usage())
         return 1
     end
-    if action === :distribution
-        println(build_projectured_distribution(; pairs(keywords)...))
-    elseif action === :status
-        return print_reactive_status!(_get_build_output(keywords)) ? 0 : 1
-    elseif action === :stop_server
-        output = _get_build_output(keywords)
-        println(stop_reactive_server(output) ? "the compiler server of $output was stopped" :
-                                               "no compiler server runs for $output")
-    else
-        println(build_projectured_executable(; pairs(keywords)...))
+    try
+        if action === :distribution
+            println(build_projectured_distribution(; pairs(keywords)...))
+        elseif action === :status
+            return print_reactive_status!(_get_build_output(keywords)) ? 0 : 1
+        elseif action === :stop_server
+            output = _get_build_output(keywords)
+            println(stop_reactive_server(output) ? "the compiler server of $output was stopped" :
+                                                   "no compiler server runs for $output")
+        else
+            println(build_projectured_executable(; pairs(keywords)...))
+        end
+    catch err
+        is_build_refusal(err) || rethrow()
+        println(stderr, err.msg)
+        return 1
     end
     0
 end
+
+"""
+    is_build_refusal(err) -> Bool
+
+Whether `err` is a refusal of [`build_executable`](@ref): an option or a state
+that the build does not take, which it refuses before it compiles. Its message
+starts with `build_executable: ` and says all that a person needs, so a command
+line prints the message and no stack trace.
+"""
+is_build_refusal(err) = err isa ErrorException && startswith(err.msg, "build_executable: ")
 
 # The output of the build that a command line names, for an action on its store.
 _get_build_output(keywords) =

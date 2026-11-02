@@ -65,7 +65,7 @@ export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_SOURCE_OFFERS,
        PROJECTURED_PACKAGE_READMES, collect_projectured_release_packages,
        build_projectured_package_release!, check_projectured_copy
 export get_fixed_build_binary, get_build_invocation, BUILD_BINARIES, BUILD_OPTIONS,
-       format_build_usage, parse_build_arguments, run_build_command
+       format_build_usage, parse_build_arguments, run_build_command, is_build_refusal
 
 include("BuildContext.jl")
 include("LauncherOutput.jl")

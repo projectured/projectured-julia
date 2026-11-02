@@ -1287,6 +1287,10 @@ function test_build_executable()
             @test redirect_stdout(() -> run_build_command(["--help"]), quiet) == 0
             @test redirect_stderr(() -> run_build_command(String[]), quiet) == 1
             @test redirect_stderr(() -> run_build_command(["--colour"]), quiet) == 1
+            # A refusal of the build function is a message, and another error is not.
+            @test is_build_refusal(ErrorException("build_executable: a store"))
+            @test !is_build_refusal(ErrorException("another error"))
+            @test !is_build_refusal(ArgumentError("build_executable: a store"))
         end
     end
 end
