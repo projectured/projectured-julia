@@ -30,7 +30,9 @@ ConversationPart(s::AbstractString; collapsed::Bool = false) =
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
 """
-An extended-thinking block. Wrapped in a `ConversationPart` like any content.
+An extended-thinking block. Wrapped in a `ConversationPart` like any content. Its
+`text` is plain text, a `PrimitiveString`, which the transcript draws in the
+style of a message.
 `signature`/`redacted`/`data` are Anthropic API metadata that must survive
 re-serialization back to the API.
 """
@@ -51,7 +53,7 @@ ConversationThinking(text::AbstractString;
                      signature::AbstractString = "",
                      redacted::Bool = false,
                      data::AbstractString = "") =
-    ConversationThinking(make_text_block(String(text));
+    ConversationThinking(PrimitiveString(String(text));
                          signature = signature, redacted = redacted, data = data)
 
 # Convenience: a thinking part. Collapsed by default — reasoning is verbose and

@@ -226,15 +226,30 @@ map_reference_backward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, referen
 
 function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveString, ctx)
     # A line for each line of the value, so no run holds a break, and the flat
-    # string of the block is the value. A line whose text did not change keeps its
-    # object (`_compute_text_block_lines!`). When the value is empty and a
-    # placeholder is configured, the block is one muted hint line instead, the same
-    # object each time, and the flat selection tracks `s.value` either way.
+    # string of the block is the value. When the value is empty and a placeholder
+    # is configured, the block is one muted hint line instead, the same object each
+    # time, and the flat selection tracks `s.value` either way.
+    #
+    # The value is read in two strings, each in a cell: the lines before its last
+    # break, and its last line. A cell whose string did not change stops there, so
+    # a text that grows at its end, such as an answer that streams, changes the run
+    # of the last line, and the list of lines and each line before it stay, however
+    # long the text is. A line of the head whose text did not change keeps its
+    # object (`_compute_text_block_lines!`).
+    value() = something(s.value, "")
+    last_break = Cell(@computation something(findlast('\n', value()), 0))
+    head = Cell(@computation (k = last_break[]; k == 0 ? "" : value()[1:prevind(value(), k)]))
+    tail = Cell(@computation value()[(last_break[] + 1):end])
+    is_empty = Cell(@computation isempty(value()))
     previous = Ref(Pair{String, TextLine}[])
+    last_line = TextLine(TextString(Cell(@computation tail[]), p.style.font, Cell(p.style.color),
+                                    nothing, nothing, nothing, nothing))
     placeholder_line = TextLine(TextString(p.placeholder, p.placeholder_style))
-    show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
+    show_placeholder() = !isempty(p.placeholder) && is_empty[]
+    head_lines() = last_break[] == 0 ? TextDocument[] :
+                   _compute_text_block_lines!(previous, head[], p.style)
     lines() = show_placeholder() ? TextDocument[placeholder_line] :
-              _compute_text_block_lines!(previous, something(s.value, ""), p.style)
+              push!(head_lines(), last_line)
     paths = make_output_path_cells(s, _forward_value)
     out = TextBlock(CellVector(@computation lines()), paths.selection, paths.mouse_target)
     SimpleIoMap(p, s, out)

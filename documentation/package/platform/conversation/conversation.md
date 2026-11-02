@@ -13,8 +13,8 @@ The conversation slice of `ProjecturedPlatform` holds a chat with a model as doc
 | `ConversationConversation` | `turns`, the history |
 | `ConversationTurn` | `role`, which is `:user` or `:assistant`, then `parts`, `stop_reason`, `collapsed`, `start_time` and `finish_time` in seconds of `time()`, `0.0` when not known, and `backend` and `model`, the writer of an answer, `:none` and empty for a turn of the person |
 | `ConversationNote` | a quiet line that the editor writes into a turn: `text`, `kind` (`:round_limit`, `:wake`, `:note`), and one button, `action_label` and the live function `action(editor)`; a file keeps the text and the kind. A turn whose parts are all notes is a turn of the editor (`is_note_turn`): it draws with the header of the editor and no tint, and the model reads its text as the words of the person |
-| `ConversationPart` | `content`, a document of any domain, and `collapsed` |
-| `ConversationThinking` | the reasoning of a model, with the `signature`, `redacted` and `data` that the provider needs back unchanged |
+| `ConversationPart` | `content`, a document of any domain, and `collapsed`. A part of a string holds plain text, a `PrimitiveString` |
+| `ConversationThinking` | the reasoning of a model as plain text, a `PrimitiveString`, with the `signature`, `redacted` and `data` that the provider needs back unchanged |
 | `ConversationDraft` | `parts` of the message that a person composes, and `assistant`, the host of the draft or `nothing` |
 | `EvaluatorForm` | `form` and `result`, two sections that fold on their own, and the metadata of the tool call that made them |
 | `EvaluatorToplevel` | `elements`, a sequence of forms: a REPL in a tab |
@@ -29,9 +29,9 @@ A code part is a live document of its own domain, such as a `JuliaDocument` or a
 
 ### The transcript
 
-`ConversationToWidget()` is a `TypeDispatchingProjection` of three projections. A conversation prints as a `VerticalLayout` of turns. A turn prints as a `WidgetCard` with a role header over a `VerticalLayout` of parts. A part prints as its content, or as a muted panel for code, a thinking block, an evaluation and a picture. [transcript.md](transcript.md) describes what each one draws, the folds, the object selection, the Alt+arrow walk and the paste rules.
+`ConversationToWidget()` is a `TypeDispatchingProjection` of three projections. A conversation prints as a `VerticalLayout` of turns. A turn prints as a `WidgetCard` with a role header over a `VerticalLayout` of parts. A part prints as its content, or as a muted panel for code, a thinking block, an evaluation and a picture. A plain text, the text of a part or of a thinking block, prints through `PrimitiveStringToTextBlock` in `message_text` of the `ConversationTheme`, so it follows the size and the fonts of the appearance. [transcript.md](transcript.md) describes what each one draws, the folds, the object selection, the Alt+arrow walk and the paste rules.
 
-The reference maps work one level at a time. Each level removes the steps that it printed and gives the rest to the IO map of the child that printed them: `turns[i]` is `children[i]`, and `parts[j]` is `content.children[j]`. A part is the lowest level, except for the `form` and the `result` of an evaluation. So a path of the widget layer never reaches the conversation document.
+The reference maps work one level at a time. Each level removes the steps that it printed and gives the rest to the IO map of the child that printed them: `turns[i]` is `children[i]`, and `parts[j]` is `content.children[j]`. A part is the lowest level, except for a place in its text and the `form` and the `result` of an evaluation. A place in the text of a text part is `content.<place>`, and in the text of a thinking part `content.text.<place>`. So a path of the widget layer never reaches the conversation document.
 
 `_follow_selection!` makes the `selection` cell of each container a computed cell: the selection of the node, mapped forward, less the steps that lead to the container. The layout and the card draw their ring from that cell. So a selected message, part, form or result has a ring, and no printer runs again when the selection changes.
 

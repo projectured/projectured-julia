@@ -121,6 +121,18 @@ _is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
 _is_text_content(content) = content isa Union{PrimitiveString, TextBlock} ||
     (get_natural_format(typeof(content)) !== nothing && !_is_code(content))
 
+# Where the text of a part is, as the steps that lead to it in the output of the
+# part and in the part, or `nothing` for a part that shows no text of its own. A
+# text part prints its text at the top of its output; a thinking part prints it
+# as the body of its card, which is `content.text` in the part.
+function _find_text_leads(content)
+    _is_text_content(content) && return (Any[], Any[FieldReferenceStep("content")])
+    content isa ConversationThinking && _has_thinking_text(content) &&
+        return (Any[FieldReferenceStep("content")],
+                Any[FieldReferenceStep("content"), FieldReferenceStep("text")])
+    nothing
+end
+
 # Per-part label, covering both editing states and committed content.
 #
 # A domain's insertion is a subtype of its own root, so one entry of the table
@@ -247,7 +259,8 @@ end
 # its fold means, so the reader can say a chevron click back to the domain.
 #
 # `text` is the IO map of the print of a plain text, which the part makes itself,
-# in the style of a message of its theme; `nothing` for any other content.
+# in the style of a message of its theme: the text of a plain text part, or of a
+# thinking part; `nothing` for any other content.
 @iomap struct ConversationPartToWidgetIoMap
     projection::Any
     input::Any
@@ -260,12 +273,10 @@ function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     content = part.content
     folds = Pair{Any,Any}[]
-    text = content isa PrimitiveString ?
-        print_document(PrimitiveStringToTextBlock(; style = projection.message_text),
-                       recursion, content, ctx) : nothing
-    output = text !== nothing                 ? text.output :
+    text = _print_plain_text(projection, recursion, content, ctx)
+    output = content isa PrimitiveString      ? text.output :
              content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
-             content isa ConversationThinking ? _thinking_card(projection, content, part)    :
+             content isa ConversationThinking ? _thinking_card(projection, content, part, text) :
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
              content isa ConversationQuestionRequest ? _question_card(projection, content, part) :
@@ -279,6 +290,16 @@ function print_document(projection::ConversationPartToWidget,
     content isa ConversationQuestionRequest && _follow_question_selection!(output, part, projection, iomap)
     iomap
 end
+
+# The print of the plain text that a part shows in the style of a message: the
+# text of a plain text part, and the text of a thinking part that has one;
+# `nothing` for any other content.
+_print_plain_text(p, recursion, s::PrimitiveString, ctx) =
+    print_document(PrimitiveStringToTextBlock(; style = p.message_text), recursion, s, ctx)
+_print_plain_text(p, recursion, t::ConversationThinking, ctx) =
+    t.text isa PrimitiveString && _has_thinking_text(t) ?
+        _print_plain_text(p, recursion, t.text, ctx) : nothing
+_print_plain_text(p, recursion, content, ctx) = nothing
 
 # The selection of an evaluation's form or result draws a ring around that
 # section's body. The card of the part, its body and the section card each follow
@@ -361,8 +382,8 @@ end
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.
 # The tag is a word like every other tag.
-_thinking_card(p, t::ConversationThinking, part::ConversationPart) =
-    _part_card(p, "thinking", _thinking_body(t), part)
+_thinking_card(p, t::ConversationThinking, part::ConversationPart, text) =
+    _part_card(p, "thinking", _thinking_body(p, t, text), part)
 
 # A permission request is the question over one button for each answer. The
 # buttons work while the agent waits, and the line under them says the answer
@@ -578,12 +599,16 @@ function _is_live_path(node, steps)
         _is_field_step(inside[1], "content") && _is_field_step(inside[2], field)
 end
 
-# Whether `steps`, from `node`, name a place inside the text of a text part.
+# Whether `steps`, from `node`, name a place inside the text of a part: of a text
+# part or of a thinking part.
 function _is_text_path(node, steps)
     found = _find_path_part(node, steps)
     found === nothing && return false
     (part, inside) = found
-    _is_text_content(part.content) && length(inside) >= 2 && _is_field_step(inside[1], "content")
+    leads = _find_text_leads(part.content)
+    leads === nothing && return false
+    lead = leads[2]
+    length(inside) > length(lead) && inside[1:length(lead)] == lead
 end
 
 # Whether the operation `op`, which reached the IO map `iomap` of `p`, goes into
@@ -639,20 +664,23 @@ _section_card(label::AbstractString, body, style::StyleText, padding::Inset, fol
                content = body, variant = :plain, collapsible = foldable,
                padding = padding)
 
-# A thinking part's body is its reasoning text, recursed like any other text
-# content. Redacted blocks (and `display: "omitted"`, which yields empty text)
-# render an elided placeholder rather than an empty card.
-function _thinking_body(t::ConversationThinking)
-    t.redacted && return make_text_block("[redacted thinking]")
-    txt = t.text
-    txt isa TextBlock && _text_is_empty(txt) &&
-        return make_text_block("[no thinking summary]")
-    txt
+# A thinking part's body is its reasoning text: the print `text` of its plain
+# text, in the style of a message, or a text that holds its own style as it is.
+# Redacted blocks (and `display: "omitted"`, which yields empty text) render an
+# elided placeholder in the style of a message rather than an empty card.
+function _thinking_body(p, t::ConversationThinking, text)
+    text === nothing || return text.output
+    _has_thinking_text(t) && return t.text
+    make_text_block(t.redacted ? "[redacted thinking]" : "[no thinking summary]", p.message_text)
 end
 
-# True when a TextBlock has no non-empty span content (e.g. `display: "omitted"`).
+_has_thinking_text(t::ConversationThinking) = !t.redacted && !_text_is_empty(t.text)
+
+# True when a text has no non-empty span content (e.g. `display: "omitted"`).
 # A text is empty when it holds no character but the breaks between its lines.
 _text_is_empty(t::TextBlock) = all(==('\n'), get_flat_string(t))
+_text_is_empty(s::PrimitiveString) = all(==('\n'), something(s.value, ""))
+_text_is_empty(_) = false
 
 # ── Reference mapping / reader ───────────────────────────────────────────────
 #
@@ -754,8 +782,9 @@ map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference) =
                    Any[FieldReferenceStep("content")], "children")
 
 # A part is the floor, except for its text and the two sections of an
-# evaluation. A place inside the text of a text part is `content.<place>`, and the
-# text as a whole is the part, because a text part draws nothing around its text.
+# evaluation. A place inside the text of a text part is `content.<place>`, and in
+# the text of a thinking part `content.text.<place>`; the text as a whole is the
+# part.
 # Whatever was clicked inside any other part names the part, and whatever was
 # clicked inside a section of an evaluation names that section's document, its
 # form or its result, as a whole. The section's place in the part's card is
@@ -767,7 +796,8 @@ _is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step
 function map_reference_backward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_backward(reference)
     iomap.input.content isa ConversationQuestionRequest && return _map_question_backward(iomap.input.content, reference)
-    _is_text_content(iomap.input.content) && return _map_text_backward(iomap, reference)
+    leads = _find_text_leads(iomap.input.content)
+    leads === nothing || return _map_text_backward(iomap, leads, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
@@ -787,7 +817,8 @@ end
 function map_reference_forward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_forward(reference)
     iomap.input.content isa ConversationQuestionRequest && return _map_question_forward(iomap.input.content, reference)
-    _is_text_content(iomap.input.content) && return _map_text_forward(iomap, reference)
+    leads = _find_text_leads(iomap.input.content)
+    leads === nothing || return _map_text_forward(iomap, leads, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
@@ -800,26 +831,31 @@ function map_reference_forward(::ConversationPartToWidget, iomap, reference)
     EmptyReference()
 end
 
-# A place in the output of a text part is the same place in its content: the
-# part prints the content as it is, or a plain text through its own IO map
+# A place in the text of a part, in its output, is the same place in the text in
+# the part. `leads` are the steps to the text in each (`_find_text_leads`). The
+# part prints the text as it is, or a plain text through its own IO map
 # `iomap.text`. The text as a whole is the part.
-function _map_text_backward(iomap, reference)
-    reference isa EmptyReference && return EmptyReference()
+function _map_text_backward(iomap, leads, reference)
+    (output_lead, input_lead) = leads
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) > length(output_lead) &&
+     steps[1:length(output_lead)] == output_lead) || return EmptyReference()
+    place = isempty(output_lead) ? reference : _from_steps(steps[(length(output_lead) + 1):end])
     text = iomap.text
-    inner = text === nothing ? reference : map_reference_backward(text.projection, text, reference)
+    inner = text === nothing ? place : map_reference_backward(text.projection, text, place)
     (inner isa Reference && !(inner isa EmptyReference)) || return EmptyReference()
-    ConcreteReference(FieldReferenceStep("content"), inner)
+    _from_steps(input_lead, inner)
 end
 
-function _map_text_forward(iomap, reference)
+function _map_text_forward(iomap, leads, reference)
+    (output_lead, input_lead) = leads
     steps = _steps(reference)
-    (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
-        return EmptyReference()
-    place = _from_steps(steps[2:end])
+    (steps !== nothing && length(steps) > length(input_lead) &&
+     steps[1:length(input_lead)] == input_lead) || return EmptyReference()
+    place = _from_steps(steps[(length(input_lead) + 1):end])
     text = iomap.text
-    text === nothing && return place
-    image = map_reference_forward(text.projection, text, place)
-    image isa Reference ? image : EmptyReference()
+    image = text === nothing ? place : map_reference_forward(text.projection, text, place)
+    image isa Reference ? _from_steps(output_lead, image) : EmptyReference()
 end
 
 # The terminal of a sign-in and back: `content.terminal.<rest>` is the fourth

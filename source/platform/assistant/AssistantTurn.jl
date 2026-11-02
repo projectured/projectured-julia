@@ -1127,7 +1127,8 @@ end
 # and what this module wants is the *result*, which arrives as an `AgentToolResult`.
 function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     if ev isa LlmTextStart
-        part = ConversationPart(make_text_block(""))
+        # The raw text of the model while it streams, a plain text until it ends.
+        part = ConversationPart(PrimitiveString(""))
         push!(turn.parts, Cell(part))
         state[:current_block] = part
 
@@ -1168,11 +1169,11 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     nothing
 end
 
-# A delta adds its text at the end of the text of its part, so the lines before the
-# last line keep their print. The text of the part is the block that `LlmTextStart`
-# made.
+# A delta adds its text at the end of the plain text of its part, which
+# `LlmTextStart` made. The view of a plain text keeps each line that did not
+# change, so it lays out the last line again and keeps the print of the others.
 _append_text_delta!(part::ConversationPart, s::AbstractString) =
-    (append_text!(part.content::TextBlock, s); nothing)
+    _append_plain_text!(part.content::PrimitiveString, s)
 
 _append_text_delta!(_, _) = nothing
 
@@ -1181,9 +1182,11 @@ _append_text_delta!(_, _) = nothing
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
-    append_text!(c.text::TextBlock, s)
-    nothing
+    _append_plain_text!(c.text::PrimitiveString, s)
 end
+
+_append_plain_text!(text::PrimitiveString, s::AbstractString) =
+    (text.value = something(text.value, "") * s; nothing)
 
 _append_thinking_delta!(_, _) = nothing
 

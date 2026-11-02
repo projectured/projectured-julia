@@ -84,20 +84,36 @@ _stream_has_code_unit_thread() =
 # the part of that answer.
 function _stream_make_long_answer(count::Integer)
     paragraph = join(("word$i" for i in 1:100), " ")
-    part = ConversationPart(make_text_block(join(fill(paragraph, count), "\n")))
+    part = ConversationPart(PrimitiveString(join(fill(paragraph, count), "\n")))
     a = Assistant(; conversation = ConversationConversation([
         ConversationTurn(:user, [ConversationPart("Write.")]),
         ConversationTurn(:assistant, [part])]))
     (a, part)
 end
 
-# The output cells that one delta at the end of an answer of `count` paragraphs
-# invalidates, and the output objects that it makes again.
+# The output objects that one delta at the end of an answer of `count` paragraphs
+# makes again.
 function _stream_measure_delta_locality(count::Integer)
     a, part = _stream_make_long_answer(count)
     report = measure_printer_locality(a, make_assistant_projection_example(),
                                       _ -> AssistantModule._append_text_delta!(part, " more"))
-    (; invalidated = length(report.invalidated), lost = report.lost_objects, report.errors)
+    (; lost = report.lost_objects, report.errors)
+end
+
+# The time of one delta at the end of a plain text of `count` paragraphs of 100
+# words, in milliseconds, with the read of its lines that a print makes, and
+# whether the first line keeps its object.
+function _stream_time_plain_text_delta(count::Integer; deltas::Integer = 50)
+    paragraph = join(("word$i" for i in 1:100), " ")
+    text = PrimitiveString(join(fill(paragraph, count), "\n"))
+    projection = PrimitiveStringToTextBlock()
+    lines = print_document(projection, projection, text, PrinterContext()).output.elements
+    first_line = lines[1]
+    seconds = @elapsed for _ in 1:deltas
+        AssistantModule._append_plain_text!(text, " more")
+        lines[length(lines)].elements[1].content
+    end
+    (milliseconds = 1000 * seconds / deltas, keeps_lines = lines[1] === first_line)
 end
 
 function test_assistant_stream()
@@ -119,9 +135,15 @@ function test_assistant_stream()
         small = _stream_measure_delta_locality(10)
         large = _stream_measure_delta_locality(1_000)
         @test isempty(small.errors) && isempty(large.errors)
-        # 100 times the answer: the same work for a delta, with some room.
-        @test large.invalidated <= 2 * small.invalidated + 10
+        # 100 times the answer: the same pieces of the print made again, with some room.
         @test large.lost <= 2 * small.lost + 10
+        # A streamed answer is one plain text, so each delta marks every cell that
+        # reads the text, and their count grows with the answer. What costs time is
+        # checked instead: the lines before the last keep their objects, and a delta
+        # at the end of 1000 paragraphs (690 KB) takes a small part of a frame.
+        timing = _stream_time_plain_text_delta(1_000)
+        @test timing.keeps_lines
+        @test timing.milliseconds < 5
     end
 
     if !_stream_has_code_unit_thread()

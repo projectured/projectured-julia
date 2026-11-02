@@ -95,6 +95,13 @@ The owner, 2026-11-02:
   part. Before this plan, a click anywhere in a part named the part
   (`ConversationToWidget.jl`, "a transcript is read as messages, not as
   characters"), so a markdown answer could be selected only as a whole.
+- **D8. The guard of the stream checks the pieces made again and the time of a
+  delta** (the owner, 2026-11-02: "Yes"). A streamed answer is one plain text, so
+  a delta marks each cell that reads the text, and the count of marked cells
+  grows with the answer (63 at 10 paragraphs, 1,053 at 1,000). The guard no longer
+  counts them. It checks that the objects that a delta makes again stay the same
+  (184 at both sizes), that the lines before the last keep their objects, and
+  that a delta at the end of 1,000 paragraphs takes less than 5 ms.
 - **Rejected:** a printer-context property `:text_font` that `TextToGraphics`
   reads for a run in `UNSTYLED_TEXT_FONT` (the owner: "no, that's the wrong
   fix"). Markdown for every plain text: the round trip loses line breaks.
@@ -180,13 +187,30 @@ ends with a commit.
    `ProjecturedTest`, the MCP package starts a server for each external turn, and
    the stand-in editor `(document = a,)` of those tests has no `tools`, so they
    must run without it.
-4. **The stream and the thinking text.** `LlmTextStart` opens a
+4. ✅ **Done.** **The stream and the thinking text.** `LlmTextStart` opens a
    `PrimitiveString` part, a delta adds to its value, and `LlmTextStop` parses
    the value with `parse_markdown_blocks`. The text of a `ConversationThinking`
    is a `PrimitiveString`, and the two texts of the thinking card take a style of
    the theme. Measure the frame of a delta over one answer with the test of the
    stream plan, and compare it with §2. Tests: `AssistantStreamTest`, and a
    thinking text that can be selected.
+
+   As built: `PrimitiveStringToTextBlock` reads the value in two string cells,
+   the lines before the last break and the last line, and the last line is one
+   object whose run reads the second cell. So a delta with no break changes only
+   that run, and the line objects stay: a delta makes 184 objects again at 10 and
+   at 1,000 paragraphs, where a print of the whole value made 218 and 1,208. A
+   delta at the end of 1,000 paragraphs takes 0.55 ms at that layer, 100
+   paragraphs 0.02 ms. The count of marked cells still grows with the answer, and
+   D8 records the change of the guard. A place in a thinking text is
+   `content.text.<place>`; `_find_text_leads` gives where the text of a part is,
+   in its output and in the part, and the maps and the press rule of the
+   transcript read it. The tree knows a plain text part by its first line, as a
+   text block. The tests: `test_conversation_transcript`,
+   `test_conversation_serialization`, `test_text_clipboard`,
+   `test_text_range_selection`, and in a process with no MCP package
+   `test_primitive_to_text`, `test_conversation_tree`, `test_assistant_overview`
+   and `test_conversation_theme`.
 5. **Check and close.** Run the conversation and assistant tests of the platform
    and `ConversationTranscriptTest`. Check that omnet-julia loads and
    precompiles. Update `conversation.md`. Move this plan to `plan/done/`.

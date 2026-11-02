@@ -221,16 +221,20 @@ function test_conversation_transcript()
         doc.turns[2].parts[1].collapsed = false
         found = _scan_selections(proj, io)
         # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
-        # The thinking, the code and the evaluation are named exactly; the three
-        # text parts each give places in their text.
-        wanted = [_part_path(2, 1), _part_path(2, 3), _part_path(3, 1)]
-        texts = [(1, 1), (2, 2), (2, 4)]
+        # The code and the evaluation are named exactly; the three text parts and
+        # the text of the thinking part each give places in their text.
+        wanted = [_part_path(2, 3), _part_path(3, 1)]
+        texts = [(1, 1), (2, 1), (2, 2), (2, 4)]
         for w in wanted
             @test any(f -> string(f) == string(w), found)
         end
         for (i, j) in texts
             @test any(f -> _is_text_place(f, i, j), found)
         end
+        # A place in the thinking text is a place of its value, `content.text.value{…}`.
+        @test any(f -> _is_text_place(f, 2, 1) &&
+                       get_reference_steps(strip_reference_types(f))[6:7] ==
+                       [FieldReferenceStep("text"), FieldReferenceStep("value")], found)
         # And nothing else. A click that lands in the padding between parts says
         # `EmptyReference` (the conversation itself), which the scan skips.
         @test all(f -> any(w -> string(f) == string(w), wanted) ||

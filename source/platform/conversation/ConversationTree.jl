@@ -81,12 +81,13 @@ function _make_part_note(part::ConversationPart)
 end
 
 _get_content_string(text::TextBlock) = get_flat_string(text)
+_get_content_string(text::PrimitiveString) = something(text.value, "")
 _get_content_string(content) = print_natural_text(content)
 
-# Whether a content is a text: a text block, or a document with a natural
-# notation that is not a document of the conversation, such as the Markdown of an
-# answer or the code of a fenced block.
-_has_content_text(::TextBlock) = true
+# Whether a content is a text: a plain text, a text block, or a document with a
+# natural notation that is not a document of the conversation, such as the
+# Markdown of an answer or the code of a fenced block.
+_has_content_text(::Union{PrimitiveString,TextBlock}) = true
 _has_content_text(::Union{ConversationDocument,EvaluatorDocument}) = false
 _has_content_text(content) = make_natural_projection(content, :string) !== nothing
 
