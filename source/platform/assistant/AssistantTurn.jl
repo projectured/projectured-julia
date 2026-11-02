@@ -146,6 +146,7 @@ _text_to_string(d) = _content_to_string(d)
 # A document the seam can render answers with its own source text, which is what
 # the editor shows and therefore what the model should see.
 _content_to_string(t::TextBlock) = _text_to_string(t)
+_content_to_string(s::PrimitiveString) = _text_to_string(s)
 function _content_to_string(d)
     make_natural_projection(d, :string) === nothing || return _doc_source(d)
     hasproperty(d, :name) ? String(d.name) : string(d)

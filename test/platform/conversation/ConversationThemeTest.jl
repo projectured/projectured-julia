@@ -52,8 +52,10 @@ end
     @test scaled.user_role_icon.font.size == round(Int, 14 * 1.5)
 end
 
-@testset "ConversationPartToWidget reads the kind tag, the sections and their indent" begin
+@testset "ConversationPartToWidget reads the text of a message, the kind tag, the sections and their indent" begin
     plain = ConversationPartToWidget()
+    @test plain.message_text.font == StyleFont("Ubuntu", 14)
+    @test is_color_equal(plain.message_text.color, get_theme_value(defaults, :message_text).color)
     @test plain.kind_text.font.size == 11 && plain.kind_text.font.weight == 700
     @test plain.section_text.font.size == 11 && plain.section_text.font.weight == 400
     @test plain.error_text.font.size == 11 && plain.error_text.font.weight == 700
@@ -63,6 +65,7 @@ end
            plain.section_padding.left[], plain.section_padding.right[]) == (0, 0, 12, 0)
 
     scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationPart)
+    @test scaled.message_text.font.size == round(Int, 14 * 1.5)
     @test scaled.kind_text.font.size == round(Int, 11 * 1.5)
     @test scaled.section_gap == round(Int, 10 * 1.5)
     @test scaled.section_padding.left[] == round(Int, 12 * 1.5)
@@ -88,9 +91,11 @@ end
     @test top_scaled.option_gap == round(Int, 12 * 1.5)
 end
 
-@testset "ConversationComposerToWidget reads the composer's font, its gap and its colors" begin
+@testset "ConversationComposerToWidget reads the composer's fonts, its gap and its colors" begin
     plain = ConversationComposerToWidget()
     @test plain.code_font == StyleFont("Ubuntu Mono", 14)
+    # A typed message draws in the font that the transcript draws it in when it is sent.
+    @test plain.message_text.font == ConversationPartToWidget().message_text.font
     @test plain.part_gap == 8
     @test is_color_equal(plain.plain_color, get_theme_value(defaults, :plain_color))
     @test is_color_equal(plain.placeholder_color, get_theme_value(defaults, :placeholder_color))
@@ -106,6 +111,7 @@ end
     @test make_conversation_composer_projection(; theme = ConversationTheme()).code_font ==
           StyleFont("Ubuntu Mono", 14)
     @test scaled.code_font == StyleFont("Ubuntu Mono", 21)
+    @test scaled.message_text.font == StyleFont("Ubuntu", 21)
     @test scaled.part_gap == round(Int, 8 * 1.5)
 end
 

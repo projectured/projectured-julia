@@ -523,6 +523,7 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
     part_gap::Int = get_conversation_style(nothing, :part_gap)
     picture_height::Int = get_conversation_style(nothing, :picture_height)
     code_font::StyleFont = get_conversation_style(nothing, :code_font)
+    message_text::StyleText = get_conversation_style(nothing, :message_text)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
     error_text::StyleText = get_conversation_style(nothing, :error_text)
@@ -538,12 +539,13 @@ end
 """
     make_conversation_composer_projection(; theme = nothing) -> ConversationComposerToWidget
 
-The composer, with the font, the gaps and the colors of `theme`: a
+The composer, with the fonts, the gaps and the colors of `theme`: a
 `ConversationTheme`, scaled or not, or the default values for `nothing`.
 """
 function make_conversation_composer_projection(; theme = nothing)
     get_style(name) = get_conversation_style(theme, name)
     ConversationComposerToWidget(; part_gap = get_style(:part_gap), code_font = get_style(:code_font),
+                                 message_text = get_style(:message_text),
                                  kind_text = get_style(:kind_text), section_text = get_style(:section_text),
                                  error_text = get_style(:error_text), section_gap = get_style(:section_gap),
                                  section_padding = get_style(:section_indent),
@@ -593,13 +595,20 @@ end
 # The break before a line counts one flat offset, as the `'\n'` of the value does,
 # so a flat offset of the body is an offset of the value.
 function _editable_body(p, c)
-    hint = TextLine(TextString(_PLACEHOLDER, p.code_font, p.placeholder_color))
+    font = _get_typed_font(p, c)
+    hint = TextLine(TextString(_PLACEHOLDER, font, p.placeholder_color))
     TextBlock(function ()
         v = _value(c)
         isempty(v) && return TextDocument[hint]
-        TextDocument[TextLine(TextString(String(line), p.code_font, p.plain_color)) for line in split(v, '\n')]
+        TextDocument[TextLine(TextString(String(line), font, p.plain_color)) for line in split(v, '\n')]
     end)
 end
+
+# The font of a typed value: the font of a message for a plain text, which the
+# transcript draws in the same font when the message is sent, and the font of
+# code for a domain's insertion.
+_get_typed_font(p, ::PrimitiveString) = p.message_text.font
+_get_typed_font(p, _) = p.code_font
 
 # The body's selection for the value range `s..e` of the active part `c`: a flat
 # range of its line, past the runs before the value. While a kind chooser's value

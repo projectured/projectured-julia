@@ -87,6 +87,14 @@ The owner, 2026-11-02:
   on the base `font` (Ubuntu). The composer and the transcript both use it, so a
   message looks the same before and after it is sent (the owner, 2026-11-02:
   "yes").
+- **D7. A text part takes a range selection, and the transcript stays read-only**
+  (the owner, 2026-11-02: "eventually we need both whole part and range
+  selection, they are different / in both cases the transcript should stay read
+  only", and "so it's option (a)"). A plain click puts a caret and a drag
+  selects a range in a plain or a markdown part; an Alt+click selects the whole
+  part. Before this plan, a click anywhere in a part named the part
+  (`ConversationToWidget.jl`, "a transcript is read as messages, not as
+  characters"), so a markdown answer could be selected only as a whole.
 - **Rejected:** a printer-context property `:text_font` that `TextToGraphics`
   reads for a run in `UNSTYLED_TEXT_FONT` (the owner: "no, that's the wrong
   fix"). Markdown for every plain text: the round trip loses line breaks.
@@ -115,14 +123,30 @@ text is the default. A producer of markdown calls `make_prose_document` itself.
 Each step is done in a worktree, runs the narrowest tests that cover it, and
 ends with a commit.
 
-1. **The style and the print of a plain text part.** Add `message_text` to
+1. ✅ **Done.** **The style and the print of a plain text part.** Add `message_text` to
    `ConversationTheme`. `ConversationPartToWidget` prints a `PrimitiveString`
-   part with `PrimitiveStringToTextBlock` and `message_text`, and the selection
-   maps through it. `_editable_body` draws a typed `PrimitiveString` in
-   `message_text`; a kind chooser keeps `code_font`. `_content_to_string` and
-   `_block_text` of a `PrimitiveString` give its value exactly. Tests: the font
-   of a `PrimitiveString` part follows `font_scale`, and its model text is its
-   value.
+   part with `PrimitiveStringToTextBlock` and `message_text`, and maps a
+   reference through that child IO map. A part with no chrome, such as a
+   markdown answer, maps a reference into its content by the step `content`
+   (D7). An Alt+click still names the part, and each edit is still declined.
+   `_editable_body` draws a typed `PrimitiveString` in `message_text`; a kind
+   chooser keeps `code_font`. `_content_to_string` and `_block_text` of a
+   `PrimitiveString` give its value exactly. Tests: the font of a
+   `PrimitiveString` part follows `font_scale`, its model text is its value, a
+   click in a plain or a markdown part names a text position, an Alt+click names
+   the part, and an edit at a text position is declined.
+
+   As built: a text part is a part whose content is a `PrimitiveString`, a
+   `TextBlock`, or a document in a format that is no code, which
+   `ConversationToWidget.jl` already reads as prose (`_is_text_content`). So the
+   text parts of the example, which are still `TextBlock` until step 3, take a
+   range selection now. The part maps the text as a whole to the part, so an
+   Alt+press on a plain text names the part with no extra rule. The composite
+   cuts an Alt+press inside the text of a text part to the part, so a markdown
+   paragraph is no Alt+click object of the transcript (D7). `_find_path_part`
+   walks a path to its part for both `_is_live_path` and `_is_text_path`. The
+   tests: `test_conversation_transcript`, `test_parse_markdown_blocks` and
+   `test_conversation_theme`, 215 passes.
 2. **A sent message keeps its text.** `finalize_draft!` and
    `ComposerInsertPartOperation` keep a `PrimitiveString` part as it is. Change
    the sentence of `transcript.md` that says a typed message becomes markdown.
@@ -159,3 +183,5 @@ ends with a commit.
 - The text of the arguments and of the result of an evaluation
   (`Evaluator.jl`, `make_text_block` with `_EVALUATOR_TEXT_STYLE`) has the same
   fault. It is program output, and a later plan decides its style.
+- A range selection inside a code card and inside the two sections of an
+  evaluation. They keep the selection of a whole part or a whole section.

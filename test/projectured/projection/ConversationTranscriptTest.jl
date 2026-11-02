@@ -131,6 +131,28 @@ _section_path(i::Int, j::Int, name) =
                         ConcreteReference(FieldReferenceStep(name), EmptyReference()))))))
 _is_same_path(a, b) = string(strip_reference_types(a)) == string(strip_reference_types(b))
 
+# A conversation of one user message that holds a plain text.
+_plain_text_conversation() =
+    ConversationConversation([ConversationTurn(:user, [
+        ConversationPart(PrimitiveString("first line\nsecond line"))])])
+
+# `turns[1].parts[1].content.value{s:e}`: a place in the plain text of the first part.
+_plain_text_place(s::Int, e::Int) =
+    ConcreteReference(FieldReferenceStep("turns"),
+        ConcreteReference(RangeReferenceStep(0, 1),
+            ConcreteReference(FieldReferenceStep("parts"),
+                ConcreteReference(RangeReferenceStep(0, 1),
+                    ConcreteReference(FieldReferenceStep("content"),
+                        ConcreteReference(FieldReferenceStep("value"),
+                            ConcreteReference(RangeReferenceStep(s, e), EmptyReference())))))))
+
+# Whether `path` names a place inside the text of `turns[i].parts[j]`.
+function _is_text_place(path, i::Int, j::Int)
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) > 5 && steps[1:4] == get_reference_steps(_part_path(i, j)) &&
+        steps[5] == FieldReferenceStep("content")
+end
+
 function test_conversation_transcript()
     @testset "a fold names its node, and a section fold names its section" begin
         doc, proj, io = _transcript_render()
@@ -191,7 +213,7 @@ function test_conversation_transcript()
         @test get_flat_string(arguments) == "depth: 2\nuri: u"
     end
 
-    @testset "a click names the part it landed in" begin
+    @testset "a click names the part it landed in, or the place in a text part" begin
         (doc, proj, io) = _transcript_render()
         # A folded part shows its header and nothing else, and the header is
         # the fold. The thinking part starts folded, so it is unfolded first;
@@ -199,15 +221,21 @@ function test_conversation_transcript()
         doc.turns[2].parts[1].collapsed = false
         found = _scan_selections(proj, io)
         # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
-        # Every one of the six is reachable, and each is named exactly.
-        wanted = [_part_path(1, 1), _part_path(2, 1), _part_path(2, 2),
-                  _part_path(2, 3), _part_path(2, 4), _part_path(3, 1)]
+        # The thinking, the code and the evaluation are named exactly; the three
+        # text parts each give places in their text.
+        wanted = [_part_path(2, 1), _part_path(2, 3), _part_path(3, 1)]
+        texts = [(1, 1), (2, 2), (2, 4)]
         for w in wanted
             @test any(f -> string(f) == string(w), found)
         end
+        for (i, j) in texts
+            @test any(f -> _is_text_place(f, i, j), found)
+        end
         # And nothing else. A click that lands in the padding between parts says
         # `EmptyReference` (the conversation itself), which the scan skips.
-        @test length(found) == length(wanted)
+        @test all(f -> any(w -> string(f) == string(w), wanted) ||
+                       any(((i, j),) -> _is_text_place(f, i, j) || _is_same_path(f, _part_path(i, j)), texts),
+                  found)
     end
 
     @testset "a selection round-trips through both maps" begin
@@ -220,6 +248,57 @@ function test_conversation_transcript()
             @test forward !== nothing
             back = map_reference_backward(io.projection, io, forward)
             @test string(back) == string(path)
+        end
+    end
+
+    @testset "a plain text part draws in the message style of its theme" begin
+        conversation = _plain_text_conversation()
+        for scale in (1.0, 2.0)
+            theme = get_scaled_theme!(Appearance(; font_scale = scale), ConversationTheme)
+            proj = RecursiveProjection(ConversationToWidget(; theme))
+            io = print_document(proj, proj, conversation, PrinterContext())
+            # The card of the turn, the layout of its parts, and the first part.
+            block = io.output.children[1].content.children[1]
+            @test block isa TextBlock
+            @test get_flat_string(block) == "first line\nsecond line"
+            font = block.elements[1].elements[1].font
+            @test font.family == "Ubuntu"
+            @test font.size == round(Int, 14 * scale)
+        end
+    end
+
+    @testset "a selection in a plain text round-trips through both maps" begin
+        conversation = _plain_text_conversation()
+        proj = RecursiveProjection(ConversationToWidget())
+        io = print_document(proj, proj, conversation, PrinterContext())
+        for (s, e) in ((3, 3), (3, 5), (11, 17))
+            place = _plain_text_place(s, e)
+            forward = map_reference_forward(io.projection, io, place)
+            @test forward isa Reference
+            @test _is_same_path(map_reference_backward(io.projection, io, forward), place)
+        end
+    end
+
+    @testset "a press in a plain text names a place in it, and an Alt+press the part" begin
+        conversation = _plain_text_conversation()
+        proj = ProjecturedConversationExample.make_conversation_widget_projection_example(
+            measure = _transcript_measure)
+        io = print_document(proj, proj, conversation, PrinterContext())
+        found = _scan_selections(proj, io)
+        places = filter(p -> _is_text_place(p, 1, 1), found)
+        # A press on each line names a place of its own, and every press in the
+        # text names a place in its value.
+        @test length(places) >= 2
+        @test all(p -> get_reference_steps(strip_reference_types(p))[6] == FieldReferenceStep("value"), places)
+        @test all(p -> _is_text_place(p, 1, 1) || _is_same_path(p, _part_path(1, 1)), found)
+        wholes = [v[1] for v in values(_scan_whole_selections(proj, io))]
+        @test any(p -> _is_same_path(p, _part_path(1, 1)), wholes)
+        @test !any(p -> _is_text_place(p, 1, 1), wholes)
+        # The text stays as it was said: an edit at a place in it is declined.
+        place = first(places)
+        for op in (ReplaceReferencedValueOperation(nothing, place, "x"),
+                   ReplaceStringRangeOperation(place, "x"))
+            @test read_intent(proj, io, op) === nothing
         end
     end
 

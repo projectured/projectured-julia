@@ -67,4 +67,12 @@ function test_parse_markdown_blocks()
         plain = parse_markdown_blocks("just words")
         @test length(plain) == 1 && plain[1].content isa MarkdownDocument
     end
+
+    @testset "a plain text part reaches the model as its value" begin
+        # The breaks, the indent and the marks stay as the person typed them.
+        text = "line one\n    indented *not emphasis*\n1. not a list"
+        part = ConversationPart(PrimitiveString(text))
+        @test AssistantModule._part_text(part) == text
+        @test AssistantModule._block_text(part.content) == text
+    end
 end

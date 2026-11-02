@@ -6,15 +6,16 @@
     ConversationTheme
 
 The fonts and the colors of a conversation: the label and the glyph beside a
-turn, the tag of a part, the sections of an evaluation, the `>`/`=` prompts of
-a form, and the typed text of the composer.
+turn, the plain text of a message, the tag of a part, the sections of an
+evaluation, the `>`/`=` prompts of a form, and the typed text of the composer.
 
 The theme of the conversation projections. `@theme` declares it, so
 `ScaledConversationTheme` holds each value times its scale, and
 `ConversationTheme()` is the default theme.
 
 The fields are in groups: the base fonts, the label and the glyph of each
-role, the tag and the sections of a part, the prompts of a form, the colors
+role, the plain text of a message, the tag and the sections of a part, the
+prompts of a form, the colors
 the composer draws a typed part with, and the gaps between the parts of the
 widgets. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
@@ -42,6 +43,8 @@ with no styles holds the plain values of the default theme.
     assistant_role_icon::ThemeText = TextRole(PaletteColor(:teal, 11; minimum_contrast = 4.5); family = "Lucide")
     "The glyph beside a turn whose role is neither the user nor the assistant."
     other_role_icon::ThemeText = TextRole(:text_muted; family = "Lucide")
+    "The plain text of a message, in the composer and in the transcript: a typed message, an answer while it streams, a thought and an error."
+    message_text::ThemeText = TextRole(:text)
     "The tag that names a part's kind: a code's language, \"thinking\", or the name of a tool."
     kind_text::ThemeText = TextRole(:text_muted; weight = 700, relative_size = 0.8)
     "The title of a section of an evaluation: its code or its result."

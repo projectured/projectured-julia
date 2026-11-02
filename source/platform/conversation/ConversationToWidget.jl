@@ -12,7 +12,8 @@
 #                                Code, a thinking block, an evaluation and a
 #                                permission request each keep a quiet tinted panel
 #                                with a one-line tag; every other kind draws no
-#                                chrome at all.
+#                                chrome at all. A plain text (`PrimitiveString`)
+#                                draws in the style of a message of the theme.
 #
 # A turn is collapsible, and so is a part that kept a panel. Each is a
 # `collapsible` card, which draws a chevron before its header and, while
@@ -55,6 +56,7 @@ end
 end
 
 @projection UntrackedCell struct ConversationPartToWidget
+    message_text::StyleText = get_conversation_style(nothing, :message_text)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     picture_height::Int = get_conversation_style(nothing, :picture_height)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
@@ -112,6 +114,12 @@ const FORMAT_LABELS = Dict(:jl => "julia", :md => "markdown")
 const CODE_FORMATS  = Set([:jl, :json, :xml])
 
 _is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
+
+# A part that shows a text with no panel: a plain text, a text block, or a
+# document in a format that is no code, which this file reads as prose. A place
+# inside it is a place of its text, so a click there names that place.
+_is_text_content(content) = content isa Union{PrimitiveString, TextBlock} ||
+    (get_natural_format(typeof(content)) !== nothing && !_is_code(content))
 
 # Per-part label, covering both editing states and committed content.
 #
@@ -237,18 +245,26 @@ end
 # The IO map of a part. `folds` lists the cards inside the part that fold on
 # their own — the two sections of an evaluation — each with the domain operation
 # its fold means, so the reader can say a chevron click back to the domain.
+#
+# `text` is the IO map of the print of a plain text, which the part makes itself,
+# in the style of a message of its theme; `nothing` for any other content.
 @iomap struct ConversationPartToWidgetIoMap
     projection::Any
     input::Any
     output::Any
     folds::Any
+    text::Any
 end
 
 function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     content = part.content
     folds = Pair{Any,Any}[]
-    output = content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
+    text = content isa PrimitiveString ?
+        print_document(PrimitiveStringToTextBlock(; style = projection.message_text),
+                       recursion, content, ctx) : nothing
+    output = text !== nothing                 ? text.output :
+             content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
              content isa ConversationThinking ? _thinking_card(projection, content, part)    :
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
@@ -257,7 +273,7 @@ function print_document(projection::ConversationPartToWidget,
              content isa ImageFile            ? _picture_card(projection, content, part)     :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
-    iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
+    iomap = ConversationPartToWidgetIoMap(projection, part, output, folds, text)
     content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
     content isa ConversationSignInRequest && _follow_sign_in_selection!(output, part, projection, iomap)
     content isa ConversationQuestionRequest && _follow_question_selection!(output, part, projection, iomap)
@@ -539,21 +555,35 @@ function _is_live_document(node, document)
     false
 end
 
-# Whether `steps`, from `node` (a conversation, a turn or a part), go into the
-# live field of the content of a part.
+# The part that `steps`, from `node` (a conversation, a turn or a part), go into,
+# and the steps inside that part; `nothing` when they go into no part.
+function _find_path_part(node, steps)
+    node isa ConversationPart && return (node, steps)
+    node isa Union{ConversationConversation,ConversationTurn} || return nothing
+    length(steps) >= 2 || return nothing
+    name = node isa ConversationConversation ? "turns" : "parts"
+    children = getproperty(node, Symbol(name))
+    (_is_field_step(steps[1], name) && steps[2] isa RangeReferenceStep &&
+     1 <= steps[2].stop <= length(children)) || return nothing
+    _find_path_part(children[steps[2].stop], steps[3:end])
+end
+
+# Whether `steps`, from `node`, go into the live field of the content of a part.
 function _is_live_path(node, steps)
-    length(steps) >= 2 || return false
-    if node isa Union{ConversationConversation,ConversationTurn}
-        name = node isa ConversationConversation ? "turns" : "parts"
-        children = getproperty(node, Symbol(name))
-        (_is_field_step(steps[1], name) && steps[2] isa RangeReferenceStep &&
-         1 <= steps[2].stop <= length(children)) || return false
-        return _is_live_path(children[steps[2].stop], steps[3:end])
-    elseif node isa ConversationPart
-        field = _find_live_field(node.content)
-        return field !== nothing && _is_field_step(steps[1], "content") && _is_field_step(steps[2], field)
-    end
-    false
+    found = _find_path_part(node, steps)
+    found === nothing && return false
+    (part, inside) = found
+    field = _find_live_field(part.content)
+    field !== nothing && length(inside) >= 2 &&
+        _is_field_step(inside[1], "content") && _is_field_step(inside[2], field)
+end
+
+# Whether `steps`, from `node`, name a place inside the text of a text part.
+function _is_text_path(node, steps)
+    found = _find_path_part(node, steps)
+    found === nothing && return false
+    (part, inside) = found
+    _is_text_content(part.content) && length(inside) >= 2 && _is_field_step(inside[1], "content")
 end
 
 # Whether the operation `op`, which reached the IO map `iomap` of `p`, goes into
@@ -627,11 +657,12 @@ _text_is_empty(t::TextBlock) = all(==('\n'), get_flat_string(t))
 # ── Reference mapping / reader ───────────────────────────────────────────────
 #
 # A transcript is READ, not written, and a person reading one still has to be
-# able to point at a message and take a copy of it. So a plain click names the
-# PART it landed in — `turns[i].parts[j]` — and an Alt+click names the innermost
-# object under the pointer: a message, a part, or the form or the result of an
-# evaluation. The reader below declines every operation that would change what a
-# turn says.
+# able to point at a message and take a copy of it, or a piece of its text. So a
+# plain click in a text part names the place in its text, and a drag a range of
+# it; a plain click in any other part names the PART it landed in —
+# `turns[i].parts[j]`. An Alt+click names the innermost object under the
+# pointer: a message, a part, or the form or the result of an evaluation. The
+# reader below declines every operation that would change what a turn says.
 #
 # Naming the part is a translation, and each level does its own step of it. The
 # widget layer hands up a path in ITS domain,
@@ -722,11 +753,13 @@ map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference) =
     _forward_level(iomap, reference, "parts",
                    Any[FieldReferenceStep("content")], "children")
 
-# A part is the floor, except for the two sections of an evaluation. Whatever was
-# clicked inside a part names the part — a transcript is read as messages, not as
-# characters — and whatever was clicked inside a section of an evaluation names
-# that section's document, its form or its result, as a whole. The section's
-# place in the part's card is `content.children[k].content`.
+# A part is the floor, except for its text and the two sections of an
+# evaluation. A place inside the text of a text part is `content.<place>`, and the
+# text as a whole is the part, because a text part draws nothing around its text.
+# Whatever was clicked inside any other part names the part, and whatever was
+# clicked inside a section of an evaluation names that section's document, its
+# form or its result, as a whole. The section's place in the part's card is
+# `content.children[k].content`.
 const _PART_SECTIONS = (("form", 1), ("result", 2))
 
 _is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step.name == name
@@ -734,6 +767,7 @@ _is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step
 function map_reference_backward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_backward(reference)
     iomap.input.content isa ConversationQuestionRequest && return _map_question_backward(iomap.input.content, reference)
+    _is_text_content(iomap.input.content) && return _map_text_backward(iomap, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
@@ -746,13 +780,14 @@ function map_reference_backward(::ConversationPartToWidget, iomap, reference)
     EmptyReference()
 end
 
-# And the floor going up: the part itself, wherever the caret is said to be
-# inside it, or the body of the section its selection names. A part with no
-# chrome prints its content directly, so there is no step of this level's own to
-# add.
+# And the floor going up: the place in the text of a text part, the part itself
+# wherever the caret is said to be inside any other part, or the body of the
+# section its selection names. A part with no chrome prints its content
+# directly, so there is no step of this level's own to add.
 function map_reference_forward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_forward(reference)
     iomap.input.content isa ConversationQuestionRequest && return _map_question_forward(iomap.input.content, reference)
+    _is_text_content(iomap.input.content) && return _map_text_forward(iomap, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
@@ -763,6 +798,28 @@ function map_reference_forward(::ConversationPartToWidget, iomap, reference)
                                    RangeReferenceStep(index - 1, index), FieldReferenceStep("content")])
     end
     EmptyReference()
+end
+
+# A place in the output of a text part is the same place in its content: the
+# part prints the content as it is, or a plain text through its own IO map
+# `iomap.text`. The text as a whole is the part.
+function _map_text_backward(iomap, reference)
+    reference isa EmptyReference && return EmptyReference()
+    text = iomap.text
+    inner = text === nothing ? reference : map_reference_backward(text.projection, text, reference)
+    (inner isa Reference && !(inner isa EmptyReference)) || return EmptyReference()
+    ConcreteReference(FieldReferenceStep("content"), inner)
+end
+
+function _map_text_forward(iomap, reference)
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
+        return EmptyReference()
+    place = _from_steps(steps[2:end])
+    text = iomap.text
+    text === nothing && return place
+    image = map_reference_forward(text.projection, text, place)
+    image isa Reference ? image : EmptyReference()
 end
 
 # The terminal of a sign-in and back: `content.terminal.<rest>` is the fourth
@@ -857,12 +914,14 @@ end
 
 # ── The two gestures a transcript reads itself ──────────────────────────────
 #
-# A plain click names at most a part, so a click in a result selects the part
-# that holds it, as a click always did. An Alt+click keeps the innermost object
-# the maps named. And Alt with an arrow walks the objects: a message, its parts,
-# and the form and the result of an evaluation. The transcript is read, so no
-# widget inside it has a use for these keys, and the walk answers them whatever
-# a widget said.
+# A plain click names a place in the text of a text part, and at most a part
+# anywhere else, so a click in a result selects the part that holds it. An
+# Alt+click keeps the innermost object the maps named, except in a text part,
+# where it names the part: a place in a text and the whole part are the two
+# selections a text part gives. And Alt with an arrow walks the objects: a
+# message, its parts, and the form and the result of an evaluation. The
+# transcript is read, so no widget inside it has a use for these keys, and the
+# walk answers them whatever a widget said.
 function read_intent(p::ConversationConversationToWidgetComposite, recursion,
                      change::Intent, iomap)
     gesture = change.gesture
@@ -873,13 +932,14 @@ function read_intent(p::ConversationConversationToWidgetComposite, recursion,
     end
     payload = change.operation === nothing ? gesture : change.operation
     answer = read_intent(p, iomap, payload)
-    if answer isa ReplaceSelectionOperation && gesture isa MouseClick &&
-       !is_whole_selection_press(gesture)
+    if answer isa ReplaceSelectionOperation && gesture isa MouseClick
         steps = _steps(strip_reference_types(answer.path))
+        in_text = steps !== nothing && _is_text_path(iomap.input, steps)
         # A press in the live field of a part keeps its place, as the caret of
-        # a person who types there.
-        (steps !== nothing && _is_live_path(iomap.input, steps)) ||
-            (answer = ReplaceSelectionOperation(_get_part_prefix(answer.path)))
+        # a person who types there, and so does a plain press in a text.
+        keeps = is_whole_selection_press(gesture) ? !in_text :
+                in_text || (steps !== nothing && _is_live_path(iomap.input, steps))
+        keeps || (answer = ReplaceSelectionOperation(_get_part_prefix(answer.path)))
     end
     Intent(gesture, answer)
 end
@@ -979,6 +1039,7 @@ function ConversationToWidget(; theme = nothing)
             assistant_role_icon = get_style(:assistant_role_icon),
             other_role_icon = get_style(:other_role_icon)),
         ConversationPart         => ConversationPartToWidget(;
+            message_text = get_style(:message_text),
             kind_text = get_style(:kind_text), section_text = get_style(:section_text),
             error_text = get_style(:error_text), section_gap = get_style(:section_gap),
             section_padding = get_style(:section_indent)),
