@@ -175,3 +175,7 @@ What this plan does not change:
 4. [ ] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia main: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.
+
+   As done: on 2026-11-02 the owner answered "Yea" to the landing of
+   projectured-julia, which is a fast-forward merge of `julia-top-level` on main
+   50f94f5b9.
