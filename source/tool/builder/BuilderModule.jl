@@ -42,6 +42,8 @@ export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_i
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
+export LAUNCHER, REACTIVE_HEADROOM, get_object_archive, compile_linked_app!,
+       link_executable!, prelink_executable!, strip_bundle!
 export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
        print_reactive_status!, stop_reactive_server, watch_reactive_store!,
        has_reactive_julia, describe_reactive_build, prepare_program_start!
@@ -73,6 +75,7 @@ include("Preference.jl")
 include("Usage.jl")
 include("AppPackage.jl")
 include("Executable.jl")
+include("LinkedExecutable.jl")
 include("ReactiveBuild.jl")
 include("Distribution.jl")
 include("LicenceTexts.jl")

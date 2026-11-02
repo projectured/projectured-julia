@@ -282,7 +282,7 @@ function _make_reactive_steps(context::BuildContext, name::AbstractString, packa
                               output::AbstractString, tracked, found::Bool,
                               refresh_trace::Bool, server::Bool, image::Symbol,
                               delta_optimization::Integer, compact::Tuple{Int,Float64},
-                              trimmed::Bool)
+                              trimmed::Bool, prelink::Bool)
     store = joinpath(output, REACTIVE_STORE)
     directory = joinpath(context.root, "build", "app", String(name))
     app_files = [joinpath(directory, "Project.toml"),
@@ -311,7 +311,7 @@ function _make_reactive_steps(context::BuildContext, name::AbstractString, packa
         _materialize_app!(project, out, program; force, optimization, debug_info,
                           strip_metadata, cpu_target, tracked = watched,
                           workload = trace_workload, refresh_trace, server, image,
-                          delta_optimization, found, compact, trimmed)
+                          delta_optimization, found, compact, trimmed, prelink)
     end
     (after_write, compile_app)
 end
@@ -325,15 +325,27 @@ end
 # rebuilds the binary in seconds. With `refresh_trace`, `refresh_trace` of the
 # compiler runs the workload from the current binary first and adds what it
 # compiles to the trace of the store.
+#
+# On Linux the program holds the founding image: a founding keeps its object
+# archive, and the builder links it with headroom for the overlay, prelinks it,
+# and names the chain of the bundle as the chain of the program. A rebuild writes
+# only the overlay, and the program applies it at its start. `materialize_app`
+# founds again by itself when the overlay grew, so the program is linked again
+# whenever the archive is new.
 function _materialize_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                            force::Bool, optimization::Integer, debug_info::Integer,
                            strip_metadata::Bool, cpu_target::AbstractString,
                            tracked::Vector{Pair{String,String}}, workload::AbstractString,
                            refresh_trace::Bool, server::Bool, image::Symbol,
                            delta_optimization::Integer, found::Bool,
-                           compact::Tuple{Int,Float64}, trimmed::Bool)
+                           compact::Tuple{Int,Float64}, trimmed::Bool, prelink::Bool)
     arguments = `-O$(optimization) -g$(debug_info)`
     strip_metadata && (arguments = `$arguments --strip-metadata`)
+    linked = Sys.islinux()
+    prelink = linked && prelink
+    prelink && (arguments = `$arguments --sysimage-prelink=yes`)
+    archive = get_object_archive(output)
+    stamp = isfile(archive) ? mtime(archive) : 0.0
     rebuild = isdir(joinpath(output, REACTIVE_STORE))
     refresh_trace && !rebuild &&
         error("build_executable: `refresh_trace` needs the store of an earlier build under $output")
@@ -345,7 +357,8 @@ function _materialize_app!(project::AbstractString, output::AbstractString, name
     _call_reactive_compiler(:materialize_app, project, output;
                             tracked = tracked,
                             workload = workload,
-                            executables = [String(name) => "julia_main"],
+                            executables = linked ? Pair{String,String}[] : [String(name) => "julia_main"],
+                            (linked ? (; keep_object_archive = archive) : (;))...,
                             track_dependencies = true,
                             force = force,
                             incremental = true,
@@ -358,6 +371,13 @@ function _materialize_app!(project::AbstractString, output::AbstractString, name
                             compact = compact,
                             trim = trimmed ? :on : :off,
                             (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
+    if linked && isfile(archive) && mtime(archive) != stamp
+        link_executable!(output, name; headroom = true)
+        prelink && prelink_executable!(output, name)
+        chain = joinpath(output, "bin", String(name) * ".chain")
+        rm(chain; force = true)
+        symlink(joinpath("..", "lib", "julia", "sys.so.chain"), chain)
+    end
     output
 end
 

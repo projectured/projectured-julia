@@ -76,6 +76,11 @@ const BUILD_OPTIONS = [
     ("--no-compile", "--no-compile",
      "write the package of the binary under build/app/,\n" *
      "and compile nothing"),
+    ("--no-prelink", "--no-prelink",
+     "leave the restore of the image to every start. By\n" *
+     "default a build does it once and writes it into\n" *
+     "the program, which needs a Julia whose runtime can\n" *
+     "write the restored image back"),
     ("--no-reactive", "--no-reactive",
      "compile the whole program, and found no store. A\n" *
      "store under the output goes with the old output"),
@@ -183,6 +188,8 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
             action = :status
         elseif key == "--stop-server"
             action = :stop_server
+        elseif key == "--no-prelink"
+            keywords[:prelink] = false
         elseif key == "--no-reactive"
             keywords[:reactive] = false
         elseif key == "--found"

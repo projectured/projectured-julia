@@ -14,8 +14,9 @@ one is an experiment; the builder here is the path that ships.
 
 ## Warnings
 
-- **A build uses much memory.** The compile of the system image reached 14 GB.
-  Run one build at a time, and run no large model beside it.
+- **A build uses much memory.** A plain build went past 20 GB, and the
+  founding of a reactive store reached 26 GB. Run one build at a time, and run
+  no large model beside it.
 - **A build takes minutes.** About 8 minutes for a build on top of the image of
   this Julia, and about 25 minutes for a distribution.
 
@@ -83,6 +84,7 @@ The options of the front end:
 | `--log=<file>` | write the output of the compiler to a file |
 | `--log-level=<level>` | the level the binary logs from |
 | `--no-compile` | write the package of the binary under `build/app/`, and compile nothing |
+| `--no-prelink` | leave the restore of the image to every start |
 | `--no-reactive` | compile the whole program, and found no store |
 | `--found` | found the store again now: a whole build |
 | `--refresh-trace` | before a rebuild, add what the workload compiles from the current binary to the trace of the store |
@@ -138,6 +140,9 @@ binary holds. Nothing runs the program during a build.
   binary until `--refresh-trace` adds it to the trace.
 - **The store founds again by itself** when its overlay grew the image by a
   quarter since the founding.
+- **The program starts prelinked.** The founding links the image into
+  `bin/projectured` and prelinks it, and a start applies the overlay of the
+  last rebuild on top. `--no-prelink` turns the prelink off.
 - `--no-incremental`, `--distribution` and `PROJECTURED_PERFORMANCE_COUNTERS`
   compile the whole program: a rebuild keeps the image of its founding build.
 
@@ -150,7 +155,9 @@ binary holds. Nothing runs the program during a build.
    the same package again leaves it alone, so the compiler cache holds.
 2. **The bundle**, under `build/<name>/`: `bin/`, `lib/`, `libexec/` and
    `share/`. PackageCompiler writes it, and the build adds the files that the
-   program reads while it runs.
+   program reads while it runs. On Linux, `bin/<name>` holds the image and is
+   prelinked, so it starts fast; the image as a library, `sys.so`, and its
+   object archive go beside the bundle, to `build/<name>.object/`.
 
 Every binary answers four flags that the builder writes itself: `--help`,
 `--version`, `--build-info` and `--log-level=<level>`. `--build-info` prints

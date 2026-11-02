@@ -666,6 +666,23 @@ function test_build_executable()
             @test !choose(:auto, false; compile = false)
         end
 
+        @testset "a build prelinks one code variant with a runtime that can" begin
+            choose = ProjecturedBuilder.BuilderModule._choose_prelink
+            @test !choose(false, "native", true)
+            # Several code variants select at every start, so they keep the restore.
+            if Sys.islinux()
+                @test !(@test_logs (:info, r"several code variants") choose(true, "", true))
+                @test !(@test_logs (:info, r"several code variants") choose(true, "generic;haswell", true))
+            end
+            # A build says when its runtime can not prelink; a run from source says nothing.
+            if Sys.islinux() && !ProjecturedBuilder.BuilderModule._has_prelink_option()
+                @test !(@test_logs (:info, r"no --sysimage-prelink") choose(true, "native", true))
+                @test @test_logs choose(true, "native", false)
+            elseif Sys.islinux()
+                @test choose(true, "native", true)
+            end
+        end
+
         @testset "a start rebuilds the binary of a store, and runs from source without one" begin
             calls = Any[]
             failing = Ref(false)
@@ -875,7 +892,7 @@ function test_build_executable()
             @test occursin("for native", record(build(; name = "cpu_a")))
             @test occursin("for native", record(build(; name = "cpu_b", incremental = false)))
             @test occursin("for haswell", record(build(; name = "cpu_c", cpu_target = "haswell")))
-            # The portable target is the empty one: `compile_app!` leaves the
+            # The portable target is the empty one: the compile step leaves the
             # keyword out and `create_app` picks the variants for the architecture.
             @test !occursin("-g1 for", record(build(; name = "cpu_d",
                                                       cpu_target = PORTABLE_CPU_TARGET)))
@@ -1259,8 +1276,10 @@ function test_build_executable()
             # The command line reaches the store and the options of a rebuild.
             @test parse_arguments(["--status"], "projectured")[2] === :status
             @test parse_arguments(["--stop-server"], "projectured")[2] === :stop_server
-            @test parse_arguments(["--no-reactive", "--refresh-trace", "--found"], "projectured")[3] ==
-                  Dict{Symbol,Any}(:reactive => false, :refresh_trace => true, :found => true)
+            @test parse_arguments(["--no-reactive", "--refresh-trace", "--found", "--no-prelink"],
+                                  "projectured")[3] ==
+                  Dict{Symbol,Any}(:reactive => false, :refresh_trace => true, :found => true,
+                                   :prelink => false)
             @test_throws ErrorException parse_arguments(["--distribution", "--found"], "projectured")
             # Every option the build function takes is a keyword of it.
             method = only(methods(build_projectured_executable))
@@ -1270,7 +1289,7 @@ function test_build_executable()
             method = only(methods(build_executable))
             for key in (:incremental, :filter_stdlibs, :name, :output, :optimization,
                         :debug_info, :strip_metadata, :cpu_target, :logfile, :log_level,
-                        :compile, :reactive, :refresh_trace, :found)
+                        :compile, :reactive, :refresh_trace, :found, :prelink)
                 @test key in Base.kwarg_decl(method)
             end
 

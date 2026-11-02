@@ -166,8 +166,8 @@ end
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
-                       compile_app, reactive, tracked, refresh_trace, server, image,
-                       delta_optimization, found, compact, trimmed) -> String
+                       prelink, compile_app, reactive, tracked, refresh_trace, server,
+                       image, delta_optimization, found, compact, trimmed) -> String
 
 Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
@@ -229,12 +229,20 @@ output directory.
 - `extra_info` — text [`build_info`](@ref) appends after everything it records
   itself, for a caller whose build does something this core does not know
   about.
+- `prelink` — restore the image once, in the build, at the address that the
+  linker gave it, and write the restored image back into the program, so a
+  start applies a short list of pointers and not the whole restore. It needs
+  Linux, a Julia whose runtime knows `--sysimage-prelink`, and an image of one
+  code variant. A build on another system builds without it and says nothing;
+  a build with another Julia, or for several code variants, says so and builds
+  without it.
 - `compile_app` — the function that turns the written package into a bundle:
   `compile_app(project, output, name; force, optimization, debug_info,
-  strip_metadata, cpu_target, incremental, filter_stdlibs)`. The
-  default, [`compile_app!`](@ref), is the plain path with the launcher of
-  PackageCompiler. A caller that links its own launcher or trims passes one of
-  its own. A reactive build does not call it.
+  strip_metadata, cpu_target, incremental, filter_stdlibs)`. By default, on
+  Linux, [`compile_linked_app!`](@ref): the launcher of this builder linked with
+  the image into one program, prelinked when `prelink` holds; on another
+  system, [`compile_app!`](@ref), with the launcher of PackageCompiler. A caller
+  that trims passes one of its own. A reactive build does not call it.
 - `reactive` — compile through `PackageCompiler.materialize_app` in place of
   `compile_app`. `true` founds a store under the output on the first build, and
   every later build of the same output reads the tracked sources from disk and
@@ -309,7 +317,8 @@ function build_executable(context::BuildContext; name::AbstractString,
                             force::Bool = true,
                             logfile::Union{AbstractString,Nothing} = nothing,
                             extra_info::AbstractString = "",
-                            compile_app = compile_app!,
+                            prelink::Bool = true,
+                            compile_app = nothing,
                             reactive::Union{Bool,Symbol} = :auto,
                             tracked::Union{Vector{Pair{String,String}},Nothing} = nothing,
                             refresh_trace::Bool = false,
@@ -331,6 +340,12 @@ function build_executable(context::BuildContext; name::AbstractString,
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
+    prelink = _choose_prelink(prelink, cpu_target, compile)
+    if compile_app === nothing
+        compile_app = !Sys.islinux() ? compile_app! :
+            (project, out, program; keywords...) ->
+                compile_linked_app!(project, out, program; keywords..., prelink)
+    end
     reactive = _choose_reactive_build(reactive, output, incremental, performance_counters, compile)
     _check_reactive_options(reactive, incremental, performance_counters, tracked,
                             refresh_trace, image, delta_optimization, found, trimmed)
@@ -340,7 +355,7 @@ function build_executable(context::BuildContext; name::AbstractString,
         reactive_after_write, compile_app =
             _make_reactive_steps(context, name, packages, output, tracked, found,
                                  refresh_trace, server, image, delta_optimization,
-                                 compact, trimmed)
+                                 compact, trimmed, prelink)
         after_write = project -> begin
             caller_after_write === nothing || caller_after_write(project)
             reactive_after_write(project)
@@ -413,9 +428,10 @@ end
 Compile `project` into `output`, with the launcher of PackageCompiler: one
 executable, `name => "julia_main"`, and nothing more.
 
-**The plain path.** A caller that links its own launcher, prelinks or trims
-passes a `compile_app` of its own to [`build_executable`](@ref) instead of this
-one, and a reactive build compiles through `materialize_app`.
+**The path on a system other than Linux.** On Linux a build links the
+launcher of this builder with the image, [`compile_linked_app!`](@ref); a caller
+that trims passes a `compile_app` of its own to [`build_executable`](@ref), and a
+reactive build compiles through `materialize_app`.
 """
 function compile_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                        force::Bool = true, optimization::Integer = 3, debug_info::Integer = 1,
