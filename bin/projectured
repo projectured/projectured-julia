@@ -14,6 +14,13 @@
 # without the minutes a build costs. The first start after a change compiles
 # what changed.
 #
+# **With a reactive store, it starts the binary.** When `build/projectured/`
+# holds the store that `bin/build_projectured` founds with the reactive Julia,
+# and this Julia is the reactive one, the script rebuilds the binary, which
+# compiles the edit and no more in seconds, and starts it. Else it runs from
+# source and says why, and what the reactive build gives. A start never founds a
+# store. It uses the `julia` that it finds on PATH.
+#
 # **It is the same program and not an imitation.** The build function writes the
 # package that a build compiles, and asked with `compile = false` it writes that
 # package and stops. There is one `julia_main`, and both reach it.
@@ -39,19 +46,31 @@ answer=$(julia --project="$root/environment/build" -e '
     using Pkg
     launcher = Module()
     Base.include(launcher, ARGS[1])
-    answer = launcher.run_with_slow_output(; notice = ARGS[2]) do
+    start = launcher.run_with_slow_output(; notice = ARGS[2]) do
         Pkg.resolve(); Pkg.instantiate()
         @eval using ProjecturedBuilder
         Base.invokelatest() do
-            string(build_projectured_executable(; compile = false, resolve = true), "\n",
-                   get_app_module_name("projectured"))
+            prepare_program_start!(build_projectured_executable; name = "projectured",
+                                   output = joinpath(ARGS[3], "build", "projectured"),
+                                   script = "bin/projectured",
+                                   build_script = "bin/build_projectured")
         end
     end
-    print(answer, "\n")' "$root/source/tool/builder/LauncherOutput.jl" \
-    "Preparing the packages of projectured: after an install or an update, the first start installs and compiles them, which takes some minutes.")
+    print(stderr, start.notice)
+    print(start.kind, "\n", start.path, "\n", start.module_name, "\n")' \
+    "$root/source/tool/builder/LauncherOutput.jl" \
+    "Preparing projectured: after an install or an update, the first start installs and compiles the packages, which takes some minutes, and a rebuild of the binary takes some seconds." \
+    "$root")
 [ -n "$answer" ] || exit 1
-application=$(printf '%s\n' "$answer" | sed -n 1p)
-module_name=$(printf '%s\n' "$answer" | sed -n 2p)
+kind=$(printf '%s\n' "$answer" | sed -n 1p)
+path=$(printf '%s\n' "$answer" | sed -n 2p)
+module_name=$(printf '%s\n' "$answer" | sed -n 3p)
 
-exec julia --threads=auto,2 --project="$application" \
+# The binary takes the threads of a start from source, unless the person chose.
+if [ "$kind" = binary ]; then
+    JULIA_NUM_THREADS=${JULIA_NUM_THREADS:-auto,2}
+    export JULIA_NUM_THREADS
+    exec "$path" "$@"
+fi
+exec julia --threads=auto,2 --project="$path" \
      -e "using $module_name; exit($module_name.julia_main())" -- "$@"

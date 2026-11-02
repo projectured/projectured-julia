@@ -360,3 +360,51 @@ function _materialize_app!(project::AbstractString, output::AbstractString, name
                             (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
     output
 end
+
+"""
+    prepare_program_start!(build; name, output, script, build_script) -> NamedTuple
+
+Prepare what a script that starts a program runs, and answer it as `(kind,
+path, module_name, notice)`.
+
+When `output` holds a reactive store and this Julia is the reactive one, it
+rebuilds the binary with `build()`, and the answer is `kind = :binary` and the
+executable. Else, and when the rebuild fails, it writes the package of the
+binary with `build(; compile = false, resolve = true)`, and the answer is
+`kind = :source`, the package and its module, which the script runs from
+source. `notice` is what the script prints before the start: why the program
+runs from source, and what the reactive build gives. A start never founds a
+store, because a founding of a large program takes many minutes:
+`build_script` founds it. The output of the rebuild goes to the error output,
+so that the standard output carries only the answer.
+"""
+function prepare_program_start!(build; name::AbstractString, output::AbstractString,
+                                script::AbstractString, build_script::AbstractString,
+                                reactive_julia::Bool = has_reactive_julia())
+    stored = isdir(joinpath(output, REACTIVE_STORE))
+    if stored && reactive_julia
+        try
+            redirect_stdout(build, stderr)
+            return (kind = :binary, path = joinpath(output, "bin", String(name)),
+                    module_name = "", notice = "")
+        catch err
+            err isa InterruptException && rethrow()
+            notice = "$script: the rebuild of $output failed, so the program runs from " *
+                     "source. $build_script --found founds the store again.\n" *
+                     first(split(sprint(showerror, err), '\n')) * "\n"
+        end
+    elseif reactive_julia
+        notice = "$script: the program runs from source, and compiles what changed at its " *
+                 "start. $build_script founds a reactive store once, a whole build; then " *
+                 "this script rebuilds the binary in seconds and starts it.\n"
+    else
+        notice = "$script: this Julia has no reactive compiler, so the program runs from " *
+                 "source, and compiles what changed at its start. With the reactive Julia, " *
+                 "$build_script founds a store once, and then this script rebuilds the " *
+                 "binary in seconds and starts it" *
+                 (stored ? "; the store under $output needs the Julia that founded it" : "") *
+                 ".\n" * describe_reactive_build()
+    end
+    project = build(; compile = false, resolve = true)
+    (kind = :source, path = String(project), module_name = get_app_module_name(name), notice)
+end
