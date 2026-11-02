@@ -72,7 +72,8 @@ const REACTIVE_BUILD_OPTIONS = [
      "how a rebuild writes the image: overlay, a file\n" *
      "beside the base with the patches of the edit\n" *
      "(default); pages, the pages of the base that the\n" *
-     "process wrote; whole, the whole image"),
+     "process wrote; whole, the whole image. On Linux the\n" *
+     "program holds its image and reads only an overlay"),
     ("--delta-optimization=", "--delta-optimization=N",
      "the -O level of the code of a rebuild, 0 to 3\n" *
      "(default: the --optimization of the build)"),

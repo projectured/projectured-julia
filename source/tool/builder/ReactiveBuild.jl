@@ -239,14 +239,20 @@ function _choose_reactive_build(reactive::Union{Bool,Symbol}, output::AbstractSt
 end
 
 # Every wrong combination of the options of a reactive build is refused before
-# anything is written.
+# anything is written. `linked` says that the program holds the founding image,
+# as it does on Linux.
 function _check_reactive_options(reactive, incremental::Bool, performance_counters::Bool,
                                  tracked, refresh_trace::Bool, image::Symbol,
-                                 delta_optimization::Integer, found::Bool, trimmed::Bool)
+                                 delta_optimization::Integer, found::Bool, trimmed::Bool;
+                                 linked::Bool = Sys.islinux())
     reactive isa Bool ||
         error("build_executable: `reactive` is true, false or :auto, not $(repr(reactive))")
     image in (:whole, :pages, :overlay) ||
         error("build_executable: `image` is :overlay, :pages or :whole, not $(repr(image))")
+    reactive && linked && image !== :overlay &&
+        error("build_executable: the program holds the founding image and applies the " *
+              "overlay of a rebuild at its start, so a rebuild writes an overlay; " *
+              "`image = :$image` writes an image that the program does not read")
     0 <= delta_optimization <= 3 ||
         error("build_executable: `delta_optimization` is 0 to 3, not $delta_optimization")
     found && !reactive &&

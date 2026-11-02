@@ -631,6 +631,14 @@ function test_build_executable()
             @test_throws ErrorException build(; trimmed = true)
             @test_throws ErrorException build(; refresh_trace = true)
             @test_throws ErrorException build(; tracked = Pair{String,String}[])
+            # A program that holds the founding image reads an overlay and no
+            # other image that a rebuild writes.
+            check(image; linked) = ProjecturedBuilder.BuilderModule._check_reactive_options(
+                true, true, false, nothing, false, image, 3, false, false; linked)
+            @test check(:overlay; linked = true) === nothing
+            @test check(:pages; linked = false) === nothing
+            @test_throws ErrorException check(:pages; linked = true)
+            @test_throws ErrorException check(:whole; linked = true)
         end
 
         @testset "a build founds a store with the reactive Julia, and says what it gives without it" begin
