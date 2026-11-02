@@ -1281,6 +1281,29 @@ function test_build_executable()
                   Dict{Symbol,Any}(:reactive => false, :refresh_trace => true, :found => true,
                                    :prelink => false)
             @test_throws ErrorException parse_arguments(["--distribution", "--found"], "projectured")
+            # The options of the reactive build are the shared ones of the builder,
+            # which every build command takes.
+            @test all(row -> row in BUILD_OPTIONS, REACTIVE_BUILD_OPTIONS)
+            binary, action, keywords = parse_arguments(["--dev", "--no-server", "--image=pages",
+                                                        "--delta-optimization=2",
+                                                        "--compact=10,0.5", "--trim"],
+                                                       "projectured")
+            @test action === :executable
+            @test keywords == Dict{Symbol,Any}(:reactive => true, :delta_optimization => 2,
+                :debug_info => 1, :server => false, :image => :pages, :compact => (10, 0.5),
+                :trimmed => true)
+            @test parse_arguments(["--reactive"], "projectured")[3] == Dict{Symbol,Any}(:reactive => true)
+            @test parse_arguments(["--watch"], "projectured")[2] === :watch
+            @test parse_arguments(["--status", "--status"], "projectured")[2] === :status
+            @test apply_reactive_build_option!(Dict{Symbol,Any}(), "--backends=web") === nothing
+            # A watch rebuilds a binary, and an action is one of the store.
+            built = Ref(0)
+            @test redirect_stderr(() -> run_reactive_build_action!(_ -> built[] += 1, :watch, "out",
+                                                                   Dict{Symbol,Any}(:compile => false)),
+                                  devnull) == 1
+            @test built[] == 0
+            @test_throws ErrorException run_reactive_build_action!(identity, :executable, "out",
+                                                                   Dict{Symbol,Any}())
             # Every option the build function takes is a keyword of it.
             method = only(methods(build_projectured_executable))
             for key in (:backends, :precompile_calls)
@@ -1289,7 +1312,8 @@ function test_build_executable()
             method = only(methods(build_executable))
             for key in (:incremental, :filter_stdlibs, :name, :output, :optimization,
                         :debug_info, :strip_metadata, :cpu_target, :logfile, :log_level,
-                        :compile, :reactive, :refresh_trace, :found, :prelink)
+                        :compile, :reactive, :refresh_trace, :found, :prelink, :server,
+                        :image, :delta_optimization, :compact, :trimmed)
                 @test key in Base.kwarg_decl(method)
             end
 
@@ -1299,7 +1323,12 @@ function test_build_executable()
                               ["projectured", "--filter-stdlibs"],
                               ["projectured", "--distribution", "--no-compile"],
                               ["projectured", "--distribution", "--no-incremental"],
-                              ["projectured", "--distribution", "--cpu-target=native"])
+                              ["projectured", "--distribution", "--cpu-target=native"],
+                              ["projectured", "--status", "--watch"],
+                              ["projectured", "--distribution", "--watch"],
+                              ["projectured", "--compact=10"],
+                              ["projectured", "--compact=ten,0.5"],
+                              ["projectured", "--delta-optimization=high"])
                 @test_throws ErrorException parse_arguments(arguments)
             end
             quiet = devnull

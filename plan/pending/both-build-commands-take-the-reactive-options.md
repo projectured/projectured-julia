@@ -36,8 +36,16 @@ before it compiles, so the shared part adds no check of its own except for
 
 ## Steps
 
-- [ ] 1. **The shared part, and the projectured command uses it.** Check:
+- [x] 1. **The shared part, and the projectured command uses it.** Check:
       `test_builder()`, and `bin/build_projectured --help`.
+      **Done 2026-11-02.** `BUILD_OPTIONS` splices `REACTIVE_BUILD_OPTIONS`
+      after `--no-prelink`, so the help lists them in one place. The parser
+      gives an option to `apply_reactive_build_option!` first, and
+      `--distribution`, `--status`, `--stop-server` and `--watch` are the
+      actions. `--dev` sets `delta_optimization = 1`, so a
+      `--delta-optimization=N` after it wins, as in the omnet command.
+      `test_builder()`: 686 pass, 658 before; the naming guard passes; the
+      help of `bin/build_projectured` lists the 13 options.
 - [ ] 2. **The omnet command uses it** and drops its own rows and branches of
       these options. Check: `test/build.jl` with the app files of the IDE
       saved and put back, and `bin/build_omnet_ide --help`.
