@@ -1,6 +1,6 @@
 # A Julia file saves its top level as written
 
-Status: IN PROGRESS. Steps 1 to 3 are done.
+Status: DONE.
 
 ## The ask
 
@@ -172,10 +172,22 @@ What this plan does not change:
    `ProjecturedPlatform` application list 0 of 2045 against 40 of 2010, the
    `ProjecturedKernel` application list 3 of 291 against 3 of 288, and 0 in the
    other 8 lists.
-4. [ ] **The landing.** Report the result and ask the owner. After the landing of
+4. [x] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia main: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.
 
    As done: on 2026-11-02 the owner answered "Yea" to the landing of
    projectured-julia, which is a fast-forward merge of `julia-top-level` on main
-   50f94f5b9.
+   50f94f5b9, d60e75c21.
+
+   On omnet-julia, branch `julia-top-level` from main f95c6f138 records the lists
+   again as 5e2c3cbc5: `OmnetPresentationExample`, `OmnetIde`, then `omnet_ide`,
+   whose recording also records `OmnetIdeBuild` and `OmnetLegacyFormat`. It ran
+   from the projectured environment with `root` and `environment` of the omnet
+   worktree, because the omnet environment has no `ProjecturedPrecompile`; the
+   peak was 9.9 GB of a 10 GB cap. The calls that no longer resolve, against
+   the lists of omnet main on the same projectured code: `OmnetIde` 0 of 1026
+   against 9 of 1034 and 1 of 3633 against 1 of 3584, `OmnetIdeBuild` 3 of 1260
+   against 4 of 1256, `OmnetLegacyFormat` 3 of 1373 against 3 of 1392,
+   `OmnetPresentationExample` 13 of 8033 against 22 of 8012. No load gives a
+   warning.
