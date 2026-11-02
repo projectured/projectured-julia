@@ -16,7 +16,7 @@
 One step of an address: a field, an element, a range, or a step that a higher
 package adds.
 
-Use it when you build or read a path a step at a time. A step goes one level
+Use it to build or read a path a step at a time. A step goes one level
 down, into a field or an element, or to a value that stands for the place, such
 as a coordinate or a range of characters. The type that keeps a path honest while
 the document changes sits on each node of the path, not in a step.
@@ -27,12 +27,13 @@ A step type defines `==` by value and a `hash` that agrees with it, because a
 
 # Example
 
-    for step in reference
-        get_reference_step_kind(step) === :structural && println(step)
-    end
+    references_1 = search_references(document_1, "Overview")
+    steps_1 = collect(references_1[1])
 
-See also `Reference`, the whole path, `evaluate_reference_step`, which walks
-one, and the guide `kernel/reference`.
+See also `Reference`, the whole path, `search_references`, which finds paths, and
+the guide `kernel/reference`.
+
+For the assistant.
 """
 abstract type ReferenceStep end
 
@@ -52,11 +53,14 @@ of the path.
 
 # Example
 
-    place = @reference(document, rows[2].name)
-    value = evaluate_reference(document, place)
+    references_1 = search_references(document_1, "Overview")
+    part_1 = evaluate_reference(document_1, references_1[1])
+    longer_1 = extend_reference(references_1[1], step_1)
 
-See also `ReferenceStep`, the one step it is built of, `get_selection`, and the
-guide `kernel/reference`.
+See also `ReferenceStep`, the one step it is built of, `search_references`,
+`evaluate_reference`, `extend_reference` and the guide `kernel/reference`.
+
+For the assistant.
 """
 abstract type Reference end
 

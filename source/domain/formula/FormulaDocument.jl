@@ -2,6 +2,22 @@
 # `FormulaDocument` and the type-in entry point that parses typed text into
 # one.
 
+"""
+    FormulaDocument
+
+The abstract supertype of the documents of a formula. Its main members are `FormulaFormula`, `FormulaEnvironment`, `FormulaInsertion`.
+
+Use it to recognise the documents of a formula when you walk a document: a part is one of them when `part isa FormulaDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("sheet")), part -> part isa FormulaDocument)
+    found_1 = search_documents(get_edited_document(find_pane("sheet")), part -> part isa FormulaFormula)
+
+See also `search_documents`, `find_pane`, `describe_document` and `FormulaFormula`.
+
+For the assistant.
+"""
 abstract type FormulaDocument <: Document end
 
 """

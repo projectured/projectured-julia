@@ -347,6 +347,8 @@ function test_assistant_documentation(api = make_editor_api())
     for entry in set.api, (name, _) in get_api_entry_bindings(entry)
         _is_documented_module(entry.module_) || continue
         doc = ToolModule._binding_doc(entry.module_, name)
+        # A type that a mark on its supertype offers needs no form of its own.
+        ToolModule.has_assistant_mark(doc) || continue
         example = _documented_example(doc)
         complete = occursin("\nUse it to ", doc) && occursin("\nSee also ", doc) &&
                    !isempty(example) && !_has_example_parse_error(Meta.parseall(example))

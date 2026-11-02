@@ -869,16 +869,21 @@ const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 # did not change where the golden names ranked, because a name with no words of
 # its own answers no query; what they cost is the work and what a listing of
 # names shows.
-function _is_schema_variant(mod::Module, name::Symbol, value)
-    value isa Type || return false
+_is_schema_variant(mod::Module, name::Symbol, value) =
+    _find_schema_family_name(mod, name, value) !== nothing
+
+# The name of the family that `name` is a variant of, such as `TaskExecution` for
+# `ACTaskExecution`, or `nothing` when `name` is no variant.
+function _find_schema_family_name(mod::Module, name::Symbol, value)
+    value isa Type || return nothing
     written = String(name)
     for prefix in _SCHEMA_PREFIXES
         startswith(written, prefix) || continue
         length(written) > length(prefix) || continue
         base = Symbol(written[length(prefix) + 1:end])
-        isdefined(mod, base) && getfield(mod, base) isa Type && return true
+        isdefined(mod, base) && getfield(mod, base) isa Type && return base
     end
-    false
+    nothing
 end
 
 # The index of a declared API: each named module, and the names it exports. It

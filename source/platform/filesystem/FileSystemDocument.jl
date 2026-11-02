@@ -2,6 +2,22 @@
 # `FileSystemDocument`, its insertion placeholder, and the file and directory
 # nodes.
 
+"""
+    FileSystemDocument
+
+The abstract supertype of the documents of files and folders on disk. Its main members are `FileSystemFile`, `FileSystemDirectory`, `FileSystemChooser`.
+
+Use it to recognise the documents of files and folders on disk when you walk a document: a part is one of them when `part isa FileSystemDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemDocument)
+    found_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemFile)
+
+See also `search_documents`, `find_pane`, `describe_document` and `FileSystemFile`.
+
+For the assistant.
+"""
 abstract type FileSystemDocument <: Document end
 
 # ── FileSystemInsertion ─────────────────────────────────────────────────

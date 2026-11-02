@@ -16,6 +16,16 @@ A document that is a sequence of documents: a `CellVector`, which holds every
 element, or a `ListNode`, a chain that a reader reads from the middle. A field that
 holds either declares `ListDocument`, and a plain vector given to such a field
 becomes a `CellVector` (`ListDocument(items)`).
+
+Use it to recognise a list in a document: a part is one when `part isa ListDocument`.
+
+# Example
+
+    lists_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa ListDocument)
+
+See also `search_documents`, `find_pane` and `describe_document`.
+
+For the assistant.
 """
 abstract type ListDocument <: Document end
 

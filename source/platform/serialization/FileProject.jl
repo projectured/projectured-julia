@@ -48,6 +48,17 @@ A document that owns a text file. Every direct subtype declares two
 The abstract type is one of *two* ways to opt in; the other is the
 `is_file_document` trait (see below), for types that already have an
 incompatible supertype in their own domain.
+
+Use it to recognise a document that owns a text file, such as `JsonFile`, `MarkdownFile`, `JuliaFile`, `SqlFile`, `YamlFile` or `TextFile`: a part is one when `part isa FileDocument`.
+
+# Example
+
+    files_1 = search_documents(get_edited_document(find_pane("project")), part -> part isa FileDocument)
+    text_1 = get_file_content(files_1[1])
+
+See also `search_documents`, `get_file_content`, `read_file_content` and `MarkdownFile`.
+
+For the assistant.
 """
 abstract type FileDocument <: Document end
 

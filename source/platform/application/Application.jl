@@ -335,7 +335,9 @@ end
 
 What the assistant of a window of the editor may write: every name of a loaded
 module whose docstring has the mark `For the assistant.`
-([`collect_marked_api`](@ref)), and the names of the other packages that an
+([`collect_marked_api`](@ref)), with every subtype of a marked type except the
+placeholders that a domain makes for the editor ([`is_domain_placeholder`](@ref)),
+and the names of the other packages that an
 adapter registered with [`register_assistant_api!`](@ref), such as the verbs of
 `DataFrames`, whose docstrings no mark can reach. Every name here is a name the
 assistant reaches through `execute_julia_code`, and nothing else resolves.
@@ -344,7 +346,8 @@ The marks are read when it runs, so a window offers the verbs of every package
 that it loads: the OMNeT++ IDE offers the verbs of its simulations beside those of
 the editor, and the Projectured application offers those of each domain it loads.
 """
-make_editor_api() = ApiEntry[collect_marked_api()..., get_registered_assistant_api()...]
+make_editor_api() =
+    ApiEntry[collect_marked_api(; exclude = is_domain_placeholder)..., get_registered_assistant_api()...]
 
 """
     EDITOR_SYSTEM

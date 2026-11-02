@@ -2,6 +2,22 @@
 # `PaneDocument`, the tab that names a content document, and the containers
 # that arrange them.
 
+"""
+    PaneDocument
+
+The abstract supertype of the documents of the window layout. Its main members are `PaneTree`, `PaneSplit`, `PaneGroup`, `PaneTab`.
+
+Use it to recognise the documents of the window layout when you walk a document: a part is one of them when `part isa PaneDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneDocument)
+    found_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneTab)
+
+See also `search_documents`, `find_pane`, `describe_document` and `PaneTab`.
+
+For the assistant.
+"""
 abstract type PaneDocument <: Document end
 
 # ── PaneTabTitle ───────────────────────────────────────────────────────────

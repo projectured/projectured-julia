@@ -11,6 +11,22 @@
 # - **Hit testing**: `hit_element_at` for mouse hit detection
 #
 # All fields are reactive Cells for automatic dependency tracking and incremental redraws.
+"""
+    GraphicsDocument
+
+The abstract supertype of the drawn elements of the graphics output. Its main members are `GraphicsCanvas`, `GraphicsText`, `GraphicsRect`, `GraphicsLine`, `GraphicsImage`.
+
+Use it to recognise the drawn elements of the graphics output when you walk a document: a part is one of them when `part isa GraphicsDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("drawing")), part -> part isa GraphicsDocument)
+    found_1 = search_documents(get_edited_document(find_pane("drawing")), part -> part isa GraphicsText)
+
+See also `search_documents`, `find_pane`, `describe_document` and `GraphicsText`.
+
+For the assistant.
+"""
 abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical

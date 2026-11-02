@@ -12,10 +12,17 @@ document for each group that started, or a [`ClosedTaskGroup`](@ref) in the plac
 of a group whose row a person closed. The Tasks pane shows the open groups,
 newest first, and the title of each is a link to its page.
 
+Use it to reach every group of tasks that the session started.
+
 # Example
 
-    list = get_session_task_group_list()
-    [getfield(group, :title)[] for group in collect_task_group_documents(list)]
+    list_1 = get_session_task_group_list()
+    groups_1 = search_documents(list_1, part -> part isa TaskGroupDocument)
+
+See also `get_session_task_group_list`, `list_task_groups`, `find_task_group` and
+`ClosedTaskGroup`.
+
+For the assistant.
 """
 @document struct TaskGroupList <: Document
     groups::CellVector = CellVector()
@@ -101,6 +108,16 @@ its identifier, its title and the line that sums it up, which
 [`remove_task_group!`](@ref) makes. It holds no task and no execution, so their
 memory goes. It keeps the place of the group in the list, and its page says that
 the group closed.
+
+Use it to tell a group that a person closed from one that is open.
+
+# Example
+
+    closed_1 = search_documents(get_session_task_group_list(), part -> part isa ClosedTaskGroup)
+
+See also `TaskGroupList`, `get_session_task_group_list` and `list_task_groups`.
+
+For the assistant.
 """
 @document struct ClosedTaskGroup <: Document
     identifier::String

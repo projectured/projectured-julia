@@ -2,6 +2,22 @@
 # `MarkdownDocument`, its insertion cursor, and the block and inline nodes a
 # document tree holds.
 
+"""
+    MarkdownDocument
+
+The abstract supertype of the documents of Markdown text. Its main members are `MarkdownRoot`, `MarkdownHeading`, `MarkdownParagraph`, `MarkdownList`, `MarkdownCodeBlock`, `MarkdownTable`.
+
+Use it to recognise the documents of Markdown text when you walk a document: a part is one of them when `part isa MarkdownDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa MarkdownDocument)
+    found_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa MarkdownHeading)
+
+See also `search_documents`, `find_pane`, `describe_document` and `MarkdownHeading`.
+
+For the assistant.
+"""
 abstract type MarkdownDocument <: Document end
 
 # ── Insertion cursor ────────────────────────────────────────────────────────

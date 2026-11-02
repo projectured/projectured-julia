@@ -2,6 +2,22 @@
 # `GraphDocument`, its insertion cursor, and the vertex and edge nodes a graph
 # holds.
 
+"""
+    GraphDocument
+
+The abstract supertype of the documents of a graph. Its main members are `GraphGraph`, `GraphVertex`, `GraphEdge`.
+
+Use it to recognise the documents of a graph when you walk a document: a part is one of them when `part isa GraphDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa GraphDocument)
+    found_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa GraphVertex)
+
+See also `search_documents`, `find_pane`, `describe_document` and `GraphVertex`.
+
+For the assistant.
+"""
 abstract type GraphDocument <: Document end
 
 """

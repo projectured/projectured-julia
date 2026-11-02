@@ -1,6 +1,22 @@
 # Fragment of `RstModule` — the reStructuredText document types: the abstract
 # `RstDocument` and the block and inline nodes a document tree holds.
 
+"""
+    RstDocument
+
+The abstract supertype of the documents of reStructuredText. Its main members are `RstRoot`, `RstSection`, `RstParagraph`, `RstBulletList`, `RstCodeBlock`.
+
+Use it to recognise the documents of reStructuredText when you walk a document: a part is one of them when `part isa RstDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("guide.rst")), part -> part isa RstDocument)
+    found_1 = search_documents(get_edited_document(find_pane("guide.rst")), part -> part isa RstSection)
+
+See also `search_documents`, `find_pane`, `describe_document` and `RstSection`.
+
+For the assistant.
+"""
 abstract type RstDocument <: Document end
 
 # Wrap a plain vector as a `CellVector` of the element type `T`, the way the

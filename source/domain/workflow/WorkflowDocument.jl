@@ -2,6 +2,22 @@
 # decision, an option of a decision, and an entry of a journal. A node holds the
 # documents of any domain that the work needs as its elements.
 
+"""
+    WorkflowDocument
+
+The abstract supertype of the documents of a workflow. Its main members are `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`, `WorkflowJournal`, `WorkflowEntry`.
+
+Use it to recognise the documents of a workflow when you walk a document: a part is one of them when `part isa WorkflowDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowDocument)
+    found_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowStep)
+
+See also `search_documents`, `find_pane`, `describe_document` and `WorkflowStep`.
+
+For the assistant.
+"""
 abstract type WorkflowDocument <: Document end
 
 # ── The tree ─────────────────────────────────────────────────────────────

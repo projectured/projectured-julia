@@ -4,6 +4,22 @@
 # `EdgeLayout` routes a `GraphEdge`; `GraphLayout` bundles them with
 # direction/spacing knobs. `GraphConstraint` is the policy wrapper (mirrors
 # `LayoutConstraint`).
+"""
+    GraphLayoutDocument
+
+The abstract supertype of the geometry of a graph. Its main members are `VertexLayout`, `EdgeLayout`, `GraphLayout`, `GraphConstraint`.
+
+Use it to recognise the geometry of a graph when you walk a document: a part is one of them when `part isa GraphLayoutDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa GraphLayoutDocument)
+    found_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa VertexLayout)
+
+See also `search_documents`, `find_pane`, `describe_document` and `VertexLayout`.
+
+For the assistant.
+"""
 abstract type GraphLayoutDocument <: Document end
 
 # ── VertexLayout ─────────────────────────────────────────────────────────────

@@ -90,6 +90,18 @@ The limits that a walk of the documents ran under, and what each one left out:
 - `background` — whether the walk starts background work; `provisional_count` is
   how many values that a task still computes the walk took as they are, which it
   does when it starts no work. A match can be in the final value of such a value.
+
+Use it to read why a search answered fewer matches than the document holds.
+
+# Example
+
+    found_1 = search_documents(document_1, "temperature")
+    limits_1 = found_1.limits
+    is_search_complete(found_1)
+
+See also `DocumentMatches`, `search_documents` and `is_search_complete`.
+
+For the assistant.
 """
 struct WalkLimits
     limit::Union{Int,Nothing}
@@ -110,12 +122,16 @@ vector. Its summary, the first line of its display, names each limit that stoppe
 the walk and the keyword that lifts it, so a person and the assistant see that an
 answer is not complete.
 
+Use it to read the matches of a search and to see whether the search is complete.
+
 # Example
 
     matches_1 = search_documents(editor.document, "temperature")
     is_search_complete(matches_1)
 
 See also `search_documents` and `is_search_complete`.
+
+For the assistant.
 """
 struct DocumentMatches{T} <: AbstractVector{T}
     matches::Vector{T}
@@ -256,8 +272,6 @@ Use it to walk a document with a walk of your own, such as `DocumentWalk()`, whi
     matches_1 = walk_document(DocumentWalk(), document_1, value -> value isa String; limit = 10)
 
 See also `search_documents` and `search_references`.
-
-For the assistant.
 """
 function walk_document end
 

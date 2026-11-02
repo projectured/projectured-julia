@@ -95,6 +95,17 @@ something" is a `Position`. A path terminating at a cursor therefore records
 `Position` as its terminal type (`…{k}::Position`), and
 `evaluate_reference` of such a path returns `Position(k)` — a signal that the
 target is a caret, distinct from a document node reached by a structural step.
+
+Use it to tell a caret from a document node when you read what a reference names.
+
+# Example
+
+    part_1 = evaluate_reference(document_1, reference_1)
+    part_1 isa Position
+
+See also `Reference`, `evaluate_reference` and `search_references`.
+
+For the assistant.
 """
 struct Position
     index::Int

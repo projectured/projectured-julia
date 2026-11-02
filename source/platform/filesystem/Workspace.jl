@@ -1,6 +1,22 @@
 # Fragment of `FileSystemModule` — the workspace document types: the abstract
 # `WorkspaceDocument`, and the folder and file nodes a workspace tree holds.
 
+"""
+    WorkspaceDocument
+
+The abstract supertype of the documents of a workspace tree. Its main members are `Workspace`, `WorkspaceFolder`, `WorkspaceExplorer`.
+
+Use it to recognise the documents of a workspace tree when you walk a document: a part is one of them when `part isa WorkspaceDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("workspace")), part -> part isa WorkspaceDocument)
+    found_1 = search_documents(get_edited_document(find_pane("workspace")), part -> part isa WorkspaceFolder)
+
+See also `search_documents`, `find_pane`, `describe_document` and `WorkspaceFolder`.
+
+For the assistant.
+"""
 abstract type WorkspaceDocument <: Document end
 
 # A workspace names the folders a person opened, so its duplicate is a copy of

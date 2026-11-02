@@ -18,7 +18,7 @@ and as the root of an [`Explorer`](@ref).
 
     section_1 = ExplorerSection("Tools", Any[get_session_task_group_list()])
 
-See also `Explorer` and `find_explorer_content`.
+See also `find_explorer_content` and `open_explorer_page!`.
 
 For the assistant.
 """

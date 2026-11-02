@@ -49,7 +49,7 @@ Use it to list a process and its children with their state and command.
 
     records_1 = read_system_processes([process_id_1])
 
-See also `SystemProcessRecord` and `stop_system_process!`.
+See also `SystemProcess` and `stop_system_process!`.
 
 For the assistant.
 """

@@ -161,6 +161,14 @@ export toy_offered, toy_hidden, toy_on_method, ToyOffered
 
 A verb that a model may write.
 
+Use it to answer what it is given.
+
+# Example
+
+    toy_offered(1)
+
+See also `ToyOffered`.
+
 For the assistant.
 """
 function toy_offered end
@@ -186,9 +194,56 @@ toy_on_method(x::Int) = x
 
 A type that a model may write.
 
+Use it to make a toy.
+
+# Example
+
+    ToyOffered()
+
+See also `toy_offered`.
+
 For the assistant.
 """
 struct ToyOffered end
+"""
+    ToyFamily
+
+The root of a family of types: its mark offers each member.
+
+Use it to ask whether a value is a toy of the family.
+
+# Example
+
+    ToyMember() isa ToyFamily
+
+See also `ToyMember`.
+
+For the assistant.
+"""
+abstract type ToyFamily end
+struct ToyMember <: ToyFamily end
+struct ToyLeftOut <: ToyFamily end
+export ToyFamily, ToyMember, ToyLeftOut
+# A `@document` layout family keeps its docstring on a layout, such as `ACToyLayout`,
+# and the mark there offers the name of the family.
+struct ToyLayout end
+"""
+    ToyLayout
+
+A family of layouts that a model writes by its family name.
+
+Use it to make a toy of the family.
+
+# Example
+
+    ToyLayout()
+
+See also `ToyOffered`.
+
+For the assistant.
+"""
+struct ACToyLayout end
+export ToyLayout, ACToyLayout
 end
 
 # A value whose `show` takes a keyword, as the `show` of a data frame takes
@@ -789,8 +844,13 @@ function test_declared_api()
     @testset "the mark in a docstring offers a name" begin
         @test has_assistant_mark("A verb.\n\n" * ASSISTANT_MARK)
         @test !has_assistant_mark("A verb for the assistant.")
-        toy = only(entry for entry in collect_marked_api() if entry.module_ === ToyMarked)
-        @test sort(get_api_entry_names(toy)) == [:ToyOffered, :toy_offered]
+        toy = only(entry for entry in collect_marked_api(; exclude = type -> type === ToyMarked.ToyLeftOut)
+                   if entry.module_ === ToyMarked)
+        @test sort(get_api_entry_names(toy)) == [:ToyFamily, :ToyLayout, :ToyMember, :ToyOffered, :toy_offered]
+        # One mark on the root of the kernel's documents would offer every type of
+        # the editor, so the root never carries it.
+        @test !any(entry -> entry.module_ === parentmodule(ToolModule).DocumentModule &&
+                            :Document in get_api_entry_names(entry), collect_marked_api())
         set = declare_api!(ToolSet(), [toy])
         @test strip(execute_julia_code!(set, nothing, "toy_offered(5)")) == "5"
         @test occursin("UndefVarError", execute_julia_code!(set, nothing, "toy_hidden()"))

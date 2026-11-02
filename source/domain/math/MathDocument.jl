@@ -1,6 +1,22 @@
 # Fragment of `MathModule` — the mathematics document types: the abstract
 # `MathDocument`, its atoms, and the compound expressions built from them.
 
+"""
+    MathDocument
+
+The abstract supertype of the documents of mathematical expressions. Its main members are `MathFraction`, `MathBinaryOperation`, `MathMatrix`, `MathScript`, `MathVariable`.
+
+Use it to recognise the documents of mathematical expressions when you walk a document: a part is one of them when `part isa MathDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathDocument)
+    found_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathFraction)
+
+See also `search_documents`, `find_pane`, `describe_document` and `MathFraction`.
+
+For the assistant.
+"""
 abstract type MathDocument <: Document end
 
 """

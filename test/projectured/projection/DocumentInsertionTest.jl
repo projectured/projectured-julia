@@ -194,6 +194,11 @@ function test_document_insertion()
             @test DS.get_nothing_document(JsonInsertion) === JsonNothing
             @test DS.get_insertion_document(JuliaNothing) === JuliaInsertion
             @test DS.get_nothing_document(DocumentInsertion) === DocumentNothing
+            # A placeholder is the editor's, so the assistant is not offered one.
+            @test all(DS.is_domain_placeholder, (JsonNothing, JsonInsertion, JuliaNothing,
+                                                 JuliaInsertion, DocumentNothing, DocumentInsertion,
+                                                 MarkdownInsertion))
+            @test !any(DS.is_domain_placeholder, (JsonString, JsonObject, JuliaCall))
             # Insert on a placeholder replaces it with its domain's insertion,
             # cursor at the start of the value buffer.
             for (N, I) in ((DocumentNothing, DocumentInsertion),

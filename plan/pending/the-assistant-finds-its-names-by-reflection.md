@@ -327,6 +327,33 @@ ends with a commit in each repository that it changes.
 - The examples of `OpenFileOperation`, `SaveFileOperation` and
   `ReloadFileOperation` call `evaluate_operation`. These three are operation types
   that the windows offer today; by D3 they give way to verbs in step 3.
+- **Types (owner 2026-11-02, option A):** a mark on a type offers every exported
+  subtype. `collect_marked_api(; exclude)` walks the loaded modules (not `Base` or
+  `Core`) for the subtypes; the platform passes `is_domain_placeholder`, so the
+  `*Nothing` and `*Insertion` placeholders of a domain stay out. The docstring that
+  `@domain` writes for the root it generates carries the mark, so each of the 11
+  domains with a generated root offers its documents by construction; the other
+  roots and the single types carry the mark by hand: 26 roots, such as
+  `MarkdownDocument`, `FileDocument` and `SimulationDocument`, and 33 single types,
+  such as `TaskGroupDocument` and `LegacySimulationProject`. A test refuses the mark
+  on `Document`. The full docstring form is asked only of a name that carries the
+  mark itself; a member of a marked family needs none.
+- A docstring of an `@document [M, C]` family sits on its layouts, such as
+  `ACTaskExecution`; a mark there offers the name of the family, `TaskExecution`.
+  The walk for subtypes finds a name by the module that defines it (`which`), so the
+  public name of a layout family, a `Union` of its layouts, comes in as well.
+- `is_domain_placeholder` also finds an insertion cursor that a slice writes by
+  hand, such as `MarkdownInsertion`, by the end of its name, as the completion of
+  the domains reads it.
+- The surface after the types: the editor 721 names (480 types, 239 functions),
+  the IDE 888 (529 types, 357 functions). No type of a foreign package comes in.
+- A larger surface moves the search: four measured searches of
+  `test_referenced_document_editor` and `test_interface_api` now give a member of
+  a family first, such as `JuliaWhere` for "a document and where it is". The
+  ranking is a question for the owner (open item 4).
+- The families of `WidgetDocument` (styles, inner widgets), `ConversationDocument`,
+  `SyntaxDocument`, the settings and the views of the window stay unmarked; the
+  widgets that a model builds carry their own marks.
 - The table interface takes a referenced document by one unwrapping method for each
   of its functions (`source/platform/collection/TableInterface.jl`). This is the
   kind of general place that the question of the two document forms looks for.
@@ -363,7 +390,11 @@ ends with a commit in each repository that it changes.
    it, the other way is a group that applies each verb at once and joins only
    the undo steps. That changes the undo buffer, so it is a new mechanism, and
    the owner decides first.
-2. **The mark on a supertype** (§4.1). The owner confirms it before step 2.
+2. ~~**The mark on a supertype** (§4.1).~~ Decided by the owner (2026-11-02): a mark
+   on a type also offers its subtypes (option A).
 3. **The text answers.** My recommendation: a verb answers a `String`, and the
    code tool shows a `String` answer as its plain text. The owner confirms it at
    step 2.
+4. **The rank of a family member in the search.** A name with its own mark could
+   rank above a name that only its family offers. The owner decides before
+   `search_api` changes.

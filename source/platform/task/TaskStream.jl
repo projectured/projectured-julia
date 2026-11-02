@@ -90,6 +90,16 @@ state of that view.
 - `index` — where each line of the file starts, as the page read it so far.
 
 All but the execution and the field is view state.
+
+Use it to read the lines of one stream of an execution, and the state of the page that shows them.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskStreamLines)
+
+See also `TaskStream`, `TaskExecution` and `find_task_group`.
+
+For the assistant.
 """
 @document struct TaskStreamLines <: Document
     execution::Any
@@ -110,6 +120,16 @@ widgets that find a text, keep the lines that hold a text, follow the end, go to
 the first error and open the file; and `lines`, the [`TaskStreamLines`](@ref) of
 the stream. The shadow of each execution holds one for each of its streams
 ([`make_task_stream`](@ref)).
+
+Use it to reach the page of the standard output or the standard error of an execution.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskStream)
+
+See also `TaskStreamLines`, `TaskExecution` and `find_task_group`.
+
+For the assistant.
 """
 @document struct TaskStream <: Document
     name::String

@@ -2,6 +2,21 @@
 # `MessageLogEntry`, one captured log record, and the bounded buffer that keeps
 # the most recent ones.
 
+"""
+    MessageLogEntry(level, message)
+
+One captured log record: its `level` and its `message`.
+
+Use it to read one message of the log, for example to find the errors.
+
+# Example
+
+    entries_1 = search_documents(get_edited_document(find_pane("Log")), part -> part isa MessageLogEntry)
+
+See also `MessageLog`, `find_pane` and `search_documents`.
+
+For the assistant.
+"""
 @document struct MessageLogEntry
     level::String
     message::String
@@ -13,6 +28,17 @@ end
 The buffer. `entries` holds at most `capacity` entries, oldest first. `count` is
 the number of entries that were recorded, including the entries that the buffer
 dropped.
+
+Use it to read the log messages that the editor captured.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Log"))
+    log_1 isa MessageLog
+
+See also `MessageLogEntry`, `find_pane` and `get_edited_document`.
+
+For the assistant.
 """
 @document struct MessageLog
     entries::CellVector = CellVector()

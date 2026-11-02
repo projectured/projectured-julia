@@ -2,6 +2,22 @@
 # `LayoutDocument`, the size policy a child declares, and the containers that
 # arrange children under it.
 
+"""
+    LayoutDocument
+
+The abstract supertype of the containers that arrange child documents. Its main members are `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout`, `ScrollLayout`.
+
+Use it to recognise the containers that arrange child documents when you walk a document: a part is one of them when `part isa LayoutDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("dashboard")), part -> part isa LayoutDocument)
+    found_1 = search_documents(get_edited_document(find_pane("dashboard")), part -> part isa VerticalLayout)
+
+See also `search_documents`, `find_pane`, `describe_document` and `VerticalLayout`.
+
+For the assistant.
+"""
 abstract type LayoutDocument <: Document end
 
 # A layout arranges what it holds, so its duplicate arranges the duplicates.

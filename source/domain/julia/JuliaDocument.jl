@@ -2,6 +2,22 @@
 # `JuliaDocument`, the insertion that holds source being typed, and the nodes a
 # parsed file becomes.
 
+"""
+    JuliaDocument
+
+The abstract supertype of the documents of Julia source code. Its main members are `JuliaFunction`, `JuliaCall`, `JuliaStruct`, `JuliaIf`, `JuliaToplevel`.
+
+Use it to recognise the documents of Julia source code when you walk a document: a part is one of them when `part isa JuliaDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaDocument)
+    found_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaCall)
+
+See also `search_documents`, `find_pane`, `describe_document` and `JuliaCall`.
+
+For the assistant.
+"""
 abstract type JuliaDocument <: Document end
 
 # Julia code is what a person typed, so its duplicate is a copy of it.

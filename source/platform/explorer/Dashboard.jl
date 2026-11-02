@@ -54,7 +54,7 @@ runs, notes.
 
     dashboard_1 = Dashboard("Queue study", Any[DashboardCard("Tasks", get_session_task_group_list())])
 
-See also `DashboardCard` and `Explorer`.
+See also `DashboardCard` and `find_explorer_content`.
 
 For the assistant.
 """

@@ -210,6 +210,16 @@ brings up to date.
   which a shadow holds and the native layout does not: every line of the stream,
   with the state of its view, which stays while the shadow follows the
   execution.
+
+Use it to read one start of a task: its status, its progress and what it printed.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskExecution)
+
+See also `TaskDocument`, `TaskStream`, `find_task_group` and `list_task_groups`.
+
+For the assistant.
 """
 @document [M, C] struct TaskExecution
     task::AbstractTask

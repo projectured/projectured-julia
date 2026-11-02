@@ -2,6 +2,22 @@
 # `PrimitiveDocument`, the leaf documents that carry a single value, and the
 # type-in that a person types a value into.
 
+"""
+    PrimitiveDocument
+
+The abstract supertype of the leaf documents that carry one value. Its main members are `PrimitiveString`, `PrimitiveNumber`, `PrimitiveBool`.
+
+Use it to recognise the leaf documents that carry one value when you walk a document: a part is one of them when `part isa PrimitiveDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("settings")), part -> part isa PrimitiveDocument)
+    found_1 = search_documents(get_edited_document(find_pane("settings")), part -> part isa PrimitiveString)
+
+See also `search_documents`, `find_pane`, `describe_document` and `PrimitiveString`.
+
+For the assistant.
+"""
 abstract type PrimitiveDocument <: Document end
 
 # A primitive holds one value a person types, so its duplicate is a copy of it.

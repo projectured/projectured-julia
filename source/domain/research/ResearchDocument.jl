@@ -2,6 +2,22 @@
 # kinds of item that it holds, and the expectation that the prediction of a
 # hypothesis can be.
 
+"""
+    ResearchDocument
+
+The abstract supertype of the documents of a research study. Its main members are `ResearchStudy`, `ResearchMap`, `ResearchExpectation`, `ResearchDecisionDraft`.
+
+Use it to recognise the documents of a research study when you walk a document: a part is one of them when `part isa ResearchDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("study")), part -> part isa ResearchDocument)
+    found_1 = search_documents(get_edited_document(find_pane("study")), part -> part isa ResearchStudy)
+
+See also `search_documents`, `find_pane`, `describe_document` and `ResearchStudy`.
+
+For the assistant.
+"""
 abstract type ResearchDocument <: Document end
 
 """

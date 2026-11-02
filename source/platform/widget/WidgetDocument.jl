@@ -596,7 +596,7 @@ of a step. A label that names a command, such as "Open stdout", is a
     WidgetLink("notes.txt", DocumentLocator(folder, @reference(folder, elements[2])))
     WidgetLink(() -> format_tree_node_label(page), page)
 
-See also `OpenPageOperation`, `DocumentLocator` and `WidgetButton`.
+See also `open_page!`, `DocumentLocator` and `WidgetButton`.
 
 For the assistant.
 """

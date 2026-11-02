@@ -2,6 +2,22 @@
 # and `SqlStatement`, the insertion that holds source being typed, and the
 # clauses a statement is built from.
 
+"""
+    SqlDocument
+
+The abstract supertype of the documents of SQL statements. Its main members are `SqlSelectClause`, `SqlFromClause`, `SqlWhereClause`, `SqlColumnDefinition`, `SqlStatementList`.
+
+Use it to recognise the documents of SQL statements when you walk a document: a part is one of them when `part isa SqlDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("query.sql")), part -> part isa SqlDocument)
+    found_1 = search_documents(get_edited_document(find_pane("query.sql")), part -> part isa SqlSelectClause)
+
+See also `search_documents`, `find_pane`, `describe_document` and `SqlSelectClause`.
+
+For the assistant.
+"""
 abstract type SqlDocument <: Document end
 abstract type SqlStatement <: SqlDocument end
 

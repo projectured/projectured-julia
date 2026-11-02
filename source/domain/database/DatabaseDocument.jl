@@ -4,6 +4,22 @@
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
+"""
+    DatabaseDocument
+
+The abstract supertype of the documents of a database table. Its main members are `DatabaseTable`.
+
+Use it to recognise the documents of a database table when you walk a document: a part is one of them when `part isa DatabaseDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("table")), part -> part isa DatabaseDocument)
+    found_1 = search_documents(get_edited_document(find_pane("table")), part -> part isa DatabaseTable)
+
+See also `search_documents`, `find_pane`, `describe_document` and `DatabaseTable`.
+
+For the assistant.
+"""
 abstract type DatabaseDocument <: Document end
 
 # ── DatabaseTable ─────────────────────────────────────────────────────────────
