@@ -10,10 +10,10 @@ The help slice of `ProjecturedPlatform` holds what the Help menu of a window ope
 
 The help slice has five document types:
 
-- **`DocumentTypeList`** is the tree of every document type that an empty tab can make.
+- **`DocumentTypeList`** is the tree of every document type, and says which of them an empty tab can create without arguments.
 - **`ProjectionList`** is the tree of every concrete projection: the views a window draws a document with, and the projections that combine other projections.
 - **`HelpGroup(name, count, description, children)`** is a package or a module in a tree.
-- **`HelpEntry(name, type, typed, description, text, supertypes, fields)`** is one type in a tree.
+- **`HelpEntry(name, type, creatable, typed, description, text, supertypes, fields)`** is one type in a tree.
 - **`AboutPage`** holds `name`, `summary`, `version` and `homepage`. It says what a program is.
 
 A tree holds `children`, its groups, and `world`, the world counter at its last build. A new tree holds no group, and its constructor walks nothing.
@@ -44,9 +44,9 @@ Documents                  DocumentTypeList
 
 The `description` of a group is the first paragraph of the docstring of the package, or of its one module when the package has none (`compute_docstring_summary(::Module)`). `count` is the count of the types below the group.
 
-The types of `DocumentTypeList` are `get_insertion_candidates(Document)`, and the types of `ProjectionList` are [`compute_concrete_subtypes(Projection)`](../domain/domain.md#completion-by-reflection). `HelpGroup` and `HelpEntry` answer `insertable` with `false`, so no empty tab makes one. With the packages of `ProjecturedAll` loaded on 2026-10-22, the Documents tree held 268 types in 21 packages, and the Projections tree about 520 types in 21 packages.
+The types of `DocumentTypeList` are [`compute_document_types(Document)`](../domain/domain.md#completion-by-reflection): every document type, one for each schema. The types of `ProjectionList` are `compute_concrete_subtypes(Projection)`. With the packages of the IDE of a downstream program loaded on 2026-11-02, 753 document types existed, and an empty tab could create 296 of them.
 
-An entry stores what its page shows. `typed` holds the names that a person types into an empty tab to make the type, from `get_insertion_names` without the name of the type, joined by ", ". It is empty for a projection. `description` is `compute_docstring_summary(T)`, and `text` is the whole docstring, `find_docstring_text(T)`, or `""`.
+An entry stores what its page shows. `creatable` says whether an empty tab can create a document of the type without arguments: whether the type is one of `get_insertion_candidates(Document)`. A type needs arguments when it has no constructor without arguments and no `make_insertion_document`, such as a NED module, which needs its name and its gates. A placeholder such as `NedNothing` opts out of the candidates, so it is not `creatable` either. `typed` holds the names that a person types into an empty tab to create the type, from `get_insertion_names` without the name of the type, joined by ", ". It is empty for a type that is not `creatable` and for a projection. `HelpGroup` and `HelpEntry` answer `insertable` with `false`, so they are entries that no empty tab creates. `description` is `compute_docstring_summary(T)`, and `text` is the whole docstring, `find_docstring_text(T)`, or `""`.
 
 The shape of the type is in two more fields. `supertypes` names the supertypes of `T`, nearest first, joined by " <: ", without the family type `A<Name>` that `@document` makes and without `Any`. `fields` holds a named tuple `(name, type, description)` for each field that a person can set:
 
@@ -78,14 +78,14 @@ children[1]                the line
 children[2].rows[k]        the row of the node children[k]
 ```
 
-The line of a tree says how many types and packages the tree holds, such as "268 document types in 21 packages. Type one of the names in an empty tab to make a document of that type." The line of a group is its description, or "No description.".
+The line of a tree says how many types and packages the tree holds, and for the document types how many an empty tab creates, such as "753 document types in 29 packages. An empty tab creates 296 of them without arguments: type one of their names in it." The line of a group is its description, or "No description.".
 
 The page builds the table with every row at once. A page holds at most about 60 rows, and the list of a page changes only at a build, so the table measures each cell. The name and the middle column take `Content`, so each is as wide as its widest cell, and the description takes `Fill`, the rest of the width, cut at its edge:
 
 | Node | Columns |
 | --- | --- |
 | a tree, or a group of groups | name, types, description |
-| a group of document types | name, names to type, description |
+| a group of document types | name, without arguments ("yes" or "no"), names to type, description |
 | a group of projections | name, description |
 
 The maps lead the node `children[k]`, and any path inside it, to the row `k` of the table, and the row back to the node. So a press on a row selects its node, the selection of a node shows on its row, and Up and Down move from node to node. A double press on a row also answers `OpenPageOperation(nothing, children[k])`, so the nearest navigator opens the page of the node at its place in the tree, and Parent comes back to this page. A Ctrl+press opens the page in a new tab. Ctrl+Return and "Open as a page" read the selected node, so they open it at its place too.
@@ -97,7 +97,7 @@ The maps lead the node `children[k]`, and any path inside it, to the row `k` of 
 1. the name of the type;
 2. the module that defines it, such as `ProjecturedPlatform.HelpModule`;
 3. the type with its supertypes, such as `AboutPage <: Document`;
-4. for a document type, "Names to type in an empty tab:" and the typed names;
+4. for a document type, "An empty tab creates it without arguments. Names to type:" and the typed names, or "It needs arguments, so an empty tab can not create it.";
 5. the whole docstring, one line of the page for each line of the text, or "No description.";
 6. a table of the fields, with the columns field, type and description: the field and the type as wide as their widest cell, and the description in the rest of the width. A type with no field to set shows "No fields.".
 
