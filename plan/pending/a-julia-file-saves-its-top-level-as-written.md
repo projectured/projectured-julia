@@ -1,6 +1,6 @@
 # A Julia file saves its top level as written
 
-Status: IN PROGRESS. Steps 1 and 2 are done.
+Status: IN PROGRESS. Steps 1 to 3 are done.
 
 ## The ask
 
@@ -153,11 +153,25 @@ What this plan does not change:
      (`ApplicationTest.jl:677` and `:789`) and 2 broken. Two of its checks
      changed: the evaluator check reads the column of a code line from the drawn
      text, and a form of two statements prints as written.
-3. [ ] **The precompile lists.** The template of `JuliaToplevelToSyntaxNode`
+3. [x] **The precompile lists.** The template of `JuliaToplevelToSyntaxNode`
    changes, so recorded calls that name it or a later closure of its file no
    longer resolve. Record again, in this order: `ProjecturedJulia`,
    `ProjecturedExample`, then the application `projectured`. Then check that a
    load of `ProjecturedAll` gives no warning about a stale list.
+
+   As run: the recording took 23 minutes, with a peak of 8.6 GB. The application
+   recording also records the list of `ProjecturedBuild`, which names
+   `JuliaToplevel` too. 12 lists changed. The Julia workload list holds 14 calls
+   of `JuliaToplevelToSyntaxNode` against 4, because the workload file prints as
+   a `JuliaToplevel` now. `using ProjecturedAll` gives no warning. A load of
+   `ProjecturedExample` and `ProjecturedBuild`, which `ProjecturedAll` does not
+   load, gives none either. A warning shows only past 10% of stale calls, so a
+   count of the calls that no longer resolve compares each list with main: the
+   `ProjecturedBuild` workload 3 of 3672 against 44 of 3721, the
+   `ProjecturedExample` workload 18 of 7500 against 35 of 7464, the
+   `ProjecturedPlatform` application list 0 of 2045 against 40 of 2010, the
+   `ProjecturedKernel` application list 3 of 291 against 3 of 288, and 0 in the
+   other 8 lists.
 4. [ ] **The landing.** Report the result and ask the owner. After the landing of
    projectured-julia, record again on omnet-julia main: `OmnetPresentationExample`,
    `OmnetIde`, then the application `omnet_ide`, and ask to land that commit too.

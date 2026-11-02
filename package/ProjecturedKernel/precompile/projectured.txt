@@ -15,8 +15,8 @@ Tuple{ProjecturedKernel.ToolModule.var"#_register_code_tool!##0#_register_code_t
 Tuple{Type{Array{Expr, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{Float64, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{String, 1}}, UndefInitializer, Tuple{Int64}}
-Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Bool}}, Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}
-Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Union{Nothing, Tuple{Any, Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}, Int64}}}}, Base.ScopedValues.ScopedValue{Any}}
+Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Bool}}, Base.ScopedValues.ScopedValue{Any}}
+Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}}, Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}
 Tuple{Type{Base.Iterators.IterableStatePairs{T} where T}, Base.Iterators.Reverse{String}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Expr, 1}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Float64, 1}}
@@ -102,7 +102,9 @@ Tuple{typeof(Base.first), Pair{String, String}}
 Tuple{typeof(Base.first), Tuple{Symbol, Symbol}}
 Tuple{typeof(Base.first), Tuple{Symbol}}
 Tuple{typeof(Base.get), Base.EnvDict, String, Nothing}
+Tuple{typeof(Base.get), NamedTuple{(:background, :foreground, :card, :card_foreground, :popover, :popover_foreground, :muted, :muted_foreground, :primary, :primary_foreground, :secondary, :secondary_foreground, :accent, :accent_foreground, :link, :destructive, :destructive_foreground, :success_surface, :success_foreground, :warning_surface, :warning_foreground, :error_surface, :error_foreground, :info_surface, :info_foreground, :border, :input, :ring, :track_off, :shadow, :scrim, :hover, :pressed, :knob, :font, :font_bold, :font_small, :control_padding, :container_padding, :compact_padding, :menu_item_padding, :menu_name_padding, :menu_bar_padding, :toolbar_padding, :toolbar_item_padding, :band_padding, :status_bar_padding, :tabbed_pane_padding, :context_menu_maximum_size, :item_gap, :title_gap, :label_gap, :section_gap, :bar_gap, :form_column_gap, :form_row_gap, :indent, :shadow_offset, :chevron_nudge, :toggle_group_padding, :stepper_glyph_inset, :accordion_body_gap, :radius, :radius_small, :border_width, :stroke, :ring_width, :indicator_size, :indicator_dot, :swatch_size, :switch_track, :switch_knob_padding, :slider_height, :slider_track, :slider_knob, :progress_bar_height, :progress_ring_size, :scroll_bar_thickness, :scroll_thumb_minimum, :table_column_minimum_width, :header_field_minimum_width, :header_gap, :invalid_filter, :unsorted_glyph, :value_list_size, :value_list_window_size, :chevron, :tree_chevron_column, :tree_icon_column, :icon_size, :stepper_glyph_minimum), NTuple{91, String}}, Symbol, Nothing}
 Tuple{typeof(Base.get), NamedTuple{(:background, :plot_background, :axis, :grid, :text_color, :selected_fill, :selected_edge, :hover_fill, :series_colors, :strip_swatch, :strip_edge, :strip_contrast_text, :crosshair, :band_fill, :title_font, :axis_font, :legend_font, :padding, :tick_length, :label_gap, :axis_title_gap, :tick_spacing, :swatch, :legend_gap, :legend_padding, :legend_line_gap, :highlight_inset, :title_highlight_margin, :radius, :swatch_radius, :placeholder_radius, :border_width, :selected_width, :histogram_outline_width, :grid_dash, :crosshair_dash, :dotted_line_dash, :dashed_line_dash, :veil_alpha, :overflow_alpha), NTuple{40, String}}, Symbol, Nothing}
+Tuple{typeof(Base.get), NamedTuple{(:button_size, :stack_gap, :inline_gap, :success_color, :info_color, :warning_color, :error_color, :running_color, :picture_height, :muted_color), NTuple{10, String}}, Symbol, Nothing}
 Tuple{typeof(Base.get), NamedTuple{(:code_font, :variable_text, :operator_text, :chrome_text, :symbol_text, :name_text, :word_text, :equals_text, :font, :slanted_font, :ink, :hint, :selection_wash), NTuple{13, String}}, Symbol, Nothing}
 Tuple{typeof(Base.get), NamedTuple{(:font, :code_font, :marker_text, :source_text, :code_text, :language_text, :heading_marker_text, :url_text, :alt_text, :body_text, :bold_font, :italic_font, :heading_1_font, :heading_2_font, :heading_3_font, :heading_font, :heading_color, :link_color, :caption_text, :rendered_marker_text, :block_gap), NTuple{21, String}}, Symbol, Nothing}
 Tuple{typeof(Base.get), NamedTuple{(:font, :code_font, :marker_text, :source_text, :literal_text, :target_text, :value_text, :reference_text, :field_text, :option_text, :substitution_text, :directive_text, :admonition_text, :title_text, :body_text, :bold_font, :italic_font, :title_1_font, :title_2_font, :title_3_font, :title_font, :title_color, :caption_text, :rendered_marker_text, :block_gap), NTuple{25, String}}, Symbol, Nothing}
@@ -169,6 +171,7 @@ Tuple{typeof(Base.isempty), Array{Tuple{Int64, Int64, Int64}, 1}}
 Tuple{typeof(Base.isempty), Base.Dict{String, Any}}
 Tuple{typeof(Base.isequal), Int64, Int64}
 Tuple{typeof(Base.isequal), Task, Task}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Int64, Int64}, Tuple{UInt64, Int64, Int64}}
 Tuple{typeof(Base.isequal), UInt8}
 Tuple{typeof(Base.isfinite), Float64}
 Tuple{typeof(Base.isodd), Int64}
