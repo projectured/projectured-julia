@@ -94,10 +94,14 @@ What this plan does not change:
    the long anonymous form uses it too, because its signature is always a tuple.
    The printer puts the close `) -> ` on the second collection, so the first one
    has no close, as the parameters of a named function have none.
-2. [ ] **The wider check.** On the branch, each in a process of its own:
+2. [x] **The wider check.** On the branch, each in a process of its own:
    `test_julia()` (759 on main), `test_formula()` (308),
    `test_example(julia_example)` and `test_example(julia_code_example)`, against
    the type-in baseline of main: 84 and 423 failures.
+   *Done:* `test_julia()` 768 pass (759 + the 9 new tests), `test_formula()` 309
+   (308 + 1). `test_example(julia_example)` 3443 pass and 84 failures,
+   `test_example(julia_code_example)` 17554 pass and 423 failures: each failure
+   is the known "no cursor" at `TypeinTest.jl:747`, as on main.
 3. [ ] **The precompile lists.** The template of `JuliaLambdaToSyntaxNode`
    changes, and the workload file has a new line. Record again, in this order:
    `ProjecturedJulia`, `ProjecturedExample`, then the application `projectured`.
