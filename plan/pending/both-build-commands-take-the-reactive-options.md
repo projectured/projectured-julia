@@ -46,9 +46,20 @@ before it compiles, so the shared part adds no check of its own except for
       `--delta-optimization=N` after it wins, as in the omnet command.
       `test_builder()`: 686 pass, 658 before; the naming guard passes; the
       help of `bin/build_projectured` lists the 13 options.
-- [ ] 2. **The omnet command uses it** and drops its own rows and branches of
+- [x] 2. **The omnet command uses it** and drops its own rows and branches of
       these options. Check: `test/build.jl` with the app files of the IDE
       saved and put back, and `bin/build_omnet_ide --help`.
+      **Done 2026-11-02**, omnet-julia. `OPTIONS` takes the shared rows with
+      `ALL_BUILDS`, the parser gives an option to
+      `apply_reactive_build_option!` and turns its error into the message and
+      the usage of the command, and `_run_build` gives every action to
+      `run_reactive_build_action!`, so `--status` and `--stop-server` answer
+      their exit code and no longer end the process. `test/build.jl`: 64 pass
+      and 3 errors, the same as before the change: two tests write
+      `build/omnet_ide` while it holds a store, and the stock Julia ships no
+      `juliac`. Both scripts give the same answers: `--status` prints the
+      store, `--status --watch` and `--compact=10` stop with exit 1 and a
+      message, and the omnet parser gives the keywords of the projectured test.
 - [ ] 3. **The guides**: `builder.md` and `build-guide.md` of projectured,
       and `reactive-build-guide.md` of omnet, name the options once for both
       commands. Then the plan moves to `plan/done/`.
