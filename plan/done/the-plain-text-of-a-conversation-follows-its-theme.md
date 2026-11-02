@@ -1,7 +1,6 @@
 # The plain text of a conversation follows its theme
 
-Status: a plan. Written 2026-11-02 from the answers of the owner on that day.
-Nothing is built yet.
+Status: done. Written 2026-11-02 from the answers of the owner on that day, built on 2026-11-02 and 2026-11-03 on the branch `conversation-text`.
 
 ## 1. Goal
 
@@ -211,16 +210,37 @@ ends with a commit.
    `test_text_range_selection`, and in a process with no MCP package
    `test_primitive_to_text`, `test_conversation_tree`, `test_assistant_overview`
    and `test_conversation_theme`.
-5. **Check and close.** Run the conversation and assistant tests of the platform
+5. ✅ **Done.** **Check and close.** Run the conversation and assistant tests of the platform
    and `ConversationTranscriptTest`. Check that omnet-julia loads and
    precompiles. Update `conversation.md`. Move this plan to `plan/done/`.
+
+   As built: the branch is rebased on main `408c71359` with no conflict. In a
+   process with no MCP package, `test_conversation` (the whole conversation suite
+   of the platform) and `test_primitive_to_text` give 909 passes. The umbrella
+   tests `test_conversation_editor`, `test_conversation_transcript`,
+   `test_parse_markdown_blocks`, `test_conversation_serialization`,
+   `test_assistant_composer_panel`, `test_assistant_stream`,
+   `test_assistant_mvp`, `test_text_clipboard`, `test_text_range_selection` and
+   `test_application` give 965 passes, the two failures that main has
+   (`ApplicationTest.jl:682` and `:794`), and 6 broken: the 2 of the application
+   and the 4 of the two markers in a test set of `AssistantMvpTest` that runs
+   twice, a file that this branch does not change. `conversation.md`,
+   `transcript.md` and `assistant.md` say how a part stores its text.
+
+   omnet-julia, in an environment whose projectured-julia packages are this
+   branch: every package precompiles. `OmnetLegacyTest.test_campaign_greeting`
+   gives 8 passes and 2 errors, because its helper `_greeting_text` reads the
+   greeting with `get_flat_string`, which has no method for a `PrimitiveString`.
 
 ## 6. What else changes
 
 - omnet-julia makes the greeting of its IDE with `ConversationPart(String(text))`
   (`source/ide/CampaignWindow.jl`). After step 3 it is a `PrimitiveString` in
   `message_text`. It follows the theme, but it shows no markdown style until
-  omnet-julia calls `make_prose_document`.
+  omnet-julia calls `make_prose_document`. The helper `_greeting_text` of
+  `test/legacy/simulation/SimulationWindowTest.jl` must read the text of the
+  greeting in a way that does not depend on its type, so omnet-julia needs this
+  change when the branch lands.
 - After step 4 `append_text!` has no caller. It stays, because it is an export
   of `TextModule`.
 
