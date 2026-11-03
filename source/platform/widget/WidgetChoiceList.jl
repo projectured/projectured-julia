@@ -27,25 +27,31 @@ WidgetChoice(label::AbstractString; value = label, icon = nothing, note = nothin
     WidgetChoice(String(label), value, icon, note)
 
 """
-    WidgetChoiceList(; query = "", row = 1, current = nothing, prompt = "Find",
-                     placeholder = "type a name", empty = "Nothing matches", find, choose,
-                     edit = nothing)
+    WidgetChoiceList(; query = "", row = 1, top = 1, shown_rows = 12, current = nothing,
+                     prompt = "Find", placeholder = "type a name", empty = "Nothing matches",
+                     find, choose, edit = nothing)
 
 A list that a person types into: a line of the typed text over the choices that
 the text narrows to.
 
 - `query` is the typed text, and `row` the row that Return chooses.
+- `top` is the first row that the list shows, and `shown_rows` how many rows it
+  shows at most. The rows are a lazy list with its head at `top`, so the list
+  builds only the rows that it shows, however many choices `find` gives.
 - `current` is the value of the choice that holds now, which shows a check.
 - `prompt` names what the list finds, before the typed text; `placeholder` stands
   after it while nothing is typed; `empty` is the row of a list with no choice.
-- `find(query)` gives the choices, a vector of [`WidgetChoice`](@ref).
+- `find(query)` gives the choices in their order, an `AbstractVector` of
+  [`WidgetChoice`](@ref); a vector that makes each choice when it is read costs
+  only the rows that show.
 - `choose(value)` gives the operation of a choice, or `nothing` for none.
 - `edit(query)` gives the edit of the part that the list belongs to that the
   typed text makes, such as the text of the field that the list opened under, or
   `nothing` for none; `edit` itself is `nothing` for a list that edits no part.
 
 Typing narrows the list, Backspace removes the last character, Up and Down move
-the row, and Return chooses it. It is view state of a popup: an undo records no
+the row, Page Up and Page Down move it by the rows that show, and Return chooses
+it. The rows that show follow the row, and the wheel scrolls them. It is view state of a popup: an undo records no
 change of it, no file keeps it, and a walk of the documents does not go into it.
 
 See also `make_choice_list_operation`, which opens one in the context menu window.
@@ -53,6 +59,8 @@ See also `make_choice_list_operation`, which opens one in the context menu windo
 @document struct WidgetChoiceList
     query::String = ""
     row::Int = 1
+    top::Int = 1
+    shown_rows::Int = 12
     current::Any = nothing
     prompt::String = "Find"
     placeholder::String = "type a name"
@@ -122,15 +130,30 @@ function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoi
     SimpleIoMap(p, list, GridLayout(Any[column], 1))
 end
 
-# The line of the typed text, and the menu of the choices.
+# The line of the typed text, and the menu of the rows that show. The rows are a
+# lazy list of the choices with its head at the first row that shows, and the menu
+# walks only the rows that show.
 function _make_choice_widgets(list::WidgetChoiceList)
     query = list.query
     line = WidgetLabel(list.prompt * ": " * (isempty(query) ? list.placeholder : query))
     choices = list.find(query)
-    items = Any[_make_choice_item(list, index, choice) for (index, choice) in enumerate(choices)]
-    isempty(items) && push!(items, WidgetMenuItem(list.empty; enabled = false))
-    Any[line, WidgetMenu(items)]
+    count = length(choices)
+    count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)])]
+    top = _clamp_choice_top(list, count, list.top)
+    rows = make_index_list(count, top, index -> _make_choice_item(list, index, choices[index]))
+    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1)))]
 end
+
+# The first row that shows, so that the rows that show are in the list.
+_clamp_choice_top(list::WidgetChoiceList, count::Integer, top::Integer) =
+    clamp(top, 1, max(1, count - list.shown_rows + 1))
+
+# The first row that shows `row`: `top` when it shows it already, else the top
+# that brings it to the nearest edge.
+_follow_choice_row(list::WidgetChoiceList, count::Integer, row::Integer) =
+    _clamp_choice_top(list, count, row < list.top ? row :
+                                   row >= list.top + list.shown_rows ? row - list.shown_rows + 1 :
+                                   list.top)
 
 # A row of a choice: the chevron of the row that Return chooses, the check of the
 # current choice, or the icon of the choice, then the label and the note.
@@ -147,6 +170,8 @@ function read_intent(p::WidgetChoiceListToWidget, recursion, change::Intent, iom
     gesture = change.gesture
     change.route === nothing && gesture isa Union{KeyDown, KeyPress} &&
         return Intent(gesture, _read_choice_key(iomap.input, gesture))
+    change.route === nothing && gesture isa MouseScroll &&
+        return Intent(gesture, _scroll_choice_list(iomap.input, gesture))
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
 end
 
@@ -156,9 +181,9 @@ end
 function _read_choice_key(list::WidgetChoiceList, key::KeyDown)
     modifiers = key.modifiers
     (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
-    key.key === :up && return _write_choice_list(list; row = max(1, list.row - 1))
-    key.key === :down &&
-        return _write_choice_list(list; row = max(1, min(length(list.find(list.query)), list.row + 1)))
+    step = key.key === :up ? -1 : key.key === :down ? 1 :
+           key.key === :pageup ? -list.shown_rows : key.key === :pagedown ? list.shown_rows : 0
+    step == 0 || return _move_choice_row(list, step)
     key.key === :backspace && return _type_choice_list(list, String(chop(list.query)))
     DoNothingOperation()
 end
@@ -172,10 +197,26 @@ function _read_choice_key(list::WidgetChoiceList, key::KeyPress)
     _type_choice_list(list, list.query * key.char)
 end
 
+# The row `step` rows on, in the list, and the rows that show it.
+function _move_choice_row(list::WidgetChoiceList, step::Integer)
+    count = length(list.find(list.query))
+    row = clamp(list.row + step, 1, max(1, count))
+    _write_choice_list(list; row, top = _follow_choice_row(list, count, row))
+end
+
+# A turn of the wheel scrolls the rows that show by three rows a step; a positive
+# turn scrolls up. The row that Return chooses stays.
+function _scroll_choice_list(list::WidgetChoiceList, scroll::MouseScroll)
+    scroll.dy == 0 && return nothing
+    count = length(list.find(list.query))
+    top = _clamp_choice_top(list, count, list.top - 3 * scroll.dy)
+    top == list.top ? DoNothingOperation() : _write_choice_list(list; top)
+end
+
 # The typed text of the list, which narrows it to its first row, and the edit of
 # the part that the text makes.
 function _type_choice_list(list::WidgetChoiceList, query::String)
-    write = _write_choice_list(list; query, row = 1)
+    write = _write_choice_list(list; query, row = 1, top = 1)
     edited = list.edit === nothing ? nothing : list.edit(query)
     edited === nothing ? write : CompoundOperation(Any[write, EditMenuPartOperation(edited, "Type")])
 end

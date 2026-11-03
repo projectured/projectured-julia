@@ -1,5 +1,15 @@
 # A menu that a button opens under itself, and that the keys of a list drive.
 
+# The choices of a long list, each made when it is read, with the count of the
+# reads, so a test sees how many rows a list builds.
+struct _MenuKeysCountedChoices <: AbstractVector{WidgetChoice}
+    count::Int
+    reads::Base.RefValue{Int}
+end
+Base.size(choices::_MenuKeysCountedChoices) = (choices.count,)
+Base.getindex(choices::_MenuKeysCountedChoices, index::Int) =
+    (choices.reads[] += 1; WidgetChoice("row $index"))
+
 # Each rectangle that `canvas` draws, at any depth.
 function _menu_keys_rects(canvas, found = Any[])
     for element in canvas.elements
@@ -92,6 +102,40 @@ function test_widget_menu_keys()
         @test returned.operations[1].operation.value == "Chart"
         # A key with Ctrl goes on to the window under the list.
         @test read(KeyDown(:down, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+    end
+
+    @testset "a long list builds only the rows that it shows, and they follow the row" begin
+        reads = Ref(0)
+        choices = _MenuKeysCountedChoices(10_000, reads)
+        list = WidgetChoiceList(; shown_rows = 12, find = query -> choices, choose = value -> nothing)
+        shown() = [item.action.label for item in WidgetModule._make_choice_widgets(list)[2].elements]
+        @test shown() == ["row $index" for index in 1:12]
+        # The lazy list builds the rows that show, and the link after the last one.
+        @test reads[] <= 13
+        choice_projection = WidgetChoiceListToWidget()
+        iomap = print_document(choice_projection, nothing, list, PrinterContext())
+        read(gesture) = read_intent(choice_projection, nothing, Intent(gesture), iomap).operation
+        for _ in 1:12
+            evaluate_operation(nothing, read(key(:down)))
+        end
+        @test (list.row, list.top) == (13, 2)
+        @test first(shown()) == "row 2" && last(shown()) == "row 13"
+        evaluate_operation(nothing, read(key(:pagedown)))
+        @test (list.row, list.top) == (25, 14)
+        evaluate_operation(nothing, read(key(:up)))
+        @test (list.row, list.top) == (24, 14)
+        # A turn of the wheel scrolls the rows that show, and keeps the row; a
+        # positive turn scrolls up.
+        evaluate_operation(nothing, read(MouseScroll(0, 1, 5, 5, ModifierKeys(), 0.0)))
+        @test (list.row, list.top) == (24, 11)
+        evaluate_operation(nothing, read(MouseScroll(0, -10, 5, 5, ModifierKeys(), 0.0)))
+        @test list.top == 41
+        # The top stops at the last rows of the list.
+        list.top = 20_000
+        @test last(shown()) == "row 10000"
+        # A typed letter narrows the list to its first row, at the top.
+        evaluate_operation(nothing, read(KeyPress('r'; time = 0.0)))
+        @test (list.row, list.top) == (1, 1)
     end
 
     @testset "a button opens its menu under itself" begin

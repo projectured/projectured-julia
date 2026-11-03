@@ -179,6 +179,14 @@ table do. The rows sit in a pane with the maximum height of D2. Up and Down move
 list of 10,000 choices builds about as many rows as it shows. The navigator uses
 the same list, so its suite is the check that nothing else changed.
 
+*Changed in step 3 (2026-11-03).* The list keeps the look of a menu. The menu
+holds the rows that show, which `take_first` walks from a lazy list of
+`make_index_list` with its head at `top`, the first row that shows, and
+`shown_rows` (12) is how many rows show. Up, Down, Page Up and Page Down move
+`row`, and the rows that show follow it; the wheel moves `top`. The list needs
+no viewport, because it knows its rows, and a scroll moves the head of the list,
+as the table moves the head of its rows.
+
 **D5. One match rule.** `find_letter_match(query, text; name_start)` answers a
 `LetterMatch`, with a score and the places of the matched letters, or `nothing`.
 `name_start` is the index where the name part of `text` starts, after the last
@@ -259,9 +267,11 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
 2. ✅ **The context menu window (D3).** `test_context_menu_window()` passes (69),
    with the new case: a list with the top placement opens at the top center of
    its part, and keeps its width while the query changes.
-3. **The lazy rows (D4).** Tests: a list of 10,000 choices builds only the rows
-   that it shows; Down past the last shown row scrolls; the wheel scrolls. The
-   navigator suite passes.
+3. ✅ **The lazy rows (D4).** `test_widget_menu_keys()` passes (36): a list of
+   10,000 choices builds at most 13 of them; the rows follow Down and Page Down;
+   the wheel scrolls; the top stops at the last rows; a typed letter goes back
+   to the top. `test_insertion_choices()` passes (23). The navigator suite runs
+   with step 5.
 4. **The match (D5).** Tests: the examples of Q4, case, the three rules of the
    order, and the cost at 100,000 paths.
 5. **The palette (D8).** Tests: the palette tests of `WindowShellTest.jl`,
