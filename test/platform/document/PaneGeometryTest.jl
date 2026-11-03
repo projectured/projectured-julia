@@ -114,5 +114,19 @@ end
     @test get_pane_next_group(tree, stranger; backward = true) === bottom
 end
 
+@testset "a maximized group is the whole square for a point, and the layout stays for a direction" begin
+    tree, left, top, bottom = _nested()
+    tree.maximized = top
+    rectangles = get_pane_rectangles(tree)
+    @test length(rectangles) == 1
+    @test rectangles[1][1] === top
+    @test _same(rectangles[1][2], (x = 0.0, y = 0.0, w = 1.0, h = 1.0))
+    @test get_pane_rectangle(tree, left) === nothing
+    @test get_pane_group_at_point(tree, 0.1, 0.9) === top
+    @test get_pane_drop_zone(tree, 0.5, 0.5) == (top, :center)
+    @test get_pane_neighbour_group(tree, top, :left) === left
+    @test get_pane_neighbour_group(tree, top, :down) === bottom
+end
+
 end # testset
 end # function

@@ -139,13 +139,22 @@ focus is not in a group.
    `test_split_pane_drag`: a slot with a maximum of 0 gets no extent, no splitter
    and no grab band, and a close and an open print no child again. It passes: 41
    and the 5 broken assertions that main has.
-4. ⬜ **The view (D4)** in `PaneToWidget.jl`. Test in `test_pane_construct`:
-   after Ctrl+M the maximized group has the extent of the window, and the other
-   groups have none; the IO map of each tab content is the same object before
-   and after two toggles.
-5. ⬜ **The geometry (D5)** in `PaneGeometry.jl` and its callers. Test in
-   `test_pane_geometry` and `test_pane_drag`: a press in a maximized window
-   focuses the maximized group, and the drop indicator covers the whole window.
+4. ✅ **The view (D4)** in `PaneToWidget.jl`. The split printer has no tree, so
+   the tree printer gives it the tree in the print property `:pane_tree`, as the
+   roster gives its document to its columns. `_get_pane_slot_maximum` computes the
+   maximum of each slot. Test in `test_pane_construct`: after Ctrl+M the standing
+   render equals a fresh print, the widget of each group is the same object, and
+   a press where the left group stood lands in the maximized group; after the
+   second Ctrl+M the same press lands in the left group. It passes: 62.
+5. ✅ **The geometry (D5)** in `PaneGeometry.jl`. `get_pane_rectangles` answers
+   what the window shows, so `get_pane_rectangle`, `get_pane_group_at_point`,
+   `get_pane_drop_zone` and the drop indicator follow it; the neighbour search
+   reads `_get_layout_rectangles`. Tests in `test_pane_geometry` (43) and
+   `test_pane_drag` (259): a point and a drop zone in the maximized group, the
+   neighbours in the layout, and a tab drag whose target and indicator cover the
+   whole window. The other pane suites pass: surgery 122, reader 89, rename 38,
+   to widget 44, tabs wrapper 15, window shell 145, drag tracking 60, window
+   wrappers 58.
 6. ⬜ **The documents.** `pane.md`: the field in the table of documents, the key
    in the table of keys, a section on the maximize, and the two limits below.
    The design document of the widget slice: the rule of D4. Run the tests of the

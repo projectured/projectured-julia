@@ -254,5 +254,31 @@ end
     assert_rendered!()
 end
 
+@testset "Ctrl+M fills the window with the focused group, and Ctrl+M gives back the layout" begin
+    left_group, right_group = get_pane_groups(tree)
+    @test get_pane_focus(tree)[1] === right_group
+    left_widget, right_widget = widget_of(left_group), widget_of(right_group)
+    # A point in the left group, while the layout shows.
+    x, y = point(left_group, 0.5, 0.5)
+    press!(ctrl(:m))
+    @test find_pane_maximized_group(tree) === right_group
+    @test get_pane_rectangle(tree, left_group) === nothing
+    # The standing render equals a fresh one, and no group printed again.
+    assert_rendered!()
+    @test widget_of(left_group) === left_widget
+    @test widget_of(right_group) === right_widget
+    # The right group covers the place of the left one, so a press there lands
+    # in it.
+    press!(MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+    @test get_pane_focus(tree)[1] === right_group
+    @test find_pane_maximized_group(tree) === right_group
+    press!(ctrl(:m))
+    @test find_pane_maximized_group(tree) === nothing
+    assert_rendered!()
+    @test widget_of(left_group) === left_widget
+    press!(MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+    @test get_pane_focus(tree)[1] === left_group
+end
+
 end # testset
 end # function

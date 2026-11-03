@@ -157,10 +157,12 @@ end
 # The tree is transparent: it prints as its root, and adds one field step to the
 # paths that pass through it.
 function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
+    # The splits read the tree, for the group that fills the window.
+    root_ctx = with_property(ctx, :pane_tree, tree)
     root_iomap = make_reconciled_child_iomap_cell(
         () -> tree.root,
         root -> _recurse(recursion, root,
-                         make_child_context(ctx, tree, (@reference_step root))))
+                         make_child_context(root_ctx, tree, (@reference_step root))))
     available = (get_exact_width(ctx) === nothing || get_exact_height(ctx) === nothing) ?
                 nothing : (get_exact_width(ctx), get_exact_height(ctx))
 
@@ -284,14 +286,17 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     # so the slots keep their intrinsic sizes.
     preferred = available === nothing ? nothing : 0
 
-    # The slots follow the elements and nothing else. The weight of a slot is a cell
-    # of its constraint, so a drag of a divider of the tree changes the shares and
-    # the split pane prints no slot again: the view state of each group, such as the
-    # place of a divider inside it, stays.
+    # The slots follow the elements and nothing else. The weight and the maximum of
+    # a slot are cells of its constraint, so a drag of a divider of the tree changes
+    # the shares, a maximize closes the slots of the other groups, and the split pane
+    # prints no slot again: the view state of each group, such as the place of a
+    # divider inside it, stays.
+    tree = get_property(ctx, :pane_tree, nothing)
     pane = WidgetSplitPane(axis, Any[])
     set_cell_computation!(pane, () -> begin
         iomaps = element_iomaps[]
-        Any[_constrain(iomaps[i].output, horizontal, () -> _get_pane_slot_weight(split, i), preferred)
+        Any[_constrain(iomaps[i].output, horizontal, () -> _get_pane_slot_weight(split, i),
+                       () -> _get_pane_slot_maximum(tree, split, i), preferred)
             for i in eachindex(iomaps)]
     end)
 
@@ -306,12 +311,23 @@ function _get_pane_slot_weight(split::PaneSplit, index::Int)
     index <= length(weights) ? weights[index] : 1.0
 end
 
-# `child` in a constraint whose weight on the axis of the split `weight` computes.
-# The weight is not read here, so the list of slots does not read the weights.
-function _constrain(child, horizontal::Bool, weight::Function, preferred)
+# The maximum extent of the element `index` of `split`: 0 while a group that the
+# element does not hold fills the window, which closes its slot, and none otherwise.
+function _get_pane_slot_maximum(tree, split::PaneSplit, index::Int)
+    tree isa PaneTree || return nothing
+    group = find_pane_maximized_group(tree)
+    (group === nothing || index > length(split.elements)) && return nothing
+    any(member -> member === group, get_pane_groups(split.elements[index])) ? nothing : 0
+end
+
+# `child` in a constraint whose weight and maximum on the axis of the split
+# `weight` and `maximum` compute. Neither is read here, so the list of slots reads
+# neither.
+function _constrain(child, horizontal::Bool, weight::Function, maximum::Function, preferred)
     constraint = horizontal ? LayoutConstraint(child; preferred_width = preferred) :
                               LayoutConstraint(child; preferred_height = preferred)
     set_cell_computation!(getfield(constraint, horizontal ? :weight_width : :weight_height), weight)
+    set_cell_computation!(getfield(constraint, horizontal ? :max_width : :max_height), maximum)
     constraint
 end
 

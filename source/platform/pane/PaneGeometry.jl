@@ -7,6 +7,10 @@
 # takes part, so directional navigation is decided the same way whatever the pane
 # is rendered on, and it is testable on its own.
 #
+# A point is a point of what the window shows, so while a group fills the window
+# it alone has a rectangle, the whole square. A direction is a direction in the
+# layout, whatever fills the window.
+#
 # A rectangle is a `NamedTuple` `(x, y, w, h)`, with `x` growing right and `y`
 # growing down, matching the screen.
 # Two edges that meet exactly must still read as "past each other", so every
@@ -18,9 +22,18 @@ const _PANE_EPSILON = 1e-9
 """
     get_pane_rectangles(tree) -> Vector{Pair{PaneGroup, NamedTuple}}
 
-Every group with its rectangle in the unit square, in traversal order.
+Every group that the window shows, with its rectangle in the unit square, in
+traversal order. While a group fills the window, it is the one group, and its
+rectangle is the whole square.
 """
 function get_pane_rectangles(tree::PaneTree)
+    group = find_pane_maximized_group(tree)
+    group === nothing || return Pair{PaneGroup, NamedTuple}[group => (x = 0.0, y = 0.0, w = 1.0, h = 1.0)]
+    _get_layout_rectangles(tree)
+end
+
+# Every group with its rectangle in the layout, whatever fills the window.
+function _get_layout_rectangles(tree::PaneTree)
     result = Pair{PaneGroup, NamedTuple}[]
     _rectangle_walk!(tree.root, (x = 0.0, y = 0.0, w = 1.0, h = 1.0), result)
     result
@@ -50,7 +63,7 @@ end
 """
     get_pane_rectangle(tree, group) -> NamedTuple | Nothing
 
-The rectangle of one group, or `nothing` when it is not in the tree.
+The rectangle of one group, or `nothing` when the window does not show it.
 """
 function get_pane_rectangle(tree::PaneTree, group::PaneGroup)
     for (other, rectangle) in get_pane_rectangles(tree)
@@ -87,11 +100,13 @@ from a tall pane into a column of short panes lands on the one the pointer would
 expect — the one facing it most.
 """
 function get_pane_neighbour_group(tree::PaneTree, group::PaneGroup, direction::Symbol)
-    here = get_pane_rectangle(tree, group)
-    here === nothing && return nothing
+    rectangles = _get_layout_rectangles(tree)
+    index = findfirst(pair -> pair.first === group, rectangles)
+    index === nothing && return nothing
+    here = rectangles[index].second
     best = nothing
     best_key = nothing
-    for (other, there) in get_pane_rectangles(tree)
+    for (other, there) in rectangles
         other === group && continue
         measure = _direction_measure(here, there, direction)
         measure === nothing && continue
