@@ -25,6 +25,14 @@ The owner, 2026-11-03:
 > Also, the detail page layout should probably change, but it's a different
 > story.
 
+> the two directions, the horizontal and the vertical must be handled
+> identically, that is a rule of the layout engine already documented I believe
+
+After the example of one axis (§3.3, "A window that cuts or scrolls"): "looks
+better now, I understand", and then "yes" to the question "Do I also make the
+column rule the same as the row rule, so that both share any range that has a
+max?"
+
 So:
 
 1. The model changes once, for every widget and every layout (§3).
@@ -92,20 +100,27 @@ The context already carries four states on an axis. The fourth gets a rule now:
 
 ### 3.2 The rules
 
-- **R1. A giver writes a maximum only on an axis where it cuts.** A scrolling
-  viewport gives its content `(view, ∅)` on each axis that it scrolls, and the
-  visible extent `view` on that axis. The scrolling viewports are
-  `WidgetScrollPane`, `WidgetTransformPane`, the pane of the rows of a
-  `WidgetList`, a `WidgetTree` and a `WidgetTable`, and the pane of the cells
-  of a table.
+- **R1. A giver writes a maximum only on an axis where it cuts.** Each axis of
+  a scroll area says whether its content fits the view or grows past it. On an
+  axis that fits, the content gets `(view, view)`: text wraps there, and a part
+  that can scroll stops there. On an axis that grows, the content gets
+  `(view, ∅)` and the visible extent `view`, and the area scrolls it. The same
+  rule holds on both axes; each scroll area says it for each axis, and both axes
+  fit by default, which are the ranges that a scroll area gives today. The
+  scroll areas are `WidgetScrollPane`, `WidgetTransformPane`, the pane of the
+  rows of a `WidgetList`, a `WidgetTree` and a `WidgetTable`, and the pane of
+  the cells of a table.
 - **R2. A viewport takes its content between its minimum and its maximum, and
   scrolls the rest:** `e = clamp(C, m, M)`, and `e = max(m, C)` with no maximum.
   An authored size wins, as today. Every other widget keeps `e = max(m, C(M))`:
   it never draws smaller than its content, and its giver cuts.
-- **R3. A stack shares a minimum.** When the range on its main axis has a
-  minimum `m` and the sum of its content is less, its weighted children share
-  `m − sum`. An exact range shares `s`, as today. With no minimum and no exact
-  range, a stack sums its children, as today.
+- **R3. A row and a column share by one rule.** When the range on the main
+  axis has a maximum, exact or bounded, the weighted children share it, as a row
+  does today. When it has only a minimum `m` and the sum of the content is less,
+  they share `m − sum`. With neither, the stack sums its children. Today a
+  column shares only an exact height, because a bounded height in a page was
+  only "what the view has left"; with R1 a page gets no maximum, so a maximum is
+  always a cut, and the column follows the row.
 - **R4. A stack gives each child with no weight the room that the others
   leave**, as today (layout-rules.md §4). With R2, a viewport child takes its
   content up to that room and scrolls the rest.
@@ -114,13 +129,29 @@ The context already carries four states on an axis. The fourth gets a rule now:
 
 ### 3.3 The cases, worked
 
+**A window that cuts or scrolls**, on one axis: a window of 300 holds a fixed
+part A of 192 and a part B that can scroll, with 384 of content.
+
+| The window | Past 300 | B gets | Today | Without R1, with R2 |
+| --- | --- | --- | --- | --- |
+| cuts | lost | 108, and B scrolls inside | 384, the end of B is lost | 108 |
+| scrolls | reached by a scroll of the window | 384, and the window scrolls | 384 | 108, two scroll bars |
+
+A drag of a splitter that makes the window 250 gives 58 where it cuts, and 384
+where it scrolls.
+
+**A column and a row**, today, with the range `(0, 300)` on the main axis and the
+parts `[A = 100, F = Fill]`: the row gives F 200, and the column gives F its
+content. With R3 both give F 200.
+
 - **A text above a table, in a cut slot of 400** (the detail of a task): the text
   is in a scroll area with no weight, and the table has a weight and a minimum
   of 200. The room of the text is `400 − gaps − 200 = 176`. By R2 the scroll area
   takes 176 of its 300 and scrolls. The table gets 200.
-- **A code block in a page that scrolls:** the page gets `(300, ∅)` from its
-  scroll area (R1), so its column has no maximum, and the room of the code block
-  is free. By R2 the block takes its 400, and the page scrolls.
+- **A code block in a page that scrolls:** the scroll area of the page grows on
+  its height, so the page gets `(300, ∅)` (R1), its column has no maximum, and
+  the room of the code block is free. By R2 the block takes its 400, and the
+  page scrolls. The area fits on its width, so the text of the page wraps.
 - **`Fill` in a scroll area:** a column of a header, a `Fill` panel and a footer
   gets `(300, ∅)`. With 100 pixels of content, by R3 the panel takes the other
   200. With 900 pixels of content the column is 900, and the area scrolls.
@@ -145,7 +176,9 @@ The context already carries four states on an axis. The fourth gets a rule now:
 
 From an inventory of every place that makes or reads a range (2026-11-03).
 
-**R1, the givers.** `WidgetScrollPane` (`WidgetToGraphics.jl:6044-6047`);
+**R1, the givers.** A setting for each axis on `WidgetScrollPane`,
+`WidgetTransformPane` and the panes of rows and cells: fits or grows.
+`WidgetScrollPane` (`WidgetToGraphics.jl:6044-6047`);
 `WidgetTransformPane` (`WidgetToGraphics.jl:6883`; with no extent it gives an
 exact 0 today); the pane of the rows (`_print_rows_pane`,
 `WidgetToGraphics.jl:10120-10136`); the pane of the cells of a table
@@ -219,19 +252,24 @@ layout examples, because the keyboard can not seed a first caret in them and no
 A check that fails before Steps 3 to 5 is `@test_broken`, with the step that
 fixes it in its `# @broken:` comment.
 
-### Step 3. R3: a stack shares a minimum
+### Step 3. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
 
-`_vl_build`, `_hl_build` and `GridLayout` share a minimum among their weighted
-children. Nothing gives an "at least" range yet, except a placement minimum
-(`LayoutConstraint(…; min_height)` in a bounded parent), so this step changes
-only that case. Tests: `test_layout_rules()`, the `SizeRange*` tests.
+Each axis of a scroll area gets the setting fits or grows (§4), and both fit by
+default, which keeps every range of today. On an axis that grows, the content
+gets `(view, ∅)` and the visible extent (my recommended names:
+`get_visible_width(ctx)`, `get_visible_height(ctx)`). Each reader of §2 is
+changed to the kind that it is. A stack shares a minimum (the second sentence of
+R3), so a `Fill` part in a view that grows still fills the view. The scroll areas
+of pages that grow down say so on their height: the examples of Step 1, and the
+pages that the tests and a search find. Tests: `test_layout_rules()`, the
+`SizeRange*` tests, `test_platform()`, `test_dataframes()`.
 
-### Step 4. R1 and R5: a scroll area gives no maximum, and the visible extent
+### Step 4. R3: a column shares a maximum as a row does
 
-The context carries the visible extent on each axis (my recommended names:
-`get_visible_width(ctx)`, `get_visible_height(ctx)`). The givers of §4 give
-`(view, ∅)` and the visible extent. Each reader of §2 is changed to the kind
-that it is. Tests: `test_layout_rules()`, `test_platform()`, `test_dataframes()`.
+`_vl_build` shares a range with a maximum, exact or bounded, as `_hl_build` does,
+and so do the rows of `GridLayout` as its columns do. After Step 3 a page gets no
+maximum, so a bounded height is always a cut. Tests: `test_layout_rules()`, the
+`SizeRange*` tests, `test_platform()`, `test_dataframes()`.
 
 ### Step 5. R2: a viewport stops at its maximum
 
@@ -249,11 +287,22 @@ tests of omnet-julia.
 
 ### Step 7. The documentation
 
-- [layout-rules.md](../../documentation/rule/layout-rules.md): §1 the four states
-  and the meaning of each value; R1 to R5; §3 and §3b, the viewport; §4, the
-  minimum that a stack shares; §5, the cases of §3.3; and a section "The trap":
-  a maximum that the giver does not cut makes every child guess, so give a
-  maximum only where you cut.
+- [layout-rules.md](../../documentation/rule/layout-rules.md):
+  - §1: a maximum means "the giver cuts here", and a part that can scroll draws
+    `min(content, max)`;
+  - §3: each axis of a scroll area fits (maximum = view) or grows (minimum =
+    view, no maximum);
+  - §3b: "a bounded range adds no clip" stays for a fixed part, and a part that
+    can scroll never passes its maximum;
+  - §4: a column shares as a row does, and a stack shares a minimum; the
+    paragraph on "what the view has left" goes, because its reason goes;
+  - §5: the cases of §3.3, the window that cuts or scrolls first;
+  - §6: one rule for both axes, and each scroll area says for each axis whether
+    it fits or grows;
+  - a new section "The trap": a giver that does not cut must not give a
+    maximum;
+  - a new section "The visible extent": what a list that draws only its visible
+    rows reads on an axis that grows.
 - [layout.md](../../documentation/package/platform/layout/layout.md) and
   [widget.md](../../documentation/package/platform/widget/widget.md): the
   sentences on the size that a parent offers, the scroll pane, and the widgets
@@ -278,14 +327,8 @@ window. Then the branch waits for approval to land.
 
 ## 7. Open
 
-- **R1 and the width (found in Step 1).** Text in a scroll area wraps at the
-  maximum width that the area gives its content: the code lines of
-  `layout_scroll_area_in_page` wrap at the width of the view. A scroll area that
-  gave its content no maximum width would stop every text in it from wrapping.
-  CSS gives the content of a scroll container the width of the container and an
-  automatic height: the width is an edge to lay out against, and the content
-  grows down. My recommendation: R1 applies to the height, the axis on which a
-  page grows, and a scroll area keeps giving its view as the maximum width; open.
-
+- The setting of a scroll area for each axis: my recommendation is the keyword
+  `grows = (width = false, height = false)`, with both axes fitting by default;
+  open.
 - The names of the visible extent: my recommendation is
   `get_visible_width(ctx)` and `get_visible_height(ctx)`; open.
