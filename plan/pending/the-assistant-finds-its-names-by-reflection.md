@@ -316,8 +316,20 @@ index shows them. An example is `JsonModule`: "The JSON slice."
       confirmed them.
     - Tests: `test_referenced_document` (73/73), the kernel suite in its own
       environment (5039/5039), the naming guard.
-  - [ ] **The texts:** the docstrings of the two searches, and the system text that
-    teaches `search_references(editor.document, query)`.
+  - [x] **The texts:** the docstrings of the two searches, and the system text that
+    teaches `search_references(editor.document, query)`. *Done (2026-11-03).* The
+    docstrings changed with the walk. The system text in `AssistantDocument.jl` and
+    the orientation guide teach `search_documents(editor.document, query; places =
+    true)` first, say that each node is found once, and name the two bounds and the
+    keywords that lift them. The docstring of `ReferenceModule` places both
+    searches in the reference layer, and the reference document says how a plain
+    document is refused.
+    - `test_assistant_documentation` and `test_assistant_verbs` found two gaps of
+      this step, which the earlier runs did not cover: the "See also" line of
+      `is_field_entered` named `is_field_walked`, which the assistant cannot write
+      (the prose names it now, the line does not), and `test_assistant_verbs` looked
+      for the old clock example, `2pi * get_reactive_clock_time`. The three
+      `evaluate_operation` examples fail as recorded in §5.2.
 
 ## 5. Steps
 

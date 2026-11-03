@@ -41,10 +41,14 @@ browsing tools below. Do not guess names — search for them.
 
 ## Acting on the document (the essentials)
 
-- **Find** — `search_references(editor.document, query)` → paths;
-  `search_documents(...)` → matching document nodes. `query` is a predicate `node -> Bool`, or a
+- **Find** — `search_documents(editor.document, query; places = true)` → each matching
+  document node with its place in the window, a part that a verb takes as it is;
+  `search_documents(...)` → the matching document nodes; `search_references(...)` → their places
+  as paths. `query` is a predicate `node -> Bool`, or a
   `String`/`Regex` matching leaf text (string/regex matches fold to the enclosing `Document` by
-  default; pass `raw=true` for the exact matched value). Both walk **any** graph, so passing an
+  default; pass `raw=true` for the exact matched value). A search finds each node once, stops at
+  100 matches and 100,000 visited nodes by default, and the first line of its answer names the
+  limit that stopped it (`limit = nothing`, `maxvisits = nothing` lift them). Both walk **any** graph, so passing an
   **iomap** (`print_document(proj, doc)`) searches the whole projection
   pipeline — a debugging move for "where did the value go?" (see `guide/debugging-guide`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
