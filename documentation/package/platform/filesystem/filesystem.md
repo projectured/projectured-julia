@@ -72,6 +72,24 @@ In the chain of a bare `Workspace`, the tree is the output of `WorkspaceToFileSy
 
 Enter on a row, or a double click, makes an `OpenFileOperation(path)`. The operation is a type of the widget slice (`OpenFileOperation.jl`), and this slice evaluates it (`FileSystemDocument.jl`). The operation names the file and nothing else. When the editor applies it, `make_file_tab` reads the file into the document type that its extension registers, in a scroll pane, and `open_pane!` asks the pane tree where a file goes. An opener can put a part of its own around the content that the file holds (`wrap`), or around the file document (`file_wrap`), as a link puts a navigator around a file. When the editor has settings, the evaluation gives the file a history (`make_history_wrap` of the undo slice), whatever started the open: around the part of `file_wrap`, so it records every edit of that part, and else around the content, inside the file. A file that is its own content has no content inside it, so the history goes around the file. So a file that the Files pane, the menu Open or a link opens has an undo.
 
+### The files of the workspace folders
+
+`WorkspaceFileList` lists every file below the folders of a workspace, for the search that finds a file by its name. An editor keeps one as a session document (`get_session_workspace_file_list`). It has four cells:
+
+- `folders`, the absolute folders that it reads;
+- `read_count`, the count of the reads that were asked for;
+- `reading`, whether a read runs now;
+- `files`, a background cell (`make_background_cell`) of a `WorkspaceFiles(folders, paths, is_cut)`: the folders, the absolute path of each file, and whether the read stopped at the limit.
+
+`read_workspace_files_again!(list, folders)` asks for a new read. The list answers the files of the last read until the new read ends, so a search shows a list at once. The read runs on a task, and reads no document. It follows these rules:
+
+- It skips each file and each folder whose name starts with a dot.
+- It skips what a `.gitignore` names (`read_gitignore_rules`, `is_gitignored`, `GitIgnoreRule`). The rules are those of git: `#` starts a comment, `!` negates, `\` quotes, a `/` at the start or in the middle anchors the rule to the folder of the file, a `/` at the end names a folder only, and `*`, `?`, `[…]` and `**` match as in git. The `.gitignore` of each folder applies below that folder, and a later rule wins. A folder that a rule ignores is not entered. The read uses no `.git/info/exclude` and no global ignore file.
+- It does not enter a link to a folder.
+- It stops at `WORKSPACE_FILE_LIMIT`, which is 100,000 files, and then `is_cut` is `true`.
+
+`make_workspace_file_search(list; open_files)` makes the search: a `WidgetChoiceList` with the prompt "Go to file" ([context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into)). A row is the file name, with its folder as the note. The folder is relative to its Explorer folder, after the name of the folder when there is more than one. The query matches the letters in order, with the file name as the name part. An empty query lists the files that `open_files` names first, then the other files in path order. The search keeps its last ranking, so the keys of the list score no path again. A footer says "Reading the files…" while a read runs, or that the list stops at the limit. A choice answers `OpenFileOperation(path)`. The shell opens the search; see [shell.md](../shell/shell.md#go-to-file).
+
 ### Choose a file
 
 `FileSystemChooser` is the document of the open and save dialogs of the shell slice. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.

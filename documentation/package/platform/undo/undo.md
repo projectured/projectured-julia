@@ -79,7 +79,7 @@ Four rules make the two work together, and a run of typing keeps them (see above
 
 ### The history of an opened file
 
-`make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the menu Open, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
+`make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the command Open file… of the File menu, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
 
 So every editor that has settings can hold a history, and every editor must draw one. The slice registers the row `UndoBuffer => UndoBufferToAnyProjection()` with the natural renderer when it loads, and each `NaturalToGraphics` draws a history as what it holds. A renderer that does not draw through the natural renderer needs the row in its own table.
 

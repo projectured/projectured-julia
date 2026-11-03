@@ -10,7 +10,7 @@ The gesturelog slice of `ProjecturedPlatform` records what a person does in a se
 
 Three packages add an editor feature with the same parts, and add no code to the editor loop:
 
-- **A document** holds the state: `GestureLog` here, `FaultLog` in the fault slice, `GestureMap` and `CommandPalette` in the gesturehelp slice. A view of it follows a change as the view of any other document does.
+- **A document** holds the state: `GestureLog` here, `FaultLog` in the fault slice, `GestureMap` in the gesturehelp slice. A view of it follows a change as the view of any other document does.
 - **A transparent decorator** wraps a projection. Its printer returns the inner output through a computed cell, so the IoMap keeps its identity while the inner projection prints again. Its reader calls the inner reader first. On the way it records the result, catches a fault, or uses one gesture that the inner reader returned no operation for.
 - **A panel** draws the document. The document goes through a chain of its own, from `…ToSyntax` through `SyntaxToText` to `TextToGraphics`, and an overlay decorator puts the result in a corner of the window canvas. The overlay reader gives every gesture to the inner projection, so a click on the panel reaches the content below it.
 

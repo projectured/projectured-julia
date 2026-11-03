@@ -62,6 +62,8 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | --- | --- |
 | Ctrl + T | a new tab |
 | Ctrl + W | close the focused tab |
+| Ctrl + O | open the Open dialog, in the folder of the file of the focused tab |
+| Ctrl + P | find a file of the folders of the Explorer by its name, and open it |
 | Ctrl + Q | quit the program (File > Exit) |
 | Ctrl + Shift + D | duplicate the focused tab |
 | Ctrl + Page Down, Ctrl + Page Up | the next or the previous tab |
@@ -97,7 +99,7 @@ every page, also where the page uses the same key.
 | Key | What it does |
 | --- | --- |
 | Ctrl + S | save the file of the focused tab |
-| Ctrl + O | read that file again from disk |
+| F5 | read that file again from disk; in a data frame view, read the frame again |
 | Enter on a file in the Files pane | open it |
 | **Open** and **Save As** in the menu bar | a file outside the directory the Files pane lists |
 
@@ -145,7 +147,7 @@ A change shows at once. Ctrl + Z in the window takes back a change of a theme; a
 ## The two lists
 
 - **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open. Help > Gestures opens it too.
-- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. It finds a command that has no key of its own. Help > Command palette opens it too.
+- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. The letters must come in the order of the name, and they need not touch. It finds a command that has no key of its own. The list opens at the top of the window. Escape closes it. Help > Command palette opens it too.
 
 ## The settings
 

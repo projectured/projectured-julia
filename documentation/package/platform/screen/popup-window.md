@@ -25,7 +25,7 @@ own `style`, a field of `WindowDocument` ([screen.md](screen.md)):
 | A tooltip | `TooltipWindowProjection` | `:tooltip` |
 | A `WidgetDialog` | the dialog's own button | `:dialog` |
 
-### Two ways to open one
+### Three ways to open one
 
 - **Through `OpenPopupOperation(; id, x, y, width, height, auto_dismiss,
   content)`.** A reader inside a widget answers it relative to its own frame,
@@ -47,10 +47,22 @@ own `style`, a field of `WindowDocument` ([screen.md](screen.md)):
   from [where it stands](#where-it-stands) when there is none. A `WidgetDialog`
   answers an `OpenWindowOperation` the same way, from the button that opens it,
   with `modal = true` and a fixed box.
+- **With a `placement`.** A window that carries a `placement` function takes
+  its place from it, and follows what the function reads
+  ([screen.md](screen.md#the-placement-of-a-window)).
 
 ### Where it stands
 
-With a point, the window stands at that point (a right click), or offset from
+A window with a `placement` stands where the function puts it, and follows
+the part that it reads when that part moves. The command palette and the
+search of a file by its name open this way, at the top center of the window
+([context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into)).
+The context menu, the tooltip, the submenus, the select lists and the dialogs
+keep their own code for the place. Only the backend knows the areas of the
+displays, so they wait for
+[plan/pending/every-popup-window-is-placed-by-a-function.md](../../../../plan/pending/every-popup-window-is-placed-by-a-function.md).
+
+Without a placement, with a point, the window stands at that point (a right click), or offset from
 it (a tooltip, by the `offset` keyword of `TooltipWindowProjection`). A
 submenu and a select's dropdown list carry a position in the control's own
 frame, and `map_operation_position` turns it into a screen position container
@@ -100,7 +112,7 @@ and shrink their window the same way.
 
 ## How it fits
 
-This document, `PartPlace.jl` and `WindowLayers.jl` are the screen slice,
+This document, `PartPlace.jl`, `WindowPlacement.jl` and `WindowLayers.jl` are the screen slice,
 beside `ScreenToScreen` and `WindowManagingProjection` of
 [screen.md](screen.md). The widget slice answers `OpenPopupOperation` for a
 menu's submenu and a select's dropdown list, and builds the `WidgetDialog`

@@ -1,7 +1,7 @@
 # Ctrl+P finds a file by its name
 
 > **Status (2026-11-03):** in progress, on the branch `file-search`. The owner
-> answered Q1 to Q11 and approved the plan. Steps 1 to 4 are done. The second plan,
+> answered Q1 to Q11 and approved the plan. Steps 1 to 9 are done. The second plan,
 > [every-popup-window-is-placed-by-a-function.md](every-popup-window-is-placed-by-a-function.md),
 > starts after this one.
 
@@ -226,6 +226,14 @@ filesystem slice does not depend on the explorer slice.
 - A choice answers `OpenFileOperation(path)`, so the file opens as a file opens
   from the Explorer: a file that is open already only takes the focus.
 
+*Changed in step 6 (2026-11-03).* `WidgetChoiceList` gets the field `footer`, a
+line under the rows, for "Reading the files…" and for the line that the list
+stops at the limit; a function in it follows what it reads. The search keeps the
+ranking of its last query, so the keys of the list score no path again. The shell
+can not use the serialization slice, which knows the name of a file, so the
+file-format slice gives `collect_open_file_paths(; editor)` and
+`find_shown_file_path(content)`.
+
 **D7. The editor reads `.gitignore` itself.** The rules of git: `#`, `!`, `\`, a
 `/` at the start or in the middle, a `/` at the end, `*`, `?`, `[…]` and `**`.
 The file of each folder applies to the folder and below it, a later rule wins,
@@ -249,6 +257,14 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
   Escape closes it. The decorator does not read the state of the context menu
   window, because that is the state of a different wrapper.
 
+*Changed in step 5 (2026-11-03).* The gesturehelp slice uses the widget slice, a
+new edge of `PLATFORM_SLICE_EDGES`. The palette places itself with
+`make_shell_top_placement` (D3). The `command_palette` wrapper takes `true`; it
+accepts the `(; measure)` of a caller, as omnet-julia passes it, and does not
+read it. `CommandPalette`, `CommandPaletteState`, `CommandPaletteToSyntax`, the
+palette example of the catalog and the ten palette fields of `GestureHelpTheme`
+go.
+
 **D9. The group of a new file (Q7).**
 
 - `get_pane_file_group` takes the focused group first among the groups that
@@ -260,6 +276,14 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
   method of `pane_group_to_avoid(::PaneTree)` with the same rule. It is more
   specific than the default, so it overwrites nothing and keeps working. A
   change in omnet-julia can delete it after this plan lands.
+- *Found in step 8 (2026-11-03).* `start_workflow!` of the workflow domain asks
+  `pane_group_to_avoid` too, so in projectured-julia a new workflow opens above
+  the conversation, as its docstring says and as omnet-julia does.
+
+*Found in step 7 (2026-11-03).* The commands of the File menu post the open of
+the list, because the context menu window is outside the readers of the shell.
+The loop applies a post through its feeds, and `run_frame!` does not, so a test
+that runs the frames by hand applies posts with `drain_operations!`.
 
 ## The steps
 
@@ -284,27 +308,39 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
 4. ✅ **The match (D5).** `test_letter_match()` passes (10): the examples of Q4,
    case, the three rules of the order, an empty query, and the cost at 100,000
    paths.
-5. **The palette (D8).** Tests: the palette tests of `WindowShellTest.jl`,
-   `WindowWrapTest.jl`, `WindowWrappersTest.jl`, `HelpThemeTest.jl` and
-   `GalleryWrapperTest.jl`, changed to the popup: Ctrl+Shift+P opens the list at
-   the top, a query narrows it, Return runs the row and Ctrl+Z takes it back,
-   Escape closes it.
-6. **The list of files (D6, D7).** Tests on a fixture folder: a `.gitignore` in
-   the root and in a subfolder, a negation, a folder rule, `**`, a dot folder,
-   and the limit with a small limit value. The read runs on a task and the print
-   reads no disk.
-7. **The keys (D1).** Tests in `test_window_wrappers()`, through a real editor:
-   Ctrl+P, a query and Return open the file in a tab with the focus; Ctrl+P on an
-   open file focuses its tab; Ctrl+O opens the Open dialog; F5 reloads a file;
-   Ctrl+O does not reload.
-8. **The group (D9).** Tests in `test_pane_surgery()` and `test_application()`:
-   after a split, the file goes to the focused group of files; with the focus in
-   the Assistant, the file goes beside the Explorer.
-9. **The documents.** `screen.md`, `popup-window.md`, `context-menu.md`,
-   `widget.md`, `gesturehelp.md`, `shell.md`, `pane.md`, `filesystem.md`,
-   `fileformat.md`, `keyboard-and-mouse-guide.md`, `gestures-guide.md`, and the
-   help text in `Application.jl`. The naming guard and the layering guards of the
-   slices that changed.
+5. ✅ **The palette (D8).** `test_command_palette()` (13) and
+   `test_command_palette_decorator()` (29) of the umbrella test the list and the
+   decorator: the rows that can run, the match, the key, the open at the top,
+   the routed open, the help that sees what it saw, and a command that runs
+   through the gallery pipeline with the context menu window. The palette cases
+   of `test_window_wrappers()` open the list in a window of its own, close it
+   with Escape, and open it from the Help menu. `test_help_themes()` (81),
+   `test_gallery_wrappers()` (15), `test_navigator()` and
+   `test_platform_slice_edges()` pass. The undo of a run row is the undo of its
+   operation, and no test of this plan checks it again.
+6. ✅ **The list of files (D6, D7).** `test_workspace_file_list()`, in
+   `test_filesystem()` (142): the rules of a `.gitignore`, a deeper rule that
+   comes later, a read that skips dot folders and ignored paths in path order,
+   the limit, the search that ranks the name, the open files first, and a
+   growing query that ranks as a fresh search.
+7. ✅ **The keys (D1).** `test_window_wrappers()` (71), through a real editor:
+   Ctrl+P lists the files of the Explorer, a query narrows them, Return opens
+   the file in a tab, the next search lists the open file first, and Ctrl+O
+   opens the Open dialog. `test_window_shell()` (149) checks the File menu and
+   its keys. `test_file_tab()` (33) and `test_application()` check F5 as the
+   reload. `test_application()` passes 389, with the 2 failures that main has
+   (the Assistants button tab and the pane title) and 2 broken.
+8. ✅ **The group (D9).** `test_pane_surgery()` (126): a file goes to the
+   focused group of the groups that hold a file, and a pane with the focus in a
+   conversation goes to the other group.
+9. ✅ **The documents.** `screen.md`, `popup-window.md`, `context-menu.md`,
+   `gesturehelp.md`, `shell.md`, `pane.md`, `filesystem.md`, `fileformat.md`,
+   `languageserver.md`, `undo.md`, `gesturelog.md`, `devices-and-backends.md`,
+   `keyboard-and-mouse-guide.md`, `gestures-guide.md`, an example of
+   `naming-rules.md`, and the help text in `Application.jl`. `widget.md` names no
+   `WidgetChoiceList`. The naming guard passes. `test_platform_layering()` fails
+   1 of 7 with the four errors that main has (filechange, roster twice, shell)
+   and none of this plan.
 10. **A pixel check** with the offscreen SDL driver, as in
     [maximize-a-pane.md](../done/maximize-a-pane.md): Ctrl+P shows the list at
     the top center; a query narrows it; Return opens the file; Ctrl+Shift+P
@@ -326,5 +362,10 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
   `WindowPlacementContext`, `WindowPlace`, `find_letter_match`,
   `avoids_new_panes` and the three placements) are proposals. The naming guard
   checks them in each step.
-- The method `pane_group_to_avoid(::PaneTree)` of omnet-julia becomes redundant
-  (D9). It is deleted only with the approval of the owner, in omnet-julia.
+- omnet-julia needs no change to keep working, but four of its texts become
+  stale, and a change there needs the approval of the owner: its method
+  `pane_group_to_avoid(::PaneTree)` is redundant (D9); the docstring of
+  `make_ide_wrappers` in `source/ide/IdeWindow.jl` says that Ctrl+Shift+P opens
+  a field over the window; and `source/ide/TaskVerbs.jl` and
+  `source/legacy/simulator/presentation/LegacyFingerprintStore.jl` name Ctrl+O
+  as the reload.

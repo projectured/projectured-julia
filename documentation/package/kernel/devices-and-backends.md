@@ -802,7 +802,7 @@ gesture rendering (`"Ctrl+K"`), which is not a command name.
 
 This is what puts an operation in front of a user without spending a key on it.
 The command palette of the `gesturehelp` slice of the platform lists these by
-name; see [CommandPalette.jl](../../../source/platform/gesturehelp/CommandPalette.jl).
+name; see [CommandPaletteDecorator.jl](../../../source/platform/gesturehelp/CommandPaletteDecorator.jl).
 
 ### Downward edges
 

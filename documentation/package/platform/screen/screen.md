@@ -6,7 +6,7 @@ The screen slice of `ProjecturedPlatform` holds the window model: a screen docum
 
 ## How it works
 
-`ScreenDocument` has one field, `windows`, a `CellVector` of `WindowDocument`. `OpenWindowOperation` and `OpenPopupOperation` request that a window opens, and their fields mirror those of `WindowDocument`. `OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content)` carries `(x, y)`, the top left of the popup, in the frame of the reader that holds it. A reader on the way up moves that position into its own frame; [graphics.md](../graphics/graphics.md#moving-the-position-an-operation-carries) describes how. A `WindowDocument` has:
+`ScreenDocument` has one field, `windows`, a `CellVector` of `WindowDocument`. `OpenWindowOperation` and `OpenPopupOperation` request that a window opens, and their fields mirror those of `WindowDocument`. `OpenWindowOperation` has the same `placement` field. `OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content)` carries `(x, y)`, the top left of the popup, in the frame of the reader that holds it. A reader on the way up moves that position into its own frame; [graphics.md](../graphics/graphics.md#moving-the-position-an-operation-carries) describes how. A `WindowDocument` has:
 
 - `id`, a `Symbol`. The backend keeps one native window for each id, from frame to frame.
 - `title`, `x`, `y`, `width`, `height`. A position of `-1` lets the backend choose, and a size of `0` sizes the window to its content.
@@ -14,6 +14,7 @@ The screen slice of `ProjecturedPlatform` holds the window model: a screen docum
 - `style`: `:normal`, `:tooltip`, `:floating` or `:popup`. The backend applies the behaviour of each style. A `:popup` is a menu or a dropdown list, and it never takes the focus: the keyboard stays in the window under it. A `:floating` window, such as a dialog, takes the focus.
 - `auto_dismiss`: the window is a transient popup, which closes when the pointer or the keyboard acts elsewhere, as a menu does. `WindowManagingProjection` lists the events that close it.
 - `modal`: while the window is open, no other window gets input.
+- `placement`, `nothing` by default, or a function that places the window ([below](#the-placement-of-a-window)). It is view state (`get_view_state_fields`), so a file does not keep it. `is_window_placed(window)` tells whether a window has one.
 - `content`, any document. The projection chain goes into this field only.
 
 The screen is data like any other document. To open a window, a program adds a `WindowDocument` to `windows`. To close one, it removes it. The backend compares the output screen with its native windows on each frame. No `open_window!` call exists.
@@ -64,7 +65,23 @@ The parts that say a shape are listed in [widget.md](../widget/widget.md#the-sha
 
 ### The place of a part
 
-`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window and the context menu window open a window that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
+`find_part_place(projection, iomap, source)`, which shares its search of the box with `find_window_part_box`, answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window and the context menu window open a window that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
+
+### The placement of a window
+
+A window with a `placement` takes its place and its bounds from a function, and not from its `x`, `y`, `minimum_size` and `maximum_size`. The function takes a `WindowPlacementContext` and answers a `WindowPlace(x, y; minimum_size, maximum_size)`, or `nothing` to keep the fields of the window. The context has three parts:
+
+- `screen`, the input screen, with every window and its place and size;
+- `window`, the window that is placed;
+- `find_window_part_box(context, reference)`, the box of a part of any window in screen coordinates, for a reference from the screen such as `windows[1].content…`.
+
+`ScreenToScreen` calls the function in a computation over its own output. So the output window takes its place and bounds from it, and follows each change of what the function reads: a move or a resize of another window, or a part that moves. The context gives no printed size of the content, because the content prints at the bounds of the place, and bounds made from the content would read themselves.
+
+The reader of the screen reads the place of the output window, so the origin of a popup and the shift of an event between two windows are right for a placed window.
+
+The SDL backend writes no place of a placed window: it does not clamp the place to the display, it does not adopt the place from the window manager, and it does not scale the place at a new zoom. A write of a value into a computed cell replaces the computation. `WindowManagingProjection` replaces a window that gains or loses a placement, and does not update it in place, because only a placed window has computed cells.
+
+`make_part_top_placement(reference; width_share = 0.5, minimum_width = 480, maximum_height = 480, gap = 8)` is the placement of a list that belongs to a part. It puts the window at the top center of the box of the part, `gap` below its top edge. The width is a share of the width of the part, and it does not change while the content changes.
 
 ### The picture of a part
 

@@ -372,8 +372,8 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   bindings of its supertypes.
 - **A qualifier that names the *subject* keeps subject-first order**, because
   it reads as English: `get_base_plane_length`, not `get_length_base_plane`;
-  `get_command_palette_settled_selection`, not
-  `get_command_palette_selection_settled`. The test is whether the words read
+  `get_pane_shown_tab_index`, not `get_pane_tab_index_shown`. The test is
+  whether the words read
   as a phrase a person would say.
 
 ### Words

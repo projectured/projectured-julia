@@ -55,7 +55,7 @@ A command that does not start writes one warning to the message log, and its fil
 
 ### A reload
 
-A file that changed on disk, or Ctrl+O, puts a new document into the history of the file. `replace_wrapped_document!(::MarkedText, ::MarkedText)` writes the new string into the old text and answers it, and the history passes the new document on to the document that it holds. So the text keeps its computed marks, and the colours follow the new string as they follow an edit.
+A file that changed on disk, or F5, puts a new document into the history of the file. `replace_wrapped_document!(::MarkedText, ::MarkedText)` writes the new string into the old text and answers it, and the history passes the new document on to the document that it holds. So the text keeps its computed marks, and the colours follow the new string as they follow an edit.
 
 ## How it fits
 

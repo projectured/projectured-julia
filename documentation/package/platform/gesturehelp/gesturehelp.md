@@ -2,11 +2,11 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../screen/screen.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
-The gesturehelp slice of `ProjecturedPlatform` holds two lists that a person opens while working: F1 shows the gestures that work where the selection is, and Ctrl+Shift+P runs a command by its name. Both read the live projection chain, not a table written by hand. This document says how the rows are collected, why the help is a window and the palette is an overlay, and how the palette matches a query.
+The gesturehelp slice of `ProjecturedPlatform` holds two lists that a person opens while working: F1 shows the gestures that work where the selection is, and Ctrl+Shift+P runs a command by its name. Both read the live projection chain, not a table written by hand. This document says how the rows are collected, why the help is a window of its own and the palette is a list in the context menu window, and how the palette matches a query.
 
 ## How it works
 
-Both tools have [the shared shape](../gesturelog/gesturelog.md#the-shared-shape): a document, a transparent decorator, and a view of the document. The decorator does not record or catch. It uses one gesture that the inner reader returned no operation for.
+Both tools have [the shared shape](../gesturelog/gesturelog.md#the-shared-shape): a document, a transparent decorator, and a view of the document. The decorator does not record or catch. It uses one gesture that the inner reader returned no operation for. The palette has no document and no view of its own: it is a list of the widget slice.
 
 ### One list of rows
 
@@ -24,27 +24,22 @@ The open flag is in a `GestureHelpState` that the caller makes and shares, becau
 
 ### Ctrl+Shift+P: the command palette
 
-`CommandPaletteDecoratorProjection(; inner, measure, state, x = 60, y = 60)` opens on `COMMAND_PALETTE_GESTURE`, which is `KeyDownPattern(:p; modifiers = [:ctrl, :shift])`. While the palette is closed, the inner reader comes first, as in the help. The gesture then fills the one `CommandPalette` of the state with the collected rows, empties the query, and opens the palette.
+`CommandPaletteDecoratorProjection(; inner)` passes the output of `inner` through, and it maps references as `inner` does. It holds no state. The inner reader comes first, as in the help. The palette gesture, `COMMAND_PALETTE_GESTURE`, which is `KeyDownPattern(:p; modifiers = [:ctrl, :shift])`, or a `ToggleCommandPaletteOperation` that comes up from the content, then collects the rows and answers
 
-While the palette is open, the decorator reads first and takes every event, also a key that it has no use for. So the selection of the content does not move while a person types.
+```julia
+make_choice_list_operation("Commands", make_command_palette_list(rows);
+                           placement = make_shell_top_placement)
+```
 
-| Key | What it does |
-| --- | --- |
-| a printable character | adds it to the query |
-| Backspace | deletes the last character of the query |
-| Up, Down | selects the previous or the next matching row |
-| Enter | runs the selected row and closes the palette |
-| Escape, Ctrl+Shift+P | closes the palette |
+The operation opens the list in the context menu window ([context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into)), at the top center of the window, below its menu bar and toolbar. So the editor needs the `context_menu` wrapper, which is on by default. The list takes the keys while it is open: a typed letter narrows it, Up, Down, Page Up and Page Down move the row, Return chooses it and Escape closes it. A key that the list does not answer goes on to the window under it. Ctrl+Shift+P while the list is open opens it again.
 
-To run a row, the reader returns the operation of that row as its own result. Every stage above roots it, as if the key of the binding had fired. A row with no operation does not run, and the palette stays open.
+`make_command_palette_list(rows)` makes the `WidgetChoiceList`. It has one `WidgetChoice` for each row whose operation is not `nothing`, with the description as the label and the key as the note. A row that can not run does not appear; F1 still lists every command, and marks the ones that can not run. The query matches the text "domain description" with `find_letter_matches`, and the description is the name part. So a match in the description ranks first, and the domain still matches.
 
-The output is one `GraphicsCanvas` whose first element is the inner output, open or closed. While the palette is open, a second element holds the palette on a panel at `(x, y)`. So a reference that the decorator maps forward always gains the step `elements[1]`. `CommandPaletteState` holds one `CommandPalette` for the life of the editor. The decorator changes it in place and does not replace it, so the IoMap of its chain stays valid. `open` is a `Cell`, because the printer reads it inside a thunk.
+To run a row, the choice answers the operation of the row. The context menu window lifts it from the place of the decorator through the readers above it, as a key would. So an undo buffer above the decorator records it as an edit.
 
 ### Matching a query
 
-`get_command_palette_matches(palette)` returns the indices of the matching rows. Each word of the query must appear as a contiguous run of characters in `"<description> <domain>"`, without case and in any order. A row ranks first by whether it can run, then by how early its match starts, then by the order of collection. The rows are then grouped by domain, and each group takes the place of its best row.
-
-`CommandPaletteToSyntax` prints the query line `> query▏`, a heading for each domain, and the rows. `▸` marks the selected row, and a row that can not run ends with `(not now)`. The selection of the palette is an ordinary reference to element `i` of `rows`, which `build_command_palette_selection(i)` builds and `get_command_palette_selected` reads back.
+`find_letter_matches(query, texts; name_start)` of the widget slice ranks the rows. The letters of the query must appear in order in the text, in any case, and they need not touch. A match at the start of a word counts most, a match in the description counts more than one in the domain, and a letter right after the one before counts more. A higher score ranks first, then a shorter text, then the order of collection. [context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into) gives the rules.
 
 ### What a domain must do to appear
 
@@ -56,32 +51,32 @@ Nothing but declare its gestures with `@gestures`. The description of a rule is 
 
 ### The theme
 
-`GestureHelpTheme` holds the text of the header, a gesture, a description and the muted parts of the gesture map; the text of the query, a header, the selected row, a command and the muted parts of the command palette; and the background, the border, the radius, the border width and the padding of the panel of the palette. Each value has the default that the slice draws with no
-appearance. `GestureMapToSyntax` and `CommandPaletteToSyntax` hold their styles and no theme. `make_gesture_map_projection` and `make_command_palette_projection` fill them with `get_gesture_help_style`, from a `GestureHelpTheme` scaled or not, or the default values for `nothing`; `CommandPaletteDecoratorProjection` holds every value of the theme as one field, with `make_theme_values_field`. The wrappers `command_palette` and `gesture_help` of `build_editor` give the palette and the window of the gesture map their theme and the syntax and the text themes of the `Appearance` of the `appearance` wrapper, and so does `make_opened_window_projections` of the shell wrapper, so both scale with the editor.
+`GestureHelpTheme` holds the text of the header, a gesture, a description and the muted parts of the gesture map. Each value has the default that the slice draws with no
+appearance. `GestureMapToSyntax` holds its styles and no theme. `make_gesture_map_projection` fills them with `get_gesture_help_style`, from a `GestureHelpTheme` scaled or not, or the default values for `nothing`. The wrapper `gesture_help` of `build_editor` gives the window of the gesture map its theme and the syntax and the text themes of the `Appearance` of the `appearance` wrapper, and so does `make_opened_window_projections` of the shell wrapper, so the map scales with the editor. The palette draws with the widget theme, as every list of the widget slice does.
 
 ## How it fits
 
-The gesturehelp slice depends on the kernel and on the collection, graphics, projection, screen, style, syntax and text slices. It takes the collection of intents from the gesture bindings of the kernel, and the window operations from the screen slice.
+The gesturehelp slice depends on the kernel and on the collection, graphics, projection, screen, style, syntax, text and widget slices. It takes the collection of intents from the gesture bindings of the kernel, the window operations from the screen slice, and the list, its placement and its matching from the widget slice.
 
-A window built with `build_editor` adds both decorators only when `gesture_help` or `command_palette` is given as a wrapper. `command_palette` is around the help; [shell.md](../shell/shell.md#the-wrappers-of-a-window) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
+A window built with `build_editor` adds both decorators only when `gesture_help` or `command_palette` is given as a wrapper. `command_palette` takes `true` and no measure, and it is around the help; [shell.md](../shell/shell.md#the-wrappers-of-a-window) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
 
-It registers nothing: no natural row and no insertion alias. No tab holds either document.
+It registers nothing: no natural row and no insertion alias. No tab holds the gesture map.
 
 ## Design decisions
 
 - **The lists are projections over the live chain.** A list written by hand goes stale when a projection changes. The rows come from the same gesture tables that fire, so what a list shows is what a key does. See [plan/done/reified-gesture-bindings.md](../../../../plan/done/reified-gesture-bindings.md).
 - **Applicability is the built operation.** A row runs when its rule built an operation. No predicate exists that could disagree with the rule.
-- **The palette is an overlay in the chain of the window, not a window.** `ScreenToScreen` roots every operation that leaves a window under `windows[i].content`. An operation from a palette window would carry the path of the palette window and apply in the wrong place. See [plan/done/command-palette.md](../../../../plan/done/command-palette.md).
+- **The palette is a list in the context menu window.** A window that the screen holds gets its own keys, its own place and its own close, so the palette needs no panel of its own. An operation that comes from another window applies at the place of that window. The context menu window lifts the operation of a choice from its part, through the readers above it, so the operation of a row applies where the key of the binding would apply. See [plan/done/command-palette.md](../../../../plan/done/command-palette.md).
 - **The help map is a snapshot.** The rows are built once, when F1 is pressed. A map that follows the selection was left for later; press F1 twice to see the list of a new place.
-- **A query matches words, not letters.** A match of the query as a subsequence of letters was tried first. It listed almost every row: the letters of `sort` appear in order in `Select the root node`. The ranking put the right row first, but the list did not get shorter.
-- **The state is outside the projection.** A pipeline can build the decorator again for each dispatch, and only an object that the caller holds keeps the open flag.
+- **A query matches letters in order, and the name ranks first.** The letters of `sort` appear in order in `Select the root node`, so a match alone does not rank. A letter at the start of a word and a letter in the description count more, so the right row comes first.
+- **The help state is outside the projection.** A pipeline can build the decorator again for each dispatch, and only an object that the caller holds keeps the open flag of the help.
 
 ## Usage
 
 ```julia
 help_state = GestureHelpState()
 projection = GestureHelpDecoratorProjection(inner = projection, state = help_state)
-projection = CommandPaletteDecoratorProjection(inner = projection, measure = FontFileMeasure())
+projection = CommandPaletteDecoratorProjection(inner = projection)
 help_row   = GestureMap => make_gesture_map_projection(FontFileMeasure())   # for the window F1 opens
 run_example("json"; gesture_help = true, command_palette = true)
 ```

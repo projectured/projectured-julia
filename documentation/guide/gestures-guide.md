@@ -44,8 +44,8 @@ menu with no pointer.
 1. Press F1. A window lists every key, click, double click, chord and rest of
    the pointer that does something where the selection is now, with what each
    one does.
-2. Press Ctrl+Shift+P. Type a few letters of what you want to do, and press
-   Enter to run it. This finds a gesture that has no key or click of its own,
+2. Press Ctrl+Shift+P. Type a few letters of what you want to do, in the order
+   of its name, and press Enter to run it. This finds a gesture that has no key or click of its own,
    such as a menu or a tooltip run from a part with no pointer on it.
 
 See [the keyboard and the mouse](keyboard-and-mouse-guide.md) for the full list
