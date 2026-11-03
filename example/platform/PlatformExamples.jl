@@ -393,10 +393,9 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:projection, "fault_report",   make_fault_report_document_example),
     AtomicDocument(:statistics, "frame_statistics", make_frame_statistics_document_example),
     AtomicDocument(:statistics, "frame_time_series", make_frame_time_series_document_example),
-    # The pages and the views of an editor: the page about the program, the command palette,
-    # the inspector of a selection and the arrangement of a collection.
+    # The pages and the views of an editor: the page about the program, the inspector of a
+    # selection and the arrangement of a collection.
     AtomicDocument(:help, "about_page",           make_about_page_document_example),
-    AtomicDocument(:gesturehelp, "command_palette", make_command_palette_document_example),
     AtomicDocument(:inspector, "selection",       make_selection_inspector_document_example),
     AtomicDocument(:arrangement, "document",      make_arrangement_document_example),
     AtomicDocument(:arrangement, "chips",         make_arrangement_chips_document_example),

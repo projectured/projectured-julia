@@ -1,4 +1,4 @@
-# The gesture map, the command palette, the Help menu, and the reference
+# The gesture map, the Help menu, and the reference
 # inspectors follow the scales of the appearance: the natural renderer gives
 # each a scaled theme, so at a font scale of 1.5 every text they draw is 1.5
 # times as large, and a projection with no theme has the default styles.
@@ -31,33 +31,6 @@ function test_help_themes()
     _check_theme_roles(plain, scaled, defaults,
                        [(:header, :map_header_text), (:gesture, :map_gesture_text),
                         (:description, :map_description_text), (:muted, :map_muted_text)])
-end
-
-@testset "CommandPaletteToSyntax reads GestureHelpTheme" begin
-    defaults = make_scaled_theme(GestureHelpTheme())
-    plain = make_command_palette_syntax_projection()
-    @test !hasfield(typeof(plain), :theme)
-    scaled = make_command_palette_syntax_projection(
-        theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
-    _check_theme_roles(plain, scaled, defaults,
-                       [(:query, :palette_query_text), (:header, :palette_header_text),
-                        (:selected, :palette_selected_text), (:command, :palette_command_text),
-                        (:muted, :palette_muted_text)])
-end
-
-@testset "CommandPaletteDecoratorProjection reads the palette panel of GestureHelpTheme" begin
-    measure = FixedMeasure(8, 12, 4, 0)
-    plain = CommandPaletteDecoratorProjection(inner = IdentityProjection(), measure = measure)
-    style = unwrap_cell(plain.style)
-    @test style.palette_radius == 6
-    @test style.palette_border_width == 2
-    @test style.palette_padding == 10
-    @test is_color_equal(style.palette_background, get_theme_value(GestureHelpTheme(), :palette_background))
-    @test is_color_equal(style.palette_border, get_theme_value(GestureHelpTheme(), :palette_border))
-
-    scaled = CommandPaletteDecoratorProjection(inner = IdentityProjection(), measure = measure,
-        theme = get_scaled_theme!(Appearance(radius_scale = 2.0), GestureHelpTheme))
-    @test unwrap_cell(scaled.style).palette_radius == 12
 end
 
 @testset "HelpGroupToWidget and HelpEntryToWidget read HelpTheme" begin

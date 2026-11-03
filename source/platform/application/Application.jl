@@ -271,7 +271,7 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
                   status_bar, measure, appearance),
        clipboard = true,
        gesture_help = (; measure),
-       command_palette = (; measure),
+       command_palette = true,
        gesture_log = _make_gesture_log_option(document), message_log = true,
        frame_statistics = true, background_work = true, fault_log = true, assistant_list = true,
        file_change = true)

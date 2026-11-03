@@ -35,15 +35,11 @@ function make_shell_projection(projection; measure=FontFileMeasure(),
     )))
 end
 
-# Wrap a pipeline in the command type-in overlay: Ctrl+Shift+P opens a field over
-# the content that runs a named operation on it.
-#
-# Each call mints its own `CommandPaletteState`, so every window gets its own
-# palette. The help window is a *sibling window* and can share one flag across
-# windows; the palette is drawn INTO its window, so a shared flag would draw it
-# over every window at once.
-make_command_palette_decorator_projection(projection; measure=FontFileMeasure()) =
-    CommandPaletteDecoratorProjection(inner = projection, measure = measure)
+# Wrap a pipeline in the command palette: Ctrl+Shift+P opens the list of the
+# commands that work where the selection is, in the context menu window at the top
+# of the window, and Return runs the chosen one on the content.
+make_command_palette_decorator_projection(projection) =
+    CommandPaletteDecoratorProjection(inner = projection)
 
 function make_introspection_projection(projection; measure=FontFileMeasure())
     font = StyleFont("Ubuntu Mono", 20)

@@ -99,10 +99,9 @@ When `gesture_help=true`, each example's projection is wrapped in a
 pipeline. One shared state backs every window, so `F1` toggles one window.
 
 When `command_palette=true`, each example's projection is wrapped in the command
-type-in overlay: `Ctrl+Shift+P` opens a field over the content, typing narrows the
-list of commands available where the user is, and Enter runs the selected one.
-Escape or the same key closes it. Each window gets its own palette, because the
-palette is drawn into its window rather than opened beside it.
+palette: `Ctrl+Shift+P` opens the list of the commands that work where the user
+is, in a popup window at the top of the window, typing narrows it, and Enter runs
+the selected one. Escape closes it.
 
 When `gesture_log=true`, a panel in the top-right corner of each window shows
 what the editor did: the last gestures and the operation each one made. One

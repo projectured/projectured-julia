@@ -109,11 +109,19 @@ end
     @test length(screen.windows) == 1
 end
 
-@testset "command_palette: Ctrl+Shift+P opens the palette over the window" begin
-    editor, backend = _ww_editor(PrimitiveString("x"); command_palette = true)
-    before = Set(_shell_texts(last(rendered_output(backend))))
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    @test !issubset(Set(_shell_texts(last(rendered_output(backend)))), before)
+@testset "command_palette: Ctrl+Shift+P opens the list of the commands in a window of its own" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    _ww_press!(editor, backend, WindowInput(screen.windows[1].id, _ww_ctrl(:p; shift = true)))
+    lists = [window for window in screen.windows if window.content isa WidgetChoiceList]
+    @test length(lists) == 1
+    @test only(lists).content.prompt == "Command"
+    @test only(lists).style === :popup
+    @test is_window_placed(only(lists))
+    # A bare Escape closes it, as every popup.
+    _ww_press!(editor, backend, WindowInput(screen.windows[1].id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+    @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
 end
 
 @testset "gesture_log: an operation of the window is an entry of the gesture log" begin
@@ -276,20 +284,22 @@ end
 end
 
 @testset "shell: Command palette in the Help menu does what Ctrl+Shift+P does" begin
-    editor, backend = _ww_editor(PrimitiveString("x"); shell = true, command_palette = true)
-    closed = Set(_shell_texts(last(rendered_output(backend))))
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    by_key = Set(_shell_texts(last(rendered_output(backend))))
-    @test !issubset(by_key, closed)
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    help = only(item for item in editor.document.menu_bar.elements if string(item.action.label) == "Help")
-    item = only(item for item in help.submenu.elements if string(item.action.label) == "Command palette")
-    evaluate_operation(editor, InvokeActionOperation(item.action))
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    list_window() = only(window for window in screen.windows if window.content isa WidgetChoiceList)
+    _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p; shift = true)))
+    by_key = [choice.label for choice in list_window().content.find("")]
+    @test !isempty(by_key)
+    _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+    @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
+    # The menu opens the same list, below the bands of the window.
+    _ww_click_help_item!(editor, backend, screen, id, "Command palette", 1.0)
+    drain_operations!(editor)
     run_frame!(editor)
-    @test Set(_shell_texts(last(rendered_output(backend)))) == by_key
-    evaluate_operation(editor, InvokeActionOperation(item.action))
-    run_frame!(editor)
-    @test Set(_shell_texts(last(rendered_output(backend)))) == closed
+    @test [choice.label for choice in list_window().content.find("")] == by_key
+    @test is_window_placed(list_window())
 end
 
 end # @testset

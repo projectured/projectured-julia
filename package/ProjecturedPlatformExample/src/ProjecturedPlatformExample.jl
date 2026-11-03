@@ -170,7 +170,7 @@ export make_fault_log_document_example, make_fault_report_document_example,
        make_arrangement_chips_document_example, make_text_spacing_atom_document_example,
        make_text_graphics_atom_document_example, make_pane_group_document_example,
        make_pane_split_document_example, make_appearance_document_document_example,
-       make_command_palette_document_example, make_widget_toolbar_item_atom_document_example,
+       make_widget_toolbar_item_atom_document_example,
        make_widget_highlight_document_example, make_context_menu_window_state_document_example
 export make_horizontal_layout_document_example, make_layout_constraint_document_example
 export make_layout_document_example, make_layout_projection_example

@@ -43,6 +43,7 @@ using ..TextModule
 using ..EditorModule
 using ..AgentModule
 using ..ToolModule
+using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -50,25 +51,19 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 export describe_commands, run_command!, collect_part_commands
-export CommandPalette, build_command_palette_selection, get_command_palette_selected,
-       get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
-       get_command_palette_settled_selection
 export GestureHelpTheme, ScaledGestureHelpTheme
 export GestureMapToSyntax, make_gesture_map_syntax_projection
-export CommandPaletteToSyntax, make_command_palette_syntax_projection
-export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
+export CommandPaletteDecoratorProjection, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, is_command_palette_gesture,
-       make_command_palette_projection, ToggleCommandPaletteOperation
+       make_command_palette_list, ToggleCommandPaletteOperation
 export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
        HELP_GESTURE, is_help_gesture, make_gesture_map_projection, ToggleGestureHelpOperation
 export GestureMap
 
 
 include("GestureMap.jl")
-include("CommandPalette.jl")
 include("GestureHelpTheme.jl")
 include("GestureMapToSyntax.jl")
-include("CommandPaletteToSyntax.jl")
 include("CommandPaletteDecorator.jl")
 include("GestureHelpDecorator.jl")
 include("PartCommands.jl")

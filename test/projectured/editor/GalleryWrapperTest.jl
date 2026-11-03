@@ -86,16 +86,12 @@ function test_gallery_wrappers()
         @test _gw_count_texts(_gw_render(projection, document)) == bare + 8
     end
 
-    @testset "the command type-in overlay leaves the render unchanged while closed" begin
+    @testset "the command palette leaves the render unchanged" begin
         projection = make_command_palette_decorator_projection(make_json_projection_example())
         @test projection isa CommandPaletteDecoratorProjection
-        # The palette draws nothing until its gesture opens it, so the content
-        # renders exactly as it does without the wrapper.
+        # The palette opens in a window of its own, so the content renders exactly
+        # as it does without the wrapper.
         @test _gw_count_texts(_gw_render(projection, make_json_document_example())) == bare
-        # Each call gets its own palette: the overlay is drawn INTO a window, so two
-        # windows must not share one open flag.
-        other = make_command_palette_decorator_projection(make_json_projection_example())
-        @test projection.state !== other.state
     end
 
     # `_build_window_scene` lifts a seeded selection from the innermost document
