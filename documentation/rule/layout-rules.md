@@ -172,12 +172,12 @@ of axis the viewport gives the view as the **visible extent**: a part that build
 only the rows that show reads `get_visible_height(ctx)`, which is the maximum of
 its range when it has one, and else that view.
 
-On an axis where it has neither, a viewport has nothing to clip against. It
-passes its own range on, less its insets, and takes the content's own extent,
-exactly as `Content` says. A pane therefore clips the axes it was given and follows its
-content on the rest, and nothing anywhere names an axis that "scrolls". This is
-what keeps a collapsed card body — clipped to `Fixed(30)` in height — as wide as
-its text.
+On an axis where it has neither, a viewport passes its own range on, less its
+insets, and takes its content between the minimum and the maximum of that range:
+`e = clamp(C, m, M)`, and `e = max(m, C)` with no maximum. It stops at an edge,
+because the giver cuts there, and scrolls the rest. Every other widget keeps
+`e = max(m, C(M))`. This is what keeps a collapsed card body — clipped to
+`Fixed(30)` in height — as wide as its text.
 
 A `WidgetShell` offers its content the same way: its authored `size`, else the
 space its parent gave, less its insets and its bands. So the shell of a window
@@ -213,10 +213,11 @@ derived from the content is the cycle §3 describes. So a tab page clips both ax
 split clips its main axis always and its cross axis when it was offered one, and a
 card clips its width but not its height.
 
-**A bounded range adds no clip.** Its maximum is the room of an ancestor that gave
-a slot, less what lies between, and that ancestor clips. Rigid content that is
-wider than its edge overflows into the room of its siblings, and the ancestor's
-clip ends it.
+**A bounded range adds no clip of its own.** Its maximum is the room of an
+ancestor that gave a slot, less what lies between, and that ancestor clips. Rigid
+content that is wider than its edge overflows into the room of its siblings, and
+the ancestor's clip ends it. A viewport in a bounded range stops at the edge and
+scrolls, so its content never reaches the clip.
 
 **Clipping is not scrolling.** A viewport bounds; a scroll pane bounds *and* holds an
 offset that moves the content inside. Content that must scroll brings a
@@ -228,8 +229,9 @@ A scroll pane inside a clipped slot means two viewports over the same rectangle.
 is a scissor rect, not a surface, and the alternative is a type test in the printer.
 
 **A widget of rows scrolls by itself.** A `WidgetTable`, a `WidgetList` and a
-`WidgetTree` that get a slot on the vertical axis fill it and scroll their rows
-there, inside their border; with no slot they are as tall as their rows. So the
+`WidgetTree` that get an edge, exact or bounded, on an axis that they scroll take
+their rows up to it and scroll the rest there, inside their border; with no edge
+they are as tall as their rows. So the
 maker of such a widget brings no pane, and a pane around one has nothing left to
 scroll.
 

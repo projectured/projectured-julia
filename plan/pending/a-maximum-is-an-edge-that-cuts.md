@@ -444,11 +444,53 @@ Result: `test_layout_rules()` and the `SizeRange*` tests pass, with 21 broken,
 for Step 6. The platform suite, in four parts: the three known failures of main.
 `test_dataframes()` and `test_graph()`: 1241 pass. The naming guard passes.
 
-### Step 6. R2: a viewport stops at its maximum
+### Step 6. R2: a viewport stops at its maximum — done
 
 `WidgetScrollPane`, `WidgetTransformPane` and the widgets of rows take
 `clamp(C, m, M)` and scroll the rest. The `@test_broken` marks of Step 2 become
 `@test`. Tests: `test_layout_rules()`, `test_platform()`, `test_dataframes()`.
+
+How it is done:
+
+- `_pane_extent` takes the range of the viewport less its insets: with no offer
+  the view is the content between the minimum and the maximum. On an axis that
+  grows and has no offer, the content gets the minimum and no maximum, and the
+  maximum is its visible extent.
+- `WidgetTransformPane` reads its size one axis at a time, and 0 authors
+  nothing, as the scroll pane does; on an axis with no size and no slot it
+  prints its content first and takes it between the minimum and the maximum. It
+  drew 0 there.
+- A list scrolls its rows in its own pane in any range with a maximum height,
+  and a tree in any range with a maximum on either axis (`_scrolls_rows_itself`);
+  the pane stops at the edge. The table needs no change: its pane of cells gets
+  the range of the table less its headers, and stops there.
+- A tree takes the minimum of its range on both axes.
+- A file tab grows on its height (`make_file_tab_content`, and the open of a file
+  in `FileSystemDocument.jl`). A Markdown table is a `WidgetTable` on its page,
+  and in a tab that fits it would stop at the room that the view has left. A file
+  tab holds a text, a source file or a page, never a table that fills the tab.
+
+Found in this step:
+
+- `test_layout_rules()` has no broken check left.
+- A tree that scrolls itself prints its rows again in its own pane, which gives
+  them the view as an exact range. The minimum belongs to the box of the tree and
+  not to those rows: a lazy list of rows has no height, and the pane keeps a
+  toggled row in place by it (`WidgetTreeTest`), and rows as tall as the view lit
+  the empty part below them (`PointerLightTest`).
+- `ScrollPaneHoverTest` put a list in a stack in a pane of a fixed size, on the
+  rule "a stack gives the list no slot, so the list is as tall as its rows". The
+  stack gives it an edge now, and the list scrolls itself; the panes of the test
+  grow on their height, which is what a content of rows that the pane scrolls is.
+- A list in a composite in a window gets the edge of the window and scrolls its
+  rows in its own pane, so its rows are in a viewport. The helper of
+  `ContextMenuWindowTest` that finds a drawn text walks into a viewport now, as
+  the helper of `WindowShellTest` does.
+
+Result: `test_layout_rules()` and the `SizeRange*` tests 590 pass, none broken.
+The platform suite, in four parts: the three known failures of main. The data
+frames, the graph, Markdown, Julia and the pivot: 2622 pass, and one error in
+`PivotZoneEditTest.jl:84`, which main has too. The naming guard passes.
 
 ### Step 7. The detail of a task
 

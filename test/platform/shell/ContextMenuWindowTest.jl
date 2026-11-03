@@ -90,6 +90,8 @@ function _cm_place_of(node, text, ox = 0, oy = 0)
             found === nothing || return found
         end
     end
+    # A viewport, such as the pane of the rows of a list, holds its canvas.
+    node isa GraphicsViewport && return _cm_place_of(node.content, text, x, y)
     nothing
 end
 

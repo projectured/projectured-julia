@@ -114,15 +114,6 @@ const _RULES_KINDS = Dict{Symbol,Any}(
     :ConstraintLayout   => "a constraint layout sizes its children by its solver",
 )
 
-# Why a check of a type fails today, or `nothing`: the step of the plan that fixes it.
-function _rules_broken(name::Symbol, kind::Symbol, axis::Symbol, check::Symbol)
-    name === :WidgetTransformPane && check !== :bounded_more &&
-        return "a transform pane with no size draws 0, and it stops at no maximum: step 6"
-    kind === :scrolls && (check === :bounded_less || (check === :at_least_more && name === :WidgetTree)) &&
-        return "a part that can scroll takes its content between its minimum and its maximum: step 6"
-    nothing
-end
-
 # Every concrete type of the platform below `root`, by name. A `@document` type
 # `Foo` has a native twin `MFoo`, which is the same type and is left out; so is a
 # style, a `…Style`, which holds the colors of a widget and is not placed.
@@ -166,15 +157,9 @@ function _rules_check_type(name::Symbol, make, kinds)
         m = _rules_measure(make, axis)
         for (check, expected) in pairs(_rules_expected(kind, m))
             drawn = getfield(m, check)
-            reason = _rules_broken(name, kind, axis, check)
             @testset "$name $axis $kind $check" begin
-                if reason === nothing
-                    expected(drawn) || @info "layout rule" name axis kind check drawn m.natural m.more m.less
-                    @test expected(drawn)
-                else
-                    # @broken: the reason names the step of the plan that fixes it.
-                    @test_broken expected(drawn)
-                end
+                expected(drawn) || @info "layout rule" name axis kind check drawn m.natural m.more m.less
+                @test expected(drawn)
             end
         end
     end
@@ -251,8 +236,7 @@ window_parts() = Any[_rules_lines(8), WidgetScrollPane(_rules_lines(16))]
     for (window, expected) in ((300, 108), (250, 58))
         (a, b) = _rules_child_extents(VerticalLayout(window_parts()), :height, window, window)
         @test a == 192
-        # @broken: a part that can scroll stops at its maximum: step 6.
-        @test_broken b == expected
+        @test b == expected
     end
 end
 
@@ -317,9 +301,8 @@ end
     detail = VerticalLayout(Any[WidgetScrollPane(_rules_lines(12)),
                                 LayoutConstraint(table; height = Fill, min_height = 120)]; gap = 6)
     (text, rows) = _rules_child_extents(detail, :height, 400, 400)
-    # @broken: a part that can scroll stops at its maximum: step 6.
-    @test_broken text == 400 - 6 - 120
-    @test_broken text + 6 + rows <= 400
+    @test text == 400 - 6 - 120
+    @test text + 6 + rows <= 400
 end
 
 @testset "a table of a list is as tall as the view of an area that fits or grows" begin

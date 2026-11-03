@@ -172,7 +172,9 @@ end
 
 The content of a tab that shows the file at `path`: the [`FilePage`](@ref) of the
 file document of [`make_file_tab`](@ref) in a scroll pane, so a file longer than
-its tab scrolls, and the band of the page stays above it. The page knows the hash
+its tab scrolls, and the band of the page stays above it. The file grows down on
+its height, as a page does, so a table on a Markdown page is as tall as its rows
+and the tab scrolls it. The page knows the hash
 of the text of the file that it read ([`make_file_page`](@ref)). The scroll is
 made here, where a file tab is made, and not by the tab: a tab page gets no
 scroll of its own, because a page can hold two parts that each scroll.
@@ -189,7 +191,7 @@ See also `make_file_tab` and `open_pane!`.
 function make_file_tab_content end
 
 make_file_tab_content(path::AbstractString, wrap = identity) =
-    make_file_page(WidgetScrollPane(make_file_tab(path, wrap)))
+    make_file_page(WidgetScrollPane(make_file_tab(path, wrap); grows = (width = false, height = true)))
 
 # ── What a file is called ────────────────────────────────────────────────────
 
