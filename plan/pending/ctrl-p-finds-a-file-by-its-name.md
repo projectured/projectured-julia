@@ -198,6 +198,15 @@ it. Step 4 measures the cost at 100,000 paths. If a keystroke takes longer than
 one frame, the match moves to a background task, and the list shows the matches
 before it until the task ends.
 
+*Changed in step 4 (2026-11-03).* `find_letter_match` answers the score alone,
+an `Int`, because no view marks the matched letters yet.
+`find_letter_matches(query, texts; name_start)` answers the indices of the
+matches in rank order. A query that matches all of 100,000 paths takes 0.16 s;
+3,000 paths, as in this repository, take about 5 ms by the same measure. So the
+match stays on the loop, and the file search scores only the matches of the
+query before it when the query grows (step 6). A folder near the limit is slow
+on its first letter, and that is a limit.
+
 **D6. The list of files.** The filesystem slice keeps a session document of the
 editor, `WorkspaceFileList`: the folders, the paths that the last read found,
 the state of the read, and whether the read stopped at the limit. It belongs to
@@ -272,8 +281,9 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
    the wheel scrolls; the top stops at the last rows; a typed letter goes back
    to the top. `test_insertion_choices()` passes (23). The navigator suite runs
    with step 5.
-4. **The match (D5).** Tests: the examples of Q4, case, the three rules of the
-   order, and the cost at 100,000 paths.
+4. ✅ **The match (D5).** `test_letter_match()` passes (10): the examples of Q4,
+   case, the three rules of the order, an empty query, and the cost at 100,000
+   paths.
 5. **The palette (D8).** Tests: the palette tests of `WindowShellTest.jl`,
    `WindowWrapTest.jl`, `WindowWrappersTest.jl`, `HelpThemeTest.jl` and
    `GalleryWrapperTest.jl`, changed to the popup: Ctrl+Shift+P opens the list at
@@ -307,6 +317,8 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
   git (D7).
 - A file that is made after the last read appears only when the next read ends
   (Q10).
+- In a folder near the limit of 100,000 files, the first letter of a query takes
+  about 0.16 s (D5).
 
 ## Open items
 

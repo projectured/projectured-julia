@@ -112,6 +112,7 @@ export ContextMenuWindowProjection, ContextMenuWindowIoMap,
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
 export make_shell_top_placement
+export find_letter_match, find_letter_matches
 export WidgetChoice, WidgetChoiceList, make_insertion_choice, make_choice_list_operation,
        WidgetChoiceListToWidget
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetLink, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
@@ -148,6 +149,7 @@ include("AddExplorerEntryOperation.jl")
 include("ContextMenuWindow.jl")
 include("ShellPlacement.jl")
 include("DocumentComposition.jl")
+include("LetterMatch.jl")
 include("WidgetChoiceList.jl")
 
 end # module
