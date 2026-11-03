@@ -514,6 +514,13 @@ end
 
 # ── Allocation cell helpers ────────────────────────────────────────────────
 
+# The extent of a container on one axis: what its children need, raised to the
+# minimum of the range that its parent gave, so that it takes a slot or a minimum
+# that is more than its children (`layout-rules.md` §1). `minimum` is the cell of
+# the parent, never the container's own extent, so no cell reads its own result.
+_make_extent_at_least(extent::Cell, minimum) =
+    minimum === nothing ? extent : Cell(@computation max(Int(extent[]), Int(minimum[])))
+
 """
 Build a `Cell{Vector{Int}}` that lazily computes the per-child allocation
 for one axis. The cell depends reactively on the available-extent cell,
@@ -957,6 +964,7 @@ function _hl_build(recursion, doc, ctx)
         end
         h
     end))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     # Distributing an offer means occupying it.
     outer_w = filling ? Cell(@computation Int(avail_w[])) : Cell(Computation(function ()
@@ -968,6 +976,7 @@ function _hl_build(recursion, doc, ctx)
         end
         total + (n2 - 1) * gap_cell[]
     end))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     child_x = Cell[]
     child_y = Cell[]
@@ -1190,6 +1199,7 @@ function _vl_build(recursion, doc, ctx)
         end
         w
     end))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     # Distributing an offer means occupying it.
     outer_h = filling ? Cell(@computation Int(avail_h[])) : Cell(Computation(function ()
@@ -1201,6 +1211,7 @@ function _vl_build(recursion, doc, ctx)
         end
         total + (n2 - 1) * gap_cell[]
     end))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     child_x = Cell[]
     child_y = Cell[]
@@ -1648,6 +1659,10 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         end
         total
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # A child in a column or a row whose extent was given is drawn inside that
     # slot; every other child is drawn where the alignment put it and reaches as
@@ -1889,6 +1904,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             end
             total + max(0, lc - 1) * vgap_cell[]
         end))
+        ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
         entries = Tuple{Cell,Cell,Any}[]
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
@@ -2036,6 +2052,10 @@ function print_document(p::StackLayoutToGraphicsCanvas,
         end
         h
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # Per-child position cells; rebuilt only on a structural change (they capture
     # `outer_w`/`outer_h` rather than reading them, so `active` does not churn them).

@@ -131,9 +131,9 @@ end
     @test Int(short.w[]) == Int(long.w[])
     @test Int(short.w[]) == Int(short.h[])
     @test Int(short.w[]) == 16 + 8
-    # A band can offer the size of the window. The item stays as large as what
-    # it shows, or it would take every press below it.
-    offered = PrinterContext(EmptyReference(), Cell(1600), Cell(1000), Dict{Symbol,Any}())
+    # A toolbar gives its items a bounded range, so an item in a band that is the
+    # size of the window stays as large as what it shows, and takes no press below it.
+    offered = with_bounded_size(PrinterContext(EmptyReference()); width = Cell(1600), height = Cell(1000))
     tall = print_document(proj, nothing, WidgetToolbarItem("Log"; icon = :list,
                                                            padding = Inset(4, 4, 4, 4)), offered).output
     @test (Int(tall.w[]), Int(tall.h[])) == (16 + 8, 16 + 8)

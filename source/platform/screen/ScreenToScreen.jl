@@ -70,13 +70,16 @@ print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx) =
 # window on no screen.
 function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx, pointer_shape::Cell,
                        screen_iomap)
-    # Seed the window's pixel size as the available layout extent for its
-    # content, so split/tabbed/scroll panes size to the window.
+    # A window of a fixed size gives its content that size as a slot, so
+    # split, tabbed and scroll panes size to the window.
     #
-    # A window that fits its content is offered its **maximum**, and always that:
-    # the backend gives such a window the extent of what it printed, and an offer
-    # that followed that size would chase it. So a text wraps at the maximum
-    # width, and the window ends as wide as the text needed.
+    # A window that fits its content gives it its **minimum** and its **maximum**
+    # as a range, and always that: the content draws what it needs between them,
+    # and the backend gives the window the extent of what it printed. A range that
+    # followed that size would chase it. So a text wraps at the maximum width, and
+    # the window ends as wide as the text needed. The maximum of the input says
+    # whether the window fits its content on an axis, because a placement computes
+    # its bounds only once the screen is printed.
     #
     # A window that a placement places takes its place and its bounds from the
     # placement, in cells that compute them over the printed screen. Only such a
@@ -89,8 +92,14 @@ function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx,
                                      m[1] > 0 ? m[1] : getfield(input, :width)[])))
     offer_height = Cell(@computation((m = maximum_size[];
                                       m[2] > 0 ? m[2] : getfield(input, :height)[])))
-    content_ctx = with_exact_size(make_child_context(ctx, FieldReferenceStep("content"));
-                                  width=offer_width, height=offer_height)
+    minimum_width = Cell(@computation(place.minimum_size[][1]))
+    minimum_height = Cell(@computation(place.minimum_size[][2]))
+    (fits_width, fits_height) = getfield(input, :maximum_size)[] .> 0
+    content_ctx = make_child_context(ctx, FieldReferenceStep("content"))
+    content_ctx = fits_width ? with_size_range(content_ctx; width = (minimum_width, offer_width)) :
+                               with_exact_size(content_ctx; width = offer_width)
+    content_ctx = fits_height ? with_size_range(content_ctx; height = (minimum_height, offer_height)) :
+                                with_exact_size(content_ctx; height = offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
     # (a re-opened tooltip) re-projects it reactively; a same object mutated in
     # place reuses the iomap and re-derives

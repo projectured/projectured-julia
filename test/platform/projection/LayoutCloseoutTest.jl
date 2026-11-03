@@ -33,18 +33,19 @@ end
 end
 
 @testset "a stretched column fills a seeded available width" begin
-    # Two labels in a 2-col grid; column 2 stretches. With an available width far
-    # wider than the content, column 2's left edge stays put but its cell widens,
-    # so the outer width grows to fill (vs. the un-stretched, content-only width).
+    # Two cells in a 2-col grid; column 2 stretches. Both grids take the seeded
+    # width, and only the column that fills takes what the first leaves: with no
+    # policy both columns are their content.
     cells = Any[WidgetLabel("Name:"), WidgetText("x")]
     plain  = GridLayout(copy(cells), 2)
     filled = GridLayout(copy(cells), 2; column_policies=Any[Content, Fill], horizontal_gap=8)
     ctx = with_exact_size(PrinterContext(EmptyReference());
                           width=_LC_Cell(600), height=_LC_Cell(400))
-    pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
-    fw = Int(print_document(proj, nothing, filled, ctx).output.w[])
-    @test fw > pw          # the stretched grid filled the available width
-    @test fw >= 600 - 8    # ~the full seeded width (minus a gap rounding)
+    columns(grid) = [Int(w[]) for w in
+                     _at_find_iomap(print_document(proj, nothing, grid, ctx), GridLayoutIoMap).col_w[1:2]]
+    @test Int(print_document(proj, nothing, plain, ctx).output.w[]) == 600
+    @test sum(columns(plain)) < 200
+    @test sum(columns(filled)) + 8 >= 600 - 1   # the full seeded width, less the gap
 end
 
 @testset "a row takes a policy too, and Content is what a grid always meant" begin
@@ -55,19 +56,21 @@ end
                           width=_LC_Cell(600), height=_LC_Cell(400))
     plain  = GridLayout(cells(), 1)
     filled = GridLayout(cells(), 1; row_policies=Any[Content, Fill])
-    ph = Int(print_document(proj, nothing, plain,  ctx).output.h[])
-    fh = Int(print_document(proj, nothing, filled, ctx).output.h[])
-    # A grid that says nothing is its content, whatever it is offered. That is
-    # the rule a table's rows depend on: a cell must not fill an offered height.
-    @test ph < 100
-    @test fh >= 400 - 1
+    rows(grid) = [Int(h[]) for h in
+                  _at_find_iomap(print_document(proj, nothing, grid, ctx), GridLayoutIoMap).row_h[1:2]]
+    # Rows that say nothing are their content, whatever the grid is offered. That
+    # is the rule a table's rows depend on: a cell must not fill an offered
+    # height. The grid itself takes its slot.
+    @test sum(rows(plain)) < 100
+    @test sum(rows(filled)) >= 400 - 1
+    @test Int(print_document(proj, nothing, plain, ctx).output.h[]) == 400
 end
 
 @testset "a Fixed column clips what it holds, and a withheld offer draws one line" begin
     long = "a value that is far too wide for forty pixels of column"
     cells() = Any[WidgetLabel(long), WidgetLabel("b")]
-    ctx = with_exact_size(PrinterContext(EmptyReference());
-                          width=_LC_Cell(600), height=_LC_Cell(400))
+    # A seeded width and no height, so the grid is as tall as its lines.
+    ctx = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(600))
     # The column hands its forty pixels to the cell, which breaks its lines
     # there; the grid draws the cell inside a viewport of the slot, which is
     # §3b: what was handed out is clipped to.
@@ -117,10 +120,9 @@ end
 
 @testset "a flow breaks at the width it is offered, and its children are their content" begin
     words() = Any[WidgetBadge(w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
-    wide = with_exact_size(PrinterContext(EmptyReference());
-                           width=_LC_Cell(600), height=_LC_Cell(400))
-    narrow = with_exact_size(PrinterContext(EmptyReference());
-                             width=_LC_Cell(150), height=_LC_Cell(400))
+    # A seeded width and no height, so the flow is as tall as its lines.
+    wide = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(600))
+    narrow = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(150))
     flow() = FlowLayout(words(); max_width=400, horizontal_gap=4, vertical_gap=4)
     at_wide = print_document(proj, nothing, flow(), wide)
     at_narrow = print_document(proj, nothing, flow(), narrow)
@@ -146,9 +148,12 @@ end
     io = print_document(proj, nothing, g,
                         with_exact_size(PrinterContext(EmptyReference());
                                         width=_LC_Cell(600), height=_LC_Cell(400)))
-    # 40 for the first column plus whatever "b" measures — far under the 600 it
-    # was offered, because neither column asked for a share of it.
-    @test Int(io.output.w[]) < 120
+    # 40 for the first column plus whatever "b" measures — far under the 600
+    # that the grid takes, because neither column asked for a share of it.
+    columns = [Int(w[]) for w in _at_find_iomap(io, GridLayoutIoMap).col_w[1:2]]
+    @test columns[1] == 40
+    @test sum(columns) < 120
+    @test Int(io.output.w[]) == 600
 end
 
 @testset "a column is at least its minimum, and a sized row can keep its height from its cells" begin

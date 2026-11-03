@@ -114,26 +114,12 @@ const _RULES_KINDS = Dict{Symbol,Any}(
     :ConstraintLayout   => "a constraint layout sizes its children by its solver",
 )
 
-# Why a check of a type fails today, or `nothing`: the step of the plan that fixes
-# it, or what this test found that no step of the plan fixes yet.
-const _RULES_CONTAINERS = (:HorizontalLayout, :VerticalLayout, :GridLayout, :StackLayout, :FlowLayout,
-                           :WidgetComposite, :WidgetToolbar, :WidgetToolbarItem)
+# Why a check of a type fails today, or `nothing`: the step of the plan that fixes it.
 function _rules_broken(name::Symbol, kind::Symbol, axis::Symbol, check::Symbol)
     name === :WidgetTransformPane && check !== :bounded_more &&
         return "a transform pane with no size draws 0, and it stops at no maximum: step 6"
-    kind === :scrolls && (check === :bounded_less || (check === :at_least_more && name !== :WidgetList)) &&
+    kind === :scrolls && (check === :bounded_less || (check === :at_least_more && name === :WidgetTree)) &&
         return "a part that can scroll takes its content between its minimum and its maximum: step 6"
-    name in _RULES_CONTAINERS && check in (:exact_more, :at_least_more) &&
-        !(name === :FlowLayout && axis === :width) &&
-        return "found in step 2: a container does not take a slot or a minimum that is more than its content"
-    kind === :fills && check === :at_least_more && !(name === :WidgetSplitPane && axis === :height) &&
-        return "found in step 2: a container that fills a slot takes no minimum without a slot"
-    name === :WidgetSplitPane && axis === :width && check in (:exact_more, :exact_less) &&
-        return "found in step 2: a split in an exact width with a free height draws 1"
-    name === :WidgetShell && check in (:exact_more, :exact_less) &&
-        return "found in step 2: a shell takes a slot only when it has one on both axes"
-    name === :WidgetAlert && axis === :width && check in (:bounded_less, :exact_less) &&
-        return "found in step 2: an alert does not wrap its description"
     nothing
 end
 

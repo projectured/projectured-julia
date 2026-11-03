@@ -278,7 +278,7 @@ Found in this step:
   - `WidgetShell` takes a slot only when it has one on both axes;
   - `WidgetAlert` does not wrap its description.
 
-### Step 3. The deviations that Step 2 found
+### Step 3. The deviations that Step 2 found — done
 
 Each of these printers takes its minimum, and fills a slot that is more than its
 content, by `e = max(m, C(M))`:
@@ -293,6 +293,41 @@ content, by `e = max(m, C(M))`:
 The marks "found in step 2" of the test become `@test`. Tests:
 `test_layout_rules()`, the `SizeRange*` tests, `test_platform()`,
 `test_dataframes()`.
+
+How it is done:
+
+- `_make_extent_at_least` (`LayoutToGraphics.jl`) raises the extent of a
+  column, a row, a grid, a stack layout and the height of a flow to the minimum
+  of its range; their rows, columns and cells stay their content.
+- `_reactive_canvas_auto` takes `stretch`, a context whose minimum raises the
+  extent, and `width` and `height`, cells that fix an axis with a slot. The
+  composite and the shell use them; the shell takes a slot on each axis by itself.
+- A toolbar gives its items a bounded range on both axes, so an item in a toolbar
+  stays as large as what it shows, and an item takes its minimum by the rule.
+- A pane of a split that declares no size and no weight takes an equal share;
+  before, it got 0, and two such panes drew only the splitter.
+- `WidgetAlert` breaks its description with `_text_lines` at its width.
+
+Found in this step:
+
+- `WidgetScrollBar` took no minimum either; it takes it now.
+- A window that fits its content, such as a tooltip, gave its content its
+  maximum as a slot (`ScreenToScreen.jl`), the trap of §2 in another place: with
+  the content taking its slot, every tooltip window took its maximum width. The
+  window gives its maximum as an edge now, and a window of a fixed size gives its
+  size as a slot.
+- Five tests expected the old reading, "a container that says nothing is its
+  content, whatever it is offered": `LayoutCloseoutTest`, `GridSpanTest`,
+  `WidgetSplitPaneTest` (which also expected the panes of 0), `WidgetToolbarTest`
+  and the window of `TooltipNoteTest`. Each keeps its intent: the columns and
+  rows of a grid stay their content, a flow wraps more when it is narrow, an item
+  in a toolbar keeps its size.
+
+Result: `test_layout_rules()` 554 pass and 22 broken, for Steps 5 and 6. The
+platform suite, run in four parts of about 60 test functions each with 8 GB:
+three failures, each a known failure of main (the `using` lists of
+`FileChangeModule` and `ShellModule`, and the 33 names and the text of
+`WidgetLink` in `InterfaceApiTest`). `test_dataframes()`: 603 pass.
 
 ### Step 4. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
 

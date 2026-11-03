@@ -1290,8 +1290,12 @@ function _get_entry_box(x, y, cim, measure)
 end
 
 # `cap` is an overlay's context: given one, the extent is capped by what the
-# parent offered rather than allowed to run past it.
-function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
+# parent offered rather than allowed to run past it. `stretch` is a context whose
+# minimum raises the extent, by the rule of every widget (`layout-rules.md` §1).
+# `width` and `height` are cells that fix the extent on an axis where the widget
+# has a slot.
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing, stretch = nothing,
+                               width = nothing, height = nothing)
     elems = CellVector(Computation(elems_fn))
     bounds = Cell(@computation begin
         w = 0; h = 0
@@ -1299,12 +1303,12 @@ function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
             ew, eh = _element_size(e, measure)
             w = max(w, ew); h = max(h, eh)
         end
-        cap === nothing ? (w, h) :
-            (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        cap === nothing || return (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        stretch === nothing ? (w, h) : (_resolve_size(stretch, :x, 0, w), _resolve_size(stretch, :y, 0, h))
     end)
     GraphicsCanvas(Int32(x), Int32(y),
-                   Cell(@computation Int32(bounds[][1])),
-                   Cell(@computation Int32(bounds[][2])),
+                   width === nothing ? Cell(@computation Int32(bounds[][1])) : Cell(@computation Int32(Int(width[]))),
+                   height === nothing ? Cell(@computation Int32(bounds[][2])) : Cell(@computation Int32(Int(height[]))),
                    elems, layout_none, true, Cell(nothing))
 end
 
@@ -3224,15 +3228,15 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
             content_width, content_height = _text_size(p.measure, label.font, text)
             _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
         end
-        # As large as what it shows, on both axes. A band can offer the height of
-        # the window, and an item that took it would take every press below it.
-        width = content_width + inset_width
-        height = content_height + inset_height
+        # What it shows, raised to the minimum of its range: a toolbar gives its
+        # items no minimum, so an item there is as large as what it shows.
+        width = _resolve_width(ctx, 0, content_width + inset_width)
+        height = _resolve_height(ctx, 0, content_height + inset_height)
         # A clear surface over the whole button: a press anywhere on it hits the
         # item, and not only on the strokes of its picture.
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
-                         content_width, content_height; radius = p.corner_radius)
+                         width - inset_width, height - inset_height; radius = p.corner_radius)
         # Flat at rest; under the pointer the layer draws the surface and the
         # outline of a button, and a darker surface while it is held.
         enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color,
@@ -3484,10 +3488,11 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
         (_, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
     # The natural extent of the children together, before the box around them. A
-    # context with a minimum width, as a slot that the composite fills gives, makes
-    # the box at least that wide, so a box of a `Fill` composite reaches the edge
-    # of its slot.
+    # context with a minimum, as a slot that the composite fills gives, makes the
+    # box at least that large, so a box of a `Fill` composite reaches the edges of
+    # its slot.
     minimum_width = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_height = ctx isa PrinterContext ? ctx.minimum_height : nothing
     extent = Cell(@computation begin
         content_width, content_height = 0, 0
         for cim in child_cells[]
@@ -3496,6 +3501,8 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         end
         minimum_width === nothing ||
             (content_width = max(content_width, Int(minimum_width[]) - _inset_total(p, w)[1]))
+        minimum_height === nothing ||
+            (content_height = max(content_height, Int(minimum_height[]) - _inset_total(p, w)[2]))
         (content_width, content_height)
     end)
     # The box around the children is a canvas of its own, so the list of the
@@ -3531,7 +3538,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         _get_entry_box(x, y, cim, _p_measure(p))
     end, p.graphics_style)
     ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
-                                              _p_measure(p)),
+                                              _p_measure(p); stretch = ctx isa PrinterContext ? ctx : nothing),
                   Cell(@computation build[].child_iomaps))
 end
 
@@ -3860,7 +3867,13 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         elems
     end)
     child_iomaps = Cell(@computation Any[(get_band_left(name), get_band_top(name), cim) for (name, cim) in slots[]])
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p)), child_iomaps)
+    # The shell takes its size or its slot on each axis by itself, else what it
+    # holds, raised to the minimum of its range.
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p);
+                                              stretch = ctx isa PrinterContext ? ctx : nothing,
+                                              width = has_width ? outer_width : nothing,
+                                              height = has_height ? outer_height : nothing),
+                  child_iomaps)
 end
 
 # How tall a band's printed output is.
@@ -4354,6 +4367,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 else
                     prefs[i] = intrinsic
                     wts[i]   = layout_weight(elem, axis)
+                    # A split divides its axis: a pane that declares no size and no
+                    # weight takes an equal share.
+                    intrinsic == 0 && wts[i] == 0.0 && (wts[i] = 1.0)
                 end
             end
             # Only the open slots share the extent, and only the splitters between
@@ -4436,6 +4452,16 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             Cell(@computation Int32(avail_w[]))
     end
     # Report the whole box: the slots plus the inset they sit inside.
+    # With no slot on an axis, the split is what its panes need there, raised to
+    # the minimum of its range.
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
+    at_least(extent, slot, minimum, inset) = (slot !== nothing || minimum === nothing) ? extent :
+        Cell(@computation Int32(max(Int(extent[]), Int(minimum[]) - inset)))
+    outer_main = main_axis === :x ? at_least(outer_main, avail_w, minimum_w, inset_x) :
+                                    at_least(outer_main, avail_h, minimum_h, inset_y)
+    outer_cross = main_axis === :x ? at_least(outer_cross, avail_h, minimum_h, inset_y) :
+                                     at_least(outer_cross, avail_w, minimum_w, inset_x)
     inner_w_cell = main_axis === :x ? outer_main : outer_cross
     inner_h_cell = main_axis === :x ? outer_cross : outer_main
     outer_w_cell = Cell(@computation Int32(Int(inner_w_cell[]) + inset_x))
@@ -5209,10 +5235,16 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         GraphicsCanvas(content_cv),
         ring,
     ])
-    canvas = (avail_w === nothing && avail_h === nothing) ? inner :
+    # The pane takes its slot on an axis, else what it holds, raised to the
+    # minimum of its range.
+    minimum_w = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_h = ctx isa PrinterContext ? ctx.minimum_height : nothing
+    extent(slot, own, minimum) =
+        slot !== nothing ? Cell(@computation Int32(max(0, Int(slot[])))) :
+        minimum === nothing ? own : Cell(@computation Int32(max(Int(own[]), Int(minimum[]))))
+    canvas = (avail_w === nothing && avail_h === nothing && minimum_w === nothing && minimum_h === nothing) ? inner :
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                       avail_w === nothing ? inner.w : Cell(@computation Int32(max(0, Int(avail_w[])))),
-                       avail_h === nothing ? inner.h : Cell(@computation Int32(max(0, Int(avail_h[])))),
+                       extent(avail_w, inner.w, minimum_w), extent(avail_h, inner.h, minimum_h),
                        CellVector(Cell[Cell(inner)]),
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
@@ -7119,10 +7151,11 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
         # A toolbar lays its items out at their own size, side by side, so it gives
-        # no slot on the main axis: an item that took a slot would stretch to the
-        # whole band. It gives its edge instead, as a bounded range, so an item
+        # them no slot and no minimum: an item that took one would stretch to the
+        # whole band. It gives its edges instead, as bounded ranges, so an item
         # draws its content and a text in it wraps at the band's edge.
-        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
+        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width,
+                                                                         height = ctx.maximum_height)))
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         item_gap = p.item_gap
@@ -7143,11 +7176,14 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             content_height = max(content_height, _menu_item_height(cim))
         end
         content_width = max(0, x_cursor - item_gap)
-        elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
         inset_width, inset_height = _inset_total(p, w)
         width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
                                             child_iomaps, _p_measure(p))
+        width = _resolve_width(ctx, 0, width)
+        height = _resolve_height(ctx, 0, height)
+        elems = Any[]
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), width - inset_width,
+                         height - inset_height)
         append!(elems, items)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
@@ -7262,10 +7298,10 @@ read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 
 # The extent of a scroll bar on one axis: its authored size, else the extent
 # that its parent offers, else its thickness across and nothing along.
-function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int)
+function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int, minimum = nothing)
     authored > 0 && return authored
     offered === nothing || return Int(offered[])
-    along ? 0 : thickness
+    max(along ? 0 : thickness, minimum === nothing ? 0 : Int(minimum[]))
 end
 
 # The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
@@ -7361,10 +7397,12 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     horizontal = w.orientation === :horizontal
     offered_w = ctx === nothing ? nothing : get_exact_width(ctx)
     offered_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
     width = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.x[]) : 0,
-                                                           offered_w, horizontal, p.thickness)))
+                                                           offered_w, horizontal, p.thickness, minimum_w)))
     height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
-                                                            offered_h, !horizontal, p.thickness)))
+                                                            offered_h, !horizontal, p.thickness, minimum_h)))
     parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
     lit = Cell(@computation _is_under_pointer(w) || w.thumb_drag !== nothing)
     clock = ctx === nothing ? nothing : ctx.clock
@@ -9103,10 +9141,17 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
             y += p.title_gap
-            description_string = string(w.description)
-            description_width, description_height = _text_size(p.measure, description.font, description_string)
-            _push_text!(elements, p.measure, description.font, description_string, content_x, y, description.color)
-            max_content_width = max(max_content_width, description_width); y += description_height
+            # The description breaks at the width that the alert was told, else
+            # at the edge of its range.
+            authored_width = _sc(Int(w.width))
+            edge = ctx === nothing ? nothing : ctx.maximum_width
+            bound = authored_width > 0 ? max(0, authored_width - inset_width) :
+                    edge !== nothing ? max(0, Int(edge[]) - inset_width) : 0
+            for line in _text_lines(p.measure, description.font, string(w.description), bound)
+                line_width, line_height = _text_size(p.measure, description.font, line)
+                _push_text!(elements, p.measure, description.font, line, content_x, y, description.color)
+                max_content_width = max(max_content_width, line_width); y += line_height
+            end
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
         bottom_inset = box.margin[4] + box.border[4] + box.padding[4]

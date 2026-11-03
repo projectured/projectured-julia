@@ -48,8 +48,10 @@ _tn_style(name) = unwrap_cell(get_tooltip_style(get_scaled_theme!(_TN_APPEARANCE
 function _tn_print_window(note)
     projection = NaturalToGraphics(measure = FixedMeasure(10, 18, 6, 0), appearance = _TN_APPEARANCE)
     largest = _tn_style(:maximum_size)
-    context = with_exact_size(PrinterContext(); width = Cell(Int32(largest.x[])),
-                              height = Cell(Int32(largest.y[])))
+    # A window that fits its content gives it its maximum as an edge, as
+    # `ScreenToScreen` does.
+    context = with_bounded_size(PrinterContext(); width = Cell(Int32(largest.x[])),
+                                height = Cell(Int32(largest.y[])))
     content = TooltipContent(; layers = [("Note", note)], shown = 1)
     get_iomap_output(print_document(projection, nothing, content, context))
 end

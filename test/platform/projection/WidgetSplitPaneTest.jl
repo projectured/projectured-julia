@@ -103,25 +103,24 @@ _pair() = Any[_label("one"), _label("two")]
 _INSET = Inset(8, 8, 8, 8)
 
 @testset "a bordered split stays inside the size it reports" begin
-    # A split divides the space inside its own box model. It used to lay its
-    # children out from the content offset and still divide the whole offer, so
-    # the last slot and the splitter ran past the far edge by the inset, and the
-    # canvas claimed a size smaller than it drew.
+    # A split divides the space inside its own box model, and two panes that
+    # declare nothing share it: the splitter is in the middle, the first pane
+    # takes the odd pixel, and the splitter stays inside the inset.
     plain = _offered(WidgetSplitPane(:horizontal, _pair()), 400, 300)
     inset = _offered(WidgetSplitPane(:horizontal, _pair(); border = _INSET), 400, 300)
 
     px, py, pw, ph = only(_rects(plain.output))
     ix, iy, iw, ih = only(_rects(inset.output))
-    @test (px, py) == (0, 0)
+    @test (px, py) == (200, 0)               # (400 - 1) ÷ 2, and the odd pixel
     @test ph == 300                          # the whole offer, with nothing taken
-    @test (ix, iy) == (8, 8)                 # the splitter starts inside the inset
+    @test iy == 8                            # the splitter starts inside the inset
+    @test 8 < ix < 400 - 8 - iw
     @test ih == ph - 16                      # and it ends inside it
     @test iw == pw
 
-    # The size the parent sees is the content plus the box model, so the cross
-    # axis still fills the offer.
-    @test Int(inset.output.w[]) == Int(plain.output.w[]) + 16
-    @test Int(inset.output.h[]) == Int(plain.output.h[])
+    # The split fills the offer, with its box model inside it.
+    @test Int(inset.output.w[]) == Int(plain.output.w[]) == 400
+    @test Int(inset.output.h[]) == Int(plain.output.h[]) == 300
 end
 
 @testset "a stacked bordered split does the same on its own axis" begin
@@ -130,13 +129,14 @@ end
 
     px, py, pw, ph = only(_rects(plain.output))
     ix, iy, iw, ih = only(_rects(inset.output))
-    @test (px, py) == (0, 0)
+    @test (px, py) == (0, 150)               # (300 - 1) ÷ 2, and the odd pixel
     @test pw == 400
-    @test (ix, iy) == (8, 8)
+    @test ix == 8
+    @test 8 < iy < 300 - 8 - ih
     @test iw == pw - 16
     @test ih == ph
-    @test Int(inset.output.h[]) == Int(plain.output.h[]) + 16
-    @test Int(inset.output.w[]) == Int(plain.output.w[])
+    @test Int(inset.output.h[]) == Int(plain.output.h[]) == 300
+    @test Int(inset.output.w[]) == Int(plain.output.w[]) == 400
 end
 
 end # testset
