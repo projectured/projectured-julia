@@ -191,5 +191,53 @@ end
     end
 end
 
+@testset "a slot with a maximum of 0 is closed: no extent, no splitter, no reprint" begin
+    mk(t) = LayoutConstraint(WidgetTitlePane(t, WidgetLabel(lowercase(t); position = Point2D(8, 8)));
+                             weight_width = 1.0, preferred_width = 0)
+    doc   = WidgetSplitPane(:horizontal, Any[mk("L"), mk("M"), mk("R")])
+    proj  = _proj()
+    ctx   = with_exact_size(PrinterContext(); width = Cell(601), height = Cell(400))
+    iomap = print_document(proj, nothing, doc, ctx)
+    viewports() = [e for e in iomap.output.elements if e isa GraphicsModule.GraphicsViewport]
+    rectangles() = count(e -> e isa GraphicsModule.GraphicsRect, iomap.output.elements)
+    # The IoMap of the split pane, under the layers of the chain.
+    function split_iomap()
+        found = getfield(iomap, :step_iomaps)[][1][]
+        while !hasfield(typeof(found), :child_iomaps)
+            found = getfield(found, :child_iomap)
+            found isa Cell && (found = found[])
+        end
+        found
+    end
+    children() = [last(entry) for entry in getfield(split_iomap(), :child_iomaps)[]]
+    @test length(viewports()) == 3
+    open_rectangles = rectangles()
+    before = children()
+
+    # The first and the last slot close: the middle one takes the whole extent,
+    # and no splitter stands beside it.
+    doc.elements[1].max_width = 0
+    doc.elements[3].max_width = 0
+    shown = viewports()
+    @test length(shown) == 1
+    @test Int(shown[1].x[]) == 0
+    @test Int(shown[1].w[]) == 601
+    @test rectangles() == open_rectangles - 2
+    # A press where a splitter stood starts no drag.
+    old_band = 200
+    @test !(_unmark(read_intent(proj, iomap, MouseDown(:left, old_band, 50, ModifierKeys(); time = 0.0)))
+            isa StartSplitterDragOperation)
+    # No child printed again.
+    @test all(children() .=== before)
+
+    # Open again: the three slots and the two splitters come back, with the same
+    # children.
+    doc.elements[1].max_width = nothing
+    doc.elements[3].max_width = nothing
+    @test length(viewports()) == 3
+    @test rectangles() == open_rectangles
+    @test all(children() .=== before)
+end
+
 end # @testset
 end

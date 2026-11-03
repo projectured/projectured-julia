@@ -129,10 +129,16 @@ focus is not in a group.
    keeps the field; a selection outside the layout keeps the maximize. Steps 1
    and 2 are one commit, because both change the same parts of `PaneSurgery.jl`.
    `test_pane_gestures` passes: 117.
-3. ⬜ **The split pane rule (D4)** in `WidgetToGraphics.jl`. Test in
-   `test_split_pane_drag` or a new test beside it: a slot with a maximum of 0
-   gets no extent, no splitter and no grab band; a change of the maximum prints
-   no child again.
+3. ✅ **The split pane rule (D4)** in `WidgetToGraphics.jl`:
+   `_get_split_open_slots` and `_has_split_gap`. A cell of the build reads the
+   maximum of each slot; the allocation divides the extent among the open slots,
+   less one splitter for each pair of open neighbours, and the positions, the
+   drawing, the grab bands and the measured sizes of a drag skip a closed slot.
+   Two open slots with a closed slot between them touch with no splitter, because
+   a drag of a splitter resizes two neighbours by index. Test in
+   `test_split_pane_drag`: a slot with a maximum of 0 gets no extent, no splitter
+   and no grab band, and a close and an open print no child again. It passes: 41
+   and the 5 broken assertions that main has.
 4. ⬜ **The view (D4)** in `PaneToWidget.jl`. Test in `test_pane_construct`:
    after Ctrl+M the maximized group has the extent of the window, and the other
    groups have none; the IO map of each tab content is the same object before

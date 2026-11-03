@@ -4188,6 +4188,17 @@ function _split_valid_elements(w::WidgetSplitPane)
     result
 end
 
+# Whether each slot is open. A slot whose maximum extent on the main axis is 0 is
+# closed: it takes no extent, it draws nothing, and no splitter stands on either
+# side of it. So a split hides a slot and keeps the IoMap of what it shows. The
+# maximum is read in the cells of the allocation and of the drawing, never in the
+# slot list, so a slot that closes or opens prints no child again.
+_get_split_open_slots(elements::Vector, axis::Symbol) =
+    Bool[layout_max(element, axis, 0) > 0 for element in elements]
+
+# Whether a splitter stands after slot `i`: both slots beside it are open.
+_has_split_gap(open::Vector{Bool}, i::Int) = i < length(open) && open[i] && open[i + 1]
+
 # Every per-slot cell, child IoMap and canvas child below is built for the slot
 # count it saw, so a slot **added or removed** can not be threaded through the ones
 # already standing. `_split_build` is therefore run inside a cell that reads the
@@ -4248,6 +4259,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
     alloc_cell = Cell(nothing)
+    open_cell = Cell(@computation _get_split_open_slots(valid_elems, main_axis))
     slot_main = Cell[]
     if avail_main !== nothing
         for i in 1:n
@@ -4291,6 +4303,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             elem_local = valid_elems[i]
             cim_local = inner_iomaps[i]
             set_cell_computation!(slot_main[i], function ()
+                open_cell[][i] || return 0
                 declared = _split_intrinsic(elem_local, w.sizes, i, main_axis)
                 declared > 0 && return declared
                 out = cim_local.output
@@ -4334,11 +4347,20 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                     wts[i]   = layout_weight(elem, axis)
                 end
             end
+            # Only the open slots share the extent, and only the splitters between
+            # two of them take a part of it.
+            open = open_cell[]
+            shown = findall(open)
+            result = zeros(Int, n_local)
+            isempty(shown) && return result
             # A drag pins every slot but the last, and the last takes the rest of
             # the total, also when it has no weight of its own.
-            has_pinned && wts[n_local] == 0.0 && (wts[n_local] = 1.0)
-            allocate_axis(Int(avail_main[]); mins, maxs, prefs, weights = wts,
-                          gap = splitter_thickness, n = n_local)
+            has_pinned && wts[shown[end]] == 0.0 && (wts[shown[end]] = 1.0)
+            gaps = count(i -> _has_split_gap(open, i), 1:n_local) * splitter_thickness
+            result[shown] = allocate_axis(Int(avail_main[]) - gaps; mins = mins[shown],
+                                          maxs = maxs[shown], prefs = prefs[shown],
+                                          weights = wts[shown], gap = 0, n = length(shown))
+            result
         end)
     end
 
@@ -4348,9 +4370,10 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     for i in 1:n
         if main_axis === :x
             push!(child_x, Cell(Computation(function ()
+                open = open_cell[]
                 x = cox
                 for j in 1:(i-1)
-                    x += Int(slot_main[j][]) + splitter_thickness
+                    x += Int(slot_main[j][]) + (_has_split_gap(open, j) ? splitter_thickness : 0)
                 end
                 Int32(x)
             end)))
@@ -4358,9 +4381,10 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         else
             push!(child_x, Cell(Int32(cox)))
             push!(child_y, Cell(Computation(function ()
+                open = open_cell[]
                 y = coy
                 for j in 1:(i-1)
-                    y += Int(slot_main[j][]) + splitter_thickness
+                    y += Int(slot_main[j][]) + (_has_split_gap(open, j) ? splitter_thickness : 0)
                 end
                 Int32(y)
             end)))
@@ -4372,11 +4396,12 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # parent gave us an available cross extent we report that instead so
     # the slot fills the parent's allocation.
     outer_main = Cell(Computation(function ()
+        open = open_cell[]
         total = 0
         for i in 1:n
-            total += Int(slot_main[i][])
+            total += Int(slot_main[i][]) + (_has_split_gap(open, i) ? splitter_thickness : 0)
         end
-        Int32(total + (n - 1) * splitter_thickness)
+        Int32(total)
     end))
     outer_cross = if main_axis === :x
         avail_h === nothing ?
@@ -4415,7 +4440,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         result = Any[]
         _push_box_parts!(result, box, colors, Int(inner_w_cell[]), Int(inner_h_cell[]))
         cross_extent = Int(outer_cross[])
+        open = open_cell[]
         for i in 1:n
+            open[i] || continue
             cim = inner_iomaps[i]
             cim.output isa GraphicsCanvas || continue
             slot = Int(slot_main[i][])
@@ -4433,6 +4460,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cursor = cox
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
+                _has_split_gap(open, i) || continue
                 push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent;
                                            color = splitter_color))
                 cursor += splitter_thickness
@@ -4441,6 +4469,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cursor = coy
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
+                _has_split_gap(open, i) || continue
                 push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness;
                                            color = splitter_color))
                 cursor += splitter_thickness
@@ -4449,6 +4478,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # Where a press grabs a splitter, the pointer is a double arrow along the
         # main axis, over the band of the reader (`_get_splitter_band`).
         for i in 2:n
+            _has_split_gap(open, i - 1) || continue
             if main_axis === :x
                 start, extent = _get_splitter_band(Int(child_x[i][]), splitter_thickness)
                 push!(result, GraphicsPointerShape(start, coy, extent, cross_extent,
@@ -4510,10 +4540,11 @@ _get_splitter_band(next_position::Int, thickness::Int) =
 # Splitter `k` occupies the `thickness`-wide gap immediately before child `k+1`
 # (see the print cursor), widened on each side along the main axis.
 function _splitter_band_hit(orientation::Symbol, child_iomaps::Vector,
-                            thickness::Int, x::Int, y::Int)
+                            thickness::Int, x::Int, y::Int, open::Vector{Bool})
     n = length(child_iomaps)
     coord = orientation === :horizontal ? x : y
     for k in 1:(n - 1)
+        _has_split_gap(open, k) || continue
         nxt = child_iomaps[k + 1]
         nxt === nothing && continue
         start, extent = _get_splitter_band(_split_child_main_pos(nxt, orientation), thickness)
@@ -4534,12 +4565,12 @@ end
 # itself here instead took the far inset for a slot, and an asymmetric box model
 # for a symmetric one.
 function _split_measured_sizes(child_iomaps::Vector, orientation::Symbol,
-                               thickness::Int, content_main::Int)
+                               thickness::Int, content_main::Int, open::Vector{Bool})
     n = length(child_iomaps)
     sizes = Vector{Int}(undef, n)
     pos(i) = _split_child_main_pos(child_iomaps[i], orientation)
     for i in 1:(n - 1)
-        sizes[i] = pos(i + 1) - pos(i) - thickness
+        sizes[i] = pos(i + 1) - pos(i) - (_has_split_gap(open, i) ? thickness : 0)
     end
     sizes[n] = max(0, content_main - (pos(n) - pos(1)))
     sizes
@@ -4563,14 +4594,17 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     active      = w.active_splitter::Int
 
     if evt isa MouseDown && evt.button === :left && active == 0
-        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y)
+        open = _get_split_open_slots(_split_valid_elements(w),
+                                     orientation === :horizontal ? :x : :y)
+        length(open) == n || return nothing
+        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y, open)
         k == 0 && return nothing
         outer = iomap.output
         outer_main = outer isa GraphicsCanvas ?
                      (orientation === :horizontal ? Int(outer.w[]) : Int(outer.h[])) : 0
         inset_x, inset_y = _inset_total(p, w)
         content_main = max(0, outer_main - (orientation === :horizontal ? inset_x : inset_y))
-        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main)
+        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main, open)
         coord = orientation === :horizontal ? evt.x : evt.y
         return CompoundOperation(Any[
             ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes)),
