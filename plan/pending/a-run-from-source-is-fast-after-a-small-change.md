@@ -102,12 +102,19 @@ Each step has a check. If a check fails, stop and report.
       the platform suite gives the same results as after a whole compile.**
       The design as built and the results are in "Step 2: the patch of a
       package file" below.
-- [ ] 3. **Keep the files above** (rules 2 and 3). Check: after the change
+- [x] 3. **Keep the files above** (rules 2 and 3). Check: after the change
       of step 2, a new process loads all 114 packages of projectured-julia
       and compiles no other package. Three changes in the platform: a method
       body keeps the files above; a changed macro and a changed constant
       rebuild the files that read them. The answers are correct after each.
       The load time is measured against today's.
+      **Done 2026-11-03: after a method body change a load of all 125
+      packages writes only the patch of the platform; a changed macro and a
+      changed constant compile only their readers and the packages above
+      them; the platform suite gives the same results as after a whole
+      compile; the load takes 17.4 s against 16.6 s with no change.** The
+      design as built and the results are in "Step 3: keep the files above"
+      below.
 - [ ] 4. **Use it in omnet-julia.** Check: the same change of the platform
       package, then `jo` loads every package of `OmnetRepl` in at most 15 s
       more than a start with no change.
@@ -197,7 +204,8 @@ Built in the Julia fork, branch `fast-source-run` (worktree
   compiles while a patch is loaded names this module, so a new patch makes
   that file out of date. A file compiled before the patch does not name it.
 - Every patch is made from the old file, as every overlay of the executable
-  is made from its founding. Patches do not stack.
+  is made from its founding. Patches do not stack. (Step 3 replaced this
+  with a chain of patches; see "Step 3".)
 - The patch carries what no file can carry: the new bindings of the package
   (the type of a changed closure), the deleted methods and the changed
   docstrings. The loader installs them.
@@ -249,6 +257,130 @@ redefinition does.
   the changes since the old file again (step 4).
 - Each rebuild of the system image of the fork makes every package file out
   of date, as in any Julia.
+
+## Step 3: keep the files above
+
+Built in the Julia fork, branch `fast-source-run`, commits 689dedb96c,
+74ba7050c9, bab8c6e89c, e8bcf5d744 and 8c24db4d53.
+
+**What changed from step 2.**
+
+- **The patches form a chain.** Patch k is made on top of the file and of
+  patches 1 to k-1, at most 32. Each patch is a module of its own,
+  `<name>#patch<k>`, with files in a cache folder of its own. Reason: when
+  every patch was made from the old file, a file above that Julia compiled
+  with patch 1 loaded named patch 1, and patch 2 replaced it. So each patch
+  made that file out of date, and `Pkg` and a load of the package above alone
+  did not find the patch module.
+- The loader finds the package of a patch among the modules that a file
+  requires. A patch is fresh while the includes of the last patch of the
+  chain match the sources.
+- A patch carries the methods that moved to another line, so a stack trace
+  shows the new line. This closes an open item of step 2.
+- **Rule 3, the stamps of names.** A whole compile records each constant and
+  each macro of another package that its top level names. Each one is a
+  stamp file in the folder `<file>.names` of the file of that package, and
+  the compile records it as an `include_dependency`. A stamp holds "base", or
+  the id of the last patch that changed the name. A patch that changes a name
+  writes its own id into the stamp, so only the files that read the name go
+  out of date. A method body that reads a constant needs no stamp: Julia's
+  check of the edges at the load drops its code.
+- The names that a top level reads are the heads of its macro calls and the
+  names in its expressions. A method definition at the top level counts too,
+  so the set is larger than needed. This is safe: a file compiles when it
+  did not have to, never the reverse.
+- The patch build takes a changed constant and a changed macro (C1 and D1 of
+  the change catalog) as well as A1, A2 and A3. It still refuses a changed
+  type, a non-constant global, a changed `__init__` and a changed include
+  that is no source file.
+- A changed constant with an equal value is no change. The patch changes no
+  binding and no stamp.
+- **A name that a patch adds** is defined from the require world on, as a
+  name of a package file is. A name that a patch adds is a closure type or a
+  keyword body. A changed name of the file is declared at the current world,
+  and that drops the code that reads it. Reason: the first platform run
+  failed an assertion in `scan_new_method!` at the load of a file compiled
+  on top of a patch with 126 new names. The install had declared them at the
+  current world, and Julia's fast check of the bindings of a file expects
+  that no binding that a file names starts after the require world.
+- A patch carries the counter of generated names of each module of its
+  package, and its load raises each counter. Reason: the counter is in the
+  module of the package file, so the build of the next patch started from it
+  again and could make a name that an earlier patch made.
+
+**The results.** The scratch checkout of projectured-julia at `main`
+408c71359, `environment/all` with 125 packages, a new depot. The changes
+come one after the other, in the order of the table. The numbers are from
+the last run, with all fixes.
+
+| Change | What compiles | Time | Load after |
+| --- | --- | --- | --- |
+| None | all, whole | 427 s | 16.6 s |
+| Method body of `_child_w` | the patch of the platform, at the load | 22.0 s for the load | 16.9 s |
+| Macros `@insertion` and `@domain` | the patch, and 68 packages whole | 260 s | 16.9 s |
+| `color_black` to an equal value | the patch | 4.6 s | 16.9 s |
+| `RUN_RESULT_CODES` to a new value | the patch, and 25 packages whole | 179 s | 17.4 s |
+
+- After the change of the method body, a load of all 125 packages writes
+  only the patch of the platform. Then `Pkg.precompile` compiles nothing, in
+  1.0 s. This closes the other open item of step 2.
+- The macro change: 10 packages read `@domain` or `@insertion` at their top
+  level. The 68 packages that compiled are these 10 and the packages that
+  load them; the manifest and the imports give the same set. All others
+  kept their files. The patch of the platform holds 126 new names, deletes
+  71 methods and compiles 134 of 215 closed instances again: load 1.2 s,
+  apply 2.2 s, compile 0.8 s. Each deleted method names `TextBlock` or
+  `EvaluatorToplevel`, the two types that the patch makes again.
+- The constant change: the patch changes 3 names, the constant and its two
+  re-exports. Only `ProjecturedPlatformTest` reads it at its top level, and
+  the 25 packages are it and the packages that load it.
+- The load of all packages with the chain of 4 patches takes 17.4 s, against
+  16.6 s with no change.
+- The toy of four packages gives the right answers after a constant, a macro
+  and a method body change, and `Pkg.precompile` and a load of one package
+  alone compile nothing more.
+- The answers: the platform suite on the depot with the chain of 4 patches,
+  and on a whole compile of the same sources in a new depot, gives the same
+  result: 174794 pass, 3 fail, 7 broken. The 3 failures are the same tests
+  in both, and they are checks of the source: `CheckLayering.jl:889` and
+  `InterfaceApiTest.jl:46` and `:49`. The suite compiled no file in either
+  depot.
+
+**Faults found by the check, and fixed.**
+
+- `binding_module` throws for a name that two imports give (`DecFP`), so a
+  whole compile of that package failed. The record of the names skips that
+  name: it has no owner module and no stamp.
+- The 126 new names of a patch, above.
+- The counter of generated names, above.
+- A refused patch left an empty folder.
+- The first suite run of the patched build had 1 error that the whole
+  compile did not have: `TextInsertion(::String)` had no method. The macro
+  patch deleted the 9 methods that the expansion of `@domain` in the
+  platform makes. So it deleted 80 methods, not 71. The reactive compiler
+  gives an entry the methods at its
+  lines, and a method that a macro expansion makes carries the lines of the
+  macro body. So the definition of the macro owned the products of all its
+  expansions. The expansion made the same methods again, and the method
+  filter kept the old ones, so the new definition did not have them and the
+  apply deleted them. Now a macro owns only the methods whose signature
+  names the macro: its own method and the functions of its body. The fault
+  is in the reactive compiler, so the executable had it too. The toy now has
+  a macro of PA that defines a method of PA, and the macro change keeps the
+  product the same; without the fix the toy fails with the same error.
+
+**Open for the next steps.**
+
+- A changed macro that many packages use compiles them whole, and all the
+  packages above them: 68 packages for `@domain`, 277 s against 424 s for
+  all. A patch of a reader whose sources did not change could expand its
+  macro calls again. This is not in this plan.
+- A changed constant of a file makes Julia take the full check of the
+  bindings at each later load of a file. The load time did not change by a
+  measurable amount (17.5 s against 17.1 s).
+- A method that a macro call makes belongs to no entry. So when a macro call
+  is removed, its methods stay until a whole compile.
+- Revise reads the source text of the old file (step 4).
 
 ## Not in this plan
 
