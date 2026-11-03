@@ -29,7 +29,7 @@ WidgetChoice(label::AbstractString; value = label, icon = nothing, note = nothin
 """
     WidgetChoiceList(; query = "", row = 1, top = 1, shown_rows = 12, current = nothing,
                      prompt = "Find", placeholder = "type a name", empty = "Nothing matches",
-                     find, choose, edit = nothing)
+                     footer = nothing, find, choose, edit = nothing)
 
 A list that a person types into: a line of the typed text over the choices that
 the text narrows to.
@@ -41,6 +41,9 @@ the text narrows to.
 - `current` is the value of the choice that holds now, which shows a check.
 - `prompt` names what the list finds, before the typed text; `placeholder` stands
   after it while nothing is typed; `empty` is the row of a list with no choice.
+- `footer` is a line under the rows, such as that the choices are still read:
+  `nothing`, a string, or a function of no arguments that answers either, which
+  the view reads as it draws, so the line follows what the function reads.
 - `find(query)` gives the choices in their order, an `AbstractVector` of
   [`WidgetChoice`](@ref); a vector that makes each choice when it is read costs
   only the rows that show.
@@ -65,6 +68,7 @@ See also `make_choice_list_operation`, which opens one in the context menu windo
     prompt::String = "Find"
     placeholder::String = "type a name"
     empty::String = "Nothing matches"
+    footer::Any = nothing
     find::Any = query -> WidgetChoice[]
     choose::Any = value -> nothing
     edit::Any = nothing
@@ -138,10 +142,12 @@ function _make_choice_widgets(list::WidgetChoiceList)
     line = WidgetLabel(list.prompt * ": " * (isempty(query) ? list.placeholder : query))
     choices = list.find(query)
     count = length(choices)
-    count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)])]
+    footer = list.footer isa Function ? list.footer() : list.footer
+    under = footer === nothing ? Any[] : Any[WidgetLabel(String(footer))]
+    count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)]), under...]
     top = _clamp_choice_top(list, count, list.top)
     rows = make_index_list(count, top, index -> _make_choice_item(list, index, choices[index]))
-    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1)))]
+    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1))), under...]
 end
 
 # The first row that shows, so that the rows that show are in the list.

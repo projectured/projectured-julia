@@ -406,6 +406,7 @@ include("../../../test/platform/filesystem/projection/FileSystemToWidgetTest.jl"
 include("../../../test/platform/filesystem/document/FileSystemDocumentTest.jl")
 include("../../../test/platform/filesystem/document/WorkspaceDuplicateTest.jl")
 include("../../../test/platform/filesystem/projection/WorkspaceToFileSystemTest.jl")
+include("../../../test/platform/filesystem/document/WorkspaceFileListTest.jl")
 
 include("../../../test/platform/filesystem/FileSystemSuite.jl")
 end # module FileSystemTests

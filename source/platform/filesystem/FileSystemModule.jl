@@ -71,10 +71,15 @@ export FileSystemDirectoryToWidget
 export FileSystemFileToWidget
 export WorkspaceDocument, Workspace, WorkspaceFolder, WorkspaceExplorer
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
+export GitIgnoreRule, read_gitignore_rules, is_gitignored
+export WORKSPACE_FILE_LIMIT, WorkspaceFiles, WorkspaceFileList, get_session_workspace_file_list,
+       read_workspace_files_again!, make_workspace_file_search
 
 
 include("FileSystemDocument.jl")
 include("Workspace.jl")
+include("GitIgnore.jl")
+include("WorkspaceFileList.jl")
 include("WorkspaceToFileSystem.jl")
 include("FileSystemTheme.jl")
 include("FileSystemToSyntax.jl")
