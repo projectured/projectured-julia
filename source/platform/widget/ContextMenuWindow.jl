@@ -287,6 +287,7 @@ function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWin
                                    width = maximum_size[1], height = maximum_size[2],
                                    maximum_size, style = :popup,
                                    auto_dismiss = true,
+                                   placement = _make_menu_placement(state, menu),
                                    content = _make_context_menu_content(menu.layers, 1))
     CompoundOperation(Any[_write_menu_state(state, "layers", menu.layers),
                           _write_menu_state(state, "shown", 1),
@@ -294,6 +295,31 @@ function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWin
                                             strip_reference_types(menu.source)),
                           _write_menu_state(state, "window", window),
                           window])
+end
+
+# The placement of the window of `menu`: its placement function applied to the
+# reference of the part from the screen, or `nothing`. The source of the menu is a
+# path from the state, through the wrappers between the state and the screen.
+function _make_menu_placement(state::ContextMenuWindowState, menu::OpenContextMenuOperation)
+    menu.placement === nothing && return nothing
+    part = _find_screen_part(state, menu.source)
+    part === nothing ? nothing : menu.placement(part)
+end
+
+# The reference of the part at `source`, a path from `state`, from the screen that
+# the state wraps, or `nothing` when the path does not pass the screen.
+function _find_screen_part(state::ContextMenuWindowState, source)
+    source isa Reference || return nothing
+    screen = get_wrapped_document(state)
+    steps = get_reference_steps(strip_reference_types(source))
+    document = state
+    for index in 1:(length(steps) + 1)
+        document === screen && return extend_reference(EmptyReference(), steps[index:end]...)
+        index > length(steps) && break
+        document = try_evaluate_reference(document, extend_reference(EmptyReference(), steps[index]), nothing)
+        document === nothing && break
+    end
+    nothing
 end
 
 # The window is gone, so the state forgets what it showed.

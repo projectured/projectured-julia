@@ -2,7 +2,7 @@
 # that carries the menu up, and the binding that answers the click.
 
 """
-    OpenContextMenuOperation(layers, source, point)
+    OpenContextMenuOperation(layers, source, point, placement = nothing)
 
 Open the menus of the parts under the pointer.
 
@@ -14,7 +14,11 @@ Open the menus of the parts under the pointer.
   holds the operation. It is rerooted and retargeted on the way up, as a path is;
 - `point` — where the click was, in the frame of the reader that holds the
   operation, or `nothing` when a command runs the binding with no pointer. The
-  window of the pointer moves it into the screen.
+  window of the pointer moves it into the screen;
+- `placement` — `nothing`, or a function that takes the reference of the part
+  from the screen and answers the placement of the window
+  (`WindowDocument`), such as `make_shell_top_placement`. With `nothing` the
+  window stands at the point, else below the part.
 
 It collects (`is_collecting_operation`): each document around the part that
 answered reads the click too, and its menu is added after the nearer ones. A
@@ -27,7 +31,10 @@ struct OpenContextMenuOperation <: Operation
     layers::Vector{Tuple{String,Document,Int}}
     source::Reference
     point::Union{Nothing,Tuple{Int,Int}}
+    placement::Any
 end
+
+OpenContextMenuOperation(layers, source, point) = OpenContextMenuOperation(layers, source, point, nothing)
 
 is_collecting_operation(::OpenContextMenuOperation) = true
 
@@ -40,7 +47,8 @@ function join_collected_operations(inner::OpenContextMenuOperation, outer::OpenC
     layers = Tuple{String,Document,Int}[(title, menu, more === nothing ? 0 : below + more)
                                         for (title, menu, below) in outer.layers]
     OpenContextMenuOperation(vcat(inner.layers, layers), inner.source,
-                             inner.point === nothing ? outer.point : inner.point)
+                             inner.point === nothing ? outer.point : inner.point,
+                             inner.placement === nothing ? outer.placement : inner.placement)
 end
 
 # How many steps of `path` come after `prefix`, or `nothing` when `path` does not
@@ -57,7 +65,7 @@ end
 operation_reference(operation::OpenContextMenuOperation) = operation.source
 
 retarget_operation(operation::OpenContextMenuOperation, reference) =
-    OpenContextMenuOperation(operation.layers, reference, operation.point)
+    OpenContextMenuOperation(operation.layers, reference, operation.point, operation.placement)
 
 function map_operation_position(operation::OpenContextMenuOperation, move)
     operation.point === nothing && return operation

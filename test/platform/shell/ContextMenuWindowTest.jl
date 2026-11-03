@@ -65,6 +65,14 @@ function _cm_drawn_window(editor, scene, id::Symbol)
     _cm_force(windows[index].content)
 end
 
+# The output window `id`, as the editor printed it, with the place that a
+# placement computes.
+function _cm_output_window(editor, scene, id::Symbol)
+    windows = _cm_force(_cm_force(get_iomap_output(editor.iomap)).windows)
+    index = findfirst(window -> window.id === id, collect(scene.windows))
+    _cm_force(windows[index])
+end
+
 # Where `text` is drawn in `node`, in the frame of `node`, or `nothing`.
 function _cm_place_of(node, text, ox = 0, oy = 0)
     node = _cm_force(node)
@@ -259,6 +267,45 @@ end
     # With no point, the window stands below the wrapper, with the left edges
     # aligned and a gap of 2 pixels.
     @test (window.x, window.y) == (100, 100 + height + 2)
+end
+
+@testset "a list with the top placement opens at the top center of its part, and keeps its width" begin
+    button = WidgetButton("Run"; size = Point2D(300, 24))
+    twin = WidgetButton("Run"; size = Point2D(300, 24))
+    alone = print_document(make_widget_projection_example(measure = _cm_measure()), twin)
+    width = Int(unwrap_cell(get_iomap_output(alone)).w[])
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[button]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    @test evaluate_reference(editor.document, place) === button
+    names = ["alpha", "beta", "gamma"]
+    list = WidgetChoiceList(; find = query -> WidgetChoice[WidgetChoice(name) for name in names
+                                                           if occursin(query, name)],
+                            choose = value -> nothing)
+    placement = part -> make_part_top_placement(part; width_share = 0.5, minimum_width = 100,
+                                                maximum_height = 200, gap = 8)
+    operation = read_rooted_operation(editor, place, make_choice_list_operation("Find", list; placement))
+    @test operation !== nothing
+    evaluate_operation(editor, operation)
+    run_frame!(editor)
+    window = _cm_output_window(editor, scene, :widget_popup)
+    @test is_window_placed(window)
+    # The button is at the top left of the window at (100, 100): the list is half
+    # as wide as it, in its middle, 8 below its top edge.
+    listed = max(100, round(Int, width * 0.5))
+    @test window.minimum_size == (listed, 0)
+    @test window.maximum_size == (listed, 200)
+    @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
+    # A typed letter narrows the list, and the width stays.
+    _cm_send!(editor, backend, KeyPress('a'; time = 1.0))
+    @test list.query == "a"
+    window = _cm_output_window(editor, scene, :widget_popup)
+    @test window.maximum_size == (listed, 200)
+    @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
 end
 
 @testset "the first key of an insertion opens its kinds under it, the next keys type into them, and Return makes one" begin

@@ -88,15 +88,17 @@ function _cut_choice_note(text::AbstractString)
 end
 
 """
-    make_choice_list_operation(title, list; point = nothing) -> Operation
+    make_choice_list_operation(title, list; point = nothing, placement = nothing) -> Operation
 
 The answer that opens `list`, a [`WidgetChoiceList`](@ref), in the context menu
 window, at `point` or under the part that answers it, named `title` when F2 shows
-more than one menu.
+more than one menu. `placement` is a function of the reference of that part
+which answers the placement of the window, such as `make_shell_top_placement`.
 """
-make_choice_list_operation(title::AbstractString, list::WidgetChoiceList; point = nothing) =
+make_choice_list_operation(title::AbstractString, list::WidgetChoiceList; point = nothing,
+                           placement = nothing) =
     ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[(String(title), list, 0)],
-                                                       EmptyReference(), point))
+                                                       EmptyReference(), point, placement))
 
 """
     WidgetChoiceListToWidget(; gap)

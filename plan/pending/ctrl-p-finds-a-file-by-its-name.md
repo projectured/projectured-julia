@@ -159,6 +159,18 @@ opens as now: at the point, else below the part, and the backend keeps it on the
 display. `make_choice_list_operation(title, list; point, placement)` passes it
 on. A right click opens exactly where it opens now.
 
+*Changed in step 2 (2026-11-03).* The opener of a list does not know where its
+part is on the screen, and the palette wrapper stands outside the window frame,
+so the box of its part is the whole window. So `placement` of the operation is a
+function of the reference of the part from the screen, and it answers the
+placement function. The context menu window finds where the screen starts on the
+path of the source (`_find_screen_part`) and binds the part.
+`make_shell_top_placement(reference)`, in the widget slice, places at the top
+center of what the `WidgetShell` of the window of the part holds, so a list
+stands below the toolbar. It searches the window a few levels deep for the
+shell. It is in the widget slice, because the screen slice can not name
+`WidgetShell`.
+
 **D4. The rows of a `WidgetChoiceList` are a lazy list.** `find(query)` answers
 the choices in rank order as an `AbstractVector`. The view makes its rows with
 `make_index_list`, so it builds a row only when it draws it, as the tree and the
@@ -244,9 +256,9 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
    input; a placement that answers `nothing` leaves the place; a window that
    gains a placement is a new window; a file keeps no placement.
    `test_window_fit()` passes (15).
-2. **The context menu window (D3).** Test: `test_context_menu_window()` passes
-   with no change, and a choice list with the top placement opens at the top
-   center and keeps its width while the query changes.
+2. ✅ **The context menu window (D3).** `test_context_menu_window()` passes (69),
+   with the new case: a list with the top placement opens at the top center of
+   its part, and keeps its width while the query changes.
 3. **The lazy rows (D4).** Tests: a list of 10,000 choices builds only the rows
    that it shows; Down past the last shown row scrolls; the wheel scrolls. The
    navigator suite passes.
