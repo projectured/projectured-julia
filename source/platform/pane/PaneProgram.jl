@@ -253,21 +253,37 @@ end
 # ── Opening a pane ──────────────────────────────────────────────────────────
 
 """
+    avoids_new_panes(document) -> Bool
+
+Whether a new pane must not open in a group that holds a tab of `document`, such
+as a conversation. `false` by default; a slice adds a method for its document.
+"""
+avoids_new_panes(document) = false
+
+"""
     pane_group_to_avoid(tree) -> PaneGroup or nothing
 
-The group [`open_pane!`](@ref) should not open in. `nothing` by default.
+The group [`open_pane!`](@ref) should not open in: the first group that holds a
+tab whose content answers `true` to [`avoids_new_panes`](@ref), or `nothing`.
 
 **An answer must not cover the question.** A window whose conversation sits in a
 group of its own wants a new pane anywhere else, or the thing the person asked
-for replaces the asking. Which group that is belongs to the application, so the
-application writes the method — this package holds no idea of a conversation.
+for replaces the asking. This package holds no idea of a conversation, so the
+document says it with `avoids_new_panes`, and an application with another rule
+writes a method of this function.
 
 **The default takes an untyped argument on purpose.** An application writes
 `pane_group_to_avoid(tree::PaneTree)`, and a default of that same signature would
 be overwritten rather than added to — which Julia refuses outright while it
 precompiles.
 """
-pane_group_to_avoid(tree) = nothing
+function pane_group_to_avoid(tree)
+    tree isa PaneTree || return nothing
+    for group in get_pane_groups(tree)
+        any(tab -> avoids_new_panes(tab.content), group.tabs) && return group
+    end
+    nothing
+end
 
 """
     open_pane!(document; title = nothing, target = nothing, side = nothing, group = nothing,

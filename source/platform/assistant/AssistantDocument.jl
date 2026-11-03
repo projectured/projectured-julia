@@ -417,6 +417,9 @@ accepts_pasted_document(::Assistant) = false
 # A file opens beside the conversation, never over it.
 accepts_opened_file(::Assistant) = false
 
+# A new pane does not cover a conversation: the answer must not hide the question.
+avoids_new_panes(::Assistant) = true
+
 # A person who types "assistant" in a tab gets a new assistant, with the lowest
 # number that no assistant of the window of the evaluation has.
 make_insertion_document(::Type{Assistant}) = Assistant(; number = _compute_assistant_number(find_evaluation_editor()))

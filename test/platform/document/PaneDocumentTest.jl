@@ -20,6 +20,14 @@ ProjecturedPlatform.DomainModule.release_document!(editor, probe::_PaneAcquirePr
 struct _PaneSideProbe <: Document end
 ProjecturedPlatform.DomainModule.accepts_opened_file(::_PaneSideProbe) = false
 
+# A conversation: a new pane does not cover it.
+struct _PaneConversationProbe <: Document end
+ProjecturedPlatform.DomainModule.accepts_opened_file(::_PaneConversationProbe) = false
+ProjecturedPlatform.PaneModule.avoids_new_panes(::_PaneConversationProbe) = true
+
+# A file, which a tab shows.
+struct _PaneFileProbe <: FileDocument end
+
 function test_pane_surgery()
 @testset "PaneTree surgery" begin
 
@@ -154,6 +162,27 @@ end
     # With no group of documents, the focused group.
     only_side = PaneTree(PaneGroup(PaneTab[PaneTab("plan", _PaneSideProbe())]))
     @test ProjecturedPlatform.PaneModule._find_placement_group(only_side) === only_side.root
+end
+
+@testset "a pane that no caller placed does not cover a conversation, also with the focus in it" begin
+    side = PaneGroup(PaneTab[PaneTab("Explorer", _PaneSideProbe())])
+    conversation = PaneGroup(PaneTab[PaneTab("Assistant", _PaneConversationProbe())])
+    tree = PaneTree(PaneSplit(:vertical, Any[side, conversation]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, conversation, 1))
+    @test pane_group_to_avoid(tree) === conversation
+    @test ProjecturedPlatform.PaneModule._find_placement_group(tree) === side
+end
+
+@testset "a file opens in the focused group of the groups that hold a file" begin
+    left = PaneGroup(PaneTab[PaneTab("a", _PaneFileProbe())])
+    right = PaneGroup(PaneTab[PaneTab("b", _PaneFileProbe())])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, right, 1))
+    @test get_pane_file_group(; editor) === right
+    _apply!(editor, make_pane_focus_operation(tree, left, 1))
+    @test get_pane_file_group(; editor) === left
 end
 
 @testset "duplicate a tab" begin
