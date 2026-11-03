@@ -506,6 +506,12 @@ function test_explorer()
         @test content.entries[2] === get_session_open_file_list(; editor)
         @test content.entries[3] === get_session_task_group_list(; editor)
         @test content.entries[4] === get_session_assistant_list(; editor)
+        # The evaluator has an empty form with the caret, and the dashboard has no card.
+        evaluator = only(content.entries[5 + kinds].entries)
+        @test evaluator isa EvaluatorToplevel && length(evaluator.elements) == 1
+        @test ConversationModule._find_selected_form_index(evaluator) == 1
+        dashboard = only(content.entries[6 + kinds].entries)
+        @test dashboard isa Dashboard && isempty(dashboard.cards)
         editor_section = content.entries[7 + kinds]
         @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
         @test length(content.entries[9 + kinds].entries) == 3
@@ -727,7 +733,9 @@ function test_explorer()
             @test loaded.entries[2] === get_session_open_file_list(; editor = next_editor)
             @test loaded.entries[3] === get_session_task_group_list(; editor = next_editor)
             @test loaded.entries[4] === get_session_assistant_list(; editor = next_editor)
-            @test only(loaded.entries[6 + kinds].entries).title == "Queue study"
+            @test length(only(loaded.entries[5 + kinds].entries).elements) == 1
+            dashboards = loaded.entries[6 + kinds].entries
+            @test [entry.title for entry in dashboards] == ["Dashboard", "Queue study"] && dashboards[1] isa Dashboard
             tools = loaded.entries[7 + kinds].entries
             @test tools[1] === get_session_message_log(; editor = next_editor)
             @test tools[3] === get_session_fault_log(; editor = next_editor)
@@ -960,6 +968,24 @@ function test_explorer()
         _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
         _nav_press!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
         @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+    end
+
+    @testset "a document pasted at the caret on the page of a dashboard is a new card" begin
+        dashboard = Dashboard("Study")
+        explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+        editor, backend = _nav_editor(explorer; clipboard = true)
+        _nav_press!(editor, backend, _explorer_click(backend, "Study"))
+        @test _nav_has_text(backend, "Insert or Ctrl+V on this page adds one.")
+        # A press on the title of the page, below the bar of the navigator, puts the caret there.
+        back_x = only(entry[2] for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
+        titles = [entry for entry in _nav_texts(backend) if entry[1] == "Study" && entry[2] > back_x]
+        (_, x, y) = titles[argmax([entry[3] for entry in titles])]
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+        @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+        editor.document.slice = Dashboard("Copied")
+        _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        @test dashboard.title == "Study" && length(dashboard.cards) == 1
+        @test dashboard.cards[1].title == "Copied" && dashboard.cards[1].content === editor.document.slice
     end
 
     @testset "the task list says where its groups and tasks are, so the explorer finds them" begin

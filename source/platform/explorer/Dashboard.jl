@@ -42,7 +42,7 @@ end
 
 A page of cards, each a [`DashboardCard`](@ref), in columns that follow the width
 of the page: each card fills its cell, and its content gives its height. A person
-adds a card with Insert on the page, and an assistant with an insert into `cards`,
+adds a card with Insert or a paste on the page, and an assistant with an insert into `cards`,
 which an undo takes back. The cards are the children of its node in an explorer.
 
 Use it to keep the documents that a study needs on one page: a chart, a list of
@@ -81,3 +81,12 @@ is_explorer_entry_type(::Type{Dashboard}) = true
                                        length(doc.cards) + 1, Any[DashboardCard("New card", DocumentInsertion(""))];
                                        root = doc)
 end
+
+# A document that is pasted while the caret is on the page of a dashboard, such as
+# in its title, is a new card at the end, with the title of the document.
+make_pasted_document_operation(dashboard::Dashboard, path, value) =
+    value isa Document ?
+        make_insert_elements_operation(extend_reference(EmptyReference(), FieldReferenceStep("cards")),
+                                       length(dashboard.cards) + 1,
+                                       Any[DashboardCard(format_tree_node_label(value), value)]; root = dashboard) :
+        nothing

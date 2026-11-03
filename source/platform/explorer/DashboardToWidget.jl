@@ -71,7 +71,7 @@ _count_card_columns(p::DashboardToWidget, width) =
 function _build_card_grid(p::DashboardToWidget, dashboard::Dashboard, columns::Int, root,
                           has_width::Bool, has_height::Bool)
     cards = dashboard.cards
-    isempty(cards) && return WidgetLabel("This dashboard has no card. Insert on this page adds one.")
+    isempty(cards) && return WidgetLabel("This dashboard has no card. Insert or Ctrl+V on this page adds one.")
     count = min(columns, length(cards))
     widgets = Any[]
     for k in 1:length(cards)

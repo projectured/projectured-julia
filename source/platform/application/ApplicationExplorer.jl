@@ -10,7 +10,8 @@ host gives, such as the folder of the window or the projects of a simulator; the
 open files, the task list and the assistant list of the editor; the session
 document of each kind for which `is_session_explorer_entry_type` answers `true`,
 in the order of the names of their types; a section of evaluators with one
-evaluator; an empty section of dashboards; a section of what the editor does now,
+evaluator, which has an empty form to type into; a section of dashboards with one
+empty dashboard; a section of what the editor does now,
 with its logs, its statistics, the selection and the processes of the system; a
 section of the settings; and a section of the help. `mcp_log` adds the log of the
 calls of a client to the section of the editor, for a window that serves MCP.
@@ -44,8 +45,8 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
     ExplorerSection("Explorer", Any[
         entries...,
         (list for list in lists if !any(entry -> entry === list, entries))...,
-        ExplorerSection("Evaluators", Any[EvaluatorToplevel()]),
-        ExplorerSection("Dashboards"),
+        ExplorerSection("Evaluators", Any[make_insertion_document(EvaluatorToplevel)]),
+        ExplorerSection("Dashboards", Any[Dashboard("Dashboard")]),
         ExplorerSection("Editor", Any[logs...,
                                       get_session_frame_statistics(; editor), get_session_frame_time_series(; editor),
                                       get_session_background_work_log(; editor),
