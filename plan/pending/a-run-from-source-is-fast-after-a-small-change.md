@@ -94,10 +94,14 @@ Each step has a check. If a check fails, stop and report.
       2 wins little: stop and report. **Done 2026-11-03: every package above
       stays the same in all ten commits.** The method and the results are in
       "Step 1: the measurement" below.
-- [ ] 2. **Rebuild the changed package from its old file** (rule 1). Check:
+- [x] 2. **Rebuild the changed package from its old file** (rule 1). Check:
       after a change of one method body in the platform package, its new
       file is written in at most 15 s, and a new process that loads it gives
       the same answers as one that loads a file compiled from nothing.
+      **Done 2026-11-03: the patch of the platform is written in 2.7 s, and
+      the platform suite gives the same results as after a whole compile.**
+      The design as built and the results are in "Step 2: the patch of a
+      package file" below.
 - [ ] 3. **Keep the files above** (rules 2 and 3). Check: after the change
       of step 2, a new process loads all 114 packages of projectured-julia
       and compiles no other package. Three changes in the platform: a method
@@ -168,6 +172,83 @@ five, and none of them makes a file out of date:
 - `EDITOR_SYSTEM` of `ProjecturedAll` and `ProjecturedREPL` is a `using` of the
   platform name. The kept file refers to the platform binding, so it reads the
   new value. Step 3 must keep this true.
+
+## Step 2: the patch of a package file
+
+Built in the Julia fork, branch `fast-source-run` (worktree
+`workspace/julia-fast-source-run`, from `merged-next` 9f976ebb6d), commits
+6a74737a2f, 1c0d097366 and 56d740f7b9.
+
+**The design as built.**
+
+- The new file of a changed package is a **patch**: two small files beside
+  the old file, `<file>.patch.ji` and `<file>.patch.so`. The old file stays
+  as it is.
+- `Base.compilecache` makes the patch when the sources of a package changed
+  and a file of it is fresh in all else. The patch build is a precompile
+  process: it loads the old file, applies the changes of the sources since
+  that file with the apply of the reactive compiler (`rc_apply_tracked`),
+  compiles again the code that the changes closed, and writes only that.
+- The loader loads the patch right after the old file. So the package keeps
+  the build id of its old file, and a file of a package above still loads.
+  Julia's check of the edges at the load of that file drops the code that
+  called a replaced method, and Julia compiles it again at its first call.
+- The patch is a module of its own (`<name>#patch`). A file that Julia
+  compiles while a patch is loaded names this module, so a new patch makes
+  that file out of date. A file compiled before the patch does not name it.
+- Every patch is made from the old file, as every overlay of the executable
+  is made from its founding. Patches do not stack.
+- The patch carries what no file can carry: the new bindings of the package
+  (the type of a changed closure), the deleted methods and the changed
+  docstrings. The loader installs them.
+- The patch build takes three kinds of change: a new, a changed and a
+  removed method (A1, A2, A3 of the change catalog). It refuses all others,
+  and a changed `__init__`; the package then compiles whole, as today.
+  Reason: until step 3 records the top-level reads, a file above must not
+  keep a value that a changed macro, constant or type made old.
+- `JULIA_REACTIVE_PACKAGE_PATCH=0` turns the patch off.
+- The runtime opens the modules of the patched package to the patch build:
+  the checks of an eval and of a new global in a closed module, of a method
+  overwrite and of a method delete, and the writer keeps the new methods of
+  a module of an older file.
+
+**Rejected: the overlay of the executable for a package file.** The
+overlay code is tied to the system image: 848 lines of `staticdata.c` name
+it. Julia already loads a later file that adds methods to the functions of
+an earlier package, and replaces a method with the same signature as a
+redefinition does.
+
+**The results.**
+
+- A toy pair of packages, B calls A: a changed body, a changed closure and a
+  removed method of A each write a patch in under a second. The answers are
+  right, and B keeps its file. A changed constant compiles A and B whole.
+- The platform of projectured, a change of the body of `_child_w`
+  (`source/platform/layout/LayoutToGraphics.jl`): `compilecache` of the
+  platform takes **2.67 s**, against 102 s for its whole compile. The patch
+  process loads the old file in 1.06 s, applies the change in 0.8 s, and
+  compiles 21 of the 23 closed functions again in 0.1 s. The patch is 52 KB
+  of header and 130 KB of native code. In a new process the method has the
+  new body, and its object comes from the patch.
+- The answers: `test_platform()` on the patched build and on a whole compile
+  of the same sources in another depot give the same result: 174,794 passes,
+  3 failures and 7 broken. The outputs differ only in temporary folder names
+  and times. The patched run compiled no package again; it took 1,345 s and
+  10.6 GB, the whole compile 1,439 s and 11.8 GB.
+- The 3 failures are on `main` 408c71359 in both builds: the layering rule
+  about a `using` with a name list (`FileChangeModule.jl`), an interface count
+  of 33 against 32, and a docstring of `WidgetLink` without "Use it to".
+
+**Open for the next steps.**
+
+- `Pkg.precompile` compiles the packages above again when a dependency
+  compiled in the same run, even when its build id stayed. Step 3 must change
+  that, or rule 2 holds only for `using`.
+- A method below an edit keeps its old line number in a stack trace.
+- Revise reads the source text of the old file, so in a session it applies
+  the changes since the old file again (step 4).
+- Each rebuild of the system image of the fork makes every package file out
+  of date, as in any Julia.
 
 ## Not in this plan
 
