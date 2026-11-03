@@ -125,6 +125,12 @@ make_pred_document(::Type{<:Explorer}, positional, keywords) = Explorer(first(po
 get_document_title(::Explorer) = "Explorer"
 get_document_decoration(::Explorer) = DocumentDecoration(; icon = :folder_tree)
 
+# The explorer keeps the place on the page while the keys are in the tree, and the
+# place in the tree while the keys are on the page, as a split pane keeps the side
+# that had the focus. So each page keeps where the keys were, and a double press
+# puts them back there.
+has_dormant_selection(::Explorer) = true
+
 # An explorer holds its tree and its navigator, so the open nodes of the tree and
 # the page of the navigator start what they need, such as the read of a folder,
 # while the explorer is shown.

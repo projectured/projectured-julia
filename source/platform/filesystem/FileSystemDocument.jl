@@ -17,8 +17,10 @@ end
 
 A file on the disk, as the read of its folder found it. `document` is the page of
 the file that its page shows, or `nothing` while no holder acquired it: the
-acquire takes the page that the editor holds open for the same path, or reads the
-file, so a file is one document in an editor, also when a tab shows it.
+acquire takes the page that the editor holds open for the same path, else the page
+that the file kept, else it reads the file, so a file is one document in an
+editor, also when a tab shows it. A release keeps a page with an unsaved edit, and
+a page that keeps a dormant selection, so the keys go back to where they were on it.
 """
 @document struct FileSystemFile <: FileSystemDocument
     pathname::String
@@ -30,27 +32,35 @@ pred_arguments(file::FileSystemFile) = (file.pathname,), Pair{Symbol,Any}[]
 make_pred_document(::Type{<:FileSystemFile}, positional, keywords) = FileSystemFile(only(positional))
 
 # The acquire of a file gives it its document: the page that the editor holds open
-# for its path, or a page read from the disk, as the open of a file reads it. It
-# runs in the evaluation of the operation that acquires, where a read of the disk
-# is in its place. The file then holds the page, so the page watches the file.
+# for its path, else the page that the file kept, else a page read from the disk,
+# as the open of a file reads it. It runs in the evaluation of the operation that
+# acquires, where a read of the disk is in its place. The file then holds the page,
+# so the page watches the file.
 function acquire_document!(editor, file::FileSystemFile)
-    if file.document === nothing
-        open = find_open_file_document(file.pathname; editor)
-        file.document = open !== nothing ? open : _read_file_page(editor, file.pathname)
+    open = find_open_file_document(file.pathname; editor)
+    if open !== nothing
+        file.document = open
+    elseif file.document === nothing
+        file.document = _read_file_page(editor, file.pathname)
     end
     hold_documents!(editor, file, Any[file.document])
 end
 
-# The release lets the page go, and the file forgets a page with no unsaved edit,
-# so the next acquire takes the page that is open then.
+# The release lets the page go. The file keeps a page with an unsaved edit or a
+# conflict, and a page that keeps a dormant selection, which is where the keys were
+# on it, and forgets any other page.
 function release_document!(editor, file::FileSystemFile)
     document = file.document
     document === nothing && return nothing
     release_held_documents!(editor, file, Any[document])
-    any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions) ||
-        (file.document = nothing)
+    (_has_page_edits(document) || _has_dormant_place(document)) || (file.document = nothing)
     nothing
 end
+
+_has_page_edits(document) =
+    any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions)
+
+_has_dormant_place(document) = get_stored_selection(document) !== nothing && !is_live_selection(document)
 
 # The page of the file at `path`, with the history of the settings of `editor`.
 function _read_file_page(editor, path::AbstractString)

@@ -44,10 +44,12 @@ The reader of the view reads the answers of the tree and of the tree of the matc
 | --- | --- |
 | press | the selection stays in the tree, and the navigator visits the page of the document of the row |
 | Ctrl+press | the page opens in a new tab, as a navigator rooted at the section |
-| double press, Return | the keyboard goes into the page |
+| double press, Return | the keyboard goes into the page, where it was the last time on that page, or on the whole page |
 | right press | the menu of the row |
 
 The tree marks the row of the page of the navigator (`DocumentTree.current`), also after a link on a page moves the navigator.
+
+The explorer keeps a dormant selection (`has_dormant_selection`, [selection.md](../../kernel/selection.md)): while the keys are in the tree, each page keeps the place where they were on it, and while they are on a page, the tree keeps its row. The tree and the navigator show the same documents, so the selection of a row trims the selection of its page to the whole page, and the documents below the page keep the rest. A double press or Return links that rest back: it selects the page, the field of the page whose document keeps a selection, and that selection, when it still fits the page; else it selects the whole page. For a JSON file that is the `FileSystemFile` of the row, `.document`, and the place in the JSON. A new evaluator keeps its caret in its form, so a double press on its row puts the keys there at once.
 
 A visit of the navigator to a page below the root section, such as a link on a page or a match of a search, opens the nodes above that page in the tree (`make_tree_reveal_operation`, [tree.md](../tree/tree.md)).
 
@@ -191,7 +193,7 @@ explorer/ExplorerModule.jl        (ExplorerModule): the module, its exports and 
 `test_explorer()` in `ProjecturedPlatformTest`, in `test/platform/explorer/ExplorerTest.jl`:
 
 - a section is a node and lists its first children, and says where it holds a document;
-- a press shows a page, Ctrl+press opens a tab, a double press puts the keyboard in the page;
+- a press shows a page, Ctrl+press opens a tab, a double press puts the keyboard in the page, where it was;
 - the folders of a workspace are nodes, and a file is one document for its page, its tab and the open files;
 - the page of the open files is a table of the files, which a filter and Show all keep, and a press on the name of a file opens its page;
 - the kinds of `+`, a folder with no place, Insert, Delete, the moves, F2, the menu of a row and the command of the pane;

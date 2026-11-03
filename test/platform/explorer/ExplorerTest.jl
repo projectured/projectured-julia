@@ -3,7 +3,7 @@
 # each editor has one root section; a press on a node shows its page beside the
 # tree and keeps the keys in the tree, a drag of the divider between the tree and
 # the page moves it, Ctrl+press opens the page in a new tab, a
-# double press puts the keyboard in the page, a link on the page of a section
+# double press puts the keyboard in the page where it was, a link on the page of a section
 # opens the page of its entry, and the page and the tree follow the entries. The
 # page of the open files is a table of the files, whose names are links. The
 # editor is the one of `NavigatorToWidgetTest.jl`.
@@ -257,6 +257,72 @@ function test_explorer()
         @test get_navigator_page(navigator) === inner
         selection = getfield(explorer, :selection)[]
         @test selection isa ConcreteReference && get_reference_head(selection) == FieldReferenceStep("navigator")
+    end
+
+    @testset "a double press puts the keys back where they were on the page" begin
+        evaluator = make_insertion_document(EvaluatorToplevel)
+        explorer = Explorer(ExplorerSection("Explorer", Any[evaluator, ExplorerSection("Other", Any[])]))
+        editor, backend = _nav_editor(explorer)
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        function double!(text)
+            click = _explorer_click(backend, text)
+            _nav_press!(editor, backend, click, _doctree_double(click))
+        end
+        # A new evaluator keeps its caret in its form, so the keys go there at once.
+        double!("Evaluator")
+        @test selected() == ".navigator.content.entries[1].elements[1].form.value{0}"
+        _nav_press!(editor, backend, KeyPress('1'; time = 2.0))
+        @test evaluator.elements[1].form.value == "1"
+        # A press in the tree takes the keys, and the page keeps its caret.
+        _nav_press!(editor, backend, _explorer_click(backend, "Other"))
+        @test startswith(selected(), ".tree.")
+        double!("Evaluator")
+        @test selected() == ".navigator.content.entries[1].elements[1].form.value{1}"
+        # A page that keeps no place takes the keys as a whole.
+        double!("Other")
+        @test selected() == ".navigator.content.entries[2]"
+    end
+
+    @testset "a double press puts the keys back where they were in a file" begin
+        root = mktempdir()
+        write(joinpath(root, "a.json"), "{\"name\": \"abc\"}")
+        write(joinpath(root, "b.json"), "{\"name\": \"xyz\"}")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        editor, backend = _nav_editor(explorer; tabs = true)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        for label in ("Files", "work")
+            _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+            for _ in 1:50
+                frame!()
+                _nav_has_text(backend, label == "Files" ? "work" : "a.json") && break
+                sleep(0.02)
+            end
+        end
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
+        for _ in 1:50
+            frame!()
+            _nav_has_text(backend, "abc") && break
+            sleep(0.02)
+        end
+        # A press on the text of the file on the page puts the caret in it.
+        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+        @test !isempty(texts)
+        (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+        file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
+        place = file * ".document.content.content.content.entries[1].value.value{0}"
+        @test selected() == place
+        # The row of another file takes the keys, then a double press on the row of
+        # the file puts them back: the file, its document and the place in the JSON.
+        _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
+        frame!()
+        @test startswith(selected(), ".root.tabs[1].content.tree.")
+        click = _explorer_click(backend, "a.json")
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        frame!()
+        @test selected() == place
     end
 
     @testset "a link on the page of a section opens the page of its entry" begin

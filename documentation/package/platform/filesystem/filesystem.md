@@ -17,7 +17,7 @@ The file-system slice of `ProjecturedPlatform` shows folders and files of the di
 | `WorkspaceExplorer` | a `workspace` and `open`, the folders that this explorer shows open: what the Files tab shows |
 | `FileSystemChooser` | a `directory`, `open` and a `name`: the document of an open or save dialog |
 
-A `FileSystemFile` has a field `document`, the document that the editor holds open for the file. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict.
+A `FileSystemFile` has a field `document`, the document that the editor holds open for the file. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else the document that the file kept, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict, or keeps a dormant selection: the place where the keys were on it, which a double press in an explorer links back ([explorer.md](../explorer/explorer.md)).
 
 `make_filesystem_pathname(path)` makes a `FileSystemFile`, or a `FileSystemDirectory` that is unread. A print reads only what a folder holds, and never the disk.
 

@@ -7,8 +7,8 @@ document: a folder, the task list of the editor, a project, another section. An
 `Explorer` shows one root section as a tree, and beside the tree a navigator that
 shows the page of the node that a person presses. A press on a node shows its page
 beside the tree, Ctrl+press opens the page in a new tab, and a double press or
-Return puts the keyboard in the page. Each editor has one root section, which
-every explorer of its window shows.
+Return puts the keyboard in the page, where it was the last time on that page.
+Each editor has one root section, which every explorer of its window shows.
 """
 module ExplorerModule
 
@@ -50,6 +50,7 @@ import ..GestureHelpModule: collect_part_commands
 import ..NavigatorModule: find_navigator_address
 import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation, is_self_contained_operation
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..SelectionModule: has_dormant_selection
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item

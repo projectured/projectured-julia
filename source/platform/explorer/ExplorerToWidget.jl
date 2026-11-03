@@ -21,7 +21,8 @@ filter keeps rows out, the tree of the matches shows in the place of the tree.
 
 A press on a node selects it, and the navigator shows its page; the keys stay in
 the tree, so a person walks the nodes and reads each page. Ctrl+press opens the
-page in a new tab, and a double press or Return puts the keyboard in the page.
+page in a new tab, and a double press or Return puts the keyboard in the page,
+where it was the last time on that page, or on the whole page.
 `+` opens the menu of the kinds to add, as Insert does, and `▾` the menu of the
 kinds of the rows that the tree read, which the filter keeps. A key in the field
 of the filter edits the filter, Escape there empties it, and Return starts an
@@ -242,14 +243,51 @@ function _convert_explorer_answer(iomap::ExplorerToWidgetIoMap, operation, gestu
     if operation isa OpenPageOperation && operation.document === nothing
         steps = _find_shown_node_steps(explorer, operation.reference)
         steps === nothing && return nothing
-        visit = make_navigator_open_operation(navigator, _make_steps(steps...))
+        address = _make_steps(steps...)
+        place = _find_page_place(navigator, address)
+        visit = make_navigator_open_operation(navigator, address; selection = place)
         # The first press of a double press already shows the page, so the open
         # only puts the keyboard in it, as a visit does.
         visit === nothing && (visit = ReplaceSelectionOperation(
-            annotate_reference_types(navigator, _make_steps(FieldReferenceStep("content"), steps...))))
+            annotate_reference_types(navigator, concat_references(_make_steps(FieldReferenceStep("content")), place))))
         return reroot_operation(visit, (FieldReferenceStep("navigator"),))
     end
     nothing
+end
+
+# Where the keys go on the page at `address` in the content of `navigator`: back
+# where they were on it. The selection of the row of the page in the tree trims the
+# selection of the page to the whole page, and the documents below the page keep
+# the rest, so the place is the selection of the page, else the field of the page
+# whose document keeps a selection and that selection. The whole page when nothing
+# keeps one, or when an edit took that place away.
+function _find_page_place(navigator, address)
+    content = navigator.content
+    page = try_evaluate_reference(content, address, nothing)
+    page isa Document || return address
+    stored = get_stored_selection(page)
+    rest = stored isa ConcreteReference ? stored : _find_field_selection(page)
+    rest === nothing && return address
+    place = concat_references(strip_reference_types(address), strip_reference_types(rest))
+    is_valid_reference(content, place) ? place : address
+end
+
+# The selection that the document of a field of `page` keeps, after the step of
+# that field: a dormant one first, else one that the document was made with, such
+# as the caret in the form of a new evaluator. `nothing` when no field keeps one.
+function _find_field_selection(page::Document)
+    found = nothing
+    for name in fieldnames(typeof(page))
+        name === :selection && continue
+        child = unwrap_cell(getfield(page, name))
+        child isa Document || continue
+        stored = get_stored_selection(child)
+        stored isa ConcreteReference || continue
+        rest = concat_references(_make_steps(FieldReferenceStep(String(name))), stored)
+        is_live_selection(child) || return rest
+        found === nothing && (found = rest)
+    end
+    found
 end
 
 function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::ExplorerToWidgetIoMap)
