@@ -3298,6 +3298,14 @@ end
 # drawn width of an item is never read here, because it depends on this width: an
 # item whose IO map a host wraps beyond reach counts nothing, and it still draws
 # at least what it needs.
+# The least width of a row of a dropdown: its minimum width less its insets.
+function _menu_minimum_row_width(p, w::WidgetMenu)
+    minimum = w.minimum_width
+    minimum === nothing && return 0
+    inset_width, _ = _inset_total(p, w; variant = w.orientation)
+    max(0, minimum - inset_width)
+end
+
 function _menu_row_width(child_iomaps)
     width = 0
     for cim in child_iomaps
@@ -3379,7 +3387,8 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
                                      i -> (FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)))) :
             nothing)
     w.orientation === :horizontal ||
-        set_cell_computation!(row_width, () -> _menu_row_width(child_cells[]))
+        set_cell_computation!(row_width, () -> max(_menu_row_width(child_cells[]),
+                                                   _menu_minimum_row_width(p, w)))
     build = Cell(@computation begin
         variant = w.orientation
         content_x, content_y = _content_offset(p, w; variant)

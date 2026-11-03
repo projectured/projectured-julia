@@ -1,7 +1,7 @@
 # Ctrl+P finds a file by its name
 
 > **Status (2026-11-03):** in progress, on the branch `file-search`. The owner
-> answered Q1 to Q11 and approved the plan. Steps 1 to 9 are done. The second plan,
+> answered Q1 to Q11 and approved the plan. All ten steps are done. The second plan,
 > [every-popup-window-is-placed-by-a-function.md](every-popup-window-is-placed-by-a-function.md),
 > starts after this one.
 
@@ -341,10 +341,29 @@ that runs the frames by hand applies posts with `drain_operations!`.
    `WidgetChoiceList`. The naming guard passes. `test_platform_layering()` fails
    1 of 7 with the four errors that main has (filechange, roster twice, shell)
    and none of this plan.
-10. **A pixel check** with the offscreen SDL driver, as in
-    [maximize-a-pane.md](../done/maximize-a-pane.md): Ctrl+P shows the list at
-    the top center; a query narrows it; Return opens the file; Ctrl+Shift+P
-    shows the palette at the same place.
+10. ✅ **A pixel check** with the offscreen SDL driver, as in
+    [maximize-a-pane.md](../done/maximize-a-pane.md): a real editor with the
+    shell and the palette, driven by keys, and after each key one frame of the
+    main window with the popup laid over it at its computed place. In a window of
+    1000 × 640: Ctrl+P shows the list at (250, 68), 500 wide, under the toolbar,
+    with the files of the folder; `panprog` narrows it to `PaneProgram.json`;
+    Return opens the file in a tab with the focus; Ctrl+Shift+P shows the
+    commands with their keys at the same place. The check found two faults, which
+    this step fixes:
+    - The list stood at the corner of the screen. The context gave the printed
+      screen as `screen`, where no `WidgetShell` is, and the box of the content
+      of the shell is not found, because a `PaneTree` as a whole maps forward to
+      nothing. The context now gives the input screen, and
+      `make_shell_top_placement` reads the boxes of the shell and of its menu bar
+      and toolbar, through `make_top_center_place`, so it needs no box of what
+      the shell holds. `test_window_wrappers()` (74) now checks the place.
+    - The list drew at the width of its rows in a window of 500. A popup window
+      offers its maximum width to every content, so a menu can not take an
+      offered width as a demand. `WidgetChoiceList` gets `fills_offer`, and
+      `WidgetMenu` gets `minimum_width`, its least width with its insets; a list
+      that fills its offer gives its menu the exact width of its window.
+    No press of a real keyboard in a real window was made, and the frames show
+    the popup over the main window, not two native windows.
 
 ## Limits
 
@@ -355,6 +374,8 @@ that runs the frames by hand applies posts with `drain_operations!`.
   (Q10).
 - In a folder near the limit of 100,000 files, the first letter of a query takes
   about 0.16 s (D5).
+- A file whose extension no loaded package registers opens in no tab, from the
+  search as from the Explorer: `make_file_tab` throws for it.
 
 ## Open items
 

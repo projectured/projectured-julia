@@ -760,9 +760,14 @@ end
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 
 """
-    WidgetMenu(elements; orientation = :vertical, highlighted = 0, <base kwargs>)
+    WidgetMenu(elements; orientation = :vertical, highlighted = 0, minimum_width = nothing,
+               <base kwargs>)
 
 A menu containing a sequence of `WidgetMenuItem`s.
+
+A vertical menu is as wide as its widest item, and at least `minimum_width`, its
+insets included, when that is a number: a menu in a window of a fixed width fills
+it, and a row lights across it.
 
 A vertical menu answers the keys of a list: Down and Up light the next and the
 previous enabled item, Home and End the first and the last, and Return chooses the
@@ -773,6 +778,7 @@ or 0 for none. It is view state, so a key that moves it is no edit.
     elements::CellVector = CellVector()
     orientation::Symbol = :vertical
     highlighted::Int = 0
+    minimum_width::Union{Int, Nothing} = nothing
     visible::Bool = true
     margin::Union{Inset, Nothing} = nothing
     border::Union{Inset, Nothing} = nothing
@@ -784,11 +790,13 @@ end
 function WidgetMenu(elements::Vector;
                     orientation::Symbol=:vertical,
                     highlighted::Integer=0,
+                    minimum_width::Union{Integer, Nothing}=nothing,
                     visible::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
                Cell(orientation), Cell(Int(highlighted)),
+               Cell(minimum_width === nothing ? nothing : Int(minimum_width)),
                Cell(visible), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end

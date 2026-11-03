@@ -109,7 +109,7 @@ function make_command_palette_list(rows)
     texts = String[string(row.domain, " ", row.description) for row in runnable]
     starts = Dict(text => length(row.domain) + 2 for (text, row) in zip(texts, runnable))
     WidgetChoiceList(; prompt = "Command", placeholder = "type a command",
-                     empty = "No command works here",
+                     empty = "No command works here", fills_offer = true,
                      find = query -> WidgetChoice[_make_command_choice(runnable[index])
                                                   for index in find_letter_matches(query, texts;
                                                                                    name_start = text -> starts[text])],

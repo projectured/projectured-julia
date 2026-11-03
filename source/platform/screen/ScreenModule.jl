@@ -61,7 +61,8 @@ export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
 export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_window_place, is_window_placed
-export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement
+export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
+       make_top_center_place
 export find_part_place, write_part_picture, write_window_picture
 export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings

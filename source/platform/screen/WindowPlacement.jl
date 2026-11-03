@@ -31,8 +31,8 @@ WindowPlace(x::Integer, y::Integer; minimum_size = nothing, maximum_size = nothi
     WindowPlacementContext
 
 What a placement reads to place a window. `screen` is the screen that the
-projection prints, with every window, its place and its size, or `nothing` for a
-window that is printed on no screen. `window` is the window that is placed.
+projection prints, its input, with every window, its place and its size, or
+`nothing` for a window that is printed on no screen. `window` is the window that is placed.
 [`find_window_part_box`](@ref) gives the box of a part of any window.
 
 The context gives no printed size of the content of `window`: the content prints
@@ -77,11 +77,24 @@ function make_part_top_placement(reference; width_share::Real = 0.5, minimum_wid
                                  maximum_height::Integer = 480, gap::Integer = 8)
     context -> begin
         box = find_window_part_box(context, reference)
-        box === nothing && return nothing
-        width = max(Int(minimum_width), round(Int, box.width * width_share))
-        WindowPlace(box.x + (box.width - width) ÷ 2, box.y + gap;
-                    minimum_size = (width, 0), maximum_size = (width, Int(maximum_height)))
+        box === nothing ? nothing : make_top_center_place(box; width_share, minimum_width, maximum_height, gap)
     end
+end
+
+"""
+    make_top_center_place(box; width_share = 0.5, minimum_width = 480, maximum_height = 480,
+                          gap = 8) -> WindowPlace
+
+The place at the top center of `box`, a box in screen coordinates: `gap` below its
+top edge, `width_share` of its width wide and at least `minimum_width`, and as high
+as the content of the window up to `maximum_height`, with the same minimum and
+maximum width. A placement that finds its box in its own way answers it.
+"""
+function make_top_center_place(box; width_share::Real = 0.5, minimum_width::Integer = 480,
+                               maximum_height::Integer = 480, gap::Integer = 8)
+    width = max(Int(minimum_width), round(Int, box.width * width_share))
+    WindowPlace(box.x + (box.width - width) ÷ 2, box.y + gap;
+                minimum_size = (width, 0), maximum_size = (width, Int(maximum_height)))
 end
 
 # The place that the placement of `window` answers, or `nothing` when the window
@@ -92,7 +105,7 @@ function _compute_window_place(window::WindowDocument, screen_iomap)
     placement = getfield(window, :placement)[]
     placement === nothing && return nothing
     iomap = screen_iomap === nothing ? nothing : screen_iomap[]
-    screen = iomap === nothing ? nothing : get_iomap_output(iomap)
+    screen = iomap === nothing ? nothing : get_iomap_input(iomap)
     place = placement(WindowPlacementContext(screen, window, iomap))
     place isa WindowPlace || place === nothing ||
         throw(ArgumentError("a placement answers a WindowPlace or nothing, not $(typeof(place))"))

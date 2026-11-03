@@ -140,7 +140,7 @@ function make_workspace_file_search(list::WorkspaceFileList; open_files::Abstrac
     open_files = String[abspath(String(path)) for path in open_files]
     matches = _WorkspaceFileMatches(nothing, "", Int[], String[])
     WidgetChoiceList(; prompt = "Go to file", placeholder = "type a part of a name",
-                     empty = "No file matches",
+                     empty = "No file matches", fills_offer = true,
                      footer = () -> _get_workspace_search_footer(list),
                      find = query -> _find_workspace_file_choices!(matches, list.files[], query, open_files),
                      choose = path -> OpenFileOperation(path))

@@ -29,7 +29,7 @@ WidgetChoice(label::AbstractString; value = label, icon = nothing, note = nothin
 """
     WidgetChoiceList(; query = "", row = 1, top = 1, shown_rows = 12, current = nothing,
                      prompt = "Find", placeholder = "type a name", empty = "Nothing matches",
-                     footer = nothing, find, choose, edit = nothing)
+                     footer = nothing, fills_offer = false, find, choose, edit = nothing)
 
 A list that a person types into: a line of the typed text over the choices that
 the text narrows to.
@@ -44,6 +44,8 @@ the text narrows to.
 - `footer` is a line under the rows, such as that the choices are still read:
   `nothing`, a string, or a function of no arguments that answers either, which
   the view reads as it draws, so the line follows what the function reads.
+- `fills_offer` makes the list as wide as the width that its window offers, as a
+  list in a window of a fixed width needs; else the list is as wide as its rows.
 - `find(query)` gives the choices in their order, an `AbstractVector` of
   [`WidgetChoice`](@ref); a vector that makes each choice when it is read costs
   only the rows that show.
@@ -69,6 +71,7 @@ See also `make_choice_list_operation`, which opens one in the context menu windo
     placeholder::String = "type a name"
     empty::String = "Nothing matches"
     footer::Any = nothing
+    fills_offer::Bool = false
     find::Any = query -> WidgetChoice[]
     choose::Any = value -> nothing
     edit::Any = nothing
@@ -129,7 +132,9 @@ make_graphics_projection(::Type{WidgetChoiceList}; measure, appearance) =
         GridLayoutToGraphicsCanvas())
 
 function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoiceList, ctx)
-    column = VerticalLayout(CellVector(@computation _make_choice_widgets(list)),
+    # A list that fills its offer gives its menu the exact width of its window.
+    width = list.fills_offer ? get_exact_width(ctx) : nothing
+    column = VerticalLayout(CellVector(@computation _make_choice_widgets(list, width)),
                             Cell(:left), Cell(p.gap), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, list, GridLayout(Any[column], 1))
 end
@@ -137,17 +142,19 @@ end
 # The line of the typed text, and the menu of the rows that show. The rows are a
 # lazy list of the choices with its head at the first row that shows, and the menu
 # walks only the rows that show.
-function _make_choice_widgets(list::WidgetChoiceList)
+function _make_choice_widgets(list::WidgetChoiceList, width = nothing)
+    minimum_width = width === nothing ? nothing : width[]
     query = list.query
     line = WidgetLabel(list.prompt * ": " * (isempty(query) ? list.placeholder : query))
     choices = list.find(query)
     count = length(choices)
     footer = list.footer isa Function ? list.footer() : list.footer
     under = footer === nothing ? Any[] : Any[WidgetLabel(String(footer))]
-    count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)]), under...]
+    count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)]; minimum_width),
+                             under...]
     top = _clamp_choice_top(list, count, list.top)
     rows = make_index_list(count, top, index -> _make_choice_item(list, index, choices[index]))
-    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1))), under...]
+    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1)); minimum_width), under...]
 end
 
 # The first row that shows, so that the rows that show are in the list.

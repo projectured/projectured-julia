@@ -81,7 +81,7 @@ The reader of the screen reads the place of the output window, so the origin of 
 
 The SDL backend writes no place of a placed window: it does not clamp the place to the display, it does not adopt the place from the window manager, and it does not scale the place at a new zoom. A write of a value into a computed cell replaces the computation. `WindowManagingProjection` replaces a window that gains or loses a placement, and does not update it in place, because only a placed window has computed cells.
 
-`make_part_top_placement(reference; width_share = 0.5, minimum_width = 480, maximum_height = 480, gap = 8)` is the placement of a list that belongs to a part. It puts the window at the top center of the box of the part, `gap` below its top edge. The width is a share of the width of the part, and it does not change while the content changes.
+`make_part_top_placement(reference; width_share = 0.5, minimum_width = 480, maximum_height = 480, gap = 8)` is the placement of a list that belongs to a part. It puts the window at the top center of the box of the part, `gap` below its top edge. The width is a share of the width of the part, and it does not change while the content changes. `make_top_center_place(box; width_share, minimum_width, maximum_height, gap)` makes that place from a box in screen coordinates, for a placement that finds its box in its own way.
 
 ### The picture of a part
 
