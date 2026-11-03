@@ -39,7 +39,7 @@ function print_document(p::DashboardToWidget, recursion, dashboard::Dashboard, c
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(dashboard.title))
     set_output_path_computations!(title, dashboard, path -> _map_title_field_path(path))
-    scroll = WidgetScrollPane(nothing)
+    scroll = WidgetScrollPane(nothing; grows = (width = false, height = true))
     constraint = LayoutConstraint(scroll; width = Fill, height = Fill)
     root = VerticalLayout(Any[title, constraint]; horizontal_align = :left, gap = p.gap)
     iomap = ChildrenIoMap(p, dashboard, root, Cell(Any[]))

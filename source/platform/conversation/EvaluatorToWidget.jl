@@ -195,7 +195,7 @@ function print_document(projection::EvaluatorToplevelToWidgetComposite,
                             Cell(:left), Cell(projection.element_gap),
                             Cell(Fill), Cell(Content), Cell(nothing))
     # The pane paints no background, so the forms stand on the page of the tab.
-    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end),
+    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end), grows = (width = false, height = true),
                             style = WidgetStyle(content_color = color_transparent))
     output = GridLayout(Any[_make_option_row(projection, t), pane], 1; vertical_gap = projection.row_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])

@@ -701,13 +701,13 @@ end
 # Two read-only search functions, so a caller can find the right guide section or
 # API entry in one call instead of listing and reading every resource.
 
-# Count how often each term occurs in `text`, which is folded already, and scale
-# the count by `weight`. A term counts its best form once.
+# Count how often each term occurs in `text`, which is folded already, where a word
+# starts, and scale the count by `weight`. A term counts its best form once.
 function _term_score(terms, text::AbstractString, weight::Int)
     isempty(text) && return 0
     score = 0
     for term in terms
-        score += weight * maximum(length(findall(form, text)) for form in term.forms)
+        score += weight * maximum(_count_at_word_start(form, text) for form in term.forms)
     end
     score
 end
@@ -1137,6 +1137,11 @@ const _LENGTH_WEIGHT = 0.75
 # collapsed into ties that the tie-break then settled by length — "scalars delay
 # table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
 #
+# **A word counts in the prose where a word starts.** A form inside a word is
+# another word: "row" is in "grows", "narrow" and "throws", and counted there, it
+# ranked `WidgetScrollPane`, whose signature names `grows`, first for "a row of
+# widgets side by side". The forms of a term still find "rows" for "row".
+#
 # **A stem may not earn a name match.** A term scores against the NAME exactly as
 # the person wrote it, and against the prose in any of its forms. The two halves
 # want opposite things: recall in the prose, where an extra hit is cheap, and
@@ -1169,7 +1174,7 @@ function _rank_api_entries(query, entries::Vector{_ApiEntry})
             name_score += maximum(_compute_name_score(written, short, words, qualified)
                                   for written in term.written)
         end
-        term_counts = Int[maximum(length(findall(form, prose)) for form in term.forms)
+        term_counts = Int[maximum(_count_at_word_start(form, prose) for form in term.forms)
                           for term in terms]
         (name_score > 0 || any(>(0), term_counts)) || continue
         push!(kept, entry)

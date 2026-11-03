@@ -6112,14 +6112,21 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     part_inset_w = Cell(Int32(0))
     part_inset_h = Cell(Int32(0))
     if content isa Document
-        # A clipped axis gives the content its extent exactly. An unclipped axis
-        # passes the parent's range on, less the insets: an edge stays an edge,
-        # so text in the pane wraps at it, and the pane takes the content's
-        # extent there.
+        # A clipped axis gives the content its extent exactly where the content
+        # fits the view, and as its minimum where it grows (`grows`). An
+        # unclipped axis passes the parent's range on, less the insets: an edge
+        # stays an edge, so text in the pane wraps at it, and the pane takes the
+        # content's extent there. A clipped axis gives the view as the visible
+        # extent too.
+        grows = w.grows
         content_ctx = with_inner_size(ctx; width = tx, height = ty)
-        offer_w === nothing || (content_ctx = with_exact_size(content_ctx; width = offer_w))
-        offer_h === nothing || (content_ctx = with_exact_size(content_ctx; height = offer_h))
+        offer_w === nothing ||
+            (content_ctx = with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)))
+        offer_h === nothing ||
+            (content_ctx = with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : offer_h)))
         content_ctx = with_inner_size(content_ctx; width = part_inset_w, height = part_inset_h)
+        offer_w === nothing || (content_ctx = with_visible_size(content_ctx; width = content_ctx.minimum_width))
+        offer_h === nothing || (content_ctx = with_visible_size(content_ctx; height = content_ctx.minimum_height))
         content_iomap = print_child(recursion, content, content_ctx)
         output = content_iomap.output
         if output isa ScrollLayout
@@ -6955,7 +6962,12 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     content_iomap = nothing
     content = w.content
     if content isa Document
-        content_ctx = with_exact_size(ctx; width=vw_cell, height=vh_cell)
+        # The view is the extent of the content on an axis where the content
+        # fits, and its minimum where it grows; it is the visible extent on both.
+        grows = w.grows
+        content_ctx = with_size_range(ctx; width = (vw_cell, grows.width ? nothing : vw_cell),
+                                      height = (vh_cell, grows.height ? nothing : vh_cell))
+        content_ctx = with_visible_size(content_ctx; width = vw_cell, height = vh_cell)
         content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
@@ -10212,10 +10224,10 @@ function _print_rows_pane(p, recursion, w, ctx)
     top = box.margin[2] + box.border[2]
     right = box.margin[3] + box.border[3]
     bottom = box.margin[4] + box.border[4]
-    # Positional: content, position, size, scroll_position, follow_end,
+    # Positional: content, position, size, grows, scroll_position, follow_end,
     # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
-    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(nothing),
+    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), getfield(w, :scroll_position), Cell(nothing),
                             Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
@@ -12570,7 +12582,7 @@ end
     geometry::Cell
     width::Cell
     bare::Bool       # the rows of a tree that scrolls itself, with no box
-    view_height::Any # the height of the view of the rows that a pane offers, or nothing
+    view_height::Any # the height of the rows that can show, or nothing
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -12626,7 +12638,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     _, line_height = _text_size(p.measure, label_style.font, "M")
     icon_size = scale_length(line_height, p.icon_size)
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    # The rows that show: a lazy list of rows is measured over them.
+    visible_h = get_visible_height(ctx)
 
     # A named icon is a square of one line times `icon_size`. A tree whose roots
     # show one reserves a column that holds it and a gap, and rows as tall as the
@@ -12712,7 +12725,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         g = geometry[]
         if g isa WTreeListGeometry
             top = Int(w.scroll_position.y[])
-            bottom = top + max(avail_h === nothing ? 0 : Int(avail_h[]), g.row_height)
+            bottom = top + max(visible_h === nothing ? 0 : Int(visible_h[]), g.row_height)
             measure_link(link) =
                 measure_row(link.value.row, _get_wtree_row_node(link.value))
             link = g.head
@@ -12911,7 +12924,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                             Cell(@computation Int32(width[] + inset_width)),
                             Cell(@computation Int32(rows_height[] + inset_height)),
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -13335,7 +13348,7 @@ _has_any_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifier
 
 # How many rows Page Up and Page Down move: the rows that the view of the tree
 # holds, less one, so one row of the page before stays in view. The view is the
-# one that a pane offers, else the canvas of the tree.
+# height of the tree that can show, else the canvas of the tree.
 function _count_wtree_page_rows(iomap::WidgetTreeToGraphicsCanvasIoMap)
     row_height = iomap.geometry.row_height
     row_height > 0 || return 1

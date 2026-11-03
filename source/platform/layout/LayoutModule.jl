@@ -52,7 +52,8 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
-export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context
+export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,
+       with_visible_size, get_visible_width, get_visible_height
 export read_child_event, make_layout_selection_ring
 
 

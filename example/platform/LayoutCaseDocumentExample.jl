@@ -12,6 +12,10 @@ const _LAYOUT_CASE_GRAY   = StyleColor(0.94, 0.94, 0.94, 1.0)
 _make_layout_case_panel(content, color) =
     WidgetScrollPane(content; style = WidgetStyle(content_color = color))
 
+# A page that grows down: a tinted scroll pane whose content grows on its height.
+_make_layout_case_page(content, color) =
+    WidgetScrollPane(content; grows = (width = false, height = true), style = WidgetStyle(content_color = color))
+
 # `count` lines of text, each one a label.
 _make_layout_case_lines(text, count) =
     VerticalLayout(Any[WidgetLabel("$text $i") for i in 1:count]; gap = 2)
@@ -66,7 +70,7 @@ function make_layout_scroll_area_in_page_document_example()
         "A code block in its own scroll area, in a page that scrolls. " *
         "The code block must be as tall as its 16 lines at every height of its part, " *
         "and the page must scroll when it is taller than its part.",
-        _make_layout_case_panel(page, _LAYOUT_CASE_GRAY))
+        _make_layout_case_page(page, _LAYOUT_CASE_GRAY))
 end
 
 """
@@ -86,9 +90,9 @@ function make_layout_fill_in_scroll_area_document_example()
                        gap = 6, child_width = Fill)
     end
     pair = WidgetSplitPane(:horizontal,
-                           Any[LayoutConstraint(_make_layout_case_panel(column(2), _LAYOUT_CASE_GRAY);
+                           Any[LayoutConstraint(_make_layout_case_page(column(2), _LAYOUT_CASE_GRAY);
                                                 width = Fill, height = Fill),
-                               LayoutConstraint(_make_layout_case_panel(column(40), _LAYOUT_CASE_GRAY);
+                               LayoutConstraint(_make_layout_case_page(column(40), _LAYOUT_CASE_GRAY);
                                                 width = Fill, height = Fill)])
     _make_layout_case_window(
         "A part that fills, in a scroll area. Left, with a short header: the green part must fill " *
@@ -153,7 +157,7 @@ function make_layout_rows_in_slot_and_page_document_example()
     slot = VerticalLayout(Any[WidgetLabel("In a part that cuts: the table fills and scrolls its rows"),
                               LayoutConstraint(table(); height = Fill)];
                           gap = 6, child_width = Fill)
-    page = _make_layout_case_panel(
+    page = _make_layout_case_page(
         VerticalLayout(Any[WidgetLabel("In a page: the table and the list are as tall as their rows"),
                            table(), list()];
                        gap = 6, child_width = Fill),

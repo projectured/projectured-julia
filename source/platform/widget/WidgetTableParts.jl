@@ -159,7 +159,7 @@ end
 # cell and a rule as its own padding. It has no fill, because the table draws
 # its bands behind it, and no bar.
 _make_part_pane(grid, offset::Cell, padding::Inset) =
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(nothing), Cell(nothing),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing),
                      Cell(nothing), Cell(nothing), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing))
@@ -178,10 +178,10 @@ _make_part_pane(grid, offset::Cell, padding::Inset) =
 # pane makes lights with the table.
 function _make_cells_pane(w::WidgetTable, grid, offset::Cell, padding::Inset)
     target = Cell(@computation _get_table_bar_target(w))
-    # Positional: content, position, size, scroll_position, follow_end,
+    # Positional: content, position, size, grows, scroll_position, follow_end,
     # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(nothing), Cell(nothing),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing),
                      getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
@@ -871,7 +871,8 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     w.column_headers isa ListNode && return _print_table_column_parts(p, recursion, w, ctx)
     inset_width, inset_height = _inset_total(p, w)
     inner = ctx === nothing ? nothing : with_inner_size(ctx; width = inset_width, height = inset_height)
-    height = inner === nothing ? nothing : get_exact_height(inner)
+    # A list has no extent, so the table is as tall as what can show of it.
+    height = get_visible_height(inner)
     _check_table_parts(w, height)
     # The parts, built again when the table changes its shape, and only then: a
     # column added or removed, a header, an alignment or a cell policy changed.
@@ -1172,7 +1173,8 @@ _make_column_rules(st::WidgetTablePartsState, grid, top::Cell, height::Cell, col
 function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     inset_width, inset_height = _inset_total(p, w)
     inner = ctx === nothing ? nothing : with_inner_size(ctx; width = inset_width, height = inset_height)
-    height = inner === nothing ? nothing : get_exact_height(inner)
+    # A list has no extent, so the table is as tall as what can show of it.
+    height = get_visible_height(inner)
     _check_table_parts(w, height)
     base = w.column_policy
     (base isa SizePolicy && base.preferred !== nothing && (base.weight === nothing || base.weight == 0)) ||

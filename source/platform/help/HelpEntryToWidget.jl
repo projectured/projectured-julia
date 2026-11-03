@@ -43,7 +43,8 @@ function print_document(p::HelpEntryToWidget, recursion, entry::HelpEntry, conte
     body = VerticalLayout(Any[]; gap = p.gap, child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements),
                           () -> Cell[Cell(part) for part in _make_help_entry_parts(p, entry)])
-    root = VerticalLayout(Any[LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
+    root = VerticalLayout(Any[LayoutConstraint(WidgetScrollPane(body; grows = (width = false, height = true));
+                                               width = Fill, height = Fill)];
                           child_width = Fill)
     iomap = ChildrenIoMap(p, entry, root, Cell(Any[]))
     set_output_path_computations!(root, entry, path -> map_reference_forward(p, iomap, path); dormant = false)

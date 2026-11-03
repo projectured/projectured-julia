@@ -257,7 +257,7 @@ function make_value_list_dialog(name::String, column::AbstractVector, is_ticked,
                            for (value, count) in counted]
     size = unwrap_cell(get_widget_style(widget, :value_list_size))
     list = WidgetScrollPane(VerticalLayout(Any[boxes...]; gap = unwrap_cell(get_widget_style(widget, :item_gap)));
-                            size = Point2D(Int(size.x[]), Int(size.y[])))
+                            size = Point2D(Int(size.x[]), Int(size.y[])), grows = (width = false, height = true))
     take() = write(values, Bool[box.content for box in boxes])
     dialog = WidgetDialog("Filter by values", list, Any[WidgetButton("Cancel"), WidgetButton("Apply")];
                           popup_id = :value_list)

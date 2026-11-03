@@ -337,7 +337,7 @@ function _format_stream_counts(lines::TaskStreamLines)
 end
 
 function print_document(p::TaskStreamLinesToWidget, recursion, lines::TaskStreamLines, ctx)
-    height = ctx === nothing ? nothing : get_exact_height(ctx)
+    height = get_visible_height(ctx)
     step() = max(1, p.row_step)
     visible = Cell(@computation height === nothing ? 40 : max(1, Int(height[]) ÷ step() - 3))
     rows = Cell(@computation collect_task_stream_rows(lines))

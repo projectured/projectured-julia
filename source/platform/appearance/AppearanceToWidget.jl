@@ -223,7 +223,8 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     content = VerticalLayout(groups; gap = 2 * theme.section_gap, child_width = Fill)
     # The pane scrolls the cell of the appearance: the next print, which a write of
     # the appearance starts, makes a new pane at the same place.
-    pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position))
+    pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position),
+                            grows = (width = false, height = true))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
     AppearanceToWidgetIoMap(p, appearance, Cell(@computation child.output), child, commands, writes,

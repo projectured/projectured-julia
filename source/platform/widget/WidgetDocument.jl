@@ -1493,13 +1493,23 @@ set_cell_computation!(w::WidgetTabbedPane, f::Function) = (set_cell_computation!
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
 """
-    WidgetScrollPane(content; position, size,
+    WidgetScrollPane(content; position, size, grows = (width = false, height = false),
                      scroll_position, follow_end,
                      vertical_scroll_bar = :auto, horizontal_scroll_bar = :auto,
                      <base kwargs>)
 
 A viewport a person scrolls over content that is taller or wider than its
 space.
+
+`grows` says for each axis whether the content fits the view or grows past it.
+On an axis that fits, the content gets the view as its exact extent: a text
+wraps there, and a part that can scroll stops there. On an axis that grows, the
+content gets the view as its minimum and no maximum: a part that fills takes at
+least the view, a part that can scroll takes its content, and the pane scrolls
+the content. On both, the content gets the view as its visible extent
+(`get_visible_height`). A page grows on its height: `grows = (width = false,
+height = true)`. A content that is larger than the view scrolls on an axis of
+either kind.
 
 The pane draws a scroll bar on each axis over the content, at the inner edge of
 its border, and the bar takes no space. A bar shows nothing at rest. It shows
@@ -1554,6 +1564,7 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
     content::Any
     position::Union{Point2D, Nothing}
     size::Union{Point2D, Nothing}
+    grows::NamedTuple{(:width, :height), Tuple{Bool, Bool}}
     scroll_position::Point2D
     follow_end::Union{Bool,Nothing}
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
@@ -1570,6 +1581,7 @@ end
 function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
+                          grows::NamedTuple=(width = false, height = false),
                           scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
                           follow_end::Union{Bool,Nothing,AbstractCell}=nothing,
                           vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto,
@@ -1577,7 +1589,7 @@ function WidgetScrollPane(content;
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
     WidgetScrollPane(Cell(content),
-                     Cell(position), Cell(size),
+                     Cell(position), Cell(size), Cell(_make_pane_grows(grows)),
                      scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end), Cell(nothing),
                      Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
@@ -1587,11 +1599,18 @@ end
 
 set_cell_computation!(w::WidgetScrollPane, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
+# The `grows` of a pane: whether its content grows past the view on each axis.
+_make_pane_grows(grows::NamedTuple) =
+    (width = Bool(get(grows, :width, false)), height = Bool(get(grows, :height, false)))
+
+# The `grows` of a pane whose content fits the view on both axes.
+const _PANE_FITS = (width = false, height = false)
+
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
 """
     WidgetTransformPane(content; transform, position, size,
-                        <base kwargs>)
+                        grows = (width = false, height = false), <base kwargs>)
 
 A pane that applies a 2-D affine [`AffineTransform`](@ref) to its `content` —
 the unification of scrolling (a pure translation) and zooming (a pure scale).
@@ -1606,11 +1625,15 @@ translate+scale subset is rendered today; rotation/shear is future work.
 
 `wheel_run` is view state, as on a `WidgetScrollPane`: the last notch of a run of
 the wheel, so a fast run pans more at each notch.
+
+`grows` says for each axis whether the content fits the view or grows past it,
+as on a `WidgetScrollPane`.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
     position::Union{Point2D, Nothing}
     size::Point2D
+    grows::NamedTuple{(:width, :height), Tuple{Bool, Bool}}
     transform::AffineTransform
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     visible::Bool
@@ -1625,11 +1648,12 @@ function WidgetTransformPane(content;
                             transform::AffineTransform=affine_identity,
                             position=nothing,
                             size=nothing,
+                            grows::NamedTuple=(width = false, height = false),
                             visible::Bool=true,
                             margin=nothing, border=nothing, padding=nothing,
                             style=nothing, tooltip=nothing)
     WidgetTransformPane(Cell(content),
-                        Cell(position), Cell(size), Cell(transform), Cell(nothing),
+                        Cell(position), Cell(size), Cell(_make_pane_grows(grows)), Cell(transform), Cell(nothing),
                         Cell(visible), Cell(margin), Cell(border), Cell(padding),
                         Cell(style), Cell(tooltip), Cell(nothing))
 end

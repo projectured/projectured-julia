@@ -197,7 +197,7 @@ which today scrolls the rows only in an exact range.
 
 **R5, the readers.** Each of the readers in §2 is one of two kinds: it fills its
 own slot, and keeps the exact range, or it builds the rows that show, and reads
-the visible extent. Step 5 decides each one.
+the visible extent. Step 4 decides each one.
 
 **omnet-julia.** Its views place scroll areas and tables in the pages of the IDE.
 Step 9 checks them.
@@ -329,7 +329,7 @@ three failures, each a known failure of main (the `using` lists of
 `FileChangeModule` and `ShellModule`, and the 33 names and the text of
 `WidgetLink` in `InterfaceApiTest`). `test_dataframes()`: 603 pass.
 
-### Step 4. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
+### Step 4. R1, R5 and a shared minimum: each axis of a scroll area fits or grows — done
 
 Each axis of a scroll area gets the setting fits or grows (§4), and both fit by
 default, which keeps every range of today. On an axis that grows, the content
@@ -340,6 +340,77 @@ R3), so a `Fill` part in a view that grows still fills the view. The scroll area
 of pages that grow down say so on their height: the examples of Step 1, and the
 pages that the tests and a search find. Tests: `test_layout_rules()`, the
 `SizeRange*` tests, `test_platform()`, `test_dataframes()`.
+
+How it is done:
+
+- `WidgetScrollPane` and `WidgetTransformPane` have the field `grows`, a pair
+  `(width, height)` of `Bool`, after `size`. On an axis with a view, the
+  content gets `(view, view)` where it fits and `(view, ∅)` where it grows. The
+  four places that build a scroll pane by position (the pane of the rows, the
+  two panes of the parts of a table, and the graph pane) give
+  `(width = false, height = false)`.
+- The visible extent is a property of the context, `:visible_width` and
+  `:visible_height`, in the layout module (`with_visible_size`,
+  `get_visible_width`, `get_visible_height`), and not a field of the kernel
+  `PrinterContext`: the kernel has no notion of a view. A scroll area gives its
+  view on each axis that has one, so a scroll area inside another gives its own.
+  `get_visible_height(ctx)` is the maximum of the range when it has one, because
+  the giver cuts there; else the visible extent; else `nothing`. So a reader
+  reads one value in a slot, in a bounded range and in an area that grows.
+- A stack whose range on its main axis has a minimum and no maximum shares the
+  minimum: `allocate_axis` divides it, and each weighted child gets its share as
+  a minimum, `(share, ∅)`, and so draws `max(share, content)`. The stack is the
+  sum of its children, at least the minimum. On the cross axis, a weighted child
+  with no edge takes at least the minimum of the range. This is the rule of CSS
+  for `flex-grow` in a container with a `min-height`.
+- The readers of §2, each by its kind:
+
+  | Reader | Kind | Reads |
+  | --- | --- | --- |
+  | the width of a lazy `WidgetTree`, measured over the rows that show | builds what shows | visible height |
+  | a `WidgetTable` whose rows are a list (`WidgetTableParts.jl`) | builds what shows | visible height |
+  | `DataFrameViewToWidget`, `TaskStreamLines`, the bar of `FrameStatistics` | builds what shows | visible height |
+  | the width of a `WidgetTree`, `RosterToGraphics`, `DashboardToWidget`, `TaskGroupDocumentToWidgetPane`, the folder page, `GridList`, the panes | fills its slot | exact range |
+
+- These scroll areas hold a page, and grow on their height: the settings, the
+  appearance, a section and the dashboard of the explorer, a help entry, the
+  work of the assistant, the log of the calls, the forms of an evaluator, the
+  conversation of the assistant (in the split and in the card), the lines of a
+  terminal, and the list of values of a column header; and the three pages of
+  the examples of Step 1.
+
+Found in this step:
+
+- A table whose rows are a list raised an error in a range with no exact
+  height. It reads the visible height now, so it works in an area that grows.
+- The search of the API counted a query word also inside another word. The
+  signature of `WidgetScrollPane` names `grows`, so "row" counted there, and
+  `InterfaceApiTest` found the scroll pane first for "a row of widgets side by
+  side". No wording of the docstring fixes it, because the signature is the only
+  place of the scored text with "row". The owner said "yes" to a word that counts
+  only where a word starts, as a forbidden word `-word` already matches. Both
+  searches count so, the API and the guides (`_count_at_word_start` in
+  `SearchQuery.jl`); a pattern still counts wherever it matches.
+- A file tab (`make_file_tab_content`) holds any document: a text, a page, a
+  table. It keeps fitting on both axes; Step 6 checks the code blocks of a
+  Markdown file in it.
+- omnet-julia has four scroll areas that hold a page: the workflow
+  (`SimulationWorkflowToWidget.jl`), the tab of a study (`StudyVerbs.jl`), the
+  study of the M/M/1/K demo (`Mm1kDocument.jl`) and the page of the catalog shell
+  (`CatalogShellToWidget.jl`). They take `grows` in a commit of omnet-julia that
+  lands with this branch (Step 9), because omnet-julia reads projectured-julia
+  from main.
+- The tests of the agent sessions (`test_external_agent_turn`,
+  `test_assistant_overview`) fail in a process that also loads the umbrella
+  package, because it loads `ProjecturedMCP`; with only the platform tests loaded
+  they pass. This is known on main, and not a fault of this step.
+
+Result: `test_layout_rules()` and the `SizeRange*` tests 562 pass and 22 broken,
+for Steps 5 and 6. The platform suite, in four parts: the three known failures
+of main, and the rank of "a row of widgets side by side", which the change of the
+search fixes. The 23 test functions that check a rank of a search pass, but for
+the two known failures of `InterfaceApiTest`. `test_dataframes()` and
+`test_graph()`: 1241 pass. The naming guard passes.
 
 ### Step 5. R3: a column shares a maximum as a row does
 
@@ -392,7 +463,10 @@ tests of omnet-julia.
 ### Step 9. The wide check
 
 `test_platform()`, `test_dataframes()` and the omnet-julia IDE tests, each
-compared with a run on main, and a precompile of omnet-julia. The examples of
+compared with a run on main, and a precompile of omnet-julia. The tests of the
+assistant of omnet-julia that check a rank of a search, because a word of a
+search counts only where a word starts (Step 4). The four scroll areas of
+omnet-julia that hold a page take `grows` (Step 4). The examples of
 Step 1 and the IDE detail of a statistical test and of a chart test, seen in a
 window. Then the branch waits for approval to land.
 
@@ -402,11 +476,10 @@ window. Then the branch waits for approval to land.
 - `ConstraintLayout` and `AnchoredLayout`, which do not give a range by these
   rules.
 
-## 7. Open
+## 7. Decided
 
-
-- The setting of a scroll area for each axis: my recommendation is the keyword
-  `grows = (width = false, height = false)`, with both axes fitting by default;
-  open.
-- The names of the visible extent: my recommendation is
-  `get_visible_width(ctx)` and `get_visible_height(ctx)`; open.
+- The setting of a scroll area for each axis is the keyword
+  `grows = (width = false, height = false)`, with both axes fitting by default.
+  This was my recommendation; the owner said "yes" to Step 4, which named it.
+- The names of the visible extent are `get_visible_width(ctx)` and
+  `get_visible_height(ctx)`, my recommendation in the same Step 4.

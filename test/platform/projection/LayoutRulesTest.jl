@@ -182,7 +182,7 @@ end
 
 # A scroll area of `width × height` whose content grows on its height.
 _rules_growing_area(content; width = 600, height = 300) =
-    WidgetScrollPane(content; size = Point2D(width, height))
+    WidgetScrollPane(content; size = Point2D(width, height), grows = (width = false, height = true))
 
 # What each child of the layout inside `area` draws, as (width, height).
 function _rules_inner_extents(area)
@@ -219,8 +219,9 @@ end
 
 Every widget type and every layout type draws by the rule of its kind in each
 range, and a guard fails for a type with no kind. The worked cases: a window that
-cuts or scrolls, a column and a row that share alike, a part that fills in a
-scroll area, the detail of a task, and a lazy grid in an area that grows.
+cuts or scrolls, a column and a row that share a maximum alike and a minimum
+alike, a part that fills in a scroll area, the detail of a task, a table of a
+list in an area that grows, and a lazy grid in an area that grows.
 """
 function test_layout_rules()
 @testset "layout rules" begin
@@ -271,6 +272,22 @@ end
     @test_broken _rules_child_extents(column, :height, 0, 300) == [100, 200]
 end
 
+@testset "a column and a row share a minimum alike" begin
+    part(policy) = LayoutConstraint(WidgetScrollPane(WidgetLabel("part")); policy...)
+    row(policies...) = HorizontalLayout(Any[part(policy) for policy in policies])
+    column(policies...) = VerticalLayout(Any[part(policy) for policy in policies])
+    # Less content than the minimum: the part that fills takes the rest of it.
+    @test _rules_child_extents(row((; width = Fixed(100)), (; width = Fill)), :width, 300, nothing) == [100, 200]
+    @test _rules_child_extents(column((; height = Fixed(100)), (; height = Fill)), :height, 300, nothing) == [100, 200]
+    # More content than the minimum: the part that fills keeps its content.
+    content = (_rules_drawn(part((;)), :width, nothing, nothing), _rules_drawn(part((;)), :height, nothing, nothing))
+    @test _rules_child_extents(row((; width = Fixed(400)), (; width = Fill)), :width, 300, nothing) == [400, content[1]]
+    @test _rules_child_extents(column((; height = Fixed(400)), (; height = Fill)), :height, 300, nothing) == [400, content[2]]
+    # On the cross axis, a part that fills takes at least the minimum.
+    @test _rules_child_extents(row((; height = Fill)), :height, 300, nothing) == [300]
+    @test _rules_child_extents(column((; width = Fill)), :width, 300, nothing) == [300]
+end
+
 @testset "a part that fills, in a scroll area" begin
     function column(lines)
         VerticalLayout(Any[_rules_lines(lines),
@@ -294,6 +311,17 @@ end
     # @broken: a part that can scroll stops at its maximum: step 6.
     @test_broken text == 400 - 6 - 120
     @test_broken text + 6 + rows <= 400
+end
+
+@testset "a table of a list is as tall as the view of an area that fits or grows" begin
+    columns = Any[WidgetTableColumn(; policy = Fixed(120)), WidgetTableColumn(; policy = Fixed(80))]
+    for grows in (false, true)
+        table = WidgetTable(; column_headers = Any["name", "value"],
+                            cells = ListNode(make_widget_table_row(Any["a", "b"])), columns)
+        area = WidgetScrollPane(table; size = Point2D(400, 200), grows = (width = false, height = grows))
+        ctx = PrinterContext(EmptyReference(), Cell(Int32(1000)), Cell(Int32(1000)), Dict{Symbol,Any}())
+        @test Int(print_document(_rules_projection(), nothing, area, ctx).content_iomap.output.h[]) == 200
+    end
 end
 
 @testset "a lazy grid in an area that grows builds the rows that show" begin

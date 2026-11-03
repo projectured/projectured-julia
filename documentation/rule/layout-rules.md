@@ -112,7 +112,8 @@ and a bare child uses it. A wrapper is the same vocabulary written explicitly fo
 the one child that differs.
 
 Both defaults are read on **both** axes: the one the layout divides, and the one
-it does not. On the cross axis a weight takes the stack's edge exactly, a declared
+it does not. On the cross axis a weight takes the stack's edge exactly, or with no
+edge at least the minimum of the stack's range, a declared
 preferred extent takes that number exactly, and anything else is `Content`: it gets
 a bounded range, its content up to the stack's edge, raised to the placement's
 minimum and cut at the placement's maximum. A bare child has weight `0`, so
@@ -161,6 +162,15 @@ A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — gives an offer 
 every axis where it has an extent of its own, an authored size or the space
 its parent gave.
 There its extent never comes from its content, which is what a viewport is.
+
+Each axis of a viewport says whether its content **fits** the view or **grows**
+past it (`grows = (width = false, height = true)` for a page). Where the content
+fits, the offer is exact, `(view, view)`: a text wraps there. Where it grows, the
+offer is a minimum, `(view, ∅)`: a weighted part takes at least its share of the
+view (§4), and the content can be taller. Both axes fit by default. On both kinds
+of axis the viewport gives the view as the **visible extent**: a part that builds
+only the rows that show reads `get_visible_height(ctx)`, which is the maximum of
+its range when it has one, and else that view.
 
 On an axis where it has neither, a viewport has nothing to clip against. It
 passes its own range on, less its insets, and takes the content's own extent,
@@ -235,8 +245,18 @@ when both of these hold:
 ```
 the stack has an edge on its main axis        a row: ctx.maximum_width !== nothing, exact or bounded
                                               a column: get_exact_height(ctx) !== nothing, exact only
+  or a minimum and no maximum there           both: the minimum is shared as a minimum
 and some child carries a weight on that axis  (Fill or Relative)
 ```
+
+**A minimum is shared as a minimum.** A stack whose range on its main axis is
+`(m, ∅)`, as a page in a viewport that grows gets, divides `m`, and gives each
+weighted child its share as a minimum, `(shareᵢ, ∅)`. The child draws
+`max(shareᵢ, content)`, and the stack is the sum of its children, at least `m`.
+So a `Fill` part in a short page fills the rest of the view, and in a long page
+it keeps its content and the page scrolls, as `flex-grow` does in a CSS
+container with a `min-height`. On the cross axis, a weighted child with no edge
+takes at least the minimum of the range.
 
 Nothing is declared on the stack. A child asking for a share can only have one
 when the stack has something to share, and a share of a sum of its own children is

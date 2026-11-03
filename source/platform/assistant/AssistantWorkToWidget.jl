@@ -65,7 +65,7 @@ end
 # and the root.
 function _make_page_column(p)
     column = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
-    scroll = LayoutConstraint(WidgetScrollPane(column); width = Fill, height = Fill)
+    scroll = LayoutConstraint(WidgetScrollPane(column; grows = (width = false, height = true)); width = Fill, height = Fill)
     (VerticalLayout(Any[scroll]; child_width = Fill), column)
 end
 
