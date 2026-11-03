@@ -43,6 +43,8 @@ A selection that ends in a character range of a text or number field is differen
 
 A stored document that is no plain text, pasted at such a text cursor, goes first to the documents on the path of the cursor: each one, from the deepest, can take it with `make_pasted_document_operation(document, path, value)` of `ProjecturedDomain`. The draft of a conversation takes a plot this way, as a part before the text that the person types. Paste-copy gives the document a fresh copy. When no document takes it, the paste puts text into the field, as above.
 
+A stored document that is no plain text, pasted while the selection names a whole document, goes first to that document, by the same `make_pasted_document_operation`. A dashboard takes it as a new card and a workflow step as an element, so a paste on the row of a dashboard in an explorer adds a card. Only when the document takes nothing does the paste replace it, by the three checks above.
+
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
 
 ### The reference

@@ -978,7 +978,7 @@ function _push_study_report!(rows, slots, embedded, outline, study, next_place)
     end
 end
 
-# A document that is pasted while the caret is in the row of an item is an element
-# of the item: the document itself after a note, or a copy.
+# A document that is pasted while the item is selected, or while the caret is in
+# its row, is an element of the item: the document itself after a note, or a copy.
 make_pasted_document_operation(item::ResearchItem, path, value) =
     value isa Document ? make_add_element_operation(item, value) : nothing

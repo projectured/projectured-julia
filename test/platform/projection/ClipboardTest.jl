@@ -35,7 +35,7 @@ end
 DomainModule.accepts_pasted_replacement(::_ClipboardKeeper, value) = value isa _ClipboardKeeper
 
 # A holder of parts: it takes a pasted document that is no plain text, at a text
-# cursor in its text, with an operation of its own.
+# cursor in its text or while it is selected, with an operation of its own.
 @document struct _ClipboardHolder <: Document
     text::Any
 end
@@ -717,6 +717,25 @@ end
     finally
         reset_os_clipboard_backend!()
     end
+end
+
+@testset "a selected document takes a pasted document that is no plain text, or the paste replaces it" begin
+    stored = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))
+    function paste(selection)
+        holder = _ClipboardHolder(PrimitiveString("hello"))
+        slice = ClipboardSlice(_ClipboardPair(holder, PrimitiveString("other")), stored)
+        set_selection!(slice, selection)
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        (holder, _paste(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
+    end
+    left = (FieldReferenceStep("content"), FieldReferenceStep("left"))
+    holder, taken = paste(cpath(left...))
+    @test taken isa _ClipboardTakeOperation && taken.holder === holder && taken.value === stored
+    # The text of the holder takes nothing, so the paste replaces it, and the holder
+    # above it is not asked.
+    _, replaced = paste(cpath(left..., FieldReferenceStep("text")))
+    @test replaced isa CompoundOperation
 end
 
 @testset "a document can say what may take its place" begin

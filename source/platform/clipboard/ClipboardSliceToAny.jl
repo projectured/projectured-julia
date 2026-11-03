@@ -67,7 +67,9 @@ A paste and a cut write only where the paste rules allow: the selection names a
 whole document, every document from the content down to it accepts a pasted
 document (`accepts_pasted_document`), the slot takes the value, and the document
 in the slot accepts it as a replacement (`accepts_pasted_replacement`).
-Otherwise the gesture goes on to the content.
+Otherwise the gesture goes on to the content. Before a paste replaces a whole
+document, that document can take a stored document that is no plain text in its
+own way (`make_pasted_document_operation`), as a dashboard takes it as a card.
 
 A copy and a note take the selected document or, when the selection names a
 frame such as a pane tab, the document that [`find_clipboard_document`](@ref)
@@ -492,19 +494,22 @@ function _clipboard_paste(p, input; os = UNREAD_OS_TEXT)
     ])
 end
 
-# A stored document that is no plain text, pasted at a text cursor: each document
-# on the path of the cursor, from the deepest, can take it in its own way
+# A stored document that is no plain text can go into a document in its own way
 # (`make_pasted_document_operation`), as the draft of a conversation takes a plot
-# as a part. Paste-copy gives a fresh copy. A document that takes nothing leaves
-# the paste to the text.
+# as a part. At a text cursor, each document on the path of the cursor, from the
+# deepest, can take it, and when none does the paste goes to the text. When the
+# selection names a whole document, that document can take it, and when it does
+# not the paste replaces it. Paste-copy gives a fresh copy.
 function _document_target_paste(input, slice; copy::Bool = false)
     (slice isa Document && _slice_text(slice) === nothing) || return nothing
-    _find_text_target(input; writes = true) === nothing && return nothing
+    input.selection isa ConcreteReference || return nothing
+    at_text = _find_text_target(input; writes = true) !== nothing
+    (at_text || try_evaluate_reference(input, input.selection, missing) isa Document) || return nothing
     value = copy ? _make_clipboard_copy(slice) : slice
     value === nothing && return nothing
     copy && clear_selection!(value)
     steps = get_reference_steps(strip_reference_types(input.selection))
-    for count in length(steps):-1:1
+    for count in (at_text ? (length(steps):-1:1) : (length(steps):length(steps)))
         path = _make_steps_path(steps[1:count])
         document = try_evaluate_reference(input, path, missing)
         document isa Document || continue

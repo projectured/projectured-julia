@@ -970,12 +970,19 @@ function test_explorer()
         @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
     end
 
-    @testset "a document pasted at the caret on the page of a dashboard is a new card" begin
+    @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
         dashboard = Dashboard("Study")
-        explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+        content = ExplorerSection("Explorer", Any[dashboard])
+        explorer = Explorer(content)
         editor, backend = _nav_editor(explorer; clipboard = true)
         _nav_press!(editor, backend, _explorer_click(backend, "Study"))
         @test _nav_has_text(backend, "Insert or Ctrl+V on this page adds one.")
+        # A press on the row keeps the keys in the tree, and a paste there adds a card
+        # and keeps the entry.
+        editor.document.slice = Dashboard("Row copy")
+        _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        @test only(content.entries) === dashboard && [card.title for card in dashboard.cards] == ["Row copy"]
+        @test _nav_has_text(backend, "Row copy")
         # A press on the title of the page, below the bar of the navigator, puts the caret there.
         back_x = only(entry[2] for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
         titles = [entry for entry in _nav_texts(backend) if entry[1] == "Study" && entry[2] > back_x]
@@ -984,8 +991,8 @@ function test_explorer()
         @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
         editor.document.slice = Dashboard("Copied")
         _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
-        @test dashboard.title == "Study" && length(dashboard.cards) == 1
-        @test dashboard.cards[1].title == "Copied" && dashboard.cards[1].content === editor.document.slice
+        @test dashboard.title == "Study" && length(dashboard.cards) == 2
+        @test dashboard.cards[2].title == "Copied" && dashboard.cards[2].content === editor.document.slice
     end
 
     @testset "the task list says where its groups and tasks are, so the explorer finds them" begin

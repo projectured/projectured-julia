@@ -82,8 +82,9 @@ is_explorer_entry_type(::Type{Dashboard}) = true
                                        root = doc)
 end
 
-# A document that is pasted while the caret is on the page of a dashboard, such as
-# in its title, is a new card at the end, with the title of the document.
+# A document that is pasted while the dashboard is selected, as its row in an
+# explorer is, or while the caret is on its page, such as in its title, is a new
+# card at the end, with the title of the document.
 make_pasted_document_operation(dashboard::Dashboard, path, value) =
     value isa Document ?
         make_insert_elements_operation(extend_reference(EmptyReference(), FieldReferenceStep("cards")),

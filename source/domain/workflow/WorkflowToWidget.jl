@@ -635,7 +635,7 @@ end
 read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::CompoundOperation) =
     make_element_cancel_operation(iomap.input, invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation))
 
-# A document that is pasted while the caret is in the row of a node is an element
-# of the node: the document itself after a note, or a copy.
+# A document that is pasted while the node is selected, or while the caret is in
+# its row, is an element of the node: the document itself after a note, or a copy.
 make_pasted_document_operation(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}, path, value) =
     value isa Document ? make_add_element_operation(node, value) : nothing
