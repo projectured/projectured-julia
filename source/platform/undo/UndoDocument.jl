@@ -98,6 +98,13 @@ UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
 # for the document it stands for and gets what it holds.
 get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
 
+# A walk of the documents does not enter the steps of a buffer. They hold the old
+# versions of the content, which share their parts with it, so a search would find
+# a value that the content no longer holds, and a search of places would find each
+# shared part once for each step. A search of the old versions starts at the list of
+# steps itself, `search_documents(buffer.undo_entries, query)`.
+is_field_walked(::UndoBuffer, name::Symbol) = name !== :undo_entries && name !== :redo_entries
+
 # A person edits the document that a history keeps the steps of.
 get_edited_field(::UndoBuffer) = :content
 

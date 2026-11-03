@@ -257,7 +257,13 @@ index shows them. An example is `JsonModule`: "The JSON slice."
       named by the docstring of `ProjectionModule`, which the subtype rule offers
       through `ProjectionReferenceStep`) and the study window test, which read the
       registry as pairs.
-  - [ ] **The undo slice skips its two lists** with `is_field_walked`.
+  - [x] **The undo slice skips its two lists** with `is_field_walked`. *Done
+    (2026-11-03).* A load clears the mouse targets with a walk of its own that
+    enters every field but the mouse target and the selection, so the steps of an
+    undo buffer that a file holds lose theirs too. A test checks that a search of a
+    buffer does not find a value that only a step holds, and that a search of the
+    list of steps does. The platform suite (in its own environment), the
+    application suites and the IDE tests give only the failures known on main.
   - [ ] **The verbs keep the place:** `get_referenced_value` and the other verbs
     that read a part of the window, in both repositories.
   - [ ] **The error for a plain document:** the hint on Julia's `MethodError` and

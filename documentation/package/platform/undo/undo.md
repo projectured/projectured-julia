@@ -127,6 +127,8 @@ fills them with `get_undo_style`, from an `UndoTheme` scaled or not, or the defa
 
 The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, the natural slice for its row, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. The file system slice and the application depend on it: the open of a file and the application put a buffer into the document.
 
+A walk of the documents does not enter the two lists of a buffer: `is_field_walked(::UndoBuffer, name)` keeps `undo_entries` and `redo_entries` out. The steps hold the old versions of the content, which share their parts with it, so a search of a window would find a value that the content no longer holds, and a search of places would find a shared part once for each step. A search of the old versions starts at a list itself, `search_documents(buffer.undo_entries, query)`. A load clears the mouse targets with a walk that enters every field, the steps too.
+
 At load time it registers one row with the natural renderer, `UndoBuffer => UndoBufferToAnyProjection()`. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 
 ## Design decisions

@@ -81,6 +81,17 @@ function test_undo_buffer()
         @test length(buffer.redo_entries) == 0
     end
 
+    @testset "a search does not enter the steps of a buffer, and a search of the steps finds them" begin
+        buffer = UndoBuffer(_make_list(["now"]))
+        gone = UndoLeaf("gone", nothing)
+        push!(buffer.undo_entries, UndoEntry("remove", gone, nothing))
+        is_gone(node) = node isa UndoLeaf && node.value == "gone"
+        @test isempty(search_documents(buffer, is_gone))
+        @test isempty(search_references(buffer, is_gone))
+        @test only(search_documents(buffer.undo_entries, is_gone)) === gone
+        @test length(search_documents(buffer, node -> node isa UndoLeaf && node.value == "now")) == 1
+    end
+
     @testset "the default filter drops what changes nothing and a bare caret move" begin
         @test !is_undo_step(nothing, nothing)
         @test !is_undo_step(nothing, DoNothingOperation())
