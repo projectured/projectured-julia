@@ -1,27 +1,30 @@
 """
     test_conversation_tree()
 
-The nodes of a conversation in a tree: a turn has its parts as children, and is
-known by its role and the first line of its first text; a turn that runs says
+The nodes of a conversation in a tree: a turn has its parts as children unless it
+has one part of text, and is known by the first line of its first text, or by its
+role when it has no text; a turn that runs says
 so; a part of text is known by its first line, cut at the length of a label; a
 part has the children of its content; a thinking, a tool call and a request of
 an agent say what they are and their state.
 """
 function test_conversation_tree()
     @testset "the nodes of a conversation in a tree" begin
-        @testset "a turn has its parts, its role and the first line of its first text" begin
+        @testset "a turn has its parts unless it has one part of text, and its first line of text or its role" begin
             thinking = make_conversation_thinking_part("I read the file.")
             text = ConversationPart(make_text_block("\n  The first line.  \nThe second line."))
             turn = ConversationTurn(:assistant; parts = [thinking, text], start_time = 1000.0, finish_time = 1010.0)
             @test get_tree_children_steps(turn) == ((FieldReferenceStep("parts"),),)
-            @test format_tree_node_label(turn) == "Assistant · The first line."
+            @test format_tree_node_label(turn) == "The first line."
             decoration = get_document_decoration(turn)
             @test decoration.icon === :bot
             @test decoration.detail == "2 parts · " * Libc.strftime("%H:%M:%S", 1000.0)
             @test isempty(decoration.conditions)
             # A turn whose times are not known says no time.
             asked = ConversationTurn(:user, [ConversationPart("Can we make an outline?")])
-            @test format_tree_node_label(asked) == "You · Can we make an outline?"
+            @test format_tree_node_label(asked) == "Can we make an outline?"
+            # A turn of one part of text has no children: its row shows the text.
+            @test get_tree_children_steps(asked) == ()
             @test get_document_decoration(asked).icon === :user
             @test get_document_decoration(asked).detail == "1 part"
             # A turn with no text says its role only.

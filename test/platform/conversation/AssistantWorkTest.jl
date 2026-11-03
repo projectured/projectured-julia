@@ -280,8 +280,8 @@ function test_assistant_work()
             answer = turns[index]
             parts = collect(answer.parts)
             k = findfirst(part -> part.content isa EvaluatorForm, parts)
-            @test format_tree_node_label(asked) == "You · Find the outline"
-            @test format_tree_node_label(answer) == "Assistant · Found the outline."
+            @test format_tree_node_label(asked) == "Find the outline"
+            @test format_tree_node_label(answer) == "Found the outline."
             @test format_tree_node_label(parts[k]) == "tool · Grep \"outline\""
             explorer = Explorer(ExplorerSection("Explorer", Any[a]))
             navigator = explorer.navigator
@@ -298,7 +298,7 @@ function test_assistant_work()
                 @test chevron !== nothing
                 _work_page_press!(editor, backend, chevron)
             end
-            for label in ("You · Find the outline", "tool · Grep \"outline\"", "Found the outline.")
+            for label in ("Find the outline", "tool · Grep \"outline\"", "Found the outline.")
                 @test ProjecturedPlatformTest._explorer_click(backend, label) !== nothing
             end
             answer_steps = (FieldReferenceStep("entries"), ElementReferenceStep(1),

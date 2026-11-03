@@ -5,17 +5,23 @@
 
 # ── A turn ───────────────────────────────────────────────────────────────────
 
-get_tree_children_steps(::ConversationTurn) = ((FieldReferenceStep("parts"),),)
+# A turn has its parts as children, except a turn of one part of text, whose row
+# shows that text already.
+get_tree_children_steps(turn::ConversationTurn) =
+    _is_single_text_turn(turn) ? () : ((FieldReferenceStep("parts"),),)
 
-# The role, and the first line of the first part that has a text.
+_is_single_text_turn(turn::ConversationTurn) =
+    length(turn.parts) == 1 && _has_content_text(first(turn.parts).content)
+
+# The first line of the first part that has a text, or the role when no part has
+# one. The icon of the row says the role.
 function format_tree_node_label(turn::ConversationTurn)
-    role = _describe_turn_role(turn.role)
     for part in turn.parts
         _has_content_text(part.content) || continue
         line = _find_content_line(part.content)
-        line === nothing || return role * " · " * line
+        line === nothing || return line
     end
-    role
+    _describe_turn_role(turn.role)
 end
 
 _describe_turn_role(role::Symbol) =
