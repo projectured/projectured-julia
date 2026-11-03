@@ -1,8 +1,8 @@
 # Maximize a pane
 
-> **Status (2026-11-03):** pending. The owner answered the three questions of what
-> the person sees (Q1 to Q3). The design decisions D1 to D6 are mine and wait for
-> the approval of the owner. No source changed.
+> **Status (2026-11-03):** done, on the branch `maximize-pane`. The owner answered
+> the three questions of what the person sees (Q1 to Q3) and approved the plan
+> with D1 to D6. D3 changed its place during step 2; the reason is under D3.
 
 ## The goal
 
@@ -161,8 +161,17 @@ focus is not in a group.
    frame suite passes: 603. The naming guard passes. `test_platform_layering`
    fails 1 of 7, as on main: its list names files of the filechange, roster and
    shell slices, and none of this plan.
-7. ⬜ **A live check** with `run_example(pane_example)` in the SDL window: Ctrl+M,
-   Ctrl+PageDown, Ctrl+M, then Ctrl+M and Ctrl+Tab. Look at the pixels.
+7. ✅ **A pixel check.** A real window takes the keyboard focus from the desktop
+   of the owner, so the check ran with the offscreen SDL driver instead: one
+   standing print of a window of three groups (Explorer; `a.json` and `b.json`
+   over Assistant), the keys read through that print, and after each key a frame
+   from the SDL renderer (`write_offscreen_frames!`). Ctrl+M: the group of
+   `a.json` fills the window, with no divider. Ctrl+PageDown: `b.json` shows, and
+   the window stays maximized. Ctrl+M: the layout comes back with its sizes.
+   Ctrl+M and Ctrl+Tab: the layout comes back, and the focus is on Assistant. A
+   Ctrl chord of a letter arrives as `KeyDown(:m)`, not as a `KeyPress`, because
+   `find_typed_character` gives a character only for Return and Tab. No press of
+   a real keyboard in a real window was made.
 
 ## Limits
 
