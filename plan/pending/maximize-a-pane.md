@@ -155,11 +155,12 @@ focus is not in a group.
    whole window. The other pane suites pass: surgery 122, reader 89, rename 38,
    to widget 44, tabs wrapper 15, window shell 145, drag tracking 60, window
    wrappers 58.
-6. ⬜ **The documents.** `pane.md`: the field in the table of documents, the key
-   in the table of keys, a section on the maximize, and the two limits below.
-   The design document of the widget slice: the rule of D4. Run the tests of the
-   steps, and `test_dataframes()`, because a change of the layout broke the
-   tables of the data frames before.
+6. ✅ **The documents.** `pane.md`: the field in the table of documents, the key
+   in the table of keys, the geometry, a section "Maximize a group", a design
+   decision, and the three limits below. `widget.md`: the rule of D4. The data
+   frame suite passes: 603. The naming guard passes. `test_platform_layering`
+   fails 1 of 7, as on main: its list names files of the filechange, roster and
+   shell slices, and none of this plan.
 7. ⬜ **A live check** with `run_example(pane_example)` in the SDL window: Ctrl+M,
    Ctrl+PageDown, Ctrl+M, then Ctrl+M and Ctrl+Tab. Look at the pixels.
 

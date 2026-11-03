@@ -17,7 +17,7 @@ A fresh layout is one empty group. A person builds the rest with the keyboard an
 | `make_pane_tab_title(document, name)` | the title that `open_pane!` gives a new tab of `document` when the caller gives a string; the default is the name alone, and a slice adds a method for its document |
 | `PaneGroup(tabs)` | a tab group, which can be empty: `PaneGroup(PaneTab[])` |
 | `PaneSplit(orientation, elements; weights)` | two or more groups or splits, and one weight for each; an empty `weights` means equal weights |
-| `PaneTree(root, drag)` | the whole layout, and `drag`, the state of a tab drag |
+| `PaneTree(root, drag, maximized)` | the whole layout, `drag`, the state of a tab drag, and `maximized`, the group that fills the window or `nothing` |
 
 A `:vertical` split has a vertical divider, so its children are side by side. A `:horizontal` split stacks them. This is the meaning of the two words in Vim. The `orientation` of `WidgetSplitPane` names the axis that the children follow, which is the opposite word. `get_pane_split_axis` is the one translation, and `PaneToWidget` is its only caller.
 
@@ -57,8 +57,8 @@ Two rules hold for all of them:
 
 `PaneGeometry.jl` gives each group a rectangle in the unit square. One walk of the tree divides the square by the normalized weights. No font, no measure and no backend takes part, so the functions are pure:
 
-- `get_pane_rectangles(tree)`, `get_pane_rectangle(tree, group)` and `get_pane_group_at_point(tree, x, y)`;
-- `get_pane_neighbour_group(tree, group, direction)`: a candidate is wholly past the edge and overlaps on the other axis. The nearest wins, then the one that overlaps most;
+- `get_pane_rectangles(tree)`, `get_pane_rectangle(tree, group)` and `get_pane_group_at_point(tree, x, y)`: the groups that the window shows, so while a group fills the window it is the one group, and its rectangle is the whole square;
+- `get_pane_neighbour_group(tree, group, direction)`: a candidate is wholly past the edge and overlaps on the other axis. The nearest wins, then the one that overlaps most. It reads the layout, also while a group fills the window;
 - `get_pane_next_group(tree, group; backward)`: the depth-first order, which wraps at both ends;
 - `get_pane_drop_zone(tree, x, y; strip, band)`: the group under a point, and `:strip`, `:center` or one of four edge bands.
 
@@ -106,6 +106,7 @@ The `@gestures PaneTree` table is in `PaneGestures.jl`:
 | `Ctrl+Alt+Left/Right/Up/Down` | move the focus to the group in that direction |
 | `Ctrl+Tab` and `Ctrl+Shift+Tab` | focus the next or the previous group |
 | `Ctrl+PageDown` and `Ctrl+PageUp` | focus the next or the previous tab |
+| `Ctrl+M` | make the focused group fill the window, and give back the layout |
 | `Alt+Left` and `Alt+Right` | from a whole tab, select the tab beside it |
 | `Alt+Down` | from a whole tab, select its content as a whole |
 | `F2` and `Escape` | put the caret in the tab name, and take it out |
@@ -116,6 +117,16 @@ The command "Add the tab to the explorer" is a rule with no key. It adds the doc
 Every chord has a modifier, because a plain key belongs to the content of the focused tab. Plain Alt and an arrow walk the structure of a document, so the moves between groups take Ctrl+Alt. Ctrl+Tab is an `override`, because the widget split pane answers every Tab with its own focus traversal.
 
 With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and the `+` above the `x` duplicates it. The button after the last tab opens a tab. A drag of a divider writes the weights of that split, at any depth. A drag of a tab onto a strip or a middle moves it, and onto an edge band splits the group.
+
+### Maximize a group
+
+Ctrl+M makes the focused group fill the window, with its tab strip, and Ctrl+M again gives back the layout. The layout does not change: `maximized` of the tree names the group, and the splits and their weights stay, so the restore gives back the same layout. `make_pane_maximize_operation(tree, group)` and `make_pane_restore_operation(tree)` write the field as view state, so the undo records no maximize. `pred_arguments` of the tree writes only `root`, so a save does not write it. `is_field_walked` of the tree answers `false` for `maximized`, so a search finds the group only under `root`. Ctrl+M does nothing when the root is a group, because no other group exists.
+
+`find_pane_maximized_group(tree)` answers the group that fills the window, or `nothing`. It answers the group of the field only while the tree holds the group and while the focus is in that group or outside the layout, such as in a menu of the shell. Every view reads this function and not the field, so the window never hides the group that has the focus.
+
+**A focus move to a different group ends the maximize.** Each builder of the surgery that moves the focus to a group gives its operation to `_with_focus_restore`, with the group that takes the focus as an object. When a different group is maximized, it adds the write of `nothing`. So Ctrl+Tab, Ctrl+Alt and an arrow, a split, a close of the last tab of the group, `focus_pane!`, and an open with `focus = true` give back the layout, and the maximize does not come back when the focus comes back. A move that keeps the focus in the group, such as Ctrl+T or Ctrl+PageDown, keeps the maximize, and so does an edit that keeps the focus where it is along a new path, such as an open with `focus = false` or a split beside the group. The test is by object and not by path, because one operation can change the path of the group and move the focus.
+
+**The view closes the slots of the other groups.** The tree printer gives the splits the tree in the print property `:pane_tree`. `PaneSplitToWidgetSplitPane` makes the maximum extent of each slot a computed cell: 0 while `find_pane_maximized_group` answers a group that the element of the slot does not hold, and `nothing` otherwise. The widget split pane closes a slot whose maximum is 0: no extent, no drawing, and no divider beside it ([widget.md](../widget/widget.md)). The split pane reads the maximum in its allocation and its drawing, so a toggle prints no tab again: the carets, the scroll positions and the IO maps stay.
 
 ### Selecting inside a page
 
@@ -248,6 +259,7 @@ The shell slice puts a pane tree in the content of a window; see [shell.md](../s
 - **A program writes values at references.** A layout is a document, and a reference names any part of it, so one write verb covers every level. `source/platform/pane/PaneProgram.jl` states the rule in its header.
 - **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../../plan/done/declared-api-is-a-list-of-names.md).
 - **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../../plan/done/duplicate-a-pane.md).
+- **A maximize is a view of the layout.** The tree keeps the maximized group in a field and the layout stays, so a restore is exact and costs one layout. A split pane closes a slot whose maximum is 0, so the other groups keep their IO maps. See [plan/done/maximize-a-pane.md](../../../../plan/done/maximize-a-pane.md).
 - **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
@@ -277,3 +289,6 @@ save_user_interface("session.pred")
 - The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
 - An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
 - The geometry is proportional. It is not a model of the pixels of the drawing.
+- A terminal sends the same byte for Ctrl+M and Return, so the console backend can not see Ctrl+M.
+- A press on a link that selects a document in a different group by identity (`SelectDocumentOperation`) does not pass a builder of the surgery. The window shows the layout, because the focus is not in the maximized group, but the field stays until the next Ctrl+M, so the maximize comes back when the focus comes back to that group.
+- The window shows no sign that a group fills it, other than the absence of the other groups.
