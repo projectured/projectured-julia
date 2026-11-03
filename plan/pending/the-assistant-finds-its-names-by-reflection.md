@@ -219,7 +219,9 @@ index shows them. An example is `JsonModule`: "The JSON slice."
 ### 4.7 The defects of §2
 
 - The text answers work with string functions (open item 3).
-- The scratch module's `show`, `display` and `@show` pass on keywords.
+- The scratch module's `show`, `display` and `@show` pass on keywords. *Done in
+  step 2 (`dcda01712`):* `show` passes its keywords on, and a test of the declared
+  API checks it; `display` and `@show` of Base take no keyword.
 - A verb keeps the place of what it reads, and a verb that needs a place refuses a
   plain document with a clear error (decided 2026-11-03, §5.2). The work, in this
   order, each part with its own commit:
@@ -312,8 +314,8 @@ index shows them. An example is `JsonModule`: "The JSON slice."
       `select_part!` takes a part there." and the same advice. A keyword call
       reaches the hint as `Core.kwcall` with the keywords and the function first,
       and the hint reads past them.
-    - The texts are general: they name no verb and no tab. The owner has not yet
-      confirmed them.
+    - The texts are general: they name no verb and no tab. The owner confirmed
+      them (2026-11-03).
     - Tests: `test_referenced_document` (73/73), the kernel suite in its own
       environment (5039/5039), the naming guard.
   - [x] **The texts:** the docstrings of the two searches, and the system text that
