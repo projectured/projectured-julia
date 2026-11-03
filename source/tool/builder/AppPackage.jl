@@ -26,6 +26,21 @@ get_app_module_name(name::AbstractString) =
     replace(titlecase(replace(String(name), "-" => " ", "_" => " ")), " " => "") * "App"
 
 """
+    prepare_program_start!(build; name) -> NamedTuple
+
+Prepare what a script that starts the program `name` from the checkout runs,
+and answer it as `(path, module_name)`: the package of the binary, which
+`build(; compile = false, resolve = true)` writes, and its module. The script
+loads that package as Julia does and starts `julia_main`. With the reactive
+Julia, the first start after a small change compiles a patch of the changed
+package on top of its compiled file, and the packages above it keep theirs.
+"""
+function prepare_program_start!(build; name::AbstractString)
+    project = build(; compile = false, resolve = true)
+    (path = String(project), module_name = get_app_module_name(name))
+end
+
+"""
     LOG_LEVEL_NAMES
 
 The levels a binary logs from, least first.

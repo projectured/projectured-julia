@@ -432,6 +432,46 @@ right answer: the edit of `g` keeps the method object of `f`.
 - The cost of the change without the patch was not measured in omnet-julia.
   The whole compile, 616 s, is its upper limit.
 
+## Step 5: the run scripts run from source
+
+**What changes.**
+
+- [x] `prepare_program_start!` writes the package of the binary with
+      `compile = false` and answers the package and its module. It has no
+      branch that rebuilds and starts the binary, and no notice.
+- [x] `bin/projectured` and `bin/omnet_ide` load that package as Julia does.
+- [x] The test of `prepare_program_start!` follows. `test_build_executable()`
+      and `test_builder_layering()` pass with Julia 1.13.1: 371 tests.
+- [x] The guides say how a start is fast after a small change: the build
+      guide and the builder document in projectured-julia, and the guide of
+      the reactive build in omnet-julia. The function moved to
+      `AppPackage.jl`, beside `get_app_module_name`, because it reads no store.
+- [ ] The check of step 5.
+- [ ] The comparison below.
+
+**The comparison.** The user (2026-11-03): "At the end I want to see a
+comparison between vanilla and reactive for various building and starting
+cases." Vanilla is Julia 1.13.1 (`julia +1.13`); reactive is the fork, branch
+`fast-source-run`. Each case runs in a scratch copy with a new depot, for
+`projectured` and for `omnet_ide`:
+
+1. A build of the binary from nothing: a plain build, and the founding of a
+   store.
+2. A build of the binary after a method body change of the platform: a plain
+   build, and a rebuild.
+3. A start of the binary.
+4. A start from source in a new depot.
+5. A start from source with no change.
+6. A start from source after a method body change of the platform.
+7. With the reactive Julia, a start from source after a macro change and
+   after a constant change of the platform. Vanilla Julia compiles the same
+   packages for every change of the platform, so case 6 stands for it.
+8. `jo` with no change and after the method body change.
+
+A start is the start of the program with `--build-info`, which prints after
+the load of every package of the program and exits. So it measures the load
+and the compile of packages, and not the first frame.
+
 ## Not in this plan
 
 - One store of compiled code for several worktrees of the same commit.

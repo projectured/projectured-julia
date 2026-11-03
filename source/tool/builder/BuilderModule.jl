@@ -38,7 +38,8 @@ export run_with_slow_output
 export Preference, make_baked_preference, make_exposed_preferences,
        is_performance_counters_requested, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
-export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_if_changed
+export get_app_module_name, prepare_program_start!, LOG_LEVEL_NAMES, write_app_package,
+       StandIn, write_if_changed
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
@@ -46,7 +47,7 @@ export LAUNCHER, REACTIVE_HEADROOM, get_object_archive, compile_linked_app!,
        link_executable!, prelink_executable!, strip_bundle!
 export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
        print_reactive_status!, stop_reactive_server, watch_reactive_store!,
-       has_reactive_julia, describe_reactive_build, prepare_program_start!
+       has_reactive_julia, describe_reactive_build
 export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
        get_hidden_directories, make_hidden_command, check_relocation, write_readme,
        report_distribution

@@ -691,38 +691,12 @@ function test_build_executable()
             end
         end
 
-        @testset "a start rebuilds the binary of a store, and runs from source without one" begin
+        @testset "a start writes the package of the binary, and compiles nothing" begin
             calls = Any[]
-            failing = Ref(false)
-            build(; keywords...) = begin
-                push!(calls, Dict{Symbol,Any}(keywords))
-                failing[] && isempty(keywords) && error("an edit that the compiler refuses")
-                "/app/package"
-            end
-            start(output; reactive_julia = true) =
-                prepare_program_start!(build; name = "p", output, script = "bin/p",
-                                       build_script = "bin/build_p", reactive_julia)
-            stored = mktempdir()
-            mkdir(joinpath(stored, REACTIVE_STORE))
-            # A store and the reactive Julia: a rebuild, and the binary starts.
-            answer = start(stored)
-            @test answer.kind === :binary && answer.path == joinpath(stored, "bin", "p")
-            @test isempty(answer.notice) && calls == [Dict{Symbol,Any}()]
-            # No store: the package runs from source, and the start founds nothing.
-            empty!(calls)
-            answer = start(mktempdir())
-            @test answer.kind === :source && answer.path == "/app/package" && answer.module_name == "PApp"
+            build(; keywords...) = (push!(calls, Dict{Symbol,Any}(keywords)); "/app/package")
+            answer = prepare_program_start!(build; name = "p")
+            @test answer == (path = "/app/package", module_name = "PApp")
             @test calls == [Dict{Symbol,Any}(:compile => false, :resolve => true)]
-            @test occursin("bin/build_p founds a reactive store once", answer.notice)
-            # Another Julia: from source, with the words that say how to get it.
-            answer = start(stored; reactive_julia = false)
-            @test answer.kind === :source && occursin("juliaup default merged", answer.notice)
-            @test occursin("needs the Julia that founded it", answer.notice)
-            # A rebuild that fails runs from source and says why.
-            failing[] = true
-            answer = start(stored)
-            @test answer.kind === :source
-            @test occursin("failed", answer.notice) && occursin("refuses", answer.notice)
         end
 
         @testset "a build that would write the same module again leaves it alone" begin

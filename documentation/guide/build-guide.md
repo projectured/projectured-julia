@@ -34,11 +34,29 @@ stops there. The script then starts `julia_main` of that package. A change is
 tried in the time that Julia needs to compile it, and not in the minutes that a
 build costs.
 
-When `build/projectured/` holds a reactive store and the Julia is the reactive
-one, the script rebuilds the binary, which compiles the edit and no more, and
-starts it; see [Rebuild in seconds](#rebuild-in-seconds). Else it runs from
-source, and it says why and what the reactive build gives. A start never founds
-a store.
+The script loads the packages as Julia does. With another Julia, a change of a
+package makes Julia compile that package and every package above it again,
+which takes minutes for a change of the platform. With the reactive Julia, the
+first start after a small change takes seconds:
+
+- **The changed package gets a patch.** Julia loads the compiled file of the
+  package, applies the changed definitions, compiles again the code that they
+  reach, and writes only that, as a patch beside the file. A later change adds
+  a patch on top of the others.
+- **The packages above keep their files.** Julia compiles again, at its first
+  call, each function of theirs that called a changed method.
+- **A read at the top level is recorded.** A package that expands a macro or
+  reads a constant of a package below it at its top level compiles whole when
+  that macro or constant changes. The packages that do not read it keep their
+  files.
+- **Some changes compile the package whole**, as with another Julia: a changed
+  type, a changed global that is not constant, a changed `__init__`, a changed
+  include of a file that is not a source file, and a change after 32 patches.
+- **Revise reads the patch.** In a session, Revise compares an edit with the
+  text that the patch applied, so it applies the edit and no more.
+- `JULIA_REACTIVE_PACKAGE_PATCH=0` turns the patch off.
+
+The binary has its own fast path: see [Rebuild in seconds](#rebuild-in-seconds).
 
 The first start after an install or an update installs and compiles the
 packages of the program, which takes some minutes. When that preparation runs
