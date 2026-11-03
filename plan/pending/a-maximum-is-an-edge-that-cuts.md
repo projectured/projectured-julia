@@ -173,11 +173,13 @@ Step 8 checks them.
 Each step is a commit on the branch of a worktree. Each step updates the
 documents that it makes wrong.
 
-### Step 1. The examples
+### Step 1. The examples — done
 
 Examples that show each case, with names that start with `layout_`, in
 `example/platform/LayoutCaseDocumentExample.jl`, registered in
-`PlatformExamples.jl` and in the catalog. Each one is a window with a splitter,
+`PlatformExamples.jl` and in the `examples` of `ProjecturedExample`, and
+exported from both packages. The catalog holds one atom for each document type,
+so these composite examples are not in it. Each one is a window with a splitter,
 so a person drags it and sees the layout react: `run_example("layout_…")` in the
 REPL.
 
@@ -188,11 +190,18 @@ REPL.
 | `layout_fill_in_scroll_area` | a `Fill` panel in a scroll area, with short content on one side of the splitter and long content on the other (R3) |
 | `layout_shares` | `Fixed`, `Content`, `Relative(2)` and `Relative(1)` with minimums in one column (R3, R4) |
 | `layout_row_edge` | a label, a field that fills and a button; a long text before a button, with and without a weight (R4) |
-| `layout_rows_in_slot_and_page` | a table, a list and a tree in a cut slot and in a page (R2, R5) |
+| `layout_rows_in_slot_and_page` | a table in a cut slot, and a table and a list in a page (R2, R5) |
 
 Before Step 3 the examples show today's faults; they are the pictures to compare
-with after Step 5. Each example passes `test_example`. The tour
+with after Step 5. The tour
 ([examples-tour.md](../../documentation/guide/examples-tour.md)) lists them.
+
+Found in this step: the sweeps run `test_printer`, `test_reader` and `test_repl`
+on every example. `test_typein` runs only on five text examples. The sweeps of
+position navigation, of click round trips and of text navigation skip widget and
+layout examples, because the keyboard can not seed a first caret in them and no
+`TextToGraphics` is at their top; they skip the prefix `layout_` too
+(`ExampleSweeps.jl`).
 
 ### Step 2. The rules as a test
 
@@ -268,6 +277,15 @@ window. Then the branch waits for approval to land.
   rules.
 
 ## 7. Open
+
+- **R1 and the width (found in Step 1).** Text in a scroll area wraps at the
+  maximum width that the area gives its content: the code lines of
+  `layout_scroll_area_in_page` wrap at the width of the view. A scroll area that
+  gave its content no maximum width would stop every text in it from wrapping.
+  CSS gives the content of a scroll container the width of the container and an
+  automatic height: the width is an edge to lay out against, and the content
+  grows down. My recommendation: R1 applies to the height, the axis on which a
+  page grows, and a scroll area keeps giving its view as the maximum width; open.
 
 - The names of the visible extent: my recommendation is
   `get_visible_width(ctx)` and `get_visible_height(ctx)`; open.
