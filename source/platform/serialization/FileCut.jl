@@ -309,7 +309,9 @@ function _orphan_message(file, path, node, strict::Bool)
 end
 
 # Rebuild a node the way `copy_document` does, with every child cut. A cell keeps
-# its kind; a collection field is rebuilt as the same kind of collection.
+# its kind; a collection field is rebuilt as the same kind of collection. A field
+# of the state of a view is no content, so it keeps its value, as the selection
+# does, and its documents are not cut.
 function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
     T = typeof(node)
     args = Any[]
@@ -317,7 +319,7 @@ function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::B
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         copied = name === :mouse_target ? nothing :
-                 (name === :selection || !is_written_in_file(file, node, name)) ? value :
+                 (is_view_state_field(T, name) || !is_written_in_file(file, node, name)) ? value :
                  _cut_field(owner, file, name, value, path, visited, strict)
         push!(args, raw isa AbstractCell ? make_similar_cell(raw, copied) : copied)
     end

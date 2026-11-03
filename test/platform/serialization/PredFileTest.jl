@@ -51,6 +51,28 @@ SerializationModule.parse_file_content(::Type{<:PredFileLinesFile}, text::Abstra
 SerializationModule.emit_text(file::PredFileLinesFile) = join(get_file_content(file).lines, '\n')
 
 """
+A page of lines and a view of them, a document that is state of the view and no
+part of what the page says.
+"""
+@document struct PredFileViewedLines
+    lines::Vector{String} = String[]
+    view::Any = nothing
+end
+
+ProjecturedKernel.DocumentModule.get_view_state_fields(::Type{<:PredFileViewedLines}) = (:view,)
+
+"""
+A `.viewed` file, which holds a [`PredFileViewedLines`](@ref).
+"""
+@document struct PredFileViewedLinesFile <: FileDocument
+    filename::String
+    content::Any = nothing
+end
+
+SerializationModule.get_file_domain(::Type{<:PredFileViewedLinesFile}) = PredFileViewedLines
+SerializationModule.emit_text(file::PredFileViewedLinesFile) = join(get_file_content(file).lines, '\n')
+
+"""
 A document of the tests that holds a list of other documents.
 """
 @document struct PredFileHolder
@@ -71,6 +93,11 @@ function test_pred_file()
         @test is_view_state_field(PredFileFolds, :folded)
         @test !is_view_state_field(PredFileFolds, :name)
         @test is_view_state_field(PredFileFolds, :selection)
+    end
+
+    @testset "a save leaves out a document that a field of view state holds" begin
+        page = PredFileViewedLines(lines = ["one", "two"], view = PredFileHolder(name = "view"))
+        @test cut_file_text(PredFileViewedLinesFile("page.viewed", page)) == "one\ntwo"
     end
 
     @testset "a document of a format that no file writes is written inline, in the text of its format" begin
