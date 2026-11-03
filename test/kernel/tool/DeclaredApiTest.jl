@@ -255,6 +255,15 @@ struct ToyLoud end
 Base.show(io::IO, ::ToyLoud; loud::Bool = false) = print(io, loud ? "LOUD" : "quiet")
 end
 
+# Two verbs whose names share words: the longer one says them more often.
+module ToySpelled
+export find_toy_pane, find_toy_pane_reference
+"""Find the toy pane."""
+find_toy_pane() = 1
+"""Find the reference of the toy pane: the toy pane, the pane of the toy, any toy pane."""
+find_toy_pane_reference() = 2
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -832,6 +841,14 @@ function test_declared_api()
         set = ToolSet()
         @test_throws KeyError call_tool(set, "toy_missing_tool";
                                         args = Dict{String,Any}(), target = nothing)
+    end
+
+    @testset "keywords that spell a name in words find that name first" begin
+        set = declare_api!(ToolSet(), [ToySpelled])
+        # The name is a clear answer, so the search answers its whole docstring.
+        hits = string(search_api(set, "find toy pane"; detail = "names"))
+        @test occursin("Find the toy pane.", hits)
+        @test !occursin("Find the reference of the toy pane", hits)
     end
 
     @testset "the show of the code passes its keywords on" begin

@@ -400,3 +400,10 @@ ends with a commit in each repository that it changes.
    offers. The word ranking ranks in tiers: an exact name first, then the marked
    names, then the members; each tier weighs its words among its own entries. A
    ranking by meaning or by a relevance model keeps its order inside each tier.
+   Two more changes, agreed by the owner the same day: a keyword query of two or
+   more plain words that are exactly the words of a name is an exact hit of that
+   name ("find pane" is `find_pane`); and the two tests of a sentence search, which
+   run with no model of meaning, expect the right name among the first three. The
+   owner accepted the first five for one sentence (2026-11-03): "make a document of
+   a domain from its text" ranks `parse_natural_text` fourth, below `TextDocument`,
+   `make_text_block` and `make_table_document`, which are makers that fit as well.

@@ -1134,6 +1134,22 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
     occursin(written, name) ? 20 :
     occursin(written, qualified) ? 10 : 0
 
+# The words of a keyword query of two or more plain words, in their order, or
+# `nothing` for any other query. **A query that spells a name in words names it**:
+# "find pane" is `find_pane`, as exactly as the written name is, so the name whose
+# words are these words is an exact hit, and a longer name that holds them is not.
+function _get_spelled_words(query)
+    query isa KeywordQuery || return nothing
+    terms = _get_scored_terms(query)
+    length(terms) >= 2 || return nothing
+    words = String[]
+    for term in terms
+        (length(term.written) == 1 && only(term.written) isa AbstractString) || return nothing
+        push!(words, lowercase(only(term.written)))
+    end
+    words
+end
+
 # What a word is worth in the prose, by the rule search engines call BM25: a word
 # that few entries hold is worth more than one that most of them hold, a second
 # occurrence in one entry is worth less than the first, and a long text earns no
@@ -1181,6 +1197,7 @@ const _LENGTH_WEIGHT = 0.75
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
+    spelled = _get_spelled_words(query)
     kept = _ApiEntry[]
     named = Int[]
     counts = Vector{Vector{Int}}()
@@ -1196,6 +1213,7 @@ function _rank_api_entries(query, entries::Vector{_ApiEntry})
             name_score += maximum(_compute_name_score(written, short, words, qualified)
                                   for written in term.written)
         end
+        spelled == words && (name_score = max(name_score, 100))
         term_counts = Int[maximum(_count_at_word_start(form, prose) for form in term.forms)
                           for term in terms]
         (name_score > 0 || any(>(0), term_counts)) || continue

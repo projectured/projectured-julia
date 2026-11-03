@@ -200,15 +200,21 @@ function test_referenced_document_editor()
         @test occursin("replace_referenced_value!(part, new_value)", description)
         @test occursin("insert_elements!(collection, index, values)", description)
         @test occursin("delete_elements!(collection, index)", description)
-        first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
-            string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
+        first_names(query; mode, limit = 3) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
+            string(search_api(set, query; mode = mode, detail = "names", limit = limit)))]
         @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"
-        @test first(first_names("find pane"; mode = "keywords")) == "find_pane"
+        # Keywords that spell the name are a clear answer: the docstring of the name.
+        @test occursin("`find_pane` — the one API match",
+                       string(search_api(set, "find pane"; mode = "keywords", detail = "names")))
         @test "ReferencedDocument" in first_names("a document and where it is"; mode = "description")
         @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
-        # A domain with a parser is written as its text, so its constructors are
-        # not declared, and a search for a document from text finds the parser.
-        @test first(first_names("make a document of a domain from its text"; mode = "description")) == "parse_natural_text"
+        # A domain with a parser is written as its text, so a search for a document
+        # from text finds the parser. The root types of the domains are offered as
+        # well, with the makers of a text block and of a table, and a sentence is
+        # ranked by its words here, with no model of meaning, so the parser is among
+        # the first five.
+        @test "parse_natural_text" in first_names("make a document of a domain from its text"; mode = "description",
+                                                  limit = 5)
         @test first(first_names("open a pane under another pane"; mode = "description")) == "open_pane!"
     end
 
