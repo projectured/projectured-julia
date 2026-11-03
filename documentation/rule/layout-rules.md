@@ -243,11 +243,14 @@ A stack sums its children on its main axis. It **distributes** its edge instead
 when both of these hold:
 
 ```
-the stack has an edge on its main axis        a row: ctx.maximum_width !== nothing, exact or bounded
-                                              a column: get_exact_height(ctx) !== nothing, exact only
-  or a minimum and no maximum there           both: the minimum is shared as a minimum
+the stack has an edge on its main axis        ctx.maximum_width or ctx.maximum_height !== nothing,
+                                              exact or bounded
+  or a minimum and no maximum there           the minimum is shared as a minimum
 and some child carries a weight on that axis  (Fill or Relative)
 ```
+
+The rule is the same for a row and a column, and for the columns and the rows of
+a `GridLayout`.
 
 **A minimum is shared as a minimum.** A stack whose range on its main axis is
 `(m, ∅)`, as a page in a viewport that grows gets, divides `m`, and gives each
@@ -265,14 +268,10 @@ child fills the room its parent gives it, even when that parent gives only an ed
 a page gives every block the width of its view, as CSS gives a block the width of
 its container.
 
-A column shares only an exact height, such as the height of a tab. A bounded
-height is a limit and not an amount: the room that a page leaves a block below the
-others is what the view has left, not what the page has, because a page grows down
-with its blocks. In a bounded height a column sums its children, as it does with no
-edge, and a weighted child draws its content, as a CSS flex column with a
-`max-height` and no `height` gives `flex-grow` nothing to share. So a view that
-fills a tab with a table that scrolls in it (a card over a `Fill` pane) is as tall
-as its content in a page, and the page scrolls.
+An edge is where the giver cuts, so a stack divides it whether it is exact or
+bounded. A page that grows down sits in a viewport that grows on its height, which
+gives the page `(view, ∅)` (§3), so its blocks get no edge there. In a viewport
+that fits, the view is an edge, and the blocks share it.
 
 **Only a weighted child gets a slot.** Every other child gets the room the others
 leave, as a bounded range, and draws its content up to it:

@@ -220,7 +220,7 @@ end
 Every widget type and every layout type draws by the rule of its kind in each
 range, and a guard fails for a type with no kind. The worked cases: a window that
 cuts or scrolls, a column and a row that share a maximum alike and a minimum
-alike, a part that fills in a scroll area, the detail of a task, a table of a
+alike, a grid that shares both on both axes, a part that fills in a scroll area, the detail of a task, a table of a
 list in an area that grows, and a lazy grid in an area that grows.
 """
 function test_layout_rules()
@@ -268,8 +268,17 @@ end
     row = HorizontalLayout(Any[part((; width = Fixed(100))), part((; width = Fill))])
     @test _rules_child_extents(row, :width, 0, 300) == [100, 200]
     column = VerticalLayout(Any[part((; height = Fixed(100))), part((; height = Fill))])
-    # @broken: a column shares only an exact height: step 5.
-    @test_broken _rules_child_extents(column, :height, 0, 300) == [100, 200]
+    @test _rules_child_extents(column, :height, 0, 300) == [100, 200]
+end
+
+@testset "a grid shares a maximum and a minimum on both axes, as a stack does" begin
+    # Two columns and two rows of parts: the first `Fixed(100)`, the second `Fill`.
+    parts = Any[WidgetScrollPane(WidgetLabel("part")) for _ in 1:4]
+    grid = GridLayout(parts, 2; column_policies = Any[Fixed(100), Fill], row_policies = Any[Fixed(100), Fill])
+    for (minimum, maximum) in ((300, 300), (0, 300), (300, nothing))
+        @test _rules_child_extents(grid, :width, minimum, maximum)[1:2] == [100, 200]
+        @test _rules_child_extents(grid, :height, minimum, maximum)[[1, 3]] == [100, 200]
+    end
 end
 
 @testset "a column and a row share a minimum alike" begin

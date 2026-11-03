@@ -370,7 +370,7 @@ How it is done:
   | the width of a lazy `WidgetTree`, measured over the rows that show | builds what shows | visible height |
   | a `WidgetTable` whose rows are a list (`WidgetTableParts.jl`) | builds what shows | visible height |
   | `DataFrameViewToWidget`, `TaskStreamLines`, the bar of `FrameStatistics` | builds what shows | visible height |
-  | the width of a `WidgetTree`, `RosterToGraphics`, `DashboardToWidget`, `TaskGroupDocumentToWidgetPane`, the folder page, `GridList`, the panes | fills its slot | exact range |
+  | the width of a `WidgetTree`, `RosterToGraphics`, `DashboardToWidget`, `TaskGroupDocumentToWidgetPane`, the folder page, the panes | fills its slot | exact range |
 
 - These scroll areas hold a page, and grow on their height: the settings, the
   appearance, a section and the dashboard of the explorer, a help entry, the
@@ -412,12 +412,37 @@ search fixes. The 23 test functions that check a rank of a search pass, but for
 the two known failures of `InterfaceApiTest`. `test_dataframes()` and
 `test_graph()`: 1241 pass. The naming guard passes.
 
-### Step 5. R3: a column shares a maximum as a row does
+### Step 5. R3: a column shares a maximum as a row does — done
 
 `_vl_build` shares a range with a maximum, exact or bounded, as `_hl_build` does,
 and so do the rows of `GridLayout` as its columns do. After Step 4 a page gets no
 maximum, so a bounded height is always a cut. Tests: `test_layout_rules()`, the
 `SizeRange*` tests, `test_platform()`, `test_dataframes()`.
+
+How it is done:
+
+- `_vl_build` divides `ctx.maximum_height`, exact or bounded, as `_hl_build`
+  divides `ctx.maximum_width`, and else the minimum (Step 4).
+- The grid shared only an exact extent on both axes, its columns too, and it
+  shared no minimum. It now divides on each axis what a stack divides
+  (`_gl_divided_extent`): the edge, exact or bounded, else the minimum. A weighted
+  column or row that shares a minimum keeps two cells: its share, which its cells
+  get as their minimum, and its extent, the larger of the share and what its cells
+  drew (`_gl_at_least_cell`). The cells read only the share, so no extent reads
+  itself; a cell that spans such columns gets the sum of their shares as its
+  minimum.
+- The grid whose rows are a list (`GridList.jl`) divides its width by the same
+  rule. Its cells are not all built, so a weighted column is its share.
+
+Found in this step:
+
+- `SizeRangeMainAxisTest` checked the old rule, "a column sums its children in a
+  bounded height". It checks the new one now: an exact and a bounded height are
+  both shared, and a minimum with no maximum lets the column grow.
+
+Result: `test_layout_rules()` and the `SizeRange*` tests pass, with 21 broken,
+for Step 6. The platform suite, in four parts: the three known failures of main.
+`test_dataframes()` and `test_graph()`: 1241 pass. The naming guard passes.
 
 ### Step 6. R2: a viewport stops at its maximum
 
