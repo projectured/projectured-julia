@@ -115,9 +115,14 @@ Each step has a check. If a check fails, stop and report.
       compile; the load takes 17.4 s against 16.6 s with no change.** The
       design as built and the results are in "Step 3: keep the files above"
       below.
-- [ ] 4. **Use it in omnet-julia.** Check: the same change of the platform
+- [x] 4. **Use it in omnet-julia.** Check: the same change of the platform
       package, then `jo` loads every package of `OmnetRepl` in at most 15 s
       more than a start with no change.
+      **Done 2026-11-03: the first start of `jo` after the change takes
+      27.0 s against 22.8 s with no change, and writes only the patch of the
+      platform; later starts take 22.9 s; Revise in the session revises an
+      edit and keeps the patched method.** The design as built and the
+      results are in "Step 4: use it in omnet-julia" below.
 - [ ] 5. **The run scripts run from source again**, and the guides say how
       the fast way works. Check: with the reactive Julia, a change of the
       platform, then `bin/omnet_ide` and `bin/projectured` start from source
@@ -380,7 +385,52 @@ the last run, with all fixes.
   measurable amount (17.5 s against 17.1 s).
 - A method that a macro call makes belongs to no entry. So when a macro call
   is removed, its methods stay until a whole compile.
-- Revise reads the source text of the old file (step 4).
+- Revise reads the source text of the old file. Step 4 closed this.
+
+## Step 4: use it in omnet-julia
+
+**The method.** A scratch copy of omnet-julia at `main` a0dde28db, beside a
+copy of projectured-julia at `main` 6938caf1c and the four repositories that
+their packages name by a path. The `Manifest.toml` of `environment/all` comes
+from the checkout of the user. A new depot, then `~/.julia` for the
+registered packages. The start of `jo` is the command of the alias with no
+startup file: `using Revise, OmnetRepl` in `environment/all`. The change is
+the method body of `_child_w` of step 2.
+
+**Revise after a patch.** Revise reads the text of a file from the package
+file at the first edit of the file in a session, and compares the edit with
+it. After a patch, that text is older than the code that the session runs.
+So Revise applied the changes of the patch again: in the toy, an edit of `g`
+after a patch of `f` defined `f` again. Now the loader keeps the texts that
+the last patch of a fresh chain holds, and `Base.read_dependency_src` gives
+them for the file of the package. The last patch holds every file that
+differs from the package file, so it holds the text that the session runs.
+Revise needs no change. The build of a patch loads the chain that is not
+fresh, and it keeps reading the text of the package file. Built in the Julia
+fork, branch `fast-source-run`, commit 66f9946a11. The toy now gives the
+right answer: the edit of `g` keeps the method object of `f`.
+
+**The results.** Each start is a new process. `jo` loads 405 packages, and
+406 with the patch module.
+
+| State | What compiles | `using Revise, OmnetRepl` |
+| --- | --- | --- |
+| Whole compile of `environment/all` | all | 616 s |
+| No change, three starts | nothing | 22.8 to 23.0 s |
+| After the change, the first start | the patch of the platform, at the load | 27.0 s |
+| After the change, three more starts | nothing | 22.8 to 22.9 s |
+
+- The patch build of the platform takes the same time as in step 2: load
+  1.2 s, apply 0.8 s, compile 0.2 s, and 21 of 23 closed instances compiled
+  again.
+- No package of omnet-julia compiled again.
+- Revise in a `jo` session with the patch: an edit of `_child_h` in the same
+  file as `_child_w`, then `Revise.revise`. `_child_h` has a new method, and
+  `_child_w` keeps the method object of the patch. The revise takes 4.9 s,
+  of which 1 s is the wait for the file event.
+- Then `Pkg.precompile` compiles nothing, in 1.3 s.
+- The cost of the change without the patch was not measured in omnet-julia.
+  The whole compile, 616 s, is its upper limit.
 
 ## Not in this plan
 
