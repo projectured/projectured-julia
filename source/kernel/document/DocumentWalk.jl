@@ -86,7 +86,7 @@ Use it to build a walk that changes one rule and keeps the rest.
 
     walk_1 = DocumentWalk(; enter_field = (node, name) -> node isa UndoBuffer || is_field_entered(node, name))
 
-See also `DocumentWalk` and `is_field_walked`.
+See also `DocumentWalk`.
 
 For the assistant.
 """

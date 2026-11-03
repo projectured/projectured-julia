@@ -256,7 +256,7 @@ function test_assistant_verbs()
         @test circle.cx == 80
         set_clock_time!(editor.clock, Float64(pi))
         @test circle.cx == 20
-        @test occursin("2pi * get_reactive_clock_time",
+        @test occursin("() -> 100 * get_reactive_clock_time(editor.clock)",
                        _run_assistant_code(editor, "read_function_documentation(\"ClockModule\", \"get_reactive_clock_time\")"))
     end
 
