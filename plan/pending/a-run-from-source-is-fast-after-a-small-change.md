@@ -85,13 +85,15 @@ later, such as a test package, would still compile from nothing.
 
 Each step has a check. If a check fails, stop and report.
 
-- [ ] 1. **Measure what the design can win.** No change to Julia. Take the
+- [x] 1. **Measure what the design can win.** No change to Julia. Take the
       ten latest commits of projectured-julia that change only the platform
       package. For each, compile the packages before and after the commit,
       and count the packages above the platform whose compiled code and
       top-level reads stay the same. Check: the counts exist for the ten
       commits. If fewer than half of the packages above stay the same, rule
-      2 wins little: stop and report.
+      2 wins little: stop and report. **Done 2026-11-03: every package above
+      stays the same in all ten commits.** The method and the results are in
+      "Step 1: the measurement" below.
 - [ ] 2. **Rebuild the changed package from its old file** (rule 1). Check:
       after a change of one method body in the platform package, its new
       file is written in at most 15 s, and a new process that loads it gives
@@ -112,6 +114,60 @@ Each step has a check. If a check fails, stop and report.
       `jo`, `jp`, `ji`, `bin/omnet_ide`, `bin/projectured`,
       `bin/build_omnet_ide` and `bin/build_projectured` work as they do
       today.
+
+## Step 1: the measurement
+
+**The method.** The ten commits, oldest first: 9f69cea5f, 02cc25e0c,
+da66da0f0, d84c2f19b, 221e106fe, 1d0961f99, 51fdc9ebd, 7990ce187, 56f470093
+and dee4bc5f2. For each commit, the reactive Julia compiled `environment/all`
+before and after it, with 4 compile tasks and a depot of its own. Then a script
+loaded all packages (122 to 125) and wrote a digest of each package:
+
+- each method: the hash of its lowered code;
+- each type: its super type and its field types;
+- each constant: its printed form;
+- each compiled function in a loaded file: the key of `ReadKey` from
+  `contrib/reactive-compiler`, which covers its own code, the globals that it
+  reads and the keys of the functions that it calls.
+
+A package keeps its file when its methods, types and constants are the same
+before and after. Two digests of the same state are equal, checked before the
+run.
+
+**The results.**
+
+| Commit | Platform definitions changed | Packages above that keep their file | Compiled functions that change, platform and kernel | Today's compile after the commit |
+|---|---|---|---|---|
+| 9f69cea5f | 1 | 97 of 97 | 0 | 394 s |
+| 02cc25e0c | 3 | 97 of 97 | 36 | 423 s |
+| da66da0f0 | 2 | 97 of 97 | 53 | 398 s |
+| d84c2f19b | 22 | 97 of 97 | 369 | 594 s |
+| 221e106fe | 3 | 98 of 98 | 27 | 359 s |
+| 1d0961f99 | 2 | 98 of 98 | 3 | 333 s |
+| 51fdc9ebd | 4 | 98 of 98 | 0 | 350 s |
+| 7990ce187 | 7 | 98 of 98 | 38 | 353 s |
+| 56f470093 | 11 | 98 of 98 | 58 | 341 s |
+| dee4bc5f2 | 2 | 98 of 98 | 58 | 334 s |
+
+No compiled function of a package above changes, in any commit. The platform
+and the kernel together have about 120,000 to 170,000 compiled functions, and
+at most 369 of them change. Julia compiles these again at their first call. The
+count of a package above holds only its own methods: a compiled copy of a
+platform or kernel method in a file above counts under the platform or the
+kernel.
+
+**The differences that are not a read of the platform.** The comparison showed
+five, and none of them makes a file out of date:
+
+- `json_*_live` of `ProjecturedSDLExample` and `_WARMUP_EVENTS` of
+  `ProjecturedExample` hold `time()` from the compile, so each build differs.
+- The `_enum_hash` method of `@enum SqlTokenKind` holds a hash that differs in
+  each build.
+- The docstring table of `ProjecturedPDF.PdfModule` prints in one of two
+  orders at random.
+- `EDITOR_SYSTEM` of `ProjecturedAll` and `ProjecturedREPL` is a `using` of the
+  platform name. The kept file refers to the platform binding, so it reads the
+  new value. Step 3 must keep this true.
 
 ## Not in this plan
 
