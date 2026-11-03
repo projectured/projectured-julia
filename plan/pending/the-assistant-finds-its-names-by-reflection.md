@@ -327,6 +327,12 @@ ends with a commit in each repository that it changes.
 - The examples of `OpenFileOperation`, `SaveFileOperation` and
   `ReloadFileOperation` call `evaluate_operation`. These three are operation types
   that the windows offer today; by D3 they give way to verbs in step 3.
+- The examples of `get_reactive_clock_time` and `get_clock_time` made a cell with
+  `Cell(@computation …)`, which the assistant cannot write. They now read the clock
+  in a function, `() -> get_reactive_clock_time(editor.clock)`, the form that the
+  system text teaches. The owner gave permission for the sealed
+  `kernel/clock/Clock.jl` (2026-11-03); only the two examples changed. The `Clock`
+  docstring, which carries no mark, keeps its cell example.
 - **Types (owner 2026-11-02, option A):** a mark on a type offers every exported
   subtype. `collect_marked_api(; exclude)` walks the loaded modules (not `Base` or
   `Core`) for the subtypes; the platform passes `is_domain_placeholder`, so the
