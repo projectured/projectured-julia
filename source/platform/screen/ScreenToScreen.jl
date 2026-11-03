@@ -48,7 +48,7 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         () -> input.windows,
         (index, x) -> _print_window(p, recursion, x,
             make_element_context(ctx, index, i -> (FieldReferenceStep("windows"), ElementReferenceStep(i))),
-            pointer_shape))
+            pointer_shape, iomap_cell))
     out_windows = Cell(@computation CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
     paths = make_output_path_cells(input, path -> begin
         im = iomap_cell[]
@@ -62,10 +62,13 @@ end
 
 # A window printed on its own is on no screen, so it keeps no pointer shape.
 print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx) =
-    _print_window(p, recursion, input, ctx, Cell(nothing))
+    _print_window(p, recursion, input, ctx, Cell(nothing), nothing)
 
-# The window `input` of a screen whose `pointer_shape` cell is `pointer_shape`.
-function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx, pointer_shape::Cell)
+# The window `input` of a screen whose `pointer_shape` cell is `pointer_shape`, and
+# whose IO map `screen_iomap` holds once the screen is printed, or `nothing` for a
+# window on no screen.
+function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx, pointer_shape::Cell,
+                       screen_iomap)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
     #
@@ -73,7 +76,14 @@ function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx,
     # the backend gives such a window the extent of what it printed, and an offer
     # that followed that size would chase it. So a text wraps at the maximum
     # width, and the window ends as wide as the text needed.
-    maximum_size = getfield(input, :maximum_size)
+    #
+    # A window that a placement places takes its place and its bounds from the
+    # placement, in cells that compute them over the printed screen. Only such a
+    # window has these computed cells: the window manager replaces a window that
+    # gains or loses its placement, and every other window shares its cells with
+    # the input, which the backend writes.
+    place = _make_window_place_cells(input, screen_iomap)
+    maximum_size = place.maximum_size
     offer_width = Cell(@computation((m = maximum_size[];
                                      m[1] > 0 ? m[1] : getfield(input, :width)[])))
     offer_height = Cell(@computation((m = maximum_size[];
@@ -100,19 +110,39 @@ function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx,
     # a positional list, and `x`, `y`, `width` and `height` are all `Int`, so a
     # shifted argument would mis-size or misplace a window with no error.
     output = WindowDocument(; id = getfield(input, :id), title = getfield(input, :title),
-                            x = getfield(input, :x), y = getfield(input, :y),
+                            x = place.x, y = place.y,
                             width = getfield(input, :width), height = getfield(input, :height),
-                            minimum_size = getfield(input, :minimum_size),
-                            maximum_size = getfield(input, :maximum_size),
+                            minimum_size = place.minimum_size, maximum_size = place.maximum_size,
                             bg = getfield(input, :bg), style = getfield(input, :style),
                             auto_dismiss = getfield(input, :auto_dismiss),
                             modal = getfield(input, :modal),
+                            placement = getfield(input, :placement),
                             content = Cell(@computation _cover_window_content(content_iomap[].output,
                                                                               cover)),
                             paths...)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap
+end
+
+# The cells of the place and the bounds of the output of `input`: the cells of the
+# input for a window with no placement, and for a placed window cells that compute
+# them from its placement, each field falling back to the field of the input while
+# the placement answers `nothing` for it.
+function _make_window_place_cells(input::WindowDocument, screen_iomap)
+    fields = (x = getfield(input, :x), y = getfield(input, :y),
+              minimum_size = getfield(input, :minimum_size),
+              maximum_size = getfield(input, :maximum_size))
+    peek(getfield(input, :placement)) === nothing && return fields
+    place = Cell(@computation _compute_window_place(input, screen_iomap))
+    (x = Cell(@computation((q = place[]; q === nothing ? fields.x[] : q.x))),
+     y = Cell(@computation((q = place[]; q === nothing ? fields.y[] : q.y))),
+     minimum_size = Cell(@computation((q = place[];
+                                       q === nothing || q.minimum_size === nothing ?
+                                           fields.minimum_size[] : q.minimum_size))),
+     maximum_size = Cell(@computation((q = place[];
+                                       q === nothing || q.maximum_size === nothing ?
+                                           fields.maximum_size[] : q.maximum_size))))
 end
 
 # How far the region of the pointer shape that the screen keeps reaches past the
@@ -313,7 +343,9 @@ function _make_window_event(iomap::ScreenToScreenIoMap, gesture, index::Int)
     event = gesture.event
     from = _find_window_index(iomap, gesture.window_id)
     (from == 0 || from == index) && return event
-    source, target = iomap.window_iomaps[from].input, iomap.window_iomaps[index].input
+    # The output holds the place of a window, also the place that a placement
+    # computes; a window with no placement shares it with the input.
+    source, target = iomap.window_iomaps[from].output, iomap.window_iomaps[index].output
     shift_event_position(event,
         _wval(getfield(source, :x)) - _wval(getfield(target, :x)),
         _wval(getfield(source, :y)) - _wval(getfield(target, :y)))
@@ -365,7 +397,7 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         inner = read_routed_child_in_frame(recursion, routed, cim;
                                            move_in = (a, b) -> (a - x, b - y),
                                            move_out = (a, b) -> (a + x, b + y))
-        return Intent(change.gesture, _open_popup_windows(_prefix_op(inner.operation, steps), iomap.input))
+        return Intent(change.gesture, _open_popup_windows(_prefix_op(inner.operation, steps), iomap.output))
     end
     window_input = change.gesture
     if window_input isa WindowInput
@@ -390,13 +422,14 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         steps = (FieldReferenceStep("content"),)
         op = _prefix_op(shift_operation_position(operation, x, y), steps)
         op = read_container_gesture(op, window_input.event, iomap.input; steps)
-        return Intent(change.gesture, _open_popup_windows(op, iomap.input))
+        return Intent(change.gesture, _open_popup_windows(op, iomap.output))
     end
     payload = change.operation === nothing ? change.gesture : change.operation
     return Intent(change.gesture, read_intent(p, iomap, payload))
 end
 
-# A popup that the content of a window answers is in the frame of the window. It
+# A popup that the content of a window answers is in the frame of the window,
+# `window` the output window, whose place a placement can compute. It
 # opens as a `:popup` window of its own, which never takes the focus, at the
 # screen origin of this window plus its position, and it takes the extent of
 # what it draws, up to the size of the popup. The mark that kept it out of a history is not needed above the

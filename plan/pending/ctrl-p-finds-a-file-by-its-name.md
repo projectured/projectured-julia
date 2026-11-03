@@ -1,7 +1,7 @@
 # Ctrl+P finds a file by its name
 
-> **Status (2026-11-03):** pending, not approved. The owner answered Q1 to Q11.
-> No step is started. The second plan,
+> **Status (2026-11-03):** in progress, on the branch `file-search`. The owner
+> answered Q1 to Q11 and approved the plan. Steps 1 to 4 are done. The second plan,
 > [every-popup-window-is-placed-by-a-function.md](every-popup-window-is-placed-by-a-function.md),
 > starts after this one.
 
@@ -123,20 +123,41 @@ from its own output.
   writes the answer into the output window. The backend reads the output screen
   as now. So the window follows a resize of the main window and a scroll that
   moves its part.
-- The screen slice gives three ready-made placements:
-  `make_point_placement(point)`, `make_part_placement(reference; gap)`, which
-  is below the part, and `make_window_top_placement(reference; width_share,
-  minimum_width, maximum_height)`, which is at the top center of the window of
-  the part.
-- Step 1 checks two facts before the rest depends on them: that a field of an
-  output window can hold a computed value, and whether a native move of the main
-  window writes its `x` and `y`. If it does not, a popup follows a resize but not
-  a move, and that is a limit.
+- The screen slice gives the placement that this plan uses,
+  `make_part_top_placement(reference; width_share, minimum_width,
+  maximum_height, gap)`: at the top center of the box of the part, with a width
+  that is a share of the width of the part.
+- *Found in step 1 (2026-11-03).* A field of an output window can hold a
+  computed cell: `ScreenToScreen` already makes the `content` of each output
+  window so. A native move of the main window writes its `x` and `y`
+  (`_adopt_native_position!` of the SDL backend), so a placement follows a move
+  too.
+- *Changed in step 1 (2026-11-03).* The SDL backend writes the place of an
+  output window in three cases: it keeps a window that fits its content on the
+  display (`_place_fitted_window!`), it takes the place that the window manager
+  gave (`_adopt_native_position!`), and it scales the places at a new zoom. A
+  write of a value into a computed cell replaces the computation, so the window
+  would stop following its placement. So the backend writes no place of a
+  window that has a placement (`is_window_placed`), and the placement is the
+  only authority. The backend does not keep a placed window on the display. A
+  list at the top of a part of the main window is on the display, so this plan
+  needs no such check.
+- *Changed in step 1 (2026-11-03).* The plan first gave three ready-made
+  placements: at a point, below a part, and at the top of a window. Only the
+  backend knows the areas of the displays now, so a right-click menu with a
+  placement would leave the screen near an edge. So this plan makes only the
+  top placement, and the right-click menu and the tooltip keep their code. The
+  second plan first gives the context the areas of the displays, and then moves
+  them.
+- The context gives no printed size of the content. The content prints at an
+  offer that reads the bounds of the place, so bounds that read the content
+  would make a loop.
 
 **D3. The context menu window takes a placement.** `OpenContextMenuOperation`
-gets the field `placement`. Its default gives the behavior of now: at the point,
-else below the part. `make_choice_list_operation(title, list; point,
-placement)` passes it on. A right click opens exactly where it opens now.
+gets the field `placement`, `nothing` by default. With `nothing`, the window
+opens as now: at the point, else below the part, and the backend keeps it on the
+display. `make_choice_list_operation(title, list; point, placement)` passes it
+on. A right click opens exactly where it opens now.
 
 **D4. The rows of a `WidgetChoiceList` are a lazy list.** `find(query)` answers
 the choices in rank order as an `AbstractVector`. The view makes its rows with
@@ -213,11 +234,16 @@ the parts of the palette in `GestureHelpTheme`. Two changes of behavior:
 
 ## The steps
 
-1. **The placement (D2)** in the screen slice: the field, the context, the three
-   placements, and the computation in `ScreenToScreen`, after the two checks of
-   D2. Tests in the screen tests: a window with the top placement follows a
-   resize of the main window; a window below a part follows a scroll of the
-   part; a window with no placement keeps its `x` and `y`.
+1. ✅ **The placement (D2)** in the screen slice: the field `placement` of
+   `WindowDocument` and `OpenWindowOperation`, `WindowPlace`,
+   `WindowPlacementContext`, `find_window_part_box`, `make_part_top_placement`,
+   and the computation in `ScreenToScreen`; the SDL backend writes no place of a
+   placed window. `test_window_placement()` passes (17): the top placement stands
+   at the top center of its part, and follows a move of the main window and a
+   change of the part; a window with no placement shares its place with the
+   input; a placement that answers `nothing` leaves the place; a window that
+   gains a placement is a new window; a file keeps no placement.
+   `test_window_fit()` passes (15).
 2. **The context menu window (D3).** Test: `test_context_menu_window()` passes
    with no change, and a choice list with the top placement opens at the top
    center and keeps its width while the query changes.

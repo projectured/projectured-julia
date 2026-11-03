@@ -5727,6 +5727,8 @@ function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     maximum_size = w.maximum_size
     (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
     is_automatic_window_place(w) && return w
+    # The placement of a placed window is the only authority on its place.
+    is_window_placed(w) && return w
     zoom = backend.display.zoom
     areas = [Tuple(round(Int, value / zoom) for value in area) for area in _get_display_areas(backend)]
     (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
@@ -5749,7 +5751,7 @@ function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, rat
     unit_ratio = _get_window_unit_ratio(res, ratio)
     x, y = _to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio)
     (x == res.x && y == res.y) && return w
-    if w.x == res.x && w.y == res.y
+    if w.x == res.x && w.y == res.y && !is_window_placed(w)
         w.x = x
         w.y = y
     end
@@ -5914,7 +5916,7 @@ function _keep_device_geometry_at_new_zoom!(backend::SdlBackend, screen::ScreenD
         w isa WindowDocument || continue
         w.width  = max(1, round(Int, Int(w.width)  * factor))
         w.height = max(1, round(Int, Int(w.height) * factor))
-        if !is_automatic_window_place(w)
+        if !is_automatic_window_place(w) && !is_window_placed(w)
             w.x, w.y = _scale_place(Int(w.x), Int(w.y), factor)
         end
     end

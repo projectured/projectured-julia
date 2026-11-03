@@ -190,27 +190,37 @@ _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation) =
 function _open_screen_window!(screen, op::OpenWindowOperation)
     screen isa ScreenDocument || return
 
-    # Existing window with this id → update in place.
+    # Existing window with this id → update in place. A window that a placement
+    # places has a computed place in the output, and a window with no placement
+    # shares its place with the output, so a window that changes between the two
+    # is a new window in the same slot.
     in_wins = screen.windows
     for i in 1:length(in_wins)
         existing_in = in_wins[i]
         existing_in isa WindowDocument || continue
         existing_in.id === op.id || continue
-        _update_window!(existing_in, op)
+        if is_window_placed(existing_in) == (op.placement !== nothing)
+            _update_window!(existing_in, op)
+        else
+            in_wins[i] = _make_opened_window(screen, op)
+        end
         return
     end
 
     # New window: construct and push; the inner stage projects the output side.
-    new_in = WindowDocument(; id=op.id, title=op.title,
-                              x=op.x, y=op.y,
-                              width=op.width, height=op.height,
-                              minimum_size=op.minimum_size, maximum_size=op.maximum_size,
-                              bg=op.bg === nothing ? _get_screen_background(screen) : op.bg,
-                              style=op.style,
-                              auto_dismiss=op.auto_dismiss, modal=op.modal,
-                              content=op.content)
-    push!(in_wins, Cell(new_in))
+    push!(in_wins, Cell(_make_opened_window(screen, op)))
 end
+
+_make_opened_window(screen::ScreenDocument, op::OpenWindowOperation) =
+    WindowDocument(; id=op.id, title=op.title,
+                     x=op.x, y=op.y,
+                     width=op.width, height=op.height,
+                     minimum_size=op.minimum_size, maximum_size=op.maximum_size,
+                     bg=op.bg === nothing ? _get_screen_background(screen) : op.bg,
+                     style=op.style,
+                     auto_dismiss=op.auto_dismiss, modal=op.modal,
+                     placement=op.placement,
+                     content=op.content)
 
 # The background of `screen` that a new window shares: the cell of the background
 # of its first window, which the appearance computes, or the fixed default for a
@@ -234,6 +244,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation)
     w.style  = op.style
     w.auto_dismiss = op.auto_dismiss
     w.modal  = op.modal
+    w.placement = op.placement
     w.content = op.content
 end
 

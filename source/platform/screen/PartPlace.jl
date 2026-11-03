@@ -17,13 +17,19 @@ reference, because a view checks them, and the box of the node is read from the
 printed output (`find_reference_box`).
 """
 function find_part_place(projection, iomap, source)
+    box = _find_part_box(projection, iomap, source)
+    box === nothing ? nothing : (box.x, box.y + box.height)
+end
+
+# The box of the node that draws the part at `source`, a reference from the input
+# of `iomap`, in the frame of its output, or `nothing`.
+function _find_part_box(projection, iomap, source)
     source isa Reference || return nothing
     input = get_iomap_input(iomap)
     try_evaluate_reference(input, source, _NO_PART) === _NO_PART && return nothing
     image = map_reference_forward(projection, iomap, annotate_reference_types(input, source))
     image === nothing && return nothing
-    box = find_reference_box(get_iomap_output(iomap), image)
-    box === nothing ? nothing : (box.x, box.y + box.height)
+    find_reference_box(get_iomap_output(iomap), image)
 end
 
 # What a step of a reference that reaches no node evaluates to.

@@ -60,6 +60,11 @@ projected.
   a `MouseDown` in another window, and on a bare Escape; a `:popup` also closes
   when any window loses the focus. The default window and tooltips stay
   `false`, so losing focus to a popup never closes them. Default `false`.
+- `placement` — `nothing`, or the function that places the window: it takes a
+  [`WindowPlacementContext`](@ref) and answers a [`WindowPlace`](@ref). The
+  screen projection then computes the place and the bounds of the window from
+  it, and the window follows each change of what the function reads. It is the
+  state of a view, so a file does not keep it. Default `nothing`.
 - `content::Document` — the document tree this window displays. Before
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
@@ -77,8 +82,22 @@ projected.
     style::Symbol = :normal
     auto_dismiss::Bool = false
     modal::Bool = false
+    placement::Any = nothing
     content::Document
 end
+
+# Where a window stands is the state of a view of the screen, and a function that
+# a file can not write.
+get_view_state_fields(::Type{<:WindowDocument}) = (:placement,)
+
+"""
+    is_window_placed(window::WindowDocument) -> Bool
+
+Whether a placement function places `window`. The backend then writes no place of
+the window, because the place is a computation of the placement, and a write
+would replace it.
+"""
+is_window_placed(window::WindowDocument) = getfield(window, :placement)[] !== nothing
 
 # A window calls itself by the title it shows.
 get_document_title(window::WindowDocument) = window.title
@@ -108,7 +127,7 @@ is_automatic_window_place(window::WindowDocument) = (window.x, window.y) == AUTO
 
 """
     OpenWindowOperation(; id, title, x, y, width, height, minimum_size, maximum_size,
-                          bg, style, auto_dismiss, modal, content)
+                          bg, style, auto_dismiss, modal, placement, content)
 
 Request that a new `WindowDocument` (with the given fields) be added to the
 screen. The fields mirror `WindowDocument`'s schema 1:1. A window-manager
@@ -121,6 +140,9 @@ to the screen that the editor's document wraps.
 the background of its first window, and follows it, so a window that opens later
 has the colour that the appearance gives the windows. An update of a window with
 `bg = nothing` keeps its background.
+
+`placement` is `nothing`, or the function that places the window, as the field
+of `WindowDocument` says; the window then takes no place from `x` and `y`.
 """
 struct OpenWindowOperation <: Operation
     id::Symbol
@@ -135,6 +157,7 @@ struct OpenWindowOperation <: Operation
     style::Symbol
     auto_dismiss::Bool
     modal::Bool
+    placement::Any
     content::Document
 end
 
@@ -150,12 +173,13 @@ OpenWindowOperation(; id::Symbol,
                       style::Symbol = :tooltip,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,
+                      placement = nothing,
                       content::Document) =
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (Int(minimum_size[1]), Int(minimum_size[2])),
                         (Int(maximum_size[1]), Int(maximum_size[2])),
                         bg === nothing ? nothing : (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
-                        style, auto_dismiss, modal, content)
+                        style, auto_dismiss, modal, placement, content)
 
 """
     OpenPopupOperation(; id, x, y, width = 640, height = 800, auto_dismiss, content)
