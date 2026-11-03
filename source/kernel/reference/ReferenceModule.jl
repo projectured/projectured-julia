@@ -140,4 +140,8 @@ include("ReferencePatternString.jl")
 include("ReferenceBuilder.jl")
 include("ReferencedDocument.jl")
 
+# A `MethodError` for a plain document where a function takes a part says how to
+# get a part.
+__init__() = Base.Experimental.register_error_hint(_print_part_hint, MethodError)
+
 end # module

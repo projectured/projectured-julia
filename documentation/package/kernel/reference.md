@@ -458,6 +458,15 @@ type asks `get_document(x)` first. `convert` to a document type converts
 `get_document(x)` to it, and `convert` to `Reference` converts `get_reference(x)`
 to it, so a `ReferencedDocument` fits where either is wanted.
 
+A plain document has no place. `get_reference` of any value that is not a part
+throws an `ArgumentError`, and a function that needs the place of its argument
+reads it there, so it refuses a plain document with the same error. A function
+that takes only a part refuses a plain document with Julia's `MethodError`, and
+`ReferenceModule` registers a hint for it: when an argument is a `Document` where
+a method of the function takes a `ReferencedDocument`, the error says so. Both
+errors say how to get a part: a read of a part, or
+`search_documents(editor.document, query; places = true)`.
+
 `get_parent(root, x)` answers the document that holds `x`, read from `root` at the
 call: one step up the reference of `x`, and past each collection on the way, so
 the parent of an element of a vector field is the document that has the field,

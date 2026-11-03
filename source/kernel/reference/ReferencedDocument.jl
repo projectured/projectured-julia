@@ -58,6 +58,10 @@ The complete reference to the document of `x`, from the root it was found from.
 Use it to get the place and not the document, such as a reference to
 extend, to compare, or to evaluate again.
 
+Any other value has no place, and throws an `ArgumentError` that says how to get a
+part. A function that needs the place of its argument reads it here, so it refuses
+a plain document with the same error.
+
 # Example
 
     tab_1 = find_pane("items.json")
@@ -70,6 +74,42 @@ For the assistant.
 function get_reference end
 
 get_reference(x::ReferencedDocument) = getfield(x, :reference)
+
+# How to get a value with a place, for the errors that refuse a value without one.
+const _PART_ADVICE = "Pass a part, a document with its place: a read of a part gives one, " *
+                     "and so does `search_documents(editor.document, query; places = true)`."
+
+get_reference(x) =
+    throw(ArgumentError(string("A ", nameof(typeof(x)), " has no place, because it is not a part. ", _PART_ADVICE)))
+
+# Whether a method of `f` takes a part as its argument at `position`.
+function _is_part_taken(f, position::Int)
+    for method in methods(f)
+        parameters = Base.unwrap_unionall(method.sig).parameters
+        position < length(parameters) || continue
+        parameter = parameters[position + 1]
+        parameter isa TypeVar && (parameter = parameter.ub)
+        parameter isa Type && parameter !== Any || continue
+        typeintersect(parameter, ReferencedDocument) === Union{} || return true
+    end
+    false
+end
+
+# The hint that Julia prints below a `MethodError` when an argument is a plain
+# document where a method of the function takes a part.
+function _print_part_hint(io::IO, exception::MethodError, argument_types, keyword_types)
+    f, arguments = exception.f, exception.args
+    if f === Core.kwcall && length(arguments) >= 2
+        f, arguments = arguments[2], arguments[3:end]
+    end
+    f isa Function || return
+    for (position, argument) in enumerate(arguments)
+        argument isa Document && _is_part_taken(f, position) || continue
+        print(io, "\nThe argument ", position, " is a plain document, a ", nameof(typeof(argument)),
+              ", and `", nameof(f), "` takes a part there. ", _PART_ADVICE)
+        return
+    end
+end
 
 # A value that a read answers as a referenced document: a document or a collection.
 # Any other value is a leaf and is answered as it is.

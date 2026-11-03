@@ -35,6 +35,9 @@ end
 
 Base.iterate(bag::ReferencedBag, state...) = iterate(bag.items, state...)
 
+# A function that takes a part and nothing else.
+_take_referenced_part(part::ReferencedDocument; mark = 1) = mark
+
 function _make_referenced_tree()
     ReferencedBranch("root",
         Any[ReferencedLeaf("a", nothing),
@@ -220,6 +223,20 @@ function test_referenced_document()
         plain = Any[get_document(a)]
         holder.content = plain
         @test holder.content === plain
+    end
+
+    @testset "a plain document has no place, and the error says how to get a part" begin
+        leaf = ReferencedLeaf("a", nothing)
+        refusal = try get_reference(leaf); "" catch exception; sprint(showerror, exception) end
+        @test occursin("A ReferencedLeaf has no place", refusal)
+        @test occursin("places = true", refusal)
+        hint(call) = try call(); "" catch exception; sprint(showerror, exception) end
+        @test occursin("The argument 1 is a plain document, a ReferencedLeaf, and `_take_referenced_part` takes a part there.",
+                       hint(() -> _take_referenced_part(leaf)))
+        @test occursin("takes a part there", hint(() -> _take_referenced_part(leaf; mark = 2)))
+        # An argument that is no document gets no hint.
+        @test !occursin("takes a part there", hint(() -> _take_referenced_part(1)))
+        @test _take_referenced_part(ReferencedDocument(leaf, EmptyReference())) == 1
     end
 
     @testset "a walk stops at a locator: a holder of an address holds no document" begin

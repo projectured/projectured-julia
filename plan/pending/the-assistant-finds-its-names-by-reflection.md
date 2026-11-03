@@ -299,8 +299,23 @@ index shows them. An example is `JsonModule`: "The JSON slice."
       `ResearchDecisionDraft`). `BuildEditorTest.jl:257` counts one stop step more
       when `ProjecturedResearchTest` is loaded in the same process; the kernel suite
       passes in its own environment (5033/5033).
-  - [ ] **The error for a plain document:** the hint on Julia's `MethodError` and
-    the fallback of `get_reference`.
+  - [x] **The error for a plain document:** the hint on Julia's `MethodError` and
+    the fallback of `get_reference`. *Done (2026-11-03).*
+    - `get_reference(x)` of any value that is not a part throws an `ArgumentError`:
+      "A JsonObject has no place, because it is not a part. Pass a part, a document
+      with its place: a read of a part gives one, and so does
+      `search_documents(editor.document, query; places = true)`."
+    - The `__init__` of `ReferenceModule` registers a hint on `MethodError`. When an
+      argument is a `Document` where a method of the function takes a
+      `ReferencedDocument` (the type of the parameter meets it, and is not `Any`),
+      the error ends with "The argument 1 is a plain document, a JsonObject, and
+      `select_part!` takes a part there." and the same advice. A keyword call
+      reaches the hint as `Core.kwcall` with the keywords and the function first,
+      and the hint reads past them.
+    - The texts are general: they name no verb and no tab. The owner has not yet
+      confirmed them.
+    - Tests: `test_referenced_document` (73/73), the kernel suite in its own
+      environment (5039/5039), the naming guard.
   - [ ] **The texts:** the docstrings of the two searches, and the system text that
     teaches `search_references(editor.document, query)`.
 
