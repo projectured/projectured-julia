@@ -236,21 +236,46 @@ layout examples, because the keyboard can not seed a first caret in them and no
 `TextToGraphics` is at their top; they skip the prefix `layout_` too
 (`ExampleSweeps.jl`).
 
-### Step 2. The rules as a test
+### Step 2. The rules as a test — done
 
-`test_layout_rules()` in the platform suite:
+`test_layout_rules()` in `test/platform/projection/LayoutRulesTest.jl`, in the
+platform suite:
 
-- It prints every widget atom and every layout atom of the catalog in the four
-  states of §3.1, and checks R2 for a viewport and `e = max(m, C(M))` for any
-  other widget, and the overlay rule for an overlay.
-- A table in the test gives the kind of each widget and layout type: rigid,
-  reflowing, viewport, overlay or container. A guard fails when a concrete type
-  has no kind or no atom, so a new widget can not skip the rules.
-- The worked cases of §3.3 are tests, and so are the readers of R5: a tree and a
-  data frame view in a scroll area build the rows that show.
+- Each widget type and each layout type has a small sample with no authored size
+  and no position, and a kind on each axis: `:rigid`, `:reflowing`, `:scrolls`,
+  `:fills` (takes a slot and cuts its content there, else its content),
+  `:authored` or `:overlay`. A type that is not placed alone has a reason. The
+  samples of the catalog author sizes and positions, which win in every range, so
+  the test does not use them.
+- Each sample is printed on each axis with no range, an exact range, a bounded
+  range and an "at least" range, above and below its content, and checked by the
+  rule of its kind.
+- A guard fails for a concrete type of the platform below `WidgetDocument` or
+  `LayoutDocument` with no kind, and for a kind with no type. It leaves out the
+  native twin `MFoo` of each `@document` type `Foo`, and the `…Style` documents.
+- The worked cases of §3.3 are tests; the visible rows are checked with a lazy
+  grid of ten million rows in a scroll area (`built < 30`). The data frame view
+  is checked by `test_dataframes()` in Step 3.
 
-A check that fails before Steps 3 to 5 is `@test_broken`, with the step that
-fixes it in its `# @broken:` comment.
+Result: 435 checks pass, and 71 are `@test_broken`, each with its reason in
+`_rules_broken`.
+
+Found in this step:
+
+- An exact range is one cell for both ends: `get_exact_width` and
+  `get_exact_height` compare the cells by identity. Two cells with the same
+  number are a bounded range with a minimum, and a part that fills a slot does
+  not see a slot there.
+- The rules give these deviations that no step of this plan fixes (§7):
+  - a layout (`HorizontalLayout`, `VerticalLayout`, `GridLayout`, `StackLayout`,
+    the height of `FlowLayout`), `WidgetComposite`, `WidgetToolbar` and
+    `WidgetToolbarItem` do not take a slot or a minimum that is more than their
+    content;
+  - `WidgetTabbedPane`, `WidgetShell` and the width of `WidgetSplitPane` take no
+    minimum without a slot;
+  - `WidgetSplitPane` in an exact width with a free height draws 1;
+  - `WidgetShell` takes a slot only when it has one on both axes;
+  - `WidgetAlert` does not wrap its description.
 
 ### Step 3. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
 
@@ -326,6 +351,9 @@ window. Then the branch waits for approval to land.
   rules.
 
 ## 7. Open
+
+- The deviations that Step 2 found and no step fixes: fix them in this plan, or
+  not; open.
 
 - The setting of a scroll area for each axis: my recommendation is the keyword
   `grows = (width = false, height = false)`, with both axes fitting by default;
