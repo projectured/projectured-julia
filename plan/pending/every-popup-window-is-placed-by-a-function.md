@@ -1,7 +1,7 @@
 # Every popup window is placed by a function
 
 > **Status (2026-11-03):** pending, not approved. It starts after
-> [ctrl-p-finds-a-file-by-its-name.md](ctrl-p-finds-a-file-by-its-name.md),
+> [ctrl-p-finds-a-file-by-its-name.md](../done/ctrl-p-finds-a-file-by-its-name.md),
 > which makes the placement function and moves the context menu window to it.
 > The owner chose this order on 2026-11-03 (Q11 of that plan).
 

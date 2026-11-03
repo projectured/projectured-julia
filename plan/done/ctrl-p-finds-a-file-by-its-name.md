@@ -1,8 +1,8 @@
 # Ctrl+P finds a file by its name
 
-> **Status (2026-11-03):** in progress, on the branch `file-search`. The owner
+> **Status (2026-11-03):** done, on the branch `file-search`, not landed. The owner
 > answered Q1 to Q11 and approved the plan. All ten steps are done. The second plan,
-> [every-popup-window-is-placed-by-a-function.md](every-popup-window-is-placed-by-a-function.md),
+> [every-popup-window-is-placed-by-a-function.md](../pending/every-popup-window-is-placed-by-a-function.md),
 > starts after this one.
 
 ## The goal
@@ -342,7 +342,7 @@ that runs the frames by hand applies posts with `drain_operations!`.
    1 of 7 with the four errors that main has (filechange, roster twice, shell)
    and none of this plan.
 10. ✅ **A pixel check** with the offscreen SDL driver, as in
-    [maximize-a-pane.md](../done/maximize-a-pane.md): a real editor with the
+    [maximize-a-pane.md](maximize-a-pane.md): a real editor with the
     shell and the palette, driven by keys, and after each key one frame of the
     main window with the popup laid over it at its computed place. In a window of
     1000 × 640: Ctrl+P shows the list at (250, 68), 500 wide, under the toolbar,
