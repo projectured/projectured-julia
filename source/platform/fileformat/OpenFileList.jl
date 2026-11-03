@@ -114,6 +114,45 @@ function find_open_file_document(path::AbstractString; editor = find_evaluation_
     nothing
 end
 
+"""
+    collect_open_file_paths(; editor = find_evaluation_editor()) -> Vector{String}
+
+The absolute paths of the files that `editor` holds open, in the order of its
+list of open files.
+"""
+function collect_open_file_paths end
+
+function collect_open_file_paths(; editor = find_evaluation_editor())
+    editor isa Editor || return String[]
+    paths = String[]
+    for document in get_session_open_file_list(; editor).files
+        file = document isa FilePage ? find_page_file(document) : document
+        file === nothing || push!(paths, abspath(String(get_filename(file))))
+    end
+    paths
+end
+
+"""
+    find_shown_file_path(content) -> String | Nothing
+
+The absolute path of the file that `content`, the content of a tab, shows,
+through the layers that hold it, such as a page, a history and a scroll pane, or
+`nothing` when it shows no file or a file with no name.
+"""
+function find_shown_file_path(content)
+    for _ in 1:8
+        file = content isa FilePage ? find_page_file(content) : is_file_document(content) ? content : nothing
+        if file !== nothing
+            name = String(get_filename(file))
+            return isempty(name) ? nothing : abspath(name)
+        end
+        field = get_edited_field(content)
+        field === nothing && return nothing
+        content = getproperty(content, field)
+    end
+    nothing
+end
+
 # The list takes `document`, a page or a file, unless it holds it or the page that
 # shows it already. A tab acquires its outer layer first, so the page of a file
 # comes before the file.

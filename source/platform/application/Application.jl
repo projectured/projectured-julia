@@ -4,7 +4,7 @@
 #
 # The main group and the assistant are the groups of a split, and the pane
 # gestures rearrange them. Every file tab holds a `FileDocument`, so `Ctrl+S` saves
-# and `Ctrl+O` reloads it, and the Files tool opens a file with
+# and `F5` reloads it, and the Files tool, `Ctrl+O` and `Ctrl+P` open a file with
 # `OpenFileOperation`.
 
 """
@@ -34,9 +34,10 @@ function get_application_greeting_text(backend::Symbol)
 
         `Ctrl+click` a row of the Explorer to open its page in a new tab. The **Files** \
         button of the toolbar lists the working directory, where `Enter` on a file \
-        opens it in a new tab. `Ctrl+S` saves the tab that has the focus, and \
-        `Ctrl+O` reads it again from disk. `F1` lists the keys that work where the focus is, and \
-        `Ctrl+Shift+P` runs a command by its name.
+        opens it in a new tab. `Ctrl+P` finds a file of the Explorer by its name, and \
+        `Ctrl+O` opens a file with the Open dialog. `Ctrl+S` saves the tab that has the \
+        focus, and `F5` reads it again from disk. `F1` lists the keys that work where the \
+        focus is, and `Ctrl+Shift+P` runs a command by its name.
 
         `Alt+click` anything in a tab to select it, and `Alt` with an arrow to move \
         the selection. `Ctrl+C` copies what is selected, `Ctrl+X` cuts it, `Ctrl+N` \

@@ -198,10 +198,10 @@ make_file_tab_content(path::AbstractString, wrap = identity) =
 # and a tab strip has no room for it.
 get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 
-# ── Ctrl+S / Ctrl+O on a FileDocument ───────────────────────────────────────
+# ── Ctrl+S / F5 on a FileDocument ───────────────────────────────────────────
 #
 # **Ctrl+S** saves the document's own `content` to its own `filename`,
-# **Ctrl+O** reloads it.
+# **F5** reloads it.
 
 """
     SaveFileOperation(file)
@@ -404,11 +404,11 @@ that a watcher of the file read off the loop with
 [`read_file_content_again`](@ref), or else the file read again from disk now. A
 non-existent file seeds the insertion placeholder of its extension again.
 
-It writes no selection. Ctrl+O answers it together with a selection of the whole
+It writes no selection. F5 answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
 selection pointed into the replaced content.
 
-Use it to read an open file again from the disk, as Ctrl+O does.
+Use it to read an open file again from the disk, as F5 does.
 
 # Example
 
@@ -468,7 +468,7 @@ _reload_file(doc::FileDocument) =
 
 @gestures FileDocument begin
     KeyDown(:s; ctrl) => "Save file to disk"     => _save_file(doc)
-    KeyDown(:o; ctrl) => "Reload file from disk" => _reload_file(doc)
+    KeyDown(:f5) => "Reload file from disk" => _reload_file(doc)
 end
 
 # Each carries its own subject and names no reference, so every reader
@@ -492,7 +492,7 @@ make_file_api() = Any[
     FileFormatModule => (
         # A path becomes a tab, and a tab becomes a file again.
         :make_file_tab, :make_file_tab_content, :read_document_file, :write_document_file,
-        # What Ctrl+S and Ctrl+O answer with.
+        # What Ctrl+S and F5 answer with.
         :SaveFileOperation, :ReloadFileOperation,
         # Text in, document out, and back.
         :import_document, :export_document),

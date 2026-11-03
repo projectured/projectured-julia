@@ -1,5 +1,5 @@
 # A tab that holds a `FileDocument` draws the file's content, and Ctrl+S /
-# Ctrl+O save and reload it.
+# F5 save and reload it.
 #
 # `FileToContent` is the row that lets a `JsonFile` (or an `XmlFile`, a
 # `JuliaFile`, …) draw through the render-anything projection, the same way
@@ -60,12 +60,12 @@ mktempdir() do dir
         @test occursin("goodbye", read(path, String))
     end
 
-    # Ctrl+O answers the reload and a selection of the whole file. The selection
+    # F5 answers the reload and a selection of the whole file. The selection
     # needs an editor, so the case evaluates the reload alone.
-    @testset "Ctrl+O reads the file back, and selects the whole file" begin
+    @testset "F5 reads the file back, and selects the whole file" begin
         file = make_file(get_file_document_type(path), path, read(path, String))
         write(path, "{\"greeting\": \"reloaded\"}")
-        op = read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
+        op = read_gesture(file, KeyDown(:f5, ModifierKeys(); time = 0.0))
         @test op isa CompoundOperation
         @test any(o -> o isa ReplaceSelectionOperation && o.path isa EmptyReference, op.operations)
         evaluate_operation(nothing, only(o for o in op.operations if o isa ReloadFileOperation))
@@ -124,9 +124,9 @@ mktempdir() do dir
         @test any(entry -> occursin("hello", entry[1]), texts)
     end
 
-    # Ctrl+S and Ctrl+O in a page answer the save and the load of the page, so the
+    # Ctrl+S and F5 in a page answer the save and the load of the page, so the
     # save checks the disk first, and both keep the hash of the text of the file.
-    @testset "Ctrl+S and Ctrl+O in a page answer the save and the load of the page" begin
+    @testset "Ctrl+S and F5 in a page answer the save and the load of the page" begin
         write(path, "{\"greeting\": \"hello\"}")
         page = make_file_tab_content(path)
         @test page.file_hash == hash(read(path, String))
@@ -142,7 +142,7 @@ mktempdir() do dir
         iomap = print_page()
         save = read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
         @test save isa SaveFilePageOperation && save.page === page && !save.force
-        load = read_intent(renderer, iomap, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
+        load = read_intent(renderer, iomap, KeyDown(:f5, ModifierKeys(); time = 0.0))
         @test load isa CompoundOperation
         @test any(o -> o isa LoadFilePageOperation && o.page === page, load.operations)
         @test !any(o -> o isa ReloadFileOperation, load.operations)
@@ -162,7 +162,7 @@ mktempdir() do dir
     @testset "a file with an empty name declines both" begin
         file = JsonFile("", JsonNull())
         @test read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) === nothing
-        @test read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+        @test read_gesture(file, KeyDown(:f5, ModifierKeys(); time = 0.0)) === nothing
     end
 end
 

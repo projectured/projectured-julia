@@ -29,14 +29,27 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
     make_window_file_menu() -> WidgetMenuItem
 
 The File menu: the name on the bar, and the menu that opens below it. Its
-commands open a tab in the focused group and close the focused tab. After a
-separator, **Exit** (Ctrl+Q) quits the editor, as the close button of the window
-does.
+commands open a tab in the focused group, open a file with the Open dialog
+(Ctrl+O), find a file of the folders of the Explorer by its name (Ctrl+P,
+[`open_file_search!`](@ref)), and close the focused tab. After a separator,
+**Exit** (Ctrl+Q) quits the editor, as the close button of the window does. The
+window fires a shortcut before the focused part reads the key, so Ctrl+O and
+Ctrl+P work wherever the focus is.
+
+The Open dialog starts in the folder of the file of the focused tab, else in the
+first folder of the Explorer, else in the current folder.
 """
 make_window_file_menu() =
     WidgetMenuItem("File"; submenu = WidgetMenu(Any[
         make_window_command("New tab", _open_tab!;
                             shortcut = Shortcut(:t; ctrl = true)),
+        make_window_command("Open file…",
+                            editor -> open_file_dialog!(; directory = _find_open_dialog_folder(editor), editor);
+                            shortcut = Shortcut(:o; ctrl = true),
+                            tooltip = "Open a file with the Open dialog."),
+        make_window_command("Go to file…", _open_file_search!;
+                            shortcut = Shortcut(:p; ctrl = true),
+                            tooltip = "Find a file of the folders of the Explorer by its name, and open it."),
         make_window_command("Close tab", _close_tab!;
                             shortcut = Shortcut(:w; ctrl = true)),
         WidgetSeparator(),

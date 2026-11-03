@@ -71,8 +71,12 @@ end
 @testset "the bar holds one menu of each make function, in order" begin
     file, view, help = make_window_file_menu(), make_window_view_menu(), make_window_help_menu()
     @test string(file.action.label) == "File"
-    @test _labels(file.submenu) == ["New tab", "Close tab", "Exit"]
-    @test file.submenu.elements[3] isa WidgetSeparator
+    @test _labels(file.submenu) == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
+    @test file.submenu.elements[5] isa WidgetSeparator
+    keys = Dict(string(item.action.label) => item.action.shortcut for item in file.submenu.elements
+                if item isa WidgetMenuItem)
+    @test describe_gesture_pattern(keys["Open file…"]) == describe_gesture_pattern(Shortcut(:o; ctrl = true))
+    @test describe_gesture_pattern(keys["Go to file…"]) == describe_gesture_pattern(Shortcut(:p; ctrl = true))
     @test string(view.action.label) == "View"
     @test _labels(view.submenu) ==
           ["Split vertically", "Split horizontally", "Gesture log", "Appearance", "Settings"]

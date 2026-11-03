@@ -71,6 +71,7 @@ export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
        SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
        receive_file_change!
 export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!,
+       collect_open_file_paths, find_shown_file_path,
        OpenFileListToWidget
 export make_file_api
 

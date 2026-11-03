@@ -148,7 +148,7 @@ the hash of the text that it read, and take the band away. `content` and
 with none, the file is read now.
 
 The reader of the page answers it in place of a `ReloadFileOperation` of its own
-file that carries no document, so `Ctrl+O` in a page keeps the hash too.
+file that carries no document, so `F5` in a page keeps the hash too.
 """
 struct LoadFilePageOperation <: Operation
     page::FilePage
@@ -260,7 +260,7 @@ function receive_file_change!(editor, file::FileDocument, file_hash, content)
         return true
     end
     @warn string(get_document_title(file), " changed on disk, and its tab keeps what it shows: a file ",
-                 "with no page can not tell its own save from a change. Ctrl+O reads the file again.")
+                 "with no page can not tell its own save from a change. F5 reads the file again.")
     false
 end
 

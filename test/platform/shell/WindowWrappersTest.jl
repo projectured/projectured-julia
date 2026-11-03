@@ -283,6 +283,47 @@ end
     @test !any(==("GestureRow"), texts)
 end
 
+@testset "shell: Ctrl+P finds a file of the Explorer by its name and opens it; Ctrl+O opens the Open dialog" begin
+    mktempdir() do root
+        mkpath(joinpath(root, "source"))
+        write(joinpath(root, "source", "alpha.json"), "{\"a\": 1}")
+        write(joinpath(root, "notes.txt"), "x")
+        editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600), shell = true)
+        screen = get_wrapped_document(editor.document)
+        id = screen.windows[1].id
+        push!(get_session_explorer_content(; editor).entries, Workspace([WorkspaceFolder("work", root)]))
+        tabs = _ww_tabs(editor)
+        # The command posts the open of the list, and the loop applies a post; a
+        # test that runs the frames applies it by hand.
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p)))
+        drain_operations!(editor)
+        wait_for_cell!(get_session_workspace_file_list(; editor).files; editor)
+        run_frame!(editor)
+        list = only(window.content for window in screen.windows if window.content isa WidgetChoiceList)
+        @test list.prompt == "Go to file"
+        @test sort([choice.label for choice in list.find("")]) == ["alpha.json", "notes.txt"]
+        for c in "alp"
+            _ww_press!(editor, backend, WindowInput(id, KeyPress(c; time = 0.0)))
+        end
+        @test [choice.label for choice in list.find(list.query)] == ["alpha.json"]
+        @test only(list.find(list.query)).note == "source"
+        _ww_press!(editor, backend, WindowInput(id, KeyPress('\n'; time = 0.0)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
+        @test _ww_tabs(editor) == tabs + 1
+        # The open file comes first in the list of the next search.
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        list = only(window.content for window in screen.windows if window.content isa WidgetChoiceList)
+        @test first(list.find("")).label == "alpha.json"
+        _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:o)))
+        @test any(window -> window.id === :file_dialog, screen.windows)
+    end
+end
+
 @testset "shell: Command palette in the Help menu does what Ctrl+Shift+P does" begin
     editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
                                  shell = true, command_palette = true)

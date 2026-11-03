@@ -1023,7 +1023,7 @@ function test_application()
                 view = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "View")
                 fire(MouseClick(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
-                @test labels(scene.windows[2].content) == ["New tab", "Close tab", "Exit"]
+                @test labels(scene.windows[2].content) == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
                 # The press goes down first, and closes the menu of File.
                 fire(MouseDown(:left, vx + 2, vy + 2; time = 0.0))
                 @test length(scene.windows) == 1
@@ -1043,7 +1043,7 @@ function test_application()
                 # The popup window draws the commands of the menu, in its own frame.
                 shown = print_document(composed, scene)
                 items = _app_drawn_at(get_iomap_output(shown).windows[2].content)
-                @test [text for (text, _, _) in items] == ["New tab", "Close tab", "Exit"]
+                @test [text for (text, _, _) in items] == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
                 # A press on a command in the popup window runs it and closes the popup.
                 (nx, ny) = only((x, y) for (text, x, y) in items if text == "New tab")
                 before = _app_count_tabs(_app_window(document))
@@ -2000,9 +2000,9 @@ function test_application()
                       if occursin("Alice", text)]
                 w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
                 @test holds_one_path(w)
-                # Ctrl+O answers the load of the page of the file and a selection of the
+                # F5 answers the load of the page of the file and a selection of the
                 # whole file.
-                reload = w.press!(KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
+                reload = w.press!(KeyDown(:f5, ModifierKeys(); time = 0.0))
                 @test reload isa CompoundOperation
                 @test any(operation -> operation isa LoadFilePageOperation, reload.operations)
                 @test holds_one_path(w)

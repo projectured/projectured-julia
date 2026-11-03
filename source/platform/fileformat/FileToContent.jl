@@ -39,7 +39,7 @@ function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a
     # collection, so there is exactly one child to reconcile by identity.
     # Reading `get_file_content(file)` inside the thunk is what makes the
-    # printed output re-derive when `Ctrl+O` replaces the cell wholesale.
+    # printed output re-derive when `F5` replaces the cell wholesale.
     child = make_reconciled_child_iomap_cell(
         () -> get_file_content(file),
         v -> print_child(_get_content_recursion(p, recursion, v), v, make_child_context(ctx, file, step)))
@@ -52,7 +52,7 @@ end
 # child projection's forward image of `rest`.
 # A gesture goes to the content first, and its answer comes back with the step
 # `content` in front. When the content does not answer, the file's own gestures
-# answer: Ctrl+S and Ctrl+O. A collection takes both, merged, and an operation
+# answer: Ctrl+S and F5. A collection takes both, merged, and an operation
 # with a route follows it through `content`.
 const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 

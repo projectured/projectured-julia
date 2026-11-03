@@ -74,12 +74,13 @@ export make_window_shell_document, make_window_shell_projection
 export make_window_menu_bar, make_window_file_menu, make_window_view_menu, make_window_help_menu,
        make_window_toolbar, RECORDED_TOOLS, make_window_status_bar, make_window_command,
        make_window_tool_command
-export make_file_dialog, open_file_dialog!, save_file_dialog!
+export make_file_dialog, open_file_dialog!, save_file_dialog!, open_file_search!
 export make_opened_window_projections
 
 include("WindowShell.jl")
 include("WindowChrome.jl")
 include("FileDialog.jl")
+include("FileSearch.jl")
 include("WindowShellWrapper.jl")
 
 end # module
