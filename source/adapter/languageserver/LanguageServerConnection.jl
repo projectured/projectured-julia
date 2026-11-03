@@ -16,7 +16,7 @@ Base.showerror(io::IO, exception::LanguageServerException) =
     print(io, "LanguageServerException: ", exception.message)
 
 """
-    LanguageServerConnection(command; directory = pwd(), streams = nothing)
+    LanguageServerConnection(command; directory = pwd(), streams = nothing, compile_command = nothing)
 
 A connection to one language server.
 
@@ -26,6 +26,12 @@ A connection to one language server.
 - `streams`   — `(input, output)` to talk on instead of a process: the client
                 writes to `input` and reads from `output`. A test gives the two
                 streams of a server in this process. `nothing` starts `command`.
+- `compile_command` — a function from the path of a file to its compile command, or
+                to `nothing`. A compile command is a `NamedTuple`
+                `(; directory, arguments)`: the working folder and the whole
+                argument list of the compiler, the compiler first. The connection
+                sends it to the server before it opens the file
+                (`workspace/didChangeConfiguration`). `nothing` sends none.
 
 The connection starts nothing when it is made. `start_language_server!` starts
 the process and agrees on the protocol, at the first use; a start that failed
@@ -40,12 +46,15 @@ The fields after it are the state of the connection, which `state_lock` guards:
 - `token_types`       — the names of the kinds of the semantic tokens of the
                         server, by index (the legend).
 - `documents`         — the version of each file that the server holds, by URI.
+- `compile_commands`  — the compile command that the connection sent for each
+                        path, by path.
 - `failure`           — the exception of a start that failed, or `nothing`.
 """
 mutable struct LanguageServerConnection
     const command::Vector{String}
     const directory::String
     const streams::Union{Tuple{IO, IO}, Nothing}
+    const compile_command::Any
     const lock::ReentrantLock
     const state_lock::ReentrantLock
     const write_lock::ReentrantLock
@@ -58,14 +67,16 @@ mutable struct LanguageServerConnection
     position_encoding::String
     token_types::Vector{String}
     documents::Dict{String, Int}
+    compile_commands::Dict{String, Any}
     failure::Union{LanguageServerException, Nothing}
 end
 
 LanguageServerConnection(command::AbstractVector{<:AbstractString}; directory::AbstractString = pwd(),
-                         streams::Union{Tuple{IO, IO}, Nothing} = nothing) =
-    LanguageServerConnection(String.(command), String(directory), streams, ReentrantLock(),
+                         streams::Union{Tuple{IO, IO}, Nothing} = nothing, compile_command = nothing) =
+    LanguageServerConnection(String.(command), String(directory), streams, compile_command, ReentrantLock(),
                              ReentrantLock(), ReentrantLock(), nothing, nothing, nothing, false, 0,
-                             Dict{Int, Channel{Any}}(), "utf-16", String[], Dict{String, Int}(), nothing)
+                             Dict{Int, Channel{Any}}(), "utf-16", String[], Dict{String, Int}(),
+                             Dict{String, Any}(), nothing)
 
 Base.show(io::IO, connection::LanguageServerConnection) =
     print(io, "LanguageServerConnection(", repr(connection.command), ")")
@@ -120,6 +131,7 @@ function _start_language_server!(connection::LanguageServerConnection)
             # A new process holds no file, also after a process that ended, so
             # each file opens again as its first version.
             empty!(connection.documents)
+            empty!(connection.compile_commands)
             connection.position_encoding = String(get(capabilities, "positionEncoding", "utf-16"))
             connection.token_types = provider isa AbstractDict ?
                 String.(get(get(provider, "legend", Dict{String, Any}()), "tokenTypes", String[])) : String[]

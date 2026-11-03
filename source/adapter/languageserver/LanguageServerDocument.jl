@@ -10,9 +10,11 @@ The language and the command of the language server of each extension of a
 source file. The adapter registers each extension as a `SourceFile`.
 
 `clangd` runs with no index in the background, so it writes no index into the
-folder of a project.
+folder of a project. It reads an included header from the open documents first
+(`--use-dirty-headers`), so a header that is open shows its text of now.
 """
-const SOURCE_FILE_LANGUAGES = let clangd = ["clangd", "--log=error", "--background-index=false"]
+const SOURCE_FILE_LANGUAGES = let clangd = ["clangd", "--log=error", "--background-index=false",
+                                                  "--use-dirty-headers"]
     Dict{String, @NamedTuple{language::String, command::Vector{String}}}(
         ".c" => (language = "c", command = clangd),
         ".h" => (language = "cpp", command = clangd),
@@ -35,26 +37,107 @@ find_source_file_language(path::AbstractString) =
     get(SOURCE_FILE_LANGUAGES, lowercase(splitext(path)[2]), nothing)
 
 """
+    LanguageServerText
+
+A text that a language server colours: the path that the server gets (also the
+source of the language, `find_source_file_language`), the `text` of now, and the
+answer of the server. A file holds one, and a file that shows more than one
+text holds one for each.
+
+`server` holds `nothing` until the owner sets the `LanguageServerConnection` for
+the command of the language. `answer` holds the last answer of the server: the
+text that it coloured and its marks. `request` is a background cell of the
+server, the path and the text of now: a read of it notes a missing answer, and
+the editor asks the server after the print and stores the answer in `answer`.
+`text` is a cell whose computation `make_language_server_text` sets, so it
+follows what it comes from.
+"""
+@document struct LanguageServerText
+    path::String
+    text::String
+    server::Any = nothing
+    answer::Any = nothing
+    request::Any = nothing
+end
+
+"""
+    make_language_server_text(path, text::Function) -> LanguageServerText
+
+A `LanguageServerText` of the file at `path` whose text is `text()`, read inside
+a cell, so the text follows what it comes from. The background cell asks the
+server for the text of now; one source for each text, so the work of one text
+asks only its own server.
+"""
+function make_language_server_text(path::AbstractString, text::Function)
+    path_cell = Cell(String(path))
+    text_cell = Cell("")
+    set_cell_computation!(text_cell, text)
+    server = Cell(nothing)
+    answer = Cell(nothing)
+    source = BackgroundSource(inputs -> Any[_compute_source_file_answer(input...) for input in inputs];
+                              description = "the colours of a source file")
+    holder = Ref{Any}(nothing)
+    request = make_background_cell(source, () -> (server[], path_cell[], text_cell[]);
+                                   apply = (inputs, value) -> StoreLanguageServerAnswerOperation(holder[], value))
+    result = LanguageServerText(path_cell, text_cell, server, answer, request)
+    holder[] = result
+    result
+end
+
+"""
+    compute_language_server_marks(text::LanguageServerText) -> Vector{TextMark}
+
+The marks of `text`: the stored answer of the server, moved to the text of now
+(`compute_moved_text_marks`), so a key moves no colour of the text around it,
+and the answer of the new text comes in a later frame. With no server, or a
+server that fails, the text has no marks.
+
+It reads the server and the path with tracking, so a new server or a new path
+reads the request again; the request with no tracking, so the marks do not
+become provisional. The read of the request notes a missing answer for the text
+of now, and the stored answer makes the marks change. The marks read `answer`,
+which is final, so they are final while an answer is still to come: a
+provisional value that asks again computes again at each read, and the lines of
+a text read the marks once for each line.
+"""
+function compute_language_server_marks(text::LanguageServerText)
+    text.server
+    text.path
+    run_without_cell_tracking(() -> text.request)
+    _compute_source_file_marks(text.answer, text.text)
+end
+
+"""
+    StoreLanguageServerAnswerOperation(text, answer)
+
+Store `answer`, the answer of the server that the work of the background cell
+of `text` gave, in the field `answer` of the `LanguageServerText` `text`. The
+editor evaluates it right after it writes the answer into the background cell.
+A work that threw gives its exception, and the text then stores no answer.
+"""
+struct StoreLanguageServerAnswerOperation <: Operation
+    text::Any
+    answer::Any
+end
+
+function evaluate_operation(editor, operation::StoreLanguageServerAnswerOperation)
+    answer = operation.answer
+    operation.text.answer = answer isa Exception ? nothing : answer
+    nothing
+end
+
+"""
     SourceFile(filename, content)
 
 A file of a language that a language server serves, such as a C or C++ file.
 `content` is a `MarkedText` that holds the text of the file, or a history of it;
 the server gives its marks, the names in the colours of their kinds.
 
+`server_text` is the `LanguageServerText` of the text of the file, whose
 `server` holds `nothing` until a tab acquires the file, and then the
-`LanguageServerConnection` of that editor for the command of the file. `answer`
-holds the last answer of the server: the text that it coloured and its marks.
-`request` is a background cell of the server, the path and the text of now: a
-read of it notes a missing answer, and the editor asks the server after the
-print and stores the answer in `answer`. The marks of the text are the stored
-answer, moved to the text of now (`compute_moved_text_marks`), so a key moves no
-colour of the text around it, and the answer of the new text comes in a later
-frame. With no server, or a server that fails, the text has no marks.
-
-The marks read `answer`, which is final, and read `request` with no tracking.
-So the marks are final while an answer is still to come: a provisional value
-that asks again computes again at each read, and the lines of a text read the
-marks once for each line.
+`LanguageServerConnection` of that editor for the command of the file. Its marks
+are the marks of the text (`compute_language_server_marks`). A content that holds
+no marked text has no `server_text`.
 
 # Example
 
@@ -63,55 +146,15 @@ marks once for each line.
 @document struct SourceFile <: FileDocument
     filename::String
     content::Any
-    server::Any = nothing
-    answer::Any = nothing
-    request::Any = nothing
+    server_text::Any = nothing
 end
 
 function SourceFile(filename::AbstractString, content::Document)
-    path = Cell(String(filename))
-    server = Cell(nothing)
-    answer = Cell(nothing)
     marked = _find_marked_text(content)
-    marked === nothing && return SourceFile(path, Cell(content), server, answer, Cell(nothing))
-    # One source for each file, so the work of one file asks only its own server.
-    source = BackgroundSource(inputs -> Any[_compute_source_file_answer(input...) for input in inputs];
-                              description = "the colours of a source file")
-    holder = Ref{Any}(nothing)
-    request = make_background_cell(source, () -> (server[], path[], marked.text);
-                                   apply = (inputs, value) -> StoreSourceFileAnswerOperation(holder[], value))
-    set_cell_computation!(getfield(marked, :marks), function ()
-        # The inputs of the request, with tracking, so a new server or a new text
-        # reads the request again; the request itself with no tracking, so the marks
-        # do not become provisional. The read notes a missing answer for the text of
-        # now, and the stored answer makes the marks change.
-        server[]
-        path[]
-        run_without_cell_tracking(() -> request[])
-        _compute_source_file_marks(answer[], marked.text)
-    end)
-    file = SourceFile(path, Cell(content), server, answer, request)
-    holder[] = file
-    file
-end
-
-"""
-    StoreSourceFileAnswerOperation(file, answer)
-
-Store `answer`, the answer of the server that the work of the background cell
-of `file` gave, in the field `answer` of `file`. The editor evaluates it right
-after it writes the answer into the background cell. A work that threw gives
-its exception, and the file then stores no answer.
-"""
-struct StoreSourceFileAnswerOperation <: Operation
-    file::Any
-    answer::Any
-end
-
-function evaluate_operation(editor, operation::StoreSourceFileAnswerOperation)
-    answer = operation.answer
-    operation.file.answer = answer isa Exception ? nothing : answer
-    nothing
+    marked === nothing && return SourceFile(Cell(String(filename)), Cell(content), Cell(nothing))
+    server_text = make_language_server_text(filename, () -> marked.text)
+    set_cell_computation!(getfield(marked, :marks), () -> compute_language_server_marks(server_text))
+    SourceFile(Cell(String(filename)), Cell(content), Cell(server_text))
 end
 
 # The marked text of the content of a file: the content, or what its history holds.
@@ -148,7 +191,8 @@ get_file_domain(::Type{<:SourceFile}) = Union{}
 function acquire_document!(editor, file::SourceFile)
     invoke(acquire_document!, Tuple{Any, FileDocument}, editor, file)
     language = find_source_file_language(file.filename)
-    language === nothing || (file.server = get_language_server!(editor, language.command))
+    language === nothing || file.server_text === nothing ||
+        (file.server_text.server = get_language_server!(editor, language.command))
     nothing
 end
 
@@ -156,10 +200,12 @@ end
 # its marks.
 function release_document!(editor, file::SourceFile)
     invoke(release_document!, Tuple{Any, FileDocument}, editor, file)
-    server = file.server
-    file.server = nothing
+    server_text = file.server_text
+    server_text === nothing && return nothing
+    server = server_text.server
+    server_text.server = nothing
     server isa LanguageServerConnection &&
-        errormonitor(Threads.@spawn :default close_language_server_document!(server, file.filename))
+        errormonitor(Threads.@spawn :default close_language_server_document!(server, server_text.path))
     nothing
 end
 

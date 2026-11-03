@@ -34,21 +34,24 @@ function _fake_read(io::IO)
 end
 
 """
-    start_fake_language_server(; encoding = "utf-32", token_types, tokens, ask = false)
+    start_fake_language_server(; encoding = "utf-32", token_types, tokens, ask = false,
+        compile_command = nothing)
         -> (server, connection)
 
 Start a server in this process and make a connection to it. `encoding` is the
 `positionEncoding` that it agrees on, or `nothing` for none. `token_types` is its
-legend, and `tokens(text)` the data of its semantic tokens for a text. With `ask`,
+legend, and `tokens(text)` the data of its semantic tokens for a text. `compile_command` goes to
+the connection. With `ask`,
 it sends the client a request and a notification before it answers `initialize`.
 It gives no answer to the method `test/silent`, and ends at `exit`.
 """
 function start_fake_language_server(; encoding = "utf-32", token_types = ["variable", "function"],
-                                    tokens = text -> Int[], ask::Bool = false)
+                                    tokens = text -> Int[], ask::Bool = false,
+                                    compile_command = nothing)
     server = FakeLanguageServer(Base.BufferStream(), Base.BufferStream(), Dict{String, Any}[],
                                 Dict{String, String}(), nothing)
     server.task = Threads.@spawn _serve_fake_language_server(server, encoding, token_types, tokens, ask)
-    connection = LanguageServerConnection(["fake"]; streams = (server.to_server, server.to_client))
+    connection = LanguageServerConnection(["fake"]; streams = (server.to_server, server.to_client), compile_command)
     (server, connection)
 end
 
