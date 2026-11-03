@@ -371,7 +371,8 @@ Move the focus to tab `index` of `group` — the whole of what focusing is. An
 """
 function make_pane_focus_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     reference = get_pane_tab_reference(tree, group, index)
-    reference === nothing ? nothing : ReplaceSelectionOperation(reference)
+    reference === nothing && return nothing
+    _with_focus_restore(tree, group, ReplaceSelectionOperation(reference))
 end
 
 """
@@ -399,6 +400,71 @@ function _make_dormant_selection_write(tree::PaneTree, node, path; node_path = g
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
         concat_references(node_path, Reference(FieldReferenceStep("selection"))),
         SelectionDocument(; primary = path, live = false)))
+end
+
+# ── The maximize ───────────────────────────────────────────────────────────
+#
+# A maximize makes one group fill the window and leaves the layout as it is, so a
+# restore gives back the same splits and weights. The tree keeps the group in
+# `maximized`, and every view reads `find_pane_maximized_group`, never the field.
+
+"""
+    find_pane_maximized_group(tree) -> PaneGroup | Nothing
+
+The group that fills the window, or `nothing` when the window shows the whole
+layout. The group that `maximized` names fills the window while the tree holds it
+and while the focus is in it or outside the layout, so the window never hides the
+group that has the focus.
+"""
+function find_pane_maximized_group(tree::PaneTree)
+    group = tree.maximized
+    group isa PaneGroup || return nothing
+    get_pane_path(tree, group) === nothing && return nothing
+    selection = get_selection(tree)
+    (selection === nothing || _after_field(selection, "root") === nothing) && return group
+    get_pane_focused_group(tree) === group ? group : nothing
+end
+
+"""
+    make_pane_maximize_operation(tree, group) -> Operation | Nothing
+
+Make `group` fill the window, or `nothing` when the tree does not hold it. A
+maximize is a view state, so it is no step of the undo.
+"""
+function make_pane_maximize_operation(tree::PaneTree, group::PaneGroup)
+    get_pane_path(tree, group) === nothing && return nothing
+    _make_maximized_write(group)
+end
+
+"""
+    make_pane_restore_operation(tree) -> Operation | Nothing
+
+Give back the whole layout after a maximize, or `nothing` when no group is
+maximized.
+"""
+make_pane_restore_operation(tree::PaneTree) =
+    tree.maximized === nothing ? nothing : _make_maximized_write(nothing)
+
+_make_maximized_write(group) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
+        ConcreteReference(PaneTree, FieldReferenceStep("maximized"), EmptyReference()), group))
+
+# `operation`, which moves the focus to `group`, with the restore of the layout
+# when a different group is maximized. A maximize ends when the focus leaves its
+# group, so it does not come back when the focus comes back. Every builder that
+# moves the focus to a group passes here; a move that keeps the focus where it
+# is, along a new path, does not.
+function _with_focus_restore(tree::PaneTree, group, operation)
+    (operation === nothing || tree.maximized === nothing || tree.maximized === group) &&
+        return operation
+    CompoundOperation(Any[operation, _make_maximized_write(nothing)])
+end
+
+# The group that takes the focus when the focus goes into `node`: its first group
+# in the depth-first order, as `_focus_into!` walks.
+function _get_first_pane_group(node)
+    groups = get_pane_groups(node)
+    isempty(groups) ? nothing : groups[1]
 end
 
 # The path after `prefix` in `path`, both without their types, or `nothing` when
@@ -473,9 +539,10 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     focus || return CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab]),
                                           _make_insert_selection_shifts(tree, group, :tabs, at)...,
                                           AcquireDocumentOperation(tab)])
-    CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
-                                                         selection = _make_new_tab_cursor(pairs, tab)),
-                          AcquireDocumentOperation(tab)])
+    _with_focus_restore(tree, group,
+        CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
+                                                             selection = _make_new_tab_cursor(pairs, tab)),
+                              AcquireDocumentOperation(tab)]))
 end
 
 # A tab holds each layer of what it shows, from its content inward, such as the
@@ -600,8 +667,9 @@ function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Int
     survivor = index < n ? index + 1 : index - 1
     at = index < n ? index : index - 1
     cursor = _element_path(tree, group, :tabs, at, group.tabs[survivor])
-    CompoundOperation(Any[make_delete_elements_operation(tabs_path, index),
-                          ReplaceSelectionOperation(cursor)])
+    _with_focus_restore(tree, group,
+        CompoundOperation(Any[make_delete_elements_operation(tabs_path, index),
+                              ReplaceSelectionOperation(cursor)]))
 end
 
 function _close_group(tree::PaneTree, group::PaneGroup)
@@ -615,7 +683,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
     # The root group stays, empty. The selection names the group itself.
     if owner === tree
         cursor = get_pane_path(tree, group)
-        return CompoundOperation(Any[drop_tab, ReplaceSelectionOperation(cursor)])
+        return _with_focus_restore(tree, group,
+            CompoundOperation(Any[drop_tab, ReplaceSelectionOperation(cursor)]))
     end
 
     split = owner::PaneSplit
@@ -636,7 +705,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
                      make_delete_elements_operation(elements_path, k),
                      _write_weights(tree, split, weights),
                      ReplaceSelectionOperation(cursor)]
-        return CompoundOperation(filter(!isnothing, writes))
+        return _with_focus_restore(tree, _get_first_pane_group(neighbour),
+            CompoundOperation(filter(!isnothing, writes)))
     end
 
     # Two elements left: the split is replaced by its sibling.
@@ -647,7 +717,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
     pairs === nothing && return nothing
     leaf = _focus_into!(sibling, pairs)
     cursor = _reference_from(pairs, leaf)
-    CompoundOperation(Any[drop_tab, slot, ReplaceSelectionOperation(cursor)])
+    _with_focus_restore(tree, _get_first_pane_group(sibling),
+        CompoundOperation(Any[drop_tab, slot, ReplaceSelectionOperation(cursor)]))
 end
 
 # ── Split a group ──────────────────────────────────────────────────────────
@@ -693,11 +764,12 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
         push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
         moves = focus ? Any[ReplaceSelectionOperation(_make_new_tab_cursor(pairs, tab))] :
                         _make_insert_selection_shifts(tree, owner, :elements, at)
-        return CompoundOperation(Any[
+        joined = CompoundOperation(Any[
             make_insert_elements_operation(elements_path, at, Any[new_group]),
             _write_weights(tree, owner, weights),
             moves...,
             AcquireDocumentOperation(tab)])
+        return focus ? _with_focus_restore(tree, new_group, joined) : joined
     end
 
     elements = before ? Any[new_group, group] : Any[group, new_group]
@@ -711,7 +783,8 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
     focus || return CompoundOperation(Any[write, _make_wrap_selection_moves(tree, group, split)...,
                                           AcquireDocumentOperation(tab)])
     cursor = _make_new_tab_cursor(pairs, tab)
-    CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)])
+    _with_focus_restore(tree, new_group,
+        CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)]))
 end
 
 # The operations that keep the selections of `group` when `split` takes its slot
@@ -775,7 +848,7 @@ function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
     if same || n > 1
         cursor = _element_path(tree, target, :tabs, landed, tab)
         cursor === nothing && return move
-        return CompoundOperation(Any[move, ReplaceSelectionOperation(cursor)])
+        return _with_focus_restore(tree, target, CompoundOperation(Any[move, ReplaceSelectionOperation(cursor)]))
     end
 
     # The source loses its last tab, so it goes away with it. The target's path
@@ -783,7 +856,7 @@ function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
     # sibling that replaces the source's parent.
     collapse = _collapse_writes(tree, source, target, landed, tab)
     collapse === nothing && return move
-    CompoundOperation(vcat(Any[move], collapse))
+    _with_focus_restore(tree, target, CompoundOperation(vcat(Any[move], collapse)))
 end
 
 # The writes that remove an emptied `group` from the tree, plus the cursor into
@@ -892,7 +965,8 @@ function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
     pairs === nothing && return CompoundOperation(vcat(writes, Any[move]))
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-    CompoundOperation(vcat(writes, Any[move, ReplaceSelectionOperation(_reference_from(pairs, tab))]))
+    _with_focus_restore(tree, new_group,
+        CompoundOperation(vcat(writes, Any[move, ReplaceSelectionOperation(_reference_from(pairs, tab))])))
 end
 
 # The structural writes a split-drop needs, and the substitutions that name the

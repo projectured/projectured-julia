@@ -72,6 +72,16 @@ function _sibling_tab(tree::PaneTree, step::Int)
     make_pane_focus_operation(tree, group, mod1(index + step, n))
 end
 
+# The focused group fills the window, and the next press gives back the layout. A
+# tree of one group has nothing to hide.
+function _toggle_maximize(tree::PaneTree)
+    find_pane_maximized_group(tree) === nothing || return make_pane_restore_operation(tree)
+    tree.root isa PaneGroup && return nothing
+    group = get_pane_focused_group(tree)
+    group === nothing && return nothing
+    make_pane_maximize_operation(tree, group)
+end
+
 # ── The tab title ──────────────────────────────────────────────────────────
 #
 # A rename is not a mode. The title is a text document, so putting the caret in it
@@ -189,6 +199,7 @@ end
     override(KeyPress('\t'; ctrl, shift)) => "Focus the previous group" => _traverse(doc, true)
     KeyDown(:page_down; ctrl) => "Focus the next tab" => _sibling_tab(doc, 1)
     KeyDown(:page_up; ctrl) => "Focus the previous tab" => _sibling_tab(doc, -1)
+    KeyDown(:m; ctrl) => "Maximize the focused group, or give back the layout" => _toggle_maximize(doc)
     when(KeyDown(k; alt), k in (:left, :right, :up, :down)) =>
         "Walk from a whole tab to its neighbour or into its content" =>
             _walk_tab(doc, k)

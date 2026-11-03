@@ -63,7 +63,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SelectionModule: has_dormant_selection
 import ..ClipboardModule: find_clipboard_document
 import ..DomainModule: accepts_pasted_replacement, acquire_document!, release_document!
-import ..DocumentModule: get_document_title, get_edited_field
+import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
@@ -82,6 +82,7 @@ export get_pane_path, get_pane_collection_path,
        get_pane_focused_tab_index,
        get_pane_shown_tab_index,
        get_pane_tab_reference, make_pane_focus_operation, make_pane_show_operation,
+       find_pane_maximized_group, make_pane_maximize_operation, make_pane_restore_operation,
        get_pane_tab_name_path, get_pane_content_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
        make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
        make_pane_duplicate_tab_operation,

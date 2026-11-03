@@ -49,7 +49,7 @@ stays correct when a split or a move changes the paths. The write is view state
 maximize. `pred_arguments` of `PaneTree` writes only `root`, so a save drops the
 field (Q3) with no change.
 
-**D2. One function says what shows.** `get_pane_maximized_group(tree)` answers
+**D2. One function says what shows.** `find_pane_maximized_group(tree)` answers
 the group that fills the window, or `nothing`. It answers the group of the field
 only when the tree holds that group and the focus is in that group or outside the
 tree. Every view reads this function and not the field. So a view never hides
@@ -57,18 +57,28 @@ the group that has the focus, also after a focus move that D3 does not see. A
 focus outside the tree, such as in a menu of the shell, keeps the maximize.
 
 **D3. A focus move to a different group ends the maximize.** The operation that
-moves the focus into a different group also writes `nothing` into the field. One
-function adds this write, and two places call it, because every such operation
-passes one of them:
-
-- the reader of `PaneTreeToWidget`, for the answer of each branch: the keys, the
-  mouse, and the answers that come up from the content of a tab;
-- `_make_rooted_pane_operation`, which roots the edit of each verb and companion,
-  such as `focus_pane!` and the open of a file with `focus = true`.
+moves the focus into a different group also writes `nothing` into the field.
+Each builder of the surgery that moves the focus to a group gives its operation to
+one helper, `_with_focus_restore(tree, group, operation)`, with the group that
+takes the focus as an object. The helper adds the write when a different group is
+maximized. Every focus move to a group comes from such a builder: the keys, the
+press on the empty space of a pane, and the verbs, such as `focus_pane!` and an
+open with `focus = true`. A builder that keeps the focus where it is, along a new
+path, such as an open with `focus = false`, does not call the helper.
 
 D2 alone shows the layout after such a move, but the field stays. Then the
 maximize comes back when the focus comes back to the group, and Q2 does not
 allow that.
+
+*Changed during step 2 (2026-11-03).* The plan first put the check in two places
+that see each finished operation: the reader of `PaneTreeToWidget` and
+`_make_rooted_pane_operation`. That check must find the group from the path of
+the last selection, against the tree as it is before the operation. One operation
+can change the structure and move the focus, so the path is wrong in two cases: a
+split of the maximized group names the new group through the old path of the
+group, and a program that opens a pane beside the maximized group gives the same
+focus a new path. The kernel has no function that maps a path through an edit.
+The builders know the group by object, so the test there has neither fault.
 
 **D4. A split pane gives no room to a slot that can have none.** The widget split
 pane gives no extent to a slot whose maximum extent on the main axis is 0, and
@@ -100,16 +110,25 @@ focus is not in a group.
 
 ## The steps
 
-1. ⬜ **The state and the key.** The field `maximized` of `PaneTree` (D1),
-   `get_pane_maximized_group` (D2), the toggle builder in `PaneSurgery.jl`, and
-   the rule `KeyDown(:m; ctrl)` "Maximize the focused group, or give back the
-   layout" in `PaneGestures.jl` (D6). Test in `test_pane_gestures`: the toggle,
-   the two cases of D6, and a save that drops the field.
-2. ⬜ **The end of the maximize (D3).** The function and its two callers. Test in
-   `test_pane_gestures` and `test_pane_reader`: Ctrl+Tab, Ctrl+Alt+arrow, Ctrl+W
-   of the last tab, a split, `focus_pane!` and an open with `focus = true` clear
-   the field; Ctrl+Tab back to the group does not maximize it again; a move
-   inside the group, such as Ctrl+PageDown, keeps the field.
+1. ✅ **The state and the key.** The field `maximized` of `PaneTree` (D1), with
+   `is_field_walked(::PaneTree, :maximized) = false`, so a search finds the
+   group only under `root`. `find_pane_maximized_group` (D2; `find_`, because it
+   searches the tree and can answer `nothing`), `make_pane_maximize_operation` and
+   `make_pane_restore_operation` in `PaneSurgery.jl`, and the rule
+   `KeyDown(:m; ctrl)` "Maximize the focused group, or give back the layout" in
+   `PaneGestures.jl` (D6). Tests in `test_pane_gestures`: the toggle, the two
+   cases of D6, one search result, and a save that drops the field.
+2. ✅ **The end of the maximize (D3).** `_with_focus_restore` and the builders that
+   call it: the focus, the open of a tab with the focus, the close of a tab and of
+   a group, the split with the focus, the move of a tab, and the drop on an edge.
+   Tests in `test_pane_gestures`: Ctrl+Tab, Ctrl+Alt+arrow, a split, Ctrl+W of the
+   last tab, a program focus and a program open with the focus clear the field;
+   Ctrl+Tab back to the group does not maximize it again; Ctrl+T and
+   Ctrl+PageDown, an open with `focus = false` and a split beside the group with
+   `focus = false` keep it; a selection made by another way shows the layout and
+   keeps the field; a selection outside the layout keeps the maximize. Steps 1
+   and 2 are one commit, because both change the same parts of `PaneSurgery.jl`.
+   `test_pane_gestures` passes: 117.
 3. ⬜ **The split pane rule (D4)** in `WidgetToGraphics.jl`. Test in
    `test_split_pane_drag` or a new test beside it: a slot with a maximum of 0
    gets no extent, no splitter and no grab band; a change of the maximum prints

@@ -277,15 +277,25 @@ See also `PaneSplit`, `PaneGroup`, `show_layout`.
 
 `drag` is transient state holding a tab drag in progress, or `nothing`. It is
 not part of the layout and is not meant to be serialized.
+
+`maximized` is the group that fills the window, or `nothing`; the layout stays as
+it is. [`find_pane_maximized_group`](@ref) says when the group shows. It is a view
+state, and a save does not write it.
 """
 @document struct PaneTree <: PaneDocument
     root::Any
     drag::Any = nothing
+    maximized::Any = nothing
 end
 
-# A drag in progress is not layout: it is a pointer's own transient state, gone
-# the moment the button comes up, and never something a save should freeze.
+# Neither a drag in progress nor a maximize is layout. A drag is a pointer's own
+# transient state, gone the moment the button comes up, and a maximize is a view of
+# the layout; a save freezes neither.
 pred_arguments(tree::PaneTree) = (), Pair{Symbol,Any}[:root => tree.root]
+
+# `maximized` names a group that `root` holds, so a search finds the group under
+# `root` only.
+is_field_walked(::PaneTree, name::Symbol) = name !== :maximized
 
 # ── Tree walks ─────────────────────────────────────────────────────────────
 
