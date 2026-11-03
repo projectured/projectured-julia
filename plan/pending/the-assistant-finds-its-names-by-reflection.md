@@ -220,8 +220,21 @@ index shows them. An example is `JsonModule`: "The JSON slice."
 
 - The text answers work with string functions (open item 3).
 - The scratch module's `show`, `display` and `@show` pass on keywords.
-- A marked function that takes a document takes both a plain and a referenced
-  document. A test checks each marked function by reflection.
+- A verb keeps the place of what it reads, and a verb that needs a place refuses a
+  plain document with a clear error (decided 2026-11-03, §5.2). The work, in this
+  order, each part with its own commit:
+  - [ ] **The walk holds its rules.** `DocumentWalk(; is_opaque, enter_field,
+    descend, order, policy)`; `walk_document` takes the walk and the limits, with
+    the new `maxvisits`; `search_documents(x, query; walk, places)` and
+    `search_references(x, query; walk)`, each node once by default; the keywords
+    `descend`, `enter_field` and `include_selection` of the callers move into a walk.
+  - [ ] **The undo slice skips its two lists** with `is_field_walked`.
+  - [ ] **The verbs keep the place:** `get_referenced_value` and the other verbs
+    that read a part of the window, in both repositories.
+  - [ ] **The error for a plain document:** the hint on Julia's `MethodError` and
+    the fallback of `get_reference`.
+  - [ ] **The texts:** the docstrings of the two searches, and the system text that
+    teaches `search_references(editor.document, query)`.
 
 ## 5. Steps
 
@@ -316,8 +329,63 @@ ends with a commit in each repository that it changes.
 - A verb that fails on a plain document is one of two kinds. `get_reference`,
   `get_parent` and `replace_referenced_value!` need a place in the window, which a
   plain document does not have. `get_formula_value` only needs to unwrap a
-  referenced document. The fix belongs in one general place and not in each verb;
-  it is a question for the owner before it is built.
+  referenced document, and it does. **Decided by the owner (2026-11-03), option A:**
+  - a verb that reads a part of the window answers the part, the document with its
+    place, as one `ReferencedDocument`, and never the plain document it found:
+    `get_referenced_value` answered the plain node of a reference it knew;
+  - a verb that needs a place and gets a plain document refuses it with one error
+    from one fallback: "This document has no place in the window. Read it from a
+    tab, for example with `find_pane`." The error names the cure, so the agent
+    corrects its call.
+  - Rejected, option B: a verb finds the place of a plain document again by a
+    search of the window. It searches the whole window at each call, a document
+    can stand at two places, and it searches for a fact that the first verb knew.
+  - The error text is general (the owner found the first one too specific): "This
+    document has no place in the window. Pass the part that a read of the window
+    gives." About 25 verbs take a part by the type of their argument, so Julia
+    refuses a plain document before the verb runs; the text goes on Julia's
+    `MethodError` as an error hint, and the fallback of `get_reference` says the
+    same for a verb that reads the place itself.
+- **The two searches (owner 2026-11-03, agreed with the undo change below).**
+  Measured on a window with a 300-row JSON file: `search_documents(editor.document,
+  …)` 25 ms; `search_references` 2.9 s, and after 20 edits 441 paths for one row
+  (3.9 s, 1 GB) and more than 9 GB for a broad predicate, because it walks each path
+  and the old versions that undo keeps share their rows. A prototype that walks each
+  node once and records the first path: 11 ms, and its part went straight into
+  `replace_referenced_value!`.
+  - `search_documents(x, query; places = x isa ReferencedDocument, maxvisits = 100_000,
+    limit, maxdepth, background)`: `places = true` answers parts, each with its path
+    from `x` (after the place of `x` when `x` is a part); each node once, at the first
+    path; `maxvisits` bounds the work. The first line of the answer names each limit
+    that stopped the search and the keyword that lifts it.
+  - `search_references(x, query; every_path = false, …)`: the paths of
+    `search_documents(x, query; places = true)`; `every_path = true` keeps the walk of
+    each path, for code that must know whether a node stands at two places; the same
+    limits.
+  - The undo slice skips its two lists with the existing rule:
+    `is_field_walked(::UndoBuffer, name) = !(name in (:undo_entries, :redo_entries))`.
+    The kernel search has no undo option. A search of the old versions starts at the
+    list, `search_documents(buffer.undo_entries, query)`, because the rule applies to
+    the fields of the buffer. No line of the answer says that the old versions were
+    skipped: the search does not know why a field was skipped, and it is no limit.
+  - A match whose path cannot be read back (47 in the style theme, a dictionary with
+    types as keys) is left out and counted in the first line.
+  - `get_referenced_value` answers a part.
+- **The walk holds its rules (owner 2026-11-03):** "a walk should be parameterized
+  with the functions which control what is walked and what is not and in what
+  order". `DocumentWalk` has five parameters: `is_opaque(node)` (default
+  `is_walk_opaque`), `enter_field(node, name)` (default `is_field_walked`, never the
+  mouse target or the selection), `descend(parent, child)` (default every child),
+  `order(node, steps)` (default positions in order, fields in declared order) and
+  `policy` (default each node once). The search keeps the limits (`limit`,
+  `maxdepth`, `maxvisits`, `background`), the form of the answer (`places`, `raw`)
+  and what happens at a match (`enter_matches`, `on_error`). The naming of a match,
+  a node or a path, leaves the walk for the search; `every_path` is not needed, it is
+  `DocumentWalk(; policy = :once_per_path)`. A walk that enters the undo lists:
+  `DocumentWalk(; enter_field = (node, name) -> node isa UndoBuffer ||
+  is_field_walked(node, name))`. Before this, a walk named only the location of a
+  match and its cycle rule, and the searches took `descend`, `enter_field` and
+  `include_selection` as keywords (about 50 calls in the source).
 - The documentation tests of both repositories check two more rules: the "See
   also" paragraph of an offered name names only what the assistant can write,
   and its example calls only what the assistant can write (or `Base`). An agent
