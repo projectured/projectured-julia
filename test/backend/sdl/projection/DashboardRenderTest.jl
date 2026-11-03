@@ -14,7 +14,8 @@ function test_dashboard_render()
     iomap = print_document(natural, nothing, dashboard, offer)
     # The search enters no graphics and no list, so it builds no row.
     grids = search_documents(iomap, x -> x isa GridLayoutListIoMap; raw = true, limit = nothing,
-                             descend = (parent, child) -> !(child isa ListNode || child isa GraphicsDocument))
+                             walk = DocumentWalk(;
+                                 descend = (parent, child) -> !(child isa ListNode || child isa GraphicsDocument)))
     @test length(grids) == 1
     built() = sort(collect(keys(only(grids).state.built)))
     off = SDL.open_offscreen_renderer(1100, 500; supersample = 1)

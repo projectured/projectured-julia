@@ -4,9 +4,11 @@
 The **document contract**: the `Document` abstract type, the `@document`
 codegen, the protocol forward/adapt macros, and the shared value protocol every
 concrete document reuses (`copy_document`, `sync_document!`).
-It also carries the reflection walk over a document tree (`search_documents`,
-with the `is_element_collection` / `is_walk_opaque` traits that steer it) — the
-value-collecting search that needs no reference machinery. The kernel defines
+It also carries the reflection walk over a document tree (`walk_document` along a
+`DocumentWalk`, with the `is_element_collection` / `is_walk_opaque` /
+`is_field_walked` traits that its default rules ask). The searches that answer
+nodes and places, `search_documents` and `search_references`, are in the
+reference layer, which names a place. The kernel defines
 only this contract; it carries no concrete documents.
 
 The module is a set of fragments sharing this namespace, each documented at
@@ -14,15 +16,14 @@ its own definition:
 
 | Fragment | Contract |
 |---|---|
-| [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `is_field_walked` / `copy_document` / `sync_document!` / `search_documents`) |
+| [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `is_field_walked` / `copy_document` / `sync_document!`) |
 | [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` / `is_field_walked` trait answers, the defaults of the sync and copy policy hooks, and the depth-limited debug `show` |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving under a `CopyPolicy`, or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DeclaredType.jl`](DeclaredType.jl) | the check of the declared type of a field at each write and at construction, `DeclaredTypeMismatchException`, and the records of an inventory |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
 | [`SelectionDocument.jl`](SelectionDocument.jl) | `SelectionDocument` — the value a `selection` cell holds, and `unwrap_selection` |
-| [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, parameterized by how it names a node (`DocumentWalk`) |
-| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting walk |
+| [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, along a `DocumentWalk` that says which nodes it enters and in what order |
 | [`ForwardProtocol.jl`](ForwardProtocol.jl) | `@forward_protocol` / `@forward_vector_protocol` / `@adapt_map_protocol` — give a wrapper another type's protocol |
 """
 module DocumentModule
@@ -42,7 +43,7 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        copy_selection_cell, is_view_state_field, get_view_state_fields,
        DuplicatePolicy, has_document_duplicate, make_document_duplicate,
        is_element_collection, is_walk_opaque, is_field_walked, is_collection_field_type,
-       get_cell_layout_field_type, search_documents,
+       get_cell_layout_field_type,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export DeclaredTypeMismatchException, PendingValue,
@@ -52,7 +53,7 @@ export DeclaredTypeMismatchException, PendingValue,
        convert_to_declared_type, convert_written_value, is_admitted_by_declared_type,
        convert_assigned_value
 export SelectionDocument, unwrap_selection
-export DocumentWalk, walk_document, make_string_predicate, is_background_work_allowed, complete_walked_cell,
+export DocumentWalk, is_field_entered, walk_document, make_string_predicate, is_background_work_allowed, complete_walked_cell,
        DocumentMatches, WalkLimits, is_search_complete
 # how deep `show` descends before it elides
 export DOCUMENT_SHOW_MAX_DEPTH
@@ -65,7 +66,6 @@ include("DeclaredType.jl")
 include("DocumentMacro.jl")
 include("SelectionDocument.jl")
 include("DocumentWalk.jl")
-include("DocumentSearch.jl")
 include("ForwardProtocol.jl")
 
 end # module

@@ -349,8 +349,10 @@ function test_search_object()
         shared = JsonString("dup")
         obj = JsonObject("a" => shared, "b" => shared)
         @test length(search_documents(obj, v -> v === shared)) == 1
-        # …whereas search_references reports both locations
-        @test length(search_references(obj, v -> v === shared)) == 2
+        # …and search_references reports it once, at its first place; the walk of
+        # each path reports both places
+        @test length(search_references(obj, v -> v === shared)) == 1
+        @test length(search_references(obj, v -> v === shared; walk = DocumentWalk(; policy = :once_per_path))) == 2
     end
 end
 

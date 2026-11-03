@@ -447,10 +447,14 @@ function test_reference_evaluation()
               [Reference(FieldReferenceStep("right"), FieldReferenceStep("value"))]
         @test strip_reference_types.(search_references(root, "20")) ==
               [Reference(FieldReferenceStep("right"))]
-        # One document in two places is two places.
+        # One document in two places: the default walk answers its first place, and the
+        # walk of each path answers both.
         shared = EvaluationLeaf(5, nothing)
         pair = EvaluationBranch(shared, shared, nothing)
-        @test Set(strip_reference_types.(search_references(pair, x -> x === shared))) ==
+        @test strip_reference_types.(search_references(pair, x -> x === shared)) ==
+              [Reference(FieldReferenceStep("left"))]
+        @test Set(strip_reference_types.(search_references(pair, x -> x === shared;
+                                                           walk = DocumentWalk(; policy = :once_per_path)))) ==
               Set([Reference(FieldReferenceStep("left")),
                    Reference(FieldReferenceStep("right"))])
     end

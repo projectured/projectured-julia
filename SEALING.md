@@ -197,7 +197,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentMacro.jl`
   - ⬜ `document/SelectionDocument.jl`
   - ⬜ `document/DocumentWalk.jl`
-  - ⬜ `document/DocumentSearch.jl`
   - ⬜ `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`

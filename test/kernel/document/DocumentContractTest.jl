@@ -177,8 +177,8 @@ function test_document_contract()
         pair = ContractPair(ToyNode("first", nothing, nothing), nothing, nothing)
         set_cell_computation!(getfield(pair, :second), () -> (computes[] += 1; ToyNode("second", nothing, nothing)))
         skip_second = (parent, name) -> !(parent isa ContractPair && name === :second)
-        @test [node.label for node in search_documents(pair, node -> node isa ToyNode; enter_field = skip_second)] ==
-              ["first"]
+        walk = DocumentWalk(; enter_field = (node, name) -> is_field_entered(node, name) && skip_second(node, name))
+        @test [node.label for node in search_documents(pair, node -> node isa ToyNode; walk)] == ["first"]
         # The field that the walk refused is not read, so its value is not computed.
         @test computes[] == 0
         @test length(search_documents(pair, node -> node isa ToyNode)) == 2 && computes[] == 1

@@ -223,11 +223,40 @@ index shows them. An example is `JsonModule`: "The JSON slice."
 - A verb keeps the place of what it reads, and a verb that needs a place refuses a
   plain document with a clear error (decided 2026-11-03, §5.2). The work, in this
   order, each part with its own commit:
-  - [ ] **The walk holds its rules.** `DocumentWalk(; is_opaque, enter_field,
+  - [x] **The walk holds its rules.** `DocumentWalk(; is_opaque, enter_field,
     descend, order, policy)`; `walk_document` takes the walk and the limits, with
     the new `maxvisits`; `search_documents(x, query; walk, places)` and
     `search_references(x, query; walk)`, each node once by default; the keywords
     `descend`, `enter_field` and `include_selection` of the callers move into a walk.
+    *Done (2026-11-03).* Facts:
+    - `search_documents` moved from the document layer to the reference layer
+      (`ReferenceSearch.jl`), beside `search_references`, because `places` answers a
+      `ReferencedDocument`; `DocumentSearch.jl` is gone. The walk names a match by a
+      chain of steps (`walk_document(…; paths = true)`), and the reference layer turns
+      it into a reference. Three omnet imports name `ReferenceModule` now.
+    - The default field rule is a named, exported function, `is_field_entered(node,
+      name)`: `is_field_walked`, and never `:mouse_target` or `:selection`. A walk
+      that changes one rule composes with it. No caller passed `include_selection`.
+    - `maxvisits` defaults to 100,000, and to `nothing` with `limit = nothing`,
+      because a caller that asks for every match (a save, a load) asks for the whole
+      walk. `WalkLimits` gains `maxvisits`, `is_visit_limit_reached` and
+      `unreadable_count`.
+    - Each node once also changes which callers see a shared node twice: the pane,
+      explorer and window searches looped over every path; they see one now.
+      `_find_referenced_value`, which asks whether a value stands at one place, uses
+      `DocumentWalk(; policy = :once_per_path)`. Three tests that counted every place
+      of a shared node now check both walks.
+    - An agent (Sonnet) moved 23 call sites in projectured and 10 in omnet; four omnet
+      modules and the IDE test module import `DocumentWalk`.
+    - Tests: kernel suite, walk, document contract, referenced document, reference
+      evaluation, MCP search, declared API, workflow (314/314), the platform suite in
+      its own environment (174,827 pass; 1 fail, the known layering guard), the
+      application (386 pass; :677 and :789 fail on main too), and the IDE tests
+      (known :227 and :325). The step-2 tests that this run caught are fixed: the
+      workflow names (five more since step 2), the refusal probe (`read_intent` is
+      named by the docstring of `ProjectionModule`, which the subtype rule offers
+      through `ProjectionReferenceStep`) and the study window test, which read the
+      registry as pairs.
   - [ ] **The undo slice skips its two lists** with `is_field_walked`.
   - [ ] **The verbs keep the place:** `get_referenced_value` and the other verbs
     that read a part of the window, in both repositories.

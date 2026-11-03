@@ -15,8 +15,8 @@ module (`DocumentModule`) split across fragments that share its namespace:
 DocumentModule.jl   (DocumentModule)  — the aggregator: imports the cell and struct layers, exports every public name
     ├─ DocumentInterface.jl  — the contract: the Document supertype + the open generics
     │                          (the traits, the layout registry, the title, the seams of a
-    │                          wrapper, copy_document, sync_document! and their hooks,
-    │                          search_documents), declaration-only
+    │                          wrapper, copy_document, sync_document! and their hooks),
+    │                          declaration-only
     ├─ DocumentDefaults.jl   — the default of each generic, HiddenElements, and the debug show
     ├─ DocumentCopy.jl       — copy_document: deep copy, kind-preserving or kind-converting
     ├─ DocumentSync.jl       — sync_document!: the double-buffer shadow sync
@@ -24,8 +24,7 @@ DocumentModule.jl   (DocumentModule)  — the aggregator: imports the cell and s
     │                          (the layouts, the layout registry, the selection field)
     ├─ SelectionDocument.jl  — SelectionDocument, the value a selection cell holds, and
     │                          unwrap_selection
-    ├─ DocumentWalk.jl       — walk_document: the one reflection walk, parameterized by DocumentWalk
-    ├─ DocumentSearch.jl     — search_documents: the value-collecting walk
+    ├─ DocumentWalk.jl       — walk_document: the one reflection walk, along a DocumentWalk
     └─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
                                @adapt_map_protocol: give a wrapper another type's protocol
 ```
@@ -86,8 +85,8 @@ domain — fills in:
 - **`copy_document`** — deep copy (below).
 - **`sync_document!`** — the shadow sync (below); the kernel handles both record
   and positional-collection shapes.
-- **`search_documents`** — the reflection walk's value-collecting entry point
-  (below).
+- **`walk_document`** and **`DocumentWalk`** — the reflection walk and the rules
+  of its route (below). The searches that use it are in the reference layer.
 - **The layout registry** — `get_document_family`, `get_document_cell_type`,
   `get_document_native_type` and `get_document_schema_name`. They answer the
   family of a schema, its cell layout, its native layout (or `nothing`) and the
@@ -228,21 +227,33 @@ control that shows one command does.
 There is exactly one traversal of an object graph
 ([DocumentWalk.jl](../../../source/kernel/document/DocumentWalk.jl)): `walk_document` descends
 positional collections, dicts, arrays, and structs uniformly, stops at scalar
-leaves / `is_walk_opaque` nodes / `maxdepth`, and folds a scalar match up to its
-enclosing `Document`. A `descend(parent, child)` keyword, given by the caller,
-returns whether the walk enters `child` from `parent` at all; a child that it
-does not enter is neither matched nor walked, and the default enters every child. What it
-deliberately leaves open is how to *name* the node it stands on. Those are the
-location functions of a `DocumentWalk`, a parameter object the caller supplies (`locate_field` / `locate_element` / `initial` /
-`policy`). Its two callers differ only there: `search_documents`
-([DocumentSearch.jl](../../../source/kernel/document/DocumentSearch.jl)) uses the defaults, so a
-node's location is the node itself, while `search_references` (one layer up)
-supplies functions that build a `Reference`. The walk passes the location
-functions in, rather than dispatching them off a subtype. That keeps the walk
-*below* the reference layer while still serving it: the walk takes no
-dependency on `Reference`, and the caller supplies it.
+leaves and at its bounds, and folds a scalar match up to its enclosing `Document`.
 
-The keyword `limit` (default `100`) is the most matches that the walk answers; `limit = nothing` answers every match. The walk looks for one match more than its limit, so it knows that the limit cut the answer, and drops that match. The answer is a `DocumentMatches`, a vector of the matches with the `WalkLimits` that the walk ran under: the limit and whether it cut the answer, the depth and how many parts at it the walk did not enter, and how many values still to come it took as they are. Its summary names each limit that stopped the walk and the keyword that lifts it, and `is_search_complete` answers whether no limit left a match out. `search_references` answers its paths in a `DocumentMatches` with the same limits. A caller that needs every match passes `limit = nothing`, as the save of a binary file and the undo do. The limits and the answer are in [finding-and-selecting.md](finding-and-selecting.md#the-limits-of-a-search).
+A `DocumentWalk` holds the rules of the route, so a caller that needs another route
+passes another walk:
+
+| Rule | Default | What it decides |
+|---|---|---|
+| `is_opaque(node)` | `is_walk_opaque` | a node whose parts the walk does not enter |
+| `enter_field(node, name)` | `is_field_entered`: `is_field_walked`, and never the mouse target or the selection | the fields of a node that the walk enters |
+| `descend(parent, child)` | every child | the children that the walk enters, by their value |
+| `order(node, steps)` | the steps in their own order | the order of the children: positions, dict keys or field names |
+| `policy` | `:once_per_object` | how often a node that two places share is visited: once, at the first path, or once for each path |
+
+A document keeps a field out of every default walk with a method of
+`is_field_walked`: a link keeps out the node that it names, and an undo buffer its
+old versions. A walk that enters such a field builds its own `enter_field`, such as
+`(node, name) -> node isa UndoBuffer || is_field_entered(node, name)`.
+
+The caller names a match: by default the matched object itself, and with
+`paths = true` the chain of steps that reached it, `()` for the root and
+`parent => step` below it. The chain names nothing of the reference layer, so the
+walk stays *below* that layer while it serves it: `search_documents` and
+`search_references`, in the reference layer
+([ReferenceSearch.jl](../../../source/kernel/reference/ReferenceSearch.jl)), turn each chain into a
+`Reference` and answer the node with its place, or the place alone.
+
+The keyword `limit` (default `100`) is the most matches that the walk answers; `limit = nothing` answers every match. The walk looks for one match more than its limit, so it knows that the limit cut the answer, and drops that match. The answer is a `DocumentMatches`, a vector of the matches with the `WalkLimits` that the walk ran under: the limit and whether it cut the answer, the depth and how many parts at it the walk did not enter, and how many values still to come it took as they are. The keyword `maxvisits` (default `100_000`, and no bound with `limit = nothing`) is the most nodes that the walk visits, so a walk of a large table stops; the limits record whether it stopped the walk. A search of places also counts the matches whose path does not read back, such as a match in a dict whose keys are types, and leaves them out. Its summary names each limit that stopped the walk and the keyword that lifts it, and `is_search_complete` answers whether no limit left a match out. `search_references` answers its paths in a `DocumentMatches` with the same limits. A caller that needs every match passes `limit = nothing`, as the save of a binary file and the undo do. The limits and the answer are in [finding-and-selecting.md](finding-and-selecting.md#the-limits-of-a-search).
 
 The keyword `background` (default `false`) sets whether the walk starts background work. By default a read of a [background cell](editor.md#the-background-cell) in the walk records no demand, and the walk takes the cell as it is: its last answer or its default. With `background = true`, the walk waits for the final value of each provisional cell that it reads (`complete_walked_cell`, which the editor answers). `search_documents` and `search_references` pass the keyword on. `is_background_work_allowed()` says whether a read may start background work now.
 

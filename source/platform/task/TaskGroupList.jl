@@ -86,7 +86,8 @@ function _find_window_task_group_list(editor::Editor)
     tree isa PaneTree || return nothing
     for group in get_pane_groups(tree), tab in group.tabs
         found = search_documents(tab.content, document -> document isa TaskGroupList;
-                                 maxdepth = _LIST_SEARCH_DEPTH, descend = _is_held_document)
+                                 maxdepth = _LIST_SEARCH_DEPTH,
+                                 walk = DocumentWalk(; descend = _is_held_document))
         isempty(found) || return first(found)
     end
     nothing

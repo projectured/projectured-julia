@@ -198,7 +198,8 @@ function _find_window_explorer_content(editor::Editor)
     tree isa PaneTree || return nothing
     for group in get_pane_groups(tree), tab in group.tabs
         found = search_documents(tab.content, document -> document isa Explorer;
-                                 maxdepth = _EXPLORER_SEARCH_DEPTH, descend = _is_held_document)
+                                 maxdepth = _EXPLORER_SEARCH_DEPTH,
+                                 walk = DocumentWalk(; descend = _is_held_document))
         isempty(found) || return getfield(first(found), :tree)[].root
     end
     nothing
@@ -242,11 +243,11 @@ function find_explorer_content(; editor = get_evaluation_editor())
         root = getfield(editor, :document)
         content = get_session_explorer_content(; editor)
         is_shown = document -> document isa Explorer && getfield(document, :tree)[].root === content
-        for tab_reference in search_references(root, node -> node isa PaneTab; descend = is_pane_search_step,
-                                               limit = nothing)
+        for tab_reference in search_references(root, node -> node isa PaneTab;
+                                               walk = DocumentWalk(; descend = is_pane_search_step), limit = nothing)
             tab = evaluate_reference(root, tab_reference)
             for found in search_references(tab.content, is_shown; maxdepth = _EXPLORER_SEARCH_DEPTH,
-                                           descend = _is_held_document, limit = 1)
+                                           walk = DocumentWalk(; descend = _is_held_document), limit = 1)
                 steps = (get_reference_steps(strip_reference_types(tab_reference))..., FieldReferenceStep("content"),
                          get_reference_steps(strip_reference_types(found))...,
                          FieldReferenceStep("tree"), FieldReferenceStep("root"))

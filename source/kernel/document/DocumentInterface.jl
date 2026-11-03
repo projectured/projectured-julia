@@ -2,8 +2,8 @@
 # abstract type every document subtypes, and the open generics of its shared
 # value protocol and reflection walk. Nothing here carries a body — the trait
 # defaults live in `DocumentDefaults.jl`, deep copy in `DocumentCopy.jl`, the
-# record shadow-sync in `DocumentSync.jl`, the reflection walk and value-search
-# in `DocumentWalk.jl` / `DocumentSearch.jl`, and the `@document` codegen that
+# record shadow-sync in `DocumentSync.jl`, the reflection walk in
+# `DocumentWalk.jl`, and the `@document` codegen that
 # declares most concrete documents in `DocumentMacro.jl`.
 
 """
@@ -524,34 +524,3 @@ edits.
 """
 function get_edited_field end
 
-"""
-    search_documents(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
-                     descend=(parent, child) -> true, background=false) -> DocumentMatches
-    search_documents(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches
-
-Walk any object and return the matching nodes, **each at most once** even when a
-node is shared. A `String` (substring) or `Regex` matches leaf nodes by their
-string form. By default the result is **document-scoped**: a scalar match folds
-up to the nearest enclosing `Document`; pass `raw=true` to return the exact
-matched value. `descend(parent, child)` returns whether the walk enters `child`;
-see `walk_document`.
-
-The search has three limits, each with a default that keeps a search of a large
-document small: at most `limit = 100` matches, no deeper than `maxdepth = 64`, and
-no background work, so a value that a task still computes is taken as it is. The
-answer is a [`DocumentMatches`](@ref), a vector of the matches, whose summary says
-which limit stopped the search and the keyword that lifts it: `limit = nothing`
-finds every match, and `background = true` waits for the values still to come.
-`is_search_complete` answers whether no limit left a match out.
-
-Use it to list the documents that hold a text, or that a test accepts, anywhere in a document.
-
-# Example
-
-    matches_1 = search_documents(editor.document, "temperature")
-
-See also `get_edited_document` and `get_wrapped_document`.
-
-For the assistant.
-"""
-function search_documents end

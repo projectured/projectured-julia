@@ -95,10 +95,12 @@ end
 function _find_referenced_value(x::ReferencedDocument, value)
     _is_referenced_value(value) || return value
     document = get_document(x)
-    # The search answers the path to the value itself, with its types recorded. The
-    # step that it records for a key of a dictionary is the key as a string, so a key
-    # of another type gives a path that does not lead back to the value.
-    found = search_references(document, node -> node === value; raw = true)
+    # The search answers every path to the value itself, with its types recorded, so
+    # a value at two places has two. The step that it records for a key of a
+    # dictionary is the key as a string, so a key of another type gives a path that
+    # does not read back, and the search leaves it out.
+    found = search_references(document, node -> node === value; raw = true,
+                              walk = DocumentWalk(; policy = :once_per_path))
     length(found) == 1 || return value
     try_evaluate_reference(document, only(found)) === value || return value
     ReferencedDocument(value, concat_references(get_reference(x), only(found)))
@@ -228,10 +230,21 @@ _show_referenced_document_header(io::IO, x::ReferencedDocument{T}) where {T} =
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Document} = convert(T, get_document(x))
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Reference} = convert(T, get_reference(x))
 
-search_documents(x::ReferencedDocument, predicate; keywords...) =
-    search_documents(get_document(x), predicate; keywords...)
+# A search of a part answers places by default, each after the place of the part.
+function search_documents(x::ReferencedDocument, predicate; walk::DocumentWalk = DocumentWalk(),
+                          places::Bool = true, keywords...)
+    places || return search_documents(get_document(x), predicate; walk, places = false, keywords...)
+    _search_places((node, reference) -> ReferencedDocument(node, reference), ReferencedDocument,
+                   get_document(x), predicate, walk, get_reference(x); keywords...)
+end
 search_documents(x::ReferencedDocument, query::Union{AbstractString, Regex}; keywords...) =
-    search_documents(get_document(x), query; keywords...)
+    search_documents(x, make_string_predicate(query); keywords...)
+
+search_references(x::ReferencedDocument, predicate; walk::DocumentWalk = DocumentWalk(), keywords...) =
+    _search_places((node, reference) -> reference, Reference, get_document(x), predicate, walk, get_reference(x);
+                   keywords...)
+search_references(x::ReferencedDocument, query::Union{AbstractString, Regex}; keywords...) =
+    search_references(x, make_string_predicate(query); keywords...)
 get_wrapped_document(x::ReferencedDocument) = get_wrapped_document(get_document(x))
 
 """

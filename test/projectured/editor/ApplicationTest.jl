@@ -165,7 +165,7 @@ function _app_find_stray_live_selections(root)
         end
     end
     mark_path!(root, get_selection(root))
-    documents = search_documents(root, node -> node isa Document; descend = is_pane_search_step)
+    documents = search_documents(root, node -> node isa Document; walk = DocumentWalk(; descend = is_pane_search_step))
     for document in documents
         has_dormant_selection(document) && mark_path!(document, get_selection(document))
     end
@@ -226,7 +226,7 @@ function _app_find_stray_selections_in_contents(root)
     end
     mark_path!(root, get_selection(root))
     documents = search_documents(root, node -> node isa Document;
-                                 descend = _app_is_content_search_step)
+                                 walk = DocumentWalk(; descend = _app_is_content_search_step))
     for document in documents
         has_dormant_selection(document) && mark_path!(document, get_selection(document))
     end
@@ -373,10 +373,10 @@ function test_application()
             # readers and cells. The probe is a name no declared docstring
             # mentions: `print_natural_text` is declared, and its docstring names
             # `print_document`, so a search for that one finds it.
-            refusal = search_api(set, "read_intent")
+            refusal = search_api(set, "apply_reference_rules")
             @test occursin("No API matches", refusal)
-            @test occursin("FileFormatModule: make_file_tab", refusal)
-            @test !occursin("No API matches", search_api(ToolSet(), "read_intent"))
+            @test occursin("FileFormatModule", refusal)
+            @test !occursin("No API matches", search_api(ToolSet(), "apply_reference_rules"))
 
             @test occursin("FileFormatModule", APPLICATION_SYSTEM)
             @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
@@ -645,7 +645,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
-                                             descend = is_pane_search_step))
+                                             walk = DocumentWalk(; descend = is_pane_search_step)))
                 list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 try
@@ -697,7 +697,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
-                                             descend = is_pane_search_step))
+                                             walk = DocumentWalk(; descend = is_pane_search_step)))
                 list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 fire!(event) = _app_apply!(editor, _app_fire(editor.projection, editor.iomap, event))
@@ -1573,7 +1573,7 @@ function test_application()
                 # A pane is closed as the assistant closes one, by its complete reference.
                 close!(type) = close_pane!(only(search_references(scene,
                     node -> node isa PaneTab && get_wrapped_document(node.content) isa type;
-                    descend = is_pane_search_step)); editor)
+                    walk = DocumentWalk(; descend = is_pane_search_step))); editor)
                 @test [string(item.action.label) for item in toolbar.elements][3] == "Assistant"
 
                 # While the assistant is open, the button reaches it and makes none.
@@ -1936,7 +1936,7 @@ function test_application()
             focus_draft!(w) = begin
                 draft = w.assistant.draft
                 where = first(search_references(w.scene, node -> node === draft;
-                                                descend = _app_is_content_search_step))
+                                                walk = DocumentWalk(; descend = _app_is_content_search_step)))
                 _app_apply!(w.editor, ReplaceSelectionOperation(
                     concat_references(where, make_draft_caret_reference(draft))))
             end
@@ -2022,7 +2022,7 @@ function test_application()
                 @test carets(w) == 1
                 @test holds_one_path(w)
                 evaluator = only(search_documents(w.document, node -> node isa EvaluatorToplevel;
-                                                  descend = _app_is_content_search_step))
+                                                  walk = DocumentWalk(; descend = _app_is_content_search_step)))
                 set_os_clipboard_backend!(read = () -> "1 + 41", write = text -> true)
                 try
                     w.press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
@@ -2066,7 +2066,7 @@ function test_application()
             press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
             @test press!(KeyPress('\n'; time = 0.0)) isa OpenFileOperation
             file = only(search_documents(document, node -> node isa JsonFile;
-                                         descend = _app_is_content_search_step))
+                                         walk = DocumentWalk(; descend = _app_is_content_search_step)))
             name() = get_wrapped_document(file.content).entries[1].value.value
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("Alice", text))

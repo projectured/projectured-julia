@@ -94,7 +94,7 @@ using ..DocumentModule
 using ..FaultModule
 
 # Imported to extend: a referenced document is read by these as its document.
-import ..DocumentModule: search_documents, get_wrapped_document, get_document
+import ..DocumentModule: get_wrapped_document, get_document
 
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
@@ -113,7 +113,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ReferenceTypeMismatchException,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
-       search_references,
+       search_documents, search_references,
        get_reference_step_kind, evaluate_reference_step, has_reference_step_child,
        build_reference_step, match_reference_step, match_reference_step_value,
        get_reference_step_subpath_args,

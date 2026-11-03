@@ -410,7 +410,7 @@ function _open_workflow_pane!(editor, root::WorkflowStep)
     name = title === nothing ? "Workflow" : String(title)
     group = PaneGroup(PaneTab[PaneTab(name, root)])
     reference = first(search_references(editor.document, node -> node === conversation;
-                                        descend = is_pane_search_step))
+                                        walk = DocumentWalk(; descend = is_pane_search_step)))
     replace_referenced_value!(reference,
         PaneSplit(:horizontal, Any[group, conversation]; weights = [1 / 3, 2 / 3]); editor)
     find_pane(name; editor)

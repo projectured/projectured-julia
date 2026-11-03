@@ -1,10 +1,11 @@
 # The names of the workflow domain that the assistant is offered, each by the mark
 # `For the assistant.` in its docstring. `add_element!` is the outline module's.
 const OFFERED_WORKFLOW_NAMES = (
-    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
+    :WorkflowDocument, :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
     :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
     :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!,
     :collect_workflow_entries, :WorkflowList, :get_session_workflow_list,
+    :get_workflow_states, :get_next_workflow_state, :get_workflow_node_title, :get_workflow_node_children,
 )
 
 """

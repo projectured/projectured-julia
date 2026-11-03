@@ -939,14 +939,16 @@ function _find_focused_tree_route(editor)
         found = _find_pane_tree_route(root, selection)
         found === nothing || return found
     end
-    trees = search_references(root, node -> node isa PaneTree; descend = is_pane_search_step)
+    trees = search_references(root, node -> node isa PaneTree;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
     length(trees) == 1 || return nothing
     _find_pane_tree_route(root, only(trees))
 end
 
 # The route to the pane tree that holds `group`, and that tree.
 function _find_group_tree_route(root, group::PaneGroup)
-    found = search_references(root, node -> node === group; descend = is_pane_search_step)
+    found = search_references(root, node -> node === group;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
     isempty(found) && error("The group is not a group of this window.")
     _find_pane_tree_route(root, first(found))
 end
@@ -1086,7 +1088,7 @@ function find_pane_reference(title::AbstractString; descend = is_pane_search_ste
     run_on_editor_task!(editor; description = "find_pane_reference") do
         found = search_references(_get_root_document(editor),
                                   node -> node isa PaneTab && get_pane_tab_title_string(node) == title;
-                                  descend)
+                                  walk = DocumentWalk(; descend))
         isempty(found) && return nothing
         length(found) == 1 && return only(found)
         throw(ArgumentError(string(length(found), " panes are called \"", title, "\": ",
@@ -1461,7 +1463,8 @@ function show_layout(; include = is_layout_line, descend = is_pane_search_step,
                      editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_layout") do
         root = _get_root_document(editor)
-        paths = search_references(root, node -> node === root || include(node); descend, limit = nothing)
+        paths = search_references(root, node -> node === root || include(node);
+                                  walk = DocumentWalk(; descend), limit = nothing)
         focused = _find_focused_pane_tab(root)
         lines = Tuple{String,String,String}[]
         printed = Tuple{Vector{Any},Int}[]           # the steps of each line, and its depth
