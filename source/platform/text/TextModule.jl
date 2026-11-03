@@ -73,7 +73,7 @@ export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
-export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks
+export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks, make_marked_text_lines
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText

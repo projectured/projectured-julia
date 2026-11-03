@@ -76,11 +76,34 @@ map_reference_backward(::MarkedTextToText, iomap::SimpleIoMap, reference) =
 # ── The print ───────────────────────────────────────────────────────────────
 
 function print_document(p::MarkedTextToText, recursion, document::MarkedText, ctx)
-    previous = Ref(Pair{Any, TextLine}[])
-    lines() = _compute_marked_lines!(previous, document.text, document.marks, p.style, p.appearance)
+    lines = make_marked_text_lines(document, p.style, p.appearance)
     paths = make_output_path_cells(document, _forward_marked_text)
     out = TextBlock(CellVector(@computation lines()), paths.selection, paths.mouse_target)
     SimpleIoMap(p, document, out)
+end
+
+"""
+    make_marked_text_lines(document::MarkedText, style::StyleText, appearance) -> Function
+
+A function that gives the lines of `document`: a `TextLine` for each line of its
+string, split at its marks, and each piece that a mark covers in the colour of
+the mark. `style` is the font and the colour of a piece that no mark covers, and
+`appearance` resolves a mark that names a role or a colour of the palette. A line
+whose text and pieces did not change keeps its object from the call before.
+
+Use it to draw a `MarkedText` inside another text: `MarkedTextToText` gives its
+lines as a block of their own, and `MarkedTextToSyntaxLeaf` as the value of a
+leaf.
+
+# Example
+
+    lines = make_marked_text_lines(MarkedText(text = "a\\nb"), StyleText(UNSTYLED_TEXT_FONT, color_default),
+                                   Appearance())
+    TextBlock(lines)   # the lines "a" and "b"
+"""
+function make_marked_text_lines(document::MarkedText, style::StyleText, appearance)
+    previous = Ref(Pair{Any, TextLine}[])
+    () -> _compute_marked_lines!(previous, document.text, document.marks, style, appearance)
 end
 
 # The lines of `text` split at `marks`. Each line has a key, its text and its
