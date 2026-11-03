@@ -101,7 +101,10 @@ function test_referenced_document_editor()
 
         before = open_pane!(PrimitiveString("before"); title = "Before",
                             target = find_pane("people.json"; editor), editor)
-        @test group.tabs[index] === get_referenced_value(before; editor)
+        @test group.tabs[index] === get_document(get_referenced_value(before; editor))
+        # The read keeps the place: the answer is the tab with its reference.
+        @test get_referenced_value(before; editor) isa ReferencedDocument
+        @test get_reference(get_referenced_value(before; editor)) == get_reference(before)
         @test before isa ReferencedDocument && get_document(before) === group.tabs[index]
         @test is_fully_typed_reference(get_reference(before))
         @test group.tabs[index + 1] === people_tab
@@ -109,7 +112,7 @@ function test_referenced_document_editor()
         group_reference = concat_references(find_pane_tree_reference(; editor),
                                             only(search_references(tree, node -> node === group)))
         last_tab = open_pane!(PrimitiveString("last"); title = "Last", target = group_reference, editor)
-        @test group.tabs[end] === get_referenced_value(last_tab; editor)
+        @test group.tabs[end] === get_document(get_referenced_value(last_tab; editor))
 
         groups = length(get_pane_groups(tree))
         steps = length(history.undo_entries)
@@ -117,11 +120,11 @@ function test_referenced_document_editor()
         beside = open_pane!(PrimitiveString("beside"); title = "Beside",
                             target = find_pane("people.json"; editor), side = :right, editor)
         @test length(get_pane_groups(tree)) == groups + 1
-        @test !any(t -> t === get_referenced_value(beside; editor), group.tabs)
+        @test !any(t -> t === get_document(get_referenced_value(beside; editor)), group.tabs)
         # The new group shows its one tab, and the focus stays where it was.
         new_group = only(g for g in get_pane_groups(tree)
-                         if any(t -> t === get_referenced_value(beside; editor), g.tabs))
-        @test new_group.tabs[get_pane_shown_tab_index(new_group)] === get_referenced_value(beside; editor)
+                         if any(t -> t === get_document(get_referenced_value(beside; editor)), g.tabs))
+        @test new_group.tabs[get_pane_shown_tab_index(new_group)] === get_document(get_referenced_value(beside; editor))
         @test focused_title() == focused
         @test length(history.undo_entries) == steps + 1
 
@@ -184,12 +187,12 @@ function test_referenced_document_editor()
         @test get_pane_tab_title_string(first(beside_group.tabs)) == "Before"
         copy = duplicate_pane!(find_pane("Last"; editor); editor)
         @test copy isa ReferencedDocument
-        @test get_referenced_value(copy; editor) === get_document(copy)
-        @test startswith(get_pane_tab_title_string(get_referenced_value(copy; editor)), "Last")
+        @test get_document(get_referenced_value(copy; editor)) === get_document(copy)
+        @test startswith(get_pane_tab_title_string(get_document(get_referenced_value(copy; editor))), "Last")
         close_pane!(find_pane("Last"; editor); editor)
         @test find_pane("Last"; editor) === nothing
         beside = find_pane("Beside"; editor)
-        @test get_referenced_value(beside; editor) === get_document(beside)
+        @test get_document(get_referenced_value(beside; editor)) === get_document(beside)
         @test describe_document(beside) == describe_document(get_document(beside))
     end
 
@@ -232,7 +235,7 @@ function test_referenced_document_editor()
         export_document(people, exported)
         @test occursin("Ada", read(exported, String))
         again = open_pane!(people; title = "People again", editor)
-        @test get_referenced_value(again; editor).content === get_document(people)
+        @test get_document(get_referenced_value(again; editor)).content === get_document(people)
     end
 
     # A referenced document that a read made, not only one that `find_pane` found,
@@ -248,7 +251,7 @@ function test_referenced_document_editor()
 
     @testset "a pane verb takes a referenced document that a read made" begin
         people = get_edited_document(find_pane("people.json"; editor))
-        @test get_referenced_value(people[1]; editor) === get_document(people[1])
+        @test get_document(get_referenced_value(people[1]; editor)) === get_document(people[1])
         tree_1 = find_referenced_document(DocumentLocator(editor.document, find_pane_tree_reference(; editor)))
         people_group_1 = only(group for group in groups_of(tree_1.root)
                               if any(tab -> title_of(tab) == "people.json", group.tabs))
@@ -282,7 +285,7 @@ function test_referenced_document_editor()
         people = get_edited_document(people_tab)
         @test get_document(get_parent(editor, people[1])) === get_document(people)
         last_tab = open_pane!(PrimitiveString("end"); title = "At the end", target = group, editor)
-        @test get_document(group).tabs[end] === get_referenced_value(last_tab; editor)
+        @test get_document(group).tabs[end] === get_document(get_referenced_value(last_tab; editor))
         found = find_referenced_document(DocumentLocator(editor, get_reference(people_tab)))
         @test get_document(found) === get_document(people_tab)
         @test find_referenced_document(DocumentLocator(editor, get_reference(people_tab))) isa ReferencedDocument

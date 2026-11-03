@@ -264,8 +264,41 @@ index shows them. An example is `JsonModule`: "The JSON slice."
     buffer does not find a value that only a step holds, and that a search of the
     list of steps does. The platform suite (in its own environment), the
     application suites and the IDE tests give only the failures known on main.
-  - [ ] **The verbs keep the place:** `get_referenced_value` and the other verbs
-    that read a part of the window, in both repositories.
+  - [x] **The verbs keep the place:** `get_referenced_value` and the other verbs
+    that read a part of the window, in both repositories. *Done (2026-11-03).*
+    - `get_referenced_value` answers a part, and `find_pane` answers it as it is.
+      `add_study_section!`, `add_study_prose!` and `embed_in_study!` answer their
+      blocks as parts when they get the study as a part, found in the report by
+      identity.
+    - Left as they are, each for a reason: `add_study_formula!` (its answer is
+      called like a function, `S_pure(0.5)`, and a part is not callable);
+      `open_runner!`, `find_simulation_projects` and `open_simulation_project!` (an
+      operation or a registry puts the value in a tab, so only a search would find
+      the place, and the IDE verbs accept a plain runner or project);
+      `collect_workflow_entries` (records of a journal, read and not acted on);
+      `find_task_group`, `find_open_file_document` and the session lists (they read
+      registries of the session, not the window); `evaluate_reference` and
+      `try_evaluate_reference` (primitives that read any root);
+      `get_wrapped_document` (an unwrap by definition).
+    - **A part inside a list (owner 2026-11-03, agreed):** code that builds a
+      document from parts, `PaneGroup([a, b])` or `group.tabs = [a, b]`, stored
+      the parts, because the constructor that `@document` generates and the write
+      of a field called `get_document` on the list, which answers the list
+      unchanged. The new public `get_stored_value(value)` answers `get_document`,
+      and for a plain `Vector` that holds a part a new vector of the
+      `get_document` of each element. The generated constructor, the field write,
+      `insert_elements!`, `replace_referenced_value!` and `CellVector(items)` store
+      it. The last is where a plain vector becomes a document list, for the
+      constructor that `@document` generates for a list field (`PaneGroup([a, b])`)
+      and for a hand-written one (`PaneSplit`), so the pane
+      programs of the IDE tests, which build panes from the answers of
+      `get_referenced_value`, pass unchanged.
+    - Tests that check a type with `isa` or `===` unwrap the answer with
+      `get_document`. The research list gained the names that step 2 marked (eight)
+      and the two subtypes that the root offers (`ResearchItem`,
+      `ResearchDecisionDraft`). `BuildEditorTest.jl:257` counts one stop step more
+      when `ProjecturedResearchTest` is loaded in the same process; the kernel suite
+      passes in its own environment (5033/5033).
   - [ ] **The error for a plain document:** the hint on Julia's `MethodError` and
     the fallback of `get_reference`.
   - [ ] **The texts:** the docstrings of the two searches, and the system text that

@@ -422,9 +422,12 @@ iteration, `length`, `isempty`, `keys`, `haskey`, `get`, `values`, `setindex!`,
 document of a `ReferencedDocument` it is given, so the tree never holds one. The
 rule is in the document layer: `get_document`, a function of `DocumentModule`,
 answers the document of a referenced document and any other value as it is, and
-the constructor and the setter that `@document` generates store `get_document` of
-each value. So a document that is built from a value that a read answered holds
-the document too, and no maker or verb unwraps a value on its own. A read
+the constructor and the setter that `@document` generates store
+`get_stored_value` of each value: `get_document` of it, and for a plain vector
+that holds a part, a new vector of the `get_document` of each element. So a
+document that is built from a value that a read answered holds the document too,
+a list that is built from parts holds their documents, and no maker or verb
+unwraps a value on its own. A read
 that answers a document or a collection answers a `ReferencedDocument` too, with
 the reference extended by the field or the index that reached it; a read that
 answers a leaf value — a string, a number, a `Bool`, `nothing` — answers that

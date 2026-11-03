@@ -459,9 +459,12 @@ end
 # ── Reading one node ────────────────────────────────────────────────────────
 
 """
-    get_referenced_value(reference; editor = get_evaluation_editor()) -> Document
+    get_referenced_value(reference; editor = get_evaluation_editor()) -> ReferencedDocument
 
-The node `reference` names, resolved from the root of the editor's document.
+The node `reference` names, resolved from the root of the editor's document, as a
+part: the node with its place, so a verb that needs the place, such as
+`replace_referenced_value!` or `focus_pane!`, takes it as it is. It reads like the
+node; code that checks the type of the node asks `get_document` of it.
 
 Use it to read what a pane holds — a set of runs, a plot, a table, a card — by
 the reference `show_layout` printed, `open_pane!` answered or
@@ -500,7 +503,7 @@ function get_referenced_value(reference::Reference; editor = get_evaluation_edit
             throw(ArgumentError("No node at " * _path_text(path) * ": " * sprint(showerror, error)))
         end
         node === nothing && throw(ArgumentError("No node at " * _path_text(path) * "."))
-        node
+        ReferencedDocument(node, reference)
     end
 end
 
@@ -522,7 +525,7 @@ reference `show_layout` printed. One call, one undo. To close a pane, use
 [`close_pane!`](@ref).
 
 `reference` can also be a `ReferencedDocument`, such as the tab that
-[`find_pane`](@ref) answers, and `value` can be one too: its document is written.
+[`find_pane`](@ref) answers, and `value` can be one too, or a list of them: their documents are written.
 
 With a `field`, put `value` in the field `field` of `part`, a `ReferencedDocument`,
 and answer `part`. It is the edit that the menu of a part makes when it changes
@@ -572,6 +575,7 @@ For the assistant.
 function replace_referenced_value! end
 
 function replace_referenced_value!(reference::Reference, value; editor = get_evaluation_editor())
+    value = get_stored_value(value)
     run_on_editor_task!(editor; description = "replace_referenced_value!") do
         _refuse_stale(reference)
         root = _get_root_document(editor)
@@ -597,8 +601,6 @@ end
 
 replace_referenced_value!(reference::ReferencedDocument, value; keywords...) =
     replace_referenced_value!(get_reference(reference), value; keywords...)
-replace_referenced_value!(reference::Reference, value::ReferencedDocument; keywords...) =
-    replace_referenced_value!(reference, get_document(value); keywords...)
 
 function replace_referenced_value!(part::ReferencedDocument, field::Union{Symbol,AbstractString}, value;
                                    editor = get_evaluation_editor())
@@ -608,7 +610,7 @@ function replace_referenced_value!(part::ReferencedDocument, field::Union{Symbol
         hasproperty(document, name) ||
             throw(ArgumentError("A " * string(nameof(typeof(document))) * " has no field :" * string(name) *
                                 ". Its fields: " * join((":" * string(n) for n in propertynames(document)), ", ") * "."))
-        stored = get_document(value)
+        stored = get_stored_value(value)
         reference = extend_reference(strip_reference_types(get_reference(part)), FieldReferenceStep(String(name)))
         operation = find_rooted_operation(editor, reference,
             relative -> ReplaceReferencedValueOperation(nothing, relative, stored);
@@ -1127,7 +1129,7 @@ function find_pane(title::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane") do
         reference = find_pane_reference(title; editor)
         reference === nothing && return nothing
-        ReferencedDocument(get_referenced_value(reference; editor), reference)
+        get_referenced_value(reference; editor)
     end
 end
 

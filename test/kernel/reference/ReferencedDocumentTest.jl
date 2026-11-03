@@ -206,6 +206,22 @@ function test_referenced_document()
         @test find_referenced_document(DocumentLocator(root, gone)) === nothing
     end
 
+    @testset "a constructor and a write store the documents of the parts in a list" begin
+        root = _make_referenced_tree()
+        whole = ReferencedDocument(root, EmptyReference())
+        a, b = whole.children[1], whole.children[2]
+        @test a isa ReferencedDocument && b isa ReferencedDocument
+        made = ReferencedBranch("made", [a, b])
+        @test made.children[1] === get_document(a) && made.children[2] === get_document(b)
+        holder = ReferencedHolder(nothing, nothing)
+        holder.content = [a, b]
+        @test holder.content[1] === get_document(a) && holder.content[2] === get_document(b)
+        # A list with no part is stored as it is.
+        plain = Any[get_document(a)]
+        holder.content = plain
+        @test holder.content === plain
+    end
+
     @testset "a walk stops at a locator: a holder of an address holds no document" begin
         root = _make_referenced_tree()
         is_leaf(node) = node isa ReferencedLeaf

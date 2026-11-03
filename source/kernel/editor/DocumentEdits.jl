@@ -49,7 +49,7 @@ function _replace_elements!(editor::Editor, collection, start::Integer, stop::In
     description = words * " " * describe_reference(reference, editor.document)
     target = extend_reference(strip_reference_types(reference),
                               RangeReferenceStep(start, stop))
-    stored = Any[get_document(value) for value in values]
+    stored = Any[get_stored_value(value) for value in values]
     operation = find_rooted_operation(editor, target,
         relative -> ReplaceReferencedValueOperation(nothing, relative, stored);
         description)

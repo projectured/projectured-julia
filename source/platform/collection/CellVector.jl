@@ -155,7 +155,9 @@ get_cell_layout_field_type(::Val{:Vector}) = CellVector
 # in charge of the 1-argument call (`CellVector(x)` is a one-*element* vector, not
 # an elements vector).
 CellVector(cells::Vector{Cell})     = CellVector(Cell(copy(cells)),      Cell(nothing))
-CellVector(items::AbstractVector)   = CellVector(Cell[Cell(x) for x in items])
+# A plain vector becomes a list of its elements, each stored as a document stores a
+# value (`get_stored_value`), so a list holds no referenced document.
+CellVector(items::AbstractVector)   = CellVector(Cell[Cell(get_stored_value(x)) for x in items])
 # `CellVector(undef, n)` — n empty (`nothing`) slots. Spelled with `undef` so it
 # never collides with `CellVector(x)` / `CellVector(x, y, z)`, which build an element
 # vector from their arguments (a bare integer is an *element*, not a slot count).

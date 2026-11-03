@@ -460,9 +460,20 @@ function _append_report_blocks!(study, blocks, editor, description)
     run_on_editor_task!(editor; description) do
         _evaluate_research_operation!(editor, study, :report,
                                       _make_append_report_operation(get_document(study), blocks), description)
-        blocks
+        _make_report_block_parts(study, blocks)
     end
 end
+
+# The blocks of the report of `study`, each as a `ReferencedDocument` when `study` is
+# one, found in the report by their identity.
+function _make_report_block_parts(study::ReferencedDocument, blocks)
+    elements = study.report.elements
+    held = collect(get_document(elements))
+    Any[let index = findfirst(element -> element === block, held)
+            index === nothing ? block : elements[index]
+        end for block in blocks]
+end
+_make_report_block_parts(study, blocks) = blocks
 
 """
     add_study_section!(study, heading, prose; editor = get_evaluation_editor()) -> the heading
