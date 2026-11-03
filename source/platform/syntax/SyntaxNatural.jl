@@ -49,6 +49,11 @@ function make_natural_to_syntax_dispatch(; appearance::Appearance)
             # fresh document of any loaded domain.
             DocumentNothing    => InsertionNothingToSyntaxLeaf(; theme),
             DocumentInsertion  => DocumentInsertionToSyntaxLeaf(; theme),
+            # A marked text inside another document, such as the C++ of a section
+            # of a test file: its lines in the colours of its marks, bound to its
+            # string.
+            MarkedText         => MarkedTextToSyntaxLeaf(; theme = get_scaled_theme!(appearance, TextTheme),
+                                                         appearance),
         ],
         CollectionToSyntax(; theme).dispatch,   # CellVector, ListNode
         ObjectToSyntax(; theme).dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any

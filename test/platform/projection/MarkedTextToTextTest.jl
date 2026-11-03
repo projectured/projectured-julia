@@ -161,6 +161,19 @@ end
     @test document.text == "int mainX() {\n    int count = 0;\n}"
 end
 
+@testset "the natural view draws a marked text in the colours of its marks, and a key edits it" begin
+    dispatch = make_natural_to_syntax_dispatch(; appearance = Appearance())
+    @test only(last(row) for row in dispatch if first(row) === MarkedText) isa MarkedTextToSyntaxLeaf
+    document = MarkedText(text = "int main() {\n    int count = 0;\n}", marks = _mt_marks()[1:2])
+    out = print_document(ChainingProjection(TypeDispatchingProjection(dispatch), RecursiveProjection(SyntaxToText())),
+                         document).output
+    @test ("main", _mt_color(:function_name)) in _mt_pieces(out)
+    editor, backend = _mt_editor(document; chain = NaturalToGraphics(; measure = FontFileMeasure()))
+    _mt_select!(editor, 8)
+    _mt_press!(editor, backend, KeyPress('X'; time = 0.0))
+    @test document.text == "int mainX() {\n    int count = 0;\n}"
+end
+
 @testset "a file read again keeps the marked text and its marks, also in a history" begin
     document = MarkedText(text = "a", marks = [TextMark(0, 1; text = ColorRole(:keyword))])
     @test replace_wrapped_document!(document, MarkedText(text = "b")) === document
