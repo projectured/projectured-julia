@@ -9,7 +9,7 @@
 
 The title of `assistant` in the table of the assistants: the title that its
 agent gave the session, else the first line of the first prompt that holds
-text, else "Assistant".
+text, else "Assistant" with its number from 2 on, such as "Assistant (2)".
 """
 function compute_assistant_overview_title(a::Assistant)
     isempty(a.agent_title) || return a.agent_title
@@ -20,7 +20,7 @@ function compute_assistant_overview_title(a::Assistant)
             isempty(text) || return String(text)
         end
     end
-    ASSISTANT_TITLE
+    a.number == 1 ? ASSISTANT_TITLE : string(ASSISTANT_TITLE, " (", a.number, ")")
 end
 
 """

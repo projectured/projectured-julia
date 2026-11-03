@@ -81,6 +81,29 @@ function get_document_decoration(list::AssistantList)
                                                             "Waiting" => string(waiting)]))
 end
 
+# The number of a new assistant in the window of `editor`: the lowest that no
+# assistant in a tab of that window has. With no editor, or an editor that shows no
+# window, 1. The read of the tabs records no reader, so a computation that makes an
+# assistant does not compute again when a tab opens.
+function _compute_assistant_number(editor)
+    editor isa Editor || return 1
+    tree = try
+        get_window_tree(getfield(editor, :document))
+    catch
+        nothing
+    end
+    tree isa PaneTree ? _compute_assistant_number(tree) : 1
+end
+
+function _compute_assistant_number(tree::PaneTree)
+    taken = run_without_cell_tracking(() -> Set(a.number for a in collect_pane_tab_contents(tree, Assistant)))
+    number = 1
+    while number in taken
+        number += 1
+    end
+    number
+end
+
 """
     get_session_assistant_list(; editor = find_evaluation_editor()) -> AssistantList
 

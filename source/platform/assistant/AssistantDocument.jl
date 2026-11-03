@@ -162,6 +162,11 @@ one of its turns started ends, with a note that says why; it is off by default.
 A window that serves long work sets both. They are settings that a person or a
 window chose, so a `.pred` file keeps them.
 
+`number` tells the assistant from the other assistants of its window while it has
+no title: with no title, 1 is "Assistant" and 2 is "Assistant (2)". `Ctrl+T` with
+the name "assistant" and a duplicate give the lowest number that no assistant in a
+tab of the window has. A `.pred` file does not keep it, and a load gives 1.
+
 `turn_control` is the live control of the turn that runs, an
 `AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
 no data, like `llm`.
@@ -205,6 +210,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     work_state::Symbol
     max_rounds::Int
     wake::Bool
+    number::Int
 end
 
 """
@@ -276,11 +282,13 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               comment::Union{AbstractString,PrimitiveString} = "",
                               work_state::Symbol = :pending,
                               max_rounds::Integer = DEFAULT_ASSISTANT_ROUNDS,
-                              wake::Bool = false)
+                              wake::Bool = false,
+                              number::Integer = 1)
     max_rounds >= 1 ||
         throw(ArgumentError("an assistant runs at least one round in a turn, not $(max_rounds)"))
     work_state in ASSISTANT_WORK_STATES ||
         throw(ArgumentError("the work state of an assistant is one of $(ASSISTANT_WORK_STATES), not $(repr(work_state))"))
+    number >= 1 || throw(ArgumentError("the number of an assistant is at least 1, not $(number)"))
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
@@ -295,7 +303,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(AgentWork("")), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
-                           Cell(Int(max_rounds)), Cell(wake),
+                           Cell(Int(max_rounds)), Cell(wake), Cell(Int(number)),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -359,10 +367,9 @@ end
 
 # The name the tab calls itself: the title that an external agent gave its
 # session, else the first line of its first prompt, else the name of the
-# assistant. A tab with an empty name asks at each draw, so the tab follows the
-# title. No alias: `get_insertion_names` already
-# derives one from the type name, so a person types "assistant" without a
-# hand-written method.
+# assistant with its number. A tab with an empty name asks at each draw, so the
+# tab follows the title. No alias: `get_insertion_names` already derives one from
+# the type name, so a person types "assistant" without a hand-written method.
 get_document_title(a::Assistant) = compute_assistant_overview_title(a)
 
 # ── The duplicate ─────────────────────────────────────────────────────────────
@@ -370,7 +377,8 @@ get_document_title(a::Assistant) = compute_assistant_overview_title(a)
 # The duplicate of an assistant is a fork: the conversation so far and the text
 # in the composer, and a draft of its own that links back to the fork. The
 # backend, the model, the prompt, the key and the `llm` are values it shares. The
-# fork starts idle. A reply that streams stays with the assistant that started
+# fork starts idle, with the lowest number that no assistant of the window of the
+# evaluation has. A reply that streams stays with the assistant that started
 # it: its task writes there, and it is the last turn, pushed when the stream
 # began, so the fork leaves it out.
 #
@@ -388,7 +396,8 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
                                 agent_commands = AgentCommand[],
-                                agent_work = AgentWork(""))
+                                agent_work = AgentWork(""),
+                                number = _compute_assistant_number(find_evaluation_editor()))
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&
@@ -407,3 +416,7 @@ accepts_pasted_document(::Assistant) = false
 
 # A file opens beside the conversation, never over it.
 accepts_opened_file(::Assistant) = false
+
+# A person who types "assistant" in a tab gets a new assistant, with the lowest
+# number that no assistant of the window of the evaluation has.
+make_insertion_document(::Type{Assistant}) = Assistant(; number = _compute_assistant_number(find_evaluation_editor()))

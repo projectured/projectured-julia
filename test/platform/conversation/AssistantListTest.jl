@@ -67,6 +67,31 @@ function test_assistant_list()
             @test list.assistants[end] === four
         end
 
+        @testset "a new assistant takes the lowest number that no assistant of the window has" begin
+            one, three = Assistant(), Assistant(; number = 3)
+            group = PaneGroup([PaneTab("One", one), PaneTab("Three", three)])
+            tree = PaneTree(group)
+            @test AssistantModule._compute_assistant_number(tree) == 2
+            @test AssistantModule._compute_assistant_number(PaneTree(PaneGroup(PaneTab[]))) == 1
+            @test AssistantModule._compute_assistant_number(nothing) == 1
+            # The title says the number from 2 on, until a prompt gives a title.
+            @test get_document_title(one) == "Assistant"
+            @test get_document_title(three) == "Assistant (3)"
+            push!(three.conversation.turns, ConversationTurn(:user, [ConversationPart("Fix the table")]))
+            @test get_document_title(three) == "Fix the table"
+            # A name typed into a tab and a duplicate count the tabs of the window of
+            # the evaluation.
+            editor = Editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            two = run_with_evaluation_editor(() -> make_insertion_document(Assistant), editor)
+            @test two.number == 2
+            push!(group.tabs, PaneTab("Two", two))
+            fork = run_with_evaluation_editor(() -> copy_document(DuplicatePolicy(), one), editor)
+            @test fork.number == 4
+            @test make_insertion_document(Assistant).number == 1
+            @test_throws ArgumentError Assistant(; number = 0)
+        end
+
         @testset "the list of the session of an editor" begin
             editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
                             backend = HeadlessBackend(), devices = Device[])
