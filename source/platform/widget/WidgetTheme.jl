@@ -190,6 +190,8 @@ builder fills them from a theme, scaled or not.
     # ── Table ──
     "The least width of a column of a table that takes a share of its width."
     table_column_minimum_width::ControlSize = ControlSize(100)
+    "The height of a picture in a cell of a table, at most; its width follows its shape."
+    table_picture_height::Int = 120
     # ── Header of a table ──
     "The least width of the field of a filter under the header of a column, where the column does not give it its width, so an empty field has room for a press."
     header_field_minimum_width::ControlSize = ControlSize(80)

@@ -221,7 +221,7 @@ function test_task_views()
             images(width) = _collect_task_view_images(last(_print_task_view(document; width)).output)
             @test isempty(images(1800))
             wait_task_group_document(start_task_group_document!(document))
-            height = Int(get_scaled_theme!(Appearance(), TaskTheme).picture_height)
+            height = Int(get_scaled_theme!(Appearance(), WidgetTheme).table_picture_height)
             shown = sort(images(1800); by = image -> image[2])
             # A task with no picture has no image; a picture is at most the picture height high.
             @test length(shown) == 3 && all(image -> image[4] <= height, shown)

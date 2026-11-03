@@ -47,6 +47,43 @@ function _roster_drawn_texts(node, found = Dict{String,Any}())
     found
 end
 
+# A chart, whose facet `picture` is a picture with its pixels, or `nothing` for a
+# chart of no width.
+@document struct _RosterChart
+    name::String
+    width::Int
+    height::Int
+end
+RosterModule.get_item_facets(::Type{_RosterChart}) = ["picture" => "the picture of the chart"]
+RosterModule.compute_item_facet(chart::_RosterChart, ::Val{:picture}) =
+    chart.width == 0 ? nothing :
+    ImageFile(Cell(chart.name * ".png"), Cell((fill(UInt8(255), 4 * chart.width * chart.height), chart.width, chart.height)))
+
+# Each drawn image as `(x, y, width, height)` on the canvas. The elements of a
+# canvas of a list are its nodes, from the first to the last.
+function _collect_roster_images(node, x = 0, y = 0, found = NTuple{4,Int}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        link = elements isa ListNode ? elements : nothing
+        while link !== nothing
+            _collect_roster_images(link.value, x + Int(node.x), y + Int(node.y), found)
+            link = link.next
+        end
+        if !(elements isa ListNode)
+            for element in elements
+                element = element isa Cell ? element[] : element
+                _collect_roster_images(element isa ListNode ? element.value : element,
+                                       x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        _collect_roster_images(node.content, x + Int(node.x), y + Int(node.y), found)
+    elseif node isa GraphicsImage
+        push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    found
+end
+
 # A page's own cells: the text of the value in angle brackets.
 struct _RosterBracketCells end
 RosterModule.make_roster_cell(::_RosterBracketCells, item, key, value) =
@@ -354,6 +391,26 @@ function test_roster_table()
         shared.shares = [3, 1, 1]
         (a, b) = steps_of(shared)
         @test 0.3 < b / a < 0.37
+    end
+
+    @testset "a value that is a picture shows the picture, at most the picture height high, in its shape" begin
+        charts = CellVector(Cell[Cell(_RosterChart(name, width, height))
+                                 for (name, width, height) in (("wide", 1000, 200), ("small", 60, 30), ("none", 0, 0))])
+        roster = link_roster!(Roster(CollectionItems(charts); columns = ["name", "picture"]), charts)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(2000)), height = Cell(Int32(600)))
+        output = print_document(natural, nothing, roster, context).output
+        height = Int(get_scaled_theme!(Appearance(), WidgetTheme).table_picture_height)
+        shown = sort(_collect_roster_images(output); by = image -> image[3])
+        # A chart with no picture has no image; a picture keeps its shape, and one
+        # smaller than the height is not made bigger.
+        @test length(shown) == 2
+        small, wide = shown
+        @test wide[4] == height && abs(wide[3] / wide[4] - 5) < 0.1
+        @test small[3:4] == (60, 30)
+        # The other values stay text, and a value of nothing is an empty cell.
+        texts = keys(_roster_drawn_texts(output))
+        @test "wide" in texts && "none" in texts && !("nothing" in texts)
     end
 
     @testset "the marked row of a roster is the selected row of its table, also below the head of a list" begin

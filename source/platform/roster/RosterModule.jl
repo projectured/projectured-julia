@@ -33,6 +33,8 @@ using ..SerializationModule
 using ..StyleModule
 using ..ToolModule
 using ..WidgetModule
+import ..BackendModule: decode_image
+import ..FaultModule: is_fault_exception
 
 # Imported to extend: this module adds a method to each of these.
 import ..ArrangementModule: find_arrangement_key_value, get_arrangement_value, get_arranged_collection_steps
@@ -49,7 +51,7 @@ export RosterItem, RosterRow, make_roster_row, compute_roster_value, collect_ite
        Roster, link_roster!, RosterIndex, get_roster_item_place, find_roster_row, find_held_item_path,
        retarget_held_row_open
 export CollectionItems, ItemsWithin, register_roster_source!, get_roster_source_names, StoreRecords
-export RosterToGraphics, RosterToGraphicsIoMap, RosterRowsToWidget, RosterRowsToWidgetIoMap
+export RosterToGraphics, RosterToGraphicsIoMap, RosterRowsToWidget, RosterRowsToWidgetIoMap, make_roster_value_cell
 export show_roster!, describe_roster, describe_roster_sources, describe_item_facets, edit_shown_items!
 
 include("RosterInterface.jl")

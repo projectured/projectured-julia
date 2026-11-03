@@ -260,7 +260,7 @@ Base.@kwdef struct TaskCells
     error_color::Any
     running_color::Any
     muted_color::Any
-    picture_height::Int = get_task_style(nothing, :picture_height)
+    picture_height::Int = get_widget_style(nothing, :table_picture_height)
 end
 
 # The group document of a task and its place, or `nothing` for a task of no group.
@@ -293,36 +293,11 @@ function make_roster_cell(cells::TaskCells, item::TaskDocument, key, value)
 end
 
 # The cell of a column of a kind: the value that the kind gives for the result,
-# which follows the result. A picture is a file that the view decodes when it
-# draws, so a new result that names the same path shows the file as it is then.
-# The layout gives the picture a height range up to `picture_height`, so the
-# picture is at most that high, in its shape, and its row is as high as it. The
-# table offers a cell no width, so a column narrower than the picture clips it.
-# Any other value is its text.
-function _make_task_column_cell(cells::TaskCells, task, item::TaskDocument, key)
-    answer = Cell(@computation get_task_column_value(task, get_task_document_result(item), key))
-    label = WidgetLabel(() -> (shown = answer[];
-                              shown isa ImageFile ? _make_task_picture(shown) : format_roster_value(shown)))
-    bound = LayoutConstraint(label)
-    set_cell_computation!(getfield(bound, :max_height), () -> answer[] isa ImageFile ? cells.picture_height : nothing)
-    HorizontalLayout(Any[bound])
-end
-
-# `image` with its pixels decoded from its file when they are read, unless it has
-# them. A file that is gone, or a process that has no backend to decode it, gives
-# no pixels, and the picture is an empty box.
-function _make_task_picture(image::ImageFile)
-    raw = getfield(image, :raw)
-    peek(raw) === nothing || return image
-    filename = image.filename
-    set_cell_computation!(raw, () -> try
-        decode_image(filename)
-    catch exception
-        is_fault_exception(exception) || rethrow()
-        nothing
-    end)
-    image
-end
+# which follows the result, as a cell of any table shows it: a picture, at most
+# `picture_height` high, or the text of the value.
+_make_task_column_cell(cells::TaskCells, task, item::TaskDocument, key) =
+    make_roster_value_cell(Cell(@computation get_task_column_value(task, get_task_document_result(item), key)),
+                           cells.picture_height)
 
 # The path from a group to its table.
 const _TABLE_STEP = FieldReferenceStep("table")
@@ -1240,7 +1215,7 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch
     cells = TaskCells(; (name => unwrap_cell(getproperty(styles, name)) for name in
                          (:success_color, :info_color, :warning_color, :error_color, :running_color, :muted_color))...,
-                         picture_height = unwrap_cell(get_style(:picture_height)))
+                         picture_height = unwrap_cell(get_widget_style(widget_theme, :table_picture_height)))
     # The table of a group is the arrangement of a roster, which draws its rows with
     # the cells of the pane before the natural rows.
     tables = Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
