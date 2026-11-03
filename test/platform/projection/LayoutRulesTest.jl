@@ -120,9 +120,9 @@ const _RULES_CONTAINERS = (:HorizontalLayout, :VerticalLayout, :GridLayout, :Sta
                            :WidgetComposite, :WidgetToolbar, :WidgetToolbarItem)
 function _rules_broken(name::Symbol, kind::Symbol, axis::Symbol, check::Symbol)
     name === :WidgetTransformPane && check !== :bounded_more &&
-        return "a transform pane with no size draws 0, and it stops at no maximum: step 5"
+        return "a transform pane with no size draws 0, and it stops at no maximum: step 6"
     kind === :scrolls && (check === :bounded_less || (check === :at_least_more && name !== :WidgetList)) &&
-        return "a part that can scroll takes its content between its minimum and its maximum: step 5"
+        return "a part that can scroll takes its content between its minimum and its maximum: step 6"
     name in _RULES_CONTAINERS && check in (:exact_more, :at_least_more) &&
         !(name === :FlowLayout && axis === :width) &&
         return "found in step 2: a container does not take a slot or a minimum that is more than its content"
@@ -264,7 +264,7 @@ window_parts() = Any[_rules_lines(8), WidgetScrollPane(_rules_lines(16))]
     for (window, expected) in ((300, 108), (250, 58))
         (a, b) = _rules_child_extents(VerticalLayout(window_parts()), :height, window, window)
         @test a == 192
-        # @broken: a part that can scroll stops at its maximum: step 5.
+        # @broken: a part that can scroll stops at its maximum: step 6.
         @test_broken b == expected
     end
 end
@@ -281,7 +281,7 @@ end
     row = HorizontalLayout(Any[part((; width = Fixed(100))), part((; width = Fill))])
     @test _rules_child_extents(row, :width, 0, 300) == [100, 200]
     column = VerticalLayout(Any[part((; height = Fixed(100))), part((; height = Fill))])
-    # @broken: a column shares only an exact height: step 4.
+    # @broken: a column shares only an exact height: step 5.
     @test_broken _rules_child_extents(column, :height, 0, 300) == [100, 200]
 end
 
@@ -305,7 +305,7 @@ end
     detail = VerticalLayout(Any[WidgetScrollPane(_rules_lines(12)),
                                 LayoutConstraint(table; height = Fill, min_height = 120)]; gap = 6)
     (text, rows) = _rules_child_extents(detail, :height, 400, 400)
-    # @broken: a part that can scroll stops at its maximum: step 5.
+    # @broken: a part that can scroll stops at its maximum: step 6.
     @test_broken text == 400 - 6 - 120
     @test_broken text + 6 + rows <= 400
 end

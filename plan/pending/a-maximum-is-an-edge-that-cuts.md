@@ -31,7 +31,8 @@ The owner, 2026-11-03:
 After the example of one axis (§3.3, "A window that cuts or scrolls"): "looks
 better now, I understand", and then "yes" to the question "Do I also make the
 column rule the same as the row rule, so that both share any range that has a
-max?"
+max?" After Step 2: "yes" to a step that fixes the deviations that Step 2
+found.
 
 So:
 
@@ -40,8 +41,8 @@ So:
    that breaks a rule fails a test (Step 2).
 3. Examples that run with `run_example` in the REPL show each case, and a person
    drags a splitter or resizes the window to see the layout react (Step 1).
-4. The documentation says the rules and the trap (Step 7).
-5. The detail of a task gets the smallest change that uses the model (Step 6).
+4. The documentation says the rules and the trap (Step 8).
+5. The detail of a task gets the smallest change that uses the model (Step 7).
    Its new design is not in this plan.
 
 ## 2. The model today, and the trap
@@ -196,10 +197,10 @@ which today scrolls the rows only in an exact range.
 
 **R5, the readers.** Each of the readers in §2 is one of two kinds: it fills its
 own slot, and keeps the exact range, or it builds the rows that show, and reads
-the visible extent. Step 4 decides each one.
+the visible extent. Step 5 decides each one.
 
 **omnet-julia.** Its views place scroll areas and tables in the pages of the IDE.
-Step 8 checks them.
+Step 9 checks them.
 
 ## 5. The steps
 
@@ -225,8 +226,8 @@ REPL.
 | `layout_row_edge` | a label, a field that fills and a button; a long text before a button, with and without a weight (R4) |
 | `layout_rows_in_slot_and_page` | a table in a cut slot, and a table and a list in a page (R2, R5) |
 
-Before Step 3 the examples show today's faults; they are the pictures to compare
-with after Step 5. The tour
+Before Step 4 the examples show today's faults; they are the pictures to compare
+with after Step 6. The tour
 ([examples-tour.md](../../documentation/guide/examples-tour.md)) lists them.
 
 Found in this step: the sweeps run `test_printer`, `test_reader` and `test_repl`
@@ -255,7 +256,7 @@ platform suite:
   native twin `MFoo` of each `@document` type `Foo`, and the `…Style` documents.
 - The worked cases of §3.3 are tests; the visible rows are checked with a lazy
   grid of ten million rows in a scroll area (`built < 30`). The data frame view
-  is checked by `test_dataframes()` in Step 3.
+  is checked by `test_dataframes()` in Step 4.
 
 Result: 435 checks pass, and 71 are `@test_broken`, each with its reason in
 `_rules_broken`.
@@ -266,7 +267,7 @@ Found in this step:
   `get_exact_height` compare the cells by identity. Two cells with the same
   number are a bounded range with a minimum, and a part that fills a slot does
   not see a slot there.
-- The rules give these deviations that no step of this plan fixes (§7):
+- The rules give these deviations, which Step 3 fixes:
   - a layout (`HorizontalLayout`, `VerticalLayout`, `GridLayout`, `StackLayout`,
     the height of `FlowLayout`), `WidgetComposite`, `WidgetToolbar` and
     `WidgetToolbarItem` do not take a slot or a minimum that is more than their
@@ -277,7 +278,23 @@ Found in this step:
   - `WidgetShell` takes a slot only when it has one on both axes;
   - `WidgetAlert` does not wrap its description.
 
-### Step 3. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
+### Step 3. The deviations that Step 2 found
+
+Each of these printers takes its minimum, and fills a slot that is more than its
+content, by `e = max(m, C(M))`:
+
+- `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `StackLayout`, the height
+  of `FlowLayout`, `WidgetComposite`, `WidgetToolbar` and `WidgetToolbarItem`;
+- `WidgetTabbedPane`, `WidgetShell` and `WidgetSplitPane` with no slot; a shell
+  takes a slot on one axis without one on the other;
+- `WidgetSplitPane` in an exact width with a free height draws its slot;
+- `WidgetAlert` wraps its description at its maximum width.
+
+The marks "found in step 2" of the test become `@test`. Tests:
+`test_layout_rules()`, the `SizeRange*` tests, `test_platform()`,
+`test_dataframes()`.
+
+### Step 4. R1, R5 and a shared minimum: each axis of a scroll area fits or grows
 
 Each axis of a scroll area gets the setting fits or grows (§4), and both fit by
 default, which keeps every range of today. On an axis that grows, the content
@@ -289,20 +306,20 @@ of pages that grow down say so on their height: the examples of Step 1, and the
 pages that the tests and a search find. Tests: `test_layout_rules()`, the
 `SizeRange*` tests, `test_platform()`, `test_dataframes()`.
 
-### Step 4. R3: a column shares a maximum as a row does
+### Step 5. R3: a column shares a maximum as a row does
 
 `_vl_build` shares a range with a maximum, exact or bounded, as `_hl_build` does,
-and so do the rows of `GridLayout` as its columns do. After Step 3 a page gets no
+and so do the rows of `GridLayout` as its columns do. After Step 4 a page gets no
 maximum, so a bounded height is always a cut. Tests: `test_layout_rules()`, the
 `SizeRange*` tests, `test_platform()`, `test_dataframes()`.
 
-### Step 5. R2: a viewport stops at its maximum
+### Step 6. R2: a viewport stops at its maximum
 
 `WidgetScrollPane`, `WidgetTransformPane` and the widgets of rows take
 `clamp(C, m, M)` and scroll the rest. The `@test_broken` marks of Step 2 become
 `@test`. Tests: `test_layout_rules()`, `test_platform()`, `test_dataframes()`.
 
-### Step 6. The detail of a task
+### Step 7. The detail of a task
 
 In `_build_detail` (`TaskGroupToWidget.jl:445`) the facts go in a scroll area
 with no weight, and the place of the result document gets a minimum, so the
@@ -310,7 +327,7 @@ table of the differences and the chart picture show in the split. Tests: the tas
 group tests of the platform, and the scalar differences and chart comparison
 tests of omnet-julia.
 
-### Step 7. The documentation
+### Step 8. The documentation
 
 - [layout-rules.md](../../documentation/rule/layout-rules.md):
   - §1: a maximum means "the giver cuts here", and a part that can scroll draws
@@ -337,7 +354,7 @@ tests of omnet-julia.
 - [examples-tour.md](../../documentation/guide/examples-tour.md): the examples
   of Step 1.
 
-### Step 8. The wide check
+### Step 9. The wide check
 
 `test_platform()`, `test_dataframes()` and the omnet-julia IDE tests, each
 compared with a run on main, and a precompile of omnet-julia. The examples of
@@ -352,8 +369,6 @@ window. Then the branch waits for approval to land.
 
 ## 7. Open
 
-- The deviations that Step 2 found and no step fixes: fix them in this plan, or
-  not; open.
 
 - The setting of a scroll area for each axis: my recommendation is the keyword
   `grows = (width = false, height = false)`, with both axes fitting by default;
