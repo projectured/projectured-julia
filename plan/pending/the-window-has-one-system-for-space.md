@@ -548,12 +548,47 @@ approval of the user.
         it holds the printers of the layouts: widgets embed text, and in the
         Explorer the recursion is the widget dispatch alone. The printer uses
         the default text theme, as the fields do now.
+        **Replaced on 2026-11-05, see below.**
       - `_print_plain_text_view` reads `w.line_spacing` in its computation
         and keeps it when the context is `nothing`.
       - The risk: a composition that puts a text printer of its own before the
         widget dispatch draws the fields with that printer, for example in the
         colors of the text theme of an editor. If the screen changes, the work
         stops, and the user decides.
+
+      The first try of 5b stopped at this risk. It put the rule
+      `TextBlock => ChainingProjection(WordWrapping, TextToGraphics)` at the
+      end of the widget dispatch, and 8 of 179 images changed. In the natural
+      view (`NaturalProjection.jl:166`) the widget dispatch comes before
+      `TextDocument => prose_chain`, so the new rule drew the prose of the
+      documents at single spacing and not at the prose spacing 1.3. Each line
+      of `conversation_widget` was about 2 px shorter (407 px to 392 px), and
+      the labels of `graph_services` changed size, so its force layout moved.
+      The text of a widget and the text of a document are both a `TextBlock`,
+      and a table of rules picks by type, so no order of the rules serves
+      both. The user rejected a type of its own for the text of a widget, and
+      accepted this design on 2026-11-05. It replaces the rule in the widget
+      dispatch, and the one text printer for all tables:
+      - The dispatch of `WidgetToGraphics(...)` has no rule for `TextBlock`.
+      - Each table of rules that draws a widget with text has one rule for
+        `TextBlock`. It draws the text documents of that table and the text
+        of its widgets. The table chooses if the rule wraps (`WordWrapping`
+        and then `TextToGraphics`) or not (`TextToGraphics` alone). A wrap is
+        not mandatory.
+      - A widget gives its text view all of its own look. The spans carry the
+        font and the color, as now. The offer always carries the line
+        spacing: `w.line_spacing`, else single spacing, so the spacing of the
+        printer of the table never applies to a widget. The offer carries the
+        wrap: `wrap = false` offers a free width, so the text never wraps;
+        `wrap = true` offers the width of the box, so the text wraps where the
+        rule of the table wraps and stays one line where it does not. The user
+        accepted this consequence.
+      - The caret and the selection band of a widget text take the text theme
+        of the printer of the table. Before, they took the default theme,
+        which a zoom does not scale.
+      - Only the prose box of an outline row (`OutlineRow.jl:37`) sets
+        `wrap = true`. The workflow views and the research views show it, so
+        their tables get a rule that wraps.
       Check: `tool/widget-images.jl` finds every image the same; a test finds
       that no printer in `source/platform/widget/` calls the constructor of a
       projection inside a print; `test_widget_text_fit`, the text field tests
