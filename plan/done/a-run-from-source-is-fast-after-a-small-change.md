@@ -123,13 +123,17 @@ Each step has a check. If a check fails, stop and report.
       platform; later starts take 22.9 s; Revise in the session revises an
       edit and keeps the patched method.** The design as built and the
       results are in "Step 4: use it in omnet-julia" below.
-- [ ] 5. **The run scripts run from source again**, and the guides say how
+- [x] 5. **The run scripts run from source again**, and the guides say how
       the fast way works. Check: with the reactive Julia, a change of the
       platform, then `bin/omnet_ide` and `bin/projectured` start from source
       in at most 15 s more than with no change. With vanilla Julia 1.13.1,
       `jo`, `jp`, `ji`, `bin/omnet_ide`, `bin/projectured`,
       `bin/build_omnet_ide` and `bin/build_projectured` work as they do
       today.
+      **Done 2026-11-04: after the change, `bin/projectured` starts in 3.2 s
+      more and `bin/omnet_ide` in 3.0 s more; with Julia 1.13.1 all seven
+      work.** The comparison of vanilla and reactive for the builds and the
+      starts is in "Step 5: the run scripts run from source" below.
 
 ## Step 1: the measurement
 
@@ -446,8 +450,8 @@ right answer: the edit of `g` keeps the method object of `f`.
       guide and the builder document in projectured-julia, and the guide of
       the reactive build in omnet-julia. The function moved to
       `AppPackage.jl`, beside `get_app_module_name`, because it reads no store.
-- [ ] The check of step 5.
-- [ ] The comparison below.
+- [x] The check of step 5.
+- [x] The comparison below.
 
 **The comparison.** The user (2026-11-03): "At the end I want to see a
 comparison between vanilla and reactive for various building and starting
@@ -521,7 +525,71 @@ of 16, and the build fits.
   so the binary after the rebuild shows the time of the first build. The
   snapshot `sys.2.so` holds the edit.
 
+**The results for `omnet_ide`.**
+
+| Case | Vanilla | Reactive |
+| --- | --- | --- |
+| Start from source, new depot | 398 s, 43 files | 423 s, 184 files |
+| Start from source, no change | 14.6 s | 14.6 s |
+| Build from nothing, one image thread | 2344 s | 3041 s, the founding |
+| Start of the binary | 0.6 s | 0.1 s |
+| Start from source after a method body change | 386 s, 30 files | 33.8 s, 2 patches |
+| Start from source, no change after it | 14.6 s | 14.6 s |
+| Build after the method body change, one image thread | 2330 s | 16.4 s, a snapshot |
+| Start of the binary after that build | 0.6 s | 0.1 s |
+| Start from source after a macro change | | 254.8 s, a patch and 17 files |
+| Start from source after a constant change | | 222.8 s, a patch and 7 files |
+| Start from source, no change after them | | 15.2 s |
+
+- With 4 image threads, the founding of the store of `omnet_ide` went past
+  the cap of 23 GB twice, after about 2180 s, and the kernel stopped it. So
+  the builds of `omnet_ide` run with `JULIA_IMAGE_THREADS=1`, for both
+  Julias. The reactive builds ran again in a job of their own, `build.sh`.
+  The vanilla job sets the variable for its builds only, because Julia also
+  reads it when it writes the file of a package: with one thread, the start
+  from source in a new depot took 725 s instead of 423 s.
+- The constant change is `RUN_RESULT_CODES`. `OmnetLegacySimulator` imports
+  it at its top level, so that package and the 6 packages above it compile
+  whole. Step 3 found the same rule.
+
+**The results for the REPLs.** `jo` first, then the method body change, then
+`jp` and `ji` in the same depot.
+
+| Case | Vanilla | Reactive |
+| --- | --- | --- |
+| `jo` in a new depot | 714 s, 147 files | 769 s, 446 files |
+| `jo`, no change | 22.6 s | 22.6 s |
+| `jo` after a method body change | 624 s, 89 files | 26.9 s, a patch |
+| `jo`, no change after it | 22.7 s | 22.8 s |
+| `jp` after the change, first time | 186 s, 70 files, and 16.5 s | 224.5 s, 97 files |
+| `jp`, no change | 15.0 s | 15.4 s |
+| `ji` after the change, first time | 146 s, 19 files | 150.9 s, 18 files |
+| `ji`, no change | 22.3 s | 22.9 s |
+
+- The first `jp` of the vanilla job loaded the wrong name and stopped after
+  its `Pkg.instantiate` compiled 70 files in 186 s. The alias loads
+  `ProjecturedREPL`. The second try loaded it in 16.5 s and compiled nothing.
+
+**The check of step 5.** A method body change of the platform after the
+other changes, with no build between it and the start.
+
+| Start, reactive Julia | No change | After the change | More |
+| --- | --- | --- | --- |
+| `bin/projectured` | 10.8 s | 14.0 s, a patch | 3.2 s |
+| `bin/omnet_ide` | 15.1 s | 18.1 s, a patch | 3.0 s |
+| `jo` | 22.7 s | 26.9 s, a patch | 4.2 s |
+
+- The start after a change and a build compiles a patch of the app package
+  too, as the tables above show: 30.2 s against 10.3 s for `projectured`,
+  33.8 s against 14.6 s for `omnet_ide`. That is not the case of the check.
+- With vanilla Julia 1.13.1, `jo`, `jp`, `ji`, `bin/omnet_ide`,
+  `bin/projectured`, `bin/build_omnet_ide` and `bin/build_projectured` work.
+  The two vanilla builds of `omnet_ide` ran with one image thread to stay
+  under the cap of the job, as the reactive ones did.
+
 ## Not in this plan
 
+- The landing of the fork branch `fast-source-run` in `merged`. The aliases
+  use `+merged`, so the guides of step 5 are true for them after it.
 - One store of compiled code for several worktrees of the same commit.
 - A faster compile of a package that changed a lot.
