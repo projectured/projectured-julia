@@ -487,7 +487,7 @@ approval of the user.
         signature that this step changed (a widget IO map with a new field, a
         reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
         that takes the shape). The lists are recorded again after step 8.
-- [x] 5. **The text printer takes the line spacing from the context.**
+- [ ] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
       positions and the line height that its readers (`char_to_coord` and the
@@ -497,7 +497,11 @@ approval of the user.
       set the property; `test_syntax_to_text()` and the platform suite, part by
       part, give the counts of the baseline.
 
-      Done in `c5e96d517`. The facts:
+      - [x] 5a. The text printer makes no copy of itself.
+      - [ ] 5b. No widget printer makes a projection. This part runs after
+        step 6, because both change `WidgetToGraphics.jl`.
+
+      5a is done in `c5e96d517`. The facts:
       - `_get_line_spacing(p, ctx)` gives the spacing of one print: the
         `:line_spacing` property of the context where one is set, else
         `p.line_spacing`. `print_document` calls it once, and no other place
@@ -523,12 +527,37 @@ approval of the user.
         176810 Pass, 19 Fail, 3 Error, 7 Broken, the known failures of that
         code. The 172 more Pass are in `test_platform_examples`, which gives a
         test to each cell it forces, and each text IO map holds one more cell.
-      - Found and not changed: two widget printers make a new `TextToGraphics`
-        on each print, `_print_plain_text_view` (with a `WordWrapping` chain
-        for a field that wraps) and the selector of a tabbed pane. They are new
+      - Found in 5a: two widget printers make a new `TextToGraphics` on each
+        print, `_print_plain_text_view` (with a `WordWrapping` chain for a
+        field that wraps) and the selector of a tabbed pane. They are new
         projections and not copies, but a projection is fixed configuration.
         `_print_plain_text_view` also reads `w.line_spacing` outside a cell and
         drops it when the context is `nothing`.
+
+      5b, as the user accepted it on 2026-11-04 (the user asked for it in
+      this step and not in a plan of its own):
+      - A widget printer prints its text view through `recursion`, as it
+        prints a document in its content now. No widget printer builds a
+        projection.
+      - The offer decides the wrap. `WordWrapping` wraps a line only where
+        the context gives a maximum width, so a field that wraps offers its
+        text a bounded width, and a field that does not wrap offers a free
+        width. One text printer, `WordWrapping` and then `TextToGraphics`,
+        serves both, with no flag and no new type of view.
+      - The dispatch of `WidgetToGraphics(...)` holds that text printer, as
+        it holds the printers of the layouts: widgets embed text, and in the
+        Explorer the recursion is the widget dispatch alone. The printer uses
+        the default text theme, as the fields do now.
+      - `_print_plain_text_view` reads `w.line_spacing` in its computation
+        and keeps it when the context is `nothing`.
+      - The risk: a composition that puts a text printer of its own before the
+        widget dispatch draws the fields with that printer, for example in the
+        colors of the text theme of an editor. If the screen changes, the work
+        stops, and the user decides.
+      Check: `tool/widget-images.jl` finds every image the same; a test finds
+      that no printer in `source/platform/widget/` calls the constructor of a
+      projection inside a print; `test_widget_text_fit`, the text field tests
+      and the platform suite, part by part, give the counts before 5b.
 - [ ] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
