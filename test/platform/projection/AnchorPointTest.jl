@@ -120,10 +120,13 @@ end
     content = WidgetComposite(Any[mkbtn(80, 24, "x")])
     shell = WidgetShell(content; menu_bar = bar, size = Point2D(600, 400))
     iomap = print_document(proj, shell)
-    # Shell canvas: [background rect, menu_bar wrapper, …]. The menu-bar entry is
-    # menu_bar-wrapper(2) -> menu canvas(1) -> item wrapper(i) -> item canvas(1).
+    # The shell draws its background and the line under its menu bar as rects,
+    # and each band in a canvas of its own, the menu bar first. The menu-bar
+    # entry is menu_bar-wrapper -> menu canvas(1) -> item wrapper(i) -> item canvas(1).
+    elements = iomap.output.elements
+    band = findfirst(k -> (e = elements[k]; (e isa Cell ? e[] : e) isa GraphicsCanvas), 1:length(elements))
     for i in 1:3
-        truth = abs_top_left(iomap.output, (2, 1, i, 1))
+        truth = abs_top_left(iomap.output, (band, 1, i, 1))
         @test get_anchor_point(iomap, cref(field("menu_bar")..., elem(i)...)) == truth
     end
 end
