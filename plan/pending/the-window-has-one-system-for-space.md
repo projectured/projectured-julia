@@ -327,7 +327,7 @@ approval of the user.
         `y + h + 1 == status[2]`). Counts: shell layout 14, shell pointer 6,
         window shell 149, tab strip 29, tab label 24, explorer 313, mouse
         target move 85, all Pass; `test_dataframes` 603 Pass.
-- [ ] 4. **A box computes its shape once, and its IO map carries it.** The
+- [x] 4. **A box computes its shape once, and its IO map carries it.** The
       screen must not change.
       - A type for the shape of a box holds the outer box, the margin, the
         border, the padding and the content of a widget. One function computes
@@ -346,6 +346,87 @@ approval of the user.
       Check: `tool/widget-images.jl` finds every image the same; the platform
       suite, part by part, and `test_dataframes()` give the counts of the
       baseline.
+
+      Done. Facts:
+
+      - The shape is `BoxGeometry` (`WidgetToGraphics.jl`, the section of the
+        box). It has four fields from the outside in: `space`, `margin`,
+        `border` and `padding`, each `(left, top, right, bottom)` of `Int`.
+        `_compute_box_geometry(p, w, space; variant)` computes it.
+        `_make_box_geometry_cell(p, w, space; variant)` keeps it in a cell,
+        which each computation of the print reads, so a change of an inset of
+        the theme or of the document still reaches the screen. In this step
+        every printer gives the space `inset_default`.
+      - The functions on the shape: `_get_sides_outside(box, part)` gives the
+        sides outside `:border`, `:padding` or `:content`;
+        `_get_content_offset(box)`, `_get_inset_total(box)` and
+        `_get_border_rect(box, width, height)` use it. `_push_box_parts!` and
+        `_push_following_box_bands!` take the shape and draw inside its space.
+        `_NO_BOX_GEOMETRY` is the shape of a widget that draws no box: a widget
+        that is not visible, an icon, a highlight, and the rows of a list or a
+        tree that prints as its rows.
+      - The IO maps: `WidgetBoxIoMap` for a widget with no child and
+        `WidgetChildrenIoMap` for a container. Each has the fields of
+        `SimpleIoMap` or of `ChildrenIoMap`, and the field `box`. Each IO map
+        of a widget of its own (`WidgetValueIoMap`, `WidgetTableListIoMap`,
+        `WidgetRowsPaneIoMap` and the `Widget…ToGraphicsCanvasIoMap`s) also has
+        the field `box`. `_get_box_geometry(iomap)` reads the shape. These
+        names are not exported. `WidgetChildrenIoMap` has a method of
+        `get_child_iomaps` and of `find_first_baseline`, as `ChildrenIoMap`
+        has, and `WidgetBoxIoMap` gives `find_first_baseline` to its
+        projection, as `SimpleIoMap` does.
+      - The commits: 4a (d819f1518) the type, the functions, the IO maps and the
+        widgets with no child; 4b (c1164ba61) every container, so no widget
+        printer returns a `ChildrenIoMap`; 4c (3c9548773) the list, the tree,
+        the table and `WidgetTableParts.jl`, and the delete of `_get_box_insets`,
+        `_content_offset`, `_inset_total` and `_get_rows_content_offset`.
+      - A widget that is not visible returns the IO map of its kind with
+        `_NO_BOX_GEOMETRY`, so its readers (`iomap::WidgetBoxIoMap`) are the
+        readers that it had for `SimpleIoMap`.
+      - A printer that read the insets once at the print reads the cell once
+        there (the scroll pane, the transform pane, the tabbed pane, the tree,
+        the table, the rows pane, the slider, the card, the accordion). A reader
+        reads the cell when it reads. The insertion and the dialog print with
+        no cell, so their IO map holds the shape as a value.
+      - The variant of a menu item and of a menu is read inside the cell of the
+        shape. The reader of a tabbed pane gives the shape of its IO map to
+        `_tab_strip_geometry`. A badge that a tab or a row of a tree draws has
+        no IO map, so its host computes its shape
+        (`_compute_box_geometry(p.badge, badge, inset_default)`).
+      - Two tests follow the types: `AppearanceTabTest.jl:64` finds a card by
+        its `WidgetChildrenIoMap`, and `WidgetRowsScrollTest.jl:65` reads the
+        shape from the IO map.
+      - Images: 44 of 44 the same after 4a, after 4b and after 4c.
+      - Tests of each group, in one process: 4a 31 functions, 1881 Pass,
+        1 Fail; 4b 37 functions, 1819 Pass, 2 Fail; 4c 33 functions, 1994 Pass,
+        1 Fail. The failures are in the code of step 3 too, with this step
+        taken out, and not in the baseline: `test_widget_round_trip` (the four
+        cells of the last row of `widget_table_frozen` map back to the
+        horizontal bar) and `test_scroll_pane_hover`
+        (`ScrollPaneHoverTest.jl:124`: a press gives `items[39]`, not
+        `items[40]`). Step 4 does not fix them.
+      - The platform suite, part by part: 176638 Pass, 19 Fail, 3 Error,
+        7 Broken (baseline: 175016 Pass, 3 Fail, 7 Broken). The three Fail of
+        the baseline are the same. The other 16 Fail and 3 Error are in the code
+        of step 3 too, with this step taken out, in the same counts (one process
+        for the eight functions): `test_split_pane_drag` 8 Fail and 2 Error (a
+        press at x 300 starts no drag), `test_pane_to_widget` 3 (the line under
+        each tab row is a 1 px rect too, so the test finds 7 and not 1),
+        `test_anchor_point` 1 Error, `test_find_bar_view_to_widget` 1,
+        `test_part_pointer_shape` 1, `test_settings_tab` 1,
+        `test_scroll_pane_hover` 1 and `test_widget_round_trip` 1. Steps 1 to 3
+        ran none of these functions. `test_platform_examples` has 159150 Pass,
+        570 more than the code of step 3 (158580): the walk gives one test to each
+        cell that it forces, and each widget IO map holds the cell of its shape.
+        `test_dataframes`: 603 Pass, as the baseline.
+      - The recorded calls: after this step 89 of the 838 recorded calls of
+        `ProjecturedSDL` and 84 of the 768 of `ProjecturedDataFrames` do not
+        resolve, more than the share of 10 %, so their precompilation warns
+        that it failed and compiles more while it runs. Some of them name a
+        signature that this step changed (a widget IO map with a new field, a
+        reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
+        that takes the shape). The lists are recorded again in a task of their
+        own (`record_package_calls!`).
 - [ ] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
