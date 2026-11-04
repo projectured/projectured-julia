@@ -657,7 +657,27 @@ Done so far:
   range when it has no slot (`_get_choice_list_width`), and a test of
   `ContextMenuWindowTest` checks the width of the menu.
 - omnet-julia: the four scroll areas that hold a page grow on their height, in
-  the worktree `omnet-julia-maximum-cuts`, branch `a-maximum-is-an-edge-that-cuts`.
+  the worktree `omnet-julia-maximum-cuts`, branch `a-maximum-is-an-edge-that-cuts`
+  (f7b41c034).
+- The wide check, after the change of `get_visible_height`, against main
+  622d362c3. Each run fails at the same places on both sides, and the branch
+  fails at no other place:
+
+  | Run | Branch: pass | Main: pass | Places that fail on both |
+  |---|---|---|---|
+  | `test_platform()`, part 1 of 4 | 199192 | 161761 | `CheckLayering.jl:889` |
+  | part 2 | 6384 | 6268 | none |
+  | part 3 | 3049 | 2777 | none |
+  | part 4 | 4376 | 4286 | `InterfaceApiTest.jl:46`, `:49` |
+  | `test_dataframes()`, graph, Markdown, Julia, pivot | 2622 | 2625 | `PivotZoneEditTest.jl:84` |
+  | the tests of a rank of a search | 2052 | 2052 | 86, the same on both |
+  | omnet-julia `test_ide()` | 1479 | 1475 | 28; main fails at 4 more in `IdeTextClipboardTest` |
+
+  `test_ide()` runs without `test_ide_gestures_compile_little`, which builds the
+  image of the binary. The precompile of every package of omnet-julia passes on
+  both sides.
+- The six layout examples of Step 1, drawn at 1200 × 800 and 1200 × 450, and
+  their printer, reader and REPL testers: 39572 pass.
 
 Found in this step:
 
@@ -677,6 +697,17 @@ Found in this step:
   scroll area that grows has the view as its minimum, so it reads the same value
   as before. The probe of the result file now gives each place and size that
   main gives. `layout-rules.md` §3c shows the rule and this case.
+- The detail of a task in the split of the page of its group, in a window of
+  1400 × 900: the split gives the detail about 330. The detail of a statistical
+  test shows the table of the differences, which main puts below the window. The
+  facts above it show two lines, and the verdict and the buttons scroll in their
+  part. In the detail of a chart test, the facts show the result line, and the
+  row of buttons is cut at its top edge: its four buttons show as four thin
+  lines, and a person scrolls the facts to reach them. Main shows the buttons and
+  gives the comparison of the pictures no height. This follows from Step 7: the
+  document keeps at least `document_minimum_height`, and the facts take the rest.
+  Where the buttons of a task stand is part of the new design of the detail page
+  (§6).
 
 ## 6. Not in this plan
 
