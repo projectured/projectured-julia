@@ -898,6 +898,7 @@ WidgetTitlePaneToGraphicsCanvas(theme; measure,
     padding_color::StyleColor
     content_color::StyleColor
     splitter_stroke::StyleStroke    # divider color + thickness
+    slot_padding::Inset             # the space that each slot gives to what it holds
 end
 
 WidgetSplitPaneToGraphicsCanvas(theme;
@@ -905,9 +906,10 @@ WidgetSplitPaneToGraphicsCanvas(theme;
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 splitter_stroke =
-                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                slot_padding = _themed(Inset, theme, t -> t.slot_padding)) =
     WidgetSplitPaneToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, splitter_stroke)
+                                    content_color, splitter_stroke, slot_padding)
 
 @projection UntrackedCell struct WidgetTabbedPaneToGraphicsCanvas
     measure::TextMeasure
@@ -932,6 +934,7 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     icon_size::Float64                   # times the box of an icon and of a button, one line
     badge::Any                            # the badge printer of the theme, for the badges of a label
     tab_row_line_stroke::StyleStroke      # the line under the tab row, open under the selected tab
+    slot_padding::Inset                   # the space that the page gives to what it holds
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -952,12 +955,13 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure),
-                                 tab_row_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
+                                 tab_row_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                 slot_padding = _themed(Inset, theme, t -> t.slot_padding)) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
                                      graphics_style, tab_padding, corner_radius, label_gap,
-                                     icon_size, badge, tab_row_line_stroke)
+                                     icon_size, badge, tab_row_line_stroke, slot_padding)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -3693,6 +3697,14 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
             content_width, content_height = extent[]
             _push_box_parts!(elems, insets, colors, content_width, content_height)
         end
+        # The space at the right and at the bottom holds no child and no part of
+        # the box, so a clear rect gives the composite its extent with the space.
+        if insets.space != _NO_SPACE
+            content_width, content_height = extent[]
+            inset_width, inset_height = _get_inset_total(insets)
+            push!(elems, GraphicsRect(0, 0, content_width + inset_width, content_height + inset_height;
+                                      color = color_transparent))
+        end
         elems
     end))
     build = Cell(@computation begin
@@ -4495,6 +4507,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # Recurse into the wrapped widget (peeking through LayoutConstraint),
     # passing the slot's main-axis extent down via context so the child can
     # size itself to its slot.
+    slot_space = _get_inset_sides(p.slot_padding)
     inner_iomaps = Any[]
     for i in 1:n
         elem  = valid_elems[i]
@@ -4503,9 +4516,11 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # Offer the slot only when there is one. Offering an unallocated slot
         # tells the child it has no room at all, and it draws nothing; withholding
         # the axis lets the child size itself, which is what the slot then is.
-        cctx  = avail_main === nothing ? with_free_axis(ctx, main_axis) :
-                main_axis === :x ? with_exact_size(ctx; width=cell) :
-                                   with_exact_size(ctx; height=cell)
+        # Each slot gives `slot_padding` to what it holds, so the first box in it
+        # stands that far from the dividers and the edges.
+        cctx  = avail_main === nothing ? with_free_axis(ctx, main_axis; space = slot_space) :
+                main_axis === :x ? with_exact_size(ctx; width = cell, space = slot_space) :
+                                   with_exact_size(ctx; height = cell, space = slot_space)
         cim = print_child(recursion, inner, cctx)
         push!(inner_iomaps, cim)
     end
@@ -5325,8 +5340,10 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         Cell(@computation max(0, Int(avail_h[]) - geom[].page_top - inset_y))
     # The content gets the pane's range less the insets, and less the tab strip
     # on the height, in the same state: a slot stays a slot and an edge stays an
-    # edge.
-    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[].page_top + inset_y))
+    # edge. The page gives `slot_padding` to what it holds, so the first box in it
+    # stands that far from the edges of the page.
+    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[].page_top + inset_y),
+                                  space = _get_inset_sides(p.slot_padding))
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
     all_cims = make_reconciled_child_iomaps_cell(

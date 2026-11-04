@@ -121,7 +121,9 @@ builder fills them from a theme, scaled or not.
     "The space inside a status bar."
     status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the edge of a tabbed pane and its tab strip and page."
-    tabbed_pane_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
+    tabbed_pane_padding::Spacing = Spacing(Inset(0, 0, 0, 0))
+    "The space that a slot of the frame, the page of a tab or a slot of a split pane, gives to what it holds."
+    slot_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
     "The largest width and height of the window of a context menu."
     context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
@@ -129,7 +131,7 @@ builder fills them from a theme, scaled or not.
     "The space inside a tab of a tab strip."
     tab_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space around the content of a row of a tree."
-    tree_row_padding::Spacing = Spacing(Inset(2, 2, 0, 0))
+    tree_row_padding::Spacing = Spacing(Inset(2, 2, 8, 8))
     "The space between the bands of the shell of a window, under the toolbar."
     band_gap::Spacing = Spacing(0)
     "The space inside a dropdown, around its commands."

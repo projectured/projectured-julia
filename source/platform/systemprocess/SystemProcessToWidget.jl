@@ -3,7 +3,7 @@
 # cells of its facts, so a sample that changes the load draws one line again.
 
 """
-    SystemProcessToWidget(; gap, padding)
+    SystemProcessToWidget(; gap)
 
 Prints a [`SystemProcess`](@ref) as its page: the process id and the command,
 the folder, the state, the start and the time since it, the processor load, the
@@ -11,12 +11,11 @@ memory and the threads, and two buttons. Interrupt sends `SIGINT` and Stop
 sends `SIGTERM`, each only to the process that the page shows
 ([`interrupt_system_process!`](@ref), [`stop_system_process!`](@ref)). The time
 since the start reads the time of the last sample, so the page reads no clock.
-A long command wraps at the edge of the page between its words. `padding` is the
-space between the edge of the page and what it shows.
+A long command wraps at the edge of the page between its words. The page has no
+padding of its own: the slot that holds it gives the space around it.
 """
 @projection UntrackedCell struct SystemProcessToWidget
     gap::Int = get_widget_style(nothing, :label_gap)
-    padding::Int = get_widget_style(nothing, :container_padding)
 end
 
 function print_document(p::SystemProcessToWidget, recursion, process::SystemProcess, context)
@@ -34,8 +33,7 @@ function print_document(p::SystemProcessToWidget, recursion, process::SystemProc
                                  " · threads ", process.thread_count)),
         HorizontalLayout(Any[interrupt, stop]; vertical_align = :center, gap = p.gap)];
         gap = p.gap, child_width = Fill)
-    inset = Inset(p.padding, p.padding, p.padding, p.padding)
-    root = WidgetComposite(Any[column]; padding = inset, child_width = Fill)
+    root = WidgetComposite(Any[column]; child_width = Fill)
     iomap = ChildrenIoMap(p, process, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
     follow_output_mouse_target!(root, () ->
@@ -76,8 +74,7 @@ end
 function make_graphics_projection(::Type{SystemProcess}; measure, appearance)
     theme = get_scaled_theme!(appearance, WidgetTheme)
     ChainingProjection(
-        SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap),
-                              padding = get_widget_style(theme, :container_padding)),
+        SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap)),
         RecursiveProjection(FaultCatchingProjection(
             inner = WidgetToGraphics(; measure, theme,
                                      graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),

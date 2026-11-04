@@ -31,7 +31,7 @@ navigator to a page below the root section, such as by a link on the page, opens
 the nodes above that page in the tree.
 """
 @projection UntrackedCell struct ExplorerToWidget <: Projection
-    gap::Int = get_widget_style(nothing, :section_gap)
+    gap::Int = get_widget_style(nothing, :item_gap)
 end
 
 @iomap struct ExplorerToWidgetIoMap
@@ -356,5 +356,5 @@ _has_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifiers.al
 # which draws each with the row of its own type.
 make_graphics_projection(::Type{<:Explorer}; measure, appearance) =
     ChainingProjection(
-        ExplorerToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
+        ExplorerToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :item_gap)),
         WidgetSplitPaneToGraphicsCanvas(get_scaled_theme!(appearance, WidgetTheme)))

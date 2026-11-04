@@ -209,7 +209,10 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         # would hand the tab a widget, not the graphics it draws.
         Assistant         => ChainingProjection(RecursiveProjection(FaultCatchingProjection(
                                                     inner = AssistantToWidgetSplitPane(
-                                                        get_scaled_theme!(appearance, ConversationTheme)),
+                                                        get_scaled_theme!(appearance, ConversationTheme);
+                                                        slot_padding = get_widget_style(
+                                                            get_scaled_theme!(appearance, WidgetTheme),
+                                                            :slot_padding)),
                                                     substitute = FaultToWidget())),
                                                 NaturalToGraphics(measure = measure, extra = conversation_rows,
                                                                   appearance = appearance)),

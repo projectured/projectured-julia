@@ -93,10 +93,12 @@ const _LIST_COLUMN_COUNT = 64
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
     height = ctx === nothing ? nothing : get_exact_height(ctx)
-    # The rows that the table shows: the height less the expression bar and the
-    # header row, which holds the filter row too, about four rows.
+    # The rows that the table shows: the height less the space that the slot gives
+    # at the top and at the bottom, less the expression bar and the header row,
+    # which holds the filter row too, about four rows.
+    space_height = ctx === nothing ? 0 : ctx.space[2] + ctx.space[4]
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
-                                max(1, Int(height[]) ÷ p.row_step - 4))
+                                max(1, (Int(height[]) - space_height) ÷ p.row_step - 4))
     count = Cell(@computation length(view.kept_rows))
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection.

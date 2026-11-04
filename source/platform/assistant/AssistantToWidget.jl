@@ -11,25 +11,29 @@
 const _MAIN_WEIGHT = 1.0
 
 """
-    AssistantToWidgetSplitPane(theme)
-    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height)
+    AssistantToWidgetSplitPane(theme; slot_padding)
+    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height, option_gap, slot_padding)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
 takes the rest. A row under the composer, of the height that the theme gives,
 holds the button that stops the turn that runs, and for an external agent the
-menus of its options. With no theme it takes the values of the default theme.
+menus of its options. The slot of the row is that height and the space that a
+slot of the split pane gives at its top and its bottom, `slot_padding` of the
+`WidgetTheme`. With no theme it takes the values of the default themes.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
     option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
     option_gap::Int = get_conversation_style(nothing, :option_gap)
+    slot_padding::Inset = get_widget_style(nothing, :slot_padding)
 end
 
-AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
+AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme};
+                           slot_padding = get_widget_style(nothing, :slot_padding)) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
                                  option_bar_height = get_conversation_style(theme, :option_bar_height),
-                                 option_gap = get_conversation_style(theme, :option_gap))
+                                 option_gap = get_conversation_style(theme, :option_gap), slot_padding)
 
 """
     AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
@@ -104,8 +108,9 @@ function print_document(projection::AssistantToWidgetSplitPane,
         append!(items, Any[make_agent_option_bar(a), usage])
     end
     row = HorizontalLayout(items; gap = projection.option_gap)
-    push!(panes, LayoutConstraint(row; min_height = projection.option_bar_height,
-                                  preferred_height = projection.option_bar_height))
+    slot = projection.slot_padding
+    row_height = projection.option_bar_height + Int(slot.top[]) + Int(slot.bottom[])
+    push!(panes, LayoutConstraint(row; min_height = row_height, preferred_height = row_height))
     column = WidgetSplitPane(:vertical, panes)
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
@@ -350,7 +355,8 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
     theme = get_scaled_theme!(appearance, ConversationTheme)
     # The pane is a vertical layout of widgets: its own canvas draws it, and the
     # renderer draws the widgets inside, as for the MCP log.
-    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme),
+    slot_padding = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :slot_padding)
+    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding),
                    AssistantList => ChainingProjection(AssistantListToWidgetPane(theme),
                                                        VerticalLayoutToGraphicsCanvas()),
                    AssistantWork => ChainingProjection(AssistantWorkToWidget(theme),
