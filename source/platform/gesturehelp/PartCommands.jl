@@ -61,7 +61,7 @@ _collect_runnable_commands(editor, part::ReferencedDocument) =
     [command for command in _collect_part_commands(editor, part) if first(command).operation !== nothing]
 
 """
-    describe_commands(part; editor = get_evaluation_editor()) -> Text
+    describe_commands(part; editor = get_evaluation_editor()) -> String
 
 The commands that can run on `part` now, one line each: the words that say what
 the command does, and the keys that run it when it has keys. They are the
@@ -92,14 +92,14 @@ function describe_commands(part::ReferencedDocument; editor = get_evaluation_edi
     run_on_editor_task!(editor; description = "describe_commands") do
         rows = first.(_collect_runnable_commands(editor, part))
         isempty(rows) &&
-            return Text("This " * String(nameof(typeof(get_document(part)))) * " has no command now.")
-        Text(join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
-                   for row in rows], "\n"))
+            return "This " * String(nameof(typeof(get_document(part)))) * " has no command now."
+        join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
+                 for row in rows], "\n")
     end
 end
 
 """
-    run_command!(part, description; editor = get_evaluation_editor()) -> Text
+    run_command!(part, description; editor = get_evaluation_editor()) -> String
 
 Run the command of `part` whose words are `description`, as [`describe_commands`](@ref)
 writes them, as the person runs it from the command palette. The change is an
@@ -143,5 +143,5 @@ function run_command!(part::ReferencedDocument, description::AbstractString;
                                 " on this part."))
         evaluate_operation(editor, rooted)
     end
-    Text("Ran " * repr(String(description)) * ".")
+    "Ran " * repr(String(description)) * "."
 end

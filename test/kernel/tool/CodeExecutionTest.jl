@@ -41,6 +41,8 @@ function test_code_execution()
         # A long string is prose a verb answers to be read: whole, without quotes.
         @test run("repeat(\"word \", 100)") == repeat("word ", 100) * "\n"
         @test run("Text(\"one\\ntwo\\nthree\")") == "one\ntwo\nthree\n"
+        # A string that has a line break is shown as its lines, without quotes.
+        @test run("\"one\\ntwo\"") == "one\ntwo\n"
         # A long vector shows as Julia's own elided line, which is short.
         elided = run("collect(1:1000)")
         @test startswith(elided, "[1, 2, 3") && occursin("…", elided) && !occursin("500", elided)

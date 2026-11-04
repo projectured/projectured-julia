@@ -21,7 +21,7 @@ function test_arrangement_program()
     @testset "a filter and a sort, and the words that answer" begin
         text = filter_collection!(place, "status" => !=("failed"); editor)
         frame!()
-        @test text isa Text && string(text) == "2 of 3 items: status ≠ \"failed\""
+        @test text isa String && string(text) == "2 of 3 items: status ≠ \"failed\""
         @test tab.content isa ArrangementDocument && get_wrapped_document(tab.content) === runs
         # The same reference, now below an arrangement.
         @test string(sort_collection!(place, "delay" => :descending; editor)) ==

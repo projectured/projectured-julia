@@ -106,7 +106,7 @@ The task slice makes a `SystemProcessTree` of the process of the current executi
 
 ### The verbs
 
-`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It runs through `run_on_editor_task!`, so any task can call it. `describe_system_process_tree(root_process_ids)` reads `/proc` once, on the task that calls it, because it reads no document, and answers a `Text`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
+`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It runs through `run_on_editor_task!`, so any task can call it. `describe_system_process_tree(root_process_ids)` reads `/proc` once, on the task that calls it, because it reads no document, and answers a `String`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
 
 ## Try it
 

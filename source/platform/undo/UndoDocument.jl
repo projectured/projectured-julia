@@ -441,7 +441,7 @@ function find_undo_buffer(document)
 end
 
 """
-    describe_undo_history(; editor = get_evaluation_editor()) -> Text
+    describe_undo_history(; editor = get_evaluation_editor()) -> String
 
 The changes of the window that the tool `undo` and Ctrl+Z take back, and the
 changes that the tool `redo` puts back, newest last: one line each, in the words
@@ -464,7 +464,7 @@ function describe_undo_history end
 function describe_undo_history(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_undo_history") do
         buffer = find_undo_buffer(getfield(editor, :document))
-        buffer === nothing && return Text("This window keeps no history.")
+        buffer === nothing && return "This window keeps no history."
         undo = [entry.label for entry in buffer.undo_entries]
         redo = [entry.label for entry in buffer.redo_entries]
         lines = String[isempty(undo) ? "Nothing to take back." :
@@ -474,7 +474,7 @@ function describe_undo_history(; editor = get_evaluation_editor())
             push!(lines, "To put back, newest last:")
             append!(lines, "  " .* redo)
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 

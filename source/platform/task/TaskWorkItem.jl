@@ -58,7 +58,7 @@ See also `describe_work_item` and `remove_task_group!`.
 function stop_work_item! end
 
 """
-    describe_work_item(item; limit = 20) -> Text
+    describe_work_item(item; limit = 20) -> String
 
 What `item` did, in lines for a person: its state and what it found, at most
 `limit` lines of its parts. A group says how its tasks went, and a search names

@@ -109,11 +109,11 @@ function test_assistant_verbs()
         @test occursin("has no command", string(describe_commands(people[1]["name"]; editor)))
         @test get_selection(editor.document) == selected
         count = length(people)
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 1
         # The part is read again at each call, so a second call sees the first.
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 2
         for _ in 1:2
@@ -173,7 +173,7 @@ function test_assistant_verbs()
         @test [first(split(line, ": ")) for line in described] ==
               ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
                "New section"]
-        @test run_command!(content.entries[k], "Move the entry later"; editor) isa Text
+        @test run_command!(content.entries[k], "Move the entry later"; editor) isa String
         run_frame!(editor)
         @test title_at(k + 1) == "Dashboards"
         @test get_selection(editor.document) == selected
@@ -219,7 +219,7 @@ function test_assistant_verbs()
         selected = get_selection(editor.document)
         titles = [format_tree_node_label(get_document(entry)) for entry in content.entries]
         section = content.entries[findfirst(==("Editor"), titles)]
-        @test open_explorer_page!(section; editor) isa Text
+        @test open_explorer_page!(section; editor) isa String
         run_frame!(editor)
         @test get_navigator_page(navigator) === get_document(section)
         # A node below an entry: the row of its section opens, so its row shows.

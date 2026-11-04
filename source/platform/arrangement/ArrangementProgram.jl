@@ -155,7 +155,7 @@ function describe_arrangement(arrangement::ArrangementDocument)
 end
 
 """
-    filter_collection!(collection, conditions...; editor = get_evaluation_editor()) -> Text
+    filter_collection!(collection, conditions...; editor = get_evaluation_editor()) -> String
 
 Show only the items of the collection at `collection` for which every condition
 holds, in their order, and answer how the collection shows now. The data does not
@@ -197,7 +197,7 @@ filter_collection!(collection, conditions...; editor = get_evaluation_editor()) 
     run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_filter(conditions), "Filter"), editor; description = "filter_collection!")
 
 """
-    sort_collection!(collection, keys...; editor = get_evaluation_editor()) -> Text
+    sort_collection!(collection, keys...; editor = get_evaluation_editor()) -> String
 
 Show the items of the collection at `collection` in the order of `keys`, and
 answer how the collection shows now. The data keeps its own order: the sort is a
@@ -227,7 +227,7 @@ sort_collection!(collection, keys...; editor = get_evaluation_editor()) =
     run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_sort(keys), "Sort"), editor; description = "sort_collection!")
 
 """
-    group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> Text
+    group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> String
 
 Show one row for each group of the items of the collection at `collection` that
 have the same values at `keys`, with the `aggregates` over the items of each
@@ -262,7 +262,7 @@ group_collection!(collection, keys...; aggregates = Any[:count], editor = get_ev
 # @optional: the count is what the call says, and a call with no count takes the first
 # items away, as a call of `filter_collection!` with no condition takes the filter away.
 """
-    limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> Text
+    limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> String
 
 Show only the first `count` items of the collection at `collection`, in the order
 that its filter, its sort and its group give, and answer how the collection shows
@@ -386,7 +386,7 @@ function _arrange_collection!(editor, collection, description, words::String)
                             string(strip_reference_types(_get_collection_reference(collection))) *
                             ", so it can not be arranged."))
     evaluate_operation(editor, operation)
-    Text(_describe_collection_at(editor.document, _get_collection_reference(collection)))
+    _describe_collection_at(editor.document, _get_collection_reference(collection))
 end
 
 # The edit, read from the collection by the readers of the editor: from the

@@ -64,7 +64,7 @@ function make_pred_document(::Type{<:Settings}, positional, keywords)
 end
 
 """
-    describe_settings(; editor = get_evaluation_editor()) -> Text
+    describe_settings(; editor = get_evaluation_editor()) -> String
 
 The settings of the window, one line each: the group, the name, the value now,
 and the sentence that says what the setting does, with the values it can take
@@ -86,7 +86,7 @@ function describe_settings end
 function describe_settings(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_settings") do
         settings = find_editor_settings(; editor)
-        settings === nothing && return Text("This window has no settings.")
+        settings === nothing && return "This window has no settings."
         lines = String[]
         for group in get_settings_groups(settings)
             T = get_settings_group_type(group)
@@ -98,7 +98,7 @@ function describe_settings(; editor = get_evaluation_editor())
                              description.text * values)
             end
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 

@@ -256,7 +256,7 @@ function parse_natural_text(format::Symbol, text::AbstractString)
 end
 
 """
-    describe_natural_formats() -> Text
+    describe_natural_formats() -> String
 
 The formats that [`parse_natural_text`](@ref) reads, one line each: the format,
 the extension of its files, and the kind of document that it makes, such as
@@ -282,7 +282,7 @@ function describe_natural_formats()
         has_natural_parser(format) || continue
         push!(lines, rpad(repr(format), 8) * rpad(extension, 10) * String(nameof(T)))
     end
-    Text(join(sort(lines), "\n"))
+    join(sort(lines), "\n")
 end
 
 """

@@ -259,7 +259,7 @@ function find_explorer_content(; editor = get_evaluation_editor())
 end
 
 """
-    open_explorer_page!(part; editor = get_evaluation_editor()) -> Text
+    open_explorer_page!(part; editor = get_evaluation_editor()) -> String
 
 Show the page of `part` in the navigator of the explorer, beside its tree, and open
 the rows of the tree above it so its row shows, as a press on a link on a page
@@ -305,7 +305,7 @@ function open_explorer_page!(part::ReferencedDocument; editor = get_evaluation_e
         rooted === nothing && throw(ArgumentError("The window can not show this part in the explorer."))
         evaluate_operation(editor, rooted)
     end
-    Text("The explorer shows the page of " * describe_document(part) * ".")
+    "The explorer shows the page of " * describe_document(part) * "."
 end
 
 # The path of `part` from the root section `content` of the explorer: the rest of

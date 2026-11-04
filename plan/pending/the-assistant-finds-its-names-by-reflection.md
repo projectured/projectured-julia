@@ -218,7 +218,18 @@ index shows them. An example is `JsonModule`: "The JSON slice."
 
 ### 4.7 The defects of §2
 
-- The text answers work with string functions (open item 3).
+- The text answers work with string functions (open item 3). **Decided by the
+  owner (2026-11-04):** each verb answers a plain `String`, and
+  `_describe_value_for_model` shows a `String` that has a line break as its plain
+  lines, without quotes; a one-line string keeps its quotes, as in the REPL.
+  `describe_value_for_person` does not change. *Done (2026-11-04).* The
+  verbs of 15 files in both repositories answer a `String` (an agent (Sonnet)
+  made the change, and I read the diff), and their docstrings say `-> String`.
+  The pane verbs answer the `String` of `show_layout`. Tests that read
+  `show_layout(…).content`, or `isa Text`, read the string. The guides of the
+  pane, the system process and the agent say `String`. Tests: the code tool
+  (85/85), the platform suite in its own environment, the application and
+  assistant tests, and the IDE tests, each with only the failures known before.
 - The scratch module's `show`, `display` and `@show` pass on keywords. *Done in
   step 2 (`dcda01712`):* `show` passes its keywords on, and a test of the declared
   API checks it; `display` and `@show` of Base take no keyword.
@@ -563,9 +574,9 @@ ends with a commit in each repository that it changes.
    the owner decides first.
 2. ~~**The mark on a supertype** (§4.1).~~ Decided by the owner (2026-11-02): a mark
    on a type also offers its subtypes (option A).
-3. **The text answers.** My recommendation: a verb answers a `String`, and the
-   code tool shows a `String` answer as its plain text. The owner confirms it at
-   step 2.
+3. ~~**The text answers.**~~ Decided by the owner (2026-11-04): a verb answers a
+   `String`, and the code tool shows a `String` with a line break as its plain
+   lines (§4.7).
 4. ~~**The rank of a family member in the search.**~~ Decided by the owner
    (2026-11-02): a name with its own mark ranks above a name that only its family
    offers. The word ranking ranks in tiers: an exact name first, then the marked

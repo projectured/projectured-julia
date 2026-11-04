@@ -607,7 +607,7 @@ function find_study_item(study::ReferencedDocument, id::AbstractString)
 end
 
 """
-    describe_study(study) -> Base.Text
+    describe_study(study) -> String
 
 The outline of `study` as text: its title, then one line for each item, with its
 id, its status, its text, its links, its author and its time, and a line under it
@@ -638,7 +638,7 @@ function describe_study(study)
             push!(lines, "  element: " * _describe_research_element(element))
         end
     end
-    Base.Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 # The kind of an element by the shortest name that completes it, and its first line

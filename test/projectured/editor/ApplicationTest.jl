@@ -834,7 +834,7 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
-                layout = String(show_layout(; editor).content)
+                layout = show_layout(; editor)
                 lines = split(chomp(layout), "\n")
                 @test startswith(lines[1], "(root)") && occursin("::ScreenDocument", lines[1])
                 @test any(line -> occursin("::PaneTree", line) &&

@@ -30,7 +30,7 @@ TaskModule.get_work_item_identifier(item::_TaskViewProbeItem) = item.identifier
 TaskModule.describe_work_item_kind(::_TaskViewProbeItem, count::Integer) = count == 1 ? "probe" : "probes"
 TaskModule.stop_work_item!(item::_TaskViewProbeItem) = (item.stopped = true; nothing)
 TaskModule.describe_work_item(item::_TaskViewProbeItem; limit::Integer = 20) =
-    Text(join(first(String[item.stopped ? "stopped" : "running", "found 3"], limit), "\n"))
+    join(first(String[item.stopped ? "stopped" : "running", "found 3"], limit), "\n")
 DocumentModule.get_document_title(item::_TaskViewProbeItem) = item.title
 ProjecturedPlatform.DomainModule.get_document_decoration(item::_TaskViewProbeItem) =
     DocumentDecoration(; icon = :search, conditions = [DocumentCondition(item.stopped ? :stopped : :running)],

@@ -170,8 +170,8 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 
 | Verb | What it does | Returns |
 | --- | --- | --- |
-| `show_layout()` | prints the layout as a tree of reference steps | a `Text` |
-| `get_referenced_value(reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
+| `show_layout()` | prints the layout as a tree of reference steps | a `String` |
+| `get_referenced_value(reference)` | reads the node at a reference | the part, the node with its place, or an `ArgumentError` that names the path |
 | `replace_referenced_value!(reference, value)` | writes a value at a reference, as one undo step | the new layout |
 | `open_pane!(document; title, group, target, side)` | places a document in a new tab, behind the tab that its group shows; the focus stays | the new tab, as a `ReferencedDocument` |
 | `show_pane!(reference)` | brings a tab to the front of its group; the focus stays, unless it is in that group | the new layout |

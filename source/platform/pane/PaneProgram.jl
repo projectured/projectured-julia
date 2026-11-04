@@ -513,7 +513,7 @@ get_referenced_value(reference::ReferencedDocument; keywords...) =
 # ── Writing ─────────────────────────────────────────────────────────────────
 
 """
-    replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text
+    replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> String
     replace_referenced_value!(part, field, value; editor = get_evaluation_editor()) -> ReferencedDocument
 
 Put `value` where `reference` points, and answer the new layout, as
@@ -741,7 +741,7 @@ end
 # own and not a write at a reference.
 
 """
-    focus_pane!(reference::Reference; editor = get_evaluation_editor()) -> Text
+    focus_pane!(reference::Reference; editor = get_evaluation_editor()) -> String
 
 Show the pane `reference` names and give it the focus, and answer the new
 layout, as [`show_layout`](@ref) prints it.
@@ -815,7 +815,7 @@ function make_focus_pane_operation(reference::Reference; editor = get_evaluation
 end
 
 """
-    show_pane!(reference; editor = get_evaluation_editor()) -> Text
+    show_pane!(reference; editor = get_evaluation_editor()) -> String
 
 Bring the pane `reference` names to the front of its group, and answer the new
 layout, as [`show_layout`](@ref) prints it. The focus of the person stays where
@@ -997,7 +997,7 @@ end
 # ── Closing a pane ──────────────────────────────────────────────────────────
 
 """
-    close_pane!(reference::Reference; editor = get_evaluation_editor()) -> Text
+    close_pane!(reference::Reference; editor = get_evaluation_editor()) -> String
 
 Close the pane `reference` names, and answer the new layout, as
 [`show_layout`](@ref) prints it.
@@ -1323,7 +1323,7 @@ end
 
 """
     move_pane!(reference::Reference, target::Reference; side = nothing,
-               editor = get_evaluation_editor()) -> Text
+               editor = get_evaluation_editor()) -> String
 
 Move the pane `reference` names to `target`, and answer the window's new layout.
 
@@ -1409,7 +1409,7 @@ end
 
 """
     show_layout(; include = is_layout_line, descend = is_pane_search_step,
-                editor = get_evaluation_editor()) -> Text
+                editor = get_evaluation_editor()) -> String
 
 What is where in the windows of the editor: a tree of reference steps, one line
 for each window, pane tree, split, group and tab, with the type of the node it
@@ -1454,8 +1454,8 @@ whose steps go through wrappers, such as a history, names them.
 the walk goes. The defaults show the windows, the pane trees, the splits, the
 groups and the tabs, and a pane tree inside a tab below that tab.
 
-It answers a `Text`, not a `String`, so the tree arrives as the lines it is. A
-`String` would reach a model through `repr`, as one line of `\\n` escapes.
+It answers a `String` with one line per node. The code tool shows a string with
+line breaks as its lines.
 
 For the assistant.
 """
@@ -1484,8 +1484,8 @@ function show_layout(; include = is_layout_line, descend = is_pane_search_step,
         end
         width = maximum(line -> length(line[1]), lines; init = 0)
         kind = maximum(line -> length(line[2]), lines; init = 0)
-        Text(join((rpad(step, width + 2) * rpad(type, kind + 2) *
-                   (isempty(note) ? "" : "# " * note) for (step, type, note) in lines), "\n") * "\n")
+        join((rpad(step, width + 2) * rpad(type, kind + 2) *
+               (isempty(note) ? "" : "# " * note) for (step, type, note) in lines), "\n") * "\n"
     end
 end
 
