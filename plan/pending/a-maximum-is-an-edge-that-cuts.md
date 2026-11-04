@@ -669,6 +669,14 @@ Found in this step:
   line "5 statistics" shows at 595; on the branch the table is 907 high and the
   statistics are below the window. Step 6 said that a file tab never holds a
   table that fills the tab; a result file does.
+  The cause: `get_visible_height` read the maximum, else the visible extent. A
+  `Fill` table in a tab that grows has the range `(357, ∅)`, so it read the view,
+  907. Now `get_visible_height` and `get_visible_width` read the maximum, else the
+  minimum, else the visible extent (the owner: yes). The minimum is the share
+  that a stack gives a weighted part on an axis that grows. A direct child of a
+  scroll area that grows has the view as its minimum, so it reads the same value
+  as before. The probe of the result file now gives each place and size that
+  main gives. `layout-rules.md` §3c shows the rule and this case.
 
 ## 6. Not in this plan
 

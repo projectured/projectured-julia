@@ -187,7 +187,7 @@ offer is a minimum, `(view, ∅)`: a weighted part takes at least its share of t
 view (§4), and the content can be taller. Both axes fit by default. On both kinds
 of axis the viewport gives the view as the **visible extent**: a part that builds
 only the rows that show reads `get_visible_height(ctx)`, which is the maximum of
-its range when it has one, and else that view (§3c).
+its range when it has one, else its minimum, and else that view (§3c).
 
 On an axis where it has neither, a viewport passes its own range on, less its
 insets, and takes its content between the minimum and the maximum of that range:
@@ -267,12 +267,19 @@ its own view, and the parts below it keep the value.
 
 ```
 get_visible_height(ctx) = ctx.maximum_height     when the range has a maximum: the giver cuts there
+                          ctx.minimum_height     else, when the range has a minimum: the share of the giver
                           the visible extent     else, from the nearest scroll area
                           nothing                else
 ```
 
 `get_visible_width` reads the width in the same way. So a part reads one value in
-a slot, in a bounded range and in a scroll area that grows. The visible extent is
+a slot, in a bounded range and in a scroll area that grows.
+
+The minimum comes before the visible extent because, on an axis that grows, a
+stack gives a weighted part its share of the view as a minimum (§4). Two tables
+of the same weight below a card, in a view of 907, each get `(357, ∅)`. Each
+table shows 357, the height that it shows in a page of a fixed size. With the
+visible extent, each table is as tall as the whole view. The visible extent is
 a property of the context of the layout package, and not a field of
 `PrinterContext`, because the kernel has no view.
 

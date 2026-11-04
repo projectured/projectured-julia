@@ -1140,29 +1140,34 @@ end
     get_visible_width(ctx) -> Union{Cell, Nothing}
 
 The most of the width of a part that can show now: the maximum of its range when
-it has one, because its giver cuts there; else the visible extent of the scroll
-area that holds it, which grows on the width; else `nothing`.
+it has one, because its giver cuts there; else the minimum of its range when it
+has one, because that is the share that its giver gives it; else the visible
+extent of the scroll area that holds it, which grows on the width; else
+`nothing`.
 
 Use it in a part that builds only the columns that show. A part that fills its
 own slot reads `get_exact_width`.
 """
 get_visible_width(ctx) =
     ctx === nothing ? nothing :
-    ctx.maximum_width !== nothing ? ctx.maximum_width : get_property(ctx, :visible_width)
+    ctx.maximum_width !== nothing ? ctx.maximum_width :
+    ctx.minimum_width !== nothing ? ctx.minimum_width : get_property(ctx, :visible_width)
 
 """
     get_visible_height(ctx) -> Union{Cell, Nothing}
 
 The most of the height of a part that can show now: the maximum of its range
-when it has one; else the visible extent of the scroll area that holds it, which
-grows on the height; else `nothing`. See [`get_visible_width`](@ref).
+when it has one; else the minimum of its range when it has one; else the visible
+extent of the scroll area that holds it, which grows on the height; else
+`nothing`. See [`get_visible_width`](@ref).
 
 Use it in a part that builds only the rows that show: a table of a list, the
 lines of a stream, the rows of a data frame.
 """
 get_visible_height(ctx) =
     ctx === nothing ? nothing :
-    ctx.maximum_height !== nothing ? ctx.maximum_height : get_property(ctx, :visible_height)
+    ctx.maximum_height !== nothing ? ctx.maximum_height :
+    ctx.minimum_height !== nothing ? ctx.minimum_height : get_property(ctx, :visible_height)
 
 function _vl_build(recursion, doc, ctx)
     gap_cell   = getfield(doc, :gap)
