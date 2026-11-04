@@ -472,6 +472,55 @@ A start is the start of the program with `--build-info`, which prints after
 the load of every package of the program and exits. So it measures the load
 and the compile of packages, and not the first frame.
 
+**The method.** Each pair of a Julia and a program is one job, with its own
+clones of the branches `reactive-dependencies` of projectured-julia and
+omnet-julia, of inet-julia and of the four repositories beside them, the
+manifests of the checkouts of the user, and a new depot before `~/.julia`.
+The jobs run one after the other. A job runs the cases in the order of the
+list, so each change is on top of the one before; the first build comes after
+the starts from source, in the same depot. A time is the time of the whole
+process, and the count of package files is the count of the `.so` files that
+the depot gained or wrote again. A load touches the `.ji` file of each
+package, so a count of the `.ji` files is wrong. The REPL cases run as a job
+of their own for each Julia: `jo` in a new depot, then `jp` and `ji` in the
+same depot after the change.
+
+Each job runs with `nice -n 10 taskset -c 16-23` and a cap of 23 GB. The cap
+of `bounded-run` stays under half of the free memory, about 24 GB here. An
+unpinned plain build of `projectured` went past 24 GB twice, and the kernel
+stopped it. On 8 CPUs, Julia writes the system image with 4 threads instead
+of 16, and the build fits.
+
+**The results for `projectured`.**
+
+| Case | Vanilla | Reactive |
+| --- | --- | --- |
+| Start from source, new depot | 265 s, 45 files | 277 s, 102 files |
+| Start from source, no change | 10.4 s | 10.3 s |
+| Build from nothing | 1084 s | 1681 s, the founding |
+| Start of the binary | 0.4 s | 0.1 s |
+| Start from source after a method body change | 254 s, 28 files | 30.2 s, 2 patches |
+| Start from source, no change after it | 10.4 s | 11.6 s |
+| Build after the method body change | 1073 s | 9.7 s, a snapshot |
+| Start of the binary after that build | 0.4 s | 0.1 s |
+| Start from source after a macro change | | 125.6 s, a patch and 15 files |
+| Start from source after a constant change | | 14.4 s, a patch |
+| Start from source, no change after them | | 10.9 s |
+
+- The reactive Julia compiles more files in a new depot because it is not
+  1.13.1, so `~/.julia` has no compiled file for it.
+- The two patches after the method body change are the patch of the
+  platform and the patch of `ProjecturedApp`. A build adds two lines to the
+  build information of the app package that a start from source does not
+  add: the mark of an incremental build and the mark of the reactive store.
+  So the first start from source after a build writes the app package again
+  and compiles it again. Vanilla Julia compiles it whole.
+- The macro change compiles the packages that read the macro at their top
+  level and the packages above them, as in step 3.
+- A build keeps the build time of `--build-info` when only the time differs,
+  so the binary after the rebuild shows the time of the first build. The
+  snapshot `sys.2.so` holds the edit.
+
 ## Not in this plan
 
 - One store of compiled code for several worktrees of the same commit.
