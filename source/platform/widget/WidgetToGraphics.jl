@@ -136,11 +136,56 @@ end
 _get_inset_sides(inset::Inset) =
     (_sc(Int(inset.left[])), _sc(Int(inset.top[])), _sc(Int(inset.right[])), _sc(Int(inset.bottom[])))
 
+# The shape of a widget box: from the outside in, the space that the parent gives
+# around the box, the margin, the border and the padding, each as
+# `(left, top, right, bottom)`. The outer extent of the box is the extent of its
+# canvas, so the shape does not hold it. A printer computes the shape once
+# (`_make_box_geometry_cell`), and its IO map carries it to the readers
+# (`_get_box_geometry`).
+struct BoxGeometry
+    space::NTuple{4, Int}
+    margin::NTuple{4, Int}
+    border::NTuple{4, Int}
+    padding::NTuple{4, Int}
+end
+
+# The shape of a widget that draws no box, such as a widget that is not visible.
+const _NO_BOX_GEOMETRY = BoxGeometry((0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0))
+
+# The shape of `w` that `p` draws in `variant`, with `space` around it.
+_compute_box_geometry(p, w, space::Inset; variant = nothing) =
+    BoxGeometry(_get_inset_sides(space),
+                _get_inset_sides(_get_inset(w, p, :margin; variant)),
+                _get_inset_sides(_get_inset(w, p, :border; variant)),
+                _get_inset_sides(_get_inset(w, p, :padding; variant)))
+
+# The shape in a cell, which each computation of a print reads. The insets of the
+# theme and of the document are cells, so a change of one reaches the shape.
+_make_box_geometry_cell(p, w, space::Inset; variant = nothing) =
+    Cell(@computation _compute_box_geometry(p, w, space; variant))
+
+# The place of the content in the frame of the box.
+_get_content_offset(box::BoxGeometry) =
+    (box.space[1] + box.margin[1] + box.border[1] + box.padding[1],
+     box.space[2] + box.margin[2] + box.border[2] + box.padding[2])
+
+# The width and the height that the four insets take together.
+_get_inset_total(box::BoxGeometry) =
+    (box.space[1] + box.space[3] + box.margin[1] + box.margin[3] + box.border[1] + box.border[3] +
+     box.padding[1] + box.padding[3],
+     box.space[2] + box.space[4] + box.margin[2] + box.margin[4] + box.border[2] + box.border[4] +
+     box.padding[2] + box.padding[4])
+
+# The rect `(x, y, width, height)` of the border box, inside the space and the
+# margin, in a box whose outer extent is `width` by `height`.
+function _get_border_rect(box::BoxGeometry, width::Int, height::Int)
+    left = box.space[1] + box.margin[1]
+    top = box.space[2] + box.margin[2]
+    (left, top, width - left - box.space[3] - box.margin[3], height - top - box.space[4] - box.margin[4])
+end
+
 # The resolved insets of `w`, each as `(left, top, right, bottom)`.
-_get_box_insets(p, w; variant = nothing) =
-    (margin  = _get_inset_sides(_get_inset(w, p, :margin; variant)),
-     border  = _get_inset_sides(_get_inset(w, p, :border; variant)),
-     padding = _get_inset_sides(_get_inset(w, p, :padding; variant)))
+_get_box_insets(p, w; variant = nothing) = _compute_box_geometry(p, w, inset_default; variant)
 
 function _content_offset(p, w::WidgetDocument; variant = nothing)
     box = _get_box_insets(p, w; variant)
@@ -164,13 +209,6 @@ function _push_band!(elements::Vector, x::Int, y::Int, width::Int, height::Int, 
     right > 0 && push!(elements, GraphicsRect(x + width - right, y + top, right, height - top - bottom; color))
 end
 
-# Push the four box parts of a widget whose content is `content_width` by
-# `content_height`, at the widget's own origin. `box` holds the insets that
-# `_get_box_insets` resolves, and `colors` a color for each part: `margin`,
-# `border`, `padding` and `content`. A transparent part adds no element. With a
-# uniform border and one color for the padding and the content, the border, the
-# padding and the content are one rounded rect; else each part is a band, so a
-# translucent part does not show the color of the part around it.
 # True when `_push_box_parts!` can draw something for a box of these insets and
 # colours: a colour that is not transparent, and a border only where it has a width.
 _is_box_visible(box, colors) =
@@ -178,34 +216,44 @@ _is_box_visible(box, colors) =
     !is_color_transparent(colors.content) ||
     (any(>(0), box.border) && !is_color_transparent(colors.border))
 
-function _push_box_parts!(elements::Vector, box, colors, content_width::Int, content_height::Int;
-                          radius::Int = 0)
+# Push the four box parts of a widget whose content is `content_width` by
+# `content_height`, inside the space of the box at the widget's own origin. `box`
+# is the shape of the box, and `colors` a color for each part: `margin`,
+# `border`, `padding` and `content`. A transparent part adds no element. With a
+# uniform border and one color for the padding and the content, the border, the
+# padding and the content are one rounded rect; else each part is a band, so a
+# translucent part does not show the color of the part around it.
+function _push_box_parts!(elements::Vector, box::BoxGeometry, colors, content_width::Int,
+                          content_height::Int; radius::Int = 0)
+    space_left, space_top = box.space
     margin_left, margin_top, margin_right, margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
     padding_left, padding_top, padding_right, padding_bottom = box.padding
     border_box_width = border_left + padding_left + content_width + padding_right + border_right
     border_box_height = border_top + padding_top + content_height + padding_bottom + border_bottom
-    _push_band!(elements, 0, 0, margin_left + border_box_width + margin_right,
+    margin_x, margin_y = space_left, space_top
+    border_x, border_y = margin_x + margin_left, margin_y + margin_top
+    _push_band!(elements, margin_x, margin_y, margin_left + border_box_width + margin_right,
                 margin_top + border_box_height + margin_bottom, box.margin, colors.margin)
     uniform = border_left == border_top == border_right == border_bottom
     if uniform && is_color_equal(colors.padding, colors.content)
-        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+        _push_panel!(elements, border_x, border_y, border_box_width, border_box_height;
                      fill = colors.padding, border = colors.border, border_w = border_left, radius = radius)
         return
     end
     if uniform
-        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+        _push_panel!(elements, border_x, border_y, border_box_width, border_box_height;
                      fill = color_transparent, border = colors.border, border_w = border_left, radius = radius)
     else
-        _push_band!(elements, margin_left, margin_top, border_box_width, border_box_height,
+        _push_band!(elements, border_x, border_y, border_box_width, border_box_height,
                     box.border, colors.border)
     end
-    _push_band!(elements, margin_left + border_left, margin_top + border_top,
+    _push_band!(elements, border_x + border_left, border_y + border_top,
                 padding_left + content_width + padding_right, padding_top + content_height + padding_bottom,
                 box.padding, colors.padding)
     # The content keeps the corner radius, less the border and the padding
     # that lie between it and the rounded outline.
-    _push_panel!(elements, margin_left + border_left + padding_left, margin_top + border_top + padding_top,
+    _push_panel!(elements, border_x + border_left + padding_left, border_y + border_top + padding_top,
                  content_width, content_height; fill = colors.content,
                  radius = max(0, radius - border_left - padding_left))
 end
@@ -234,7 +282,9 @@ end
 # is a pair of cells, such as the viewport of a pane. The bands follow the cells,
 # so a content that grows moves them without a print of the pane. The pane
 # paints its content part itself.
-function _push_following_box_bands!(elements::Vector, box, colors, content_width::Cell, content_height::Cell)
+function _push_following_box_bands!(elements::Vector, box::BoxGeometry, colors, content_width::Cell,
+                                    content_height::Cell)
+    space_left, space_top = box.space
     margin_left, margin_top, margin_right, margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
     padding_left, padding_top, padding_right, padding_bottom = box.padding
@@ -242,12 +292,13 @@ function _push_following_box_bands!(elements::Vector, box, colors, content_width
     padding_height() = padding_top + Int(content_height[]) + padding_bottom
     border_width() = border_left + padding_width() + border_right
     border_height() = border_top + padding_height() + border_bottom
-    _push_following_band!(elements, () -> 0, () -> 0,
+    border_x, border_y = space_left + margin_left, space_top + margin_top
+    _push_following_band!(elements, () -> space_left, () -> space_top,
                           () -> margin_left + border_width() + margin_right,
                           () -> margin_top + border_height() + margin_bottom, box.margin, colors.margin)
-    _push_following_band!(elements, () -> margin_left, () -> margin_top, border_width, border_height,
+    _push_following_band!(elements, () -> border_x, () -> border_y, border_width, border_height,
                           box.border, colors.border)
-    _push_following_band!(elements, () -> margin_left + border_left, () -> margin_top + border_top,
+    _push_following_band!(elements, () -> border_x + border_left, () -> border_y + border_top,
                           padding_width, padding_height, box.padding, colors.padding)
 end
 
@@ -310,6 +361,56 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
         set_cell_computation!(getfield(rect, :border_color), () ->
             get_stored_selection(w) isa EmptyReference ? whole.selection_ring : ring.color)
     push!(elems, rect)
+end
+
+# ── The IO map of a widget ──────────────────────────────────────────────────
+# A widget printer puts the shape of its box into its IO map, so its readers, its
+# hit tests and the ring of its selection read the shape there. A widget that
+# holds no child returns a `WidgetBoxIoMap`, and a container a
+# `WidgetChildrenIoMap`. A widget with an IO map of its own holds the shape in
+# its field `box`.
+
+# The IO map of a widget that holds no child: the fields of a `SimpleIoMap`, and
+# the shape of the box.
+@iomap struct WidgetBoxIoMap
+    projection::Any
+    input::Any
+    output::Any
+    box::Any
+end
+
+# The IO map of a widget that holds children: the fields of a `ChildrenIoMap`,
+# whose `child_iomaps` holds an `(x, y, child_iomap)` entry for each child, and
+# the shape of the box.
+@iomap struct WidgetChildrenIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+end
+
+# The shape of the box of a widget, from its IO map.
+_get_box_geometry(iomap) = iomap.box
+
+# What a route reaches through a container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetChildrenIoMap) =
+    _collect_child_iomaps(iomap.child_iomaps...)
+
+# A widget with no child answers the baseline of its text by a method for its
+# projection. One that draws no text answers none.
+find_first_baseline(iomap::WidgetBoxIoMap) = find_first_baseline(iomap.projection, iomap)
+find_first_baseline(projection, iomap::WidgetBoxIoMap) = nothing
+
+# A container answers the baseline of its first child that has one, offset by the
+# place of that child.
+function find_first_baseline(iomap::WidgetChildrenIoMap)
+    for entry in iomap.child_iomaps
+        (entry isa Tuple && length(entry) == 3) || continue
+        baseline = find_first_baseline(entry[3])
+        baseline === nothing || return Int(unwrap_cell(entry[2])) + baseline
+    end
+    nothing
 end
 
 # ── The light under the pointer ─────────────────────────────────────────────
@@ -1641,10 +1742,10 @@ end
 
 # The baseline of the first line of a label: the top of its content box and the
 # baseline of the line box of its text. An image has none.
-function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap)
+function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap)
     w = iomap.input
     (w.visible == false || w.content isa ImageDocument) && return nothing
-    _, content_y = _content_offset(p, w)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     font = _get_label_style(p, w).font
     spacing = w.line_spacing
     line = spacing === nothing ? compute_line_box(p.measure, string(w.content), font) :
@@ -1653,9 +1754,10 @@ function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap)
 end
 
 function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         content = w.content
         # A label may carry its own font+color (e.g. a chat card's title) that
         # overrides the theme's default label style — or a bare COLOUR, which
@@ -1666,10 +1768,10 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         # font in the color of the text beside it. `text_style` wins over the
         # `label_text_color` of a style.
         style = _get_label_style(p, w)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         content_width, content_height = _content_size(p.measure, style.font, content)
         content isa ImageDocument &&
             ((content_width, content_height) = _fit_image_size(content_width, content_height, ctx,
@@ -1705,7 +1807,7 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
                        content_height; placeholder_color = p.placeholder_color)
         (width = outer_width, height = outer_height, elements = elements)
-    end))
+    end), geometry)
 end
 
 map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -1767,7 +1869,7 @@ function _find_row_index(bounds, y::Real)
 end
 
 # A label takes only the gestures that it is given, such as a press on a chip.
-function read_intent(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
@@ -1804,17 +1906,19 @@ function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::Widget
     content = "insert here"
     label = _get_part_text(w, :label_text, p.label_text)
     content_width, content_height = _text_size(p.measure, label.font, content)
-    inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
+    box = _compute_box_geometry(p, w, inset_default)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     elements = Any[]
-    _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+    _push_box_parts!(elements, box, _get_box_colors(p, w), content_width, content_height)
     _push_text!(elements, p.measure, label.font, content, content_x, content_y, label.color)
-    SimpleIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements))
+    WidgetBoxIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements),
+                   box)
 end
 
 map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
@@ -1835,6 +1939,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
     output::Any
     content_iomap::Any
     value_iomap::Any   # the child of a document in `content` that gives a value, or nothing
+    box::Any
 end
 
 # ── A plain value as a text ─────────────────────────────────────────────────
@@ -1965,17 +2070,21 @@ end
 _get_plain_text_view(iomap) = iomap.content_iomap.input
 
 # The range of the content of a widget that draws its box around it: the range of
-# the widget less its insets, in the same state, so a slot stays a slot and an edge
-# stays an edge (§3 of layout-rules.md).
-function _get_inner_content_context(p, w::WidgetDocument, ctx)
+# the widget less the insets of its shape `geometry`, a cell, in the same state, so
+# a slot stays a slot and an edge stays an edge (§3 of layout-rules.md).
+function _get_inner_content_context(geometry::Cell, ctx)
     ctx === nothing && return nothing
-    with_inner_size(ctx; width = Cell(@computation _inset_total(p, w)[1]),
-                    height = Cell(@computation _inset_total(p, w)[2]))
+    with_inner_size(ctx; width = Cell(@computation _get_inset_total(geometry[])[1]),
+                    height = Cell(@computation _get_inset_total(geometry[])[2]))
 end
 
+_get_inner_content_context(p, w::WidgetDocument, ctx) =
+    _get_inner_content_context(_make_box_geometry_cell(p, w, inset_default), ctx)
+
 function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     pos = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, inset_default)
 
     state = w.enabled === false ? :disabled : nothing
 
@@ -1987,7 +2096,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # as an `ObjectField` does under the nesting of a value widget, is drawn
     # through a text view of that value. Which of the two a document is, is read
     # once, here, and with no reader, so the print does not follow the value.
-    content_ctx = _get_inner_content_context(p, w, ctx)
+    content_ctx = _get_inner_content_context(geometry, ctx)
     document_iomap = w.content isa Document ?
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
         nothing
@@ -2002,8 +2111,9 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # The box is at least as wide as the widget asks for, and always at
         # least one line tall. An empty document measures nothing in both
         # directions, and a form field of nothing cannot be clicked.
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         # An empty field of plain text shows its placeholder, an example of what
         # it takes, where its text begins, and is as wide as the example.
         placeholder = w.placeholder
@@ -2025,7 +2135,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
                                   max(Int(inner.h[]),
                                       _text_size(p.measure, text_style.font, "X")[2]) + inset_height)
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
+        _push_box_parts!(elems, box, _get_box_colors(p, w; state),
                          outer_w - inset_width, outer_h - inset_height; radius)
         w.quiet && _make_box_quiet!(elems, w)
         if shows_placeholder
@@ -2043,7 +2153,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         (width=outer_w, height=outer_h, elements=elems)
     end)
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap,
-                                    value_slot)
+                                    value_slot, geometry)
 end
 
 # The parts of the box of a quiet field take no colour while the field holds no
@@ -2117,7 +2227,7 @@ _map_text_point(point::PointReferenceStep) =
     ConcreteReference(FieldReferenceStep("content"), ConcreteReference(point, EmptyReference()))
 
 # Invisible text (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`. A field is
@@ -2128,7 +2238,7 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     _is_plain_typed(evt, '\n') && return nothing
     operation = _validate_text_edit(iomap.input,
-        _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
+        _read_text_content_intent(p, iomap, evt, _get_content_offset(_get_box_geometry(iomap))...))
     child = iomap.value_iomap
     child === nothing ? operation : _make_value_text_store(iomap.input, child, operation)
 end
@@ -2232,20 +2342,22 @@ function _push_mark_label!(elements::Vector, p, content, x::Int, y::Int)
 end
 
 function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :content, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         checked = _get_slot_value(w, :content, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         box_size = p.indicator_size
         corner_radius = p.corner_radius
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         content = _get_mark_label_layout(p, w, box_size, box_size, enabled)
         x, y = content_x, content_y + content.mark_y
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content.width, content.height)
+        _push_box_parts!(elements, box, _get_box_colors(p, w), content.width, content.height)
         _push_mark_label!(elements, p, content, content_x, content_y)
         # When disabled, the box uses the muted surface and the tick/outline render in
         # the muted foreground, keeping the checked/unchecked shape but signalling that
@@ -2263,7 +2375,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2322,9 +2434,10 @@ _button_label_content(w::WidgetButton) = _button_action(w).label
 _button_icon(w::WidgetButton) = _button_action(w).icon
 
 function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         authored_size = w.size::Point2D
         label_content = _button_label_content(w)
         content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
@@ -2333,9 +2446,9 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         for other in w.labels
             content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
         end
-        box = _get_box_insets(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         # An optional leading icon: a square of the height of the label times the icon
         # scale, with a gap before the label. The button is as tall as the larger of
         # the icon and the label. An unknown icon name contributes nothing.
@@ -2362,21 +2475,20 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # The rect of the border: the box without its margin.
-        margin_left, margin_top, margin_right, margin_bottom = box.margin
-        border_box_width = button_width - margin_left - margin_right
-        border_box_height = button_height - margin_top - margin_bottom
+        border_x, border_y, border_box_width, border_box_height = _get_border_rect(box, button_width,
+                                                                                   button_height)
         elements = Any[]
         # Default button: light surface, subtle border, soft shadow, dark label —
         # matching the shadcn default button. A faint offset rect approximates the
         # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
         # and while disabled (so it reads as inert/flat).
         if enabled && !pressed
-            _push_panel!(elements, margin_left, margin_top + p.shadow_offset, border_box_width,
+            _push_panel!(elements, border_x, border_y + p.shadow_offset, border_box_width,
                          border_box_height; fill = p.shadow_color, radius = corner_radius)
         end
         _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
                          radius = corner_radius)
-        enabled && _push_hover_layer!(elements, w, margin_left, margin_top, border_box_width, border_box_height;
+        enabled && _push_hover_layer!(elements, w, border_x, border_y, border_box_width, border_box_height;
                                       hovered_color = p.layer_hovered_color,
                                       pressed_color = p.layer_pressed_color, radius = corner_radius)
         # Lay out icon + label as one centered group; the icon tints to the label color
@@ -2392,7 +2504,7 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         # A press on a button that acts runs its action.
         enabled && push!(elements, GraphicsPointerShape(0, 0, button_width, button_height, :pointing_hand))
         (width=button_width, height=button_height, elements=elements)
-    end))
+    end), geometry)
 end
 
 map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2405,7 +2517,7 @@ end
 # action; press/release drive the held-down look. A move of the pointer also reaches the button when the
 # pointer leaves it; every other pointer event reaches it only when the parent
 # hit-tested the pointer onto it.
-function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetButtonToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     # A move off the button reaches it only while it is the part under the pointer,
     # so the pointer left it: a press that was released off the button ends here.
@@ -2491,10 +2603,10 @@ end
 # The baseline of the first line of a link with a text face, from the top of the
 # link. A break moves no baseline of the first line, so the text is measured
 # whole. A face that is a document gives no baseline.
-function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap)
+function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap)
     w = iomap.input
     (w.visible == false || w.content isa Document) && return nothing
-    _, content_y = _content_offset(p, w)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     measured = _measure_link_lines(p, w, 0)
     content_y + measured.text_top + measured.boxes[1].baseline
 end
@@ -2506,15 +2618,16 @@ end
 # press on the link, and the link is the part under the pointer. A line under the
 # face and the hand pointer say that a press opens it, while the link is enabled.
 function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     # The child is made only for a face that is a document.
     face = make_reconciled_child_iomap_cell(() -> w.content,
-                                            c -> print_child(recursion, c, _get_inner_content_context(p, w, ctx)))
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        box = _get_box_insets(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+                                            c -> print_child(recursion, c, _get_inner_content_context(geometry, ctx)))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         thickness = max(1, p.underline_width)
         elements = Any[]
         body = Any[]
@@ -2558,7 +2671,7 @@ function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink,
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
         _is_link_enabled(w) && push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :pointing_hand))
         (width = outer_width, height = outer_height, elements = elements)
-    end))
+    end), geometry)
 end
 
 # The line under the face of a link, while the pointer is on the link and the
@@ -2582,7 +2695,7 @@ map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) = nothing
 # while it has the focus. A link acts on the click, so it answers the press before
 # the click itself, as a button does, and the press selects nothing: no focus moves
 # to the link. A link that is not enabled answers nothing, as a disabled button.
-function read_intent(::WidgetLinkToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     _is_link_enabled(iomap.input) || return nothing
     is_focusing_press(evt) && return DoNothingOperation()
@@ -4851,7 +4964,7 @@ end
 # strip coordinates, `button_w` is the width of its button column (0 when it has
 # none), `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or
 # `:both`, the `+` above the `x`, `text_w` is the width of the label's text, and
-# `badges` holds a `(badge, width, height)` for each badge after the text — and the
+# `badges` holds a `(badge, box, width, height)` for each badge after the text — and the
 # new-tab button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
 #
 # The first six fields come in the order a positional destructure reads them.
@@ -4882,8 +4995,9 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
         badges = Any[]
         badges_w = 0
         for badge in _get_tab_badges(selector)
-            bw, bh = _measure_badge(p.badge, badge)
-            push!(badges, (badge, bw, bh))
+            badge_box = _compute_box_geometry(p.badge, badge, inset_default)
+            bw, bh = _measure_badge(p.badge, badge, badge_box)
+            push!(badges, (badge, badge_box, bw, bh))
             badges_w += p.label_gap + bw
             tab_h = max(tab_h, bh)
         end
@@ -5085,10 +5199,10 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             end
             # The badges follow the text, each centred on the height of the strip.
             badge_x = name_x + tw
-            for (badge, bw, bh) in badges
+            for (badge, badge_box, bw, bh) in badges
                 badge_x += p.label_gap
                 push!(header, _make_canvas(badge_x, coy + (sel_h - bh) ÷ 2,
-                                           _build_badge_elements(p.badge, badge, bw, bh)))
+                                           _build_badge_elements(p.badge, badge, badge_box, bw, bh)))
                 badge_x += bw
             end
             # The button column sits at the tab's right edge, tinted like its label.
@@ -7264,19 +7378,21 @@ WidgetStatusBarToGraphicsCanvas(theme; measure,
                                     padding_color, content_color, label_text, item_gap)
 
 function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     # A status bar is one line, so its height comes from the font of its labels
     # and from its insets, and not from its words. A segment that says something
     # else, as the selection does on each key, changes what the bar draws and not
     # the room the bands around it have.
     height = Cell(@computation begin
-        _, inset_height = _inset_total(p, w)
+        _, inset_height = _get_inset_total(geometry[])
         label = _get_part_text(w, :label_text, p.label_text)
         _resolve_height(ctx, 0, compute_line_box(p.measure, "", label.font).height + inset_height)
     end)
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
-        inset_width, inset_height = _inset_total(p, w)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
+        inset_width, inset_height = _get_inset_total(box)
         item_gap = p.item_gap
         label = _get_part_text(w, :label_text, p.label_text)
         labels = Any[]
@@ -7290,21 +7406,22 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
         end
         width = _resolve_width(ctx, 0, x + inset_width)
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w),
+        _push_box_parts!(elements, box, _get_box_colors(p, w),
                          width - inset_width, height[] - inset_height)
         append!(elements, labels)
         (width=width, elements=elements)
     end)
-    SimpleIoMap(p, w, GraphicsCanvas(Int32(0), Int32(0),
-                                     Cell(@computation Int32(build[].width)),
-                                     Cell(@computation Int32(height[])),
-                                     CellVector(@computation build[].elements),
-                                     layout_none, true, Cell(nothing)))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(Int32(0), Int32(0),
+                                        Cell(@computation Int32(build[].width)),
+                                        Cell(@computation Int32(height[])),
+                                        CellVector(@computation build[].elements),
+                                        layout_none, true, Cell(nothing)),
+                   geometry)
 end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
@@ -7317,11 +7434,11 @@ function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::
 end
 
 # The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
-# canvas of the bar, from the extent of the bar and its value.
-function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, w::WidgetScrollBar,
+# canvas of the bar, from the shape and the extent of the bar and its value.
+function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, box::BoxGeometry, w::WidgetScrollBar,
                                width::Int, height::Int)
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
+    cox, coy = _get_content_offset(box)
+    tx, ty = _get_inset_total(box)
     cw = max(1, width - tx)
     ch = max(1, height - ty)
     value = clamp(Float64(w.value), 0.0, 1.0)
@@ -7401,7 +7518,7 @@ _is_scroll_bar_scroll(old, new) = old[1] != new[1] && old[2] == new[2]
 # writes keeps a fade at its start. The pointer is an arrow over the bar, also
 # over a text under it.
 function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     pos = w.position
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
@@ -7413,7 +7530,8 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
                                                            offered_w, horizontal, p.thickness)))
     height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
                                                             offered_h, !horizontal, p.thickness)))
-    parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    parts = Cell(@computation _get_scroll_bar_thumb(p, geometry[], w, Int(width[]), Int(height[])))
     lit = Cell(@computation _is_under_pointer(w) || w.thumb_drag !== nothing)
     clock = ctx === nothing ? nothing : ctx.clock
     scroll = _make_change_time_cell(() -> (Float64(w.value), Float64(w.thumb_size)), clock,
@@ -7444,16 +7562,18 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
         rect
     end
     elems = Any[]
-    tx, ty = _inset_total(p, w)
-    _push_following_box_bands!(elems, _get_box_insets(p, w), _get_box_colors(p, w),
+    box = geometry[]
+    tx, ty = _get_inset_total(box)
+    _push_following_box_bands!(elems, box, _get_box_colors(p, w),
                                Cell(@computation Int32(max(1, Int(width[]) - tx))),
                                Cell(@computation Int32(max(1, Int(height[]) - ty))))
     push!(elems, make_rect(1))
     push!(elems, make_rect(2))
     push!(elems, GraphicsPointerShape(0, 0, width, height, :arrow))
-    SimpleIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
-                                     CellVector(Cell[Cell(e) for e in elems]),
-                                     layout_none, true, Cell(nothing)))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
+                                        CellVector(Cell[Cell(e) for e in elems]),
+                                        layout_none, true, Cell(nothing)),
+                   geometry)
 end
 
 map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -7464,10 +7584,10 @@ end
 
 # The place of the point `(x, y)` along a bar, and the track and the thumb of the
 # bar, each `(start, length)` along it, in the frame of the bar.
-function _find_scroll_bar_place(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, x::Int, y::Int)
+function _find_scroll_bar_place(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, x::Int, y::Int)
     w = iomap.input
     canvas = iomap.output
-    track, thumb = _get_scroll_bar_thumb(p, w, Int(canvas.w), Int(canvas.h))
+    track, thumb = _get_scroll_bar_thumb(p, _get_box_geometry(iomap), w, Int(canvas.w), Int(canvas.h))
     w.orientation === :horizontal ?
         (x - Int(canvas.x), (track[1], track[3]), (thumb[1], thumb[3])) :
         (y - Int(canvas.y), (track[2], track[4]), (thumb[2], thumb[4]))
@@ -7576,7 +7696,7 @@ _is_owned_scroll_bar_drag(w::WidgetScrollBar) =
 # sends are one `MouseClick` each, so each moves one page. The drag comes by the
 # path of the bar, wherever the pointer is, and the press is kept in the frame of
 # the bar.
-function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     @gesture_case evt begin
@@ -7639,14 +7759,14 @@ WidgetIconToGraphicsCanvas(theme; measure,
 # An icon with its corner marks, as tall as a line of the label font or as its own
 # size. The canvas is the box of the glyph, and the marks stand half outside it.
 function print_document(p::WidgetIconToGraphicsCanvas, recursion, w::WidgetIcon, ctx)
-    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+    WidgetBoxIoMap(p, w, _reactive_canvas(0, 0, () -> begin
         _, line = _text_size(p.measure, p.label_text.font, "M")
         size = icon_width(w, _get_icon_size(w, Int(line)))
         elements = Any[]
         size > 0 && _push_decorated_icon!(elements, p.badge, w, 0, 0, size, p.label_text.color,
                                           color_transparent)
         (width = size, height = size, elements = elements)
-    end))
+    end), _NO_BOX_GEOMETRY)
 end
 @_printer_only WidgetIconToGraphicsCanvas
 
@@ -7760,26 +7880,26 @@ function _get_badge_style(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
     (colors = _get_box_colors(p, w; variant), label = _get_state_text(p, w, :label; variant))
 end
 
-# The size of badge `w` as `p` draws it: its text, its padding and its border. A
-# widget that holds badges, such as the strip of a tabbed pane, measures each with
-# the badge printer of its theme and draws it with `_build_badge_elements`, so a
-# badge looks the same in every host.
-function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
+# The size of badge `w` of shape `box` as `p` draws it: its text, its padding and
+# its border. A widget that holds badges, such as the strip of a tabbed pane,
+# computes the shape of each with the badge printer of its theme, measures it, and
+# draws it with `_build_badge_elements`, so a badge looks the same in every host.
+function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry)
     style = _get_badge_style(p, w)
     content_width, content_height = _text_size(p.measure, style.label.font, string(w.content))
-    inset_width, inset_height = _inset_total(p, w)
+    inset_width, inset_height = _get_inset_total(box)
     (content_width + inset_width, content_height + inset_height)
 end
 
-# The graphics of badge `w`, `width` by `height`, with its top left corner at the
-# origin: the pill and its text.
-function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, width::Int, height::Int)
+# The graphics of badge `w` of shape `box`, `width` by `height`, with its top left
+# corner at the origin: the pill and its text.
+function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry,
+                               width::Int, height::Int)
     style = _get_badge_style(p, w)
     text = string(w.content)
     _, content_height = _text_size(p.measure, style.label.font, text)
-    box = _get_box_insets(p, w)
-    inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
     elements = Any[]
     _push_box_parts!(elements, box, style.colors, width - inset_width, height - inset_height;
@@ -7789,15 +7909,17 @@ function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, w
 end
 
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        natural_width, natural_height = _measure_badge(p, w)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
+        natural_width, natural_height = _measure_badge(p, w, box)
         badge_width  = _resolve_width(ctx, 0, natural_width)
         badge_height = _resolve_height(ctx, 0, natural_height)
         (width = badge_width, height = badge_height,
-         elements = _build_badge_elements(p, w, badge_width, badge_height))
-    end))
+         elements = _build_badge_elements(p, w, box, badge_width, badge_height))
+    end), geometry)
 end
 @_printer_only WidgetBadgeToGraphicsCanvas
 
@@ -7824,16 +7946,17 @@ WidgetSeparatorToGraphicsCanvas(theme;
                                     content_color, divider_stroke)
 
 function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         rule_length = _sc(Int(w.length))
         divider_stroke = _get_state_stroke(p, w, :divider)
         thickness = max(1, Int(divider_stroke.width))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         elements = Any[]
         if w.orientation === :vertical
             outer_height = _resolve_height(ctx, rule_length > 0 ? rule_length + inset_height : 0,
@@ -7854,7 +7977,7 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
                                          color = divider_stroke.color, width=thickness))
             (width=outer_width, height=outer_height, elements=elements)
         end
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSeparatorToGraphicsCanvas
 
@@ -8426,19 +8549,20 @@ WidgetSwitchToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, label_text, label_disabled_text, label_gap)
 
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :checked, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         on  = _get_slot_value(w, :checked, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         state = !enabled ? :disabled : on ? :checked : nothing
         track_width  = Int(p.track_size.x[])
         track_height = Int(p.track_size.y[])
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        label_x, label_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        label_x, label_y = _get_content_offset(box)
         content = _get_mark_label_layout(p, w, track_width, track_height, enabled)
         content_x, content_y = label_x, label_y + content.mark_y
         elements = Any[]
@@ -8460,7 +8584,7 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 # A click, or Return or Space on the focused switch, toggles `checked`: it stores
@@ -8520,14 +8644,15 @@ WidgetProgressBarToGraphicsCanvas(theme;
                                       indeterminate_share, indeterminate_period)
 
 function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::WidgetProgressBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     clock = ctx === nothing ? nothing : ctx.clock
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        box = _get_box_insets(p, w)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         bar_authored = _sc(Int(w.width))
         outer_width  = _resolve_width(ctx, bar_authored > 0 ? bar_authored + inset_width : 0, inset_width)
         # The thickness is `Fixed` and NOT the content, which is the one place
@@ -8560,7 +8685,7 @@ function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::Widg
         push!(elements, GraphicsRect(content_x, content_y, compute_tail_width, bar_height;
                                      color = indicator_color, radius = bar_height ÷ 2))
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetProgressBarToGraphicsCanvas
 
@@ -8611,12 +8736,14 @@ _compute_ring_sweep(value::Nothing, share::Real) = 360 * share
 _compute_ring_sweep(value::Real, share::Real) = 360 * clamp(Float64(value), 0.0, 1.0)
 
 function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::WidgetProgressRing, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     clock = ctx === nothing ? nothing : ctx.clock
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         line = compute_line_box(p.measure, "", p.font).height
         radius = max(1, round(Int, scale_length(line, p.ring_size) / 2))
         # The ring authors no size. An exact range stretches its box, and the ring
@@ -8625,7 +8752,7 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
         outer_height = _resolve_height(ctx, 0, 2radius + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        _push_box_parts!(elements, box, _get_box_colors(p, w), content_width, content_height)
         cx, cy = content_x + radius, content_y + content_height ÷ 2
         stroke = clamp(p.stroke_width, 1, radius)
         push!(elements, GraphicsCircle(cx, cy, radius; color = color_transparent, border_width = stroke,
@@ -8642,7 +8769,7 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
                                                         360 * _get_clock_phase(clock, period) : 0.0,
                                     sweep_angle = () -> _compute_ring_sweep(w.value, share)))
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetProgressRingToGraphicsCanvas
 
@@ -8690,13 +8817,14 @@ WidgetSliderToGraphicsCanvas(theme;
                                  knob_color, knob_disabled_color, knob_stroke, focus_ring_stroke)
 
 function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     # Resolved once, here, and handed to both halves: the printer draws the track
     # at this width and the reader turns a press into a value with it. The
     # track_width the IoMap stores is the width of the track itself, inside the
     # box.
-    inset_width_only, _ = _inset_total(p, w)
+    inset_width_only, _ = _get_inset_total(geometry[])
     track_authored = _sc(Int(w.width))
     track_outer_width = _resolve_width(ctx, track_authored > 0 ? track_authored + inset_width_only : 0, inset_width_only)
     track_width = track_outer_width - inset_width_only
@@ -8705,10 +8833,10 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         value = clamp(Float64(_get_slot_value(w, :value, _get_slot_child(slot))), 0.0, 1.0)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         slider_width  = track_width
         slider_height = _resolve_height(ctx, p.height + inset_height, inset_height) - inset_height
         center_y = content_y + slider_height ÷ 2
@@ -8727,7 +8855,7 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end), track_width, slot)
+    end), track_width, slot, geometry)
 end
 
 # The track width the printer drew with, so a press is turned into a value by the
@@ -8740,6 +8868,7 @@ end
     output::Any
     track_width::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 # What a drag to `value` writes, and the value that the knob then has. A document
@@ -8755,7 +8884,7 @@ map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = _map_c
 map_reference_backward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible slider (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetSliderToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSliderToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Where along the track `x` falls, as a fraction. Clamped, so a drag that leaves
 # the control at either end pins rather than runs away — which is what a slider
@@ -8781,7 +8910,7 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     w = iomap.input
     w.enabled === false && return nothing
     width  = Int(iomap.track_width)
-    content_x, _ = _content_offset(p, w)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     child = iomap.value_iomap
     current_value() = Float64(_get_slot_value(w, :value, child))
     write_at(x) = _make_slider_write(w, child, _slider_value(width, x - content_x))
@@ -8904,6 +9033,7 @@ WidgetRadioGroupToGraphicsCanvas(theme; measure,
     output::Any
     row_bounds::Any
     value_iomap::Any   # the IO map of a document in `selected`, or nothing
+    box::Any
 end
 
 # The index of the selected option. A document in `selected` gives an option, and
@@ -8916,19 +9046,20 @@ function _get_radio_selected(w::WidgetRadioGroup, child)
 end
 
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :selected, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         selected = _get_radio_selected(w, _get_slot_child(slot))
         diameter = p.button_size
         label_gap = p.label_gap
         row_gap = p.row_gap
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         # Two passes: the rows are measured first, because a row can be wider
         # than its content when the offer fills more (the rule for a box whose
         # content can grow), and `_push_box_parts!` must see that final size.
@@ -8972,14 +9103,14 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         (width=outer_width, height=outer_height, elements=elements, row_bounds=row_bounds)
     end)
     WidgetRadioGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                          Cell(@computation build[].row_bounds), slot)
+                                          Cell(@computation build[].row_bounds), slot, geometry)
 end
 
 map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # The option an arrow key moves to: the next or the previous one, around the
 # ends, and the first or the last one when no option is on.
@@ -9050,15 +9181,16 @@ const _AVATAR_ICON_SHARE = 0.7
 # The margin, the border and the padding are rectangular bands; the content is a
 # circle, so it is excluded from the box's own fill and drawn on top of it.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         size = _sc(Int(w.size))
         radius = size ÷ 2
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         elements = Any[]
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
@@ -9075,7 +9207,7 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
                         content_y + radius - initials_height ÷ 2, label.color)
         end
         (width=size + inset_width, height=size + inset_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
 
@@ -9123,14 +9255,15 @@ WidgetAlertToGraphicsCanvas(theme; measure,
                                 icon_size)
 
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         variant = w.variant === :default ? nothing : w.variant
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; variant)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         title = _get_state_text(p, w, :title; variant)
         description = _get_state_text(p, w, :description; variant)
         elements = Any[]
@@ -9164,7 +9297,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
                          radius = p.corner_radius)
         append!(surface, elements)
         (width=alert_width, height=alert_height, elements=surface)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetAlertToGraphicsCanvas
 
@@ -9207,8 +9340,8 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
         Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = p.corner_radius,
                          border_width = Int(border_stroke.width), border_color = border_stroke.color)]
     end)
-    SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
-                                     layout_none, true, Cell(nothing)))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(x, y, width, height, elements, layout_none, true, Cell(nothing)),
+                   _NO_BOX_GEOMETRY)
 end
 @_printer_only WidgetHighlightToGraphicsCanvas
 
@@ -9235,18 +9368,19 @@ WidgetSkeletonToGraphicsCanvas(theme;
                                    content_color, corner_radius)
 
 function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         block_width  = _resolve_width(ctx, _sc(Int(w.width)))
         block_height = _resolve_height(ctx, _sc(Int(w.height)))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         elements = Any[]
         _push_box_parts!(elements, box, colors, block_width, block_height; radius = p.corner_radius)
         (width=block_width + inset_width, height=block_height + inset_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
@@ -9276,18 +9410,19 @@ WidgetSwatchToGraphicsCanvas(theme;
                                  corner_radius)
 
 function print_document(p::WidgetSwatchToGraphicsCanvas, recursion, w::WidgetSwatch, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         side = w.size === nothing ? p.swatch_size : _sc(Int(w.size))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = (margin = _get_state_color(p, w, :margin), border = _get_state_color(p, w, :border),
                   padding = w.color, content = w.color)
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         elements = Any[]
         _push_box_parts!(elements, box, colors, side, side; radius = p.corner_radius)
         (width=side + inset_width, height=side + inset_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSwatchToGraphicsCanvas
 
@@ -9555,9 +9690,10 @@ WidgetToggleToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, corner_radius)
 
 function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :pressed, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         text = string(w.content)
         on  = _get_slot_value(w, :pressed, _get_slot_child(slot)) === true
@@ -9565,10 +9701,10 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         state = !enabled ? :disabled : on ? :checked : nothing
         label = _get_state_text(p, w, :label; state)
         text_width, text_height = _text_size(p.measure, label.font, text)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         outer_width  = _resolve_width(ctx, 0, text_width + inset_width)
         outer_height = _resolve_height(ctx, 0, text_height + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
@@ -9579,7 +9715,7 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
                     content_y + (content_height - text_height) ÷ 2, label.color)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -9659,19 +9795,21 @@ WidgetToggleGroupToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     segment_widths::Any
+    box::Any
 end
 
 function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         selected = Int(w.selected)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         segment_padding_x = Int(p.segment_padding.left[])
         segment_padding_y = Int(p.segment_padding.top[])
         labels = [string(o) for o in w.options]
@@ -9732,7 +9870,7 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetToggleGroupToGraphicsCanvasIoMap(p, w, canvas,
-                                           Cell(@computation build[].segment_widths))
+                                           Cell(@computation build[].segment_widths), geometry)
 end
 
 # A segmented control is a positioned leaf that nothing points into: it has one
@@ -9741,7 +9879,7 @@ map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _
 map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Which segment holds `x`, counting from the group's own left edge, or nothing
 # when the widths do not reach it. The widths are the printer's own, so this
@@ -9771,7 +9909,7 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
     w = iomap.input
     w.enabled === false && return nothing
     w.look === :step && return _read_toggle_group_step(w, evt)
-    content_x, _ = _content_offset(p, w)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     @gesture_case evt begin
         MouseClick(button, x, y) => begin
             button === :left || return nothing
@@ -9864,20 +10002,22 @@ WidgetSelectToGraphicsCanvas(theme; measure,
     control_width::Any
     control_height::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :value, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     build = Cell(@computation begin
         text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         text_width, text_height = _text_size(p.measure, label.font, text)
         chevron_size = p.chevron_size
@@ -9900,15 +10040,15 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSelectToGraphicsCanvasIoMap(p, w, canvas,
                                       Cell(@computation build[].width), Cell(@computation build[].height),
-                                      slot)
+                                      slot, geometry)
 end
 
 map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
-map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible select (printer returned a bare empty canvas): inert.
-read_intent(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # A left click on the box opens the option list as a floating popup window just
 # below the box. The reader answers that position in its own frame; each reader
@@ -9976,14 +10116,15 @@ WidgetOptionToGraphicsCanvas(theme; measure,
                                  padding_color, content_color, label_text, layer_hovered_color)
 
 function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         label_str = string(w.label)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         text_width, text_height = _text_size(p.measure, label.font, label_str)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + inset_width)
@@ -9993,7 +10134,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
         _push_box_parts!(elements, box, colors, content_width, content_height)
         _push_text!(elements, p.measure, label.font, label_str, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 
 map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -10011,7 +10152,7 @@ function _pick_option(w::WidgetOption)
     ])
 end
 
-function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetOptionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     @gesture_case evt begin
@@ -10084,20 +10225,22 @@ WidgetSpinBoxToGraphicsCanvas(theme; measure,
     control_height::Any
     stepper_w::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :value, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         tw, th = _text_size(p.measure, label.font, text)
         outer_height = _resolve_height(ctx, 0, th + inset_height)
@@ -10131,21 +10274,21 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].width), Cell(@computation build[].height), Cell(@computation build[].stepper_w),
-        slot)
+        slot, geometry)
 end
 
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
-    content_x, content_y = _content_offset(p, w)
-    box = _get_box_insets(p, w)
-    inset_width, _ = _inset_total(p, w)
+    box = _get_box_geometry(iomap)
+    content_x, content_y = _get_content_offset(box)
+    inset_width, _ = _get_inset_total(box)
     content_width = Int(iomap.control_width) - inset_width
     stepper_w = Int(iomap.stepper_w)
     sy = content_y - box.padding[2]
@@ -10182,9 +10325,6 @@ end
     pane::Any        # the IoMap of the pane of the rows
     place::Any       # `(x, y)`: the place of the pane in the canvas of the widget
 end
-
-# The insets of rows that the box of their widget holds.
-const _NO_BOX_INSETS = (margin = (0, 0, 0, 0), border = (0, 0, 0, 0), padding = (0, 0, 0, 0))
 
 # Whether `w` prints as the rows of its own pane in `ctx`.
 _is_printed_as_rows(w, ctx) = ctx !== nothing && get_property(ctx, :rows_of) === w
@@ -10365,7 +10505,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         row_pad_x = Int(p.row_padding.left[]); row_pad_y = Int(p.row_padding.top[])
         items = collect(w.items)
         n = length(items)
-        box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
+        box = bare ? _NO_BOX_GEOMETRY : _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
         inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
         content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
@@ -10527,17 +10667,19 @@ WidgetTextareaToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     content_iomap::Any
+    box::Any
 end
 
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     state = w.enabled === false ? :disabled : nothing
     # A Document content is recursed through the outer projection chain, which
     # gives it to TextToGraphics; a plain value is drawn through a text view of
     # its string, in the muted color while the area is disabled. The box grows
     # with the text.
-    content_ctx = _get_inner_content_context(p, w, ctx)
+    content_ctx = _get_inner_content_context(geometry, ctx)
     content_iomap = if w.content isa Document
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     else
@@ -10545,10 +10687,10 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
     end
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         inner = content_iomap[].output::GraphicsCanvas
         _, line_height = _text_size(p.measure, label.font, "M")
@@ -10570,7 +10712,7 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         (width=outer_width, height=outer_height, elements=elements)
     end)
     WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                        content_iomap)
+                                        content_iomap, geometry)
 end
 
 map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -10589,14 +10731,14 @@ function map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetT
 end
 
 # Invisible text area (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # The Text domain edits the content, as it edits the content of a `WidgetText`;
 # a plain Return breaks the line there.
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing
-    _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...)
+    _read_text_content_intent(p, iomap, evt, _get_content_offset(_get_box_geometry(iomap))...)
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
@@ -12618,7 +12760,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     icon_column = p.icon_column
     chevron_size = p.chevron_size
     pad = p.row_padding
-    box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
+    box = bare ? _NO_BOX_GEOMETRY : _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
     inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
     content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
@@ -12755,10 +12897,12 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         end
         for part in _tree_badges(node)
             part isa WidgetBadge || continue
-            badge_width, badge_height = _measure_badge(p.badge, part)
+            badge_box = _compute_box_geometry(p.badge, part, inset_default)
+            badge_width, badge_height = _measure_badge(p.badge, part, badge_box)
             x += p.label_gap
             push!(elements, _make_canvas(x, (row_height - badge_height) ÷ 2,
-                                         _build_badge_elements(p.badge, part, badge_width, badge_height)))
+                                         _build_badge_elements(p.badge, part, badge_box, badge_width,
+                                                               badge_height)))
             x += badge_width
         end
         x

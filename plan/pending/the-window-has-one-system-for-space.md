@@ -340,8 +340,9 @@ approval of the user.
         the widget slice that holds the shape.
       - Each reader, hit test and ring of a selection reads the shape from the
         IO map.
-      - `TypeDispatching.jl:59-66` and `PredicateDispatching.jl:49-56` give a
-        reader the projection of its IO map, as their `map_reference_*` do.
+      - `TypeDispatching.jl` and `PredicateDispatching.jl` do not change. No
+        printer makes a copy of its projection, so the projection that a
+        dispatch gives a reader is the projection of the IO map.
       Check: `tool/widget-images.jl` finds every image the same; the platform
       suite, part by part, and `test_dataframes()` give the counts of the
       baseline.
