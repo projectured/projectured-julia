@@ -558,7 +558,7 @@ approval of the user.
       that no printer in `source/platform/widget/` calls the constructor of a
       projection inside a print; `test_widget_text_fit`, the text field tests
       and the platform suite, part by part, give the counts before 5b.
-- [ ] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
+- [x] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
       - `PrinterContext` gets the given space as a field of the offer. The
@@ -613,6 +613,140 @@ approval of the user.
       row of the tree from the window edge to the inner divider with its first
       letter 8 px from the edge, and a scrolled settings page cut 8 px inside
       every edge with its bar at the edge.
+
+      Done in 4eacd3372 (6a), 686ad179e (6b), cd72e20cc (6c), d20ed2be8 (6d)
+      and e9b7e0638 (6e). The facts:
+
+      - The offer: `PrinterContext` has the field `space::NTuple{4,Int}`,
+        `(left, top, right, bottom)`, next to the ranges. The ranges hold the
+        space: an exact width is the width of the child with its space.
+        `with_exact_size`, `with_bounded_size`, `with_size_range`,
+        `with_inner_size` and `with_free_axis` take the keyword `space`, and
+        give 0 where a caller gives none. `make_child_context`,
+        `make_element_context`, `with_clock` and `with_property` keep the space,
+        as they keep the ranges, so a wrapper that passes its offer on (a
+        `LayoutConstraint`, a fault barrier, a decorator) and each stage of a
+        chain see the same offer. A root context has 0.
+      - The widget box: `_compute_box_geometry(p, w, space)` takes the tuple, and
+        each printer gives `_get_given_space(ctx)`. A box offers 0: its content
+        context comes from `with_inner_size`, and a part that it prints with
+        its own range gets `_with_no_space(ctx)` (the value slot, the name view
+        of a tab, the overlay of the shell). `_resolve_size` and
+        `_resolve_overlay` add the space to an authored size; a printer that
+        adds its insets to an authored inner extent (the text field, the
+        separator, the progress bar, the slider, the textarea, the card, the
+        accordion, the skeleton) takes the space out (`_get_space_total`). The
+        focus ring, the pointer shapes, the clear surface and the light of an
+        item stand on the margin box (`_get_part_rect(box, :margin, w, h)`),
+        inside the space. An icon and a highlight have a shape that holds only
+        the space. A composite is a box: it takes the space, and a clear rect
+        gives it its extent at the right and at the bottom.
+      - The frame takes no space (`_NO_SPACE`): the shell, the split pane, the
+        tabbed pane, and the dialog, which fills its window. The tabbed pane
+        offers `slot_padding` to its page and the split pane to each slot, with
+        the new style field `slot_padding` of each projection.
+      - The scroll pane takes the space into its padding
+        (`_compute_scroll_pane_geometry`): it cuts its content inside the space
+        and its bars stay at the inner edge of its border. The rect of its
+        content color fills the band. The transform pane takes the space as a
+        box, outside its border.
+      - The tree and the list: `_make_rows_box_geometry_cell` puts the top and
+        the bottom space into the shape. `_get_row_side_padding` gives the side
+        padding of the rows: the side space, else the side of the row padding
+        of the projection (`tree_row_padding` for a tree, `control_padding` for
+        a list). The x of each `WTreeRow`, its chevron box and the natural width
+        move with it. A widget that scrolls its rows itself carries the side
+        space to the print of its rows in the property `:row_side_space`, next
+        to `:rows_of`.
+      - The layouts: `_get_child_space` and `_with_child_space` in
+        `LayoutToGraphics.jl`. A column and a row give the space by side, a grid
+        gives each side to the cells at that side, a stack gives the whole space
+        to each child, a flow and a constraint layout take it around themselves
+        (which child stands at a side depends on the extents), an anchored layout
+        gives it to its content and none to its children. A layout of a list
+        (`LayoutList.jl`) gives the space on its axis to the child whose
+        document node has no neighbour on that side, and reads a neighbour only
+        for a side that has space.
+      - The domains: `TextToGraphics` takes the space as a box; the stack of
+        lines, the overlays and the regions stand inside it, the segment
+        coordinates stay in the frame of the stack, and `TextToGraphicsIoMap`
+        has the field `space`, which the reader of a point takes off.
+        `WordWrapping` breaks the lines at the edge less the side space, because
+        the text printer of the chain takes it. A fault mark stands inside the
+        left and the top space. `NavigatorToWidget` offers its address no space.
+      - The theme: `tabbed_pane_padding` 0, `slot_padding` `Inset(8, 8, 8, 8)`,
+        `tree_row_padding` `Inset(2, 2, 8, 8)`. The row of the options of an
+        Assistant is `option_bar_height` and the top and the bottom of
+        `slot_padding` (`AssistantToWidgetSplitPane(theme; slot_padding)`). A
+        data frame counts its shown rows from the height less the space at its
+        top and its bottom. The Explorer gives its parts `item_gap`.
+        `SystemProcessToWidget` has no `padding`.
+      - Places that pass a received context unchanged to a child, and what each
+        does now: the chain stages, the fault barrier, the recursion, the
+        decorators (tooltip, dragging, arranging, focus cycling, gesture log,
+        overlays, window managing) and `LayoutConstraint` keep the space, which
+        is right for a pass-through. A printer that makes widgets or syntax and
+        no graphics (`ConversationToWidget`, `UrlViewToWidget`,
+        `ObjectFieldToWidget`, `PaneToWidget`) passes it, and no graphics
+        printer reads it there. `_print_value_slot`, `_print_tab_name_view`, the
+        overlay of the shell, the anchored children and the address of the
+        navigator now offer 0.
+      - A cache by the offer: the layout of a list keeps the print of a child by
+        the child document (`take_kept_list_print!`); `_LayoutListChild` holds
+        the space of its print, and a kept print serves only for the same space.
+        No other code compares or hashes a context.
+      - Images: 44 of 44 the same after 6a, 6b and 6c. After 6d, 5 change:
+        `widget`, `widget_offered`, `widget_split_pane`, `widget_tabbed_pane`
+        (the strip at the edge, the page 8 px inside) and `widget_tree` (8 px at
+        the sides of the rows).
+      - The window (1000 x 640, the Explorer and the Settings tab), before
+        `images/step6-window-before`, after `images/step6-window-after`: the
+        inner divider is at x 169 from y 86, the line under the tab row, to y
+        616, the line above the status bar (before: x 173, y 94 to 607). The
+        filter field starts at x 8 and 8 px under the tab row; the rows of the
+        tree start their content at x 8. The band of the selected row runs from
+        x 0 (under the 2 px mark of the current row) to x 168, next to the
+        divider (before: x 10 to 172); its chevron glyph stands at x 11 and its
+        label at x 47 at depth 0. The scrolled settings page draws from y 95 to
+        607 and from x 8, 8 px inside the page (y 87 to 615, x 0 to 679), and
+        its bar is at x 670 to 679, at the right edge of the page.
+      - Tests changed by 6d, each to the new place from the theme:
+        `WidgetTreeTest.jl` (the chevron box of a row starts at the left of
+        `tree_row_padding`), `WidgetRowsScrollTest.jl` (the press on a chevron
+        moves by the same side padding), `ExplorerTest.jl` (the back button of
+        the page stands the divider, `slot_padding` and the padding of a toolbar
+        item past the divider, in place of "within 12 px"),
+        `MouseTargetMoveTest.jl` (the move onto the button in the left slot of
+        a split pane is the slot padding inside the slot) and
+        `WidgetPointTest.jl` (the points that map into the two slots of a split
+        pane are the slot padding inside each slot). New: `SlotSpaceTest.jl`,
+        `test_slot_space`: each type of the widget dispatch is a sample of a
+        box, of the frame or of the layout dispatch; each box printed with a
+        space holds it and is larger by it; the frame takes none; a card and a
+        scroll pane offer 0; a tab page and a split slot give `slot_padding`;
+        a column, a row, a grid, a stack, a flow and a `LayoutConstraint` pass
+        it as above; the text takes it and its reader reads it.
+      - A fix to 6b in 6d: a composite counts the space at its right and at its
+        bottom in its extent with a clear rect, because no child and no part of
+        its box lies there (the test found it).
+      - Counts: tests of 6b, 30 functions in one process, 2069 Pass; of 6c, 15
+        functions, 1963 Pass. The platform suite, part by part, after 6d with
+        the tests of 6e: 177865 Pass, 7 Fail, 0 Error, 7 Broken (the branch
+        before: 176836 Pass, 3 Fail, 7 Broken); the 3 Fail of the baseline are
+        the same, and the other 4 are the assertions of
+        `MouseTargetMoveTest.jl` and `WidgetPointTest.jl` that 6e moves, which
+        pass after it (85 and 19 Pass). `test_platform_examples` has 160247
+        Pass, 925 more: the walk tests each cell that it forces, and a box that
+        is given a space makes more cells. `test_dataframes` 603 Pass, as the
+        baseline. `test_printer_context_range` 67 Pass.
+      - Found and not changed: the other printers to graphics of the domains
+        (chart, sequence chart, graph, math, roster, chips, text gutter, the
+        cache of a canvas as an image) take no space: they draw inside a widget
+        box in every place that the window shows them. A lazy list of text lines
+        and the lazy grids (`GridList.jl`, `GridColumnList.jl`) take no space.
+        The ring around a child selected as a whole holds the space of the
+        child. omnet-julia builds `AssistantToWidgetSplitPane(conversation_theme)`
+        with the default `slot_padding`, not the scaled one.
 - [ ] 7. **Every gap of a widget layout has a role.**
       - These fields of other themes read the role of the widget theme, and go
         away:
