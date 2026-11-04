@@ -58,6 +58,7 @@ emitted text segment with character range, pixel position, font, and text.
     first_baseline::Cell    # Cell{Union{Int,Nothing}} — the baseline of the first line, from the top
     lines::Cell             # Cell{Vector} — the line groups (`_line_groups`)
     line_cells::Any         # L -> the cells of line group L (`layout`, `y`, `h`), or `nothing`
+    space::NTuple{4, Int}   # the space around the text, `(left, top, right, bottom)`
 end
 
 # The baseline of the first line of the text, for a row that aligns its children
@@ -256,7 +257,10 @@ end
 function map_reference_backward(p::TextToGraphics, iomap, reference)
     iomap isa TextToGraphicsIoMap || return nothing
     point = find_reference_point(reference)
-    point === nothing || return _find_caret_at_point(p, iomap, point.x, point.y)
+    # The coordinates of the segments are in the frame of the stack of lines, which
+    # stands inside the space around the text.
+    left, top, _, _ = iomap.space
+    point === nothing || return _find_caret_at_point(p, iomap, point.x - left, point.y - top)
     _find_caret_at_element_point(p, iomap, reference)
 end
 
@@ -441,6 +445,10 @@ spacing of this print (`_get_line_spacing`). Lines advance left-to-right; each
 `TextLine` starts a row, and so does each of its soft breaks. The wrap itself —
 finding the word boundaries where text would overflow — is the job of
 `WordWrapping` upstream.
+
+The text takes the space that its slot gives (`PrinterContext.space`) as a box:
+its lines, its caret and its highlight stand inside the space, and its extent
+holds it. Its IO map carries the space for its readers.
 """
 function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     spacing = _get_line_spacing(p, ctx)
@@ -448,6 +456,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     if styled.elements isa ListNode
         return _print_listnode(p, spacing, styled)
     end
+    space = ctx === nothing ? (0, 0, 0, 0) : ctx.space
+    space_left, space_top, space_right, space_bottom = space
     # Per-line decomposition (printer locality — dimension B). The output is a
     # vertical stack of one reactive sub-canvas per `TextLine` — a structural
     # boundary that never reads span content. Each line's sub-canvas lays out only
@@ -492,8 +502,10 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # the caret is, and shows it, but the keyboard is not on it.
     set_cell_computation!(getfield(cursor_rect, :color),
                        () -> is_live[] ? caret_color : dormant_caret_color)
-    set_cell_computation!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
-    set_cell_computation!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
+    set_cell_computation!(getfield(cursor_rect, :x),
+                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1] + space_left)))
+    set_cell_computation!(getfield(cursor_rect, :y),
+                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2] + space_top)))
     set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : caret_width)
     set_cell_computation!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
@@ -527,7 +539,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
         out
     end))
-    highlight_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+    highlight_canvas = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), Cell(Int32(0)), Cell(Int32(0)),
                                       highlight_elements, layout_none, false, Cell(nothing))
 
     # The block resolved into visual lines (see `_line_groups`). Reads only the
@@ -660,7 +672,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         end
         out
     end))
-    lines_stack = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+    lines_stack = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), Cell(Int32(0)), Cell(Int32(0)),
                                  lines_stack_elements, layout_vertical, false, Cell(nothing))
 
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
@@ -708,17 +720,21 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # never regenerates — the highlight's per-selection churn is confined to the
     # highlight sub-canvas's own element vector. A left click on the text puts the
     # caret at the point, so the last element is an I-beam over the box of the
-    # lines.
-    ibeam = GraphicsPointerShape(0, 0, () -> canvas_w[], () -> canvas_h[], :ibeam)
+    # lines. The stack, the overlays and the regions stand inside the space, and
+    # the extent of the top canvas holds it.
+    ibeam = GraphicsPointerShape(space_left, space_top, () -> canvas_w[], () -> canvas_h[], :ibeam)
     # A span that names a pointer shape, such as a link with the hand, has a region
     # of its shape over each of its segments, after the I-beam, so it wins there.
     # A text with no such span reads no segment for it.
-    span_shapes = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
+    span_shapes = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), canvas_w, canvas_h,
                                  CellVector(Computation(() -> _make_span_shape_regions(styled, char_to_coord))),
                                  layout_none, true, Cell(nothing))
     top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect),
                                    Cell(ibeam), Cell(span_shapes)])
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
+    space_width, space_height = space_left + space_right, space_top + space_bottom
+    outer_w = space_width == 0 ? canvas_w : Cell(@computation Int32(canvas_w[] + space_width))
+    outer_h = space_height == 0 ? canvas_h : Cell(@computation Int32(canvas_h[] + space_height))
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), outer_w, outer_h,
                             top_elements, layout_none, true, Cell(nothing))
     # The baseline of the first line: the one of the layout of the first line,
     # at the place of that line.
@@ -726,10 +742,10 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         isempty(lines_cell[]) && return nothing
         first_line = get_line_cells(1)
         baseline = first_line.layout[].first_baseline
-        baseline === nothing ? nothing : Int(first_line.y[]) + baseline
+        baseline === nothing ? nothing : Int(first_line.y[]) + baseline + space_top
     end))
     TextToGraphicsIoMap(p, styled, canvas, spacing, char_to_coord, highlight_offset, first_baseline,
-                        lines_cell, get_line_cells)
+                        lines_cell, get_line_cells, space)
 end
 
 # The pointer regions of the spans of `text` that name a shape: one over each
@@ -1232,7 +1248,7 @@ function _print_listnode(p::TextToGraphics, spacing::LineSpacing, styled::TextBl
     output_head = _build_line_node(p, spacing, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, spacing, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
-                        Cell(NamedTuple[]), nothing)
+                        Cell(NamedTuple[]), nothing, (0, 0, 0, 0))
 end
 
 # ── A lazy list of lines ──────────────────────────────────────────────────────

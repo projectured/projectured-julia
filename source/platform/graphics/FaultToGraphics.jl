@@ -19,8 +19,11 @@ Give it to the last barrier of a chain, the one whose step answers the backend:
     color::ImmutableCell{StyleColor} = get_theme_defaults(GraphicsTheme).fault_text.color
 end
 
+# The mark stands inside the space that its slot gives at the left and at the top.
 function print_document(p::FaultToGraphics, recursion, report::FaultReport,
                         ctx::PrinterContext)
-    elements = CellVector(@computation Any[GraphicsText(format_fault_label(report), 0, 0; font = p.font, color = p.color)])
+    left, top, _, _ = ctx.space
+    elements = CellVector(@computation Any[GraphicsText(format_fault_label(report), left, top;
+                                                        font = p.font, color = p.color)])
     SimpleIoMap(p, report, GraphicsCanvas(elements, layout_none))
 end

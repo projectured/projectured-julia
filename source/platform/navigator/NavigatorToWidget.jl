@@ -84,7 +84,10 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     crumbs = Cell(@computation _make_address_crumbs(navigator))
     switch = _make_view_switch(navigator.address_draft)
     address_projection = make_navigator_address_projection(navigator; p.syntax_theme)
-    address_iomap = print_document(address_projection, recursion, navigator.address_draft, ctx)
+    # The address is a part of the bar, which the view draws, so its offer gives no
+    # space: the space of the slot goes to the grid of the view.
+    address_ctx = ctx === nothing ? nothing : with_size_range(ctx)
+    address_iomap = print_document(address_projection, recursion, navigator.address_draft, address_ctx)
     path = _make_path_action(navigator)
     bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., switch,
                                                             _make_address_part(navigator, crumbs[], address_iomap.output,
