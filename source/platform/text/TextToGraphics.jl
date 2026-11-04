@@ -43,13 +43,16 @@ end
 """
     TextToGraphicsIoMap
 
-IoMap for `TextToGraphics`. `char_to_coord` holds one `SegmentCoordinate` per emitted
-text segment with character range, pixel position, font, and text.
+IoMap for `TextToGraphics`. `projection` is the projection that printed, as it is.
+`line_spacing` is the spacing that the print laid its lines out at, for a reader
+that lays a line out again. `char_to_coord` holds one `SegmentCoordinate` per
+emitted text segment with character range, pixel position, font, and text.
 """
 @iomap struct TextToGraphicsIoMap
     projection::Any
     input::TextBlock
     output::GraphicsCanvas
+    line_spacing::LineSpacing
     char_to_coord::Cell  # Cell{Vector{SegmentCoordinate}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
     first_baseline::Cell    # Cell{Union{Int,Nothing}} — the baseline of the first line, from the top
@@ -88,12 +91,14 @@ Draw a `TextBlock` as graphics, with its caret and the band under its selection.
 `theme` is a `TextTheme`, scaled or not, whose caret and selection it draws, and
 whose colour of plain text a run of the colour `color_default` takes; with none,
 it draws those of the default theme, and builds no theme. `line_spacing` is
-a `LineSpacing`, or a cell that reads one of the theme, such as its
-`code_line_spacing` or `prose_line_spacing`; a builder of code or of prose passes
-the one it draws, and a widget keeps single spacing. A container that sets the
-spacing of the text inside it, as a table sets single spacing for its cells,
-puts the property `:line_spacing` in the printer context, and the text draws at
-that spacing in place of its own.
+the default spacing of the lines: a `LineSpacing`, or a cell that reads one of
+the theme, such as its `code_line_spacing` or `prose_line_spacing`; a builder of
+code or of prose passes the one it draws, and a widget keeps single spacing. A
+container that sets the spacing of the text inside it, as a table sets single
+spacing for its cells, puts the property `:line_spacing` in the printer context.
+A print lays its lines out at the spacing of its context where the context sets
+one, and else at the default. The projection does not change: the IO map of the
+print carries the spacing that the print used.
 """
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
                         line_spacing = SingleSpacing(), theme = nothing)
@@ -112,14 +117,12 @@ end
 _get_plain_text_color(::Nothing) = get_theme_defaults(TextTheme).plain_text.color
 _get_plain_text_color(theme) = make_theme_cell(StyleColor, theme, values -> values.plain_text.color)
 
-# `p` at the line spacing `spacing`, with the same cells for every other field, so
-# the copy follows the theme as `p` does.
-_with_line_spacing(p::TextToGraphics, spacing::LineSpacing) =
-    TextToGraphics(getfield(p, :start_x), getfield(p, :start_y), getfield(p, :measure), spacing,
-                   getfield(p, :caret_color), getfield(p, :dormant_caret_color),
-                   getfield(p, :caret_width), getfield(p, :highlight_color),
-                   getfield(p, :dormant_highlight_color), getfield(p, :highlight_radius),
-                   getfield(p, :plain_color))
+# The line spacing of one print of `p`: the one that the context `ctx` sets, as a
+# table sets single spacing for its cells, or else the default of `p`.
+function _get_line_spacing(p::TextToGraphics, ctx)
+    spacing = ctx === nothing ? nothing : get_property(ctx, :line_spacing, nothing)
+    spacing === nothing ? p.line_spacing : spacing
+end
 
 # The x of the character boundary `position` of `text` in `font`, from the start
 # of the text: the pen position where the character after it starts.
@@ -431,25 +434,19 @@ end
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
-    print_document(p::TextToGraphics, styled::TextBlock) -> Cell{Vector{GraphicsText}}
+    print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx) -> TextToGraphicsIoMap
 
-Lay an already-wrapped `TextBlock` out into reactive `GraphicsText` primitives.
-Lines advance left-to-right; each `TextLine` starts a row, and so does each of
-its soft breaks. The wrap itself — finding the word boundaries where text would
-overflow — is the job of `WordWrapping` upstream.
-
-The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
-relevant cell in the `TextBlock`, so any value or structural change
-invalidates the layout; recomputation happens only when the `Cell` is read.
+Lay an already-wrapped `TextBlock` out into reactive graphics, at the line
+spacing of this print (`_get_line_spacing`). Lines advance left-to-right; each
+`TextLine` starts a row, and so does each of its soft breaks. The wrap itself —
+finding the word boundaries where text would overflow — is the job of
+`WordWrapping` upstream.
 """
 function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
-    # A container that sets the spacing of its text, such as a table for its
-    # cells, says so in the context.
-    spacing = ctx === nothing ? nothing : get_property(ctx, :line_spacing, nothing)
-    spacing === nothing || (p = _with_line_spacing(p, spacing))
+    spacing = _get_line_spacing(p, ctx)
     # A lazy list of lines: a lazy list of line canvases
     if styled.elements isa ListNode
-        return _print_listnode(p, styled, ctx)
+        return _print_listnode(p, spacing, styled)
     end
     # Per-line decomposition (printer locality — dimension B). The output is a
     # vertical stack of one reactive sub-canvas per `TextLine` — a structural
@@ -480,7 +477,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # all: the property answers `nothing` for one, which is the default that keeps
     # every other reader correct.
     selection_cell = getfield(styled, :selection)
-    overlay = Cell(@computation _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font))
+    overlay = Cell(@computation _layout_overlay(p, spacing, styled, _get_stored_path(selection_cell[]),
+                                                block_font))
     is_live = Cell(@computation _is_live_selection(selection_cell[]))
 
     # Persistent overlay elements. Their geometry cells read the selection-
@@ -623,7 +621,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The cells of the line `line`, wherever it stands.
     function get_line_cells(line::TextLine)
         get!(line_entries, line) do
-            line_layout = Cell(@computation _layout_group(p, _make_line_group(line), 0, nothing, true, block_font))
+            line_layout = Cell(@computation _layout_group(p, spacing, _make_line_group(line), 0, nothing, true,
+                                                          block_font))
             line_y = Cell(Computation(function ()
                 L = get(line_places[], line, nothing)
                 L === nothing ? Int32(0) : Int32(round(Int, get_offset(L)[]))
@@ -636,7 +635,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         line = group_lines[][L]
         line === nothing || return get_line_cells(line::TextLine)
         get!(place_entries, L) do
-            line_layout = Cell(@computation _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
+            line_layout = Cell(@computation _layout_group(p, spacing, lines_cell[][L], 0, nothing, true, block_font))
             make_line_entry(line_layout, Cell(@computation Int32(round(Int, get_offset(L)[]))))
         end
     end
@@ -729,7 +728,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline = first_line.layout[].first_baseline
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline
     end))
-    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset, first_baseline,
+    TextToGraphicsIoMap(p, styled, canvas, spacing, char_to_coord, highlight_offset, first_baseline,
                         lines_cell, get_line_cells)
 end
 
@@ -801,18 +800,19 @@ _find_group_line(styled::TextBlock, group) = group.line > 0 ? styled.elements[gr
 # a soft break stands at the start of the lower row. Each visual line
 # is set as a word processor sets a line: every box on it sits on one baseline,
 # its height comes from the largest ascent, descent and line gap of its boxes,
-# and `p.line_spacing` sets the distance to the next line. A piece of a line
-# waits until the line closes, because its baseline needs every box of the line.
+# and `spacing`, the line spacing of the print, sets the distance to the next
+# line. A piece of a line waits until the line closes, because its baseline needs
+# every box of the line.
 #
 # `cursor_pos` is a `(span::SpanPath, char)` caret, or `nothing`. The returned
 # `cursor` is `(x, y, h)` when it fell inside this group: it stands on the
 # baseline and is as high as the font at its place. `distance` is the real sum of
 # the line distances of the group, where the next group starts, and `height`
 # reaches the lowest ink of the group.
-function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
+function _layout_group(p::TextToGraphics, spacing::LineSpacing, group, y0::Int, cursor_pos,
                        collect_spans::Bool, block_font::Cell)
     start_x = p.start_x + _indent_width(p, group, block_font)
-    g = _GroupLayout(y0, start_x)
+    g = _GroupLayout(spacing, y0, start_x)
     occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
                                # span (one TextString at several flat positions)
                                # gets a distinct stable key per occurrence.
@@ -936,9 +936,11 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
      first_baseline = g.first_baseline)
 end
 
-# The state of `_layout_group` while it lays out one group: the pen, the lines
-# closed so far, and the open line, whose pieces wait for its baseline.
+# The state of `_layout_group` while it lays out one group: the line spacing of
+# the print, the pen, the lines closed so far, and the open line, whose pieces
+# wait for its baseline.
 mutable struct _GroupLayout
+    const spacing::LineSpacing
     y0::Int
     pen::Float64                        # the real pen position on the open line
     max_x::Int
@@ -956,15 +958,15 @@ mutable struct _GroupLayout
     first_baseline::Union{Int,Nothing}  # the baseline of the first line closed, once one is
 end
 
-_GroupLayout(y0::Int, start_x::Int) =
-    _GroupLayout(y0, Float64(start_x), start_x, 0.0, y0, 0, FontMetrics[], 0, Any[],
+_GroupLayout(spacing::LineSpacing, y0::Int, start_x::Int) =
+    _GroupLayout(spacing, y0, Float64(start_x), start_x, 0.0, y0, 0, FontMetrics[], 0, Any[],
                  nothing, nothing, Any[], Dict{Any,Any}(), SegmentCoordinate[], nothing)
 
 # Close the open line of `g`: find its baseline, place its pieces on it, and move
 # the distance on. `font` sizes a line that has no box. A line that does not
 # `count` places its pieces where the next line begins and adds no height.
 function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, collect_spans::Bool)
-    spacing = p.line_spacing
+    spacing = g.spacing
     if !isempty(g.boxes)
         metrics = compute_line_metrics(g.boxes)
     elseif font !== nothing
@@ -1060,7 +1062,7 @@ function _compute_span_bases(styled::TextBlock)
     (box_offsets, caret_offsets)
 end
 
-function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
+function _layout_overlay(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell)
     cursor_pos = get_flat_cursor_coordinate(styled, sel)
     coord_map = SegmentCoordinate[]
     box_offsets, caret_offsets = _compute_span_bases(styled)
@@ -1068,7 +1070,7 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
     offset = Float64(p.start_y)   # the real top of the next group
 
     for group in _line_groups(styled)
-        laid = _layout_group(p, group, round(Int, offset), cursor_pos, false, block_font)
+        laid = _layout_group(p, spacing, group, round(Int, offset), cursor_pos, false, block_font)
         append!(coord_map, laid.coord_map)
         cursor === nothing && (cursor = laid.cursor)
         offset += laid.distance
@@ -1218,17 +1220,18 @@ function _make_persistent_rect(layout, pl0)
 end
 
 """
-    _print_listnode(p, styled, ctx)
+    _print_listnode(p, spacing, styled)
 
 When `TextBlock.elements` is a `ListNode` of `TextLine`s, produce a top-level
 `GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`, and a
-`ListNode` of sub-canvases, one for each line (see below).
+`ListNode` of sub-canvases, one for each line (see below), at the line spacing
+`spacing` of the print.
 """
-function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
+function _print_listnode(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock)
     head_node = styled.elements::ListNode
-    output_head = _build_line_node(p, head_node, 0.0)
+    output_head = _build_line_node(p, spacing, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
+    TextToGraphicsIoMap(p, styled, canvas, spacing, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
                         Cell(NamedTuple[]), nothing)
 end
 
@@ -1247,10 +1250,11 @@ _make_line_group(line::TextLine) =
      indentation = line.indentation, break_before = false, is_line = true,
      line = 1, soft_breaks = getfield(line, :soft_breaks))
 
-# The layout of a line of a lazy list. A line with no glyph takes the font of its
-# first span, as the prevailing font of a block sizes such a line.
-_layout_list_line(p::TextToGraphics, line::TextLine, collect_spans::Bool) =
-    _layout_group(p, _make_line_group(line), 0, nothing, collect_spans, Cell(_element_font(line)))
+# The layout of a line of a lazy list, at the line spacing `spacing` of the print.
+# A line with no glyph takes the font of its first span, as the prevailing font of
+# a block sizes such a line.
+_layout_list_line(p::TextToGraphics, spacing::LineSpacing, line::TextLine, collect_spans::Bool) =
+    _layout_group(p, spacing, _make_line_group(line), 0, nothing, collect_spans, Cell(_element_font(line)))
 
 # The graphic of a placement of a layout: a fill, a text, or the image it holds.
 _make_list_line_graphic(placement) =
@@ -1260,14 +1264,14 @@ _make_list_line_graphic(placement) =
     _make_sdl(placement.text, placement.x, placement.y, placement.font, placement.color)
 
 """
-    _build_line_node(p, input_node, y_offset) -> ListNode
+    _build_line_node(p, spacing, input_node, y_offset) -> ListNode
 
 The canvas of the line of `input_node` at `(0, y_offset)`, the real offset
 rounded, in a `ListNode` whose `next` and `prev` build the canvases of the lines
-around it when they are read.
+around it when they are read, each at the line spacing `spacing` of the print.
 """
-function _build_line_node(p::TextToGraphics, input_node::ListNode, y_offset::Float64)
-    laid = _layout_list_line(p, input_node.value::TextLine, true)
+function _build_line_node(p::TextToGraphics, spacing::LineSpacing, input_node::ListNode, y_offset::Float64)
+    laid = _layout_list_line(p, spacing, input_node.value::TextLine, true)
     canvas = GraphicsCanvas(Int32(0), Int32(round(Int, y_offset)), Int32(0), Int32(0),
                             CellVector(Cell[Cell(_make_list_line_graphic(placement)) for placement in laid.spans]),
                             layout_none, false, Cell(nothing))
@@ -1275,13 +1279,13 @@ function _build_line_node(p::TextToGraphics, input_node::ListNode, y_offset::Flo
     set_lazy_link!(out_node, :next, () -> begin
         next_input = input_node.next
         next_input === nothing && return nothing
-        _build_line_node(p, next_input, y_offset + laid.distance)
+        _build_line_node(p, spacing, next_input, y_offset + laid.distance)
     end)
     set_lazy_link!(out_node, :prev, () -> begin
         prev_input = input_node.prev
         prev_input === nothing && return nothing
-        distance = _layout_list_line(p, prev_input.value::TextLine, false).distance
-        _build_line_node(p, prev_input, y_offset - distance)
+        distance = _layout_list_line(p, spacing, prev_input.value::TextLine, false).distance
+        _build_line_node(p, spacing, prev_input, y_offset - distance)
     end)
     out_node
 end
@@ -1292,7 +1296,8 @@ end
 # it, `….content{s:e}`, map to the text node of the row that holds them, followed
 # by the characters (`text{…}`), or to a region when they take more than one row.
 # A region is in the frame of its line when one line holds it, and else in the
-# frame of the canvas of the text.
+# frame of the canvas of the text. A line is laid out again at the line spacing
+# that the print used, which the IO map carries.
 function _map_list_lines_forward(p::TextToGraphics, iomap::TextToGraphicsIoMap, reference)
     reference isa ConcreteReference || return nothing
     field = get_reference_head(reference)
@@ -1310,7 +1315,7 @@ function _map_list_lines_forward(p::TextToGraphics, iomap::TextToGraphicsIoMap, 
     for k in first_line:last_line
         node = find_list_node(head, k)
         (node === nothing || !(node.value isa TextLine)) && return nothing
-        laid = _layout_list_line(p, node.value::TextLine, true)
+        laid = _layout_list_line(p, iomap.line_spacing, node.value::TextLine, true)
         text_indices = [index for (index, placement) in enumerate(laid.spans)
                         if placement isa NamedTuple && placement.kind === :text]
         n = 0
