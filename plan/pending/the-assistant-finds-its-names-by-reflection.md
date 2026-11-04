@@ -355,7 +355,8 @@ ends with a commit in each repository that it changes.
    offered now. Check that the computed surface is exactly today's declared list
    in both windows. Tests: `test_assistant_documentation`,
    `test_ide_documentation`, `test_assistant_verbs`.
-2. **The new names.** Mark the added functions and the root types, one area at
+2. **The new names.** *Done (2026-11-04); the facts are in §5.2.*
+   Mark the added functions and the root types, one area at
    a time. Give each marked function the docstring form. Fix the defects of
    §4.7. Tests: the same, plus the test of the person's own names and the test
    of both document forms.
