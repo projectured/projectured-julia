@@ -1321,6 +1321,21 @@ function test_build_executable()
             @test is_build_refusal(ErrorException("build_executable: a store"))
             @test !is_build_refusal(ErrorException("another error"))
             @test !is_build_refusal(ArgumentError("build_executable: a store"))
+            # A rebuild that the compiler refuses is a refusal of the build
+            # function, which names each reason once and the option that founds.
+            builder = ProjecturedBuilder.BuilderModule
+            refused = ErrorException(builder._COMPILER_REBUILD_REFUSAL *
+                                     "C4 A.jl:9 include: includes a file that is not tracked\n" *
+                                     "B2 B.jl:4 B: the untracked none:0 B names the type\n" *
+                                     "B2 B.jl:4 B: the untracked none:0 B names the type\n")
+            @test builder._is_compiler_rebuild_refusal(refused)
+            @test !builder._is_compiler_rebuild_refusal(ErrorException("materialize_app: the server answered `x`"))
+            message = builder._format_rebuild_refusal(refused, "omnet_ide")
+            @test is_build_refusal(ErrorException(message))
+            @test count("B2 B.jl:4", message) == 1
+            @test occursin("  C4 A.jl:9 include", message)
+            @test endswith(message, "Run the build again with --found. It founds the store again, " *
+                                    "and takes as long as a whole build.")
         end
     end
 end

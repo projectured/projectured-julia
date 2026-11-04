@@ -105,6 +105,26 @@ end
 _call_reactive_compiler(name::Symbol, arguments...; keywords...) =
     Base.invokelatest(_get_reactive_compiler_function(name), arguments...; keywords...)
 
+# The start of the message with which the compiler refuses a rebuild: the edit
+# holds a change that only a founding build applies, such as a new included file
+# or a changed module header. The reasons follow it, one on each line.
+const _COMPILER_REBUILD_REFUSAL =
+    "materialize_app: the rebuild is refused; a founding build applies the change:\n"
+
+_is_compiler_rebuild_refusal(err) =
+    err isa ErrorException && startswith(err.msg, _COMPILER_REBUILD_REFUSAL)
+
+# The refusal of the builder for a rebuild that the compiler refused: each reason
+# once, in the order the compiler gave, and the option that founds the store.
+function _format_rebuild_refusal(err::ErrorException, name::AbstractString)
+    reasons = unique(filter(!isempty, split(chopprefix(err.msg, _COMPILER_REBUILD_REFUSAL), '\n')))
+    string("build_executable: the rebuild of ", name, " is refused. ",
+           "Only a founding build can apply these changes:\n",
+           join(("  " * reason for reason in reasons), '\n'), "\n",
+           "Run the build again with --found. It founds the store again, ",
+           "and takes as long as a whole build.")
+end
+
 # The default of `compact`: the variable of the compiler, `saves,growth`.
 function _get_reactive_compact_default()
     parts = split(get(ENV, "JULIA_REACTIVE_COMPACT", "50,0.25"), ',')
@@ -360,23 +380,28 @@ function _materialize_app!(project::AbstractString, output::AbstractString, name
         _call_reactive_compiler(:refresh_trace, output)
     end
     @info (rebuild ? "Rebuilding $name" : "Founding the reactive store of $name") tracked = length(tracked) workload server image
-    _call_reactive_compiler(:materialize_app, project, output;
-                            tracked = tracked,
-                            workload = workload,
-                            executables = linked ? Pair{String,String}[] : [String(name) => "julia_main"],
-                            (linked ? (; keep_object_archive = archive) : (;))...,
-                            track_dependencies = true,
-                            force = force,
-                            incremental = true,
-                            include_lazy_artifacts = true,
-                            sysimage_build_args = arguments,
-                            server = server,
-                            image = image,
-                            delta_opt = delta_optimization == optimization ? -1 : Int(delta_optimization),
-                            founding = found,
-                            compact = compact,
-                            trim = trimmed ? :on : :off,
-                            (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
+    try
+        _call_reactive_compiler(:materialize_app, project, output;
+                                tracked = tracked,
+                                workload = workload,
+                                executables = linked ? Pair{String,String}[] : [String(name) => "julia_main"],
+                                (linked ? (; keep_object_archive = archive) : (;))...,
+                                track_dependencies = true,
+                                force = force,
+                                incremental = true,
+                                include_lazy_artifacts = true,
+                                sysimage_build_args = arguments,
+                                server = server,
+                                image = image,
+                                delta_opt = delta_optimization == optimization ? -1 : Int(delta_optimization),
+                                founding = found,
+                                compact = compact,
+                                trim = trimmed ? :on : :off,
+                                (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
+    catch err
+        _is_compiler_rebuild_refusal(err) || rethrow()
+        error(_format_rebuild_refusal(err, name))
+    end
     if linked && isfile(archive) && mtime(archive) != stamp
         link_executable!(output, name; headroom = true)
         prelink && prelink_executable!(output, name)
