@@ -119,8 +119,12 @@ function test_scroll_pane_hover()
             WidgetScrollPane(make_card(false); size = Point2D(200, 200),
                              scroll_position = Point2D(0, room)))
         # The press lands past the card's padding and chevron column, on the
-        # last row of the list.
-        press = MouseClick(:left, 60, 160; time = 0.0)
+        # last line of pixels of the last row of the list: above the border of
+        # the list, and the padding and the border of the card, at the bottom of
+        # the pane.
+        theme = get_theme_defaults(WidgetTheme)
+        border = Int(theme.border_width)
+        press = MouseClick(:left, 60, 200 - border - theme.container_padding - border - 1; time = 0.0)
         @test string(_scroll_pane_row(projection, following, press)) ==
               ".content.content.items[40]"
         @test _scroll_pane_row(projection, following, press) ==
