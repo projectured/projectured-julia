@@ -131,7 +131,7 @@ builder fills them from a theme, scaled or not.
     "The space around the content of a row of a tree."
     tree_row_padding::Spacing = Spacing(Inset(2, 2, 0, 0))
     "The space between the bands of the shell of a window, under the toolbar."
-    band_gap::Spacing = Spacing(2)
+    band_gap::Spacing = Spacing(0)
     "The space inside a dropdown, around its commands."
     menu_padding::Spacing = Spacing(4)
     "The space between a part and the popup that opens at it."

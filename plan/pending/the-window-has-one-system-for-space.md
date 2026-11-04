@@ -282,7 +282,7 @@ approval of the user.
         to the text of the tab) and `DataFrameViewTest` (the step of a row).
         Counts: the ten platform functions 797 Pass, 0 Fail; `test_dataframes`
         603 Pass. `test_platform_layering` has the one known failure.
-- [ ] 3. **Draw the four lines.** The shell draws a 1 px line of `border`
+- [x] 3. **Draw the four lines.** The shell draws a 1 px line of `border`
       under the menu bar, under the toolbar and above the status bar, and
       `band_gap` becomes 0. Each line takes 1 px of height, as a splitter takes
       its width. The tab group draws a 1 px line under its tab row, with a gap
@@ -292,6 +292,41 @@ approval of the user.
       lines; a pixel scan of an image of the window finds the four lines, the
       gap under each selected tab, and the outer divider from the line under
       the toolbar to the line above the status bar.
+
+      Done. Facts:
+
+      - New style fields: `band_line_stroke` of `WidgetShellToGraphicsCanvas`
+        and `tab_row_line_stroke` of `WidgetTabbedPaneToGraphicsCanvas`. Both
+        are `StyleStroke(t.border, t.border_width)` from the theme. `band_gap`
+        of the theme is 0.
+      - The shell adds the width of `band_line_stroke` (at least 1 px) to the
+        height of the menu bar, of the toolbar and of the status bar. A band
+        that the shell does not have has no line. The line of the menu bar and
+        the line of the toolbar stand at the bottom of their band, the line of
+        the status bar at its top. A line is as wide as the shell. The
+        pointer readers use the offsets of the child entries, so they follow
+        with no change.
+      - The tab geometry has two new fields, `rule` and `page_top` (the strip
+        height plus `rule`). The page, its box, its ring, its offered height
+        and its child offset start at `page_top`. The line under the tab row
+        starts at the left edge of the padding box and ends at its right edge.
+        It has a gap from the left to the right edge of the selected tab, in
+        step with the scroll of the strip.
+      - Images: 3 of the 44 examples changed: `widget`, `widget_shell`,
+        `widget_tabbed_pane`. The other 41 are the same.
+      - Pixel scan of a window with a menu bar, a toolbar, a status bar and
+        two tab groups in a split (the gallery shell around
+        `widget_split_tabs`, 1000 x 560): lines of `border` at y 35 (menu
+        bar), y 75 (toolbar) and y 530 (status bar), each over the full width.
+        The line under the tab rows is at y 119, with a gap at x 12-110 and
+        x 513-615 (the selected tabs). The divider is at x 500, y 76 to 529,
+        and it touches the line under the toolbar and the line above the
+        status bar.
+      - Tests: `test_widget_shell_layout` changed in two assertions, each by
+        exactly the 1 px line (`content[2] == menu[2] + height(menu) + 1`,
+        `y + h + 1 == status[2]`). Counts: shell layout 14, shell pointer 6,
+        window shell 149, tab strip 29, tab label 24, explorer 313, mouse
+        target move 85, all Pass; `test_dataframes` 603 Pass.
 - [ ] 4. **A box computes its shape once, and its IO map carries it.** The
       screen must not change.
       - A type for the shape of a box holds the outer box, the margin, the

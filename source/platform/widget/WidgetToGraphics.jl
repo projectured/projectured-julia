@@ -720,6 +720,7 @@ WidgetCompositeToGraphicsCanvas(theme; graphics_theme = nothing,
     content_color::StyleColor
     font::StyleFont             # measures the menu/toolbar band heights
     band_gap::Int               # gap below the toolbar band
+    band_line_stroke::StyleStroke   # the line under the menu bar and the toolbar, above the status bar
 end
 
 WidgetShellToGraphicsCanvas(theme; measure,
@@ -729,9 +730,10 @@ WidgetShellToGraphicsCanvas(theme; measure,
                             padding_color = _themed(StyleColor, theme, t -> t.background),
                             content_color = _themed(StyleColor, theme, t -> t.background),
                             font = _themed(StyleFont, theme, t -> t.font),
-                            band_gap = _themed(Int, theme, t -> t.band_gap)) =
+                            band_gap = _themed(Int, theme, t -> t.band_gap),
+                            band_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
     WidgetShellToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                padding_color, content_color, font, band_gap)
+                                padding_color, content_color, font, band_gap, band_line_stroke)
 
 @projection UntrackedCell struct WidgetTitlePaneToGraphicsCanvas
     measure::TextMeasure
@@ -802,6 +804,7 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     label_gap::Int                        # between a tab's icon and its label, and before its button
     icon_size::Float64                   # times the box of an icon and of a button, one line
     badge::Any                            # the badge printer of the theme, for the badges of a label
+    tab_row_line_stroke::StyleStroke      # the line under the tab row, open under the selected tab
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -821,12 +824,13 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
-                                 badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+                                 badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                                 tab_row_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
                                      graphics_style, tab_padding, corner_radius, label_gap,
-                                     icon_size, badge)
+                                     icon_size, badge, tab_row_line_stroke)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -3788,13 +3792,16 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("status_bar"))))
     tt_cell = make_reconciled_child_iomap_cell(() -> w.overlay,
         c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("overlay"))))
+    # A line under the menu bar and the toolbar and above the status bar takes
+    # its width of height, as a splitter takes its width.
+    line = max(1, Int(p.band_line_stroke.width))
     # Where the bands sit, from the height each one draws. A band's height comes
     # from what it holds, never from the shell, so reading it closes no cycle.
     bands = Cell(@computation begin
         cox, coy = _content_offset(p, w)
-        menu_h = w.menu_bar isa WidgetDocument ? _shell_band_height(mb_cell[]) : 0
-        tool_h = w.toolbar isa WidgetDocument ? _shell_band_height(tb_cell[]) + p.band_gap : 0
-        status_h = w.status_bar isa WidgetDocument ? _shell_band_height(sb_cell[]) : 0
+        menu_h = w.menu_bar isa WidgetDocument ? _shell_band_height(mb_cell[]) + line : 0
+        tool_h = w.toolbar isa WidgetDocument ? _shell_band_height(tb_cell[]) + p.band_gap + line : 0
+        status_h = w.status_bar isa WidgetDocument ? _shell_band_height(sb_cell[]) + line : 0
         (cox=cox, coy=coy, menu_h=menu_h, tool_h=tool_h,
          content_y=coy + menu_h + tool_h, status_h=status_h)
     end)
@@ -3824,7 +3831,9 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         w.content !== nothing && !has_height && (content_bottom += _shell_band_height(content_cell[]))
         _, ty = _inset_total(p, w)
         status_y = has_height ? b.coy + outer_height[] - ty - b.status_h : content_bottom
-        (menu_bar = menu_y, toolbar = tool_y, content = content_y, status_bar = status_y)
+        (menu_bar = menu_y, toolbar = tool_y, content = content_y,
+         status_bar = status_y + (w.status_bar isa WidgetDocument ? line : 0),
+         menu_line = tool_y - line, tool_line = content_y - line, status_line = status_y)
     end)
     # The bands the shell draws, each with the iomap it holds and the cell of its top.
     # Which bands there are depends on the fields of the shell and not on how tall
@@ -3852,6 +3861,13 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
             content_width = max(0, Int(outer_width[]) - inset_width)
             content_height = max(0, Int(outer_height[]) - inset_height)
             _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        end
+        line_width = has_width ? Int(outer_width[]) :
+            maximum((Int(cim.output.w[]) for (_, cim) in slots[] if cim.output isa GraphicsCanvas); init = 0)
+        for (field, line_name) in ((:menu_bar, :menu_line), (:toolbar, :tool_line), (:status_bar, :status_line))
+            getproperty(w, field) isa WidgetDocument &&
+                push!(elems, GraphicsRect(0, getproperty(places[], line_name), line_width, line;
+                                          color = p.band_line_stroke.color))
         end
         for (name, cim) in slots[]
             push!(elems, _make_canvas(get_band_left(name), Cell(@computation Int32(get_band_top(name))),
@@ -4880,10 +4896,12 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
         tab_h = max(tab_h, th, iw, button_w)
     end
     sel_h = tab_h + pad_top + pad_bottom
+    rule = max(1, Int(p.tab_row_line_stroke.width))
     new_w = w.new_tab === true ? new_side + pad_left + pad_right : 0
     strip_w = (isempty(tabs) && new_w == 0) ? 0 : (x + new_w - cox)
     (cox = cox, coy = coy, pad = (top = pad_top, bottom = pad_bottom, left = pad_left, right = pad_right), height = sel_h, strip_w = strip_w,
-     tabs = tabs, new_x = x, new_w = new_w, line = em_h)
+     tabs = tabs, new_x = x, new_w = new_w, line = em_h,
+     rule = rule, page_top = sel_h + rule)
 end
 
 # The icon of a tab: the icon of its label, else the icon of its page.
@@ -5108,11 +5126,11 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     avail_w_inner = avail_w === nothing ? nothing :
         Cell(@computation max(0, Int(avail_w[]) - inset_x))
     avail_h_inner = avail_h === nothing ? nothing :
-        Cell(@computation max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
+        Cell(@computation max(0, Int(avail_h[]) - geom[].page_top - inset_y))
     # The content gets the pane's range less the insets, and less the tab strip
     # on the height, in the same state: a slot stays a slot and an edge stays an
     # edge.
-    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[][4] + inset_y))
+    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[].page_top + inset_y))
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
     all_cims = make_reconciled_child_iomaps_cell(
@@ -5129,7 +5147,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # is nothing to clip against and the page takes the content's own extent there.
     content_cv = CellVector(@computation begin
         cims = all_cims[]
-        sel_h = geom[][4]
+        sel_h = geom[].page_top
         active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
@@ -5153,7 +5171,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # default) around the strip and the page together.
     box_cv = CellVector(@computation begin
         cims = all_cims[]
-        sel_h = geom[][4]
+        sel_h = geom[].page_top
         active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
@@ -5191,6 +5209,33 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         Cell(affine_identity),
         Cell(nothing))
 
+    # The line under the tab row runs from the left edge of the padding box to its
+    # right edge, and is open under the selected tab, so the tab joins its page.
+    rule_cv = CellVector(@computation begin
+        g = geom[]
+        page_w = 0
+        cims = all_cims[]
+        idx = _active_idx(get_stored_selection(w), length(cims))
+        if 1 <= idx <= length(cims) && cims[idx] !== nothing
+            page_w, _ = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
+        end
+        tab_idx = _active_idx(get_stored_selection(w), length(g.tabs))
+        left = cox - box.padding[1]
+        right = cox + max(g.strip_w, page_w) + box.padding[3]
+        y = coy + g.height
+        color = p.tab_row_line_stroke.color
+        open_from, open_to = right, right
+        if !isempty(g.tabs)
+            scroll = _tab_scroll_offset(w, g.strip_w, Int(sel_view_w[]))
+            _, _, _, _, tx, rw = g.tabs[tab_idx]
+            open_from, open_to = clamp(tx - scroll, left, right), clamp(tx + rw - scroll, left, right)
+        end
+        result = Any[]
+        open_from > left && push!(result, GraphicsRect(left, y, open_from - left, g.rule; color))
+        right > open_to && push!(result, GraphicsRect(open_to, y, right - open_to, g.rule; color))
+        result
+    end)
+
     # The ring over the page, while the document the page shows is selected as a
     # whole. The page's document is in the tree, so its own selection says so.
     ring = make_selection_ring(() -> begin
@@ -5200,7 +5245,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         page = _get_page_document(w, idx)
         _is_whole_selected_page(page) || return nothing
         page_w, page_h = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
-        (cox, coy + geom[][4], page_w, page_h)
+        (cox, coy + geom[].page_top, page_w, page_h)
     end, p.graphics_style)
 
     # A tabbed pane offered an extent reports that extent, not what its strip and
@@ -5209,6 +5254,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         GraphicsCanvas(box_cv),
         selector_viewport,
         GraphicsCanvas(content_cv),
+        GraphicsCanvas(rule_cv),
         ring,
     ])
     canvas = (avail_w === nothing && avail_h === nothing) ? inner :
@@ -5218,7 +5264,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                        CellVector(Cell[Cell(inner)]),
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
-    child_iomaps = Cell(@computation Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
+    child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
     ChildrenIoMap(p, w, canvas, child_iomaps)
 end
 

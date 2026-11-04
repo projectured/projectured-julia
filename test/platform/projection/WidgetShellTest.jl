@@ -61,11 +61,12 @@ function test_widget_shell_layout()
         @test file[2] + 8 * length("File") <= view[2] < file[2] + 8 * length("File") + 40
         @test view[2] + 8 * length("View") <= 800
         # Menu bar, content and status line, in that order, each where the one
-        # before it ends: every band is as tall as it draws.
+        # before it ends: every band is as tall as it draws. A 1 px line lies
+        # under the menu bar and another above the status line.
         (menu, content, status) = getfield(iomap, :child_iomaps)[]
         height(entry) = Int(_shell_layout_value(entry[3].output.h))
         @test menu[2] == 0
-        @test content[2] == menu[2] + height(menu)
+        @test content[2] == menu[2] + height(menu) + 1
         @test status[2] == 600 - height(status)
         @test height(status) >= line
         # The content takes the whole width, and all of the height between the
@@ -73,7 +74,7 @@ function test_widget_shell_layout()
         (x, y, w, h) = only(ports)
         @test (x, w) == (0, 800)
         @test y == content[2]
-        @test y + h == status[2]
+        @test y + h + 1 == status[2]
     end
 
     @testset "with no offer it takes its content's extent, and still shows the status line" begin
