@@ -27,52 +27,71 @@ own `style`, a field of `WindowDocument` ([screen.md](screen.md)):
 
 ### Three ways to open one
 
-- **Through `OpenPopupOperation(; id, x, y, width, height, auto_dismiss,
-  content)`.** A reader inside a widget answers it relative to its own frame,
-  wrapped in `ReplaceViewStateOperation` so a history does not record it. Each
-  reader on the way up moves `(x, y)` into its own frame with
+- **Through `OpenPopupOperation(; id, x, y, anchor_size, gap, width,
+  height, auto_dismiss, content)`.** A reader inside a widget answers it with
+  the box of its control, `(x, y)` at `(0, 0)` in its own frame and
+  `anchor_size` its size, and the `gap` below it. The reader wraps it
+  in `ReplaceViewStateOperation` so a history does not record it. Each
+  reader on the way up moves the box into its own frame with
   `map_operation_position`, the mechanism every operation with a point uses
   ([graphics.md](../graphics/graphics.md#moving-the-position-an-operation-carries)).
+  It moves both corners, so a zoomed pane gives the box its drawn size; the
+  gap stays in window pixels. The operation stays self-contained on purpose, so
+  it passes through every view, also one that makes the part.
   `ScreenToScreen` turns the result into an `OpenWindowOperation` with `style =
   :popup`, a `maximum_size` of the width and the height the popup asked for,
-  and the window's own screen origin added, and drops the
-  `ReplaceViewStateOperation` mark, which an `OpenWindowOperation` does not
-  need. A submenu of a `WidgetMenuItem` and the dropdown list of a
+  and a placement, and drops the `ReplaceViewStateOperation` mark, which an
+  `OpenWindowOperation` does not need. The placement reads the place of the
+  window where the screen prints it, so the popup follows its window. A submenu of a `WidgetMenuItem` and the dropdown list of a
   `WidgetSelect` both open this way.
 - **Directly, with `OpenWindowOperation`.** A wrapper that already has the
   screen position builds it itself. The tooltip window and the context menu
   window are wrappers that sit around the whole screen, inside the gesture
   tracker ([gesturetracking.md](../gesturetracking/gesturetracking.md)), so
-  they compute the position from the point of the gesture that opened them, or
-  from [where it stands](#where-it-stands) when there is none. A `WidgetDialog`
-  answers an `OpenWindowOperation` the same way, from the button that opens it,
-  with `modal = true` and a fixed box.
+  they give the window a placement that reads the point of the gesture that
+  opened them, or [where the part stands](#where-it-stands) when there is no
+  point. A `WidgetDialog` answers an `OpenWindowOperation` the same way, from
+  the button that opens it, with `modal = true` and the automatic place.
 - **With a `placement`.** A window that carries a `placement` function takes
   its place from it, and follows what the function reads
   ([screen.md](screen.md#the-placement-of-a-window)).
 
 ### Where it stands
 
-A window with a `placement` stands where the function puts it, and follows
-the part that it reads when that part moves. The command palette and the
-search of a file by its name open this way, at the top center of the window
+Every popup window stands where a placement puts it, and follows what the
+placement reads when that moves. The command palette and the search of a file by
+its name open at the top center of the window
 ([context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into)).
-The context menu, the tooltip, the submenus, the select lists and the dialogs
-keep their own code for the place. Only the backend knows the areas of the
-displays, so they wait for
-[plan/pending/every-popup-window-is-placed-by-a-function.md](../../../../plan/pending/every-popup-window-is-placed-by-a-function.md).
+The other windows use one helper of the screen slice,
+`compute_anchored_place(context, anchor; side, gap)`
+([screen.md](screen.md#the-placement-of-a-window)):
 
-Without a placement, with a point, the window stands at that point (a right click), or offset from
-it (a tooltip, by the `offset` keyword of `TooltipWindowProjection`). A
-submenu and a select's dropdown list carry a position in the control's own
-frame, and `map_operation_position` turns it into a screen position container
-by container, on the way up, the same as any operation with a point
-([screen.md](screen.md#screentoscreen)).
+| Window | Its place |
+| --- | --- |
+| Tooltip | `offset` below and right of the point, above the point when there is no room below, so it never covers the point; with no point, below the part, `part_gap` under it |
+| Right-click menu | below and right of the point; with no point, below the part, `item_gap` under it; a placement of its own operation, such as the top placement of the palette, wins |
+| Submenu of a menu item, list of a `WidgetSelect` | below the box of the control, with the left edges aligned |
+| Dialog at the automatic place | at the center of the window whose content opened it |
 
-With no point, as when a command runs a binding with no pointer, the tooltip
-window and the context menu window open below the part instead, a few pixels
-lower, at [the place of a part](screen.md#the-place-of-a-part) that
-`find_part_place` answers.
+The helper reads the usable area of each display from `display_areas` of the
+screen, which the backend writes, and the size that the backend fitted to the
+content. The backend fits the size before it reads the place, so the place is
+right in the first frame. A window below its box that crosses the bottom edge of
+the area flips above the box; when the top has no room either, it slides inside
+the area. On every other edge it slides inside the area. A backend that writes
+no areas, such as the headless backend and the web backend, leaves
+`display_areas` empty, and then a placement keeps its place.
+
+A dialog is a window of the style `:floating` or `:dialog`. A dialog at the
+automatic place `(-1, -1)` with no placement stands at the center of the window
+whose content opened it (`make_window_center_placement`). A dialog that a callback opens, such
+as the Open file dialog and the "Filter by values" lists, stands at the center of
+the first window of the screen. A normal window at the automatic place, as the
+main window, stays the backend's to place.
+
+A person who moves or resizes a placed window with a frame
+(`has_window_frame`: every style except `:popup` and `:tooltip`) gives it
+`make_fixed_placement` at the place where it stands, so it stays there.
 
 ### How it closes
 
@@ -112,13 +131,13 @@ and shrink their window the same way.
 
 ## How it fits
 
-This document, `PartPlace.jl`, `WindowPlacement.jl` and `WindowLayers.jl` are the screen slice,
+This document, `WindowPlacement.jl` and `WindowLayers.jl` are the screen slice,
 beside `ScreenToScreen` and `WindowManagingProjection` of
 [screen.md](screen.md). The widget slice answers `OpenPopupOperation` for a
 menu's submenu and a select's dropdown list, and builds the `WidgetDialog`
 window directly; the tooltip slice and the widget slice's context menu each
-keep a wrapper around the screen that depends on `find_part_place` and the
-layer helper here. To give a window to a part of its own, a package reuses one
+keep a wrapper around the screen that depends on `find_window_part_box`,
+`compute_anchored_place` and the layer helper here. To give a window to a part of its own, a package reuses one
 of the same two paths: answer `OpenPopupOperation` from a reader inside the
 part, or build an `OpenWindowOperation` from a wrapper that already holds the
 screen position.
@@ -147,12 +166,14 @@ screen position.
 ```julia
 # Open a popup relative to a widget's own canvas:
 ReplaceViewStateOperation(
-    OpenPopupOperation(; id = :widget_popup, x = 0, y = control_height,
+    OpenPopupOperation(; id = :widget_popup, x = 0, y = 0,
+                       anchor_size = (control_width, control_height),
+                       gap = 0,
                        auto_dismiss = true, content = WidgetMenu(items)))
 
-# Where a command with no pointer should open a window below a part:
-below = find_part_place(projection, iomap, source)
-x, y = below === nothing ? (0, 0) : (below[1], below[2] + 4)
+# A placement that puts a window below the box of a part:
+context -> (box = find_window_part_box(context, part);
+            box === nothing ? nothing : compute_anchored_place(context, box; gap = 4))
 ```
 
 - Tests: `test_widget_popup_example()` opens the dropdown list of a
@@ -162,9 +183,13 @@ x, y = below === nothing ? (0, 0) : (below[1], below[2] + 4)
 
 ## Limits
 
-- A `WidgetDialog` opens at a fixed box, `x = 80, y = 60, width = 480, height =
-  320`; it is not placed in the middle of the real window, only the card
-  inside it is centered in that box.
+- A dialog that a callback opens stands over the first window of the screen,
+  also when a person works in another window. The screen does not record which
+  window has the focus.
+- The web backend writes no areas, so it keeps each place that a placement asks
+  for.
+- A popup that is taller than the area of its display slides to the top of the
+  area, and the part below the area is cut. A popup does not get smaller to fit.
 - An editor with `tooltip = false` or `context_menu = false`, or a host that
   calls `make_tracking_screen` with no wrapper for that window, gets no such
   window: the operation that would open one reaches the editor, which does

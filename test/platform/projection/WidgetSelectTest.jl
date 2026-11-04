@@ -51,7 +51,7 @@ end
     # Opens 2 pixels below the box of the select, in the select's own frame.
     @test (op.x, op.y) == (0, 0)
     @test op.anchor_size[2] == _select_iomap_of(iomap, select).control_height
-    @test (op.side, op.gap) == (:below, 2)
+    @test op.gap == 2
     # Content is a dropdown of one option per selectable value.
     @test op.content isa WidgetMenu
     @test length(op.content.elements) == 3

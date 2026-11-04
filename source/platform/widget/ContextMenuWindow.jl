@@ -314,7 +314,6 @@ function _make_menu_placement(p::ContextMenuWindowProjection, state::ContextMenu
                 box === nothing ? nothing : compute_anchored_place(context, box; gap))
 end
 
-
 # The window is gone, so the state forgets what it showed.
 _forget_context_menu(state::ContextMenuWindowState) =
     CompoundOperation(Any[_write_menu_state(state, "layers", Tuple{String,Document,Int}[]),

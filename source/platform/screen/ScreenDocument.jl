@@ -198,15 +198,14 @@ OpenWindowOperation(; id::Symbol,
                         style, auto_dismiss, modal, placement, content)
 
 """
-    OpenPopupOperation(; id, x = 0, y = 0, anchor_size = (0, 0), side = :below, gap = 0,
+    OpenPopupOperation(; id, x = 0, y = 0, anchor_size = (0, 0), gap = 0,
                          width = 640, height = 800, auto_dismiss = true, content)
 
-Request a popup window at the box of a part. `(x, y)` is the top left corner of
+Request a popup window below the box of a part. `(x, y)` is the top left corner of
 the box in the frame of the reader that holds the operation, and `anchor_size` is
-its width and height; a point is a box of no size. The window stands on `side` of
-the box, `:below` with `gap` between them or `:center`, as
-[`compute_anchored_place`](@ref) puts it, so it goes above the box when the area of
-the display has no room below. The window takes the extent of what its content
+its width and height; a point is a box of no size. The window stands `gap` below
+the box with the left edges aligned, as [`compute_anchored_place`](@ref) puts it,
+so it goes above the box when the area of the display has no room below. The window takes the extent of what its content
 draws, as a tooltip does, and `width` and `height` bound that extent; so no opener
 estimates the size of what it opens.
 
@@ -226,7 +225,6 @@ struct OpenPopupOperation <: Operation
     x::Int
     y::Int
     anchor_size::NTuple{2,Int}
-    side::Symbol
     gap::Int
     width::Int
     height::Int
@@ -235,10 +233,10 @@ struct OpenPopupOperation <: Operation
 end
 
 OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
-                     anchor_size = (0, 0), side::Symbol = :below, gap::Integer = 0,
+                     anchor_size = (0, 0), gap::Integer = 0,
                      width::Integer = 640, height::Integer = 800,
                      auto_dismiss::Bool = true, content::Document) =
-    OpenPopupOperation(id, Int(x), Int(y), (Int(anchor_size[1]), Int(anchor_size[2])), side, Int(gap),
+    OpenPopupOperation(id, Int(x), Int(y), (Int(anchor_size[1]), Int(anchor_size[2])), Int(gap),
                        Int(width), Int(height), auto_dismiss, content)
 
 # It carries its content and a position in the frame of the reader that holds
@@ -253,7 +251,7 @@ function map_operation_position(operation::OpenPopupOperation, move)
     x1, y1 = move(operation.x, operation.y)
     x2, y2 = move(operation.x + operation.anchor_size[1], operation.y + operation.anchor_size[2])
     OpenPopupOperation(operation.id, round(Int, min(x1, x2)), round(Int, min(y1, y2)),
-                       (round(Int, abs(x2 - x1)), round(Int, abs(y2 - y1))), operation.side, operation.gap,
+                       (round(Int, abs(x2 - x1)), round(Int, abs(y2 - y1))), operation.gap,
                        operation.width, operation.height, operation.auto_dismiss, operation.content)
 end
 

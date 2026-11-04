@@ -98,13 +98,12 @@ function make_top_center_place(box; width_share::Real = 0.5, minimum_width::Inte
 end
 
 """
-    compute_anchored_place(context, anchor; side = :below, gap = 0,
-                           minimum_size = nothing, maximum_size = nothing) -> WindowPlace
+    compute_anchored_place(context, anchor; side = :below, gap = 0) -> WindowPlace
 
 The place of the window of `context` on `side` of `anchor`, a box in screen
 coordinates `(x = …, y = …, width = …, height = …)`; a point is a box of no size.
 `side` is `:below`, `gap` under the box with the left edges aligned, or
-`:center`, in the middle of the box. The bounds go into the place as they are.
+`:center`, in the middle of the box. The window keeps its bounds.
 
 The place stays on the area of the display that holds the middle of the anchor,
 or on the first area, from `display_areas` of the screen. A window below the
@@ -116,7 +115,7 @@ The size of the window is the size that the backend fitted to its content, so th
 place follows it.
 """
 function compute_anchored_place(context::WindowPlacementContext, anchor; side::Symbol = :below,
-                                gap::Integer = 0, minimum_size = nothing, maximum_size = nothing)
+                                gap::Integer = 0)
     width, height = Int(context.window.width), Int(context.window.height)
     x, y = if side === :below
         (Int(anchor.x), Int(anchor.y + anchor.height + gap))
@@ -126,15 +125,14 @@ function compute_anchored_place(context::WindowPlacementContext, anchor; side::S
         throw(ArgumentError("the side of an anchored place is :below or :center, not :$side"))
     end
     areas = context.screen isa ScreenDocument ? context.screen.display_areas : NTuple{4,Int}[]
-    isempty(areas) && return WindowPlace(x, y; minimum_size, maximum_size)
+    isempty(areas) && return WindowPlace(x, y)
     left, top, area_width, area_height =
         find_display_area(areas, (anchor.x + anchor.width ÷ 2, anchor.y + anchor.height ÷ 2))
     if side === :below && y + height > top + area_height
         above = Int(anchor.y) - Int(gap) - height
         above >= top && (y = above)
     end
-    WindowPlace(_slide_inside(x, width, left, area_width), _slide_inside(y, height, top, area_height);
-                minimum_size, maximum_size)
+    WindowPlace(_slide_inside(x, width, left, area_width), _slide_inside(y, height, top, area_height))
 end
 
 # The start of a span of `length` that starts at `start`, moved inside the span of
@@ -221,16 +219,43 @@ function find_screen_reference(document, reference)
 end
 
 """
-    make_fixed_placement(x, y; minimum_size = nothing, maximum_size = nothing) -> Function
+    FixedPlacement(place::WindowPlace)
+
+The placement that answers `place` whatever the screen holds, which
+[`make_fixed_placement`](@ref) makes. It is a type of its own, so a backend that
+changes the coordinates of the screen, as at a new zoom, moves the place with them.
+"""
+struct FixedPlacement
+    place::WindowPlace
+end
+
+(placement::FixedPlacement)(context) = placement.place
+
+"""
+    make_fixed_placement(x, y; minimum_size = nothing, maximum_size = nothing) -> FixedPlacement
 
 The placement that puts its window at `x` and `y` with these bounds, whatever the
 screen holds. A window with a frame takes it when a person moves or resizes the
 window, so the window stays where the person put it and its first placement ends.
 """
-function make_fixed_placement(x::Integer, y::Integer; minimum_size = nothing, maximum_size = nothing)
-    place = WindowPlace(x, y; minimum_size, maximum_size)
-    context -> place
+make_fixed_placement(x::Integer, y::Integer; minimum_size = nothing, maximum_size = nothing) =
+    FixedPlacement(WindowPlace(x, y; minimum_size, maximum_size))
+
+# The box of the node that draws the part at `source`, a reference from the input
+# of `iomap`, in the frame of its output, or `nothing`. The part is mapped forward
+# with the type of each node on its reference, because a view checks them, and the
+# box of the node is read from the printed output.
+function _find_part_box(projection, iomap, source)
+    source isa Reference || return nothing
+    input = get_iomap_input(iomap)
+    try_evaluate_reference(input, source, _NO_PART) === _NO_PART && return nothing
+    image = map_reference_forward(projection, iomap, annotate_reference_types(input, source))
+    image === nothing && return nothing
+    find_reference_box(get_iomap_output(iomap), image)
 end
+
+# What a step of a reference that reaches no node evaluates to.
+const _NO_PART = gensym(:no_part)
 
 # The place that the placement of `window` answers, or `nothing` when the window
 # has no placement or the placement answers none. `screen_iomap` is the cell of the

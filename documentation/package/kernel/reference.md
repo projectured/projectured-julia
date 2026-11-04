@@ -555,9 +555,9 @@ type of each node on its reference, as the selection does
 reaches in the printed output with `find_reference_box` of the graphics package:
 `(x, y, width, height)` in the frame of the output. `visible = true` cuts the
 box to what the viewports on the way show, and a box that none shows is
-`nothing`. `find_part_place` of the screen package does both from a wrapper at
-the screen and answers the bottom left corner of the box, where a window that a
-command opens, such as a tooltip with no pointer, stands. The round trip test of
+`nothing`. `find_window_part_box` of the screen package does both for a placement and
+answers the box in screen coordinates, where a window that a command opens, such as a
+tooltip with no pointer, stands below it. The round trip test of
 the widget examples, `test_widget_round_trip()`, ties the two maps together:
 each displayed part maps forward, and a point where its node draws something
 maps back to the part or to a part inside it.

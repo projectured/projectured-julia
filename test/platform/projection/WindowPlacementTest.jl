@@ -108,6 +108,26 @@ end
     @test_throws ArgumentError place((x = 0, y = 0, width = 0, height = 0); side = :left)
 end
 
+@testset "a window on a monitor above, left of or right of the main one stays there" begin
+    main, above = (0, 0, 1920, 1080), (0, -1080, 1920, 1080)
+    left, right = (-1280, 0, 1280, 1024), (1920, 0, 2560, 1440)
+    screen = ScreenDocument(; display_areas = [main, above, left, right])
+    window = WindowDocument(; id = :popup, style = :popup, width = 200, height = 80,
+                              content = PrimitiveString("x"))
+    place(x, y) = (p = compute_anchored_place(WindowPlacementContext(screen, window, nothing),
+                                              (x = x, y = y, width = 0, height = 0));
+                   (p.x, p.y))
+    # A point on the monitor above keeps the window on that monitor, and at its
+    # bottom edge the window goes above the point.
+    @test place(869, -974) == (869, -974)
+    @test place(100, -50) == (100, -130)
+    # The monitor on the left, and the right edge of the one on the right.
+    @test place(-300, 100) == (-300, 100)
+    @test place(4400, 100) == (4280, 100)
+    # A point on no display takes the main one.
+    @test place(5000, 2000) == (1720, 1000)
+end
+
 @testset "an anchored place follows the size of its window and the areas" begin
     screen, _, _ = _make_placement_screen()
     screen.display_areas = [(0, 0, 1200, 700)]
@@ -190,6 +210,22 @@ end
     evaluate_operation(editor, OpenWindowOperation(; id = :placed_dialog, x = 5, y = 6, style = :dialog,
                                                      content = PrimitiveString("z")))
     @test !is_window_placed(screen.windows[4])
+end
+
+@testset "a popup that replaces the window that opened it stands where it is asked" begin
+    # A submenu in a menu of the same id replaces that menu, so its placement would
+    # read the place of its own window.
+    open_popup = ProjecturedPlatform.ScreenModule._open_popup_window
+    op = OpenPopupOperation(; id = :widget_popup, x = 5, y = 6, anchor_size = (30, 10), gap = 2,
+                              content = PrimitiveString("y"))
+    menu = WindowDocument(; id = :widget_popup, x = 10, y = 20, style = :popup, content = PrimitiveString("x"))
+    opened = open_popup(op, menu)
+    @test opened.placement === nothing
+    @test (opened.x, opened.y) == (10 + 5, 20 + 6 + 10 + 2)
+    main = WindowDocument(; id = :main, x = 10, y = 20, content = PrimitiveString("x"))
+    @test open_popup(op, main).placement !== nothing
+    dialog = OpenWindowOperation(; id = :main, x = -1, y = -1, style = :dialog, content = PrimitiveString("z"))
+    @test open_popup(dialog, main).placement === nothing
 end
 
 @testset "a file keeps no placement" begin

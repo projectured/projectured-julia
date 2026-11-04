@@ -63,9 +63,9 @@ export make_window_scene, make_window_scene_projection, make_tracking_screen,
 export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_window_place, is_window_placed,
        has_window_frame
 export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
-       make_top_center_place, compute_anchored_place, find_display_area, make_fixed_placement,
+       make_top_center_place, compute_anchored_place, find_display_area, FixedPlacement, make_fixed_placement,
        find_screen_reference, find_window_box, make_window_center_placement
-export find_part_place, write_part_picture, write_window_picture
+export write_part_picture, write_window_picture
 export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings
 
@@ -76,7 +76,6 @@ include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
 include("EscapeQuitting.jl")
-include("PartPlace.jl")
 include("PartPicture.jl")
 include("WindowLayers.jl")
 include("DocumentShow.jl")

@@ -5516,9 +5516,8 @@ function BackendModule.write_to_devices!(backend::SdlBackend, devices::Vector{De
         canvas isa GraphicsCanvas ||
             error("write_to_devices!: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
         # The size before the window is made, so the first frame a person sees
-        # already fits, and before it is placed, because the place depends on it.
+        # already fits, and before its place is read, because a placement reads it.
         _fit_window_size!(w, canvas)
-        _place_fitted_window!(backend, w)
         res = get(backend.windows, w.id, nothing)
         if res === nothing
             res = _open_native_window!(backend, w; hidden = true)
@@ -5706,40 +5705,6 @@ function _fit_window_size!(w::WindowDocument, canvas::GraphicsCanvas)
     w
 end
 
-"""
-    _place_fitted_window!(backend::SdlBackend, w::WindowDocument) -> w
-
-Keep a window that fits its content on the screen. A window that would cross an
-edge of the area of its display is moved inside it. A tooltip that would then
-hold the pointer goes to the side of the pointer instead: a tooltip under the
-pointer covers the very thing it is about, and the next move of the pointer
-closes it. A popup stays under the pointer, because the pointer goes into it to
-choose.
-
-A window of a fixed size is left alone, and so is one whose place the backend
-chooses ([`is_automatic_window_place`](@ref)).
-
-The areas are the ones that `backend.display_areas` holds, in pixels at the zoom
-1, and the place and the size of a window are in logical pixels at the zoom of
-the display, so the areas are divided by the zoom. This function runs at each
-frame, so it asks SDL and `xrandr` nothing.
-"""
-function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
-    maximum_size = w.maximum_size
-    (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
-    is_automatic_window_place(w) && return w
-    # The placement of a placed window is the only authority on its place.
-    is_window_placed(w) && return w
-    (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
-                                  areas = _get_zoomed_display_areas(backend),
-                                  pointer = w.style === :tooltip ?
-                                            get_pointer_position(backend) : nothing)
-    (w.x == x && w.y == y) && return w
-    w.x = x
-    w.y = y
-    w
-end
-
 # Write the areas of the displays into `screen` when they changed, so a placement
 # reads them in the frame that reads the place of its window.
 function _write_display_areas!(backend::SdlBackend, screen::ScreenDocument)
@@ -5750,7 +5715,7 @@ end
 
 # The usable areas of the displays in logical pixels at the zoom of the display,
 # the coordinates of the place of a window: `backend.display_areas` is at the
-# zoom 1.
+# zoom 1. A frame asks SDL and `xrandr` nothing.
 function _get_zoomed_display_areas(backend::SdlBackend)
     zoom = backend.display.zoom
     NTuple{4,Int}[Tuple(round(Int, value / zoom) for value in area) for area in _get_display_areas(backend)]
@@ -5768,6 +5733,10 @@ function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, rat
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetWindowPosition(res.win, x_ref, y_ref)
     unit_ratio = _get_window_unit_ratio(res, ratio)
+    # The place that the backend sent comes back in window units, and a window unit
+    # larger than a logical pixel can not give the logical place back exactly.
+    (Int(x_ref[]), Int(y_ref[])) == (_to_device(res.x, unit_ratio), _to_device(res.y, unit_ratio)) &&
+        return w
     x, y = _to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio)
     (x == res.x && y == res.y) && return w
     if w.x == res.x && w.y == res.y
@@ -5782,33 +5751,6 @@ function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, rat
     res.x = x
     res.y = y
     w
-end
-
-# How far a window that had to move stays from the pointer.
-const _POINTER_GAP = 8
-
-"""
-    compute_window_place(x, y, width, height; areas, pointer) -> (x, y)
-
-Where a window of that size goes: inside the area of the display that holds its
-point, and beside `pointer` rather than under it. `areas` are the usable areas of
-the displays, each `(x, y, width, height)` in screen coordinates, the main display
-first. The point is `pointer`, the pointer in screen coordinates, or the place of
-the window when `pointer` is `nothing`; a point on no display takes the first
-area.
-"""
-function compute_window_place(x::Int, y::Int, width::Int, height::Int; areas, pointer)
-    point = pointer === nothing ? (x, y) : (Int(pointer[1]), Int(pointer[2]))
-    (left, top, area_width, area_height) = find_display_area(areas, point)
-    x + width  > left + area_width  && (x = left + area_width  - width)
-    y + height > top + area_height && (y = top + area_height - height)
-    x = max(x, left)
-    y = max(y, top)
-    if pointer !== nothing && x <= pointer[1] < x + width && y <= pointer[2] < y + height
-        beside = Int(pointer[1]) - width - _POINTER_GAP
-        x = beside >= left ? beside : Int(pointer[1]) + _POINTER_GAP
-    end
-    (x, y)
 end
 
 # The usable areas of the displays, or, with one display, the work area of
@@ -5933,6 +5875,11 @@ function _keep_device_geometry_at_new_zoom!(backend::SdlBackend, screen::ScreenD
         w.height = max(1, round(Int, Int(w.height) * factor))
         if !is_automatic_window_place(w) && !is_window_placed(w)
             w.x, w.y = _scale_place(Int(w.x), Int(w.y), factor)
+        elseif (placement = w.placement) isa FixedPlacement
+            place = placement.place
+            x, y = _scale_place(place.x, place.y, factor)
+            w.placement = FixedPlacement(WindowPlace(x, y; minimum_size = place.minimum_size,
+                                                     maximum_size = place.maximum_size))
         end
     end
     for res in values(backend.windows)

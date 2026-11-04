@@ -1,7 +1,8 @@
 # Every popup window is placed by a function
 
-> **Status (2026-11-04):** pending, not approved. The owner answered Q1 to Q3 on
-> 2026-11-04. It follows
+> **Status (2026-11-04):** steps 1 to 5 done on the branch `popup-placement`, not
+> landed; the recording of step 5 waits for the owner. The owner answered Q1 to Q3
+> and approved the plan on 2026-11-04. It follows
 > [ctrl-p-finds-a-file-by-its-name.md](../done/ctrl-p-finds-a-file-by-its-name.md),
 > which made the placement function and gave the context menu window the place
 > at the top of a part. The owner chose this order on 2026-11-03 (Q11 of that
@@ -129,12 +130,12 @@ person the same result.
 keeps `x` and `y`, now the top left corner of the box of its part in the frame of
 the reader that answers it, and each reader above moves them into its own frame
 with `map_operation_position`, as now. It also holds `anchor_size`, the size of
-that box, `side` and `gap`. `ScreenToScreen` makes from it an
+that box, and `gap`. `ScreenToScreen` makes from it an
 `OpenWindowOperation` whose placement finds the window that answered it on the
 screen of the context, adds the place of that window to the box, and calls
 `compute_anchored_place`. So the popup follows its window when the window moves.
-A submenu and the list of a select answer it with the box of their control,
-`side = :below` and the gap that they have now.
+A submenu and the list of a select answer it with the box of their control and
+the gap that they have now.
 
 *Found before step 3:* the plan first gave `OpenPopupOperation` a reference of its
 part, in place of `x` and `y`, which each reader above would map. That drops the
@@ -226,6 +227,50 @@ Each step is a commit, and the plan records what each step finds.
    and a right-click menu near the bottom edge of an area flip above. The recorded
    calls of each package whose list names a changed type are recorded again
    (`record_package_calls!`), so no precompile warns about stale calls.
+   ✅ *Done 2026-11-04, except the recording:* `test_window_placement` 55,
+   `test_native_window` (with "a place that SDL gives back rounded is no move of a
+   person" 3 and the zoom step in "a person moves a placed window" 8),
+   `test_widget_menu` 44, `test_widget_select_dropdown` 38,
+   `test_widget_popup_example` 23, `test_window_wrappers` 74,
+   `test_context_menu_window` 71, `test_widget_dialog` 18, `test_file_dialog` 22
+   and `test_tooltip_window` 58 pass.
+   - `find_part_place` and `PartPlace.jl` went; `_find_part_box` is in
+     `WindowPlacement.jl`, and two tests read it as their oracle. The backend lost
+     `_place_fitted_window!`, `compute_window_place` and `_POINTER_GAP`. The cases of
+     the monitors above, left and right moved from the SDL test to
+     `test_window_placement`.
+   - The documentation writer updated `sdl.md`, `reference.md`, `graphics.md`,
+     `popup-window.md`, `screen.md`, `tooltip.md`, `context-menu.md` and
+     `widget.md`.
+   - The naming guard passes. `test_sdl_layering` passes 7 of 7.
+     `test_platform_layering` fails 1 of 7, with the four errors that main has
+     (filechange once, roster twice, shell once) and none of this plan.
+   - The pixel check: with the bottom edge of the area 100 pixels below the top
+     of the main window, the File menu (206 × 142) opens above the menu bar, at
+     y = 158 for a window at y = 300; a right-click menu (70 × 70) at the point
+     (120, 110) with the edge at y = 140 opens above the point, at (120, 40).
+   - A review of the whole diff found three faults, all fixed with a test each.
+     (1) At a new zoom the backend scaled the place of a window with no placement,
+     but not a fixed placement, so a dialog that a person moved jumped, maybe off
+     the display: `make_fixed_placement` now answers a `FixedPlacement`, which the
+     zoom step scales. (2) Below the zoom 1 a window unit is larger than a logical
+     pixel, so a place came back from SDL 1 pixel off and looked like a move of a
+     person: `_adopt_native_position!` compares the device place that it sent.
+     (3) A popup with the id of the window that opened it, as a submenu in a menu
+     of the same id, would read the place of its own window in a cycle: it takes
+     the place of now. The review also removed what no caller used:
+     `OpenPopupOperation.side` (its `:center` case named the whole window, not the
+     box) and the bounds keywords of `compute_anchored_place`.
+   - *The recording is not done.* `record_package_calls!("ProjecturedSDL")` ends the
+     warning, but it made the list grow from 794 to 1752 lines: of the 1130 new
+     calls only 188 name a type that this plan changed, and the rest are general
+     calls of the cells and the walks of documents. So the lists of the packages
+     below ProjecturedSDL are stale for other reasons, and a recording of one
+     package takes their calls in. That list is not kept. The fix is
+     `record_repository_calls!()`, which records each package after the packages
+     that it depends on; it is a long run of its own, for the owner to decide. Until
+     then the precompile of ProjecturedSDL warns: 87 of its 838 calls do not
+     resolve, 9 of them from this plan, against 78 before it.
 
 ## Limits
 
@@ -236,3 +281,8 @@ Each step is a commit, and the plan records what each step finds.
   for.
 - A popup that is taller than the area of its display slides to the top of the
   area, and the part below the area is cut. A popup does not get smaller to fit.
+- A window manager of X11 that moves a dialog with a frame when it first shows
+  it, as some do, ends its placement at once: the dialog then stays where it
+  opened, and does not follow the window that opened it.
+- An open tooltip or right-click menu keeps the point of the old zoom at a new
+  zoom, so it moves; it stays inside the area of its display.

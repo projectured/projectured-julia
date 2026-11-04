@@ -377,14 +377,14 @@ end
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))
-    # The window stands below the function, where the place of the function says:
+    # The window stands below the function, where the box of the function says:
     # the operation carries the path of the function, not of the whole document.
-    # One more hop than `wrapper` used to need, past the drag tracker that now
-    # sits between the gesture tracker and the tooltip wrapper.
+    # The tooltip wrapper sits inside the gesture tracker and the drag tracker.
     wrapper = editor.projection.inner.inner
-    below = find_part_place(wrapper, editor.iomap.child_iomap.child_iomap, from_wrapper)
-    @test below !== nothing
-    @test _tw_place(editor, scene, tip) == (below[1], below[2] + 4)
+    box = ProjecturedPlatform.ScreenModule._find_part_box(wrapper, editor.iomap.child_iomap.child_iomap,
+                                                          from_wrapper)
+    @test box !== nothing
+    @test _tw_place(editor, scene, tip) == (box.x, box.y + box.height + 4)
     # And above the bottom of the text, which `x = 1` ends.
     text = find_reference_box(get_iomap_output(editor.iomap.child_iomap), window_content)
     @test _tw_place(editor, scene, tip)[2] < text.y + text.height

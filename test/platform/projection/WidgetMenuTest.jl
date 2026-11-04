@@ -176,7 +176,7 @@ end
     # The box of the item, and 2 pixels below it.
     @test (popup.x, popup.y) == (0, 0)
     @test popup.anchor_size[2] == _menu_iomap_of(iomap, item).control_height
-    @test (popup.side, popup.gap) == (:below, 2)
+    @test popup.gap == 2
     @test popup.content === submenu             # the popup content is the submenu
     @test popup.height > 0
 end

@@ -447,15 +447,16 @@ _open_popup_window(op, window) =
                                             py + _wval(getfield(window, :y))))
 # The placement of the popup reads the place of `window` where the screen prints
 # it, and while the screen holds no such window the popup stands below its box at
-# the place of now.
+# the place of now. A popup with the id of `window` replaces that window, as a
+# submenu in a menu of the same id does, so it stands at the place of now: a
+# placement that read the place of its own window would read itself.
 function _open_popup_window(op::OpenPopupOperation, window)
     id = window.id
-    placement = context -> begin
+    placement = id === op.id ? nothing : context -> begin
         box = find_window_box(context, id)
         box === nothing && return nothing
-        anchor = op.side === :center ? box :
-                 (x = box.x + op.x, y = box.y + op.y, width = op.anchor_size[1], height = op.anchor_size[2])
-        compute_anchored_place(context, anchor; side = op.side, gap = op.gap)
+        anchor = (x = box.x + op.x, y = box.y + op.y, width = op.anchor_size[1], height = op.anchor_size[2])
+        compute_anchored_place(context, anchor; gap = op.gap)
     end
     OpenWindowOperation(; id = op.id, x = _wval(getfield(window, :x)) + op.x,
                           y = _wval(getfield(window, :y)) + op.y + op.anchor_size[2] + op.gap,
@@ -464,9 +465,9 @@ function _open_popup_window(op::OpenPopupOperation, window)
                           auto_dismiss = op.auto_dismiss, placement, content = op.content)
 end
 # A dialog that the content of `window` opens with no place of its own stands at
-# the center of that window.
+# the center of that window, unless it replaces that window.
 _open_popup_window(op::OpenWindowOperation, window) =
-    _is_unplaced_dialog(op) ? _place_at_window_center(op, window.id) : op
+    _is_unplaced_dialog(op) && window.id !== op.id ? _place_at_window_center(op, window.id) : op
 function _open_popup_window(op::CompoundOperation, window)
     members = Any[_open_popup_window(member, window) for member in op.operations]
     all(member === original for (member, original) in zip(members, op.operations)) ?
