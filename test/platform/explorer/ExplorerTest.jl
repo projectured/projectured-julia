@@ -198,7 +198,10 @@ function test_explorer()
         divider = band[(length(band) + 1) ÷ 2]
         @test abs(divider - 250) <= 4
         before = back_x()
-        @test divider < before < divider + 12
+        # The page starts past the 1 px divider, the space that its slot gives and
+        # the padding of the item of the back button.
+        theme = get_theme_defaults(WidgetTheme)
+        @test before == divider + 1 + Int(theme.slot_padding.left[]) + Int(theme.toolbar_item_padding.left[])
         send!(MouseDown(:left, divider, y, ModifierKeys(); time = 1.0))
         send!(MouseMove(divider + 100, y, MouseButtons(:left), ModifierKeys(); time = 1.1))
         @test back_x() == before + 100

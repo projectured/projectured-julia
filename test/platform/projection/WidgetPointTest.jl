@@ -44,8 +44,12 @@ end
     split = WidgetSplitPane(:horizontal, Any[WidgetLabel("left"),
                                              WidgetComposite(Any[WidgetButton("Go")])];
                             sizes = [300, 300])
-    @test _map(split, 5, 5) == _path(FieldReferenceStep("elements"), _at(1))
-    @test _map(split, 305, 5) ==
+    # Each slot gives its slot padding, so what it holds stands that far inside
+    # it, past the divider of the width of a border.
+    theme = get_theme_defaults(WidgetTheme)
+    left, top = Int(theme.slot_padding.left[]), Int(theme.slot_padding.top[])
+    @test _map(split, left + 5, top + 5) == _path(FieldReferenceStep("elements"), _at(1))
+    @test _map(split, 300 + theme.border_width + left + 5, top + 5) ==
           _path(FieldReferenceStep("elements"), _at(2), FieldReferenceStep("elements"), _at(1))
 end
 

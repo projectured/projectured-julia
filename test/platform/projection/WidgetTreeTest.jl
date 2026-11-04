@@ -73,8 +73,11 @@ end
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
     @test _has_children(w, [1]) && [1] in w.expanded
     @test !_has_children(w, [2])                       # README is a leaf
-    @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 16
-    @test geom.rows[2].chevron_x0 == 12                # indented one level
+    # The content of a row stands the side padding of the rows inside the row.
+    theme = get_theme_defaults(WidgetTheme)
+    left = Int(theme.tree_row_padding.left[])
+    @test geom.rows[1].chevron_x0 == left && geom.rows[1].chevron_x1 == left + theme.tree_chevron_column
+    @test geom.rows[2].chevron_x0 == left + theme.indent   # indented one level
 end
 
 @testset "a move onto a row makes it the part under the pointer; moving off it clears it" begin

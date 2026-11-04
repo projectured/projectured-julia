@@ -299,7 +299,9 @@ end
     right = WidgetButton("R"; size = Point2D(80, 30))
     split_pane = WidgetSplitPane(:horizontal, Any[left, right]; sizes = [150, 150])
     (screen, play!) = _mtm_screen(_mtm_window(:w, 0, split_pane))
-    play!(WindowInput(:w, MouseMove(5, 5; time = 0.0)))
+    # Each slot gives its slot padding, so the button stands that far inside it.
+    slot = get_theme_defaults(WidgetTheme).slot_padding
+    play!(WindowInput(:w, MouseMove(Int(slot.left[]) + 5, Int(slot.top[]) + 5; time = 0.0)))
     @test get_mouse_target(split_pane) == _mtm_path(_mtm_elements(1)...)
     @test get_mouse_target(left) == EmptyReference()
     # In the left slot but off its button: the split pane itself.

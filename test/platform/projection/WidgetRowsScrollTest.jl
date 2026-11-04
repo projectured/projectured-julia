@@ -124,8 +124,10 @@ function test_widget_rows_scroll()
         click = read_intent(projection, iomap, MouseClick(:left, 120, 60; time = 0.0))
         @test click isa ReplaceSelectionOperation
         @test strip_reference_types(click.path).head == FieldReferenceStep("roots")
-        # A click on the chevron of a row opens its node.
-        toggle = read_intent(projection, iomap, MouseClick(:left, iomap.place[1] + 3, 60; time = 0.0))
+        # A click on the chevron of a row opens its node. The chevron stands the side
+        # padding of the rows inside the row.
+        left = Int(get_theme_defaults(WidgetTheme).tree_row_padding.left[])
+        toggle = read_intent(projection, iomap, MouseClick(:left, iomap.place[1] + left + 3, 60; time = 0.0))
         evaluate_operation(nothing, toggle)
         @test length(tree.expanded) == 1
     end
