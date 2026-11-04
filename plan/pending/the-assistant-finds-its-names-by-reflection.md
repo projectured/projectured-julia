@@ -589,6 +589,38 @@ ends with a commit in each repository that it changes.
   extra method passes on the document, not the place. A verb that needs a place
   then refuses that answer with the hint of a plain document.
 
+### 5.3 Facts found in step 3
+
+A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
+
+- **106 offered verbs change something.** About 45 change a document or the
+  layout of the window; these are the verbs of §4.3. The others start or stop a
+  task or a process (35), write a file on disk (5), or change the selection, a
+  setting, the clipboard, a database connection or a registry.
+- **Some verbs already have a twin that makes the change and applies nothing:**
+  `make_close_pane_operation`, `make_focus_pane_operation` and the other pane
+  verbs, and `make_filter_collection_operation` and the other collection verbs.
+  Each answers an operation from the root of the editor's document, carried
+  there by the readers. None carries the mark. The kernel's
+  `make_insert_elements_operation(path, index, items)` has the same form of name,
+  but it takes a path and goes through no reader, so no history records it.
+- **A rooted operation already holds its undo records.** `find_rooted_operation`
+  and `read_rooted_operation` carry an operation through the readers, and the
+  reader of each history on the way wraps it in a `RecordUndoOperation`. So a
+  `CompoundOperation` of two rooted operations records two steps, not one.
+- **Many verbs apply several steps.** `make_study!` and `open_study!` evaluate 3
+  to 5 operations and also write cells and fields directly; `add_study_formula!`
+  evaluates 2 to 3; `check_predictions!` makes one step for each hypothesis;
+  `close_task_group!` closes each tab with its own step. `replace_referenced_value!`
+  restores the focus with a second operation, and restores the shown tab with a
+  direct write.
+- **No file verb goes through an operation.** `write_document_file`,
+  `export_document` and the study files write the disk directly. None of the 20
+  operation types of files is made by a verb.
+- **The 73 operations of §5 are not found again.** The survey counts 146 operation
+  types: 23 edit a document, 20 a file and 12 a tab or a pane. The study that
+  counted 73 is not kept.
+
 ## 6. What else changes
 
 - omnet-julia loses its API lists, and its texts change. Its precompile lists
