@@ -486,9 +486,8 @@ approval of the user.
         that it failed and compiles more while it runs. Some of them name a
         signature that this step changed (a widget IO map with a new field, a
         reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
-        that takes the shape). The lists are recorded again in a task of their
-        own (`record_package_calls!`).
-- [ ] 5. **The text printer takes the line spacing from the context.**
+        that takes the shape). The lists are recorded again after step 8.
+- [x] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
       positions and the line height that its readers (`char_to_coord` and the
@@ -497,6 +496,39 @@ approval of the user.
       (`WidgetToGraphics.jl:1923`) and the cells of a table (`:11410`), which
       set the property; `test_syntax_to_text()` and the platform suite, part by
       part, give the counts of the baseline.
+
+      Done in `c5e96d517`. The facts:
+      - `_get_line_spacing(p, ctx)` gives the spacing of one print: the
+        `:line_spacing` property of the context where one is set, else
+        `p.line_spacing`. `print_document` calls it once, and no other place
+        reads `p.line_spacing`. `_with_line_spacing` is deleted.
+      - The layout takes the spacing as an argument: `_layout_group`,
+        `_layout_overlay`, `_print_listnode`, `_layout_list_line` and
+        `_build_line_node` take `spacing` after `p`, and `_GroupLayout` holds it
+        in a `const` field that `_close_line!` reads.
+      - `TextToGraphicsIoMap` holds `p` itself and a new field `line_spacing`,
+        the spacing of the print. The places and the heights of the lines are
+        already in `char_to_coord` and in the output, so the IO map carries no
+        other new field. One reader lays a line out again,
+        `_map_list_lines_forward` for a line of a lazy list, and it reads
+        `iomap.line_spacing`. The caret readers, the keys Home, End, Up and
+        Down, and `map_reference_forward` read the places of the lines from
+        `char_to_coord` or the output.
+      - The 44 widget images are the same, and 19 more images of code, prose,
+        markdown and the text spacing examples are the same byte for byte. The
+        lazy examples are not drawn: the image writer overflows its stack on
+        an endless list; `test_text_to_graphics` covers that path.
+      - 14 text test functions, among them `test_syntax_to_text`: 1259 Pass,
+        as before. The platform suite on the code of step 4 with this step:
+        176810 Pass, 19 Fail, 3 Error, 7 Broken, the known failures of that
+        code. The 172 more Pass are in `test_platform_examples`, which gives a
+        test to each cell it forces, and each text IO map holds one more cell.
+      - Found and not changed: two widget printers make a new `TextToGraphics`
+        on each print, `_print_plain_text_view` (with a `WordWrapping` chain
+        for a field that wraps) and the selector of a tabbed pane. They are new
+        projections and not copies, but a projection is fixed configuration.
+        `_print_plain_text_view` also reads `w.line_spacing` outside a cell and
+        drops it when the context is `nothing`.
 - [ ] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
