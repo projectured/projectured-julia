@@ -2,17 +2,24 @@
 # windows, and the window document beneath it.
 
 """
-    ScreenDocument(; windows, pointer_shape = nothing)
+    ScreenDocument(; windows, pointer_shape = nothing, display_areas = NTuple{4,Int}[])
 
 The windows that the editor shows, and `pointer_shape`, the shape that the
 pointer keeps over every window while a part says one, or `nothing`. A part says
 the shape of its drag with [`ChangeScreenPointerShapeOperation`](@ref), and the
 screen draws a region of that shape over each window. `pointer_shape` is view
 state: a history does not record it.
+
+`display_areas` is the usable area of each display, `(x, y, width, height)` in
+the coordinates of the place of a window, the main display first. The backend
+writes it, as it writes the place and the size of a window, and a placement reads
+it to keep its window on a display. A backend that knows no displays leaves it
+empty.
 """
 @document struct ScreenDocument
     windows::CellVector = CellVector()
     pointer_shape::Union{Symbol,Nothing} = nothing
+    display_areas::Vector{NTuple{4,Int}} = NTuple{4,Int}[]
 end
 
 # `ScreenDocument()` (empty), `ScreenDocument([w, …])` and `ScreenDocument(w, …)`
@@ -20,7 +27,8 @@ end
 # variadic forms for a struct backed by a single `CellVector`. Only the
 # already-wrapped `CellVector` form needs writing — a `CellVector` is a `Document`,
 # so this more specific method takes it as the *collection*, not as one element.
-ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing), Cell(nothing))
+ScreenDocument(windows::CellVector) =
+    ScreenDocument(windows, Cell(nothing), Cell(NTuple{4,Int}[]), Cell(nothing))
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
@@ -98,6 +106,14 @@ the window, because the place is a computation of the placement, and a write
 would replace it.
 """
 is_window_placed(window::WindowDocument) = getfield(window, :placement)[] !== nothing
+
+"""
+    has_window_frame(window::WindowDocument) -> Bool
+
+Whether `window` has the frame of the window manager, with which a person moves and
+resizes it. A `:popup` and a `:tooltip` have none.
+"""
+has_window_frame(window::WindowDocument) = !(window.style in (:popup, :tooltip))
 
 # A window calls itself by the title it shows.
 get_document_title(window::WindowDocument) = window.title

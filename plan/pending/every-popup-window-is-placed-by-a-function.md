@@ -110,10 +110,20 @@ not make its bounds from the size of its window, because the size comes from the
 bounds.
 
 **D4: the move of a person ends the placement (Q3).** When the window manager
-reports a place of a window with a frame that is not the place that the backend
-asked for, the backend writes that place into `x` and `y` and `nothing` into
-`placement`. The screen then prints the window again without a placement. A
-`:popup` or a `:tooltip` window has no frame, so the rule does not apply to it.
+reports a place of a placed window with a frame that is not the place that the
+backend asked for, the backend replaces its placement with
+`make_fixed_placement(x, y; minimum_size, maximum_size)`, a placement that answers
+that place with the bounds of the window. When a person resizes such a window,
+`WindowManagingProjection` answers the resize together with the same write, at the
+place where the window stands. A `:popup` or a `:tooltip` window has no frame
+(`has_window_frame`), so the rule does not apply to it.
+
+*Found in step 1:* the plan first wrote `nothing` into `placement` and the place
+into `x` and `y`. That does not work: the `x` and `y` of a placed window are
+computed cells of the screen projection, which the window manager replaces only
+for an operation, and the backend gives no operation. A write of a fixed
+placement uses the computation that exists, needs no new event, and gives a
+person the same result.
 
 **D5: a popup names its part by a reference.** `OpenPopupOperation` holds
 `source`, the reference of its part from the input of the reader that answers it,
@@ -143,10 +153,20 @@ D2. The backend still centers a normal window with `x = -1`, as the main window.
 
 Each step is a commit, and the plan records what each step finds.
 
-1. **The areas and the helper.** D1, D2, D3 and D4. Tests: `test_window_placement()`
+1. ✅ **The areas and the helper.** D1, D2, D3 and D4. Tests: `test_window_placement()`
    with new cases (a flip, a slide, two displays, no areas, a move by a person
    ends a placement) and `test_native_window()`, which checks the write of the
    areas.
+   *Done 2026-11-04:* `test_window_placement` 41, `test_window_fit` 15,
+   `test_context_menu_window` 69, `test_window_wrappers` 74 and every set of
+   `test_native_window` pass, with the new sets "a frame writes the areas of the
+   displays into the screen" (3) and "a person moves a placed window with a frame,
+   and it stays there" (5). `find_display_area` moved from the backend to the
+   screen slice in this step, and `compute_window_place` of the backend uses it.
+   The new field gives `ScreenDocument` one more type parameter, so 8 recorded
+   calls of ProjecturedSDL no longer resolve. With the 78 that were stale before,
+   86 of 838 pass the limit of 10%, and the precompile of ProjecturedSDL warns.
+   Step 5 records the lists again.
 2. **The tooltip and the right-click menu.** Both open with a placement: beside
    the point, else below the part. Tests: `test_tooltip()` and
    `test_context_menu_window()`, with a case at the edge of an area.
@@ -159,7 +179,9 @@ Each step is a commit, and the plan records what each step finds.
    `tooltip.md` and `context-menu.md` describe one way of placement. The naming
    guard, the layering guards of the slices that changed, `test_native_window()`,
    and a check of the pixels with the offscreen renderer: a menu of the menu bar
-   and a right-click menu near the bottom edge of an area flip above.
+   and a right-click menu near the bottom edge of an area flip above. The recorded
+   calls of each package whose list names a changed type are recorded again
+   (`record_package_calls!`), so no precompile warns about stale calls.
 
 ## Limits
 

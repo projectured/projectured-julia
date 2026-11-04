@@ -5486,6 +5486,7 @@ once, and sets it only when the shape changes.
 """
 function BackendModule.write_to_devices!(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     _keep_device_geometry_at_new_zoom!(backend, screen)
+    _write_display_areas!(backend, screen)
     ratio = get_device_pixel_ratio(backend.display)
     desired_ids = Set{Symbol}()
     for w in screen.windows
@@ -5729,31 +5730,54 @@ function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     is_automatic_window_place(w) && return w
     # The placement of a placed window is the only authority on its place.
     is_window_placed(w) && return w
-    zoom = backend.display.zoom
-    areas = [Tuple(round(Int, value / zoom) for value in area) for area in _get_display_areas(backend)]
     (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
-                                  areas, pointer = w.style === :tooltip ?
-                                                   get_pointer_position(backend) : nothing)
+                                  areas = _get_zoomed_display_areas(backend),
+                                  pointer = w.style === :tooltip ?
+                                            get_pointer_position(backend) : nothing)
     (w.x == x && w.y == y) && return w
     w.x = x
     w.y = y
     w
 end
 
+# Write the areas of the displays into `screen` when they changed, so a placement
+# reads them in the frame that reads the place of its window.
+function _write_display_areas!(backend::SdlBackend, screen::ScreenDocument)
+    areas = _get_zoomed_display_areas(backend)
+    screen.display_areas == areas || (screen.display_areas = areas)
+    nothing
+end
+
+# The usable areas of the displays in logical pixels at the zoom of the display,
+# the coordinates of the place of a window: `backend.display_areas` is at the
+# zoom 1.
+function _get_zoomed_display_areas(backend::SdlBackend)
+    zoom = backend.display.zoom
+    NTuple{4,Int}[Tuple(round(Int, value / zoom) for value in area) for area in _get_display_areas(backend)]
+end
+
 # The place of a window that the window manager chose. It can put a window
 # elsewhere than asked, at the first frame or when a person moves it. The document
 # takes that place when it asks for no place of its own, so a popup opens at the
-# window and not where the window was first asked to be. SDL gives the place in
-# window units, and `ratio` is the device pixel ratio of this frame.
+# window and not where the window was first asked to be. A placed window with a
+# frame takes a fixed placement at that place instead, because its place is a
+# computation of its placement: so the window stays where the person put it. A
+# placed window with no frame keeps its placement. SDL gives the place in window
+# units, and `ratio` is the device pixel ratio of this frame.
 function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, ratio::Float64)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetWindowPosition(res.win, x_ref, y_ref)
     unit_ratio = _get_window_unit_ratio(res, ratio)
     x, y = _to_logical(Int(x_ref[]), unit_ratio), _to_logical(Int(y_ref[]), unit_ratio)
     (x == res.x && y == res.y) && return w
-    if w.x == res.x && w.y == res.y && !is_window_placed(w)
-        w.x = x
-        w.y = y
+    if w.x == res.x && w.y == res.y
+        if !is_window_placed(w)
+            w.x = x
+            w.y = y
+        elseif has_window_frame(w)
+            w.placement = make_fixed_placement(x, y; minimum_size = w.minimum_size,
+                                               maximum_size = w.maximum_size)
+        end
     end
     res.x = x
     res.y = y
@@ -5775,7 +5799,7 @@ area.
 """
 function compute_window_place(x::Int, y::Int, width::Int, height::Int; areas, pointer)
     point = pointer === nothing ? (x, y) : (Int(pointer[1]), Int(pointer[2]))
-    (left, top, area_width, area_height) = _find_display_area(areas, point)
+    (left, top, area_width, area_height) = find_display_area(areas, point)
     x + width  > left + area_width  && (x = left + area_width  - width)
     y + height > top + area_height && (y = top + area_height - height)
     x = max(x, left)
@@ -5785,15 +5809,6 @@ function compute_window_place(x::Int, y::Int, width::Int, height::Int; areas, po
         x = beside >= left ? beside : Int(pointer[1]) + _POINTER_GAP
     end
     (x, y)
-end
-
-# The area of `areas` that holds `point`, or the first one when none holds it.
-function _find_display_area(areas, point)
-    for area in areas
-        (area[1] <= point[1] < area[1] + area[3] && area[2] <= point[2] < area[2] + area[4]) &&
-            return area
-    end
-    first(areas)
 end
 
 # The usable areas of the displays, or, with one display, the work area of

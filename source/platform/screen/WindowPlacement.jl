@@ -97,6 +97,79 @@ function make_top_center_place(box; width_share::Real = 0.5, minimum_width::Inte
                 minimum_size = (width, 0), maximum_size = (width, Int(maximum_height)))
 end
 
+"""
+    compute_anchored_place(context, anchor; side = :below, gap = 0,
+                           minimum_size = nothing, maximum_size = nothing) -> WindowPlace
+
+The place of the window of `context` on `side` of `anchor`, a box in screen
+coordinates `(x = …, y = …, width = …, height = …)`; a point is a box of no size.
+`side` is `:below`, `gap` under the box with the left edges aligned, or
+`:center`, in the middle of the box. The bounds go into the place as they are.
+
+The place stays on the area of the display that holds the middle of the anchor,
+or on the first area, from `display_areas` of the screen. A window below the
+anchor that crosses the bottom edge of the area goes `gap` above the anchor, and
+slides up inside the area when the top has no room either. On every other edge the
+window slides inside the area. A screen with no areas keeps the place on its side.
+
+The size of the window is the size that the backend fitted to its content, so the
+place follows it.
+"""
+function compute_anchored_place(context::WindowPlacementContext, anchor; side::Symbol = :below,
+                                gap::Integer = 0, minimum_size = nothing, maximum_size = nothing)
+    width, height = Int(context.window.width), Int(context.window.height)
+    x, y = if side === :below
+        (Int(anchor.x), Int(anchor.y + anchor.height + gap))
+    elseif side === :center
+        (Int(anchor.x + (anchor.width - width) ÷ 2), Int(anchor.y + (anchor.height - height) ÷ 2))
+    else
+        throw(ArgumentError("the side of an anchored place is :below or :center, not :$side"))
+    end
+    areas = context.screen isa ScreenDocument ? context.screen.display_areas : NTuple{4,Int}[]
+    isempty(areas) && return WindowPlace(x, y; minimum_size, maximum_size)
+    left, top, area_width, area_height =
+        find_display_area(areas, (anchor.x + anchor.width ÷ 2, anchor.y + anchor.height ÷ 2))
+    if side === :below && y + height > top + area_height
+        above = Int(anchor.y) - Int(gap) - height
+        above >= top && (y = above)
+    end
+    WindowPlace(_slide_inside(x, width, left, area_width), _slide_inside(y, height, top, area_height);
+                minimum_size, maximum_size)
+end
+
+# The start of a span of `length` that starts at `start`, moved inside the span of
+# `area_length` that starts at `area_start`; a span that is longer than the area
+# starts with it.
+_slide_inside(start, length, area_start, area_length) =
+    max(min(start, area_start + area_length - length), area_start)
+
+"""
+    find_display_area(areas, point) -> NTuple{4,Int}
+
+The area of `areas` that holds `point`, or the first area when none holds it.
+Each area is `(x, y, width, height)`, as `display_areas` of a
+[`ScreenDocument`](@ref) holds it, and `areas` is not empty.
+"""
+function find_display_area(areas, point)
+    for area in areas
+        (area[1] <= point[1] < area[1] + area[3] && area[2] <= point[2] < area[2] + area[4]) &&
+            return area
+    end
+    first(areas)
+end
+
+"""
+    make_fixed_placement(x, y; minimum_size = nothing, maximum_size = nothing) -> Function
+
+The placement that puts its window at `x` and `y` with these bounds, whatever the
+screen holds. A window with a frame takes it when a person moves or resizes the
+window, so the window stays where the person put it and its first placement ends.
+"""
+function make_fixed_placement(x::Integer, y::Integer; minimum_size = nothing, maximum_size = nothing)
+    place = WindowPlace(x, y; minimum_size, maximum_size)
+    context -> place
+end
+
 # The place that the placement of `window` answers, or `nothing` when the window
 # has no placement or the placement answers none. `screen_iomap` is the cell of the
 # IO map of the screen that prints the window, which holds `nothing` while the

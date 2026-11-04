@@ -60,11 +60,22 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the window input.
+    # A person resizes a placed window with a frame, so it also takes a fixed
+    # placement at the place where it stands: a placement that reads the size would
+    # move the window under the hand of the person.
     if window_input isa WindowInput && window_input.event isa WindowResize
         win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
+        resize = ResizeWindowOperation(win, window_input.event.width, window_input.event.height)
+        (is_window_placed(win) && has_window_frame(win)) || return Intent(change.gesture, resize)
+        shown = _find_window(unwrap_cell(get_iomap_output(iomap)), window_input.window_id)
+        shown === nothing && return Intent(change.gesture, resize)
+        fixed = make_fixed_placement(shown.x, shown.y; minimum_size = shown.minimum_size,
+                                     maximum_size = shown.maximum_size)
         return Intent(change.gesture,
-                      ResizeWindowOperation(win, window_input.event.width, window_input.event.height))
+                      CompoundOperation(Any[resize,
+                                            ReplaceViewStateOperation(
+                                                ReplaceReferencedValueOperation(win, "placement", fixed))]))
     end
     # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
     # as a WindowClose carrying the window id. Resolve the window and

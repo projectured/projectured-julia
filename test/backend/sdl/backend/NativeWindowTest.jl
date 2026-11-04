@@ -415,6 +415,66 @@ end
     end
 end
 
+@testset "a frame writes the areas of the displays into the screen" begin
+    # A placement reads the areas in the coordinates of the place of a window, the
+    # logical pixels of the zoom.
+    SDL = ProjecturedSDL.SdlModule
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    screen = ScreenDocument([WindowDocument(; id = :areas_test, title = "areas_test", x = 100, y = 100,
+                                              width = 200, height = 100, content = canvas)])
+    write_to_devices!(backend, Device[Display()], screen)
+    areas = screen.display_areas
+    @test !isempty(areas)
+    @test areas == SDL._get_zoomed_display_areas(backend)
+    backend.display.zoom = 2.0
+    write_to_devices!(backend, Device[Display()], screen)
+    @test screen.display_areas == [Tuple(round(Int, value / 2) for value in area) for area in areas]
+    quit_backend!(backend)
+end
+
+@testset "a person moves a placed window with a frame, and it stays there" begin
+    # The place of a placed window is a computation of the screen, so the backend
+    # gives a window with a frame a fixed placement at the place that the window
+    # manager reports. A popup has no frame and keeps its placement.
+    LibSDL2 = ProjecturedSDL.SdlModule.SimpleDirectMediaLayer.LibSDL2
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        ScreenDocument => WindowManagingProjection(inner = ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
+        CellVector     => CopyingProjection(),
+        Any            => IdentityProjection()))
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    ratio = get_device_pixel_ratio(backend.display)
+    canvas() = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    screen = ScreenDocument([
+        WindowDocument(; id = :placed_dialog_test, title = "placed_dialog_test", style = :dialog,
+                         width = 200, height = 100, placement = context -> WindowPlace(100, 100),
+                         content = canvas()),
+        WindowDocument(; id = :placed_popup_test, title = "placed_popup_test", style = :popup,
+                         width = 200, height = 100, placement = context -> WindowPlace(400, 100),
+                         content = canvas())])
+    output = print_document(projection, screen).output
+    write_to_devices!(backend, Device[Display()], output)
+    placed(id) = (x = Ref{Cint}(0); y = Ref{Cint}(0);
+                  LibSDL2.SDL_GetWindowPosition(backend.windows[id].win, x, y); (Int(x[]), Int(y[])))
+    LibSDL2.SDL_SetWindowPosition(backend.windows[:placed_dialog_test].win, Int32(600), Int32(400))
+    moved = placed(:placed_dialog_test)
+    write_to_devices!(backend, Device[Display()], output)
+    dialog = output.windows[1]
+    @test is_window_placed(dialog)
+    @test (dialog.x, dialog.y) == (round(Int, moved[1] / ratio), round(Int, moved[2] / ratio))
+    write_to_devices!(backend, Device[Display()], output)
+    @test placed(:placed_dialog_test) == moved
+    LibSDL2.SDL_SetWindowPosition(backend.windows[:placed_popup_test].win, Int32(700), Int32(500))
+    write_to_devices!(backend, Device[Display()], output)
+    popup = output.windows[2]
+    @test (popup.x, popup.y) == (400, 100)
+    @test placed(:placed_popup_test) == (round(Int, 400 * ratio), round(Int, 100 * ratio))
+    quit_backend!(backend)
+end
+
 @testset "a window whose units are points converts with the window unit ratio" begin
     # On macOS SDL counts a window in points, and a Retina screen has two device
     # pixels in each point. A window on X11 measures one pixel in each unit, so the

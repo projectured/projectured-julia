@@ -54,7 +54,8 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         im = iomap_cell[]
         im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    output = ScreenDocument(out_windows, pointer_shape, paths.selection, paths.mouse_target)
+    output = ScreenDocument(out_windows, pointer_shape, getfield(input, :display_areas),
+                            paths.selection, paths.mouse_target)
     iomap = ScreenToScreenIoMap(p, input, output, window_iomaps)
     iomap_cell[] = iomap
     iomap
