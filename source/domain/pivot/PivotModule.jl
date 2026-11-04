@@ -26,6 +26,7 @@ using ..ChartModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: make_change
 import ..WidgetModule: make_graphics_projection
 import ..DomainModule: compute_context_menu
 import ..GestureBindingModule: get_document_gesture_bindings_own

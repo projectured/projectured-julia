@@ -347,6 +347,67 @@ function test_referenced_document_editor()
         @test get_document(people)[1]["name"].value == "Cleo"
     end
 
+    @testset "a group of changes applies as one step, and one undo takes it back" begin
+        people_tab = find_pane("people.json"; editor)
+        people = get_edited_document(people_tab)
+        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        count = length(get_document(people))
+        second = get_document(people)[2]["name"].value
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
+        change = combine_changes(make_change(insert_elements!, people, count + 1, [frank]; editor),
+                                 make_change(delete_elements!, people, 1; editor))
+        @test startswith(repr(change), "a change: Insert 1 into ")
+        @test occursin("; Delete 1 from ", repr(change))
+        @test length(get_document(people)) == count
+        apply_change!(change; editor)
+        @test length(get_document(people)) == count
+        @test get_document(people)[end]["name"].value == "Frank"
+        @test get_document(people)[1]["name"].value == second
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+        evaluate_operation(editor, UndoOperation(history))
+        @test length(get_document(people)) == count
+        @test get_document(people)[1]["name"].value == "Cleo"
+    end
+
+    # The window history records the group as one step, and the history of the
+    # file records its own part of it as one step.
+    @testset "a group of a pane change and an edit of a file is one step of the window" begin
+        note = open_pane!(PrimitiveString("note"); title = "Note", editor)
+        run_frame!(editor)
+        people_tab = find_pane("people.json"; editor)
+        people = get_edited_document(people_tab)
+        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        count = length(get_document(people))
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        apply_change!(combine_changes(make_change(close_pane!, note; editor),
+                                      make_change(delete_elements!, people, 1; editor)); editor)
+        @test find_pane("Note"; editor) === nothing
+        @test length(get_document(people)) == count - 1
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+        evaluate_operation(editor, UndoOperation(history))
+        @test find_pane("Note"; editor) !== nothing
+        @test length(get_document(people)) == count
+        close_pane!(find_pane("Note"; editor); editor)
+    end
+
+    @testset "open_file! opens a file in a tab, and a save and a load act on the tab" begin
+        path = joinpath(directory, "colors.json")
+        write(path, "[\"red\", \"green\"]")
+        tab = open_file!(path; editor)
+        @test tab isa ReferencedDocument && get_document(tab) isa PaneTab
+        @test get_document(open_file!(path; editor)) === get_document(tab)
+        show_pane!(tab; editor)
+        run_frame!(editor)
+        insert_elements!(get_edited_document(tab), 3, [JsonString("blue")]; editor)
+        @test save_file_to_disk!(tab; editor)
+        @test occursin("blue", read(path, String))
+        write(path, "[\"black\"]")
+        @test reload_file_from_disk!(tab; editor) === tab
+        @test length(get_document(get_edited_document(tab))) == 1
+        close_pane!(tab; editor)
+    end
+
     @testset "a text file answers the document of its text" begin
         path = joinpath(directory, "notes.txt")
         write(path, "hello")

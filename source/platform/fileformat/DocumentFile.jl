@@ -219,16 +219,9 @@ get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 Write `file`'s current content to its own name. A pure side effect; the
 document is not mutated.
 
-Use it to write an open file to the disk, as Ctrl+S does.
-
-# Example
-
-    file_1 = make_file_tab("notes.json")
-    evaluate_operation(editor, SaveFileOperation(file_1))
+Ctrl+S answers it; code saves a file with `save_file_to_disk!`.
 
 See also `ReloadFileOperation` and `write_document_file`.
-
-For the assistant.
 """
 struct SaveFileOperation <: Operation
     file::FileDocument
@@ -411,7 +404,7 @@ Use it to compare a file document with its file on disk.
 
     text_1 = compute_file_text(file_1)
 
-See also `has_unsaved_edits` and `SaveFileOperation`.
+See also `has_unsaved_edits` and `save_file_to_disk!`.
 
 For the assistant.
 """
@@ -442,16 +435,9 @@ It writes no selection. F5 answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
 selection pointed into the replaced content.
 
-Use it to read an open file again from the disk, as F5 does.
-
-# Example
-
-    file_1 = make_file_tab("notes.json")
-    evaluate_operation(editor, ReloadFileOperation(file_1))
+F5 answers it; code reads a file again with `reload_file_from_disk!`.
 
 See also `SaveFileOperation` and `make_file_tab`.
-
-For the assistant.
 """
 struct ReloadFileOperation <: Operation
     file::FileDocument

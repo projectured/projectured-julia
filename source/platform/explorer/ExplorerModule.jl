@@ -43,6 +43,7 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, has_document_duplicate, copy_document, is_walk_opaque
+import ..EditorModule: make_change
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
                        get_insertion_aliases, make_insertion_document, get_document_decoration,
                        make_pasted_document_operation

@@ -88,6 +88,14 @@ function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     end
 end
 
+make_change(::typeof(open_page!), part::ReferencedDocument; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        content, address = _find_opened_content(editor.document, OpenPageOperation(nothing, get_reference(part)))
+        content === nothing &&
+            throw(ArgumentError("open_page!: the reference of the part names nothing in the window."))
+        make_change(open_pane!, Navigator(content, address); group = get_pane_file_group(; editor), editor)
+    end
+
 # The navigators of the window of `root`: the content of a tab that is one, and a
 # navigator that the content of a tab holds in a field, such as the navigator of
 # an explorer beside its tree.

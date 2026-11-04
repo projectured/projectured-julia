@@ -222,6 +222,21 @@ For the assistant.
 function edit_shown_items! end
 
 function edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor())
+    made = _make_shown_items_change(editor, collection, change)
+    made === nothing && return "The roster shows no row, so nothing changed."
+    apply_change!(first(made); editor)
+    string(last(made), " to ", repr(last(change)), ".")
+end
+
+make_change(::typeof(edit_shown_items!), collection, change::Pair; editor = get_evaluation_editor()) =
+    let made = _make_shown_items_change(editor, collection, change)
+        made === nothing && throw(ArgumentError("The roster shows no row, so there is no change to make."))
+        first(made)
+    end
+
+# The change that gives the value of `change` to its key in each row that the
+# roster shows, and the words that say it; `nothing` when the roster shows no row.
+function _make_shown_items_change(editor, collection, change::Pair)
     reference = collection isa ReferencedDocument ?
         extend_reference(get_reference(collection), get_arranged_collection_steps(get_document(collection))...) :
         collection
@@ -233,13 +248,12 @@ function edit_shown_items!(collection, change::Pair; editor = get_evaluation_edi
     key = String(first(change))
     value = last(change)
     operations = Any[_make_item_edit(row, key, value) for row in shown]
-    isempty(operations) && return "The roster shows no row, so nothing changed."
+    isempty(operations) && return nothing
     words = string("Set ", key, " in ", length(operations), length(operations) == 1 ? " item" : " items")
     operation = find_rooted_operation(editor, found.path, relative -> CompoundOperation(operations);
                                       description = words)
     operation === nothing && throw(ArgumentError("No reader of the window carries an edit of the roster."))
-    evaluate_operation(editor, operation)
-    string(words, " to ", repr(value), ".")
+    (RootedOperation(operation, words), words)
 end
 
 # The edit that gives `value` to the key `key` of the item of `row`: the edit that

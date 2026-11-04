@@ -174,13 +174,27 @@ function add_element! end
 function add_element!(holder, document; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_element!") do
         operation = make_add_element_operation(get_document(holder), get_document(document))
-        if holder isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing
-            reference = extend_reference(get_reference(holder), FieldReferenceStep("elements"))
-            rooted = find_rooted_operation(editor, reference, relative -> operation;
-                                           description = "Add an element")
-            rooted === nothing || (evaluate_operation(editor, rooted); return holder)
-        end
-        evaluate_operation(editor, operation)
+        change = _find_element_change(editor, holder, operation)
+        evaluate_operation(editor, change === nothing ? operation : change)
         holder
     end
+end
+
+make_change(::typeof(add_element!), holder, document; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = make_add_element_operation(get_document(holder), get_document(document))
+        change = _find_element_change(editor, holder, operation)
+        change === nothing &&
+            throw(ArgumentError("The holder is no part of a window that the editor printed, so no history " *
+                                "can record a change of it; call `add_element!`, which changes it at once."))
+        change
+    end
+
+# The operation as a change from the root of the editor's document; `nothing` when
+# `holder` is no part of a window that the editor printed.
+function _find_element_change(editor, holder, operation)
+    holder isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    reference = extend_reference(get_reference(holder), FieldReferenceStep("elements"))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description = "Add an element")
+    rooted === nothing ? nothing : RootedOperation(rooted, "Add an element")
 end

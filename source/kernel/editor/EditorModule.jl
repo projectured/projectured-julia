@@ -18,8 +18,9 @@ The module lives in eleven fragments that share this namespace:
 - [`ReadEvaluatePrint.jl`](ReadEvaluatePrint.jl) — the three stages of a frame,
   `run_read_stage!`, `run_evaluate_stage!` and `run_print_stage!`, and
   `read_rooted_operation`.
-- [`DocumentEdits.jl`](DocumentEdits.jl) — `find_rooted_operation`,
-  `insert_elements!` and `delete_elements!`.
+- [`DocumentEdits.jl`](DocumentEdits.jl) — `find_rooted_operation`, the changes
+  as values (`RootedOperation`, `make_change`, `combine_changes`,
+  `apply_change!`), `insert_elements!` and `delete_elements!`.
 - [`SafeMode.jl`](SafeMode.jl) — the safe mode, which shows the fault list in
   place of a projection that fails.
 - [`FaultBarriers.jl`](FaultBarriers.jl) — the barrier of each stage, the report
@@ -61,6 +62,7 @@ import ..FeedModule: drain_changes!
 export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation, run_evaluate_stage!, run_print_stage!, run_frame!,
        run_measured_frame!,
        find_rooted_operation, insert_elements!, delete_elements!,
+       RootedOperation, make_change, combine_changes, apply_change!,
        get_frame_clock_time,
        post_operation!, drain_operations!, is_editor_degraded, get_session_document!,
        get_consecutive_fault_limit,

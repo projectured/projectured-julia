@@ -29,6 +29,7 @@ using ..MarkdownModule
 using ..MathModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, get_view_state_fields
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,

@@ -66,7 +66,7 @@ import ..DomainModule: accepts_pasted_replacement, acquire_document!, release_do
 import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
-import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_change
 import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
 import ..GestureBindingModule: get_document_gesture_bindings_own

@@ -13,6 +13,7 @@ file into the document of its type and opens it in a new tab.
 """
 module FileSystemModule
 
+using ..AgentModule: run_on_editor_task!
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -41,6 +42,7 @@ using ..SettingsManagingModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..ToolModule: get_evaluation_editor
 using ..TooltipModule
 using ..UndoModule
 using ..TreeModule
@@ -66,6 +68,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 export FileSystemToWidgetTree, FileSystemToWidget
 export FileSystemFile, FileSystemDirectory
 export FileSystemChooser, make_filesystem_chooser, get_chosen_path
+export open_file!
 export FileSystemChooserToWidget, WriteChosenNameOperation
 export FileSystemDirectoryToWidget
 export FileSystemFileToWidget

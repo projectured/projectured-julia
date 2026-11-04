@@ -30,11 +30,12 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..DisplayModule: make_workload_file
+import ..EditorModule: make_change
 
 export ChartSampleReferenceStep
 export ChartTheme, ScaledChartTheme
 export ChartSeries, get_chart_series_family, get_chart_axis_family,
-       get_selected_series_index, move_series, remove_series,
+       get_selected_series_index, move_series, remove_series, move_series!, remove_series!,
        collect_chart_parts, get_chart_part_index,
        get_chart_sample, make_chart_sample_reference, get_selected_sample
 export ChartView, get_chart_view, is_point_in_chart_view

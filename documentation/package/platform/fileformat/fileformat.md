@@ -99,7 +99,7 @@ A page with no file answers `nothing` for `name`, `folder` and `has_edits`. The 
 
 ### The tool set
 
-The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
+The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `make_file_tab`, `read_document_file`, `write_document_file`, `save_file_to_disk!`, `reload_file_from_disk!`, `import_document` and `export_document`. `save_file_to_disk!` and `reload_file_from_disk!` do what Ctrl+S and Ctrl+O do: they take the tab of a file, its page or the file, and a page checks the disk first. `open_file!` of the file system slice opens a file in a tab. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 

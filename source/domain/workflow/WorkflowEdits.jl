@@ -202,13 +202,26 @@ end
 # history of the tab that shows the workflow records it, as it records an edit of
 # the person. A workflow that no view shows takes the operation directly.
 
+# The operation as a change from the root of the editor's document; `nothing` when
+# `node` is no part of a window that the editor printed.
+function _find_workflow_change(editor, node, operation, description)
+    node isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    rooted = find_rooted_operation(editor, get_reference(node), relative -> operation; description)
+    rooted === nothing ? nothing : RootedOperation(rooted, description)
+end
+
+function _make_workflow_change(editor, node, operation, description, thing::String, verb)
+    change = _find_workflow_change(editor, node, operation, description)
+    change === nothing &&
+        throw(ArgumentError("The " * thing * " is no part of a window that the editor printed, so no " *
+                            "history can record a change of it; call `" * string(nameof(verb)) *
+                            "`, which changes it at once."))
+    change
+end
+
 function _evaluate_workflow_operation!(editor, node, operation, description)
-    if node isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing
-        rooted = find_rooted_operation(editor, get_reference(node), relative -> operation;
-                                       description)
-        rooted === nothing || return evaluate_operation(editor, rooted)
-    end
-    evaluate_operation(editor, operation)
+    change = _find_workflow_change(editor, node, operation, description)
+    evaluate_operation(editor, change === nothing ? operation : change)
 end
 
 """
@@ -241,14 +254,27 @@ function record_workflow_decision! end
 function record_workflow_decision!(node, question, options; chosen::Integer = 0, reason = "",
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "record_workflow_decision!") do
-        parent = get_document(node)
-        decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
-        index = length(get_workflow_node_children(parent)) + 1
-        _evaluate_workflow_operation!(editor, node,
-            make_insert_workflow_node_operation(parent, index, decision),
-            "Record the decision " * repr(_get_plain_text(question)))
+        operation, description, index = _make_record_workflow_decision(node, question, options; chosen, reason)
+        _evaluate_workflow_operation!(editor, node, operation, description)
         _get_child(node, index)
     end
+end
+
+make_change(::typeof(record_workflow_decision!), node, question, options; chosen::Integer = 0,
+            reason = "", editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, description, _ = _make_record_workflow_decision(node, question, options; chosen, reason)
+        _make_workflow_change(editor, node, operation, description, "node", record_workflow_decision!)
+    end
+
+# The operation, its description and the index of the new decision among the
+# children of `node`.
+function _make_record_workflow_decision(node, question, options; chosen, reason)
+    parent = get_document(node)
+    decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
+    index = length(get_workflow_node_children(parent)) + 1
+    (make_insert_workflow_node_operation(parent, index, decision),
+     "Record the decision " * repr(_get_plain_text(question)), index)
 end
 
 """
@@ -275,13 +301,22 @@ function choose_workflow_option! end
 function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "choose_workflow_option!") do
-        _evaluate_workflow_operation!(editor, decision,
-            make_choose_workflow_option_operation(get_document(decision), index; reason,
-                                                  author = :assistant),
-            "Choose an option")
+        operation = _make_choose_workflow_option(decision, index; reason)
+        _evaluate_workflow_operation!(editor, decision, operation, "Choose an option")
         decision
     end
 end
+
+make_change(::typeof(choose_workflow_option!), decision, index::Integer; reason = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = _make_choose_workflow_option(decision, index; reason)
+        _make_workflow_change(editor, decision, operation, "Choose an option", "decision",
+                              choose_workflow_option!)
+    end
+
+_make_choose_workflow_option(decision, index::Integer; reason) =
+    make_choose_workflow_option_operation(get_document(decision), index; reason, author = :assistant)
 
 """
     reject_workflow_option!(decision, index; reason = nothing, editor = get_evaluation_editor())
@@ -306,13 +341,25 @@ function reject_workflow_option! end
 function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "reject_workflow_option!") do
-        option = get_document(decision).options[index]
-        operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
-        reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
-        operation = CompoundOperation(operations)
+        operation = _make_reject_workflow_option(decision, index; reason)
         _evaluate_workflow_operation!(editor, decision, operation, "Reject an option")
         decision
     end
+end
+
+make_change(::typeof(reject_workflow_option!), decision, index::Integer; reason = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = _make_reject_workflow_option(decision, index; reason)
+        _make_workflow_change(editor, decision, operation, "Reject an option", "decision",
+                              reject_workflow_option!)
+    end
+
+function _make_reject_workflow_option(decision, index::Integer; reason)
+    option = get_document(decision).options[index]
+    operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
+    reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
+    CompoundOperation(operations)
 end
 
 """
@@ -342,11 +389,22 @@ function add_workflow_entry! end
 function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothing,
                              editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_entry!") do
-        entry = make_workflow_entry(text; author = :assistant, kind, source)
-        _evaluate_workflow_operation!(editor, node,
-            make_add_workflow_entry_operation(get_document(node), entry), "Add an entry")
+        _evaluate_workflow_operation!(editor, node, _make_add_workflow_entry(node, text; kind, source),
+                                      "Add an entry")
         node
     end
+end
+
+make_change(::typeof(add_workflow_entry!), node, text; kind::Symbol = :comment, source = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_workflow_change(editor, node, _make_add_workflow_entry(node, text; kind, source),
+                              "Add an entry", "node", add_workflow_entry!)
+    end
+
+function _make_add_workflow_entry(node, text; kind, source)
+    entry = make_workflow_entry(text; author = :assistant, kind, source)
+    make_add_workflow_entry_operation(get_document(node), entry)
 end
 
 """
@@ -438,13 +496,25 @@ function add_workflow_step! end
 
 function add_workflow_step!(node, title; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_step!") do
-        parent = get_document(node)
-        index = length(get_workflow_node_children(parent)) + 1
-        _evaluate_workflow_operation!(editor, node,
-            make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
-            "Add the step " * repr(_get_plain_text(title)))
+        operation, description, index = _make_add_workflow_step(node, title)
+        _evaluate_workflow_operation!(editor, node, operation, description)
         _get_child(node, index)
     end
+end
+
+make_change(::typeof(add_workflow_step!), node, title; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, description, _ = _make_add_workflow_step(node, title)
+        _make_workflow_change(editor, node, operation, description, "node", add_workflow_step!)
+    end
+
+# The operation, its description and the index of the new step among the children
+# of `node`.
+function _make_add_workflow_step(node, title)
+    parent = get_document(node)
+    index = length(get_workflow_node_children(parent)) + 1
+    (make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
+     "Add the step " * repr(_get_plain_text(title)), index)
 end
 
 """
@@ -470,12 +540,20 @@ function change_workflow_state! end
 
 function change_workflow_state!(node, state::Symbol; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "change_workflow_state!") do
-        _evaluate_workflow_operation!(editor, node,
-            make_workflow_state_operation(get_document(node), state; author = :assistant),
-            "Change the state to :" * string(state))
+        _evaluate_workflow_operation!(editor, node, _make_change_workflow_state(node, state),
+                                      "Change the state to :" * string(state))
         node
     end
 end
+
+make_change(::typeof(change_workflow_state!), node, state::Symbol; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_workflow_change(editor, node, _make_change_workflow_state(node, state),
+                              "Change the state to :" * string(state), "node", change_workflow_state!)
+    end
+
+_make_change_workflow_state(node, state::Symbol) =
+    make_workflow_state_operation(get_document(node), state; author = :assistant)
 
 # The child at `index` of `node`, as a `ReferencedDocument` when `node` is one.
 function _get_child(node::ReferencedDocument, index::Integer)

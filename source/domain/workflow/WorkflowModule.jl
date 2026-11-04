@@ -22,6 +22,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, get_view_state_fields, has_document_duplicate, is_walk_opaque
 import ..DomainModule: make_pasted_document_operation, get_insertion_aliases, make_insertion_document,
                        get_document_decoration, accepts_pasted_document, accepts_opened_file

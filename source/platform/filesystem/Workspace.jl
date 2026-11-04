@@ -41,7 +41,7 @@ Use it to add a folder to the explorer.
     folder_1 = WorkspaceFolder("data", "/home/person/data")
     workspace_1 = Workspace([folder_1])
 
-See also `Workspace` and `OpenFileOperation`.
+See also `Workspace` and `open_file!`.
 
 For the assistant.
 """

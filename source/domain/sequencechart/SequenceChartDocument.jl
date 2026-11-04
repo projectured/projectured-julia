@@ -636,6 +636,175 @@ function move_axis(chart::SequenceChart, from::Integer, to::Integer)
     ReplaceReferencedValueOperation(chart, "axis_order", order)
 end
 
+# ── The verbs of a sequence chart ───────────────────────────────────────────
+
+"""
+    insert_events!(chart, at; times, axes, kinds = nothing, labels = nothing,
+                   ordinals = nothing, editor = get_evaluation_editor()) -> chart
+
+Insert events into the event table of the sequence chart `chart` before the row
+`at`, and answer `chart`. Each event is one element of each list: `times`, the
+time of each event, `axes`, the index of its lane, and, when given, `kinds`,
+`labels` and `ordinals`. Every arrow and band that named a later row names the
+same event after the insert. `chart` is a sequence chart of the window, as a
+part. It is an edit of the editor, so Ctrl+Z undoes it.
+
+Use it to add events to a sequence chart, such as the messages of a run that a
+person wants to see beside the others.
+
+# Example
+
+    insert_events!(sequence_chart_1, 1; times = [0.5, 0.75], axes = [1, 2])
+
+See also `delete_events!`, `make_change`.
+
+For the assistant.
+"""
+function insert_events! end
+
+insert_events!(chart::ReferencedDocument, at::Integer; times, axes, kinds = nothing, labels = nothing,
+               ordinals = nothing, editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "insert_events!") do
+        apply_change!(make_change(insert_events!, chart, at; times, axes, kinds, labels, ordinals, editor); editor)
+        chart
+    end
+
+make_change(::typeof(insert_events!), chart::ReferencedDocument, at::Integer; times, axes,
+            kinds = nothing, labels = nothing, ordinals = nothing, editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = insert_events(_get_sequence_chart_document(chart), at; times, axes, kinds, labels, ordinals)
+        operation === nothing && throw(ArgumentError("insert_events! takes one time and one lane for each event."))
+        _make_sequence_chart_change(editor, chart, operation,
+                                    string("Insert ", min(length(times), length(axes)), " events into the sequence chart"))
+    end
+
+"""
+    delete_events!(chart, rows; editor = get_evaluation_editor()) -> chart
+
+Delete the events at the rows `rows` of the event table of the sequence chart
+`chart`, and every arrow that starts or ends at one of them, and answer `chart`.
+The rows after them move up. `chart` is a sequence chart of the window, as a
+part. It is an edit of the editor, so Ctrl+Z undoes it.
+
+Use it to take events out of a sequence chart.
+
+# Example
+
+    delete_events!(sequence_chart_1, [3, 4])
+
+See also `insert_events!`, `delete_axis!`, `make_change`.
+
+For the assistant.
+"""
+function delete_events! end
+
+delete_events!(chart::ReferencedDocument, rows; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "delete_events!") do
+        apply_change!(make_change(delete_events!, chart, rows; editor); editor)
+        chart
+    end
+
+make_change(::typeof(delete_events!), chart::ReferencedDocument, rows; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_sequence_chart_document(chart)
+        operation = delete_events(document, rows)
+        operation === nothing &&
+            throw(ArgumentError(string("The sequence chart has ", get_event_count(document.events),
+                                       " events, and none of them is at the rows ", repr(rows), ".")))
+        _make_sequence_chart_change(editor, chart, operation, "Delete events of the sequence chart")
+    end
+
+"""
+    delete_axis!(chart, index; editor = get_evaluation_editor()) -> chart
+
+Remove the lane `index` of the sequence chart `chart`, every event on it and every
+arrow that reaches it, and answer `chart`. The lanes after it take the place
+before. `chart` is a sequence chart of the window, as a part. It is an edit of the
+editor, so Ctrl+Z undoes it.
+
+Use it to take a participant out of a sequence chart.
+
+# Example
+
+    delete_axis!(sequence_chart_1, 2)
+
+See also `move_axis!`, `delete_events!`, `make_change`.
+
+For the assistant.
+"""
+function delete_axis! end
+
+delete_axis!(chart::ReferencedDocument, index::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "delete_axis!") do
+        apply_change!(make_change(delete_axis!, chart, index; editor); editor)
+        chart
+    end
+
+make_change(::typeof(delete_axis!), chart::ReferencedDocument, index::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_sequence_chart_document(chart)
+        operation = delete_axis(document, index)
+        operation === nothing &&
+            throw(ArgumentError(string("The sequence chart has ", length(document.axes), " lanes, so it has no lane ",
+                                       index, ".")))
+        _make_sequence_chart_change(editor, chart, operation, string("Remove the lane ", index, " of the sequence chart"))
+    end
+
+"""
+    move_axis!(chart, from, to; editor = get_evaluation_editor()) -> chart
+
+Move the lane at the place `from` of the display order of the sequence chart
+`chart` to the place `to`, and answer `chart`. Only the order of the lanes on the
+screen changes; each event keeps its lane. `chart` is a sequence chart of the
+window, as a part. It is an edit of the editor, so Ctrl+Z undoes it.
+
+Use it to put two participants side by side, so that the traffic between them is
+easy to see.
+
+# Example
+
+    move_axis!(sequence_chart_1, 4, 2)
+
+See also `delete_axis!`, `make_change`.
+
+For the assistant.
+"""
+function move_axis! end
+
+move_axis!(chart::ReferencedDocument, from::Integer, to::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "move_axis!") do
+        apply_change!(make_change(move_axis!, chart, from, to; editor); editor)
+        chart
+    end
+
+make_change(::typeof(move_axis!), chart::ReferencedDocument, from::Integer, to::Integer;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_sequence_chart_document(chart)
+        operation = move_axis(document, from, to)
+        operation === nothing &&
+            throw(ArgumentError(string("A move of a lane takes two places of the display order, 1 to ",
+                                       length(document.axes), ", and not ", from, " and ", to, ".")))
+        _make_sequence_chart_change(editor, chart, operation,
+                                    string("Move the lane ", from, " of the sequence chart to ", to))
+    end
+
+function _get_sequence_chart_document(chart::ReferencedDocument)
+    document = get_document(chart)
+    document isa SequenceChart ||
+        throw(ArgumentError("The part is a " * string(nameof(typeof(document))) * ", not a sequence chart."))
+    document
+end
+
+# The change of `operation`, which holds the documents of the part `chart`, from
+# the root of the editor's document.
+function _make_sequence_chart_change(editor, chart::ReferencedDocument, operation, description)
+    reference = extend_reference(get_reference(chart), FieldReferenceStep("events"))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+    rooted === nothing && throw(ArgumentError("No reader of the window carries an edit of the sequence chart."))
+    RootedOperation(rooted, description)
+end
+
 # Arrows and bands both index event rows; an edit that renumbers rows renumbers
 # them too.
 function _push_row_remaps!(operations, chart::SequenceChart, f)

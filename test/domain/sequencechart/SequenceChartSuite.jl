@@ -28,8 +28,9 @@ function test_sequencechart()
         test_sequencechart_scale()
         test_sequencechart_selection()
         test_sequencechart_theme()
+        test_sequencechart_verbs()
     end
 end
 
 export test_sequencechart, test_sequencechart_layering, test_sequencechart_projection, test_sequencechart_geometry
-export test_sequencechart_scale, test_sequencechart_selection, test_sequencechart_theme
+export test_sequencechart_scale, test_sequencechart_selection, test_sequencechart_theme, test_sequencechart_verbs

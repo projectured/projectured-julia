@@ -18,6 +18,7 @@ Round-trip on real data documents; not on editor scaffolding.
 """
 module FileFormatModule
 
+using ..AgentModule: run_on_editor_task!
 using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
@@ -64,6 +65,7 @@ export write_document_file, read_document_file, make_document_for, make_document
        make_file_tab, make_file_tab_content
 export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
+       save_file_to_disk!, reload_file_from_disk!,
        compute_file_text, compute_file_text_hash, read_file_content_again
 export get_file_icon, make_file_note
 export FileToContent

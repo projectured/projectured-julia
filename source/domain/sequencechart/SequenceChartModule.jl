@@ -41,6 +41,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..EditorModule: make_change
 
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
        get_timeline_coordinates, default_nonlinear_focus,
@@ -59,6 +60,7 @@ export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
        get_arrow_kind, get_arrow_source_axis, get_arrow_target_axis,
        get_event_label, get_arrow_label, get_band_state_name,
        insert_events, delete_events, delete_axis, move_axis,
+       insert_events!, delete_events!, delete_axis!, move_axis!,
        get_sequence_chart_parts, get_sequence_chart_part_index,
        get_event_reference, get_arrow_reference, get_band_reference, get_axis_reference,
        get_selected_event, get_selected_arrow, get_selected_axis_index,

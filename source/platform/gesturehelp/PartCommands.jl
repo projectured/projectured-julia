@@ -124,6 +124,14 @@ function run_command! end
 function run_command!(part::ReferencedDocument, description::AbstractString;
                       editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "run_command!") do
+        apply_change!(make_change(run_command!, part, description; editor); editor)
+        "Ran " * repr(String(description)) * "."
+    end
+end
+
+make_change(::typeof(run_command!), part::ReferencedDocument, description::AbstractString;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
         commands = _collect_runnable_commands(editor, part)
         rows = first.(commands)
         matches = [command for command in commands if first(command).description == description]
@@ -141,7 +149,5 @@ function run_command!(part::ReferencedDocument, description::AbstractString;
         rooted === nothing &&
             throw(ArgumentError("The window can not run " * repr(String(description)) *
                                 " on this part."))
-        evaluate_operation(editor, rooted)
+        RootedOperation(rooted, String(description))
     end
-    "Ran " * repr(String(description)) * "."
-end

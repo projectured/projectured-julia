@@ -26,6 +26,8 @@ using ..ToolModule
 using ..TooltipModule
 using ..WidgetModule
 
+import ..EditorModule: make_change
+
 export OutlineTheme, ScaledOutlineTheme
 export compute_shown_dates
 export OutlineSlot, map_outline_forward, map_outline_backward, route_outline_paths!

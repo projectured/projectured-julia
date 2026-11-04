@@ -38,6 +38,7 @@ import ..FaultModule: is_fault_exception
 
 # Imported to extend: this module adds a method to each of these.
 import ..ArrangementModule: find_arrangement_key_value, get_arrangement_value, get_arranged_collection_steps
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps

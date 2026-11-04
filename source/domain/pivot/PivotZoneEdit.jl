@@ -255,28 +255,48 @@ function move_pivot_field! end
 function move_pivot_field!(pivot, column::AbstractString, zone::Symbol;
                            place::Union{Integer,Nothing} = nothing, editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "move_pivot_field!") do
-        document = pivot isa ReferencedDocument ? get_document(pivot) : pivot
-        document isa PivotTable ||
-            throw(ArgumentError("move_pivot_field! moves a field of a pivot, not of a " *
-                                string(nameof(typeof(document))) * "."))
-        into = get(_PIVOT_FIELD_ZONES, zone, nothing)
-        into === nothing &&
-            throw(ArgumentError("A field goes to :fields, :columns, :rows or :cells, not :" * string(zone) *
-                                ". A value is an element of `pivot.measures`: " *
-                                "`insert_elements!(pivot.measures, 1, [PivotMeasure(\"amount\", :sum)])` adds one."))
-        found = _find_pivot_field(document, String(column))
-        found === nothing &&
-            throw(ArgumentError("The pivot has no field " * repr(String(column)) * ". Its fields: " *
-                                join(_collect_pivot_field_names(document), ", ") * "."))
-        from, index = found
-        count = length(_get_pivot_zone(document, into))
-        landing = place === nothing ? (from == into ? count : count + 1) : Int(place)
-        move = _make_pivot_range_move(document, from, index, into,
-                                      (from == into && landing > index) ? landing + 1 : landing)
+        move = _make_pivot_field_move(pivot, column, zone, place)
         move === nothing ||
-            _evaluate_pivot_operation!(editor, pivot, first(move), "Move the field " * String(column))
+            _evaluate_pivot_operation!(editor, pivot, move.operation, move.description)
         pivot
     end
+end
+
+make_change(::typeof(move_pivot_field!), pivot, column::AbstractString, zone::Symbol;
+            place::Union{Integer,Nothing} = nothing, editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        move = _make_pivot_field_move(pivot, column, zone, place)
+        move === nothing &&
+            throw(ArgumentError("The field " * repr(String(column)) * " is already there, so there is no change to make."))
+        change = _find_pivot_change(editor, pivot, move.operation, move.description)
+        change === nothing &&
+            throw(ArgumentError("The pivot is no part of a window that the editor printed, so no history " *
+                                "can record a change of it; call `move_pivot_field!`, which changes it at once."))
+        change
+    end
+
+# The move of the field of `column` into `zone`, as `(operation, description)`;
+# `nothing` when the field stays where it is.
+function _make_pivot_field_move(pivot, column::AbstractString, zone::Symbol, place)
+    document = pivot isa ReferencedDocument ? get_document(pivot) : pivot
+    document isa PivotTable ||
+        throw(ArgumentError("move_pivot_field! moves a field of a pivot, not of a " *
+                            string(nameof(typeof(document))) * "."))
+    into = get(_PIVOT_FIELD_ZONES, zone, nothing)
+    into === nothing &&
+        throw(ArgumentError("A field goes to :fields, :columns, :rows or :cells, not :" * string(zone) *
+                            ". A value is an element of `pivot.measures`: " *
+                            "`insert_elements!(pivot.measures, 1, [PivotMeasure(\"amount\", :sum)])` adds one."))
+    found = _find_pivot_field(document, String(column))
+    found === nothing &&
+        throw(ArgumentError("The pivot has no field " * repr(String(column)) * ". Its fields: " *
+                            join(_collect_pivot_field_names(document), ", ") * "."))
+    from, index = found
+    count = length(_get_pivot_zone(document, into))
+    landing = place === nothing ? (from == into ? count : count + 1) : Int(place)
+    move = _make_pivot_range_move(document, from, index, into,
+                                  (from == into && landing > index) ? landing + 1 : landing)
+    move === nothing ? nothing : (operation = first(move), description = "Move the field " * String(column))
 end
 
 # The zone and the place of the field of `column`: `(field, index)`, or `nothing`.
@@ -291,14 +311,19 @@ end
 _collect_pivot_field_names(pivot::PivotTable) =
     String[dimension.column for field in values(_PIVOT_FIELD_ZONES) for dimension in _get_pivot_zone(pivot, field)]
 
-# Evaluate `operation`, an edit of `pivot`, as an edit of the person: the readers
-# of the editor carry it from the pivot to the root, so the history of the tab
-# that shows the pivot records it. A pivot that no view shows takes the
-# operation directly.
+# The operation as a change from the root of the editor's document, as an edit of
+# the person: the readers of the editor carry it from the pivot to the root, so
+# the history of the tab that shows the pivot records it. `nothing` when `pivot`
+# is no part of a window that the editor printed.
+function _find_pivot_change(editor, pivot, operation, description)
+    pivot isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    rooted = find_rooted_operation(editor, get_reference(pivot), relative -> operation; description)
+    rooted === nothing ? nothing : RootedOperation(rooted, description)
+end
+
+# Evaluate `operation`, an edit of `pivot`, as that change; a pivot that no view
+# shows takes the operation directly.
 function _evaluate_pivot_operation!(editor, pivot, operation, description)
-    if pivot isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing
-        rooted = find_rooted_operation(editor, get_reference(pivot), relative -> operation; description)
-        rooted === nothing || return evaluate_operation(editor, rooted)
-    end
-    evaluate_operation(editor, operation)
+    change = _find_pivot_change(editor, pivot, operation, description)
+    evaluate_operation(editor, change === nothing ? operation : change)
 end

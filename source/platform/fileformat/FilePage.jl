@@ -218,6 +218,86 @@ function evaluate_operation(editor, op::KeepFilePageEditsOperation)
     nothing
 end
 
+# ── The keys of a file, as verbs ─────────────────────────────────────────────
+
+"""
+    save_file_to_disk!(file; editor = get_evaluation_editor()) -> Bool
+
+Write what the open file holds to the file of its own name, as Ctrl+S does, and
+answer whether it wrote. `file` is the tab of the file, as `open_file!` answers
+it, its page or the file itself. When another program changed the file on disk
+since the tab read it, nothing is written, the answer is `false`, and the tab
+shows a band that asks the person what to keep. A file that a person does not
+edit, such as a result file, is not written.
+
+Use it to keep the edits of an open file on the disk.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    save_file_to_disk!(notes_tab_1)
+
+See also `reload_file_from_disk!`, `has_unsaved_edits`, `open_file!`.
+
+For the assistant.
+"""
+function save_file_to_disk! end
+
+save_file_to_disk!(file; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "save_file_to_disk!") do
+        evaluate_operation(editor, _make_file_save(_find_shown_file(get_document(file)))) === true
+    end
+
+_make_file_save(page::FilePage) = SaveFilePageOperation(page)
+_make_file_save(file::FileDocument) = SaveFileOperation(file)
+_make_file_save(::Nothing) = throw(ArgumentError("That part shows no file, so there is nothing to save."))
+
+"""
+    reload_file_from_disk!(file; editor = get_evaluation_editor()) -> file
+
+Read the open file again from the disk, as Ctrl+O does, so it holds what the disk
+holds now, and answer `file`. `file` is the tab of the file, as `open_file!`
+answers it, its page or the file itself. The edits that were not saved are lost.
+A file that is not on the disk any more holds the empty document of its
+extension.
+
+Use it to see what another program wrote to an open file.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    reload_file_from_disk!(notes_tab_1)
+
+See also `save_file_to_disk!`, `has_unsaved_edits`, `open_file!`.
+
+For the assistant.
+"""
+function reload_file_from_disk! end
+
+function reload_file_from_disk!(file; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "reload_file_from_disk!") do
+        evaluate_operation(editor, _make_file_reload(_find_shown_file(get_document(file))))
+        file
+    end
+end
+
+_make_file_reload(page::FilePage) = LoadFilePageOperation(page)
+_make_file_reload(file::FileDocument) = ReloadFileOperation(file)
+_make_file_reload(::Nothing) = throw(ArgumentError("That part shows no file, so there is nothing to read again."))
+
+# The page or the file that `document` shows: the first on the walk through the
+# fields that a person edits, as a tab shows its page; or `nothing`.
+function _find_shown_file(document)
+    node = document
+    for _ in 1:16
+        (node isa FilePage || is_file_document(node)) && return node
+        field = get_edited_field(node)
+        field === nothing && return nothing
+        node = getproperty(node, field)
+    end
+    nothing
+end
+
 # ── A change of the file on disk ─────────────────────────────────────────────
 
 """

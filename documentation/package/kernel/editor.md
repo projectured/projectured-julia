@@ -453,6 +453,31 @@ The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
 edit from a pane tree to the root; see
 [pane.md](../platform/pane/pane.md#the-verbs-of-a-program).
 
+### A change as a value
+
+A verb that edits a document makes one operation from the root and evaluates it.
+`make_change(verb, arguments...; keywords...)` answers that change and evaluates
+nothing: each such verb adds one method, which routes and checks as the verb
+does. The answer is a `RootedOperation`, which holds the operation from the root
+and its description, and shows as `a change: ` and the description.
+`apply_change!(change; editor)` evaluates it on the editor's task, and the verb
+is its method of `make_change` and then `apply_change!`, so a change has one
+code path.
+
+`combine_changes(changes...)` makes one change of several, in their order. Each
+operation from the root holds the record of each history on its route, a
+`RecordUndoOperation`, so a plain `CompoundOperation` of two changes records two
+steps. The combine joins each run of members, one after the other, that sit in
+the same wrapper: the wrapper holds the run once. Two wrappers are the same when
+the one, rewrapped around what the other holds, is the other
+(`get_wrapped_operation`, `rewrap_operation`). So the window history records the
+group as one step, and each file history records its own part as one step.
+
+Every change of a group is made from the document as it is before any of them
+applies, so a place by position names the document before the group. A verb
+whose second step reads the result of its first, such as a verb that adds an
+entry and then opens a pane for it, has no method of `make_change`.
+
 ## The timer and the display event
 
 A reader that waits for a pattern with no event of its own, such as a pointer
@@ -848,7 +873,7 @@ EditorModule.jl        (EditorModule) — the module: its docstring, imports, ex
     │                         measurements, and drain_feeds!
     ├─ ReadEvaluatePrint.jl — run_read_stage!, run_evaluate_stage!,
     │                         run_print_stage! and read_rooted_operation
-    ├─ DocumentEdits.jl     — find_rooted_operation, insert_elements! and delete_elements!
+    ├─ DocumentEdits.jl     — find_rooted_operation, the changes as values, insert_elements! and delete_elements!
     ├─ SafeMode.jl          — the safe mode, which shows the fault list in place of a
     │                         projection that fails
     ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
