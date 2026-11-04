@@ -44,7 +44,7 @@ mktempdir() do folder
     @testset "a load writes a held theme in place, so its scaled theme follows" begin
         live = Appearance()
         scaled = get_scaled_theme!(live, WidgetTheme)
-        @test scaled.item_gap == 2
+        @test scaled.item_gap == get_theme_defaults(WidgetTheme).item_gap
         load_appearance!(live, path)
         @test scaled.item_gap == 7
         @test live.zoom == 1.25

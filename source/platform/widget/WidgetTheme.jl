@@ -101,13 +101,13 @@ builder fills them from a theme, scaled or not.
     font_small::ThemeFont = FontRole(relative_size = 0.9)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
-    control_padding::Spacing = Spacing(Inset(5, 5, 10, 10))
+    control_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside a card and an alert."
-    container_padding::Spacing = Spacing(12)
+    container_padding::Spacing = Spacing(8)
     "The space inside a badge."
     compact_padding::Spacing = Spacing(Inset(2, 2, 6, 6))
     "The space inside a command of a menu and of a context menu."
-    menu_item_padding::Spacing = Spacing(Inset(4, 4, 12, 12))
+    menu_item_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside the name of a menu on a menu bar: an item that opens a menu."
     menu_name_padding::Spacing = Spacing(Inset(4, 4, 6, 6))
     "The space inside a menu bar."
@@ -117,7 +117,7 @@ builder fills them from a theme, scaled or not.
     "The space inside a button of a toolbar."
     toolbar_item_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
     "The space inside the band of a file page: the sentence and the buttons of a choice."
-    band_padding::Spacing = Spacing(Inset(6, 10, 6, 10))
+    band_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside a status bar."
     status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the edge of a tabbed pane and its tab strip and page."
@@ -125,21 +125,21 @@ builder fills them from a theme, scaled or not.
     "The largest width and height of the window of a context menu."
     context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
-    item_gap::Spacing = Spacing(2)
+    item_gap::Spacing = Spacing(4)
     "The space inside a tab of a tab strip."
-    tab_padding::Spacing = Spacing(Inset(2, 2, 2, 2))
+    tab_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space around the content of a row of a tree."
     tree_row_padding::Spacing = Spacing(Inset(2, 2, 0, 0))
     "The space between the bands of the shell of a window, under the toolbar."
     band_gap::Spacing = Spacing(2)
     "The space inside a dropdown, around its commands."
-    menu_padding::Spacing = Spacing(2)
+    menu_padding::Spacing = Spacing(4)
     "The space between a part and the popup that opens at it."
     popup_gap::Spacing = Spacing(2)
     "The space between the lines of a list of facts or of plain items."
     line_gap::Spacing = Spacing(2)
     "The space under a title."
-    title_gap::Spacing = Spacing(4)
+    title_gap::Spacing = Spacing(2)
     "The space between an icon or a mark and its label."
     label_gap::Spacing = Spacing(6)
     "The space between sections, and between the rows of a radio group."
@@ -147,9 +147,9 @@ builder fills them from a theme, scaled or not.
     "The space between the items of a menu bar."
     bar_gap::Spacing = Spacing(8)
     "The space between the label column and the control column of a form."
-    form_column_gap::Spacing = Spacing(12)
+    form_column_gap::Spacing = Spacing(8)
     "The space between the rows of a form."
-    form_row_gap::Spacing = Spacing(8)
+    form_row_gap::Spacing = Spacing(6)
     "The indent of a level of a tree."
     indent::Spacing = Spacing(12)
     "The offset of the shadow under a button."

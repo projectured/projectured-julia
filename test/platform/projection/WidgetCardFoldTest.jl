@@ -7,6 +7,8 @@
 
 _fold_font = StyleFont("Ubuntu Mono", 20)
 _fold_stub = FixedMeasure(10, 18, 6, 0)
+# The padding of a card in the default theme: a click at `_fold_pad + 16` is on the title row.
+_fold_pad = get_theme_defaults(WidgetTheme).container_padding
 _fold_proj() = RecursiveProjection(TypeDispatchingProjection(
     WidgetToGraphics(_fold_font; measure=_fold_stub).dispatch))
 
@@ -72,11 +74,11 @@ function test_widget_card_fold()
         # A click on the chevron folds, and so does one at the right edge of its
         # column. A click on the title does not.
         title_x = _fold_title_x(iomap)
-        on_chevron = read_intent(proj, iomap, MouseClick(:left, 20, 28, ModifierKeys(); time = 0.0))
+        on_chevron = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
 
         # Folded: the mark points right, and the body is not drawn.
@@ -97,9 +99,9 @@ function test_widget_card_fold()
         # A click left of the title is a click on the padding, not a fold, and a
         # click on the title is not a fold either: a card that draws no chevron
         # does not fold from a click.
-        @test !(read_intent(proj, iomap, MouseClick(:left, 4, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, 4, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
         title_x = _fold_title_x(iomap)
-        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
     end
 
     # A container routes a press to a card only over something the card drew. A
@@ -112,9 +114,9 @@ function test_widget_card_fold()
         title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
         card = make_card()
         iomap = print_document(proj, proj, WidgetComposite(Any[card]), PrinterContext())
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
     end
 
@@ -209,9 +211,10 @@ function test_widget_card_fold()
         bare = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                      padding = Inset(0, 0, 0, 0)),
                               PrinterContext()).output
-        # The themed padding is 12 on each side; the bare card has none.
-        @test Int(bare.w[]) == Int(themed.w[]) - 24
-        @test Int(bare.h[]) == Int(themed.h[]) - 24
+        # The themed padding is `container_padding` on each side; the bare card has none.
+        side = get_theme_defaults(WidgetTheme).container_padding
+        @test Int(bare.w[]) == Int(themed.w[]) - 2side
+        @test Int(bare.h[]) == Int(themed.h[]) - 2side
         # An Inset names each side: this one indents and does nothing else.
         indented = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                          padding = Inset(0, 0, 12, 0)),

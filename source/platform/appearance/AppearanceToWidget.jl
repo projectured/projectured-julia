@@ -266,7 +266,7 @@ function _make_scale_card(controls)
                                                            () -> [current(), "Default" => _get_percent_text(1.0)])))
     end
     rows = GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
-                      vertical_gap = controls.theme.item_gap, vertical_align = :center)
+                      vertical_gap = controls.theme.form_row_gap, vertical_align = :center)
     reset = CompoundOperation(Any[_make_step_operation(appearance, field, 0)
                                   for (field, _) in _APPEARANCE_ROWS])
     _make_settings_card(controls, "Scale", _SCALE_SUMMARY, rows, reset)
@@ -342,7 +342,7 @@ function _make_theme_section(controls, theme)
     summary = strip_code_marks(compute_docstring_summary(T))
     card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
                       description = isempty(summary) ? nothing : summary,
-                      content = VerticalLayout(parts; gap = controls.theme.item_gap),
+                      content = VerticalLayout(parts; gap = controls.theme.form_row_gap),
                       collapsible = true, collapsed = !(name in appearance.open_sections))
     set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
     controls.folds[card] = name
@@ -677,7 +677,7 @@ function _make_color_settings(controls)
                                    WidgetSwatch(resolve_theme_color(swatch, appearance)))
     end
     GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
-               vertical_gap = controls.theme.item_gap, vertical_align = :center)
+               vertical_gap = controls.theme.form_row_gap, vertical_align = :center)
 end
 
 # A text that a colour text takes as typed: hex digits and `#`.

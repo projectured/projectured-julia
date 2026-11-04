@@ -82,9 +82,12 @@ end
 @testset "the spacing scale changes the paddings and the gaps" begin
     appearance = Appearance(spacing_scale = 1.5)
     scaled = draw(appearance, button)
-    # The padding of a control is 5 above and below and 10 at the sides; at a
-    # scale of 1.5 it is 8 and 15, so each side grows by 3 and by 5.
-    @test (scaled.w - default[button].w, scaled.h - default[button].h) == (2 * 5, 2 * 3)
+    # The padding of a control is `top` above, `bottom` below and `left`, `right`
+    # at the sides; at a scale of 1.5 each side grows by half of it, rounded.
+    padding = get_theme_defaults(WidgetTheme).control_padding
+    grown(side) = round(Int, 1.5 * Int(side[])) - Int(side[])
+    @test (scaled.w - default[button].w, scaled.h - default[button].h) ==
+          (grown(padding.left) + grown(padding.right), grown(padding.top) + grown(padding.bottom))
     @test is_equal_except(appearance, button, :w, :h, :rects)
     @test is_equal_except(appearance, checkbox)
 end

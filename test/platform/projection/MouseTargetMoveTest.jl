@@ -236,11 +236,14 @@ end
     card = WidgetCard(; title = "Card", content = layout)
     iomap = print_document(projection, card)
     children(i) = (FieldReferenceStep("children"), ElementReferenceStep(i))
-    _mtm_move!(card, iomap, 20, 70)
+    # The first button stands under the title of the card and the padding of its
+    # content, and the second under it.
+    first_y = get_theme_defaults(WidgetTheme).container_padding + 28 + 15
+    _mtm_move!(card, iomap, 20, first_y)
     @test get_mouse_target(card) == _mtm_path(FieldReferenceStep("content"), children(1)...)
     @test get_mouse_target(layout) == _mtm_path(children(1)...)
     @test get_mouse_target(a) == EmptyReference()
-    _mtm_move!(card, iomap, 20, 100)
+    _mtm_move!(card, iomap, 20, first_y + 30)
     @test get_mouse_target(layout) == _mtm_path(children(2)...)
     @test get_mouse_target(a) === nothing
     @test get_mouse_target(b) == EmptyReference()

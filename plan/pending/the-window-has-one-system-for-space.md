@@ -230,7 +230,7 @@ approval of the user.
         `WidgetTheme.jl`.
       - The 44 images of `tool/widget-images.jl` are the same before and
         after. The tests of the step gave 377 Pass, 0 Fail, 0 Error, 0 Broken.
-- [ ] 2. **Set the chosen values** of `control_padding`, `container_padding`,
+- [x] 2. **Set the chosen values** of `control_padding`, `container_padding`,
       `menu_item_padding`, `band_padding`, `item_gap`, `title_gap`,
       `form_row_gap`, `form_column_gap`, `tab_padding` and `menu_padding`. Move
       the readers whose job is a role that already exists: the gap of a dialog
@@ -246,6 +246,42 @@ approval of the user.
       `test_mouse_target_move()`, `test_explorer()` and `test_dataframes()` pass
       with the counts of the baseline; in an image of the window, a button is
       26 px high and a tab 24 px.
+
+      Done. Facts:
+
+      - The theme has the chosen values. A dialog reads `section_gap`. A
+        select reads `label_gap`; its gap is the space between the value and
+        the chevron. The appearance tab reads `form_row_gap` in the grids of a
+        setting (`AppearanceToWidget.jl` at the two `GridLayout` calls and the
+        list of the sections of a card). It keeps `item_gap` for the colour
+        swatches side by side and for the colour and the font of one field
+        (a field is one item, not a row of the form).
+      - The dialog gap is also the space between its buttons side by side.
+        The role `section_gap` covers both until step 7 splits them.
+      - Images: 23 of the 44 examples changed; 21 are the same. The changed
+        ones are `widget`, `widget_tooltip`, `widget_menu`, `widget_toolbar`,
+        `widget_toolbar_item`, `widget_title_pane`, `widget_split_pane`,
+        `widget_shell`, `widget_offered`, `widget_tabbed_pane`, `widget_card`,
+        `widget_progress_ring`, `widget_alert`, `widget_toggle`,
+        `widget_toggle_group`, `widget_select`, `widget_textarea`,
+        `widget_accordion`, `widget_table`, `widget_table_offered`,
+        `widget_table_frozen`, `widget_disabled` and `conversation_widget`.
+        The same: `widget_button`, `widget_tree`, `widget_focus` and the
+        examples of fixed size (label, text, checkbox, switch, slider and the
+        like).
+      - Measured with the font of the examples (Ubuntu 20): a button is 33 px
+        high (text line 25 plus 4 + 4) and the tab strip of `widget_tabbed_pane`
+        is 31 px high (23 plus 4 + 4; it was 27). The heights 26 and 24 hold
+        for a text line of 18 and 16 px. The example `widget_button` gives its
+        button a fixed size, so its image does not change.
+      - Tests that read the theme now: `WidgetScaleTest` (the growth of a
+        control), `WidgetCardFoldTest` (the padding of a card and the places
+        of the clicks), `AppearanceTabTest` (the spin box and the inverse of
+        the item gap), `AppearanceFileTest`, `MouseTargetMoveTest` (the place
+        of the two buttons in a card), `ExplorerTest` (the press on a tab goes
+        to the text of the tab) and `DataFrameViewTest` (the step of a row).
+        Counts: the ten platform functions 797 Pass, 0 Fail; `test_dataframes`
+        603 Pass. `test_platform_layering` has the one known failure.
 - [ ] 3. **Draw the four lines.** The shell draws a 1 px line of `border`
       under the menu bar, under the toolbar and above the status bar, and
       `band_gap` becomes 0. Each line takes 1 px of height, as a splitter takes

@@ -766,7 +766,7 @@ function test_explorer()
                               collect_document_gesture_bindings(PaneTree)))
         # With no focused tab the command adds nothing; a press in the tab focuses it.
         @test binding.operation(tree, nothing) === nothing
-        _nav_press!(editor, backend, MouseClick(:left, 10, 32, 1, ModifierKeys(); time = 0.0))
+        _nav_press!(editor, backend, _explorer_click(backend, "start"))
         evaluate_operation(editor, binding.operation(tree, nothing))
         @test last(get_session_explorer_content(; editor).entries) === document
     end
