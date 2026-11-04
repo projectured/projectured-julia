@@ -1,6 +1,5 @@
 # The rules of `documentation/rule/layout-rules.md`, checked for every widget type
-# and every layout type, and the worked cases of
-# `plan/pending/a-maximum-is-an-edge-that-cuts.md` §3.3.
+# and every layout type, and the worked cases of its §5.
 #
 # Each type has a small sample with no authored size and no position, and a kind
 # on each axis. The kind says what the type is, and the rule of the kind says what

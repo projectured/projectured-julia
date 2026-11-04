@@ -227,8 +227,8 @@ REPL.
 | `layout_rows_in_slot_and_page` | a table in a cut slot, and a table and a list in a page (R2, R5) |
 
 Before Step 4 the examples show today's faults; they are the pictures to compare
-with after Step 6. The tour
-([examples-tour.md](../../documentation/guide/examples-tour.md)) lists them.
+with after Step 6. Step 8 adds them to the tour
+([examples-tour.md](../../documentation/guide/examples-tour.md)).
 
 Found in this step: the sweeps run `test_printer`, `test_reader` and `test_repl`
 on every example. `test_typein` runs only on five text examples. The sweeps of
@@ -556,7 +556,7 @@ from 668 to 868 and the row `Net.host count 7.0 8.0` at 797. On main the same
 probe shows the line of counts at 868 and gives the table 0 pixels, which is the
 fault that started this plan.
 
-### Step 8. The documentation
+### Step 8. The documentation — done
 
 - [layout-rules.md](../../documentation/rule/layout-rules.md):
   - §1: a maximum means "the giver cuts here", and a part that can scroll draws
@@ -582,6 +582,52 @@ fault that started this plan.
   `test_layout_rules()`.
 - [examples-tour.md](../../documentation/guide/examples-tour.md): the examples
   of Step 1.
+
+How it is done:
+
+- Steps 4 to 6 already wrote §3, §3b and §4 of layout-rules.md, and the
+  sentences of layout.md and widget.md on the scroll pane and the widgets of
+  rows. Step 8 wrote the rest.
+- layout-rules.md: §1 has the formula of a viewport, "a maximum is an edge that
+  cuts", the fourth state "at least", and the rule that an exact range is one
+  cell. The new §3c is the visible extent, with the table of the readers of each
+  kind. §4 says that a child after the others counts only by its minimum, with
+  the label after a scroll pane as a 1-D example, and that a stack places a child
+  after the extent of the child before it. §5 holds the worked cases, the window
+  that cuts or scrolls first. The new §6 is the trap, and "What this replaces"
+  is §7. §1, §3 and §3b keep their numbers, because comments in `source/` cite
+  them.
+- The numbers of §5 come from the measure of `test_layout_rules()`, and a probe
+  measured the two cases that the test does not hold (the scroll pane below a
+  header, and the row).
+- layout.md: the range with only a minimum, the visible extent, the room of a
+  child after the others, the design decision "a maximum is an edge that cuts",
+  the examples and `test_layout_rules()`. The decision links to layout-rules.md
+  and not to this plan, because `test_documentation()` fails on a link to
+  `plan/done/` before the plan moves there.
+- testing-guide.md has a section "The layout rules": what the test checks, the
+  guard of the kinds and what to do for a new type, and `test_dataframes()` after
+  a change of the layout.
+- examples-tour.md has a table of the six `layout_…` examples.
+- The comment of `WidgetScrollPane` cited "R2" of this plan, and the header of
+  `LayoutRulesTest.jl` cited §3.3 of this plan. Both cite layout-rules.md now.
+
+Found in this step:
+
+- Step 1 said that the tour lists the examples. It did not; Step 8 adds them.
+- The tour said that there are 105 examples. Main has 135 by a count of the list
+  in `ProjecturedExamples.jl`, and the branch 141.
+- The worked case of §5 had a wrong sum: `400 − 26 − 6` is 368, not 374. With
+  the measure of the test the label is 24 and the pane 370. The sentence "without
+  the wrapper the pane is offered no height" was wrong after Step 6: the pane gets
+  the room as a bounded range, and takes its content up to it.
+- `test_documentation()` finds six violations in `assistant.md` and
+  `precompile.md`, which name private projects. Main has the same six; this
+  branch does not change those files.
+
+Result: `test_layout_rules()` 520 pass, in 16 s with compilation and 0.2 s after.
+The naming guard passes. `test_documentation()` has the six violations of main
+and no new one.
 
 ### Step 9. The wide check
 

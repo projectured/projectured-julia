@@ -18,7 +18,7 @@ write_example_image("json", "/tmp/snapshot.png")
 write_example_pdf("json", "/tmp/snapshot.pdf")
 ```
 
-`[example.name for example in ProjecturedExample.examples]` lists every name; there are 105. `catalog()` answers a longer list, one entry for each document of each domain with each projection that draws it, which is what a sweep walks.
+`[example.name for example in ProjecturedExample.examples]` lists every name; there are 141. `catalog()` answers a longer list, one entry for each document of each domain with each projection that draws it, which is what a sweep walks.
 
 ## The groups
 
@@ -31,6 +31,17 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 **Widgets.** `widget` and about forty `widget_*` examples: a label, a button, a checkbox, a switch, a slider, a select, a text area, a table, a tree, a tab strip, a card, an alert, a toolbar, a menu. Each one is one widget, so a reader sees what it takes to place it.
 
 **Layout and panes.** `layout`, `constraint_layout`, `widget_split_pane`, `widget_scroll_pane`, `widget_transform_pane`, `widget_shell`, `widget_tabbed_pane`. How a view is given its space.
+
+**The layout cases.** Each of these examples is one worked case of [layout-rules.md](../rule/layout-rules.md) §5, in a window with a hint at the top and a splitter below it. Drag the splitter, or change the size of the window, and see the parts share the space.
+
+| Example | What it shows |
+| --- | --- |
+| `layout_text_above_table` | the detail of a task: a text in a scroll area gives up height and scrolls, and the table below it keeps its minimum of 120 |
+| `layout_scroll_area_in_page` | a code block in a scroll area of its own, in a page that scrolls: the block stays as tall as its lines |
+| `layout_fill_in_scroll_area` | a part that fills, in a scroll area: with a short header it fills the view, and with a long one the area scrolls to the footer |
+| `layout_shares` | `Fixed`, `Content`, `Relative(2)` and `Relative(1)` with minimums, in one column |
+| `layout_row_edge` | a field that takes what a label and a button leave, and a long text before a button, with and without a weight |
+| `layout_rows_in_slot_and_page` | a table that fills a part that cuts and scrolls its rows, and a table and a list in a page, as tall as their rows |
 
 **Charts and diagrams.** `chart`, `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip`, `chart_inspector`, `graph`, `sequencechart` and its four variants. A chart is a document, and a data point is selectable.
 

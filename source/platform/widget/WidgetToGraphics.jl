@@ -6079,7 +6079,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     #
     # On an axis with no authored size and no offer, the pane passes its range on
     # to the content, lets the content size itself, and takes the content between
-    # the minimum and the maximum of its range (`layout-rules.md` §1, R2): it
+    # the minimum and the maximum of its range (`layout-rules.md` §1): it
     # stops at an edge that cuts and scrolls the rest, and with no edge it is as
     # large as its content. This is what keeps a pane that clips one axis — a
     # collapsed card body, clipped to a fixed height — as wide as its content on
