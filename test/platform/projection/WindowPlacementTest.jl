@@ -170,6 +170,28 @@ end
     @test (popup.x, popup.y) == (120, 7)
 end
 
+@testset "a dialog with no place of its own stands at the center of the main window" begin
+    screen, main, _ = _make_placement_screen()
+    editor = (; document = screen)
+    # A callback opens it, so no window opens it: the first window is the main one.
+    evaluate_operation(editor, OpenWindowOperation(; id = :file_dialog, x = -1, y = -1,
+                                                     width = 640, height = 420, style = :floating,
+                                                     content = PrimitiveString("x")))
+    dialog = print_document(_make_placement_projection(), screen).output.windows[2]
+    @test is_window_placed(dialog)
+    # The main window is 1000 by 600 at (100, 50).
+    @test (dialog.x, dialog.y) == (100 + (1000 - 640) ÷ 2, 50 + (600 - 420) ÷ 2)
+    main.x = 300
+    @test (dialog.x, dialog.y) == (300 + (1000 - 640) ÷ 2, 50 + (600 - 420) ÷ 2)
+    # A normal window at the automatic place is the backend's to place, and so is a
+    # dialog with a place of its own.
+    evaluate_operation(editor, OpenWindowOperation(; id = :other, x = -1, y = -1, content = PrimitiveString("y")))
+    @test !is_window_placed(screen.windows[3])
+    evaluate_operation(editor, OpenWindowOperation(; id = :placed_dialog, x = 5, y = 6, style = :dialog,
+                                                     content = PrimitiveString("z")))
+    @test !is_window_placed(screen.windows[4])
+end
+
 @testset "a file keeps no placement" begin
     window = WindowDocument(; id = :list, placement = context -> WindowPlace(1, 2),
                               content = PrimitiveString("x"))

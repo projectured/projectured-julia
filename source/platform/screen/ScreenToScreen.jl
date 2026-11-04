@@ -463,6 +463,10 @@ function _open_popup_window(op::OpenPopupOperation, window)
                           maximum_size = (op.width, op.height), style = :popup,
                           auto_dismiss = op.auto_dismiss, placement, content = op.content)
 end
+# A dialog that the content of `window` opens with no place of its own stands at
+# the center of that window.
+_open_popup_window(op::OpenWindowOperation, window) =
+    _is_unplaced_dialog(op) ? _place_at_window_center(op, window.id) : op
 function _open_popup_window(op::CompoundOperation, window)
     members = Any[_open_popup_window(member, window) for member in op.operations]
     all(member === original for (member, original) in zip(members, op.operations)) ?

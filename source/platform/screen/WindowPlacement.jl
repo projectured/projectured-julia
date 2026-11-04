@@ -178,6 +178,29 @@ function find_window_box(context::WindowPlacementContext, id::Symbol)
 end
 
 """
+    make_window_center_placement(id) -> Function
+
+The placement at the center of the window `id` where the screen prints it, inside
+the area of its display, which answers no place while the screen holds no such
+window. A dialog that names no place of its own takes it, from the window that
+opens it.
+"""
+make_window_center_placement(id::Symbol) =
+    context -> (box = find_window_box(context, id);
+                box === nothing ? nothing : compute_anchored_place(context, box; side = :center))
+
+# Whether `op` opens a dialog that names no place of its own: a window of the style
+# of a dialog at the automatic place. A normal window at the automatic place is the
+# backend's to place, as the main window is.
+_is_unplaced_dialog(op::OpenWindowOperation) =
+    op.placement === nothing && (op.x, op.y) == AUTOMATIC_WINDOW_PLACE && op.style in (:floating, :dialog)
+
+# `op` with the placement at the center of the window `id`.
+_place_at_window_center(op::OpenWindowOperation, id::Symbol) =
+    OpenWindowOperation(op.id, op.title, op.x, op.y, op.width, op.height, op.minimum_size, op.maximum_size,
+                        op.bg, op.style, op.auto_dismiss, op.modal, make_window_center_placement(id), op.content)
+
+"""
     find_screen_reference(document, reference) -> Reference | Nothing
 
 The reference of the part at `reference`, a reference from `document`, from the

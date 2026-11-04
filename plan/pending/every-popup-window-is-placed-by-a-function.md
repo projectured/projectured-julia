@@ -144,13 +144,12 @@ makes a `WidgetSelect` in a view (`LegacyTestRunnerToWidget.jl`). The operation 
 self-contained on purpose, so it passes up through every view, and the box in the
 frame of the window keeps that.
 
-**D6: a dialog stands at the center of a window.** The button of a `WidgetDialog`
-answers `OpenPopupOperation` with the side `:center`, `style = :dialog`,
-`modal = true` and the size of now, so the dialog opens at the center of the
-window that holds the button: with `:center`, the box is the whole window. So
-`OpenPopupOperation` also holds `style` and `modal`. A dialog that a callback opens
-has no part: the Open file dialog and the "Filter by values" lists open with a
-placement at the center of the first window of the screen, the main window.
+**D6: a dialog stands at the center of a window.** A dialog at the automatic place
+takes the placement at the center of the window that opens it, and the button of a
+`WidgetDialog` opens its dialog at the automatic place. A dialog that a callback
+opens has no window: the Open file dialog and the "Filter by values" lists stand
+at the center of the first window of the screen, the main window. Step 4 records
+how.
 
 **D7: the old code goes.** `find_part_place` and the place code of the backend for
 a popup (`_place_fitted_window!` and `compute_window_place`) go. The rule of
@@ -202,8 +201,24 @@ Each step is a commit, and the plan records what each step finds.
    zoomed pane has the size that it is drawn at; the gap stays in the pixels of the
    window. `find_window_box` gives the box of a printed window, so a popup of a
    placed window follows the place that the placement of that window computes.
-4. **The dialogs.** D6. Tests: `test_file_dialog()`, the dialog test of the widget
+4. ✅ **The dialogs.** D6. Tests: `test_file_dialog()`, the dialog test of the widget
    slice, and the value list tests of the data frame and the roster.
+   *Done 2026-11-04:* `test_window_placement` 46, `test_widget_popup_example` 23,
+   `test_widget_dialog` 18, `test_widget_action` 46, `test_file_dialog` 22,
+   `test_window_wrappers` 74, `test_roster_header` 41, `test_widget_column_header`
+   48 and `test_data_frame_filter` 81 pass. The new sets: "a dialog with no place
+   of its own stands at the center of the main window" and "the dialog of a button
+   stands at the center of its window".
+   *Found in this step:* `OpenPopupOperation` needs no `style` and no `modal`. Every
+   dialog opens with `OpenWindowOperation`, and the dialogs with a frame use the
+   automatic place `(-1, -1)`. So one rule places them: a window of the style
+   `:floating` or `:dialog` at the automatic place with no placement takes
+   `make_window_center_placement`. `ScreenToScreen` gives it the window whose
+   content opened it, and the window manager gives it the first window of the
+   screen when no window opened it, as for a callback. The button of a
+   `WidgetDialog` opens at the automatic place in place of `(80, 60)`. A normal
+   window at the automatic place, as the main window, stays the backend's to
+   place.
 5. **The old code goes.** D7. The documents `popup-window.md`, `screen.md`,
    `tooltip.md` and `context-menu.md` describe one way of placement. The naming
    guard, the layering guards of the slices that changed, `test_native_window()`,

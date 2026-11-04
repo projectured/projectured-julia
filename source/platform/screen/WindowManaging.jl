@@ -200,6 +200,7 @@ _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation) =
 
 function _open_screen_window!(screen, op::OpenWindowOperation)
     screen isa ScreenDocument || return
+    op = _place_dialog_at_main_window(screen, op)
 
     # Existing window with this id → update in place. A window that a placement
     # places has a computed place in the output, and a window with no placement
@@ -220,6 +221,17 @@ function _open_screen_window!(screen, op::OpenWindowOperation)
 
     # New window: construct and push; the inner stage projects the output side.
     push!(in_wins, Cell(_make_opened_window(screen, op)))
+end
+
+# A dialog that names no place of its own and that no window opened, as one that a
+# callback opens, stands at the center of the first window of the screen, the main
+# window.
+function _place_dialog_at_main_window(screen::ScreenDocument, op::OpenWindowOperation)
+    _is_unplaced_dialog(op) || return op
+    isempty(screen.windows) && return op
+    main = screen.windows[1]
+    (main isa WindowDocument && main.id !== op.id) || return op
+    _place_at_window_center(op, main.id)
 end
 
 _make_opened_window(screen::ScreenDocument, op::OpenWindowOperation) =

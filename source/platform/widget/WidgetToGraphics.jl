@@ -2437,8 +2437,8 @@ end
 # the default primary op — it is not privileged; any gesture (double/right/shift-
 # click, …) is expressed as its own per-instance binding. A modal dialog is
 # centered, not placed under a widget, so it opens directly as an
-# `OpenWindowOperation`. v1 uses a generous fixed window box; true screen-sizing /
-# centering is deferred (see widget.md).
+# `OpenWindowOperation` at the automatic place, which the screen makes the center
+# of the window that holds the button.
 # A command that does something wins; the dialog is the fallback for one that
 # does not, so a button carrying both a callback and a dialog runs the callback.
 function _button_primary_op(w::WidgetButton)
@@ -2447,7 +2447,7 @@ function _button_primary_op(w::WidgetButton)
     dlg = w.dialog
     dlg === nothing && return InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
-                        x=80, y=60, width=480, height=320, content=dlg)
+                        x=-1, y=-1, width=480, height=320, content=dlg)
 end
 
 # ── WidgetLink ──────────────────────────────────────────────────────────────

@@ -83,6 +83,26 @@ end
     end
 end
 
+# ── The dialog of a button stands at the center of the window of the button ──
+@testset "the dialog of a button stands at the center of its window" begin
+    button = WidgetButton("Open"; size = Point2D(80, 0), dialog = WidgetMessageBox("Confirm", "Proceed?"))
+    main   = WindowDocument(; id=:default, title="main", x=50, y=40, width=800, height=600,
+                            content=WidgetComposite(Any[button]))
+    screen = ScreenDocument([main])
+    proj   = make_widget_popup_projection_example()
+    iomap  = print_document(proj, screen)
+    read_intent(proj, nothing, Intent(WindowInput(:default, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)),
+                                      nothing), iomap)
+    index = findfirst(w -> w isa WindowDocument && w.id === :widget_dialog, collect(screen.windows))
+    @test index !== nothing
+    if index !== nothing
+        dialog = iomap.output.windows[index]
+        @test is_window_placed(dialog)
+        @test dialog.modal
+        @test (dialog.x, dialog.y) == (50 + (800 - 480) ÷ 2, 40 + (600 - 320) ÷ 2)
+    end
+end
+
 # ── A right click on a part with a menu answers the menu at its screen point ──
 @testset "a right click on the target answers its menu at the screen point" begin
     menu   = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy")])
