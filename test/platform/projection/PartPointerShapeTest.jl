@@ -76,8 +76,11 @@ function test_part_pointer_shape()
         document = make_widget_split_pane_document_example()
         iomap = print_document(widgets, document)
         xs = 280:320
-        shapes = [find_pointer_shape(iomap.output, x, 50) for x in xs]
-        grabs = [_holds_pointer_part_operation(read_intent(widgets, iomap, down(x, 50)),
+        # The middle of the height of the divider. A split that is offered no
+        # height is as tall as its tallest slot.
+        y = Int(iomap.output.h) ÷ 2
+        shapes = [find_pointer_shape(iomap.output, x, y) for x in xs]
+        grabs = [_holds_pointer_part_operation(read_intent(widgets, iomap, down(x, y)),
                                                StartDragOperation) for x in xs]
         @test count(grabs) > 0
         @test (shapes .=== :double_arrow_horizontal) == grabs

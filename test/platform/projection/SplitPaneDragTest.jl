@@ -7,6 +7,9 @@ function test_split_pane_drag()
 _stub = FixedMeasure(10, 18, 6, 0)
 _proj() = make_widget_projection_example(measure=_stub)
 _szs(doc) = isempty(doc.sizes) ? Int[] : [Int(doc.sizes[i]) for i in 1:length(doc.sizes)]
+# The middle of the height of a split that `iomap` draws, where a press meets its
+# splitter. A split that is offered no height is as tall as its tallest slot.
+_get_split_middle_y(iomap) = Int(iomap.output.h) ÷ 2
 
 # The operation a drag answers, without the view-state mark it carries. The
 # press now answers a `CompoundOperation` that also starts the drag
@@ -33,12 +36,13 @@ end
     doc   = make_widget_split_pane_document_example()   # horizontal, sizes=[300,300]
     proj  = _proj()
     iomap = print_document(proj, doc)
+    y     = _get_split_middle_y(iomap)
 
     # The lone splitter sits in the ~1px gap before the second child (x≈300).
     # A drag is view state: a history records none of its three operations.
     @test !is_undo_step(nothing,
-                        read_intent(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0)))
-    down = _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0))
+                        read_intent(proj, iomap, MouseDown(:left, 300, y, ModifierKeys(); time = 0.0)))
+    down = _feed(proj, iomap, MouseDown(:left, 300, y, ModifierKeys(); time = 0.0))
     @test down isa StartSplitterDragOperation
     @test down.split === doc
     @test down.splitter_index == 1
@@ -46,13 +50,13 @@ end
     @test doc.drag_anchor !== nothing
 
     # Grow the left slot by 50px; the right slot gives back exactly 50px.
-    move = _feed(proj, iomap, DragMove(350, 50; time = 0.0))
+    move = _feed(proj, iomap, DragMove(350, y; time = 0.0))
     @test move isa ResizeSplitPaneOperation
     @test _szs(doc) == [350, 250]
     @test sum(_szs(doc)) == 600
 
     # A second move resizes relative to the grab origin, not cumulatively.
-    _feed(proj, iomap, DragMove(270, 50; time = 0.0))
+    _feed(proj, iomap, DragMove(270, y; time = 0.0))
     @test _szs(doc) == [270, 330]
     @test sum(_szs(doc)) == 600
 
@@ -61,11 +65,11 @@ end
     reader = Cell(@computation (Any[doc.sizes[i] for i in 1:length(doc.sizes)],
                                 Any[doc.pinned[i] for i in 1:length(doc.pinned)]))
     reader[]
-    _feed(proj, iomap, DragMove(270, 50; time = 0.0))
+    _feed(proj, iomap, DragMove(270, y; time = 0.0))
     @test is_cell_valid(reader)
     @test _szs(doc) == [270, 330]
 
-    up =_feed(proj, iomap, DragEnd(270, 50; time = 0.0))
+    up =_feed(proj, iomap, DragEnd(270, y; time = 0.0))
     @test up isa EndSplitterDragOperation
     @test doc.active_splitter == 0
     @test doc.drag_anchor === nothing
@@ -75,8 +79,9 @@ end
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
     iomap = print_document(proj, doc)
+    y     = _get_split_middle_y(iomap)
     # Well inside the left slot, far from the x≈300 splitter band.
-    op = _unmark(read_intent(proj, iomap, MouseDown(:left, 100, 50, ModifierKeys(); time = 0.0)))
+    op = _unmark(read_intent(proj, iomap, MouseDown(:left, 100, y, ModifierKeys(); time = 0.0)))
     @test !(op isa StartSplitterDragOperation)
     @test doc.active_splitter == 0
 end
@@ -85,7 +90,8 @@ end
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
     iomap = print_document(proj, doc)
-    op = _unmark(read_intent(proj, iomap, MouseMove(350, 50, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+    y     = _get_split_middle_y(iomap)
+    op = _unmark(read_intent(proj, iomap, MouseMove(350, y, MouseButtons(:left), ModifierKeys(); time = 0.0)))
     @test !(op isa ResizeSplitPaneOperation)
     @test _szs(doc) == [300, 300]
 end
