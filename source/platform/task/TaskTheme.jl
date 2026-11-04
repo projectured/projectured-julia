@@ -26,6 +26,8 @@ appearance.
     error_color::ThemeColor = ColorRole(:error_text)
     "A task that runs."
     running_color::ThemeColor = ColorRole(:accent_text)
+    "The least height of the place of a document in the detail of a task: the tree of its processes, or the document of its result."
+    document_minimum_height::ControlSize = ControlSize(200)
     "A task that waits, and a value that says little."
     muted_color::ThemeColor = ColorRole(:text_muted)
 end

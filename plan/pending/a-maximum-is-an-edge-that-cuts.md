@@ -492,13 +492,69 @@ The platform suite, in four parts: the three known failures of main. The data
 frames, the graph, Markdown, Julia and the pivot: 2622 pass, and one error in
 `PivotZoneEditTest.jl:84`, which main has too. The naming guard passes.
 
-### Step 7. The detail of a task
+### Step 7. The detail of a task — done
 
 In `_build_detail` (`TaskGroupToWidget.jl:445`) the facts go in a scroll area
 with no weight, and the place of the result document gets a minimum, so the
 table of the differences and the chart picture show in the split. Tests: the task
 group tests of the platform, and the scalar differences and chart comparison
 tests of omnet-julia.
+
+How it is done:
+
+- The state, the facts, the process, the result, the earlier executions and the
+  buttons are one part of the detail: a `WidgetScrollPane` around a column of
+  them. `_PARTS_BEFORE_DOCUMENTS` is 1, so the place of a document is the second
+  part of the detail.
+- The place of the tree of the processes and of the document of the result has
+  `min_height = document_minimum_height`, a new value of `TaskTheme`
+  (`ControlSize(200)`), so it scales as the other sizes of the pane do. Only
+  `TaskGroupDocumentToWidgetPane` builds the detail, so only it takes the value.
+- The value is 200, my choice, not 120 as the report before the step said. In
+  the split of the IDE the differences of a statistical test take 104 pixels
+  before their first row: the line of counts (16), the filter bar (28) and the
+  headers, which wrap to two lines (60). At 120 the rows got 12 pixels and no row
+  showed; at 200 three rows show.
+- The scroll area of the facts fits on both axes: in a cut slot it takes the
+  room that the place and the output leave and scrolls the rest (R2), and in a
+  range with no maximum it takes its content.
+- [task.md](../../documentation/package/platform/task/task.md) says that the
+  place of a document is at least `document_minimum_height` high and that the
+  facts scroll. It said that the document is in a card, which the code does not
+  do.
+
+Found in this step:
+
+- A stack places a child after the extent that the child draws, not after its
+  slot. So the place keeps its minimum only when its document takes its range.
+  The two documents of omnet-julia do: the differences are a grid whose table row
+  is `Fill`, and the chart picture takes the room of its range. The probe
+  document of the platform test, one line of text, does not; the new test uses a
+  table as the document of a result, as the differences are.
+- The room of a part counts the declared minimum of the parts after it, not
+  their content (`_main_context`), because a part after it reads the room that
+  the parts before it leave. So the room of the facts does not count the labels
+  `stdout` and `stderr`, and a detail shorter than the facts, the place and the
+  two labels overflows at the bottom by the two labels. The old detail overflowed
+  by all of the facts.
+- In the test pane of 900 the detail is 325 high, and the facts take 85 of their
+  198: the buttons are the last of the facts, so they scroll with them. The two
+  tests that press a button of the detail, and the test of the order of the
+  buttons, the line of the result and the output, draw the pane at 1200, where
+  the facts show whole. One of them passed at 900 with a press below the scroll
+  area of the facts.
+
+Result: the task tests of the platform (`test_task_views`, `test_task_group`,
+`test_task_result`, `test_task_pages`, `test_task_document`,
+`test_build_step`): 488 pass. The naming guard passes. omnet-julia, in a scratch
+environment whose projectured packages are the worktree:
+`test_scalar_differences_document`, `test_chart_comparison_document`,
+`test_chart_comparison_group` and `test_chart_picture_columns` 98 pass, as on
+main. Those tests check only the line of counts of the differences. A probe of
+the detail of the task `Changed` in the split of a pane of 900 shows the place
+from 668 to 868 and the row `Net.host count 7.0 8.0` at 797. On main the same
+probe shows the line of counts at 868 and gives the table 0 pixels, which is the
+fault that started this plan.
 
 ### Step 8. The documentation
 

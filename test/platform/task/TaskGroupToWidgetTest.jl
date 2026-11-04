@@ -54,6 +54,18 @@ WidgetModule.make_graphics_projection(::Type{_TaskViewResultDocument}; measure, 
 TaskModule.get_task_result_document(task::_TaskViewProbeTask, result) =
     _TaskViewResultDocument("the result of " * task.name * " is " * result.result)
 
+# A kind of task whose document of a result is a table of many rows, as the
+# differences of a statistical test are: a table takes the height of its place.
+struct _TaskViewTableProbeTask <: AbstractTask
+    name::String
+end
+TaskModule.get_result_codes(::_TaskViewTableProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskViewTableProbeTask) = task.name
+TaskModule.start_task(task::_TaskViewTableProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, "exit 0"); on_finish)
+TaskModule.get_task_result_document(::_TaskViewTableProbeTask, result) =
+    WidgetTable(Any["scalar", "old", "new"], Any[Any["row $i", string(i), string(i + 1)] for i in 1:30])
+
 # A kind of task whose column `picture` gives a picture once the task has a
 # result: the picture of the shape that the task name says, `wide` or `tall`, with
 # its pixels in hand so that no backend decodes; any other name gives no picture.
@@ -191,8 +203,9 @@ function test_task_views()
             @test sort([t[3] for t in texts if t[1] == header[1] && t[2] > header[2]]) ==
                   ["alpha", "fail"]
 
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 2)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
             words = [t[3] for t in texts]
             @test "script: exit 1" in words && "ended: ERROR" in words
@@ -246,8 +259,9 @@ function test_task_views()
         @testset "the detail draws the document that the kind gives for a result" begin
             document = wrap_task_group_document(
                 TaskGroup([_TaskViewProbeTask("beta", "exit 0")]; name = "result document", jobs = 1))
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 1)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             words() = [t[3] for t in _collect_task_view_texts(iomap.output)]
             @test !any(startswith("the result of"), words())
             wait_task_group_document(start_task_group_document!(document))
@@ -257,6 +271,25 @@ function test_task_views()
             line = only(t for t in texts if t[3] == "the result of beta is DONE")
             @test only(t for t in texts if t[3] == "Run again")[2] < line[2] <
                   only(t for t in texts if t[3] == "stdout")[2]
+        end
+
+        @testset "in a short detail the facts scroll and the document keeps its least height" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewTableProbeTask("delta")]; name = "short detail", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            least = Int(TaskModule.get_task_style(nothing, :document_minimum_height))
+            find_y(texts, text) = only(t for t in texts if t[3] == text)[2]
+            # In a tall window the facts show whole above the table.
+            tall = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
+            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout")
+            # In a short window the table keeps its least height, and the output
+            # below it is still in the window: the buttons are in the part of the
+            # facts that scrolls, below the top of the table.
+            short = _collect_task_view_texts(last(_print_task_view(document; height = 800)).output)
+            @test find_y(short, "stdout") - find_y(short, "scalar") >= least
+            @test find_y(short, "stdout") < 800
+            @test find_y(short, "delta — DONE") < find_y(short, "scalar") < find_y(short, "Run again")
         end
 
         @testset "a path into the document of a result goes to its place and back" begin
@@ -273,11 +306,12 @@ function test_task_views()
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
             result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("result_document"))
-            # The place is the seventh part of the detail, the second pane of the
-            # split below the card of the group; it holds the document itself.
+            # The place is the second part of the detail, below the scroll area of
+            # the facts, in the second pane of the split below the card of the
+            # group; it holds the document itself.
             place = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                    FieldReferenceStep("children"), RangeReferenceStep(6, 7), FieldReferenceStep("child"))
+                    FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [place..., FieldReferenceStep("line")]
@@ -368,8 +402,9 @@ function test_task_views()
             tasks = [_TaskViewProbeTask(name, "exit 0") for name in ("alpha", "beta")]
             document = wrap_task_group_document(TaskGroup(tasks; name = "linked", jobs = 2); title = "linked tasks")
             wait_task_group_document(start_task_group_document!(document))
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 2)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
             press(view, map, t; count = 1, ctrl = false) = read_intent(view, map,
                 MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0))
