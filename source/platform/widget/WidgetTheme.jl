@@ -126,6 +126,18 @@ builder fills them from a theme, scaled or not.
     context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
     item_gap::Spacing = Spacing(2)
+    "The space inside a tab of a tab strip."
+    tab_padding::Spacing = Spacing(Inset(2, 2, 2, 2))
+    "The space around the content of a row of a tree."
+    tree_row_padding::Spacing = Spacing(Inset(2, 2, 0, 0))
+    "The space between the bands of the shell of a window, under the toolbar."
+    band_gap::Spacing = Spacing(2)
+    "The space inside a dropdown, around its commands."
+    menu_padding::Spacing = Spacing(2)
+    "The space between a part and the popup that opens at it."
+    popup_gap::Spacing = Spacing(2)
+    "The space between the lines of a list of facts or of plain items."
+    line_gap::Spacing = Spacing(2)
     "The space under a title."
     title_gap::Spacing = Spacing(4)
     "The space between an icon or a mark and its label."
@@ -260,6 +272,11 @@ _make_selected_row_color(graphics_theme) =
 # the `item_gap` of the widget theme `theme`, or of the default theme for
 # `nothing`. A builder that runs outside a printer takes the theme of its caller.
 _get_bar_item_gap(theme) = _get_theme_values(theme).item_gap
+
+# The gap between the lines of a prompt that a builder of widgets puts in a
+# column: the `line_gap` of the widget theme `theme`, or of the default theme for
+# `nothing`.
+_get_line_gap(theme) = _get_theme_values(theme).line_gap
 
 # The values of the widget theme `theme`, scaled or not, or of the default theme for
 # `nothing`, for a builder that runs outside a printer.

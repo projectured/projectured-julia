@@ -256,7 +256,7 @@ function make_value_list_dialog(name::String, column::AbstractVector, is_ticked,
                                           label = string(value) * "  (" * string(count) * ")")
                            for (value, count) in counted]
     size = unwrap_cell(get_widget_style(widget, :value_list_size))
-    list = WidgetScrollPane(VerticalLayout(Any[boxes...]; gap = unwrap_cell(get_widget_style(widget, :item_gap)));
+    list = WidgetScrollPane(VerticalLayout(Any[boxes...]; gap = unwrap_cell(get_widget_style(widget, :line_gap)));
                             size = Point2D(Int(size.x[]), Int(size.y[])))
     take() = write(values, Bool[box.content for box in boxes])
     dialog = WidgetDialog("Filter by values", list, Any[WidgetButton("Cancel"), WidgetButton("Apply")];

@@ -191,7 +191,7 @@ Work in a git worktree of a branch. Make one commit for each step. Before step
 was there before is not taken for a regression. Landing on `main` needs the
 approval of the user.
 
-- [ ] 1. **Give each job of `item_gap` its own field.** The screen must not
+- [x] 1. **Give each job of `item_gap` its own field.** The screen must not
       change. Add `tab_padding` (`Inset(2, 2, 2, 2)`), `tree_row_padding`
       (`Inset(2, 2, 0, 0)`), `band_gap` (2), `menu_padding` (2), `popup_gap` (2)
       and `line_gap` (2) to `WidgetTheme`, and move the readers:
@@ -212,6 +212,24 @@ approval of the user.
       `test_widget_tab_label()`, `test_widget_tree()`,
       `test_widget_select_dropdown()` and `test_widget_shell_layout()` give the
       counts of the baseline.
+
+      Done. Facts:
+
+      - The select, the menu item and the shell read the new fields as `Int`
+        cells. `ContextMenuWindowProjection` has the field `popup_gap` now.
+      - `tab_padding` of the tabbed pane is an `Inset`. `_tab_strip_geometry`
+        returns `pad` as a named tuple `(top, bottom, left, right)` of `Int`.
+        The width of a tab adds `left + right`, the height adds
+        `top + bottom`. The label and the icon stand at `left` and `top`. The
+        button column stands `right` from the end of the tab.
+      - `row_padding` of the tree is an `Inset`. Only `top` and `bottom` are
+        read (the row height and the vertical place of the text and the
+        icon). `left` and `right` are not read yet, because a row places its
+        content from `indent` and the chevron column.
+      - `_get_line_gap(theme)` stands next to `_get_bar_item_gap` in
+        `WidgetTheme.jl`.
+      - The 44 images of `tool/widget-images.jl` are the same before and
+        after. The tests of the step gave 377 Pass, 0 Fail, 0 Error, 0 Broken.
 - [ ] 2. **Set the chosen values** of `control_padding`, `container_padding`,
       `menu_item_padding`, `band_padding`, `item_gap`, `title_gap`,
       `form_row_gap`, `form_column_gap`, `tab_padding` and `menu_padding`. Move

@@ -59,10 +59,10 @@ This projection takes that operation out of the answer and opens a popup window
 with the nearest menu at the point of the click, in screen coordinates. A
 command that runs the binding answers with no point, and the window opens below
 the part, with the left edges aligned (`find_part_place`), so it does not cover
-the part, `item_gap` below it. The window takes the extent of the menu, up to
+the part, `popup_gap` below it. The window takes the extent of the menu, up to
 the `context_menu_maximum_size` of the widget theme. `theme` is a `WidgetTheme`,
 scaled or not, or `nothing` for the default theme; the projection holds the
-maximum size and the item gap that it reads from it, and reads them each time it
+maximum size and the popup gap that it reads from it, and reads them each time it
 opens a window.
 
 **Closing.** The window is a popup that dismisses itself, with the id of the
@@ -88,13 +88,13 @@ struct ContextMenuWindowProjection <: Projection
     inner::Projection
     id::Symbol
     maximum_size::Any       # the largest size of a menu, a `Point2D` or a cell of one
-    item_gap::Any           # between the part and a menu below it, a number or a cell
+    popup_gap::Any          # between the part and a menu below it, a number or a cell
 end
 
 ContextMenuWindowProjection(; inner::Projection, id::Symbol = :widget_popup,
                               theme = nothing) =
     ContextMenuWindowProjection(inner, id, get_widget_style(theme, :context_menu_maximum_size),
-                                get_widget_style(theme, :item_gap))
+                                get_widget_style(theme, :popup_gap))
 
 # `output` forwards the output of the content reactively, so the IoMap keeps its
 # identity while the content re-derives, and a swap of the content rebuilds the
@@ -271,7 +271,7 @@ _take_context_menu(answer) = (nothing, answer)
 
 # Open the window of `menu`, and keep what it shows. It stands at the point of
 # the click; with no point, below the part with the left edges aligned and
-# `item_gap` between them; with neither, at the corner of the screen.
+# `popup_gap` between them; with neither, at the corner of the screen.
 function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap,
                            menu::OpenContextMenuOperation)
     state = iomap.input
@@ -281,7 +281,7 @@ function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWin
         menu.point
     else
         below = find_part_place(p, iomap, menu.source)
-        below === nothing ? (0, 0) : (below[1], below[2] + unwrap_cell(p.item_gap))
+        below === nothing ? (0, 0) : (below[1], below[2] + unwrap_cell(p.popup_gap))
     end
     window = OpenWindowOperation(; id = p.id, title = "context menu", x = x, y = y,
                                    width = maximum_size[1], height = maximum_size[2],

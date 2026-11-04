@@ -595,7 +595,7 @@ WidgetMenuToGraphicsCanvas(theme; measure,
                            margin = inset_default, border = inset_default,
                            padding = _themed(Inset, theme, t -> t.menu_bar_padding),
                            vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
-                           vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.item_gap)),
+                           vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.menu_padding)),
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
                            vertical_border_color = _themed(StyleColor, theme, t -> t.border),
@@ -642,7 +642,7 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
                                    _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                                label_gap = _themed(Int, theme, t -> t.label_gap),
-                               popup_gap = _themed(Int, theme, t -> t.item_gap),
+                               popup_gap = _themed(Int, theme, t -> t.popup_gap),
                                icon_size = _themed(Float64, theme, t -> t.icon_size),
                                keys_text = _themed(StyleText, theme, _get_caption_text),
                                keys_gap = _themed(Int, theme, t -> t.section_gap)) =
@@ -729,7 +729,7 @@ WidgetShellToGraphicsCanvas(theme; measure,
                             padding_color = _themed(StyleColor, theme, t -> t.background),
                             content_color = _themed(StyleColor, theme, t -> t.background),
                             font = _themed(StyleFont, theme, t -> t.font),
-                            band_gap = _themed(Int, theme, t -> t.item_gap)) =
+                            band_gap = _themed(Int, theme, t -> t.band_gap)) =
     WidgetShellToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                 padding_color, content_color, font, band_gap)
 
@@ -797,7 +797,7 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     tab_selected_text::StyleText
     page_color::StyleColor                # the area below the strip
     graphics_style::NamedTuple            # the ring around a page selected as a whole
-    tab_padding::Int
+    tab_padding::Inset
     corner_radius::Int
     label_gap::Int                        # between a tab's icon and its label, and before its button
     icon_size::Float64                   # times the box of an icon and of a button, one line
@@ -817,7 +817,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
                                  page_color = color_transparent,
                                  graphics_style = _make_graphics_style(graphics_theme),
-                                 tab_padding = _themed(Int, theme, t -> t.item_gap),
+                                 tab_padding = _themed(Inset, theme, t -> t.tab_padding),
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
@@ -4841,7 +4841,9 @@ end
 # The first six fields come in the order a positional destructure reads them.
 function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane)
     cox, coy = _content_offset(p, w)
-    sel_pad = p.tab_padding
+    pad = p.tab_padding
+    pad_top, pad_bottom = Int(pad.top[]), Int(pad.bottom[])
+    pad_left, pad_right = Int(pad.left[]), Int(pad.right[])
     # The em height sizes the buttons, and gives an empty strip its height — a pane
     # with no tabs still shows a new-tab button, which is the state a fresh layout
     # starts in.
@@ -4872,15 +4874,15 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
         buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
         button_w = buttons === :none ? 0 : scale_length(th, p.icon_size)
         button_gap = button_w > 0 ? p.label_gap : 0
-        rw  = tw + badges_w + iw + gap + button_w + button_gap + 2 * sel_pad
+        rw  = tw + badges_w + iw + gap + button_w + button_gap + pad_left + pad_right
         push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons, tw, badges))
         x += rw
         tab_h = max(tab_h, th, iw, button_w)
     end
-    sel_h = tab_h + 2 * sel_pad
-    new_w = w.new_tab === true ? new_side + 2 * sel_pad : 0
+    sel_h = tab_h + pad_top + pad_bottom
+    new_w = w.new_tab === true ? new_side + pad_left + pad_right : 0
     strip_w = (isempty(tabs) && new_w == 0) ? 0 : (x + new_w - cox)
-    (cox = cox, coy = coy, pad = sel_pad, height = sel_h, strip_w = strip_w,
+    (cox = cox, coy = coy, pad = (top = pad_top, bottom = pad_bottom, left = pad_left, right = pad_right), height = sel_h, strip_w = strip_w,
      tabs = tabs, new_x = x, new_w = new_w, line = em_h)
 end
 
@@ -4915,9 +4917,9 @@ _get_tab_buttons(closable::Bool, duplicable::Bool) =
 
 # The button column's box inside a tab tuple: its left edge and its width, or
 # `nothing` when the tab has none.
-function _get_tab_button_box(tab, sel_pad::Int)
+function _get_tab_button_box(tab, pad)
     button_w = tab[7]
-    button_w > 0 ? (tab[5] + tab[6] - sel_pad - button_w, button_w) : nothing
+    button_w > 0 ? (tab[5] + tab[6] - pad.right - button_w, button_w) : nothing
 end
 
 # The part of the strip a point on tab `tab` lands on: `:close`, `:duplicate`, or
@@ -4947,7 +4949,7 @@ function _push_tab_buttons!(result, g, tab, color)
                     side, color)
     else
         _push_icon!(result, buttons === :duplicate ? :plus : :close, x,
-                    g.coy + g.pad + (g.height - 2 * g.pad - w) ÷ 2, w, color)
+                    g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - w) ÷ 2, w, color)
     end
 end
 
@@ -5026,7 +5028,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
 
     selector_cv = CellVector(@computation begin
         g = geom[]
-        sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
+        pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(get_stored_selection(w), length(tabs))
         result = Any[]
         tab_radius = p.corner_radius
@@ -5052,11 +5054,11 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
             # A decorated icon draws its marks on a disc of the color of its tab.
-            iw > 0 && _push_decorated_icon!(header, p.badge, icon, tx + sel_pad,
-                                            coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2, iw,
+            iw > 0 && _push_decorated_icon!(header, p.badge, icon, tx + pad.left,
+                                            coy + pad.top + (sel_h - pad.top - pad.bottom - iw) ÷ 2, iw,
                                             _get_tab_icon_color(p, pairs[i].selector, fg),
                                             state === :selected ? p.tab_selected_color : p.tab_strip_color)
-            name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad + (sel_h - 2 * sel_pad - g.line) ÷ 2
+            name_x, name_y = tx + pad.left + iw + gap, coy + pad.top + (sel_h - pad.top - pad.bottom - g.line) ÷ 2
             found = name_caret[]
             if found !== nothing && found[1] == i
                 push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
@@ -5082,8 +5084,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                          layout_none, true, Cell(nothing)))
         end
         # The new-tab button follows the last tab.
-        new_side = g.new_w - 2 * sel_pad
-        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - new_side) ÷ 2,
+        new_side = g.new_w - pad.left - pad.right
+        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + pad.left, coy + pad.top + (sel_h - pad.top - pad.bottom - new_side) ÷ 2,
                                    new_side, _get_part_text(w, :tab_text, p.tab_text).color)
         g.new_w > 0 && push!(result, GraphicsPointerShape(g.new_x, coy, g.new_w, sel_h, :pointing_hand))
         result
@@ -5426,7 +5428,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     if evt isa MouseScroll
         w = iomap.input
         if w isa WidgetTabbedPane
-            cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
+            cox, coy, _, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
             # A wheel over the strip scrolls it horizontally (the strip is a horizontal
             # row, so vertical wheel maps to horizontal motion); over the content it
             # scrolls the active tab as before. Ctrl and the wheel never scroll it.
@@ -9798,7 +9800,7 @@ WidgetSelectToGraphicsCanvas(theme; measure,
                              gap = _themed(Int, theme, t -> t.item_gap),
                              chevron_size = _themed(Int, theme, t -> t.chevron),
                              corner_radius = _themed(Int, theme, t -> t.radius),
-                             popup_gap = _themed(Int, theme, t -> t.item_gap)) =
+                             popup_gap = _themed(Int, theme, t -> t.popup_gap)) =
     WidgetSelectToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, padding_disabled_color, content_disabled_color, label_text,
                                  label_disabled_text, chevron_color, focus_ring_stroke, gap, chevron_size,
@@ -10581,7 +10583,7 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
                                 divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                 chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                                 item_padding = _themed(Inset, theme, t -> t.control_padding),
-                                gap = _themed(Int, theme, t -> t.item_gap),
+                                gap = _themed(Int, theme, t -> t.line_gap),
                                 body_gap = _themed(Int, theme, t -> t.accordion_body_gap),
                                 chevron_size = _themed(Int, theme, t -> t.chevron)) =
     WidgetAccordionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
@@ -12150,7 +12152,7 @@ end
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
     icon_column::Int              # width reserved for the icon glyph
-    row_padding::Int              # vertical padding per row
+    row_padding::Inset            # the space around the content of a row
     chevron_size::Int
     row_radius::Int               # corner radius of the hover and the selection band
     label_gap::Int                # between an icon column widened for a glyph and its label
@@ -12174,7 +12176,7 @@ WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            indent = _themed(Int, theme, t -> t.indent),
                            chevron_column = _themed(Int, theme, t -> t.tree_chevron_column),
                            icon_column = _themed(Int, theme, t -> t.tree_icon_column),
-                           row_padding = _themed(Int, theme, t -> t.item_gap),
+                           row_padding = _themed(Inset, theme, t -> t.tree_row_padding),
                            chevron_size = _themed(Int, theme, t -> t.chevron),
                            row_radius = _themed(Int, theme, t -> t.radius_small),
                            label_gap = _themed(Int, theme, t -> t.label_gap),
@@ -12606,7 +12608,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # moves the head.
     geometry = Cell(@computation begin
         expanded = w.expanded
-        row_height = line_box[] + 2 * pad
+        row_height = line_box[] + Int(pad.top[]) + Int(pad.bottom[])
         if bare && _has_wtree_open_lazy_children(w, expanded)
             function place(path, depth, count)
                 x = depth * indent
@@ -12791,8 +12793,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                                     chevron_color, () -> row.path in w.expanded)
             end
             icon = _tree_icon(node)
-            text_y = pad + (line_box[] - line_height) ÷ 2
-            icon_y = pad + (line_box[] - icon_size) ÷ 2
+            text_y = Int(pad.top[]) + (line_box[] - line_height) ÷ 2
+            icon_y = Int(pad.top[]) + (line_box[] - icon_size) ÷ 2
             if icon isa Union{Symbol,WidgetIcon}
                 # A registered icon name: a glyph, tinted to the icon color, or to the
                 # role of a decorated icon, with its corner marks.

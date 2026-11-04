@@ -123,12 +123,12 @@ choices that it narrows to. The row that Return chooses shows a chevron, and the
 current choice a check. `gap` is the space between the text and the menu.
 """
 @projection UntrackedCell struct WidgetChoiceListToWidget
-    gap::Int = get_widget_style(nothing, :item_gap)
+    gap::Int = get_widget_style(nothing, :line_gap)
 end
 
 make_graphics_projection(::Type{WidgetChoiceList}; measure, appearance) =
     ChainingProjection(
-        WidgetChoiceListToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :item_gap)),
+        WidgetChoiceListToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :line_gap)),
         GridLayoutToGraphicsCanvas())
 
 function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoiceList, ctx)

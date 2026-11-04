@@ -746,13 +746,13 @@ A `WidgetDialog` whose content is a prompt label above a `WidgetText` field, wit
 Cancel / OK buttons — the `QInputDialog` analogue. (Editing the field needs the
 text-widget projection, as for any `WidgetText`.) `theme` is the scaled widget
 theme of the place that opens the dialog, or `nothing` for the default theme:
-the field stands `item_gap` below the prompt, and each button is as large as
+the field stands `line_gap` below the prompt, and each button is as large as
 its label.
 """
 function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog,
                            theme = nothing)
     content = VerticalLayout(Any[WidgetLabel(prompt), WidgetText(value)];
-                             gap = _get_bar_item_gap(theme))
+                             gap = _get_line_gap(theme))
     WidgetDialog(title, content, Any[WidgetButton("Cancel"), WidgetButton("OK")];
                  popup_id=popup_id)
 end
