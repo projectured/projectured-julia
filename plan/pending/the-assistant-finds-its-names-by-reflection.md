@@ -550,7 +550,43 @@ ends with a commit in each repository that it changes.
   offered functions whose type is a document type, 77 (in about 55 functions) take
   a plain document and no part, such as `stop_task!(::TaskGroupDocument, ::Integer)`,
   `get_fsm_states(::FsmMachine)` and `get_workflow_node_title(::WorkflowStep)`. A
-  part that a read of the window gives meets a `MethodError` there.
+  part that a read of the window gives meets a `MethodError` there. In the IDE,
+  24 more parameters of omnet-julia are the same, such as
+  `read_results(::LegacyScalarResultSelection, ::AbstractString)`,
+  `run_card!(::LegacySimulationCard)` and `get_simulation_configs(::ILegacySimulationProject)`.
+- **The two document forms, decided by the owner (2026-11-04):** each of these
+  functions gets one method for each position that takes the part and calls the
+  function again with its document, in the form of the table interface:
+  `stop_task!(group::ReferencedDocument, index::Integer) = stop_task!(get_document(group), index)`.
+  A function with several methods at one position gets one method for all of
+  them, and a function with documents at several positions gets one method for
+  each position, which types the positions before it as plain documents. The
+  other way, a second hint on the `MethodError` that says to pass
+  `get_document(x)`, was not taken: the call fails once, and the model must
+  repair it.
+- **The test of both document forms** is the second test set of
+  `test_assistant_documentation`, and a test set of `test_ide_documentation` for
+  the methods of omnet-julia. For each offered function, each method and each
+  parameter whose type is a document type, a call with a part of that type at that
+  position must find a method (`hasmethod`). A trailing `Vararg` counts as no
+  argument.
+- *Done (2026-11-04).* 63 methods for 56 functions in 31 files of projectured-julia
+  (7aef43950), and 17 methods for 17 functions in omnet-julia (7db8e494b). An agent
+  (Sonnet) wrote the methods from the measured list, and I read the diff. The test
+  found one more gap that the measurement skipped, because the measurement left
+  out a method with a trailing `Vararg`: `start_process(model::ProcessModel, arguments...)`.
+  Where an old method names its parameter with a short form (`a`, `doc`, `e`,
+  `env`, `rel`, `p`), the new method uses the full word. No call with a part is
+  ambiguous (`which` at each position). Tests: the new set 196/196, and
+  `test_assistant_documentation` has only the 3 known errors of the operation
+  examples; `test_assistant_verbs` 83/83; `test_research_assistant_api` 76/76; in
+  omnet-julia the new set 52/52, `test_ide_documentation` 967/967 and
+  `test_prompt_names` 20/20; both naming guards hold. The kernel guide
+  (`reference.md`) says that a function that needs no place takes a part too.
+- A function that answers a document under the one it takes, such as
+  `find_state(machine, name)`, answers a plain document when it gets a part: the
+  extra method passes on the document, not the place. A verb that needs a place
+  then refuses that answer with the hint of a plain document.
 
 ## 6. What else changes
 
