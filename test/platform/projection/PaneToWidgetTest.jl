@@ -196,10 +196,13 @@ end
     iomap = print_document(_chain(), nothing, tree, context)
 
     rects = _global_rects(iomap.output)
-    # A splitter is one pixel thick. The root's is the tall one, the nested one
-    # the wide one; a tab strip draws nothing that thin.
-    verticals = filter(r -> r[3] == 1 && r[4] > 1, rects)
-    horizontals = filter(r -> r[4] == 1 && r[3] > 1, rects)
+    # A splitter is a line one pixel thick, and the pointer at its middle is the
+    # double arrow of a press that grabs it. The root's is the tall one, the
+    # nested one the wide one. The line under a tab row is one pixel thick too,
+    # and a press does not grab it.
+    is_grabbed(r, shape) = find_pointer_shape(iomap.output, r[1] + r[3] ÷ 2, r[2] + r[4] ÷ 2) === shape
+    verticals = filter(r -> r[3] == 1 && r[4] > 1 && is_grabbed(r, :double_arrow_horizontal), rects)
+    horizontals = filter(r -> r[4] == 1 && r[3] > 1 && is_grabbed(r, :double_arrow_vertical), rects)
     @test length(verticals) == 1
     @test length(horizontals) == 1
     outer, inner = verticals[1], horizontals[1]
