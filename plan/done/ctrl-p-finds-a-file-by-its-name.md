@@ -379,6 +379,12 @@ that runs the frames by hand applies posts with `drain_operations!`.
 
 ## Open items
 
+- The change removes exported names: `CommandPalette`, `CommandPaletteState`
+  and `CommandPaletteToSyntax` of `ProjecturedPlatform`, and
+  `make_command_palette_document_example` of `ProjecturedPlatformExample`. So
+  both packages take a minor step at the next release (R36 of
+  `release-the-binary-and-the-packages.md`). The generator of the release finds
+  removed names by itself and gives the minor step, so no version changes here.
 - The new names (`open_file_search!`, `WorkspaceFileList`,
   `WindowPlacementContext`, `WindowPlace`, `find_letter_match`,
   `avoids_new_panes` and the three placements) are proposals. The naming guard
