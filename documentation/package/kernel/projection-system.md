@@ -97,8 +97,13 @@ The two extra arguments are essential:
   a downward-flowing, extensible struct carrying the `reference` path from the
   editor's document root to the *current* input, plus the range that the
   parent gives on each axis (`minimum_width`/`maximum_width`,
-  `minimum_height`/`maximum_height`: exact, bounded or free) and an open
-  `properties` Dict. The `reference` is a cell of the path, and a reader reads
+  `minimum_height`/`maximum_height`: exact, bounded or free), the `space` that
+  the parent gives around the child as `(left, top, right, bottom)`, and an
+  open `properties` Dict. The space is a part of the offer: a function that
+  makes an offer (`with_exact_size`, `with_bounded_size`, `with_size_range`,
+  `with_inner_size`, `with_free_axis`) takes it as the keyword `space`, and
+  gives 0 where the caller gives none, while `make_child_context`,
+  `with_clock` and `with_property` keep it. The `reference` is a cell of the path, and a reader reads
   it with `ctx.reference[]`. A fixed path is an `ImmutableCell`, computed at
   once, and the child of a fixed path is fixed too, so it costs what a plain
   path costs. The path of a place that can move after the print, such as a row

@@ -1,6 +1,7 @@
 # Fragment of `ProjectionModule` — `PrinterContext`, the context a printer
-# carries down the tree: the range of each axis it may use, the clock it animates
-# against, and the properties a parent passes to its children.
+# carries down the tree: the range of each axis it may use, the space that its
+# slot gives around it, the clock it animates against, and the properties a
+# parent passes to its children.
 
 
 """
@@ -23,6 +24,14 @@ Downward-flowing per-invocation context for `print_document`.
   this"), bounded (no minimum, a maximum: "what you need, up to this") and
   free (neither: "what you need"). Cells, and not numbers, let descendants
   read the range reactively, so that a resize never forces re-projection.
+- `space` — the space that the parent gives around the child, as
+  `(left, top, right, bottom)` in pixels, a part of the offer as the ranges are.
+  The ranges hold the space: an exact width is the width of the child with its
+  space. The first box in a slot puts the space outside its own edge, and
+  offers its content 0. A function that makes an offer, such as
+  `with_exact_size`, takes the space as the keyword `space`, and where a caller
+  gives none, the space is 0 on each side. So a printer that does not know the
+  space can not pass it one level too deep.
 - `properties` — open-ended `Dict{Symbol, Any}` for per-projection data
   (theme, focus, debug flags, …).
 - `clock` — the animation clock a printer subscribes to for animated
@@ -32,8 +41,8 @@ Downward-flowing per-invocation context for `print_document`.
 
 `PrinterContext(reference, width, height, properties[, clock])` makes a context
 whose range is exact on each axis where a cell is given, as the root of a
-window gives its size, and free where `nothing` is given. A `Reference` given as
-the path becomes an `ImmutableCell`.
+window gives its size, and free where `nothing` is given. Its space is 0. A
+`Reference` given as the path becomes an `ImmutableCell`.
 
 `get_exact_width(ctx)` and `get_exact_height(ctx)` read the extent of an exact
 range, and `nothing` for a bounded or a free one.
@@ -59,14 +68,18 @@ struct PrinterContext
     maximum_width::Union{Nothing, Cell}
     minimum_height::Union{Nothing, Cell}
     maximum_height::Union{Nothing, Cell}
+    space::NTuple{4, Int}
     properties::Dict{Symbol, Any}
     clock::Clock
 end
 
+# The space of an offer that gives no space.
+const _NO_SPACE = (0, 0, 0, 0)
+
 PrinterContext(reference::Reference, minimum_width, maximum_width, minimum_height,
                maximum_height, properties::Dict{Symbol, Any}, clock::Clock) =
     PrinterContext(ImmutableCell{Any}(reference), minimum_width, maximum_width,
-                   minimum_height, maximum_height, properties, clock)
+                   minimum_height, maximum_height, _NO_SPACE, properties, clock)
 
 PrinterContext(reference::Reference, width::Union{Nothing, Cell}, height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}, clock::Clock) =
@@ -107,8 +120,8 @@ get_exact_height(ctx::PrinterContext) = _get_exact_extent(ctx.minimum_height, ct
 
 # A copy of `ctx` with the range of each axis given as a pair (minimum, maximum).
 _with_ranges(ctx::PrinterContext, width, height; reference = ctx.reference,
-             properties = ctx.properties, clock = ctx.clock) =
-    PrinterContext(reference, width[1], width[2], height[1], height[2], properties, clock)
+             space::NTuple{4, Integer} = ctx.space, properties = ctx.properties, clock = ctx.clock) =
+    PrinterContext(reference, width[1], width[2], height[1], height[2], Int.(space), properties, clock)
 
 _get_width_range(ctx::PrinterContext) = (ctx.minimum_width, ctx.maximum_width)
 _get_height_range(ctx::PrinterContext) = (ctx.minimum_height, ctx.maximum_height)
@@ -138,10 +151,11 @@ _make_reference_cell(f, reference::Cell) = Cell(@computation f(reference[]))
     make_child_context(ctx, steps...) -> PrinterContext
 
 Return a context for a child position: extends the path of `ctx` by `steps`.
-The ranges, the clock and the properties are inherited unchanged —
-pass-through wrappers keep the parent's range; a layout that gives its child a
+The ranges, the space, the clock and the properties are inherited unchanged —
+pass-through wrappers keep the parent's offer; a layout that gives its child a
 range of its own calls `with_exact_size`, `with_bounded_size` or
-`with_free_axis` explicitly.
+`with_free_axis` explicitly, and a box offers its content 0 with
+`with_inner_size`.
 
 Use it to give a child its place in the document before a node printer prints
 the child.
@@ -189,8 +203,8 @@ end
     make_child_context(ctx, ref::Reference) -> PrinterContext
 
 Build a child context whose path is the given path directly (rather than
-extending the path of `ctx`). Inherits the ranges, the clock and the
-properties. Useful when the caller already constructed the full child path
+extending the path of `ctx`). Inherits the ranges, the space, the clock and
+the properties. Useful when the caller already constructed the full child path
 with `@reference`.
 """
 function make_child_context(ctx::PrinterContext, ref::Reference)
@@ -202,7 +216,7 @@ end
     make_child_context(ctx, reference::Union{ImmutableCell{Any}, Cell}) -> PrinterContext
 
 A child context whose path is the cell `reference`. Inherits the ranges, the
-clock and the properties.
+space, the clock and the properties.
 
 Use it where the place of a child can move after its print, such as a row of a
 list counted from its head: a computation gives the path that holds now. A cell
@@ -258,67 +272,78 @@ _get_bounded_range(edge::Nothing) = (nothing, nothing)
 _get_bounded_range(edge::Cell) = (nothing, edge)
 
 """
-    with_exact_size(ctx; width, height) -> PrinterContext
+    with_exact_size(ctx; width, height, space = (0, 0, 0, 0)) -> PrinterContext
 
 A copy of `ctx` whose range is exact on each axis given: the minimum and the
 maximum are the same cell, and the child is that extent. `nothing` makes the
-axis free. An axis that is not given keeps its range.
+axis free. An axis that is not given keeps its range. `space` is the space that
+the offer gives around the child, `(left, top, right, bottom)`.
 
 Use it where a container gives a child its slot: a weighted child of a stack, a
 `Fixed` one, the content of a viewport.
 """
-function with_exact_size(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange())
+function with_exact_size(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange(),
+                         space::NTuple{4, Integer} = _NO_SPACE)
     _with_ranges(ctx,
                  width isa _KeepRange ? _get_width_range(ctx) : _get_exact_range(width),
-                 height isa _KeepRange ? _get_height_range(ctx) : _get_exact_range(height))
+                 height isa _KeepRange ? _get_height_range(ctx) : _get_exact_range(height);
+                 space)
 end
 
 """
-    with_bounded_size(ctx; width, height) -> PrinterContext
+    with_bounded_size(ctx; width, height, space = (0, 0, 0, 0)) -> PrinterContext
 
 A copy of `ctx` whose range is bounded on each axis given: no minimum, and the
 cell as the maximum, so the child takes what it needs, up to that edge.
 `nothing` makes the axis free. An axis that is not given keeps its range.
+`space` is the space that the offer gives around the child, as in
+`with_exact_size`.
 
 Use it where a container knows how much room there is but does not give the
 child a slot: a `Content` child of a stack that has an edge.
 """
-function with_bounded_size(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange())
+function with_bounded_size(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange(),
+                           space::NTuple{4, Integer} = _NO_SPACE)
     _with_ranges(ctx,
                  width isa _KeepRange ? _get_width_range(ctx) : _get_bounded_range(width),
-                 height isa _KeepRange ? _get_height_range(ctx) : _get_bounded_range(height))
+                 height isa _KeepRange ? _get_height_range(ctx) : _get_bounded_range(height);
+                 space)
 end
 
 """
-    with_size_range(ctx; width, height) -> PrinterContext
+    with_size_range(ctx; width, height, space = (0, 0, 0, 0)) -> PrinterContext
 
 A copy of `ctx` with the range of each axis given as a pair `(minimum, maximum)`,
-each a cell or `nothing`. An axis that is not given keeps its range.
+each a cell or `nothing`. An axis that is not given keeps its range. `space` is
+the space that the offer gives around the child, as in `with_exact_size`.
 
 Use it for a range with both a minimum and an edge, as a `Content` child with a
 placement minimum receives in a bounded parent. `with_exact_size` and
 `with_bounded_size` write the common ranges.
 """
-function with_size_range(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange())
+function with_size_range(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange(),
+                         space::NTuple{4, Integer} = _NO_SPACE)
     _with_ranges(ctx,
                  width isa _KeepRange ? _get_width_range(ctx) : width,
-                 height isa _KeepRange ? _get_height_range(ctx) : height)
+                 height isa _KeepRange ? _get_height_range(ctx) : height;
+                 space)
 end
 
 """
-    with_inner_size(ctx; width = 0, height = 0) -> PrinterContext
+    with_inner_size(ctx; width = 0, height = 0, space = (0, 0, 0, 0)) -> PrinterContext
 
 A copy of `ctx` whose range on each axis is the range of `ctx` less an inset, in
 the same state: an exact range stays exact, a bounded one stays bounded and a
 free one stays free. The minimum and the maximum are each reduced by the inset,
-and never go under 0. An inset is a number or a cell of a number.
+and never go under 0. An inset is a number or a cell of a number. `space` is the
+space that the offer gives around the child, as in `with_exact_size`.
 
 Use it where a container passes its own range on to its content, less its
-margin, border, padding and bands.
+space, margin, border, padding and bands.
 """
-with_inner_size(ctx::PrinterContext; width = 0, height = 0) =
+with_inner_size(ctx::PrinterContext; width = 0, height = 0, space::NTuple{4, Integer} = _NO_SPACE) =
     _with_ranges(ctx, _get_inner_range(_get_width_range(ctx), width),
-                 _get_inner_range(_get_height_range(ctx), height))
+                 _get_inner_range(_get_height_range(ctx), height); space)
 
 _get_inset_value(inset::Real) = Int(inset)
 _get_inset_value(inset::Cell) = Int(inset[])
@@ -336,7 +361,7 @@ function _get_inner_range(range, inset)
 end
 
 """
-    with_free_axis(ctx, axis) -> PrinterContext
+    with_free_axis(ctx, axis; space = (0, 0, 0, 0)) -> PrinterContext
 
 The context a container hands its children on an axis whose extent the container
 derives **from** those children.
@@ -350,11 +375,12 @@ evaluates.
 So the offer is derived from what the container is, not chosen at each site. This
 is that rule, written once — `axis` is the axis the container derives, `:x` or
 `:y`, and the other axis passes through untouched. The axis becomes free: no
-minimum and no maximum. Any other `axis` throws an `ArgumentError`.
+minimum and no maximum. Any other `axis` throws an `ArgumentError`. `space` is
+the space that the offer gives around the child, as in `with_exact_size`.
 """
-function with_free_axis(ctx::PrinterContext, axis::Symbol)
-    axis === :x && return with_exact_size(ctx; width = nothing)
-    axis === :y && return with_exact_size(ctx; height = nothing)
+function with_free_axis(ctx::PrinterContext, axis::Symbol; space::NTuple{4, Integer} = _NO_SPACE)
+    axis === :x && return with_exact_size(ctx; width = nothing, space)
+    axis === :y && return with_exact_size(ctx; height = nothing, space)
     throw(ArgumentError("with_free_axis: the axis is :x or :y, not :$axis"))
 end
 
