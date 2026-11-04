@@ -282,6 +282,8 @@ function compute_pivot_cross_table(table, row_dimensions::AbstractVector, column
                     part_rows, part_ranges, row_details, column_details, detail_rows, width)
 end
 
+compute_pivot_cross_table(pivot::ReferencedDocument) = compute_pivot_cross_table(get_document(pivot))
+
 # The keys of an axis, and the range of the details that each covers: the
 # details, a subtotal after each run of an outer level with `totals` or when its
 # prefix is in `collapsed`, and the total last with `totals`.

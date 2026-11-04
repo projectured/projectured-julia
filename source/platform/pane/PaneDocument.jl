@@ -375,6 +375,8 @@ function collect_pane_tab_contents(tree::PaneTree, T::Type)
     found
 end
 
+collect_pane_tab_contents(tree::ReferencedDocument, T::Type) = collect_pane_tab_contents(get_document(tree), T)
+
 """
     find_pane_tab_layer(tab, matches) -> document or nothing
 

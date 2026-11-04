@@ -419,6 +419,7 @@ function compute_file_text end
 
 compute_file_text(file::FileDocument) =
     cut_file_text(_make_plain_file(file), dirname(abspath(get_filename(file))))
+compute_file_text(file::ReferencedDocument) = compute_file_text(get_document(file))
 
 # The text of a file is the text of what it holds, so a caller with a tab in
 # hand asks the file itself. The history a file carries stays out of the answer,

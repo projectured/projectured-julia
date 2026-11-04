@@ -80,6 +80,8 @@ get_work_item_identifier(group::TaskGroupDocument) = getfield(group, :identifier
 describe_work_item_kind(::TaskGroupDocument, count::Integer) = count == 1 ? "group" : "groups"
 stop_work_item!(group::TaskGroupDocument) = (stop_task_group_document!(group); nothing)
 describe_work_item(group::TaskGroupDocument; limit::Integer = 20) = _describe_task_group(group, :unexpected, limit)
+describe_work_item(item::ReferencedDocument; keywords...) =
+    describe_work_item(get_document(item); keywords...)
 
 # Whether the work of `item` goes on, as its decoration says. A group reads its
 # status only.

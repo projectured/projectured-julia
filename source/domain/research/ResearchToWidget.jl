@@ -265,6 +265,8 @@ describe_research_link(item::ResearchItem, name::Symbol, linked) =
     _get_link_word(item, Val(name)) * " " *
     (linked isa ResearchItem ? linked.id * " " * _format_plain_text(get_research_item_text(linked)) :
                                string(nameof(typeof(linked))))
+describe_research_link(item::ReferencedDocument, name::Symbol, linked) =
+    describe_research_link(get_document(item), name, linked)
 
 """
     describe_research_expectation(expectation) -> String
@@ -303,6 +305,9 @@ function describe_research_expectation(expectation::ResearchExpectation)
            selection isa Document ? _format_plain_text(selection) : string(selection)
     "expects a value " * bounds * " of " * (isempty(what) ? string(nameof(typeof(selection))) : what)
 end
+
+describe_research_expectation(expectation::ReferencedDocument) =
+    describe_research_expectation(get_document(expectation))
 
 # The links of `item` as groups of a word and the linked documents, in the order of
 # its fields, then the links into it from the other items of `study`, which the

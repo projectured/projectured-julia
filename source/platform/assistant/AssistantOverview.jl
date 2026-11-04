@@ -42,6 +42,7 @@ For the assistant.
 function find_first_prompt end
 
 find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+find_first_prompt(assistant::ReferencedDocument) = find_first_prompt(get_document(assistant))
 
 """
     find_last_prompt(assistant) -> String or nothing
@@ -62,6 +63,7 @@ For the assistant.
 function find_last_prompt end
 
 find_last_prompt(a::Assistant) = _find_prompt(a, findlast)
+find_last_prompt(assistant::ReferencedDocument) = find_last_prompt(get_document(assistant))
 
 function _find_prompt(a::Assistant, find::Function)
     turns = collect(a.conversation.turns)
@@ -122,6 +124,8 @@ function describe_assistant_activity(a::Assistant)
     content isa EvaluatorForm && return "runs " * content.tool_name
     "writes"
 end
+
+describe_assistant_activity(assistant::ReferencedDocument) = describe_assistant_activity(get_document(assistant))
 
 # The question of the agent in the last turn that waits for the person.
 function _find_open_permission_request(a::Assistant)

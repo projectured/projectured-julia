@@ -454,6 +454,9 @@ function make_text_block(content::Function, style::StyleText;
     end)
 end
 
+make_text_block(content, style::ReferencedDocument; keywords...) =
+    make_text_block(content, get_document(style); keywords...)
+
 _make_text_block_line(text::AbstractString, style::StyleText) = TextLine(TextString(String(text), style))
 
 """
@@ -941,6 +944,7 @@ get_flat_string(text::TextBlock) = String(_flat_chars(text))
 
 # The text of one line, its indentation included, with no break.
 get_flat_string(line::TextLine) = String(_push_flat_chars!(Char[], line))
+get_flat_string(text::ReferencedDocument) = get_flat_string(get_document(text))
 
 # The flat text selection `(start, stop)` — from a flat `TextRangeReferenceStep` head,
 # or a structural `.content{a:b}` caret canonicalised to its flat offsets — else

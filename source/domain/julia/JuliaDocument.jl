@@ -760,6 +760,8 @@ function compute_julia_signature(function_::JuliaFunction)
     isempty(result) ? signature : signature * "::" * result
 end
 
+compute_julia_signature(function_::ReferencedDocument) = compute_julia_signature(get_document(function_))
+
 # A function answers a dwell with its signature. Its prose is in the docstring, a
 # node ABOVE it that holds the function as its subject, and the docstring adds its
 # own layer when the tooltip goes out from the function.

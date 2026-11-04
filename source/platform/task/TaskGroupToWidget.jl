@@ -588,6 +588,8 @@ function make_task_group_tab_title end
 
 make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[]) =
     make_pane_tab_title(doc, String(name))
+make_task_group_tab_title(document::ReferencedDocument; keywords...) =
+    make_task_group_tab_title(get_document(document); keywords...)
 
 # A group is a work item: its icon is its state, its tint the role of its state,
 # its counts how far it is and each code that came back unexpected, and its

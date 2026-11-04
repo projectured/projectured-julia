@@ -111,6 +111,7 @@ For the assistant.
 function get_event_count end
 
 get_event_count(e::SequenceChartEvents) = min(length(e.times), length(e.axes))
+get_event_count(events::ReferencedDocument) = get_event_count(get_document(events))
 
 """
     get_event_axis(events, i) -> Int
@@ -148,6 +149,7 @@ function get_event_label end
 
 get_event_label(e::SequenceChartEvents, i::Integer) =
     e.labels === nothing || i > length(e.labels) ? nothing : String(e.labels[i])
+get_event_label(events::ReferencedDocument, index::Integer) = get_event_label(get_document(events), index)
 
 # ── Arrows ───────────────────────────────────────────────────────────────
 
@@ -198,6 +200,7 @@ For the assistant.
 function get_arrow_count end
 
 get_arrow_count(a::SequenceChartArrows) = min(length(a.sources), length(a.targets))
+get_arrow_count(arrows::ReferencedDocument) = get_arrow_count(get_document(arrows))
 
 """
     get_arrow_kind(arrows, k) -> Int
@@ -226,6 +229,7 @@ function get_arrow_label end
 
 get_arrow_label(a::SequenceChartArrows, k::Integer) =
     a.labels === nothing || k > length(a.labels) ? nothing : String(a.labels[k])
+get_arrow_label(arrows::ReferencedDocument, index::Integer) = get_arrow_label(get_document(arrows), index)
 
 """
     get_arrow_source_axis(arrows, events, k) -> Int
@@ -836,6 +840,8 @@ function get_selected_event(chart::SequenceChart)
     end
 end
 
+get_selected_event(chart::ReferencedDocument) = get_selected_event(get_document(chart))
+
 """
     get_selected_arrow(chart) -> Int
 
@@ -866,6 +872,8 @@ function get_selected_arrow(chart::SequenceChart)
         __ => 0
     end
 end
+
+get_selected_arrow(chart::ReferencedDocument) = get_selected_arrow(get_document(chart))
 
 """
     get_selected_axis_index(chart) -> Int

@@ -278,6 +278,8 @@ realize_process_text(model::ProcessModel; instrumentation::Symbol = :none) =
     "# Realized from the process `" * model.name *
     "` — edit the process, not this file.\n\n" *
     print_natural_text(realize_process(model; instrumentation = instrumentation)) * "\n"
+realize_process_text(model::ReferencedDocument; keywords...) =
+    realize_process_text(get_document(model); keywords...)
 
 """
     export_process(model::ProcessModel, path::AbstractString; instrumentation = :none)

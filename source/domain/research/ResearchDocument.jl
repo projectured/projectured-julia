@@ -518,6 +518,7 @@ function get_research_kind(type::Type{<:ResearchItem})
     throw(ArgumentError("No kind of item is a " * string(nameof(type)) * "."))
 end
 get_research_kind(item::ResearchItem) = get_research_kind(typeof(item))
+get_research_kind(item::ReferencedDocument) = get_research_kind(get_document(item))
 
 """
     has_research_status(item) -> Bool
@@ -539,6 +540,7 @@ For the assistant.
 function has_research_status end
 
 has_research_status(item::ResearchItem) = !(item isa ResearchDecision)
+has_research_status(item::ReferencedDocument) = has_research_status(get_document(item))
 
 """
     collect_study_items(study) -> Vector{ResearchItem}
@@ -568,6 +570,8 @@ function collect_study_items(study::ResearchStudy)
     end
     items
 end
+
+collect_study_items(study::ReferencedDocument) = collect_study_items(get_document(study))
 
 # ── The time ─────────────────────────────────────────────────────────────
 
@@ -637,6 +641,7 @@ function get_research_item_text end
 get_research_item_text(item::Union{ResearchExperiment, ResearchAnalysis, ResearchResult}) = item.title
 get_research_item_text(item::ResearchSource) = item.citation
 get_research_item_text(item::ResearchItem) = item.statement
+get_research_item_text(item::ReferencedDocument) = get_research_item_text(get_document(item))
 
 _format_plain_text(text::AbstractString) = String(text)
 _format_plain_text(text::PrimitiveString) = something(text.value, "")

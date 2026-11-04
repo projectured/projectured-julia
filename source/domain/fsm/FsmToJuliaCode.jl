@@ -460,6 +460,8 @@ generate_component_text(component::FsmComponent; wrap_module::Bool = true) =
     "# Generated from the state machine `" * component.name *
     "` — edit the machine, not this file.\n\n" *
     print_natural_text(generate_component(component; wrap_module = wrap_module)) * "\n"
+generate_component_text(component::ReferencedDocument; keywords...) =
+    generate_component_text(get_document(component); keywords...)
 
 """
     export_component(component::FsmComponent, path::AbstractString; wrap_module = true)

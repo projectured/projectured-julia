@@ -126,6 +126,9 @@ function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
     end
 end
 
+show_assistant_work!(assistant::ReferencedDocument; keywords...) =
+    show_assistant_work!(get_document(assistant); keywords...)
+
 # The work page of `a` that a tab of a window of `editor` shows, and the steps from
 # the root to that tab, or `nothing`. It reads only the windows, their pane trees
 # and the content of each tab: a navigator whose content is the work of `a`.

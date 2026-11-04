@@ -277,6 +277,7 @@ function get_workflow_states end
 
 get_workflow_states(::WorkflowStep) = WORKFLOW_STEP_STATES
 get_workflow_states(::WorkflowOption) = WORKFLOW_OPTION_STATES
+get_workflow_states(node::ReferencedDocument) = get_workflow_states(get_document(node))
 
 """
     is_workflow_node(document) -> Bool
@@ -308,6 +309,7 @@ function get_workflow_node_title end
 get_workflow_node_title(node::WorkflowStep) = node.title
 get_workflow_node_title(node::WorkflowOption) = node.title
 get_workflow_node_title(node::WorkflowDecision) = node.question
+get_workflow_node_title(node::ReferencedDocument) = get_workflow_node_title(get_document(node))
 
 """
     get_workflow_node_children(node) -> CellVector
@@ -331,6 +333,7 @@ function get_workflow_node_children end
 get_workflow_node_children(node::WorkflowStep) = node.children
 get_workflow_node_children(node::WorkflowOption) = node.children
 get_workflow_node_children(node::WorkflowDecision) = node.options
+get_workflow_node_children(node::ReferencedDocument) = get_workflow_node_children(get_document(node))
 
 # The name of the field that `get_workflow_node_children` reads.
 _get_children_field(::Union{WorkflowStep, WorkflowOption}) = :children

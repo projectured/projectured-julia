@@ -206,6 +206,11 @@ function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironme
     deps
 end
 
+get_formula_dependencies(formula::ReferencedDocument, environment) =
+    get_formula_dependencies(get_document(formula), environment)
+get_formula_dependencies(formula::FormulaFormula, environment::ReferencedDocument) =
+    get_formula_dependencies(formula, get_document(environment))
+
 """
     get_formula_names(code) -> Vector{String}
     get_formula_names(formula::FormulaFormula) -> Vector{String}
@@ -531,6 +536,14 @@ function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::F
     return false
 end
 
+# A part reads as its document.
+would_create_cycle(environment::ReferencedDocument, from, to) =
+    would_create_cycle(get_document(environment), from, to)
+would_create_cycle(environment::FormulaEnvironment, from::ReferencedDocument, to) =
+    would_create_cycle(environment, get_document(from), to)
+would_create_cycle(environment::FormulaEnvironment, from::FormulaFormula, to::ReferencedDocument) =
+    would_create_cycle(environment, from, get_document(to))
+
 """
     compute_topological_order(env) -> Vector{FormulaFormula}
 
@@ -677,6 +690,11 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
     end
 end
 
+evaluate_formula(formula::ReferencedDocument, environment; keywords...) =
+    evaluate_formula(get_document(formula), environment; keywords...)
+evaluate_formula(formula::FormulaFormula, environment::ReferencedDocument; keywords...) =
+    evaluate_formula(formula, get_document(environment); keywords...)
+
 # Run the `Expr` of the code of a formula in `scratch`, with each binding as a
 # local of a `let`. An error that the code raises is a `FormulaError`.
 function _run_formula_code(scratch::Module, expression, bindings::Vector{Pair{Symbol,Any}})
@@ -808,6 +826,7 @@ For the assistant.
 function get_formula_result end
 
 get_formula_result(formula::FormulaFormula) = formula.result
+get_formula_result(formula::ReferencedDocument) = get_formula_result(get_document(formula))
 
 # Whether the stored value of a formula is a function, which a row shows as its
 # equation and no value.

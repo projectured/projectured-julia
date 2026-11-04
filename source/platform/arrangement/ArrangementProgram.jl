@@ -154,6 +154,8 @@ function describe_arrangement(arrangement::ArrangementDocument)
     join(texts, "; ")
 end
 
+describe_arrangement(arrangement::ReferencedDocument) = describe_arrangement(get_document(arrangement))
+
 """
     filter_collection!(collection, conditions...; editor = get_evaluation_editor()) -> String
 

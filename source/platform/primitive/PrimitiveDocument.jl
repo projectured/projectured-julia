@@ -379,6 +379,7 @@ function get_primitive_text end
 
 get_primitive_text(document::PrimitiveDocument) =
     document.value === nothing ? "" : string(document.value)
+get_primitive_text(document::ReferencedDocument) = get_primitive_text(get_document(document))
 
 """
     find_primitive_document(types, text) -> Union{PrimitiveDocument, Nothing}

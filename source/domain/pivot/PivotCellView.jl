@@ -87,6 +87,8 @@ function get_pivot_measures(pivot::PivotTable)
     isempty(measures) ? Any[PivotMeasure("", :count)] : measures
 end
 
+get_pivot_measures(pivot::ReferencedDocument) = get_pivot_measures(get_document(pivot))
+
 """
     describe_pivot_measure(measure::PivotMeasure) -> String
 

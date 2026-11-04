@@ -62,6 +62,8 @@ function get_rst_title_text(section::RstSection)
     String(take!(buffer))
 end
 
+get_rst_title_text(section::ReferencedDocument) = get_rst_title_text(get_document(section))
+
 _collect_run_text!(buffer::IO, nodes) = (foreach(n -> _collect_title_text!(buffer, n), nodes); nothing)
 
 _collect_title_text!(buffer::IO, node::RstText)     = (print(buffer, node.content); nothing)

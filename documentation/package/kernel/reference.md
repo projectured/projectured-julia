@@ -467,6 +467,12 @@ a method of the function takes a `ReferencedDocument`, the error says so. Both
 errors say how to get a part: a read of a part, or
 `search_documents(editor.document, query; places = true)`.
 
+A function that needs no place takes a part as well as a plain document. For each
+parameter of a document type, it has one more method that takes a
+`ReferencedDocument` there and calls the function again with `get_document(x)`.
+Such a function answers what the plain document gives, so its answer does not
+keep the place.
+
 `get_parent(root, x)` answers the document that holds `x`, read from `root` at the
 call: one step up the reference of `x`, and past each collection on the way, so
 the parent of an element of a vector field is the document that has the field,

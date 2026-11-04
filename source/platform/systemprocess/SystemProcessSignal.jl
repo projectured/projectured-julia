@@ -26,6 +26,8 @@ function interrupt_system_process! end
 
 interrupt_system_process!(process::SystemProcess; root::AbstractString = "/proc") =
     _send_system_process_signal!(process, Base.SIGINT, root)
+interrupt_system_process!(process::ReferencedDocument; keywords...) =
+    interrupt_system_process!(get_document(process); keywords...)
 
 """
     stop_system_process!(process; root = "/proc") -> Bool
@@ -48,6 +50,8 @@ function stop_system_process! end
 
 stop_system_process!(process::SystemProcess; root::AbstractString = "/proc") =
     _send_system_process_signal!(process, Base.SIGTERM, root)
+stop_system_process!(process::ReferencedDocument; keywords...) =
+    stop_system_process!(get_document(process); keywords...)
 
 function _send_system_process_signal!(process::SystemProcess, signal::Integer, root)
     process_id = process.process_id

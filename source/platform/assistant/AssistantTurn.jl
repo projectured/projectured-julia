@@ -771,6 +771,8 @@ function format_conversation(conversation::ConversationConversation)
     String(take!(io))
 end
 
+format_conversation(conversation::ReferencedDocument) = format_conversation(get_document(conversation))
+
 """
     write_conversation(assistant_or_conversation, path) -> path
 

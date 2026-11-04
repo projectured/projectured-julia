@@ -77,6 +77,8 @@ function get_next_workflow_state(node::Union{WorkflowStep, WorkflowOption})
     states[mod1(index + 1, length(states))]
 end
 
+get_next_workflow_state(node::ReferencedDocument) = get_next_workflow_state(get_document(node))
+
 """
     make_insert_workflow_node_operation(parent, index, child) -> Operation
 

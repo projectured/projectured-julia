@@ -195,6 +195,9 @@ function describe_task(group::TaskGroupDocument, index::Integer; editor = get_ev
     run_on_editor_task!(() -> _describe_task(group, index), editor; description = "describe_task")
 end
 
+describe_task(group::ReferencedDocument, index::Integer; keywords...) =
+    describe_task(get_document(group), index; keywords...)
+
 function _describe_task(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
     task = getfield(document, :task)[]
@@ -251,6 +254,9 @@ function get_task_output(group::TaskGroupDocument, index::Integer;
         join(last(output, lines), "\n")
     end
 end
+
+get_task_output(group::ReferencedDocument, index::Integer; keywords...) =
+    get_task_output(get_document(group), index; keywords...)
 
 # ── Acting on a group ───────────────────────────────────────────────────────
 
@@ -316,6 +322,8 @@ function is_task_group_running(group::TaskGroupDocument)
     scheduler !== nothing && !istaskdone(scheduler)
 end
 
+is_task_group_running(group::ReferencedDocument) = is_task_group_running(get_document(group))
+
 
 """
     stop_tasks!(group; editor = get_evaluation_editor()) -> String
@@ -370,6 +378,9 @@ function stop_task!(group::TaskGroupDocument, index::Integer; editor = get_evalu
     end
 end
 
+stop_task!(task::ReferencedDocument, arguments...; keywords...) =
+    stop_task!(get_document(task), arguments...; keywords...)
+
 """
     rerun_tasks!(group; which = :unexpected, wait = false, editor = get_evaluation_editor()) -> TaskGroupDocument
 
@@ -398,6 +409,9 @@ function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool 
     wait && wait_for_task_group!(editor, group)
     group
 end
+
+rerun_tasks!(group::ReferencedDocument; keywords...) =
+    rerun_tasks!(get_document(group); keywords...)
 
 """
     wait_for_tasks!(group; timeout = 30, editor = get_evaluation_editor()) -> String
@@ -435,6 +449,9 @@ function wait_for_tasks!(group::TaskGroupDocument; timeout::Real = 30, editor = 
             string("Ended: ", summary, ".")
     end
 end
+
+wait_for_tasks!(group::ReferencedDocument; keywords...) =
+    wait_for_tasks!(get_document(group); keywords...)
 
 """
     close_task_group!(group; editor = get_evaluation_editor()) -> String

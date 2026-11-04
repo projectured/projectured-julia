@@ -181,6 +181,7 @@ For the assistant.
 function collect_work_items end
 
 collect_work_items(list::TaskGroupList) = Any[item for item in list.groups if !(item isa ClosedTaskGroup)]
+collect_work_items(list::ReferencedDocument) = collect_work_items(get_document(list))
 
 # ── The addresses ────────────────────────────────────────────────────────────
 #

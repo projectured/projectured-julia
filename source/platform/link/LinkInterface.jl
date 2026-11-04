@@ -41,6 +41,8 @@ For the assistant.
 """
 function get_link_target end
 
+get_link_target(link::ReferencedDocument) = get_link_target(get_document(link))
+
 """
     get_link_content(link) -> nothing, a string or a document
 

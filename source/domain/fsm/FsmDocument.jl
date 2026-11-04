@@ -184,6 +184,8 @@ function find_state(machine::FsmMachine, name::AbstractString)
     nothing
 end
 
+find_state(machine::ReferencedDocument, name::AbstractString) = find_state(get_document(machine), name)
+
 """
     find_event(component::FsmComponent, name::AbstractString) -> Union{FsmEvent, Nothing}
 
@@ -208,6 +210,8 @@ function find_event(component::FsmComponent, name::AbstractString)
     end
     nothing
 end
+
+find_event(component::ReferencedDocument, name::AbstractString) = find_event(get_document(component), name)
 
 """
     find_timer(component::FsmComponent, name::AbstractString) -> Union{FsmTimer, Nothing}
@@ -234,6 +238,8 @@ function find_timer(component::FsmComponent, name::AbstractString)
     nothing
 end
 
+find_timer(component::ReferencedDocument, name::AbstractString) = find_timer(get_document(component), name)
+
 """
     find_fsm(component::FsmComponent, name::AbstractString) -> Union{FsmMachine, Nothing}
 
@@ -259,6 +265,8 @@ function find_fsm(component::FsmComponent, name::AbstractString)
     nothing
 end
 
+find_fsm(component::ReferencedDocument, name::AbstractString) = find_fsm(get_document(component), name)
+
 """
     get_fsm_states(machine::FsmMachine) -> Vector{FsmState}
 
@@ -279,6 +287,7 @@ For the assistant.
 function get_fsm_states end
 
 get_fsm_states(machine::FsmMachine) = FsmState[s for s in machine.states if s isa FsmState]
+get_fsm_states(machine::ReferencedDocument) = get_fsm_states(get_document(machine))
 
 """
 All transitions of `machine` flattened in document order (states in order,
@@ -310,6 +319,8 @@ function get_fsm_transitions(machine::FsmMachine)
     end
     result
 end
+
+get_fsm_transitions(machine::ReferencedDocument) = get_fsm_transitions(get_document(machine))
 
 "The 1-based global index of `transition` in `machine`'s flattened order; 0 when absent."
 function get_fsm_transition_index(machine::FsmMachine, transition::FsmTransition)

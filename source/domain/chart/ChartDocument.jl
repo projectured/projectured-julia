@@ -727,6 +727,8 @@ function collect_chart_parts(chart::Chart)
     parts
 end
 
+collect_chart_parts(chart::ReferencedDocument) = collect_chart_parts(get_document(chart))
+
 """
     get_chart_part_index(chart, reference) -> Int
 

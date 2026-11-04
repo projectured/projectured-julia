@@ -106,3 +106,6 @@ function start_process(model::ProcessModel, arguments...;
     end
     ProcessRun(model, trace, task, context)
 end
+
+start_process(model::ReferencedDocument, arguments...; keywords...) =
+    start_process(get_document(model), arguments...; keywords...)

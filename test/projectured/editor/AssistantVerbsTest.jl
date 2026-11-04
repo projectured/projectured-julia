@@ -349,7 +349,9 @@ _has_example_parse_error(expression) =
 Every name of `api` from a package of the editor carries what a model reads to use
 it: a "Use it to" line, an example that parses, and a "See also" line, which names
 only what the model can write. Every name that `EDITOR_SYSTEM` and the paragraph of
-the loaded domains write in backticks is a name that the model can write.
+the loaded domains write in backticks is a name that the model can write. The names
+that only the person calls are not offered, and a function of `api` that takes a
+document takes a part of that document too.
 """
 function test_assistant_documentation(api = make_editor_api())
 @testset "the names that only the person calls carry no mark and are not offered" begin
@@ -364,6 +366,33 @@ function test_assistant_documentation(api = make_editor_api())
               error(string(nameof(module_), ".", name, " carries the mark, but only the person calls it"))
         @test !(String(name) in offered) ||
               error(string(nameof(module_), ".", name, " is offered, but only the person calls it"))
+    end
+end
+@testset "a function that the assistant calls takes each document also as a part" begin
+    # A read of the window answers a part, a document with its place, so each
+    # parameter of a document type takes a part of that type too.
+    set = declare_api!(ToolSet(), api)
+    checked = Set{Any}()
+    for entry in set.api, (name, _) in get_api_entry_bindings(entry)
+        value = getfield(entry.module_, name)
+        (value isa Function && !(value isa Type)) || continue
+        value in checked && continue
+        push!(checked, value)
+        for method in methods(value)
+            parameters = Any[parameter isa TypeVar ? parameter.ub : parameter
+                             for parameter in Base.unwrap_unionall(method.sig).parameters[2:end]]
+            # A method with a trailing Vararg takes the call that gives it no value.
+            !isempty(parameters) && last(parameters) isa Core.TypeofVararg && pop!(parameters)
+            all(parameter -> parameter isa Type, parameters) || continue
+            for (position, parameter) in enumerate(parameters)
+                parameter !== Union{} && parameter <: Document || continue
+                types = copy(parameters)
+                types[position] = ReferencedDocument{parameter}
+                @test hasmethod(value, Tuple{types...}) ||
+                      error(string(nameof(entry.module_), ".", name, " takes a ", parameter, " as argument ",
+                                   position, " and no part: ", method))
+            end
+        end
     end
 end
 @testset "every declared name carries its use, an example and its neighbours" begin

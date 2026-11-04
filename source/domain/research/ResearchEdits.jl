@@ -80,6 +80,8 @@ function collect_research_links(item::ResearchItem)
     links
 end
 
+collect_research_links(item::ReferencedDocument) = collect_research_links(get_document(item))
+
 """
     make_research_id(study, type) -> String
 
