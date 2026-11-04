@@ -282,6 +282,46 @@ approval of the user.
         to the text of the tab) and `DataFrameViewTest` (the step of a row).
         Counts: the ten platform functions 797 Pass, 0 Fail; `test_dataframes`
         603 Pass. `test_platform_layering` has the one known failure.
+
+      Facts found after the step. The suite of step 4 found these, in
+      functions that step 2 did not run. Each is a place that the values move
+      on purpose, so each fix is in a test, but for the forward map of the bar
+      of a table.
+
+      - `title_gap` 2: the split pane example has no offer of a height, so it
+        is as tall as its title panes, 50 px and not 52. The press at y 50 of
+        `test_split_pane_drag` and `test_part_pointer_shape` was under the
+        split. The splitter takes a press over its full height. The tests
+        press at the middle of the height that the split draws (748a71b6b).
+      - `container_padding` 8: the last row of the list in the card of
+        `ScrollPaneHoverTest.jl:124` moves 4 px down, to y 162 to 189, so the
+        press at y 160 found row 39. The test computes the press from the
+        theme: 200, less the border and the padding of the card and the border
+        of the list, less 1 (78f02f8b6).
+      - `container_padding` 8 and `title_gap` 2: the form of the find bar
+        stands 6 px higher, its label at y 32 and not 38, so the press of
+        `FindBarViewToWidgetTest.jl:137` is over the second line of the text
+        and not the third. The test checks the second line, where the caret is
+        at another column (988e6d666).
+      - The settings tab is shorter: the row of the undo steps starts at y 290
+        and not 312 (step 3 adds 1 px), in a window of 300.
+        `SettingsTabTest.jl` makes the window 280 px high, so the row starts
+        below it, and reads that height in its other checks (6b7c6777f).
+      - `control_padding` 4, 4, 8, 8: the rows of `widget_table_frozen` are
+        shorter, and 3 px of row 4 show at the bottom of the view, under the
+        horizontal bar, which lies over the content. `test_widget_round_trip`
+        took each cell of row 4 for a cell that maps back to the wrong part.
+        The test now finds the box of the part that a point maps to, and tries
+        the points of the cell outside that box. Cells 1 to 3 have none, so
+        they are covered. Cell 4 reaches 1 px past the end of the bar, to
+        x 310 in the square at the corner of the two bars, and a point there
+        maps back to it. For the box, the table maps the field of a bar
+        forward: it mapped a point on its bar back to the field, but the field
+        forward to nothing, a defect of `main`. Now the field maps to the canvas that the bar
+        prints, in the table whose rows are a vector and in the table whose
+        rows are a list, as the scroll pane maps its own bars
+        (`_map_table_bar_forward`, `WidgetTableParts.jl`). The 44 images are
+        the same, and `test_dataframes` has 603 Pass (0a4b62ea3).
 - [x] 3. **Draw the four lines.** The shell draws a 1 px line of `border`
       under the menu bar, under the toolbar and above the status bar, and
       `band_gap` becomes 0. Each line takes 1 px of height, as a splitter takes
@@ -327,6 +367,26 @@ approval of the user.
         `y + h + 1 == status[2]`). Counts: shell layout 14, shell pointer 6,
         window shell 149, tab strip 29, tab label 24, explorer 313, mouse
         target move 85, all Pass; `test_dataframes` 603 Pass.
+
+      Facts found after the step. The suite of step 4 found these, in
+      functions that step 3 did not run. The lines are correct, and each fix is
+      in a test helper that took a line for something else.
+
+      - The line under a tab row is one or two 1 px rects, so the test of a
+        nested split (`PaneToWidgetTest.jl:204`) found 7 horizontal 1 px rects,
+        not the 1 splitter. The test takes a 1 px rect for a splitter only
+        where the pointer at its middle is the double arrow of a grab, and the
+        four checks of the places of the two splitters pass (72543d915).
+      - The line under the menu bar of a shell is a rect after the background,
+        so `AnchorPointTest.jl:116` went to the line by the index 2 and read a
+        field that a rect does not have. The test takes the first canvas of
+        the shell, which is the menu bar (c40b0d201).
+      - The eight functions of the two lists, in one process: before the
+        fixes 243 Pass, 16 Fail, 3 Error, 7 Broken; after them 264 Pass,
+        0 Fail, 0 Error, 7 Broken (the anchor test runs 2 more checks, which
+        the Error stopped). With six
+        functions of the table in the same process: 664 Pass, 0 Fail,
+        0 Error, 7 Broken.
 - [x] 4. **A box computes its shape once, and its IO map carries it.** The
       screen must not change.
       - A type for the shape of a box holds the outer box, the margin, the
@@ -404,7 +464,8 @@ approval of the user.
         cells of the last row of `widget_table_frozen` map back to the
         horizontal bar) and `test_scroll_pane_hover`
         (`ScrollPaneHoverTest.jl:124`: a press gives `items[39]`, not
-        `items[40]`). Step 4 does not fix them.
+        `items[40]`). Step 4 does not fix them. The causes and the fixes are
+        under steps 2 and 3.
       - The platform suite, part by part: 176638 Pass, 19 Fail, 3 Error,
         7 Broken (baseline: 175016 Pass, 3 Fail, 7 Broken). The three Fail of
         the baseline are the same. The other 16 Fail and 3 Error are in the code
