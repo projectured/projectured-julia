@@ -62,7 +62,7 @@ function test_widget_rows_scroll()
         offset = Int(list.scroll_position.y[])
         @test offset > 0
         after = read_intent(projection, iomap, MouseClick(:left, 20, 60; time = 0.0))
-        top = WidgetModule._content_offset(iomap.projection, list)[2]
+        top = WidgetModule._get_content_offset(WidgetModule._get_box_geometry(iomap))[2]
         @test row_of(before) == 1 + (60 - top) ÷ step
         @test row_of(after) == 1 + (60 - top + offset) ÷ step
     end

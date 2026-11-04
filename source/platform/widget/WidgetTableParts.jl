@@ -72,13 +72,15 @@ end
 
 The IO map of a `WidgetTable` whose rows are a list. Its `state` holds the IO
 maps of the panes of the header row and of the cells, the height of the header
-row, and the edges of the columns.
+row, and the edges of the columns. Its `box` is the shape of the box of the
+table.
 """
 @iomap struct WidgetTableListIoMap
     projection::Any
     input::Any
     output::Any
     state::Any
+    box::Any
 end
 
 # ── What a list needs, said before anything is drawn ─────────────────────────
@@ -229,7 +231,7 @@ end
 
 # The place of the pane of the cells in a table whose rows are a list.
 function _get_table_cells_place(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap)
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     (content_x + Int(iomap.state.header_width[]), content_y + Int(iomap.state.header_height[]))
 end
 
@@ -248,7 +250,7 @@ function _make_part_region(pane, graphics; x::Cell, y::Cell, origin_x::Cell = Ce
                            layout::LayoutDirection = layout_none)
     out = pane.output
     content = _get_part_content(pane)
-    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
+    cox, coy = _get_content_offset(_get_box_geometry(get_content_iomap(pane)))
     graphics_x = Cell(@computation Int32(cox - pad_x - bw + Int(content.x) - Int(origin_x[])))
     graphics_y = Cell(@computation Int32(coy - pad_y - bw + Int(content.y) - Int(origin_y[])))
     canvas = GraphicsCanvas(graphics_x, graphics_y, Cell(Int32(0)), Cell(Int32(0)), graphics,
@@ -266,8 +268,9 @@ end
 # table.
 function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
     (0 <= evt.x < Int(table.w) && 0 <= evt.y < Int(table.h)) || return nothing
-    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
-    tx, ty = _inset_total(get_content_iomap(pane).projection, pane.input)
+    box = _get_box_geometry(get_content_iomap(pane))
+    cox, coy = _get_content_offset(box)
+    tx, ty = _get_inset_total(box)
     view_w = max(1, Int(pane.output.w) - tx)
     view_h = max(1, Int(pane.output.h) - ty)
     point_x = clamp(evt.x - x, cox, cox + view_w - 1)
@@ -867,9 +870,10 @@ end
 # ── The printer ──────────────────────────────────────────────────────────────
 
 function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
     # Headers that are a list make the columns a list too.
-    w.column_headers isa ListNode && return _print_table_column_parts(p, recursion, w, ctx)
-    inset_width, inset_height = _inset_total(p, w)
+    w.column_headers isa ListNode && return _print_table_column_parts(p, recursion, w, geometry, ctx)
+    inset_width, inset_height = _get_inset_total(geometry[])
     inner = ctx === nothing ? nothing : with_inner_size(ctx; width = inset_width, height = inset_height)
     height = inner === nothing ? nothing : get_exact_height(inner)
     _check_table_parts(w, height)
@@ -887,23 +891,24 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     end)
     parts = Cell(@computation begin
         shape[]
-        peek(Cell(@computation _print_vector_column_parts(p, recursion, w, inner, height)))
+        peek(Cell(@computation _print_vector_column_parts(p, recursion, w, geometry[], inner, height)))
     end)
     # Read once now, so a table that a list can not draw raises its error here.
     parts[]
-    _make_table_list_iomap(p, w, parts)
+    _make_table_list_iomap(p, w, parts, geometry)
 end
 
-# The parts of a table whose columns are a vector, as `(; state, regions)`.
-function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, inner,
-                                    height)
+# The parts of a table of shape `box` whose columns are a vector, as
+# `(; state, regions)`.
+function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable,
+                                    box::BoxGeometry, inner, height)
     n = something(get_widget_table_column_count(w), 0)
     pad_x = Int(p.cell_padding.left[])
     pad_y = Int(p.cell_padding.top[])
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
-    content_x, content_y = _content_offset(p, w)
+    content_x, content_y = _get_content_offset(box)
     aligns = Symbol[_wt_column_align(w, c) for c in 1:n]
     offers = Bool[_wt_column_cell_policy(w, c) === :wrap for c in 1:n]
     header_offers = Bool[offers[c] || _wt_is_weighted_column(_get_table_column_policy(w, c)) for c in 1:n]
@@ -1030,12 +1035,15 @@ function _collect_table_regions(p::WidgetTableToGraphicsCanvas, w::WidgetTable, 
     Any[region for region in regions if region !== nothing]
 end
 
-# The IO map of a table of a list, from a cell of its parts: its canvas holds the
-# box of the table, the regions of the parts, and a transparent rect the size of
-# the table, so a press anywhere on it reaches the table through a container
-# that gates on a hit. Its state is the state of the parts that the cell holds.
-function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable, parts::Cell)
-    inset_width, inset_height = _inset_total(p, w)
+# The IO map of a table of a list, from a cell of its parts and the cell of its
+# shape: its canvas holds the box of the table, the regions of the parts, and a
+# transparent rect the size of the table, so a press anywhere on it reaches the
+# table through a container that gates on a hit. Its state is the state of the
+# parts that the cell holds.
+function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable, parts::Cell,
+                                geometry::Cell)
+    box = geometry[]
+    inset_width, inset_height = _get_inset_total(box)
     state = Cell(@computation parts[].state)
     table_w = Cell(@computation (st = state[];
                                  Int32(Int(st.header_width[]) + Int(st.cells_pane.output.w) + inset_width)))
@@ -1044,7 +1052,6 @@ function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable, 
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_computation!(getfield(hit_target, :w), () -> Int32(table_w[]))
     set_cell_computation!(getfield(hit_target, :h), () -> Int32(table_h[]))
-    box = _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
     elements = CellVector(@computation begin
         out = Any[hit_target]
@@ -1055,7 +1062,7 @@ function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable, 
     ox, oy = _origin(w.position::Point2D)
     canvas = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)), table_w, table_h, elements,
                             layout_none, true, Cell(nothing))
-    WidgetTableListIoMap(p, w, canvas, state)
+    WidgetTableListIoMap(p, w, canvas, state, geometry)
 end
 
 # ── Columns that are a list ──────────────────────────────────────────────────
@@ -1169,8 +1176,10 @@ _make_column_rules(st::WidgetTablePartsState, grid, top::Cell, height::Cell, col
 # are `Fixed`: `column_policy`, and at least as wide as the header, from a list
 # of policies that mirrors the headers, which the header row and the cells
 # share. The header row is as tall as the header of the head column.
-function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
-    inset_width, inset_height = _inset_total(p, w)
+function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable,
+                                   geometry::Cell, ctx)
+    box = geometry[]
+    inset_width, inset_height = _get_inset_total(box)
     inner = ctx === nothing ? nothing : with_inner_size(ctx; width = inset_width, height = inset_height)
     height = inner === nothing ? nothing : get_exact_height(inner)
     _check_table_parts(w, height)
@@ -1182,7 +1191,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
-    content_x, content_y = _content_offset(p, w)
+    content_x, content_y = _get_content_offset(box)
     offset = getfield(w, :scroll_position)
     width = Int(base.preferred)
     # The corner first, and the width beside the header column, as in
@@ -1273,7 +1282,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
                                      y = Cell(@computation Int32(content_y + Int(header_height[]))),
                                      pad_x, pad_y, bw)
     regions = _collect_table_regions(p, w, st, header_region, cells_region, content_x, content_y)
-    _make_table_list_iomap(p, w, Cell((; state = st, regions)))
+    _make_table_list_iomap(p, w, Cell((; state = st, regions)), geometry)
 end
 
 # ── Places ───────────────────────────────────────────────────────────────────
@@ -1281,7 +1290,7 @@ end
 # A point of the pane of a part, in the coordinates of the rules of that part.
 function _get_rule_point(st::WidgetTablePartsState, pane, x::Int, y::Int)
     content = _get_part_content(pane)
-    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
+    cox, coy = _get_content_offset(_get_box_geometry(get_content_iomap(pane)))
     (x - cox + st.pad_x + st.bw - Int(content.x), y - coy + st.pad_y + st.bw - Int(content.y))
 end
 
@@ -1296,7 +1305,7 @@ function _find_table_part_at(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableL
     st = iomap.state
     canvas = iomap.output
     (0 <= x < Int(canvas.w) && 0 <= y < Int(canvas.h)) || return nothing
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     cells = st.cells_pane.output
     header_h = Int(st.header_height[])
     header_w = Int(st.header_width[])
@@ -1599,7 +1608,7 @@ end
 # list to that row when it is far from the head.
 function _read_table_parts_wheel(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  evt::MouseScroll)
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     scroll = _read_cells_wheel(iomap.output, iomap.state.cells_pane,
                                content_x + Int(iomap.state.header_width[]),
                                content_y + Int(iomap.state.header_height[]), evt)
@@ -2063,7 +2072,7 @@ function _find_routed_table_part(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     steps = get_reference_steps(route)
     head = first(steps)
     head isa FieldReferenceStep || return nothing
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     header_w, header_h = Int(st.header_width[]), Int(st.header_height[])
     if head.name == "corner"
         st.corner === nothing && return nothing

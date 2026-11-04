@@ -164,38 +164,36 @@ _compute_box_geometry(p, w, space::Inset; variant = nothing) =
 _make_box_geometry_cell(p, w, space::Inset; variant = nothing) =
     Cell(@computation _compute_box_geometry(p, w, space; variant))
 
+# The sides of the box outside its part `part`, which is `:border`, `:padding` or
+# `:content`, each as `(left, top, right, bottom)`: the space and the margin
+# outside the border, the border too outside the padding, and every inset outside
+# the content.
+function _get_sides_outside(box::BoxGeometry, part::Symbol)
+    sides = box.space .+ box.margin
+    part === :border && return sides
+    sides = sides .+ box.border
+    part === :padding && return sides
+    part === :content || throw(ArgumentError("a box has no part $(repr(part))"))
+    sides .+ box.padding
+end
+
 # The place of the content in the frame of the box.
-_get_content_offset(box::BoxGeometry) =
-    (box.space[1] + box.margin[1] + box.border[1] + box.padding[1],
-     box.space[2] + box.margin[2] + box.border[2] + box.padding[2])
+function _get_content_offset(box::BoxGeometry)
+    left, top, _, _ = _get_sides_outside(box, :content)
+    (left, top)
+end
 
 # The width and the height that the four insets take together.
-_get_inset_total(box::BoxGeometry) =
-    (box.space[1] + box.space[3] + box.margin[1] + box.margin[3] + box.border[1] + box.border[3] +
-     box.padding[1] + box.padding[3],
-     box.space[2] + box.space[4] + box.margin[2] + box.margin[4] + box.border[2] + box.border[4] +
-     box.padding[2] + box.padding[4])
+function _get_inset_total(box::BoxGeometry)
+    left, top, right, bottom = _get_sides_outside(box, :content)
+    (left + right, top + bottom)
+end
 
 # The rect `(x, y, width, height)` of the border box, inside the space and the
 # margin, in a box whose outer extent is `width` by `height`.
 function _get_border_rect(box::BoxGeometry, width::Int, height::Int)
-    left = box.space[1] + box.margin[1]
-    top = box.space[2] + box.margin[2]
-    (left, top, width - left - box.space[3] - box.margin[3], height - top - box.space[4] - box.margin[4])
-end
-
-# The resolved insets of `w`, each as `(left, top, right, bottom)`.
-_get_box_insets(p, w; variant = nothing) = _compute_box_geometry(p, w, inset_default; variant)
-
-function _content_offset(p, w::WidgetDocument; variant = nothing)
-    box = _get_box_insets(p, w; variant)
-    (box.margin[1] + box.border[1] + box.padding[1], box.margin[2] + box.border[2] + box.padding[2])
-end
-
-function _inset_total(p, w::WidgetDocument; variant = nothing)
-    box = _get_box_insets(p, w; variant)
-    (box.margin[1] + box.margin[3] + box.border[1] + box.border[3] + box.padding[1] + box.padding[3],
-     box.margin[2] + box.margin[4] + box.border[2] + box.border[4] + box.padding[2] + box.padding[4])
+    left, top, right, bottom = _get_sides_outside(box, :border)
+    (left, top, width - left - right, height - top - bottom)
 end
 
 # Push the band of `sides` inside the rectangle `(x, y, width, height)`: one rect
@@ -8267,7 +8265,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     card_width = _resolve_width(ctx, authored_width, max_content_width + pad_x)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
-    bottom_inset = box.space[4] + box.margin[4] + box.border[4] + box.padding[4]
+    bottom_inset = _get_sides_outside(box, :content)[4]
     card_height = fixed_height > 0 ? fixed_height :
                   _resolve_height(ctx, 0, y + bottom_inset)
     region_width = card_width - inset_width
@@ -9327,7 +9325,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
-        bottom_inset = box.space[4] + box.margin[4] + box.border[4] + box.padding[4]
+        bottom_inset = _get_sides_outside(box, :content)[4]
         alert_height = _resolve_height(ctx, 0, y + bottom_inset)
         surface = Any[]
         _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
@@ -10361,6 +10359,7 @@ end
     output::Any
     pane::Any        # the IoMap of the pane of the rows
     place::Any       # `(x, y)`: the place of the pane in the canvas of the widget
+    box::Any
 end
 
 # Whether `w` prints as the rows of its own pane in `ctx`.
@@ -10370,10 +10369,6 @@ _is_printed_as_rows(w, ctx) = ctx !== nothing && get_property(ctx, :rows_of) ===
 # axis, and it does not print as its rows.
 _scrolls_rows_itself(w, ctx) =
     ctx !== nothing && get_exact_height(ctx) !== nothing && !_is_printed_as_rows(w, ctx)
-
-# Where the rows of a list or a tree start in its canvas: past its box, or at the
-# origin for rows that the box of their widget holds.
-_get_rows_content_offset(p, iomap) = iomap.bare ? (0, 0) : _content_offset(p, iomap.input)
 
 # The mouse target of the pane of the rows of `w`: the bar that the mouse target
 # of `w` names, else the content, which is `w`, with the path of `w`.
@@ -10386,12 +10381,10 @@ function _find_rows_pane_target(w)
 end
 
 function _print_rows_pane(p, recursion, w, ctx)
-    box = _get_box_insets(p, w)
+    geometry = _make_box_geometry_cell(p, w, inset_default)
+    box = geometry[]
     colors = _get_box_colors(p, w)
-    left = box.margin[1] + box.border[1]
-    top = box.margin[2] + box.border[2]
-    right = box.margin[3] + box.border[3]
-    bottom = box.margin[4] + box.border[4]
+    left, top, right, bottom = _get_sides_outside(box, :padding)
     # Positional: content, position, size, scroll_position, follow_end,
     # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
@@ -10404,14 +10397,14 @@ function _print_rows_pane(p, recursion, w, ctx)
     pane_ctx = with_property(with_inner_size(ctx; width = left + right, height = top + bottom), :rows_of, w)
     pane_iomap = print_child(recursion, pane, pane_ctx)
     drawn = pane_iomap.output
-    tx, ty = _inset_total(p, w)
+    tx, ty = _get_inset_total(box)
     width = Cell(@computation Int32(Int(drawn.w) + left + right))
     height = Cell(@computation Int32(Int(drawn.h) + top + bottom))
     content_width = Cell(@computation Int32(max(0, Int(width[]) - tx)))
     content_height = Cell(@computation Int32(max(0, Int(height[]) - ty)))
     elements = Any[]
     _push_following_box_bands!(elements, box, colors, content_width, content_height)
-    cox, coy = _content_offset(p, w)
+    cox, coy = _get_content_offset(box)
     is_color_transparent(colors.content) ||
         push!(elements, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), content_width, content_height,
                                      Cell(colors.content),
@@ -10423,7 +10416,7 @@ function _print_rows_pane(p, recursion, w, ctx)
     px, py = _origin(w.position::Point2D)
     canvas = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
                             CellVector(Cell[Cell(e) for e in elements]), layout_none, true, Cell(nothing))
-    WidgetRowsPaneIoMap(p, w, canvas, pane_iomap, (left, top))
+    WidgetRowsPaneIoMap(p, w, canvas, pane_iomap, (left, top), geometry)
 end
 
 # The answer of the pane of the rows to `evt`, a gesture in the frame of the
@@ -10531,21 +10524,25 @@ WidgetListToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     control_width::Any
     rows::Any
     bare::Bool       # the rows of a list that scrolls itself, with no box
+    box::Any
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
     bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
+    # The rows of a list that prints as its rows have no box: the box of the list
+    # holds them.
+    geometry = bare ? Cell(_NO_BOX_GEOMETRY) : _make_box_geometry_cell(p, w, inset_default)
     build = Cell(@computation begin
         row_pad_x = Int(p.row_padding.left[]); row_pad_y = Int(p.row_padding.top[])
         items = collect(w.items)
         n = length(items)
-        box = bare ? _NO_BOX_GEOMETRY : _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
-        content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         _, th = _text_size(p.measure, label.font, "M")
         row_height = th + 2row_pad_y
@@ -10588,7 +10585,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].row_height), Cell(@computation build[].width),
-        Cell(@computation build[].rows), bare)
+        Cell(@computation build[].rows), bare, geometry)
 end
 
 # `items[k]` is the canvas of row `k`, found by identity among the list's
@@ -10623,12 +10620,12 @@ function _find_list_row_at(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGra
                            y::Int)
     w = iomap.input
     n = length(collect(w.items))
-    _, content_y = _get_rows_content_offset(p, iomap)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     r = (y - content_y) ÷ iomap.row_height + 1
     (1 <= r <= n) ? r : 0
 end
 
-read_intent(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) = _read_rows_pane(p, iomap, evt)
 map_reference_backward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_backward(iomap, reference)
@@ -11246,6 +11243,7 @@ end
     output::Any
     parts::Cell              # the panes of the parts and the regions that hold them
     geometry::Cell           # WTGeometry
+    box::Any
 end
 
 _wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
@@ -11348,13 +11346,13 @@ _wt_is_content_column(policy::SizePolicy) =
 # column and the cells, each a grid in a pane, and the regions that place the
 # panes and show the graphics of the table behind them. `ctx` is the context of
 # the content of the table.
-function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx,
-                                  graphics, pad_x::Int, pad_y::Int, bw::Int)
+function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable,
+                                  box::BoxGeometry, ctx, graphics, pad_x::Int, pad_y::Int, bw::Int)
     n = something(get_widget_table_column_count(w), 0)
     m = _count_body_rows(w)
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
-    content_x, content_y = _content_offset(p, w)
+    content_x, content_y = _get_content_offset(box)
     aligns = Symbol[_wt_column_align(w, c) for c in 1:n]
     wraps = Bool[_wt_column_cell_policy(w, c) === :wrap for c in 1:n]
     offset = getfield(w, :scroll_position)
@@ -11634,7 +11632,7 @@ end
 
 
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     # A cell is one line of a row, so the text of every cell, header and corner
     # draws at single spacing, as the label of a row number does.
     ctx === nothing || (ctx = with_property(ctx, :line_spacing, SingleSpacing()))
@@ -11653,9 +11651,10 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     pad_x = Int(p.cell_padding.left[])
     pad_y = Int(p.cell_padding.top[])
     bw  = max(1, _sc(Int(w.border_width)))
-    box = _get_box_insets(p, w)
+    box_geometry = _make_box_geometry_cell(p, w, inset_default)
+    box = box_geometry[]
     colors = _get_box_colors(p, w)
-    inset_width, inset_height = _inset_total(p, w)
+    inset_width, inset_height = _get_inset_total(box)
     divider_stroke = _get_state_stroke(p, w, :divider)
     header_row_color = _get_state_color(p, w, :header_row)
     row_selected_color = _get_state_color(p, w, :row; state = :selected)
@@ -11670,7 +11669,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                                                          divider_stroke, row_selected_color))
     # The parts, built again when the table changes its shape: a row, a column
     # or a header added or removed.
-    parts = Cell(@computation _print_eager_table_parts(p, recursion, w, inner, graphics,
+    parts = Cell(@computation _print_eager_table_parts(p, recursion, w, box_geometry[], inner, graphics,
                                                        pad_x, pad_y, bw))
     set_cell_computation!(geometry, () -> _compute_eager_table_geometry(parts[], pad_x, pad_y, bw))
 
@@ -11695,7 +11694,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     end)
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
                             table_w, table_h, elements, layout_none, true, Cell(nothing))
-    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, parts, geometry)
+    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, parts, geometry, box_geometry)
 end
 
 # The graphics of a table, in the coordinates of its geometry: the header bands,
@@ -11777,7 +11776,7 @@ end
 function _wt_get_unscrolled_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
                                   x::Int, y::Int)
     parts = iomap.parts
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     content = _get_part_content(parts.cells_pane)
     local_x = x - content_x
     local_y = y - content_y
@@ -11861,7 +11860,7 @@ end
 
 # The place of the pane of the cells in a table whose rows are a vector.
 function _get_wt_cells_place(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap)
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
     (content_x + region_x, content_y + region_y)
 end
@@ -11921,7 +11920,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     g isa MouseMove && return Intent(g, nothing)
     if g isa MouseScroll
         (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
-        content_x, content_y = _content_offset(p, iomap.input)
+        content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
         return Intent(g, _read_cells_wheel(iomap.output, iomap.parts.cells_pane,
                                            content_x + region_x, content_y + region_y, g))
     end
@@ -12756,6 +12755,7 @@ end
     width::Cell
     bare::Bool       # the rows of a tree that scrolls itself, with no box
     view_height::Any # the height of the view of the rows that a pane offers, or nothing
+    box::Any
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -12791,7 +12791,7 @@ function _wtree_ref_path(reference)
 end
 
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
     bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
@@ -12800,10 +12800,13 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     icon_column = p.icon_column
     chevron_size = p.chevron_size
     pad = p.row_padding
-    box = bare ? _NO_BOX_GEOMETRY : _get_box_insets(p, w)
+    # The rows of a tree that prints as its rows have no box: the box of the tree
+    # holds them.
+    box_geometry = bare ? Cell(_NO_BOX_GEOMETRY) : _make_box_geometry_cell(p, w, inset_default)
+    box = box_geometry[]
     colors = _get_box_colors(p, w)
-    inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
-    content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     label_style = _get_state_text(p, w, :label)
     icon_style = _get_state_text(p, w, :icon)
     chevron_color = _get_state_color(p, w, :chevron)
@@ -13098,7 +13101,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                             Cell(@computation Int32(width[] + inset_width)),
                             Cell(@computation Int32(rows_height[] + inset_height)),
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h, box_geometry)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -13130,7 +13133,7 @@ end
 
 # The row of the tree at `y` of its canvas, or `nothing`.
 _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, y::Int) =
-    _wtree_row_at(iomap.geometry, y - _get_rows_content_offset(p, iomap)[2])
+    _wtree_row_at(iomap.geometry, y - _get_content_offset(_get_box_geometry(iomap))[2])
 
 read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) =
     _add_wtree_scroll_writes(iomap, _read_rows_pane(p, iomap, evt))
@@ -13294,7 +13297,7 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     geom = iomap.geometry
     path = nothing
     if g isa MouseClick
-        _, content_y = _get_rows_content_offset(p, iomap)
+        _, content_y = _get_content_offset(_get_box_geometry(iomap))
         row = _wtree_row_at(geom, g.y - content_y)
         row === nothing || (path = row.path)
     elseif g isa Union{KeyDown, KeyPress}
@@ -13312,7 +13315,7 @@ end
 # row whose node has no tooltip.
 function _read_wtree_row_dwell(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap,
                                g::MouseDwell)
-    _, content_y = _get_rows_content_offset(p, iomap)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     row = _wtree_row_at(iomap.geometry, g.y - content_y)
     row === nothing && return nothing
     node = _find_wtree_node(iomap.geometry, iomap.input, row.path)
@@ -13328,7 +13331,7 @@ end
 # clamped into the rows.
 function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MouseClick)
     w = iomap.input
-    content_x, _ = _get_rows_content_offset(p, iomap)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     row = _find_wtree_row_at(p, iomap, g.y)
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
