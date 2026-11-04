@@ -41,13 +41,14 @@ end
 
 # The print of one child, which the layout keeps by the child document: its IO
 # map, the output of the IO map when the child printed, the output that the
-# layout draws, and the extent of the child.
+# layout draws, the extent of the child, and the space that its offer gave.
 struct _LayoutListChild
     iomap::Any
     output::Any         # the output of the IO map at the print
     drawn::Any          # the output, or an empty canvas for an output that is no graphics
     width::Cell
     height::Cell
+    space::NTuple{4, Int}
 end
 
 @iomap struct LayoutListIoMap
@@ -83,6 +84,21 @@ function _get_layout_list_cross_extent(doc, ctx, axis::Symbol)
           axis === :y ? "width" : "height",
           ": a Fixed ", axis === :y ? "child_width" : "child_height",
           " or an extent that the parent offers")
+end
+
+# The space that the child of `document_node` gets: the space of the slot on the
+# two sides across the list, and on the axis of the list the space before the
+# first child, which has no child before it, and after the last. A layout draws no
+# edge, so the first box in each child takes it. A side with no space reads no
+# link, so a list in a slot that gives no space reads no neighbour that it does
+# not draw.
+function _get_layout_list_child_space(ctx, axis::Symbol, document_node::ListNode)
+    ctx === nothing && return (0, 0, 0, 0)
+    left, top, right, bottom = ctx.space
+    before, after = axis === :y ? (top, bottom) : (left, right)
+    before > 0 && document_node.prev !== nothing && (before = 0)
+    after > 0 && document_node.next !== nothing && (after = 0)
+    axis === :y ? (left, before, right, after) : (before, top, after, bottom)
 end
 
 # The range that a child of a list gets on the main axis: its `Fixed` extent
@@ -135,29 +151,34 @@ end
 # child from the head: a computation for a child that the layout keeps, and the
 # `k` of this link for a child that it does not keep, a child that is at two
 # places of the list.
-function _print_layout_list_child(recursion, doc, ctx, state::LayoutListState, k::Int, child)
+function _print_layout_list_child(recursion, doc, ctx, state::LayoutListState, k::Int, child,
+                                  space::NTuple{4, Int})
     axis = state.axis
     count, linked = make_kept_list_count(state.prints, child, k)
     cctx = make_element_context(ctx, doc, count, i -> ((@reference_step children), ElementReferenceStep(i)))
     cctx = _get_layout_list_main_context(cctx, child, doc, axis)
     cctx = make_cross_axis_context(cctx, child, axis === :y ? :x : :y,
                           getfield(doc, axis === :y ? :child_width : :child_height)[])
+    cctx = _with_child_space(cctx, space)
     cim = _recurse_child(recursion, child, cctx)
     output = cim.output
     drawn = output isa GraphicsDocument ? output : _empty_canvas()
     width = Cell(@computation Int32(_child_w(cim)))
     height = Cell(@computation Int32(_child_h(cim)))
-    printed = _LayoutListChild(cim, output, drawn, width, height)
+    printed = _LayoutListChild(cim, output, drawn, width, height, space)
     record_kept_list_print!(state.prints, child, KeptListPrint(printed, count, linked))
     printed
 end
 
-# The print of `child` for its link at `k`: the print that the layout keeps, or a
-# new one. A kept print serves when the kept prints take it, and its IO map gives
-# the output that the layout drew.
-function _link_layout_list_child(recursion, doc, ctx, state::LayoutListState, k::Int, child)
-    kept = take_kept_list_print!(state.prints, child, k, kept -> kept.value.iomap.output === kept.value.output)
-    kept === nothing ? _print_layout_list_child(recursion, doc, ctx, state, k, child) : kept.value
+# The print of `child` for its link at `k` with the space `space`: the print that
+# the layout keeps, or a new one. A kept print serves when the kept prints take it,
+# its IO map gives the output that the layout drew, and it was printed with the
+# same space, as a child that is no longer the first or the last is not.
+function _link_layout_list_child(recursion, doc, ctx, state::LayoutListState, k::Int, child,
+                                 space::NTuple{4, Int})
+    kept = take_kept_list_print!(state.prints, child, k,
+                                 kept -> kept.value.iomap.output === kept.value.output && kept.value.space == space)
+    kept === nothing ? _print_layout_list_child(recursion, doc, ctx, state, k, child, space) : kept.value
 end
 
 # The canvas node of child `k`. `before` is the canvas node of child `k - 1` when
@@ -168,7 +189,8 @@ end
 function _make_layout_list_node(recursion, doc, ctx, state::LayoutListState, cross::Cell,
                                 k::Int, document_node::ListNode, before, after)
     axis = state.axis
-    printed = _link_layout_list_child(recursion, doc, ctx, state, k, document_node.value)
+    printed = _link_layout_list_child(recursion, doc, ctx, state, k, document_node.value,
+                                      _get_layout_list_child_space(ctx, axis, document_node))
     width, height = printed.width, printed.height
     gap = getfield(doc, :gap)
     align = getfield(doc, axis === :y ? :horizontal_align : :vertical_align)

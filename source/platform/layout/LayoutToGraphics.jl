@@ -918,6 +918,7 @@ function _hl_build(recursion, doc, ctx)
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_w, :x, default,
                              gap_cell, ctx.maximum_width)
         cctx = make_cross_axis_context(cctx, child, :y, cross_default)
+        cctx = _with_child_space(cctx, _get_child_space(ctx.space, :x, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
@@ -1029,6 +1030,26 @@ end
 # raised to its placement minimum. Each room reads only children that come before
 # it, and the allocation reads the unslotted children after they are drawn, so no
 # cell reads its own result.
+# ── The space of a slot ─────────────────────────────────────────────────────
+#
+# A layout draws no edge, so it passes the space that its slot gives
+# (`PrinterContext.space`, `(left, top, right, bottom)`) to the children at its
+# sides, and the first box in each child takes it. A function that makes an offer
+# gives 0 where it states no space, so a layout states the space of each child
+# with the last offer that it makes for it.
+
+# The space of the child `index` of `count` children along `axis`: the space on
+# the two sides across the axis, and on the axis the space before the first child
+# and after the last.
+function _get_child_space(space::NTuple{4, Int}, axis::Symbol, index::Int, count::Int)
+    left, top, right, bottom = space
+    axis === :y ? (left, index == 1 ? top : 0, right, index == count ? bottom : 0) :
+                  (index == 1 ? left : 0, top, index == count ? right : 0, bottom)
+end
+
+# The offer `ctx` with the space `space`, and the same ranges.
+_with_child_space(ctx, space::NTuple{4, Int}) = with_size_range(ctx; space)
+
 function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Bool},
                        slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge)
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
@@ -1161,6 +1182,7 @@ function _vl_build(recursion, doc, ctx)
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_h, :y, default,
                              gap_cell, ctx.maximum_height)
         cctx = make_cross_axis_context(cctx, child, :x, cross_default)
+        cctx = _with_child_space(cctx, _get_child_space(ctx.space, :y, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
@@ -1584,6 +1606,18 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         Cell(@computation Int32(max(Int(span_w[i][]), Int(edge_w[]) - Int(col_x[col][]))))
     end
 
+    # The space of the slot goes to the cells at the sides of the grid: the left
+    # space to the cells of the first column, the top space to the cells of the
+    # first row, and so on.
+    row_total = isempty(places_now) ? 0 : maximum(first, places_now)
+    column_total = cols_cell[]
+    function get_cell_space(i::Int)
+        row, col, span = places_now[i]
+        left, top, right, bottom = ctx.space
+        (col == 1 ? left : 0, row == 1 ? top : 0, col + span - 1 >= column_total ? right : 0,
+         row == row_total ? bottom : 0)
+    end
+
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
     # slot. A `Content` column gives its cells its edge, so a cell draws its
@@ -1603,8 +1637,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    with_free_axis(cctx, :x)
             cctx = offers_to_row_cells(row) ?
-                with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
-                with_free_axis(cctx, :y)
+                with_exact_size(cctx; height = _gl_int32_cell(row_h[row]), space = get_cell_space(i)) :
+                with_free_axis(cctx, :y; space = get_cell_space(i))
         end
         cim = _recurse_child(recursion, doc.children[i],
                              make_child_context(cctx, doc, (@reference_step children), (@reference_step [i])))
@@ -1823,9 +1857,15 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # to them. The flow breaks its lines at `max_width`, or at the edge of the
     # range it was given when that is less: a flow in a card breaks at the card's
     # edge.
+    #
+    # Which child stands at a side of a flow depends on the widths of the
+    # children, so the flow does not pass the space of its slot to them: it takes
+    # the space around itself, and its lines stand inside it.
     child_ctx = ctx === nothing ? nothing : with_free_axis(with_free_axis(ctx, :x), :y)
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
     minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    space_left, space_top, space_right, space_bottom = ctx === nothing ? (0, 0, 0, 0) : ctx.space
+    space_width, space_height = space_left + space_right, space_top + space_bottom
     build = Cell(@computation begin
         n = length(doc.children)
         child_iomaps = Any[]
@@ -1840,7 +1880,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         max_w_cell = Cell(@computation begin
             authored = authored_w[]
             limit = authored === nothing ? Int(typemax(Int32)) : Int(authored)
-            edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[])))
+            edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[]) - space_width))
         end)
         hgap_cell  = getfield(doc, :horizontal_gap)
         vgap_cell  = getfield(doc, :vertical_gap)
@@ -1863,13 +1903,14 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         # The flow draws its widest line, and at least the minimum of its range,
         # cut at `max_width`: the edge of an exact range, its content in a
-        # bounded or a free one.
-        outer_w = Cell(@computation begin
+        # bounded or a free one. `lines_w` is the width of the lines, inside the
+        # space.
+        lines_w = Cell(@computation begin
             widest = 0
             for ln in 1:line_count[]
                 widest = max(widest, line_w[ln][])
             end
-            minimum = minimum_w === nothing ? nothing : minimum_w[]
+            minimum = minimum_w === nothing ? nothing : max(0, Int(minimum_w[]) - space_width)
             authored = authored_w[]
             minimum isa Integer || return widest
             max(widest, authored === nothing ? Int(minimum) : min(Int(minimum), Int(authored)))
@@ -1877,10 +1918,12 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         child_x = Cell[]
         child_y = Cell[]
         for i in 1:n
-            push!(child_x, _fl_child_x(i, line_plan, outer_w, line_w, halign))
-            push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
+            x = _fl_child_x(i, line_plan, lines_w, line_w, halign)
+            y = _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign)
+            push!(child_x, space_left == 0 ? x : Cell(@computation Int32(x[] + space_left)))
+            push!(child_y, space_top == 0 ? y : Cell(@computation Int32(y[] + space_top)))
         end
-        outer_h = Cell(Computation(function ()
+        lines_h = Cell(Computation(function ()
             lc = line_count[]
             lc == 0 && return 0
             total = 0
@@ -1893,6 +1936,8 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
+        outer_w = space_width == 0 ? lines_w : Cell(@computation lines_w[] + space_width)
+        outer_h = space_height == 0 ? lines_h : Cell(@computation lines_h[] + space_height)
         (w = outer_w, h = outer_h, entries = entries)
     end)
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
@@ -2009,10 +2054,12 @@ function print_document(p::StackLayoutToGraphicsCanvas,
     build = Cell(@computation begin
         n = length(doc.children)
         cims = Any[]
+        # The children of a stack overlap, so each one stands at every side of the
+        # stack and gets the whole space of its slot.
         for i in 1:n
             cctx = with_exact_size(
                 make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]));
-                width=nothing, height=nothing)
+                width=nothing, height=nothing, space = ctx.space)
             push!(cims, _recurse_child(recursion, doc.children[i], cctx))
         end
         (n, cims)
@@ -2204,34 +2251,40 @@ function _cl_build(solver, recursion, doc, ctx)
     end
 
     # The container is extrinsically sized when bounding dims are given;
-    # otherwise it falls back to the max solved child extent.
+    # otherwise it falls back to the max solved child extent. Which child stands
+    # at a side depends on the solve, so the layout does not pass the space of its
+    # slot to the children: it takes the space around itself, and the children
+    # stand inside it.
+    space_left, space_top, space_right, space_bottom = ctx.space
     outer_w = Cell(Computation(function ()
         bw = Int(bw_cell[])
-        bw > 0 && return bw
+        bw > 0 && return bw + space_left + space_right
         s = solve[]
         w = 0
         for i in 1:n
             right = s[i][1] + s[i][3]
             right > w && (w = right)
         end
-        w
+        w + space_left + space_right
     end))
 
     outer_h = Cell(Computation(function ()
         bh = Int(bh_cell[])
-        bh > 0 && return bh
+        bh > 0 && return bh + space_top + space_bottom
         s = solve[]
         h = 0
         for i in 1:n
             bottom = s[i][2] + s[i][4]
             bottom > h && (h = bottom)
         end
-        h
+        h + space_top + space_bottom
     end))
 
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
-        push!(entries, (child_x[i], child_y[i], final_iomaps[i]))
+        x = space_left == 0 ? child_x[i] : Cell(@computation Int32(Int(child_x[i][]) + space_left))
+        y = space_top == 0 ? child_y[i] : Cell(@computation Int32(Int(child_y[i][]) + space_top))
+        push!(entries, (x, y, final_iomaps[i]))
     end
 
     (w = outer_w, h = outer_h, entries = entries)
@@ -2324,14 +2377,17 @@ function _al_rect_of(node)
 end
 
 function _al_build(recursion, doc::AnchoredLayout, ctx)
+    # The content is the ground of the layout, so it takes the space of the slot.
     content_iomap = _recurse_child(recursion, doc.content,
                                    make_child_context(ctx, doc, (@reference_step content)))
     n = length(doc.children)
     child_iomaps = Any[]
     for i in 1:n
         entry = doc.children[i]
-        cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]),
-                                  (@reference_step child))
+        # A child stands at its target in the content, which takes the space of
+        # the slot, so the child gets none.
+        cctx = make_child_context(_with_child_space(ctx, (0, 0, 0, 0)), doc, (@reference_step children),
+                                  (@reference_step [i]), (@reference_step child))
         push!(child_iomaps, _recurse_child(recursion, entry.child, cctx))
     end
 

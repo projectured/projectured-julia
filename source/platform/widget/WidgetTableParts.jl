@@ -882,7 +882,7 @@ end
 # ── The printer ──────────────────────────────────────────────────────────────
 
 function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
-    geometry = _make_box_geometry_cell(p, w, inset_default)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # Headers that are a list make the columns a list too.
     w.column_headers isa ListNode && return _print_table_column_parts(p, recursion, w, geometry, ctx)
     inset_width, inset_height = _get_inset_total(geometry[])

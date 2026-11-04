@@ -38,7 +38,7 @@ end
 # `nothing` when the slot holds a plain value when the widget prints.
 function _print_value_slot(recursion, w, name::Symbol, ctx)
     getproperty(w, name) isa Document || return nothing
-    child_ctx = ctx === nothing ? nothing : make_child_context(ctx, FieldReferenceStep(String(name)))
+    child_ctx = ctx === nothing ? nothing : make_child_context(_with_no_space(ctx), FieldReferenceStep(String(name)))
     make_reconciled_child_iomap_cell(() -> getproperty(w, name),
                                      value -> print_child(recursion, value, child_ctx))
 end
