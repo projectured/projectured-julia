@@ -1,8 +1,9 @@
 # Every popup window is placed by a function
 
-> **Status (2026-11-04):** steps 1 to 5 done on the branch `popup-placement`, not
-> landed; the recording of step 5 waits for the owner. The owner answered Q1 to Q3
-> and approved the plan on 2026-11-04. It follows
+> **Status (2026-11-04):** done. Steps 1 to 5 landed on main on 2026-11-04. The
+> recording of the lists of step 5 is a task of its own, as the owner decided on
+> 2026-11-04 (see the open item). The owner answered Q1 to Q3 and approved the plan
+> on 2026-11-04. It follows
 > [ctrl-p-finds-a-file-by-its-name.md](../done/ctrl-p-finds-a-file-by-its-name.md),
 > which made the placement function and gave the context menu window the place
 > at the top of a part. The owner chose this order on 2026-11-03 (Q11 of that
@@ -286,3 +287,10 @@ Each step is a commit, and the plan records what each step finds.
   opened, and does not follow the window that opened it.
 - An open tooltip or right-click menu keeps the point of the old zoom at a new
   zoom, so it moves; it stays inside the area of its display.
+
+## Open items
+
+- The recording of the lists of recorded calls (`record_repository_calls!()`). The
+  owner decided on 2026-11-04 to land this plan first and to run the recording as a
+  task of its own. Until then the precompile of ProjecturedSDL warns: 87 of its 838
+  recorded calls do not resolve, 9 of them from this plan.
