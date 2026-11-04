@@ -401,7 +401,8 @@ ends with a commit in each repository that it changes.
    a time. Give each marked function the docstring form. Fix the defects of
    §4.7. Tests: the same, plus the test of the person's own names and the test
    of both document forms.
-3. **Changes as values.** The make functions, the combine and the apply. Each
+3. **Changes as values.** *Done (2026-11-04); the facts are in §5.3.*
+   The make functions, the combine and the apply. Each
    editing verb becomes make plus apply. Check the 73 operations for edits,
    files and tabs. Tests: `test_assistant_verbs`,
    `test_referenced_document_editor`.
@@ -661,6 +662,89 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
 - **The 73 operations of §5 are not found again.** The survey counts 146 operation
   types: 23 edit a document, 20 a file and 12 a tab or a pane. The study that
   counted 73 is not kept.
+
+**How step 3 is built (decisions made in the implementation, 2026-11-04):**
+
+- **The kernel holds the core.** `RootedOperation`, `make_change`,
+  `combine_changes` and `apply_change!` are in `EditorModule`
+  (`DocumentEdits.jl`), beside `find_rooted_operation`, because
+  `insert_elements!` and `delete_elements!` are verbs of the kernel. A slice adds
+  the methods of `make_change` for its verbs.
+- **One step without a new mechanism.** `combine_changes` joins each run of
+  members, one after the other, that sit in the same wrapper: the wrapper holds
+  the run once. Two wrappers are the same when the one, rewrapped around what the
+  other holds, is the other. It uses only `get_wrapped_operation` and
+  `rewrap_operation`. So the record of the window history holds the whole group,
+  and the record of each file history holds its own part: one step in each.
+- **The repair of a layout write is made with the write.** Before, the verb
+  `replace_referenced_value!` repaired the shown tabs by a direct write and the
+  focus by a second operation after the write. Now its make function adds the
+  operations that keep them: the dormant selection write of each group that would
+  show another tab, and the focus operation when the focused tab gets another
+  path. They are made from the tree as the write leaves it, with a walk that reads
+  the replaced node or list as its new value, as the pane surgery makes the
+  selection shifts of an insert. So a layout write in a group keeps the focus as
+  the verb does. A focus operation for a tab that keeps its path is not made any
+  more.
+- **The twins stay.** `make_close_pane_operation` and the other twins serve code
+  that posts an operation. A twin and the method of `make_change` share one
+  internal maker, which answers a `RootedOperation`.
+- **A caller that holds a pane tree and no editor** applies a change to the tree:
+  `evaluate_operation(tree::PaneTree, change::RootedOperation)`.
+- **The seven makers became seven verbs, and the makers stay.** The key
+  bindings answer the operation of a maker, so `move_series`, `remove_series`,
+  `jump_to_row`, `insert_events`, `delete_events`, `move_axis` and `delete_axis`
+  keep their names and their work. The verbs `move_series!`, `remove_series!`,
+  `jump_to_row!`, `insert_events!`, `delete_events!`, `move_axis!` and
+  `delete_axis!` take a part, root the operation of the maker, and have a method
+  of `make_change`. `move_series!` moves no selection, because the assistant
+  never selects; the key moves it, as before. `remove_series!` takes the index
+  of the series, where the key removes the selected one.
+- **The three file operations became three verbs.** `open_file!(path)` opens a
+  file in the tab where the window puts files, with its history, and answers the
+  tab; a file that is open keeps its tab. It does not take the focus.
+  `save_file_to_disk!` and `reload_file_from_disk!` take the tab of a file, its
+  page or the file, and do what Ctrl+S and Ctrl+O do there, so a page checks the
+  disk first. Their names are the words of the two keys, because `save_file!` is
+  already the save of the serialization slice. `OpenFileOperation`,
+  `SaveFileOperation` and `ReloadFileOperation` lose the mark. omnet-julia's
+  `OmnetPresentation` exports an `open_file!` of its own, so its test package
+  names it, as it names `open_page!`.
+- **The verbs that stay as they are** and get no method of `make_change`,
+  because a later step reads the result of an earlier one, or a part of the work
+  goes through no reader: `close_task_group!`, `start_workflow!`, `start_study!`,
+  `check_predictions!`, `add_study_formula!`, `show_assistant_work!`,
+  `show_roster!`, `show_document_tree!` and `show_system_process_tree!`; in
+  omnet-julia `select_tests!`, `select_simulations!`, `select_comparison_sides!`,
+  `open_project_page!`, `open_fingerprint_store!`, `open_runner!`,
+  `open_simulation_project!`, `make_study!`, `open_study!`,
+  `check_expectations!`, `run_tests!`, and `open_test_runner!` and
+  `open_statistical_baseline!`, which open their tab with the focus and whose
+  insert of a runner goes through no reader. `select_part!` and
+  `change_setting!` change the selection and a setting with an operation that no
+  reader carries.
+- **The check of the operations found one gap.** The edits of a table of a data
+  frame (`InsertDataFrameRowOperation`, `DeleteDataFrameRowOperation`, the three
+  of a column, `SetDataFrameValueOperation`) are reached only by the context menu
+  of the table, and `run_command!` reads only the key bindings. So the assistant
+  can not edit a data frame through a history. The verbs `insert_row!`,
+  `delete_row!`, `insert_column!` and `delete_column!` are of a `CellMatrix` and
+  a `CellTable`, not of a data frame. Every other edit, file or tab operation that
+  a person reaches has a verb or a command.
+- **Done.** 36 verbs of one change have a method of `make_change`: the kernel's
+  two, the eight of the panes, and 26 of the platform and the domains (by an
+  agent (Sonnet), checked here; it put eight methods inside docstrings, which
+  were moved out). The seven new verbs and the three file verbs each have a
+  test in an application window. Tests: `test_referenced_document_editor`
+  134/134, with a group of a pane change and a file edit as one step of the
+  window and one of the file; `test_assistant_documentation` 2756/2756, so the
+  three errors of the file operations are gone; `test_assistant_verbs` 83/83;
+  `test_chart_verbs` 11/11; `test_sequencechart_verbs` 18/18;
+  `test_data_frame_verbs` 5/5; the arrangement, workflow, research, roster and
+  data frame cell tests pass; both naming guards pass.
+  `test_pivot_zone_edits` fails with one error (31 pass): the drag in a tab of an
+  application window finds no text "Rows" (`_pz_place`). It fails in the same way
+  on 3854cec3e, the commit before step 3.
 
 ## 6. What else changes
 
