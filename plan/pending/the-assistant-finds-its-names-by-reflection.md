@@ -539,6 +539,18 @@ ends with a commit in each repository that it changes.
 - The table interface takes a referenced document by one unwrapping method for each
   of its functions (`source/platform/collection/TableInterface.jl`). This is the
   kind of general place that the question of the two document forms looks for.
+- **The test of the person's own names** is the first test set of
+  `test_assistant_documentation`: `set_selection!`, `replace_selection!`,
+  `clear_selection!`, `clear_undo_history!`, `make_file_dialog`,
+  `open_file_dialog!`, `save_file_dialog!`, `answer_permission_request!` and
+  `answer_question_request!` carry no mark and are not offered (27/27). It runs
+  first, because the set of the docstring form fails on the three known operation
+  examples and a top-level test set that fails ends the function.
+- **The two document forms, measured (2026-11-04):** of the 190 parameters of the
+  offered functions whose type is a document type, 77 (in about 55 functions) take
+  a plain document and no part, such as `stop_task!(::TaskGroupDocument, ::Integer)`,
+  `get_fsm_states(::FsmMachine)` and `get_workflow_node_title(::WorkflowStep)`. A
+  part that a read of the window gives meets a `MethodError` there.
 
 ## 6. What else changes
 

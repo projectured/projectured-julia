@@ -3,6 +3,22 @@
 # the text of any part.
 
 using Test
+import ProjecturedKernel, ProjecturedPlatform
+
+# The names that only the person calls, each in the module that defines it. The
+# assistant acts at the person's request, so it never selects, clears the undo
+# history, opens a file dialog or answers a request that an agent made.
+const _PERSON_OWN_NAMES = [
+    (ProjecturedKernel.SelectionModule, :set_selection!),
+    (ProjecturedKernel.SelectionModule, :replace_selection!),
+    (ProjecturedKernel.SelectionModule, :clear_selection!),
+    (ProjecturedPlatform.UndoModule, :clear_undo_history!),
+    (ProjecturedPlatform.ShellModule, :make_file_dialog),
+    (ProjecturedPlatform.ShellModule, :open_file_dialog!),
+    (ProjecturedPlatform.ShellModule, :save_file_dialog!),
+    (ProjecturedPlatform.ConversationModule, :answer_permission_request!),
+    (ProjecturedPlatform.ConversationModule, :answer_question_request!),
+]
 
 function _make_assistant_verbs_application(directory)
     write(joinpath(directory, "people.json"),
@@ -336,6 +352,20 @@ only what the model can write. Every name that `EDITOR_SYSTEM` and the paragraph
 the loaded domains write in backticks is a name that the model can write.
 """
 function test_assistant_documentation(api = make_editor_api())
+@testset "the names that only the person calls carry no mark and are not offered" begin
+    set = declare_api!(ToolSet(), api)
+    offered = Set{String}()
+    for entry in set.api
+        union!(offered, String.(get_api_entry_names(entry)))
+    end
+    for (module_, name) in _PERSON_OWN_NAMES
+        @test isdefined(module_, name)
+        @test !ToolModule.has_assistant_mark(ToolModule._binding_doc(module_, name)) ||
+              error(string(nameof(module_), ".", name, " carries the mark, but only the person calls it"))
+        @test !(String(name) in offered) ||
+              error(string(nameof(module_), ".", name, " is offered, but only the person calls it"))
+    end
+end
 @testset "every declared name carries its use, an example and its neighbours" begin
     set = register_editor_tools!(register_default_tools!(declare_api!(ToolSet(), api)))
     writable = Set{String}(["editor"])
