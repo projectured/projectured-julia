@@ -103,10 +103,9 @@ twelve cases. So:
   dividers of a split. A tab group and a split pane add no space around what
   they hold.
 - A slot of the frame, the page of a tab or a slot of a split, puts the space
-  that it gives, `slot_padding`, into the printer context of what it holds.
-  The value is an `Inset`, so it can differ by side. It uses the existing
-  `with_property` and `get_property`, as `:line_spacing` does: a new key, not
-  a new mechanism.
+  that it gives, `slot_padding`, into the offer that it makes to what it holds.
+  The value is an `Inset`, so it can differ by side. "How a box takes the
+  space" below says how.
 - The first box in the slot that has an edge gives that space around itself,
   and passes `Inset(0, 0, 0, 0)` to what it holds. So a page in a card, a page
   in a page, a dialog or a cell never gets the space twice, and no page adds a
@@ -129,6 +128,29 @@ twelve cases. So:
   in a split have 8 px on each side.
 - A card, a dialog, a table cell and an alert keep their own padding inside
   their edge, as now.
+
+**How a box takes the space.** The user accepted this design on 2026-11-04,
+after rejecting a copy of the projection for each print ("a copy of the
+projection is a terrible idea"). It is the design as it would be made from the
+start, with no weight for the amount of code that changes.
+
+- The space is a part of the offer. `PrinterContext` holds it as a field next
+  to the size range of each axis, not as a property that flows down the whole
+  tree. Each function that makes the offer for a child states the space, and
+  where it states none, the space is 0. So a printer that does not know the
+  space can not pass it one level too deep. A chain of projections is one
+  print, so each of its stages sees the same offer.
+- A box computes its shape once: the outer box, the margin, the border, the
+  padding and the content, from its projection, its document and the given
+  space. The space lies outside the margin and inside the image of the box, so
+  a parent counts it in the extent, as it counts a margin. The IO map of the
+  box carries the shape. Its readers, the hit tests and the rings of a
+  selection read the shape there, and never compute it again from the
+  projection and the document.
+- No printer makes a copy of its projection for a value of one print.
+  `TextToGraphics` does that for `:line_spacing` now (`TextToGraphics.jl:117`
+  and `:448`). Step 5 removes it: the text printer reads the line spacing from
+  the context, and its IO map carries the line positions for its readers.
 
 **A scroll pane is symmetric.** The user (2026-11-03): "it should be
 symmetric, so if it touches the bottom then it should also touch the top". So
@@ -216,29 +238,72 @@ approval of the user.
       lines; a pixel scan of an image of the window finds the four lines, the
       gap under each selected tab, and the outer divider from the line under
       the toolbar to the line above the status bar.
-- [ ] 4. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
+- [ ] 4. **A box computes its shape once, and its IO map carries it.** The
+      screen must not change.
+      - A type for the shape of a box holds the outer box, the margin, the
+        border, the padding and the content of a widget. One function computes
+        it from the projection, the document and a given space, which is 0 in
+        this step. It takes the place of `_get_box_insets`, `_content_offset`
+        and `_inset_total` (`WidgetToGraphics.jl:140-155`) at each of their
+        uses: about 175 in `WidgetToGraphics.jl` and 14 in other files.
+      - Each widget printer puts the shape into its IO map. A printer that
+        returns a `SimpleIoMap` or a `ChildrenIoMap` now returns an IO map of
+        the widget slice that holds the shape.
+      - Each reader, hit test and ring of a selection reads the shape from the
+        IO map.
+      - `TypeDispatching.jl:59-66` and `PredicateDispatching.jl:49-56` give a
+        reader the projection of its IO map, as their `map_reference_*` do.
+      Check: `tool/widget-images.jl` finds every image the same; the platform
+      suite, part by part, and `test_dataframes()` give the counts of the
+      baseline.
+- [ ] 5. **The text printer takes the line spacing from the context.**
+      `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
+      the context where it lays out the lines, and its IO map carries the line
+      positions and the line height that its readers (`char_to_coord` and the
+      others) need. The screen must not change. Check: `tool/widget-images.jl`
+      finds every image the same, among them the text field
+      (`WidgetToGraphics.jl:1923`) and the cells of a table (`:11410`), which
+      set the property; `test_syntax_to_text()` and the platform suite, part by
+      part, give the counts of the baseline.
+- [ ] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
-      - The tabbed pane and the split pane put `:space_to_give` =
-        `slot_padding` into the context of each slot (`with_property`).
-      - One helper takes the space for a box: it reads `:space_to_give`, gives
-        it as the outer inset of the box, lowers the size that the box is
-        offered by it, and gives the box a context with `Inset(0, 0, 0, 0)` for
-        what it holds. Each printer of a box with an edge or of a widget that
-        holds nothing calls it at its start: the widget printers and the
-        printers of the domains that draw a canvas. The split pane, the
-        tabbed pane and the shell do not.
-      - A layout printer passes the space on by side: a column gives the
-        left and the right space to each child, the top to its first child and
-        the bottom to its last; a row does the same across; a grid gives each
-        side to the cells at that side. A layout that gives each child its own
-        context must still print a child once when nothing changed.
-      - The scroll pane gives the space at its view: it cuts its content at the
-        inset on every side, and keeps its bar at its outer edge.
-      - `WidgetTree` and `WidgetList` take the top and the bottom space around
-        themselves, and their own scroll pane cuts inside it. Their rows take
+      - `PrinterContext` gets the given space as a field of the offer. The
+        functions that make an offer (`with_exact_size`, `with_bounded_size`,
+        `with_size_range`, `with_inner_size`, `with_free_axis`) state it, and a
+        context made for a child that states none has 0. `PrinterContext.jl` is
+        ⬜; check `SEALING.md` again at the edit.
+      - The tabbed pane offers `slot_padding` to its page
+        (`WidgetToGraphics.jl:5113`), and the split pane to each slot
+        (`:4299-4301`). Both offer 0 to all else that they print, such as the
+        names of the tabs and the bars. The shell offers 0.
+      - Each box printer puts the given space into its shape (step 4), and
+        offers 0 to what it holds. The authored size of a box does not hold the
+        space (`_resolve_size`), so a field of an authored width keeps it.
+      - A layout passes the space on by side: a column gives the left and the
+        right space to each child, the top to its first child and the bottom to
+        its last; a row does the same across; a grid gives each side to the
+        cells at that side (`LayoutToGraphics.jl`, the vertical layout at
+        `:1160`, the horizontal at `:917`, the grid at `:1594`; `LayoutList.jl:141`).
+        A layout that gives each child its own offer still prints a child once
+        when nothing changed.
+      - The scroll pane adds the given space to its padding (`:6025`), so it
+        cuts its content inside the space on every side and keeps its bar at
+        the outer edge. The color of its content fills the band.
+      - `WidgetTree` and `WidgetList` put the top and the bottom space into
+        their shape, and their own scroll pane cuts inside it. Their rows take
         the left and the right space as side padding, and `tree_row_padding`
-        where it is 0.
+        where it is 0: the place of the content of a row, its chevron box and
+        its natural width move with it (list: `:10330`, `:10356`; tree:
+        `:12612-12624`, `:12665`, `:12788`).
+      - A printer of a domain that draws takes the space as a box:
+        `TextToGraphics` and each printer to graphics of a domain. A printer
+        that prints graphics of its own with the context it got offers them 0,
+        such as `NavigatorToWidget.jl:87`.
+      - A fixed height that holds a box in a slot grows by the space: the row of
+        the options of an Assistant (`AssistantToWidget.jl`, about `:107`) and
+        the estimate of the shown rows of a data frame
+        (`DataFrameViewToWidget.jl:95`).
       - The filter bar of the Explorer (`ExplorerToWidget.jl:81`) has no
         padding of its own, and stands `item_gap` above the tree (`:90`).
       - `SystemProcessToWidget.jl:38` drops the `container_padding` around its
@@ -246,15 +311,16 @@ approval of the user.
       Check: a new test prints each kind of widget, layout and domain canvas
       as the page of a tab and as the body of a card: in the tab it finds 8 px
       at each edge, and in the card no space added to the padding of the card;
-      `test_explorer()`, `test_widget_tree()`, `test_dataframes()` and
-      `test_platform_layering()` pass; a pixel scan of an image of the window
-      finds the inner divider of the Explorer from the line under the tab row
-      to the line above the status bar, the tree and the page 8 px from every
-      edge, the band of the selected row of the tree from the window edge to
-      the inner divider with its first letter 8 px from the edge, and a
-      scrolled settings page cut 8 px inside every edge with its bar at the
-      edge.
-- [ ] 5. **Every gap of a widget layout has a role.**
+      a test finds that each printer of the widget dispatch takes the space,
+      or is a frame or a layout that passes it; `test_explorer()`,
+      `test_widget_tree()`, `test_dataframes()` and `test_platform_layering()`
+      pass; a pixel scan of an image of the window finds the inner divider of
+      the Explorer from the line under the tab row to the line above the status
+      bar, the tree and the page 8 px from every edge, the band of the selected
+      row of the tree from the window edge to the inner divider with its first
+      letter 8 px from the edge, and a scrolled settings page cut 8 px inside
+      every edge with its bar at the edge.
+- [ ] 7. **Every gap of a widget layout has a role.**
       - These fields of other themes read the role of the widget theme, and go
         away:
         - `ConversationTheme`: `part_gap`, `turn_gap` and `section_gap` →
@@ -284,7 +350,7 @@ approval of the user.
       other than 0 as `gap`, `horizontal_gap`, `vertical_gap`, `padding` or
       `margin` of a layout or a widget; `test_platform()` passes with the
       counts of the baseline.
-- [ ] 6. **The splitter shows a band.** The split pane draws a band of
+- [ ] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
       while it is dragged. The band fades in 0.1 s. The split pane reads the
@@ -293,13 +359,13 @@ approval of the user.
       that the test writes finds no band before 0.3 s on the grab area, the
       band after it, the band at once during a drag, and no band after the
       release and the fade; the band shows in the running editor.
-- [ ] 7. **The pages of omnet-julia follow the rules.** This step starts after
-      steps 1 to 6 are on `main` of projectured-julia.
+- [ ] 9. **The pages of omnet-julia follow the rules.** This step starts after
+      steps 1 to 8 are on `main` of projectured-julia.
       - Each page builder takes the widget theme of its builder, scaled, in
         place of `get_theme_defaults(WidgetTheme)`.
       - `WorkbenchRender.jl:161-162` no longer sets `control_padding` and
         `item_gap`.
-      - A page needs no padding of its own, because its slot gives it (step 4).
+      - A page needs no padding of its own, because its slot gives it (step 6).
         A page that sets a padding at its root drops it.
       - Inside a card, lines of facts take `line_gap`, rows of a form take
         `form_row_gap`, and sections take `section_gap`.
@@ -309,8 +375,8 @@ approval of the user.
       Check: the presentation tests of omnet-julia pass; `OmnetIdeApp`
       compiles ahead; a pixel scan of an image of the IDE finds each details
       page 8 px from the edges of its tab.
-- [ ] 8. **Write the spacing documentation.** The guides say what the code
-      does after steps 1 to 7. They follow
+- [ ] 10. **Write the spacing documentation.** The guides say what the code
+      does after steps 1 to 9. They follow
       [writing-rules.md](../../documentation/rule/writing-rules.md), and they
       name no artifact and no private repository.
       - Write `documentation/rule/spacing-rules.md`, kind rule, standing on
@@ -335,23 +401,29 @@ approval of the user.
         6. How to space a new widget, a new layout or a new page: which role to
            read, and what a builder must not do: a number as a gap or a
            padding, or a padding of its own at the root of a page. It names
-           the static check of step 5.
+           the static check of step 7.
       - Add its row to `documentation/README.md`, and a line to
         [layout-rules.md](../../documentation/rule/layout-rules.md) that
         points to it for the space. Its examples that show a number as a gap
         read a role.
       - Change [widget.md](../../documentation/package/platform/widget/widget.md):
-        the list of the spacing fields of the theme; the space that a slot
-        gives once; the scroll bar at the outer edge and the cut inside the
+        the list of the spacing fields of the theme; the shape of a box that
+        its IO map carries for its readers; the space that a slot gives once,
+        as a part of the offer; the scroll bar at the outer edge and the cut inside the
         space; the side space in the rows of a tree and a list; and the
         splitter band.
       - Change [tooltip.md](../../documentation/package/platform/tooltip/tooltip.md)
-        for the fields of `TooltipTheme` that read a role after step 5.
+        for the fields of `TooltipTheme` that read a role after step 7.
       - Add to [new-domain-guide.md](../../documentation/guide/new-domain-guide.md)
-        that the printer of a domain canvas takes the space of its slot with
-        the helper of step 4.
-      Check: `test_documentation()` passes; a grep of `documentation/` finds
-      no field name that step 1, 2 or 5 removes.
+        that the printer of a domain canvas takes the space of its slot into its shape, as
+        steps 4 and 6 do it.
+      - Add to [architecture-rules.md](../../documentation/rule/architecture-rules.md)
+        that a printer never makes a copy of its projection for a value of one
+        print: the value comes in through the context, and what a reader needs
+        of it goes out through the IO map.
+      Check: `test_documentation()` passes, but for the 7 failures of the
+      baseline (private names in `assistant.md` and `precompile.md`); a grep
+      of `documentation/` finds no field name that step 1, 2 or 7 removes.
 
 ## Not in this plan
 
