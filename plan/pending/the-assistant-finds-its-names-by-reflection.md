@@ -169,6 +169,31 @@ apply_change!(combine_changes(a, b))     # one undo step
 The other way, one make function for each verb, gives about 48 names, each with
 its own docstring and example.
 
+**Decided by the owner (2026-11-04): a change is a small wrapper.**
+`make_change` answers a `RootedOperation`: a structural operation, as
+`CompoundOperation` is, that holds the operation from the root of the editor's
+document, carried there by the readers, and its description. The code tool shows
+it as `a change: Close the pane Files`. `combine_changes` and `apply_change!` take
+only a `RootedOperation`, so an operation of a kernel maker, which went through no
+reader and which no history records, can not be applied by mistake. The assistant
+never writes the name of the type. A name with "Change" was not taken, because a
+noun-first name with no suffix is the form of an event (`WindowClose`). The other
+way, the operation itself, prints as a cut dump of its fields.
+
+**Decided by the owner (2026-11-04): the scope of step 3.**
+
+1. The verbs that apply one change today, about 36, each get a method of
+   `make_change`, and the verb becomes make plus apply with no change in what it
+   does.
+2. The seven makers with no verb (`move_series`, `remove_series`, `jump_to_row`,
+   `insert_events`, `delete_events`, `move_axis`, `delete_axis`) become verbs, and
+   each gets a method of `make_change`.
+3. The verbs that apply several steps, where a later step reads the result of an
+   earlier one, about 19, do not change and get no method. A make function can
+   read only the document before the group, and the second step of such a verb
+   does not exist before the first one applies. §5.3 lists them by name. Open
+   item 1 holds the other way for them.
+
 The docstring of the combine function states the order rule: the changes of a
 group are made before any of them applies, so a path by position names the
 document as it was before the group.
