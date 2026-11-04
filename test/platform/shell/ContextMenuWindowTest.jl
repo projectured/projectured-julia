@@ -95,6 +95,17 @@ function _cm_place_of(node, text, ox = 0, oy = 0)
     nothing
 end
 
+# The innermost canvas of `node` that draws every one of `texts`, or `nothing`.
+function _cm_canvas_holding(node, texts)
+    node = _cm_force(node)
+    hasproperty(node, :elements) || return nothing
+    for element in _cm_force(node.elements)
+        inner = _cm_canvas_holding(element, texts)
+        inner === nothing || return inner
+    end
+    all(text -> _cm_place_of(node, text) !== nothing, texts) ? node : nothing
+end
+
 function test_context_menu_window()
 @testset "the context menu window" begin
 
@@ -326,6 +337,27 @@ end
     window = _cm_output_window(editor, scene, :widget_popup)
     @test window.maximum_size == (listed, 200)
     @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
+end
+
+@testset "a list that fills its offer is as wide as the minimum width that its placement sets" begin
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[WidgetButton("Run"; size = Point2D(300, 24))]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    list = WidgetChoiceList(; find = query -> WidgetChoice[WidgetChoice(name) for name in ("alpha", "beta")],
+                            choose = value -> nothing, fills_offer = true)
+    # The window fits its content, so its minimum width reaches the list as the
+    # minimum of a range, and not as a slot.
+    placement = part -> make_part_top_placement(part; width_share = 0.5, minimum_width = 250,
+                                                maximum_height = 200, gap = 8)
+    evaluate_operation(editor, read_rooted_operation(editor, place, make_choice_list_operation("Find", list; placement)))
+    run_frame!(editor)
+    @test _cm_output_window(editor, scene, :widget_popup).minimum_size == (250, 0)
+    menu = _cm_canvas_holding(_cm_drawn_window(editor, scene, :widget_popup), ("alpha", "beta"))
+    @test Int(_cm_force(menu.w)) == 250
 end
 
 @testset "the first key of an insertion opens its kinds under it, the next keys type into them, and Return makes one" begin

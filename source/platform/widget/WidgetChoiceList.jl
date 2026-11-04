@@ -45,8 +45,10 @@ the text narrows to.
 - `footer` is a line under the rows, such as that the choices are still read:
   `nothing`, a string, or a function of no arguments that answers either, which
   the view reads as it draws, so the line follows what the function reads.
-- `fills_offer` makes the list as wide as the width that its window offers, as a
-  list in a window of a fixed width needs; else the list is as wide as its rows.
+- `fills_offer` makes the list as wide as the width that its window gives: the
+  slot of a window of a fixed size, or the minimum width of a window that fits
+  its content, as a placement of a fixed width sets; else the list is as wide as
+  its rows.
 - `find(query)` gives the choices in their order, an `AbstractVector` of
   [`WidgetChoice`](@ref); a vector that makes each choice when it is read costs
   only the rows that show.
@@ -133,11 +135,18 @@ make_graphics_projection(::Type{WidgetChoiceList}; measure, appearance) =
         GridLayoutToGraphicsCanvas())
 
 function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoiceList, ctx)
-    # A list that fills its offer gives its menu the exact width of its window.
-    width = list.fills_offer ? get_exact_width(ctx) : nothing
+    width = list.fills_offer ? _get_choice_list_width(ctx) : nothing
     column = VerticalLayout(CellVector(@computation _make_choice_widgets(list, width)),
                             Cell(:left), Cell(p.gap), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, list, GridLayout(Any[column], 1))
+end
+
+# The width that a list that fills its offer gives its menu: the slot of a window
+# of a fixed size, or the minimum width of a window that fits its content, which a
+# placement sets (`layout-rules.md` §1).
+function _get_choice_list_width(ctx)
+    slot = get_exact_width(ctx)
+    slot !== nothing ? slot : ctx.minimum_width
 end
 
 # The line of the typed text, and the menu of the rows that show, which lights the

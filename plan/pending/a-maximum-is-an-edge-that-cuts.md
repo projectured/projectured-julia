@@ -639,6 +639,37 @@ omnet-julia that hold a page take `grows` (Step 4). The examples of
 Step 1 and the IDE detail of a statistical test and of a chart test, seen in a
 window. Then the branch waits for approval to land.
 
+Done so far:
+
+- The branch is on main again: main was 30 commits past the base of the branch,
+  and 7 more while the check ran. Two conflicts. `ScreenToScreen.jl`: main
+  computes the bounds of a placed window from its placement; the window still
+  gives a content that fits it a range and not a slot, and the range now has the
+  minimum of the window too. Whether a window fits its content is read from the
+  maximum of the input, because a placement computes its bounds only once the
+  screen is printed. `TaskTheme.jl`: main moved `picture_height` to
+  `WidgetTheme.table_picture_height`.
+- The tests that main added (the placement of a window, the choice list, the
+  command palette, Go to file, the file tab) and `test_layout_rules()`: 884 pass.
+- A choice list that fills its offer (the command palette, Go to file) read
+  `get_exact_width`, which a window that fits its content does not give. Its
+  menu was 110 wide in a window of 250; on main 250. It reads the minimum of its
+  range when it has no slot (`_get_choice_list_width`), and a test of
+  `ContextMenuWindowTest` checks the width of the menu.
+- omnet-julia: the four scroll areas that hold a page grow on their height, in
+  the worktree `omnet-julia-maximum-cuts`, branch `a-maximum-is-an-edge-that-cuts`.
+
+Found in this step:
+
+- A result file (`.sca`, `LegacyResultFile`) opens in a file tab, which grows on
+  its height since Step 6. Its page is a grid whose tables are `Fill` rows, so in
+  a tab that grows each table is one view high, and the tab scrolls to the next
+  table. On main the tables share the tab. In a window of 1600 × 1000 with 80
+  scalars and 5 statistics: on main the table of the scalars is 357 high and the
+  line "5 statistics" shows at 595; on the branch the table is 907 high and the
+  statistics are below the window. Step 6 said that a file tab never holds a
+  table that fills the tab; a result file does.
+
 ## 6. Not in this plan
 
 - The new design of the detail page of a task (the owner: "a different story").
