@@ -90,8 +90,50 @@ function _rt_point_reference(output, reference, x, y)
     PointReferenceStep(x - rx, y - ry)
 end
 
+# The visible box of the part at `other` when that part is not around the part at
+# `reference`, so it can draw over it, as a bar of a pane lies over the content at
+# its edge; else `nothing`.
+function _rt_find_cover_box(projection, iomap, output, reference, other)
+    is_reference_prefix(strip_reference_types(other), reference) && return nothing
+    image = map_reference_forward(projection, iomap, other)
+    image === nothing ? nothing : find_reference_box(output, image; visible = true)
+end
+
+# The parts of the box `box` outside the box `cover`: the bands above, below, left
+# of and right of the part of `cover` that overlaps `box`.
+function _rt_get_outside_boxes(box, cover)
+    right, bottom = box.x + box.width, box.y + box.height
+    left, top = max(box.x, cover.x), max(box.y, cover.y)
+    inner_right = min(right, cover.x + cover.width)
+    inner_bottom = min(bottom, cover.y + cover.height)
+    (left < inner_right && top < inner_bottom) || return [box]
+    bands = NamedTuple[]
+    top > box.y && push!(bands, (x = box.x, y = box.y, width = box.width, height = top - box.y))
+    inner_bottom < bottom &&
+        push!(bands, (x = box.x, y = inner_bottom, width = box.width, height = bottom - inner_bottom))
+    left > box.x && push!(bands, (x = box.x, y = top, width = left - box.x, height = inner_bottom - top))
+    inner_right < right &&
+        push!(bands, (x = inner_right, y = top, width = right - inner_right, height = inner_bottom - top))
+    bands
+end
+
+# Whether a point of `points` maps backward to the part at `reference` or to a part
+# inside it.
+function _rt_returns_at(projection, iomap, output, reference, points)
+    for (x, y) in points
+        point = _rt_point_reference(output, reference, x, y)
+        point === nothing && continue
+        answer = map_reference_backward(projection, iomap, point)
+        answer === nothing && continue
+        answer = strip_reference_types(answer)
+        (answer == reference || is_reference_prefix(reference, answer)) && return true
+    end
+    false
+end
+
 # The answer of the round trip of one part: `:returns`, `:hidden`, `:out_of_view`,
-# `:draws_nothing`, or what went wrong, with the answer of the backward map.
+# `:draws_nothing`, `:covered`, or what went wrong, with the answer of the
+# backward map.
 function _rt_round_trip(document, projection, iomap, output, part)
     reference = strip_reference_types(part)
     image = map_reference_forward(projection, iomap, part)
@@ -110,11 +152,20 @@ function _rt_round_trip(document, projection, iomap, output, part)
             reference isa EmptyReference && return (:returns, nothing)
             continue
         end
-        answer = strip_reference_types(answer)
-        (answer == reference || is_reference_prefix(reference, answer)) && return (:returns, nothing)
+        stripped = strip_reference_types(answer)
+        (stripped == reference || is_reference_prefix(reference, stripped)) && return (:returns, nothing)
         other = answer
     end
-    (other === nothing ? :no_part : :other_part, other)
+    other === nothing && return (:no_part, nothing)
+    # A part that another part draws over shows only outside that part, so the
+    # points there decide, and a part with no such point is covered.
+    cover = _rt_find_cover_box(projection, iomap, output, reference, other)
+    cover === nothing && return (:other_part, strip_reference_types(other))
+    outside = _rt_get_outside_boxes(box, cover)
+    isempty(outside) && return (:covered, nothing)
+    _rt_returns_at(projection, iomap, output, reference, map(_rt_center, outside)) &&
+        return (:returns, nothing)
+    (:other_part, strip_reference_types(other))
 end
 
 function test_widget_round_trip()
@@ -134,7 +185,7 @@ function test_widget_round_trip()
         for part in parts
             outcome, answer = _rt_round_trip(document, projection, iomap, output, part)
             outcome === :returns && (returned += 1; continue)
-            outcome in (:hidden, :out_of_view, :draws_nothing) && continue
+            outcome in (:hidden, :out_of_view, :draws_nothing, :covered) && continue
             push!(failures, string(example.name, " ", strip_reference_types(part), ": ", outcome,
                                    answer === nothing ? "" : string(" ", answer)))
         end

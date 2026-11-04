@@ -173,7 +173,7 @@ _make_part_pane(grid, offset::Cell, padding::Inset) =
 # The pane shares the fields of the bars of the table, and the table gives it
 # every gesture for a bar: a press, a button up and a click on a bar, and the
 # drag of a thumb, which comes to the table wherever the pointer is. A point on a
-# bar maps to the field of the bar in the table.
+# bar maps to the field of the bar in the table, and the field maps to the bar.
 
 # The pane of the cells: a part pane that draws the bars of the table. Its mouse
 # target names a bar while the mouse target of the table does, so a bar that the
@@ -227,6 +227,18 @@ function _map_table_bar_point(w::WidgetTable, cells_pane, place, x::Integer, y::
     bar = _find_pane_bar_at(pane, x - place[1], y - place[2])
     bar === nothing && return nothing
     annotate_reference_types(w, ConcreteReference(FieldReferenceStep(bar.field), EmptyReference()))
+end
+
+# The image in the table `iomap` of the bar that `reference`, the field of a bar,
+# names: the image of the bar in the pane of the cells, from the canvas of the
+# table. `nothing` when the pane draws no such bar.
+function _map_table_bar_forward(iomap, cells_pane, reference::ConcreteReference)
+    pane = get_content_iomap(cells_pane)
+    pane isa WidgetScrollPaneToGraphicsCanvasIoMap || return nothing
+    image = _map_pane_bar_forward(pane, reference)
+    image === nothing && return nothing
+    outer = find_node_reference(iomap.output, unwrap_cell(pane.output))
+    outer === nothing ? nothing : concat_references(outer, image)
 end
 
 # The place of the pane of the cells in a table whose rows are a list.
@@ -1442,9 +1454,10 @@ end
 # answer of the pane of the header row for `children[c].…`, or for
 # `children[1][c].…` when the columns are a list. `row_headers[k].…` is the
 # answer of the pane of the header column for `children[k][1].…`, and
-# `corner.…` the answer of the corner. The table itself is its own canvas. A
-# whole row has no node of its own, because its band is drawn in the graphics
-# of the rows, so it has no image.
+# `corner.…` the answer of the corner. A field of a bar is the bar that the pane
+# of the cells draws. The table itself is its own canvas. A whole row has no
+# node of its own, because its band is drawn in the graphics of the rows, so it
+# has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
@@ -1485,6 +1498,8 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         image === nothing && return nothing
         outer = find_node_reference(iomap.output, unwrap_cell(st.corner.output))
         return outer === nothing ? nothing : concat_references(outer, image)
+    elseif head.name in _PANE_BAR_FIELDS
+        return _map_table_bar_forward(iomap, st.cells_pane, reference)
     end
     nothing
 end

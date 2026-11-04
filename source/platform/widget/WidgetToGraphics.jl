@@ -11834,12 +11834,16 @@ end
 # `column_headers[c].…`, `row_headers[r].…`) is a child of the grid of the part
 # that holds it, and the pane of that part maps it; the steps from the table's
 # canvas to the canvas of the pane are found by identity, after the parts of the
-# box. The table itself is its own canvas. A whole row has no node of its own,
-# because its band is drawn in place, so it has no image.
+# box. A field of a bar is the bar that the pane of the cells draws. The table
+# itself is its own canvas. A whole row has no node of its own, because its band
+# is drawn in place, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.head.name in _PANE_BAR_FIELDS) &&
+        return _map_table_bar_forward(iomap, iomap.parts.cells_pane, reference)
     found = _wt_find_part_entry(iomap, reference)
     found === nothing && return nothing
     pane, i, _, rest = found

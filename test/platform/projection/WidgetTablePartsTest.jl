@@ -773,6 +773,19 @@ end
     @test compute_part_at_point(io, x + 2, y + 2) == corner_reference
 end
 
+@testset "the field of a bar reaches the bar that the pane of the cells draws" begin
+    io = print_document(rec, nothing, make_headed_table(1000), context())
+    bars = io.state.cells_pane.bars
+    @test length(bars) == 2
+    # The image is what the place of the bar holds: the canvas that the bar
+    # prints while it shows, and an empty canvas while it hides.
+    for bar in bars
+        reference = ConcreteReference(FieldReferenceStep(bar.field), EmptyReference())
+        node = evaluate_reference(io.output, map_reference_forward(io.projection, io, reference))
+        @test unwrap_cell(node) === unwrap_cell(bar.place.elements[1])
+    end
+end
+
 @testset "far from the head, the row headers move with the rows" begin
     table = make_headed_table(10_000_000)
     io = print_document(rec, nothing, table, context())
