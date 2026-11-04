@@ -591,6 +591,17 @@ approval of the user.
       that the test writes finds no band before 0.3 s on the grab area, the
       band after it, the band at once during a drag, and no band after the
       release and the fade; the band shows in the running editor.
+
+      Step 8 is the last code step in this repository, so after it, record the
+      lists of compiled calls again with `record_repository_calls!()`.
+      Steps 4 to 8 change the signatures of many widget functions, and after
+      step 4, 89 of the 838 calls of `ProjecturedSDL` and 84 of the 768
+      calls of `ProjecturedDataFrames` no longer resolve. That is more than
+      the stale share of 10 %, so each package warns "precompilation failed"
+      and compiles more while it runs. Also record each list of an
+      application, `precompile/<application>.txt`, that names a changed
+      function. Check: a load of each package writes no warning about calls
+      that no longer resolve.
 - [ ] 9. **The pages of omnet-julia follow the rules.** This step starts after
       steps 1 to 8 are on `main` of projectured-julia.
       - Each page builder takes the widget theme of its builder, scaled, in
