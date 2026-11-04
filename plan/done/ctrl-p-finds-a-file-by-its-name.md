@@ -2,7 +2,7 @@
 
 > **Status (2026-11-03):** done, on the branch `file-search`, not landed. The owner
 > answered Q1 to Q11 and approved the plan. All ten steps are done. The second plan,
-> [every-popup-window-is-placed-by-a-function.md](../pending/every-popup-window-is-placed-by-a-function.md),
+> [every-popup-window-is-placed-by-a-function.md](every-popup-window-is-placed-by-a-function.md),
 > starts after this one.
 
 ## The goal
