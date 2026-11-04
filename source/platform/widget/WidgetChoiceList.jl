@@ -34,7 +34,8 @@ WidgetChoice(label::AbstractString; value = label, icon = nothing, note = nothin
 A list that a person types into: a line of the typed text over the choices that
 the text narrows to.
 
-- `query` is the typed text, and `row` the row that Return chooses.
+- `query` is the typed text, and `row` the row that Return chooses, which the menu
+  lights as it lights the item that its keys move to.
 - `top` is the first row that the list shows, and `shown_rows` how many rows it
   shows at most. The rows are a lazy list with its head at `top`, so the list
   builds only the rows that it shows, however many choices `find` gives.
@@ -119,8 +120,8 @@ make_choice_list_operation(title::AbstractString, list::WidgetChoiceList; point 
     WidgetChoiceListToWidget(; gap)
 
 The projection of a [`WidgetChoiceList`](@ref): the typed text above a menu of the
-choices that it narrows to. The row that Return chooses shows a chevron, and the
-current choice a check. `gap` is the space between the text and the menu.
+choices that it narrows to. The menu lights the row that Return chooses, and the
+current choice shows a check. `gap` is the space between the text and the menu.
 """
 @projection UntrackedCell struct WidgetChoiceListToWidget
     gap::Int = get_widget_style(nothing, :item_gap)
@@ -139,9 +140,10 @@ function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoi
     SimpleIoMap(p, list, GridLayout(Any[column], 1))
 end
 
-# The line of the typed text, and the menu of the rows that show. The rows are a
-# lazy list of the choices with its head at the first row that shows, and the menu
-# walks only the rows that show.
+# The line of the typed text, and the menu of the rows that show, which lights the
+# row that Return chooses while it shows. The rows are a lazy list of the choices
+# with its head at the first row that shows, and the menu walks only the rows that
+# show.
 function _make_choice_widgets(list::WidgetChoiceList, width = nothing)
     minimum_width = width === nothing ? nothing : width[]
     query = list.query
@@ -153,8 +155,10 @@ function _make_choice_widgets(list::WidgetChoiceList, width = nothing)
     count == 0 && return Any[line, WidgetMenu(Any[WidgetMenuItem(list.empty; enabled = false)]; minimum_width),
                              under...]
     top = _clamp_choice_top(list, count, list.top)
-    rows = make_index_list(count, top, index -> _make_choice_item(list, index, choices[index]))
-    Any[line, WidgetMenu(take_first(rows, min(list.shown_rows, count - top + 1)); minimum_width), under...]
+    rows = make_index_list(count, top, index -> _make_choice_item(list, choices[index]))
+    shown = min(list.shown_rows, count - top + 1)
+    highlighted = top <= list.row < top + shown ? list.row - top + 1 : 0
+    Any[line, WidgetMenu(take_first(rows, shown); highlighted, minimum_width), under...]
 end
 
 # The first row that shows, so that the rows that show are in the list.
@@ -168,10 +172,10 @@ _follow_choice_row(list::WidgetChoiceList, count::Integer, row::Integer) =
                                    row >= list.top + list.shown_rows ? row - list.shown_rows + 1 :
                                    list.top)
 
-# A row of a choice: the chevron of the row that Return chooses, the check of the
-# current choice, or the icon of the choice, then the label and the note.
-function _make_choice_item(list::WidgetChoiceList, index::Integer, choice::WidgetChoice)
-    icon = index == list.row ? :chevron_right : choice.value == list.current ? :check : choice.icon
+# A row of a choice: the check of the current choice or the icon of the choice,
+# then the label and the note.
+function _make_choice_item(list::WidgetChoiceList, choice::WidgetChoice)
+    icon = choice.value == list.current ? :check : choice.icon
     keys = choice.note === nothing ? Any[] : Any[String(choice.note)]
     WidgetMenuItem(choice.label; icon, keys,
                    operation = something(list.choose(choice.value), DoNothingOperation()))

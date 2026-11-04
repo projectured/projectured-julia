@@ -588,10 +588,10 @@ WidgetTooltipToGraphicsCanvas(theme; measure,
     vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
     bar_gap::Int                # between the items of a horizontal menu bar
-    highlighted_color::StyleColor   # behind the item that the keys lit
+    highlighted_color::StyleColor   # behind the item that the keys lit, the selection band
 end
 
-WidgetMenuToGraphicsCanvas(theme; measure,
+WidgetMenuToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            margin = inset_default, border = inset_default,
                            padding = _themed(Inset, theme, t -> t.menu_bar_padding),
                            vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
@@ -603,7 +603,7 @@ WidgetMenuToGraphicsCanvas(theme; measure,
                            vertical_content_color = _themed(StyleColor, theme, t -> t.popover),
                            font = _themed(StyleFont, theme, t -> t.font),
                            bar_gap = _themed(Int, theme, t -> t.bar_gap),
-                           highlighted_color = _themed(StyleColor, theme, _get_hover_layer)) =
+                           highlighted_color = _make_selected_row_color(graphics_theme)) =
     WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
                                margin_color, border_color, padding_color, content_color,
                                vertical_border_color, vertical_padding_color,
@@ -13358,7 +13358,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measure),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measure),
         WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measure),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme; graphics_theme),
