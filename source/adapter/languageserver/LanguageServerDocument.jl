@@ -93,17 +93,28 @@ and the answer of the new text comes in a later frame. With no server, or a
 server that fails, the text has no marks.
 
 It reads the server and the path with tracking, so a new server or a new path
-reads the request again; the request with no tracking, so the marks do not
-become provisional. The read of the request notes a missing answer for the text
-of now, and the stored answer makes the marks change. The marks read `answer`,
-which is final, so they are final while an answer is still to come: a
+reads the request again. The read of the request notes a missing answer for the
+text of now, and the stored answer makes the marks change. The marks read
+`answer`, which is final, so they are final while an answer is still to come: a
 provisional value that asks again computes again at each read, and the lines of
 a text read the marks once for each line.
+
+So a print reads the request with no tracking, through a cell of its own that
+reads it as a computation does: a request that computed where it could not ask
+computes again and asks, and the marks do not depend on it. A walk of the
+documents that starts no background work (`is_background_work_allowed`) reads
+the request with tracking: there it can not ask, so the marks take its
+provisional state, and the next print computes them again.
 """
 function compute_language_server_marks(text::LanguageServerText)
     text.server
     text.path
-    run_without_cell_tracking(() -> text.request)
+    request = getfield(text, :request)
+    if is_background_work_allowed()
+        run_without_cell_tracking(() -> Cell(@computation request[])[])
+    else
+        request[]
+    end
     _compute_source_file_marks(text.answer, text.text)
 end
 

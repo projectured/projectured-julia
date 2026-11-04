@@ -179,6 +179,23 @@ end
     stop_language_servers!(editor)
 end
 
+@testset "a walk of the documents before the print leaves the colours to come" begin
+    # A search reads the request and the marks where the request can not ask; the
+    # next print asks the server, and the colours come.
+    server, connection = start_fake_language_server(token_types = ["variable", "function"], tokens = _sf_tokens)
+    path = "/projectured/walked.c"
+    file = SourceFile(path, MarkedText(text = _SF_SOURCE))
+    editor, backend = _sf_editor(file)
+    _sf_give_server!(editor, path, connection)
+    acquire_document!(editor, file)
+    run_with_evaluation_editor(() -> search_documents(file, x -> x isa MarkedText), editor)
+    @test is_cell_provisional(getfield(file.content, :marks))
+    expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]
+    @test _sf_wait(() -> _sf_spans(file.content.marks) == expected, editor, backend)
+    @test !is_cell_provisional(getfield(file.content, :marks))
+    stop_language_servers!(editor)
+end
+
 @testset "a server that is not installed leaves the text plain" begin
     path = "/projectured/plain.c"
     file = SourceFile(path, MarkedText(text = _SF_SOURCE))
