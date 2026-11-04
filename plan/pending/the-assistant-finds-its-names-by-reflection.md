@@ -744,7 +744,15 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   data frame cell tests pass; both naming guards pass.
   `test_pivot_zone_edits` fails with one error (31 pass): the drag in a tab of an
   application window finds no text "Rows" (`_pz_place`). It fails in the same way
-  on 3854cec3e, the commit before step 3.
+  on 3854cec3e, the commit before step 3. In omnet-julia,
+  `test_ide_documentation` passes 967/967 and its part test 52/52,
+  `test_prompt_names` 20/20 and `test_workbench_open_file` 9/9.
+  `test_pane_program` fails once at line 227, a click into a grid that calls no
+  verb, as on main. `test_ide_file_navigator` fails twice: a Julia file and a
+  Markdown file that `open_pane!` places draw no text after one frame. The Julia
+  file fails on main since 2026-10-08; the Markdown file was not checked on a
+  base. `open_pane!` evaluates the same operation as before step 3, and the new
+  tab stays behind the tab that its group shows.
 
 ## 6. What else changes
 
