@@ -73,6 +73,10 @@ function _cm_output_window(editor, scene, id::Symbol)
     _cm_force(windows[index])
 end
 
+# Where the window `window` of `scene` stands on the screen.
+_cm_shown_place(editor, scene, window) =
+    (shown = _cm_output_window(editor, scene, window.id); (Int(shown.x), Int(shown.y)))
+
 # Where `text` is drawn in `node`, in the frame of `node`, or `nothing`.
 function _cm_place_of(node, text, ox = 0, oy = 0)
     node = _cm_force(node)
@@ -98,7 +102,7 @@ function test_context_menu_window()
     window = only(_cm_menus(scene))
     # At the point of the click, in the coordinates of the screen: the window is
     # at (100, 100).
-    @test (window.x, window.y) == (100 + 20, 100 + 10)
+    @test _cm_shown_place(editor, scene, window) == (100 + 20, 100 + 10)
     @test window.auto_dismiss
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # The state of the wrapper keeps what the window shows.
@@ -162,7 +166,7 @@ end
     @test count(element -> element isa WidgetSeparator, elements) == 1
     @test !first(item for item in elements if item isa WidgetMenuItem).enabled
     # The window stays where it opened.
-    @test (window.x, window.y) == (100 + x + 2, 100 + y + 2)
+    @test _cm_shown_place(editor, scene, window) == (100 + x + 2, 100 + y + 2)
     # With every layer shown, F2 changes nothing.
     _cm_send!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 1.3))
     @test state.shown == 2
@@ -266,7 +270,21 @@ end
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # With no point, the window stands below the wrapper, with the left edges
     # aligned and a gap of 2 pixels.
-    @test (window.x, window.y) == (100, 100 + height + 2)
+    @test _cm_shown_place(editor, scene, window) == (100, 100 + height + 2)
+end
+
+@testset "a menu with no room below the pointer opens above it" begin
+    editor, backend, scene = _cm_editor()
+    _cm_click!(editor, backend, :right, 20, 10, 1.0)
+    window = only(_cm_menus(scene))
+    # The backend fits the size, and writes the areas of the displays. The point
+    # is at (120, 110) on the screen.
+    window.width, window.height = 80, 60
+    scene.display_areas = [(0, 0, 500, 150)]
+    @test _cm_shown_place(editor, scene, window) == (120, 110 - 60)
+    # No room on the right: it slides left.
+    scene.display_areas = [(0, 0, 150, 150)]
+    @test _cm_shown_place(editor, scene, window) == (70, 50)
 end
 
 @testset "a list with the top placement opens at the top center of its part, and keeps its width" begin

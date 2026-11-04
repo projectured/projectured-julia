@@ -125,29 +125,39 @@ for an operation, and the backend gives no operation. A write of a fixed
 placement uses the computation that exists, needs no new event, and gives a
 person the same result.
 
-**D5: a popup names its part by a reference.** `OpenPopupOperation` holds
-`source`, the reference of its part from the input of the reader that answers it,
-in place of `x` and `y`. It gets `operation_reference` and `retarget_operation`,
-so each reader above moves the reference as it does for every operation with a
-reference; the tooltip and the right-click menu work this way now. Its
-`map_operation_position` goes. `ScreenToScreen` makes from it an
-`OpenWindowOperation` whose placement is below the part at `windows[i].content`
-and the steps of `source`. A submenu and the list of a select answer it with the
-gap that they have now.
+**D5: a popup stands at the box of its part in its window.** `OpenPopupOperation`
+keeps `x` and `y`, now the top left corner of the box of its part in the frame of
+the reader that answers it, and each reader above moves them into its own frame
+with `map_operation_position`, as now. It also holds `anchor_size`, the size of
+that box, `side` and `gap`. `ScreenToScreen` makes from it an
+`OpenWindowOperation` whose placement finds the window that answered it on the
+screen of the context, adds the place of that window to the box, and calls
+`compute_anchored_place`. So the popup follows its window when the window moves.
+A submenu and the list of a select answer it with the box of their control,
+`side = :below` and the gap that they have now.
+
+*Found before step 3:* the plan first gave `OpenPopupOperation` a reference of its
+part, in place of `x` and `y`, which each reader above would map. That drops the
+popup of a part that a view made: the kernel drops an operation whose reference has
+no place in the input of a projection (`has_introduced_step`), and omnet-julia
+makes a `WidgetSelect` in a view (`LegacyTestRunnerToWidget.jl`). The operation is
+self-contained on purpose, so it passes up through every view, and the box in the
+frame of the window keeps that.
 
 **D6: a dialog stands at the center of a window.** The button of a `WidgetDialog`
 answers `OpenPopupOperation` with the side `:center`, `style = :dialog`,
 `modal = true` and the size of now, so the dialog opens at the center of the
-window that holds the button. So `OpenPopupOperation` also holds `side`, `style`
-and `modal`. A dialog that a callback opens has no part: the Open file dialog and
-the "Filter by values" lists open with a placement at the center of the first
-window of the screen, the main window.
+window that holds the button: with `:center`, the box is the whole window. So
+`OpenPopupOperation` also holds `style` and `modal`. A dialog that a callback opens
+has no part: the Open file dialog and the "Filter by values" lists open with a
+placement at the center of the first window of the screen, the main window.
 
-**D7: the old code goes.** `map_operation_position(::OpenPopupOperation)`,
-`find_part_place`, and the place code of the backend for a popup
-(`_place_fitted_window!` and the call of `compute_window_place` from it) go. The
-rule of `compute_window_place` and `_find_display_area` moves into the helper of
-D2. The backend still centers a normal window with `x = -1`, as the main window.
+**D7: the old code goes.** `find_part_place` and the place code of the backend for
+a popup (`_place_fitted_window!` and `compute_window_place`) go. The rule of
+`compute_window_place` and `_find_display_area` is in the helper of D2.
+`map_operation_position(::OpenPopupOperation)` stays: it moves the box of a popup
+as it moves every point of an operation. The backend still centers a normal window
+with `x = -1`, as the main window.
 
 ## The steps
 
@@ -167,9 +177,19 @@ Each step is a commit, and the plan records what each step finds.
    calls of ProjecturedSDL no longer resolve. With the 78 that were stale before,
    86 of 838 pass the limit of 10%, and the precompile of ProjecturedSDL warns.
    Step 5 records the lists again.
-2. **The tooltip and the right-click menu.** Both open with a placement: beside
+2. ✅ **The tooltip and the right-click menu.** Both open with a placement: beside
    the point, else below the part. Tests: `test_tooltip()` and
    `test_context_menu_window()`, with a case at the edge of an area.
+   *Done 2026-11-04:* `test_context_menu_window` 71, `test_tooltip_window` 58,
+   `test_tooltip`, `test_tooltip_note` 44, `test_tracking_screen`,
+   `test_widget_context_menu` 20, `test_window_wrappers` 74 and
+   `test_window_placement` 41 pass. The new sets: "a menu with no room below the
+   pointer opens above it" and "a tooltip with no room below the point goes above
+   it". The reference of a part from the screen is `find_screen_reference` of the
+   screen slice, which both wrappers use. `show_window_layers` keeps the placement
+   of a window that F2 opens again. The tests read the place of a placed window
+   from the output screen, because the input window holds only the place where it
+   stands while its placement answers none.
 3. **The submenu and the list of a select.** D5. Tests: `test_widget_menu()`,
    `test_widget_select_dropdown()`, `test_widget_menu_keys()` and
    `test_window_shell()`.

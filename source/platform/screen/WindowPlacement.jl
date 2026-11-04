@@ -159,6 +159,26 @@ function find_display_area(areas, point)
 end
 
 """
+    find_screen_reference(document, reference) -> Reference | Nothing
+
+The reference of the part at `reference`, a reference from `document`, from the
+first [`ScreenDocument`](@ref) on its way, which [`find_window_part_box`](@ref)
+reads; `nothing` when the way passes no screen. A wrapper around the screen gives
+its placement the part that an operation names from the state of the wrapper.
+"""
+function find_screen_reference(document, reference)
+    reference isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    for index in 1:(length(steps) + 1)
+        document isa ScreenDocument && return extend_reference(EmptyReference(), steps[index:end]...)
+        index > length(steps) && break
+        document = try_evaluate_reference(document, extend_reference(EmptyReference(), steps[index]), nothing)
+        document === nothing && break
+    end
+    nothing
+end
+
+"""
     make_fixed_placement(x, y; minimum_size = nothing, maximum_size = nothing) -> Function
 
 The placement that puts its window at `x` and `y` with these bounds, whatever the
