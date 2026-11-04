@@ -1,6 +1,7 @@
 # A maximum is an edge that cuts
 
-> **Status:** pending. Asked for on 2026-11-03. Nothing is implemented.
+> **Status (2026-11-05):** done. Steps 1 to 9 landed on main on 2026-11-05, and the
+> change of omnet-julia (Step 9) landed on its main after it.
 
 ## 1. The request
 
@@ -629,7 +630,7 @@ Result: `test_layout_rules()` 520 pass, in 16 s with compilation and 0.2 s after
 The naming guard passes. `test_documentation()` has the six violations of main
 and no new one.
 
-### Step 9. The wide check
+### Step 9. The wide check — done
 
 `test_platform()`, `test_dataframes()` and the omnet-julia IDE tests, each
 compared with a run on main, and a precompile of omnet-julia. The tests of the
@@ -708,6 +709,16 @@ Found in this step:
   document keeps at least `document_minimum_height`, and the facts take the rest.
   Where the buttons of a task stand is part of the new design of the detail page
   (§6).
+
+Result:
+
+- The owner approved the landing ("land and cleanup"). Main had one more commit,
+  670df73a7, which lights the row of a choice list that Return chooses. Its
+  comment on `_make_choice_widgets` met `_get_choice_list_width` of this branch in
+  `WidgetChoiceList.jl`; the rebase keeps both. The branch landed on main by a
+  fast-forward.
+- omnet-julia: the commit of its four scroll areas landed on its main after the
+  branch of ProjecturEd, because it uses `grows`.
 
 ## 6. Not in this plan
 
