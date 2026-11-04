@@ -439,24 +439,38 @@ end
 # tooltip, has it moved into the screen here too (`map_operation_position`), also
 # in the answer to a routed gesture, whose point each container on the route moved
 # into the frame of its child.
-_open_popup_windows(op, window::WindowDocument) =
-    _open_popup_window(op, _wval(getfield(window, :x)), _wval(getfield(window, :y)))
+_open_popup_windows(op, window::WindowDocument) = _open_popup_window(op, window)
 _open_popup_windows(op, window) = op
 
-_open_popup_window(op, x, y) = map_operation_position(op, (px, py) -> (px + x, py + y))
-_open_popup_window(op::OpenPopupOperation, x, y) =
-    OpenWindowOperation(; id = op.id, x = x + op.x, y = y + op.y,
+_open_popup_window(op, window) =
+    map_operation_position(op, (px, py) -> (px + _wval(getfield(window, :x)),
+                                            py + _wval(getfield(window, :y))))
+# The placement of the popup reads the place of `window` where the screen prints
+# it, and while the screen holds no such window the popup stands below its box at
+# the place of now.
+function _open_popup_window(op::OpenPopupOperation, window)
+    id = window.id
+    placement = context -> begin
+        box = find_window_box(context, id)
+        box === nothing && return nothing
+        anchor = op.side === :center ? box :
+                 (x = box.x + op.x, y = box.y + op.y, width = op.anchor_size[1], height = op.anchor_size[2])
+        compute_anchored_place(context, anchor; side = op.side, gap = op.gap)
+    end
+    OpenWindowOperation(; id = op.id, x = _wval(getfield(window, :x)) + op.x,
+                          y = _wval(getfield(window, :y)) + op.y + op.anchor_size[2] + op.gap,
                           width = op.width, height = op.height,
                           maximum_size = (op.width, op.height), style = :popup,
-                          auto_dismiss = op.auto_dismiss, content = op.content)
-function _open_popup_window(op::CompoundOperation, x, y)
-    members = Any[_open_popup_window(member, x, y) for member in op.operations]
+                          auto_dismiss = op.auto_dismiss, placement, content = op.content)
+end
+function _open_popup_window(op::CompoundOperation, window)
+    members = Any[_open_popup_window(member, window) for member in op.operations]
     all(member === original for (member, original) in zip(members, op.operations)) ?
         op : CompoundOperation(members)
 end
-function _open_popup_window(op::WrappingOperation, x, y)
+function _open_popup_window(op::WrappingOperation, window)
     inner = get_wrapped_operation(op)
-    opened = _open_popup_window(inner, x, y)
+    opened = _open_popup_window(inner, window)
     opened === inner && return op
     (op isa ReplaceViewStateOperation && opened isa OpenWindowOperation) && return opened
     rewrap_operation(op, opened)

@@ -190,9 +190,18 @@ Each step is a commit, and the plan records what each step finds.
    of a window that F2 opens again. The tests read the place of a placed window
    from the output screen, because the input window holds only the place where it
    stands while its placement answers none.
-3. **The submenu and the list of a select.** D5. Tests: `test_widget_menu()`,
+3. ✅ **The submenu and the list of a select.** D5. Tests: `test_widget_menu()`,
    `test_widget_select_dropdown()`, `test_widget_menu_keys()` and
    `test_window_shell()`.
+   *Done 2026-11-04:* `test_widget_menu` 44, `test_widget_select_dropdown` 38,
+   `test_widget_menu_keys` 36, `test_widget_popup_example` 19, `test_widget_action`
+   46, `test_window_placement` 41, `test_window_shell` 149, `test_window_wrappers`
+   74 and `test_context_menu_window` 71 pass. The new set: "the list of a select
+   stands below the select, follows its window, and goes above it with no room
+   below". `map_operation_position` moves both corners of the box, so a box in a
+   zoomed pane has the size that it is drawn at; the gap stays in the pixels of the
+   window. `find_window_box` gives the box of a printed window, so a popup of a
+   placed window follows the place that the placement of that window computes.
 4. **The dialogs.** D6. Tests: `test_file_dialog()`, the dialog test of the widget
    slice, and the value list tests of the data frame and the roster.
 5. **The old code goes.** D7. The documents `popup-window.md`, `screen.md`,

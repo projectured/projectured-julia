@@ -64,7 +64,7 @@ export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_wind
        has_window_frame
 export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
        make_top_center_place, compute_anchored_place, find_display_area, make_fixed_placement,
-       find_screen_reference
+       find_screen_reference, find_window_box
 export find_part_place, write_part_picture, write_window_picture
 export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings

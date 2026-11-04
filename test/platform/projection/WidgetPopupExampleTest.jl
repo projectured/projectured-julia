@@ -53,6 +53,36 @@ end
     end
 end
 
+# ── The list follows its window, and goes above the select with no room below ──
+@testset "the list of a select stands below the select, follows its window, and goes above it with no room below" begin
+    select = WidgetSelect("Apple"; options=["Apple", "Banana", "Cherry"], width=200,
+                          position=Point2D(0, 150))
+    main   = WindowDocument(; id=:default, title="main", x=50, y=40, width=320, height=220,
+                            content=WidgetComposite(Any[select]))
+    screen = ScreenDocument([main])
+    proj   = make_widget_popup_projection_example()
+    iomap  = print_document(proj, screen)
+    read_intent(proj, nothing, Intent(WindowInput(:default, MouseClick(:left, 15, 160, ModifierKeys(); time = 0.0)),
+                                      nothing), iomap)
+    index = findfirst(w -> w isa WindowDocument && w.id === :widget_popup, collect(screen.windows))
+    @test index !== nothing
+    if index !== nothing
+        popup = iomap.output.windows[index]
+        @test is_window_placed(popup)
+        below = (popup.x, popup.y)
+        @test below[1] == 50
+        @test below[2] > 40 + 150
+        # The window moves, and the list moves with it.
+        main.x = 80
+        @test (popup.x, popup.y) == (80, below[2])
+        # The backend fits the size, and the display has no room below the select:
+        # the list goes above it.
+        screen.windows[index].height = 60
+        screen.display_areas = [(0, 0, 1000, below[2] + 30)]
+        @test popup.y < below[2] - 60
+    end
+end
+
 # ── A right click on a part with a menu answers the menu at its screen point ──
 @testset "a right click on the target answers its menu at the screen point" begin
     menu   = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy")])

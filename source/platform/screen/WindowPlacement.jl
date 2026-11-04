@@ -159,6 +159,25 @@ function find_display_area(areas, point)
 end
 
 """
+    find_window_box(context, id) -> NamedTuple | Nothing
+
+The box of the window `id` where the screen prints it, `(x = …, y = …, width = …,
+height = …)` in screen coordinates, or `nothing` when the screen holds no such
+window. A placed window stands at the place that its placement computes, so a
+popup of a placed window follows that place.
+"""
+function find_window_box(context::WindowPlacementContext, id::Symbol)
+    context.iomap === nothing && return nothing
+    screen = unwrap_cell(get_iomap_output(context.iomap))
+    screen isa ScreenDocument || return nothing
+    for window in screen.windows
+        window isa WindowDocument && window.id === id || continue
+        return (x = Int(window.x), y = Int(window.y), width = Int(window.width), height = Int(window.height))
+    end
+    nothing
+end
+
+"""
     find_screen_reference(document, reference) -> Reference | Nothing
 
 The reference of the part at `reference`, a reference from `document`, from the

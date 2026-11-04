@@ -3181,14 +3181,14 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
-# Open the item's `submenu` as a popup just below the item: a position in
-# the item's own frame, which each reader above moves into its own frame, as the
+# Open the item's `submenu` as a popup below the item: the box of the item in its
+# own frame, which each reader above moves into its own frame, as the
 # `WidgetSelect` dropdown does. The popup window takes the extent of what the
-# submenu draws; placement beyond "below" is left to anchored-layout.md.
+# submenu draws, and goes above the item when the display has no room below.
 function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=submenu))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=submenu))
 end
 
 # ── WidgetToolbarItem ───────────────────────────────────────────────────────
@@ -9895,8 +9895,8 @@ function _open_select_popup(p::WidgetSelectToGraphicsCanvas, w::WidgetSelect,
                                                  DoNothingOperation()))
                 for opt in opts]
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=WidgetMenu(items)))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=WidgetMenu(items)))
 end
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
