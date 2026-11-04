@@ -153,6 +153,22 @@ Each verb is its make function plus the apply function, so there is one code
 path for each change. The names follow `naming-rules.md` and are chosen in
 step 3.
 
+**Decided by the owner (2026-11-04): one make function for all verbs.** The
+assistant calls `make_change(verb, arguments...)` with a verb and the arguments of
+that verb, and each verb that changes a document adds one method of
+`make_change`. With the combine and the apply, the assistant gets three names, and
+the methods of `make_change` show which verbs can make a change. The question
+showed them as `make_change`, `combine_changes` and `apply_change!`:
+
+```julia
+a = make_change(close_pane!, pane_1)
+b = make_change(insert_elements!, items_1, 1, [item_1])
+apply_change!(combine_changes(a, b))     # one undo step
+```
+
+The other way, one make function for each verb, gives about 48 names, each with
+its own docstring and example.
+
 The docstring of the combine function states the order rule: the changes of a
 group are made before any of them applies, so a path by position names the
 document as it was before the group.
