@@ -1375,7 +1375,7 @@ approval of the user.
       Check: the presentation tests of omnet-julia pass; `OmnetIdeApp`
       compiles ahead; a pixel scan of an image of the IDE finds each details
       page 8 px from the edges of its tab.
-- [ ] 10. **Write the spacing documentation.** The guides say what the code
+- [x] 10. **Write the spacing documentation.** The guides say what the code
       does after steps 1 to 9. They follow
       [writing-rules.md](../../documentation/rule/writing-rules.md), and they
       name no artifact and no private repository.
@@ -1475,6 +1475,17 @@ approval of the user.
         remove finds only `part_gap` of `TooltipTheme`, which stays. Step 1
         and step 2 remove no field. The grep for the names of the private
         repositories finds only the five lines of the baseline.
+      - A check of the documents against the code finds the 35 spacing
+        values of `spacing-rules.md` equal to the defaults of `WidgetTheme`,
+        and each function and test that it names. It finds three faults,
+        which the commit "documentation: the grab area of a divider is 8 px
+        …" corrects: `widget.md` gave the grab area as 7 px, and
+        `_get_splitter_band` gives 3 px before the line, the line and 4 px
+        after it; the last line of `spacing-rules.md` said that the examples
+        of `layout-rules.md` write a number as a gap, and they read roles; the
+        terminal example did not say that it leaves out the fields of the
+        texts. `test_documentation()` after the correction: the same 7
+        failures.
 
 ## Not in this plan
 
