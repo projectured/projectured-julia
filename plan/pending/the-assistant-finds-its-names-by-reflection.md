@@ -840,7 +840,10 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   test fixes it. `test_interface_api:92` fails: "a row of widgets side by side"
   answers `jump_to_row!`, `get_table_row_count` and `get_pivot_row_count` first,
   because `jump_to_row!` carries the mark since step 3 and a word of a name ranks
-  above the words of a docstring. It waits for the owner's decision.
+  above the words of a docstring; `WidgetSplitPane` is fourth when every package
+  is loaded, and second when only the platform is. The owner agreed (2026-11-05)
+  that the test accepts the first five, as for the sentence of
+  `parse_natural_text`, and that the ranking stays as it is.
 - **The recorded precompile calls** resolve less after the landing:
   ProjecturedPlatform 1618 of 11962 no longer resolve (1233 on main before),
   and ProjecturedChart, ProjecturedDataFrames, ProjecturedSDL and the result and
@@ -926,3 +929,6 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
    owner accepted the first five for one sentence (2026-11-03): "make a document of
    a domain from its text" ranks `parse_natural_text` fourth, below `TextDocument`,
    `make_text_block` and `make_table_document`, which are makers that fit as well.
+   The same for "a row of widgets side by side" (2026-11-05): `WidgetSplitPane`
+   is fourth, below three verbs of the rows of a table, when every package is
+   loaded.

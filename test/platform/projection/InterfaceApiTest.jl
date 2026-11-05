@@ -86,9 +86,10 @@ function test_interface_api()
         @test first_hit("a button that runs the sweep again") == "WidgetButton"
         # A row and a split pane both put widgets side by side, and either is a
         # right answer. A sentence is ranked by its words here, with no model of
-        # meaning, and "row" also names the rows of a table, so the answer is among
-        # the first three.
-        first_hits(query) = first(_interface_hit_names(search_api(query; api = set.api)), 3)
+        # meaning, and "row" also names the rows of a table and the verbs that read
+        # or move them, which rank first by their names when their packages are
+        # loaded, so the answer is among the first five.
+        first_hits(query) = first(_interface_hit_names(search_api(query; api = set.api)), 5)
         @test any(in(("HorizontalLayout", "WidgetSplitPane")),
                   first_hits("a row of widgets side by side"))
         @test first_hit("a switch that is on or off") == "WidgetSwitch"
