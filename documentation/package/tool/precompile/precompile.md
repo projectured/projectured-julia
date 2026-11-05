@@ -81,7 +81,7 @@ julia --project=environment/all tool/measure-compile-ahead.jl --record --binarie
 ```
 
 The measurements that each repository takes the same way are functions of this
-package, so that omnet-julia and inet-julia measure as this repository does:
+package, so that a repository that builds on the editor measures as this one does:
 `measure_package_images(environment)` builds each image in a depot of its own
 and answers the build time and the size of each package; `measure_process_median(command)`
 runs a command in new processes and answers the median of each value that it
@@ -90,11 +90,10 @@ prints on a line `MEASUREMENT <label>: <seconds>`; and
 and the size of a binary. The command of each repository runs in an environment
 that holds this package, and each measurement runs in a new process of the
 environment of the measured checkout, so `--root=<checkout>` measures a
-checkout from before the change too. omnet-julia has
-`tool/measure-compile-ahead.jl`, which also measures the first window of
-`omnet_ide` and its gestures, and inet-julia has
-`source/tool/build/measure-compile-ahead.jl`, which measures the first run of
-the runner in place of a first frame.
+checkout from before the change too. A repository that builds on the editor
+has a command of its own that calls them; it can also measure the first window of
+its program and its gestures, or the first run of a program that has no window in
+place of a first frame.
 
 ## Tests
 
