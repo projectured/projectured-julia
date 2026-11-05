@@ -7,11 +7,13 @@
 
 # The `Reference` of a chain of steps that `walk_document(…; paths = true)`
 # answers: `()` for the root, and `parent => step` below it. Read from the deepest
-# step back to the root.
+# step back to the root. `nothing` when a step is `nothing`: the entry of a dict
+# whose key is not a name, which no path reads back.
 function _make_location_reference(location)
     path = EmptyReference()
     while location isa Pair
         step = location.second
+        step === nothing && return nothing
         head = step isa Int ? ElementReferenceStep(step) :
                               FieldReferenceStep(string(step))
         path = ConcreteReference(head, path)
@@ -35,7 +37,7 @@ function _search_places(make, ::Type{T}, root, predicate, walk::DocumentWalk, pr
     unreadable_count = 0
     for location in locations
         path = _make_location_reference(location)
-        node = try
+        node = path === nothing ? _UnreadPath() : try
             evaluate_reference(root, path)
         catch exception
             is_fault_exception(exception) || rethrow()

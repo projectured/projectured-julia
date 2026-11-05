@@ -172,8 +172,8 @@ end
 # A `FieldReferenceStep` addresses a struct field by name — OR, when the document is
 # an `AbstractDict`, a dict entry by key. A reference into a dict records the
 # entry this way (the reference grammar has no dedicated key step), so navigation
-# must follow it back. Dict keys may be stored as `String` or `Symbol`; the
-# recorded name is the `string(key)`, so try it as both. Results are cell-unwrapped.
+# must follow it back. A path records a key that is a name, a `String` or a
+# `Symbol`, by its text, so try it as both. Results are cell-unwrapped.
 function _get_field(document::AbstractDict, name)
     haskey(document, name) && return unwrap_cell(document[name])
     unwrap_cell(document[Symbol(name)])

@@ -276,7 +276,9 @@ A match is the matched object itself. With `paths = true` it is the path to the
 object instead: a chain of steps from the root, `()` for the root and
 `parent => step` below it, where `step` is the name of a field (a `Symbol`), the
 key of a dict entry (a `String`, or a `Symbol` key as it is) or a 1-based position
-(an `Int`). The reference layer turns a chain into a `Reference`.
+(an `Int`). A dict entry whose key is not a name, a symbol or a string, has the
+step `nothing`: no path reads such an entry back. The walk never prints a key. The
+reference layer turns a chain into a `Reference`.
 
 By default the results are **document-scoped**: a match on a raw scalar (a
 String / Number / Bool leaf) folds up to the nearest enclosing `Document`, so
@@ -516,12 +518,14 @@ function _walk_document!(walk::DocumentWalk, results, reported, obj, predicate, 
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
         # into the hash table's internals, whose `Memory` buffers have undefined
-        # slots. The key is the field name, which is how a dict entry is addressed.
+        # slots. A key that is a name is the field name of its entry, which is how a
+        # path addresses a dict entry. Another key names nothing that a path reads
+        # back, and its print can be as large as the key, so it gives no step.
         for key in walk.order(obj, keys(obj))
             _is_walk_stopped(results, counts) && return
             child = _read_walked(obj[key], background, counts)
             walk.descend(obj, child) || continue
-            step = key isa Symbol ? key : string(key)
+            step = key isa Symbol ? key : key isa AbstractString ? String(key) : nothing
             _walk_document!(walk, results, reported, child, predicate, _locate_walked(paths, location, step, child),
                             here, seen, depth - 1, raw, paths, enter_matches, background, counts)
         end

@@ -7,11 +7,15 @@ stands on its own without any concrete engine document.
 
 using Test
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.DocumentModule: @document, Document
+using ProjecturedKernel.DocumentModule: @document, Document, DocumentWalk, walk_document
 # `reroot_reference` is the container readers' path-prepender; the narrowing
 # tests below need the untyped nodes it produces, not a hand-built stand-in.
 using ProjecturedKernel.OperationModule: reroot_reference
 using ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
+
+# A key whose print fails: a walk prints no key.
+struct _UnprintedKey end
+Base.show(::IO, ::_UnprintedKey) = error("the walk printed a key")
 
 @document struct EvaluationLeaf
     value::Int
@@ -475,6 +479,21 @@ function test_reference_evaluation()
         @test first_step == second_step
         @test hash(first_step) == hash(second_step)
         @test length(Set([Reference(first_step), Reference(second_step)])) == 1
+    end
+
+    @testset "a walk of a dict prints no key, and a key that is not a name gives no step" begin
+        entries = Dict{Any,Any}(_UnprintedKey() => "lamp", "name" => "desk")
+        text = value -> value isa String
+        @test length(walk_document(DocumentWalk(), entries, text; raw = true)) == 2
+        steps = [location.second for location in walk_document(DocumentWalk(), entries, text;
+                                                               raw = true, paths = true)]
+        @test Set(steps) == Set(Any["name", nothing])
+        # The search answers the entry of the name, and counts the other as a place
+        # that no path reads back.
+        found = search_references(entries, text; raw = true)
+        @test length(found) == 1
+        @test evaluate_reference(entries, only(found)) == "desk"
+        @test found.limits.unreadable_count == 1
     end
 
 end
