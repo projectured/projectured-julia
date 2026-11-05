@@ -77,6 +77,7 @@ _at_click(x, y, time) =(MouseDown(:left, x, y, ModifierKeys(); time),
                          MouseUp(:left, x, y, ModifierKeys(); time = time + 0.05))
 
 function test_appearance_tab()
+    test_appearance_closed_sections()
 @testset "the appearance tab" begin
 
 measure = FixedMeasure(8, 12, 4, 0)
@@ -153,7 +154,9 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     theme = get_theme(appearance, WidgetTheme)
     get_scaled_theme!(appearance, FaultTheme)
+    appearance.open_sections = ["WidgetTheme", "FaultTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
+    _at_collect_texts(iomap.output)
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     @test tab !== nothing
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
@@ -530,4 +533,32 @@ end
 end
 
 end
+end
+
+function test_appearance_closed_sections()
+    @testset "closed appearance sections defer their controls until expansion" begin
+        appearance = Appearance()
+        get_scaled_theme!(appearance, FaultTheme)
+        projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), appearance)
+        offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
+        iomap = print_document(projection, nothing, appearance, offer)
+        _at_collect_texts(iomap.output)
+        tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+        @test isempty(tab.writes)
+        @test isempty(tab.edits)
+        card = only(card for (card, name) in tab.folds if name == "WidgetTheme")
+        toggle() = evaluate_operation(nothing,
+            ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, ToggleCollapseOperation(card)))
+        toggle()
+        @test !card.collapsed
+        @test "item gap" in first.(_at_collect_texts(iomap.output))
+        @test !isempty(tab.writes)
+        controls = Set(keys(tab.writes))
+        toggle()
+        @test card.collapsed
+        @test !("item gap" in first.(_at_collect_texts(iomap.output)))
+        toggle()
+        @test "item gap" in first.(_at_collect_texts(iomap.output))
+        @test Set(keys(tab.writes)) == controls
+    end
 end

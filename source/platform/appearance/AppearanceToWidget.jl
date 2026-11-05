@@ -313,6 +313,23 @@ end
 function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
     name = string(nameof(T))
+    appearance = controls.appearance
+    # A closed card needs only its header. Keep its controls lazy so that the tab does not build every theme editor.
+    body = Cell(@computation _make_theme_section_content(controls, theme))
+    children = CellVector(@computation(name in appearance.open_sections ? Any[body[]] : Any[]))
+    summary = strip_code_marks(compute_docstring_summary(T))
+    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
+                      description = isempty(summary) ? nothing : summary,
+                      content = VerticalLayout(children, Cell(:left), Cell(controls.theme.item_gap),
+                                               Cell(nothing), Cell(nothing), Cell(nothing)),
+                      collapsible = true, collapsed = !(name in appearance.open_sections))
+    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
+    controls.folds[card] = name
+    card
+end
+
+function _make_theme_section_content(controls, theme)
+    T = get_theme_type(theme)
     parts = Any[]
     presets = get_theme_presets(T)
     isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
@@ -339,15 +356,7 @@ function _make_theme_section(controls, theme)
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
                             vertical_gap = controls.theme.section_gap, vertical_align = :center,
                             row_gaps))
-    appearance = controls.appearance
-    summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
-                      description = isempty(summary) ? nothing : summary,
-                      content = VerticalLayout(parts; gap = controls.theme.item_gap),
-                      collapsible = true, collapsed = !(name in appearance.open_sections))
-    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
-    controls.folds[card] = name
-    card
+    VerticalLayout(parts; gap = controls.theme.item_gap)
 end
 
 # The write that opens the section of the theme type named `name` in the tab, or
