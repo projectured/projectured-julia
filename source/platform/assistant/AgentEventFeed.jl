@@ -744,11 +744,34 @@ end
 The wrapper of `build_editor` that gives the editor an [`AgentEventFeed`](@ref),
 so the events of each session of an agent and of each turn of the built-in
 assistant reach the window. It is on by default: a feed with no source asks for
-no frame.
+no frame. At the end of the loop a stop step stops the external agent of each
+open session of the feed, and waits at most 10 seconds until each agent and its
+MCP server stop, so no agent outlives its window.
 """
 function wrap_editor!(::Val{:agent_event}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.feeds, AgentEventFeed())
+    feed = AgentEventFeed()
+    push!(parts.feeds, feed)
+    push!(parts.stop_steps, _ -> _stop_feed_agents!(feed))
     parts
+end
+
+# The longest time, in seconds, that the end of a window waits for its agents to stop.
+const _AGENT_STOP_TIME = 10.0
+
+# Stop the external agent of each open session of `feed`, and wait, at most
+# `_AGENT_STOP_TIME`, until the stop of each session in the feed ends. A session that
+# stopped before, as at the close of its tab, and whose source is still in the feed,
+# is waited for too.
+function _stop_feed_agents!(feed::AgentEventFeed)
+    sessions = ExternalAgentSession[]
+    for source in copy(feed.sources)
+        source isa _TurnEventSource && continue
+        _is_agent_event_source_open(source) && stop_external_agent!(source.assistant)
+        push!(sessions, source.session)
+    end
+    timedwait(() -> all(session -> session.stop_task === nothing || istaskdone(session.stop_task),
+                        sessions), _AGENT_STOP_TIME)
+    nothing
 end
 
 get_wrapper_layers(::Val{:agent_event}) = (:screen => 20,)

@@ -697,6 +697,25 @@ function test_external_agent_turn()
             @test release_document!(nothing, Assistant()) === nothing
         end
 
+        @testset "the end of a window stops the agent of each open session, and waits for the stop" begin
+            connection = ScriptedAgentConnection([Any[]])
+            server = _SlowStopAgentServer(false)
+            a = Assistant(; backend = :acp)
+            session = ExternalAgentSession(connection; tool_server = server)
+            a.agent_session = session
+            editor = build_editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                                  window = false, tabs = false, appearance = false, settings = false)
+            # The queue of the session joins the feed of the window, as an open session does.
+            queue = AgentEventQueue()
+            session.events = queue
+            AssistantModule._register_agent_event_queue!(editor, a, session, queue)
+            foreach(step -> step(editor), editor.stop_steps)
+            @test a.agent_session === nothing && session.is_stopped
+            # The server takes a time to stop, and the end of the window waited for it.
+            @test server.is_stopped
+            @test istaskdone(session.stop_task)
+        end
+
         @testset "after a release, the next turn resumes the session" begin
             connection = ScriptedAgentConnection([
                 Any[AgentSessionInfoUpdate("Hello"), LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
@@ -884,6 +903,17 @@ end
 
 _make_agent_assistant(connection) =
     Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+
+# An MCP server of an agent that takes a time to stop.
+mutable struct _SlowStopAgentServer
+    is_stopped::Bool
+end
+
+function AgentModule.stop_agent_server!(server::_SlowStopAgentServer)
+    sleep(0.3)
+    server.is_stopped = true
+    nothing
+end
 
 # Submit `text` as a prose turn, with the assistant as its own editor, and wait
 # for the turn to end unless `wait` is false.

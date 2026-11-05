@@ -72,11 +72,34 @@ narrowest tests that cover it, and ends with a commit.
 3. [ ] **The divider of the Explorer.** Find why a drag of the divider between
    the groups builds the split of the Explorer again, and fix it so the weight
    that a drag gave the Explorer stays.
-4. [ ] **A window ends cleanly.** At the end of the loop, a stop step stops the
+   - The cause (found by experiment: a trace of each print of the Explorer, and a
+     snapshot of the cells that the build of each split pane read). The print of a
+     tabbed pane read `inner.w` and `inner.h`, which a document answers as the
+     values of its cells. The print of a slot runs inside the build cell of its
+     split (`_split_build`), so that build depended on the extent of the page of
+     each group. A press on the divider between the groups pins the sizes of the
+     slots, a page changes its extent, and the split built every slot again: each
+     group printed its content again, and the split of the Explorer started over
+     with its first weights. The read came with `c3e769c1b` (2026-11-03).
+   - The fix: the print passes the cells (`getfield(inner, :w)`), and the extent
+     reads them only in its own cells. The same read also froze the extent of a
+     tabbed pane with no slot and a minimum at the value of its first print.
+4. [x] **A window ends cleanly.** Done. At the end of the loop, a stop step stops the
    external agent of each assistant of the window and waits, a bounded time, for
    the stop of its session and of its MCP server. `stop_external_agent!` keeps the
    task of its stop, so the step can wait for it.
+   - The `AgentEventFeed` holds a source for each open session of an agent, with
+     its assistant, so the stop step of the wrapper `agent_event` needs no search
+     of the window and no new registry. The step is the form that the wrappers
+     `file_change` and `mcp_log` use for their stores. It waits at most 10 s.
+   - The test gives a session an MCP server that takes 0.3 s to stop, runs the stop
+     steps of the editor, and holds that the agent stopped and that the server
+     stopped before the steps ended (`test_external_agent_turn`, 311 of 311).
 
 ## Decisions
 
 - The rule is not changed: `show_pane!` keeps its one case.
+- `test_application` on main `fb9e8a171` fails at four places: the three of this
+  plan and "36k / 1M" (:1001): the usage of an agent draws as three words. It did
+  not fail on `2bbc18fb5`, and the layout merge `660b68779` came after; its cause
+  is not found. That fourth one is not in this plan.

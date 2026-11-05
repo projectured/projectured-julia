@@ -46,7 +46,10 @@ The live link of an assistant to its external agent:
                   end of the next prompt cancels those that nobody answered;
 - `subagent_turns` — the state of the open turn of each subagent, by its
                   `AgentWork`;
-- `prompt_end_time` — when the last prompt ended, in seconds of `time()`.
+- `prompt_end_time` — when the last prompt ended, in seconds of `time()`;
+- `stop_task`   — the task that stops the agent and its MCP server after
+                  `stop_external_agent!`, which the end of the window waits for;
+                  `nothing` before a stop.
 
 It is no data: a save does not write it, a duplicate of the assistant does not
 share it, and a walk of the documents does not enter it.
@@ -69,12 +72,13 @@ mutable struct ExternalAgentSession
     waiting_requests::Vector{Any}
     subagent_turns::IdDict{Any,Any}
     prompt_end_time::Float64
+    stop_task::Union{Nothing,Task}
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
                          false, ReentrantLock(), nothing, nothing, nothing, Any[],
-                         IdDict{Any,Any}(), -Inf)
+                         IdDict{Any,Any}(), -Inf, nothing)
 
 is_walk_opaque(::ExternalAgentSession) = true
 
@@ -609,7 +613,9 @@ Stop the external agent of `assistant` and its MCP server. The assistant keeps
 the id, the folder and the title of the session, so the next turn starts the
 agent again and resumes that session. The work that ran in the session ends: a
 background task as cancelled, a subagent as idle, and a question as cancelled.
-It does nothing for an assistant with no agent. Call it on the editor task.
+The agent and its MCP server stop on a task of their own, which `stop_task` of
+the session holds. It does nothing for an assistant with no agent. Call it on
+the editor task.
 """
 function stop_external_agent!(a::Assistant)
     session = a.agent_session
@@ -621,7 +627,7 @@ function stop_external_agent!(a::Assistant)
     a.agent_options = AgentOption[]
     a.agent_usage = nothing
     a.agent_commands = AgentCommand[]
-    errormonitor(@async begin
+    session.stop_task = errormonitor(@async begin
         _close_external_agent_session!(session)
         session.tool_server === nothing || Base.invokelatest(stop_agent_server!, session.tool_server)
     end)
