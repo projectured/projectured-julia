@@ -1190,6 +1190,9 @@ approval of the user.
         assistant examples no longer finds the cell of `option_bar_height`,
         once in each of three tests. One more -1 is not located.
         `test_dataframes` 603 and `test_research` 382, as before.
+        `test_assistant_mvp`, `test_assistant_composer_panel` and
+        `test_assistant_stream`: 301 Pass, 4 Broken, no Fail. `test_conversation`
+        (865) is a part of the platform run.
 - [ ] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
