@@ -21,7 +21,7 @@ An appearance holds one font theme, for every colour mode.
 @theme struct FontTheme
     "The family of the sans steps: every text that is not code."
     sans_family::String = "Ubuntu"
-    "The family of the mono steps: code and every text that lines up in columns."
+    "The family of the mono steps: code, and no other text."
     mono_family::String = "Ubuntu Mono"
     "The title of a page: the help page, the about page, the title of an outline."
     page_title::FontStep = FontStep(:sans, 20; weight = 500)
