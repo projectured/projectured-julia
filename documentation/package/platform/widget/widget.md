@@ -10,11 +10,11 @@ The widget slice of `ProjecturedPlatform` holds the documents of a user interfac
 
 ### The documents
 
-`WidgetDocument` is the abstract root, and 44 `@document` types subtype it:
+`WidgetDocument` is the abstract root, and 46 `@document` types subtype it:
 
 | Kind | Types |
 | --- | --- |
-| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgressBar`, `WidgetProgressRing`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
+| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetFactGroup`, `WidgetFact`, `WidgetProgressBar`, `WidgetProgressRing`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
 | Controls | `WidgetButton`, `WidgetLink`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
 | Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
 | Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetTabLabel`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
@@ -33,7 +33,7 @@ Most widgets have `visible`, a `tooltip` (a string, which is the text of a `Tool
 
 ### Drawing
 
-`WidgetToGraphics(; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage`, `WidgetTabLabel` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
+`WidgetToGraphics(; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage`, `WidgetTabLabel`, `WidgetAccordionItem` and `WidgetFact` have no rule, because the printer of the parent draws them, so the table has 43 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
 widgets    = WidgetToGraphics(; measure = FontFileMeasure())
@@ -193,6 +193,8 @@ A `WidgetText` has room around its text by default: the `control_padding` of the
 A plain value, such as a `String`, is edited too. The printer makes a `TextBlock` of one line with one run that shows the string of the value, and prints a `TextView` of that block through the recursion, as it prints a document in `content`. The `TextView` (text slice) holds the look of the text: `wrap` (the `wrap` of the widget, else no wrap) and `line_spacing` (the `line_spacing` of the widget, else single spacing). The dispatch of `WidgetToGraphics` holds one rule for it, `TextView => NestingProjection(TextViewToGraphics(), ChainingProjection(WordWrapping(; measure), TextToGraphics(; measure, theme = text_theme)))`, so every table that holds the dispatch draws the text of a widget alike, and no table gives a rule for a `TextBlock` to its widgets. `TextViewToGraphics` prints the block in a context that holds the look: it sets the line spacing and, when the view does not wrap, a free width, so `WordWrapping` keeps each line whole; a view that wraps passes on the width of the box. The caret and the selection band take the text theme `text_theme` of the dispatch. The caret of that view is the range of `content` that the widget holds, `content[i:j]`. The reader maps a caret of the view to such a range, and an edit to a `ReplaceStringRangeOperation` of the range, so the edit writes the field and the caret after it is again a range of the field. A number keeps a number: the evaluation ignores a character that can not be part of a number.
 
 `WidgetAccordion` holds the index of the open item in `expanded`, and `0` when no item is open. So one item is open at a time, and the press that opens an item closes the item that was open. A title and a body that are documents are drawn through the recursion, as `WidgetCard` draws its content: each title once, and a body while its item is open. A title or a body that is a plain value is drawn as its string. The answer of a body is re-rooted under `items[i].body`.
+
+`WidgetFactGroup` draws an optional title over rows of aligned label and value pairs, and each pair is a `WidgetFact`. It has no surface and no insets of its own, so it sits inside a card or a page. The title is a line in `title_text` of the theme (the bold font, `foreground`), and `title_gap` separates it from the first row. The labels stand in the first column in `label_text` (the normal font, `muted_foreground`), and the column is as wide as the widest label. The values stand in the second column, `form_column_gap` further right, and the rows are `form_row_gap` apart. A row is as tall as the taller of its label and its value, and both start at its top. A string or a number is drawn in `value_text` (the normal font, `foreground`) and wraps at the width that is left of the offer. A value that is a document is drawn once through the recursion, in a context bounded to that width, and the group routes a press, a dwell and the mouse target at its place to it, and re-roots the answer under `facts[i].value`.
 
 `WidgetBadge`, `WidgetSeparator`, `WidgetProgressBar`, `WidgetProgressRing`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`. A `WidgetBadge` takes its colors from its `variant`, or from its `role` when it has one: `:success`, `:warning`, `:error`, `:info` or `:accent` draws the surface of the role behind the text of the role, from the fields `<role>_surface` and `<role>_foreground` of the widget theme (the accent role uses `accent` and `accent_foreground`).
 

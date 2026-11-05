@@ -579,6 +579,11 @@ make_widget_accordion_document_example() =
         ("Is it styled?",     "Yes. It comes with default styles that match the theme."),
     ]; position = Point2D(40, 40), expanded=1)
 
+# WidgetFactGroup — a titled group of facts; the last value is a document.
+make_widget_fact_group_document_example() =
+    WidgetFactGroup(["configuration" => "Fifo1", "run" => "#0", "exit code" => "0",
+                     "state" => WidgetBadge("Done")]; title = "Run", position = Point2D(40, 40))
+
 # WidgetTable — a data table.
 make_widget_table_document_example() =
     WidgetTable(["Invoice", "Status", "Method", "Amount"],

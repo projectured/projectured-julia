@@ -117,7 +117,8 @@ end
 # the popup are left out: one needs the text domain and the other the screen
 # domain, and their colors are not the widget layer's.
 const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example,
-    make_widget_accordion_document_example, make_widget_alert_atom_document_example,
+    make_widget_accordion_document_example, make_widget_fact_group_document_example,
+    make_widget_alert_atom_document_example,
     make_widget_alert_document_example, make_widget_avatar_document_example,
     make_widget_badge_atom_document_example, make_widget_badge_document_example,
     make_widget_button_action_document_example, make_widget_button_document_example,

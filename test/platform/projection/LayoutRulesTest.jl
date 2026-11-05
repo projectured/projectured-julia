@@ -98,6 +98,8 @@ const _RULES_KINDS = Dict{Symbol,Any}(
     :WidgetOption       => "an option is a row of the popup of a select",
     :WidgetTextarea     => (() -> WidgetTextarea("text"), :rigid, :authored),
     :WidgetAccordionItem => "an accordion item is a part of an accordion",
+    :WidgetFact         => "a fact is a row of a fact group",
+    :WidgetFactGroup    => (() -> WidgetFactGroup(["Name" => "Value"]; title = "Title"), :rigid, :rigid),
     :WidgetAccordion    => (() -> WidgetAccordion(Any[("Question", "Answer")]), :rigid, :rigid),
     :WidgetTable        => (() -> WidgetTable(Any["a", "b"], Any[Any["1", "2"], Any["3", "4"]]), :scrolls, :scrolls),
     :WidgetTree         => (() -> WidgetTree(Any[WidgetTreeNode(:file, "one"), WidgetTreeNode(:file, "two")]),

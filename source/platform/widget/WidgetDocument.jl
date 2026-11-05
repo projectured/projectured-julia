@@ -2804,6 +2804,60 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible),
                     Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
+# ── WidgetFactGroup ─────────────────────────────────────────────────────────
+
+# One row of a group of facts: a `label` and a `value`. A first-class Document, so
+# the selection chain descends Document→Document into a value that is a document;
+# the group draws it, so it has no printer of its own.
+@document struct WidgetFact <: WidgetDocument
+    label::Any
+    value::Any
+    tooltip::Any = nothing
+end
+
+_as_fact(fact::WidgetFact) = fact
+_as_fact(fact::Pair) = WidgetFact(fact.first, fact.second)
+
+"""
+    WidgetFactGroup(facts; title=nothing, position, <base kwargs>)
+
+An optional title over rows of aligned label and value pairs, the facts of a task
+or of a project.
+
+Use it where a page tells what something is: its configuration, its run number,
+its exit code. The labels stand in a muted column of the width of the widest
+label, and the values stand in a column beside it. A value is a string, a number
+or a document such as a `WidgetButton`, a `WidgetBadge` or a link. A string wraps
+at the width of its column. The group has no surface of its own: it sits inside
+a card or a page, and its gaps, fonts and colors come from the theme.
+
+`facts` is a `Vector` of `label => value` pairs, or of [`WidgetFact`](@ref).
+
+# Example
+
+    open_pane!(WidgetFactGroup(["configuration" => "Fifo1", "run" => "#0", "exit code" => "0"]; title = "Run");
+               title = "Facts")
+
+See also `WidgetTable` for items of one kind in columns, and `WidgetCard` for a
+section that holds a group.
+"""
+@document struct WidgetFactGroup <: WidgetDocument
+    position::Point2D
+    title::Any
+    facts::CellVector
+    visible::Bool
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
+    style::Any
+    tooltip::Any
+end
+WidgetFactGroup(facts::Vector; title=nothing, position::Point2D=Point2D(0, 0), visible::Bool=true,
+                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetFactGroup(Cell(position), Cell(title), CellVector(Cell[Cell(_as_fact(fact)) for fact in facts]),
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip),
+                    Cell(nothing))
+
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """

@@ -11608,6 +11608,141 @@ _translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y -
 _translate_pointer_event(evt::MouseScroll, dx, dy) = shift_event_position(evt, -dx, -dy)
 _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -dx, -dy)
 
+# ── WidgetFactGroup ─────────────────────────────────────────────────────────
+
+@projection UntrackedCell struct WidgetFactGroupToGraphicsCanvas
+    measure::TextMeasure
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    title_text::StyleText         # the line over the rows
+    label_text::StyleText         # muted label column
+    value_text::StyleText         # a string or a number
+    title_gap::Int                # gap between the title and the first row
+    column_gap::Int               # gap between the label column and the value column
+    row_gap::Int
+end
+
+WidgetFactGroupToGraphicsCanvas(theme; measure,
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                title_text = _themed(StyleText, theme, _get_title_text),
+                                label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                value_text = _themed(StyleText, theme, _get_body_text),
+                                title_gap = _themed(Int, theme, t -> t.title_gap),
+                                column_gap = _themed(Int, theme, t -> t.form_column_gap),
+                                row_gap = _themed(Int, theme, t -> t.form_row_gap)) =
+    WidgetFactGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                    padding_color, content_color, title_text, label_text, value_text,
+                                    title_gap, column_gap, row_gap)
+
+# The fact `value` drawn as a string; a document is drawn through the recursion.
+_get_fact_value_string(value) = value === nothing ? "" : string(value)
+
+function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::WidgetFactGroup, ctx)
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    # The label column is as wide as the widest label. The values are offered the
+    # width that is left of the width that the group was offered, so a value that
+    # is a document breaks or sizes itself to its own column.
+    label_column = Cell(@computation begin
+        font = _get_state_text(p, w, :label).font
+        maximum((first(_text_size(p.measure, font, string(fact.label))) for fact in w.facts); init = 0)
+    end)
+    edge = ctx isa PrinterContext ? ctx.maximum_width : nothing
+    value_edge = edge === nothing ? nothing :
+                 Cell(@computation Int32(max(0, Int(edge[]) - _get_inset_total(geometry[])[1] -
+                                                label_column[] - p.column_gap)))
+    value_ctx = ctx isa PrinterContext ? with_bounded_size(ctx; width = value_edge, height = nothing) : ctx
+    values = make_reconciled_child_iomaps_cell(
+        () -> Any[fact.value for fact in w.facts],
+        (_, value) -> value isa Document ? print_child(recursion, value, value_ctx) : nothing)
+    build = Cell(@computation begin
+        box = geometry[]
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
+        title = _get_state_text(p, w, :title)
+        label = _get_state_text(p, w, :label)
+        value = _get_state_text(p, w, :value)
+        column = label_column[]
+        value_x = content_x + column + p.column_gap
+        bound = edge === nothing ? 0 : max(0, Int(edge[]) - inset_width - column - p.column_gap)
+        elements = Any[]
+        child_iomaps = Any[]
+        content_width = 0
+        y = content_y
+        if w.title !== nothing
+            title_string = string(w.title)
+            title_width, title_height = _text_size(p.measure, title.font, title_string)
+            _push_text!(elements, p.measure, title.font, title_string, content_x, y, title.color)
+            content_width = title_width; y += title_height + p.title_gap
+        end
+        value_width = 0
+        documents = values[]
+        for (i, fact) in enumerate(w.facts)
+            i > 1 && (y += p.row_gap)
+            label_string = string(fact.label)
+            _, label_height = _text_size(p.measure, label.font, label_string)
+            _push_text!(elements, p.measure, label.font, label_string, content_x, y, label.color)
+            row_height = label_height
+            if documents[i] === nothing
+                text_width, text_height = _push_text_block!(elements, p.measure, value,
+                                                            _get_fact_value_string(fact.value), value_x, y, bound)
+                value_width = max(value_width, text_width); row_height = max(row_height, text_height)
+            else
+                canvas = documents[i].output
+                push!(elements, _make_canvas(value_x, y, Any[canvas]))
+                push!(child_iomaps, (value_x, y, documents[i]))
+                value_width = max(value_width, Int(canvas.w[])); row_height = max(row_height, Int(canvas.h[]))
+            end
+            y += row_height
+        end
+        content_width = max(content_width, column + (value_width > 0 ? p.column_gap + value_width : 0))
+        group_width = _resolve_width(ctx, 0, content_width + inset_width)
+        group_height = _resolve_height(ctx, 0, y + _get_sides_outside(box, :content)[4])
+        surface = Any[]
+        _push_box_parts!(surface, box, colors, group_width - inset_width, group_height - inset_height)
+        append!(surface, elements)
+        (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps)
+    end)
+    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                        Cell(@computation build[].child_iomaps), geometry)
+end
+
+map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) =
+    _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+
+map_reference_backward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
+
+# A press, a dwell, a turn of the wheel and a move go to the value under the pointer,
+# and the answer is rooted at `facts[i].value`. A dwell and a right click then
+# read the stretch of the group (`_read_children_outward`).
+function read_intent(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    is_outward_gesture(evt) && return _read_children_outward(iomap.input, entries, evt)
+    make_event = evt isa MouseClick ? (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
+                                                           time = evt.time) :
+                 evt isa MouseDown ? (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time) :
+                 evt isa MouseUp ? (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time) :
+                 evt isa MouseScroll ? (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y) : nothing
+    make_event === nothing && return nothing
+    hit = _find_child_hit(entries, evt, make_event)
+    hit === nothing && return nothing
+    steps = _find_child_steps(iomap.input, get_iomap_input(hit[2]))
+    steps === nothing ? hit[1] : reroot_operation(hit[1], Tuple(steps))
+end
+
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
 # The single table abstraction. A table scrolls its own parts: the header row,
@@ -14122,6 +14257,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measure),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measure),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measure),
+        WidgetFactGroup   => WidgetFactGroupToGraphicsCanvas(theme; measure = measure),
         WidgetTable       => WidgetTableToGraphicsCanvas(theme; graphics_theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(theme; graphics_theme, measure = measure),
     )
@@ -14149,7 +14285,7 @@ const _PlacingWidgetProjection = Union{
     WidgetCompositeToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
     WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
     WidgetToolbarToGraphicsCanvas, WidgetCardToGraphicsCanvas,
-    WidgetMenuItemToGraphicsCanvas}
+    WidgetFactGroupToGraphicsCanvas, WidgetMenuItemToGraphicsCanvas}
 
 ProjectionModule.read_child_by_route(::_PlacingWidgetProjection, recursion, change::Intent,
                                      iomap, child) =

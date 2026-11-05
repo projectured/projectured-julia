@@ -22,7 +22,7 @@ const examples = [
     widget_progress_bar_example, widget_progress_ring_example, widget_slider_example, widget_radio_group_example,
     widget_avatar_example, widget_alert_example, widget_skeleton_example, widget_swatch_example,
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
-    widget_textarea_example, widget_accordion_example, widget_table_example,
+    widget_textarea_example, widget_accordion_example, widget_fact_group_example, widget_table_example,
     widget_table_offered_example, widget_table_frozen_example, widget_tree_example,
     widget_disabled_example, widget_focus_example,
     layout_example, constraint_layout_example,

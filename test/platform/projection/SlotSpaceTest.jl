@@ -59,7 +59,7 @@ function _ss_box_samples()
         WidgetAvatar("AB"), WidgetAlert("Alert"), WidgetSkeleton(), WidgetSwatch(color_solarized_blue),
         WidgetHighlight(), WidgetToggle("bold"), WidgetToggleGroup(Any["a", "b"]), select,
         WidgetSpinBox(3), WidgetList(Any["first", "second"]), WidgetOption(select, "a"),
-        WidgetTextarea("text"), WidgetAccordion(Any[("Title", "body")]),
+        WidgetTextarea("text"), WidgetAccordion(Any[("Title", "body")]), WidgetFactGroup(["Name" => "Value"]),
         WidgetTable(Any["a"], Any[Any["1"]]), WidgetTree(Any[WidgetTreeNode(nothing, "root")])]
 end
 
