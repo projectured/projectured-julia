@@ -403,6 +403,8 @@ const EDITOR_SYSTEM =
     "`parse_natural_text(format, text)`. `make_change` makes the change of a verb as a " *
     "value, and `apply_change!(combine_changes(changes...))` applies several changes as " *
     "one step of the undo.\n" *
+    "- NEVER read files or run programs directly in code. Read a file with the verbs of " *
+    "the editor, such as `open_file!` and `read_document_file`.\n" *
     "- Show a result in a tab: `open_pane!(document; title)` puts a document in a tab " *
     "and answers the tab, and `show_pane!(tab)` brings that tab to the front when the " *
     "person must look at it. The focus of the person stays where it is: never call " *

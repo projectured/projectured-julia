@@ -7,7 +7,8 @@ const ASSISTANT_TITLE = "Assistant"
     DEFAULT_ASSISTANT_SYSTEM
 
 The system prompt of an `Assistant` whose window gives no text of its own: what
-the editor is, the tools, and the rule against a guess. A window gives its own
+the editor is, the tools, the rule against a guess, and the rule against files and
+programs in code. A window gives its own
 text in the `system` field, with its rules, a worked example and the names that
 it offers. `McpServer` has its own, domain-free instructions
 (`DEFAULT_MCP_INSTRUCTIONS` in `source/adapter/mcp/McpServer.jl`), so the MCP
@@ -19,7 +20,7 @@ const DEFAULT_ASSISTANT_SYSTEM =
     "to the running editor. Before you write code, find the names with `search_api` and the " *
     "guides with `search_guides`, and read a guide with `read_resource`. NEVER guess a name " *
     "or a signature: search for it.\n\n" *
-    "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
+    "NEVER read files or run programs directly in code. Read a file with the verbs of the editor."
 
 """
     DEFAULT_AGENT_INSTRUCTIONS
@@ -28,9 +29,10 @@ What an external agent of the assistant gets before the text of its window: the
 agent runs inside the editor of the person, the MCP server controls that editor,
 and a request about what the editor shows goes through its tools. The session
 gets these and then the `system` of the assistant in its system prompt, so an
-agent and the built-in loop read the same text of the window. They leave out the
-rule of the built-in loop against files and shell commands, because a person can
-ask an agent for work on files.
+agent and the built-in loop read the same text of the window. The text of the
+window forbids files and programs in the code that runs in the window; these
+instructions add that the agent uses its own file and shell tools only when the
+person asks for work on files.
 """
 const DEFAULT_AGENT_INSTRUCTIONS =
     "You run inside ProjecturEd, the projectional editor built in Julia that the person uses now, " *
