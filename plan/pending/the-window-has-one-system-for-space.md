@@ -1211,6 +1211,24 @@ approval of the user.
       band after it, the band at once during a drag, and no band after the
       release and the fade; the band shows in the running editor.
 
+      How the split pane knows the divider under the pointer, chosen by the
+      user on 2026-11-05 ("Agreed", option A). Before step 8 the split pane
+      knows a divider only at a press: `active_splitter` is 0 until then, and
+      the `mouse_target` of the split names a pane, because the grab area of
+      7 px covers 3 px of each pane beside the line. So:
+      - `WidgetSplitPane` gets the view state field `splitter_under_pointer`,
+        beside `active_splitter`: the number of the divider whose grab area
+        holds the pointer, or 0.
+      - The reader of the split pane writes it with an operation
+        (`SetSplitterUnderPointerOperation(split, splitter_index)`) when a
+        pointer move or a leave changes it. The operation is view state, as
+        the drag operations are, so undo does not record it. The move still
+        goes to the pane under the pointer, so that pane keeps its hover.
+      - The print reads the field, `active_splitter` and the clock.
+      Not chosen: B, a band only during a drag, which is not the decided look;
+      C, each divider a document of its own with its own `mouse_target`, which
+      changes the children and the paths of every split pane.
+
       Step 8 is the last code step in this repository, so after it, record the
       lists of compiled calls again with `record_repository_calls!()`.
       Steps 4 to 8 change the signatures of many widget functions, and after
