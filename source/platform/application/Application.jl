@@ -435,9 +435,11 @@ const APPLICATION_SYSTEM =
     "    items_tab_1 = find_pane(\"items.json\")\n" *
     "    items_1 = get_edited_document(items_tab_1)\n" *
     "    println(print_natural_text(items_1))\n\n" *
-    "The next call changes a price, as an edit that Ctrl+Z takes back, and shows the " *
-    "records in a table in a new tab:\n\n" *
+    "The next call changes a price and adds a record at the end, as edits that Ctrl+Z " *
+    "takes back, and shows the records in a table in a new tab:\n\n" *
     "    replace_referenced_value!(items_1[2][\"price\"], parse_natural_text(:json, \"12\"))\n" *
+    "    item_1 = parse_natural_text(:json, \"\"\"{\"name\": \"lamp\", \"price\": 25}\"\"\")\n" *
+    "    insert_elements!(items_1, length(items_1) + 1, [item_1])\n" *
     "    rows_1 = sort([[item[\"name\"].value, item[\"price\"].value] for item in items_1]; by = first)\n" *
     "    table_tab_1 = open_pane!(WidgetTable([\"name\", \"price\"], rows_1); title = \"Items by name\")\n" *
     "    show_pane!(table_tab_1)\n\n" *
