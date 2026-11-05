@@ -18,8 +18,9 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   not fold;
 - the themes in three groups, each a heading over its cards: "Editor", the
   colour theme of the present mode and contrast, with a row for each role, the
-  font theme, with a row for each role of the type scale, then the widget, the text, the syntax, the reference, the graphics and the tooltip
-  themes, which every view draws with; "Tools", the other themes of
+  font theme, with a row for each role of the type scale, then the widget, the
+  text, the syntax, the reference, the graphics and the tooltip themes, which
+  every view draws with; "Tools", the other themes of
   `ProjecturedPlatform`; and "Documents", the themes of the other packages, in
   the order of their names. Every card is as wide as the pane;
 - a card for each theme, which folds to its title, and which the tab shows open
