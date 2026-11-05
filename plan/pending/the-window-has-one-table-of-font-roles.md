@@ -140,8 +140,9 @@ gets the new value; the commit names each one.
 - [ ] **Step 1. The font theme and the font role.** In `source/platform/style/`:
   add `FontTheme` with the roles of D2; change `FontRole` and `TextRole` to name
   a role of the font theme; resolve and scale a role with one rounding; add
-  `font_theme` to `Appearance`; save and load it. Remove `get_role_base` and the
-  ratio of `apply_font_role`. Tests: `ThemeTest.jl`, `ColorThemeTest.jl` as a
+  `font_theme` to `Appearance`; save and load it. The old form of `FontRole` and
+  `TextRole`, with `base` and `relative_size`, keeps working next to the new form
+  until the end of step 5, so that each step builds and passes its tests. Tests: `ThemeTest.jl`, `ColorThemeTest.jl` as a
   model for a new `FontThemeTest.jl`, `test_font_face`, the save and load test of
   the appearance.
 - [ ] **Step 2. The appearance tab.** A "Fonts" section with one row for each
@@ -175,7 +176,9 @@ gets the new value; the commit names each one.
   `document_text` at weight 500 in the text color, axis titles `column`, ticks
   `quiet`. The math typesetter keeps its script sizes, 0.7 and 0.5 of the font of
   its role, because they are a rule of the typesetting. The markers in DejaVu Sans
-  Mono become exact fonts (D4). Tests: `test_markdown()`, `test_rst()`,
+  Mono become exact fonts (D4). When no theme uses the old form any more, remove
+  it: the `base`, `family` and `relative_size` of `FontRole`, `get_role_base` and
+  the ratio of `apply_font_role`. Tests: `test_markdown()`, `test_rst()`,
   `test_book()`, `test_chart()`, `test_sequencechart()`, `test_math()` and one
   code domain, `test_json()`.
 - [ ] **Step 6. Real screens.** Draw the parts of the 19 examples of the page in
@@ -198,7 +201,19 @@ gets the new value; the commit names each one.
   `Pkg.precompile` of the omnet environment, because a change of a platform
   method breaks its precompile.
 
-## 5. Not in this plan
+## 5. Facts and decisions found in the work
+
+- **2026-11-05, before step 1.** The themes call the old form of `FontRole` and
+  `TextRole` in about 278 places. If step 1 replaced the form, no step from 1 to
+  5 would build. So the new form `FontRole(:quiet)` comes next to the old one,
+  a theme changes all its fields in one step, and step 5 removes the old form.
+- **2026-11-05.** The owner accepted the names `FontTheme`, `FontRole(:quiet)`
+  and the keyword `font_role`. A field of the font theme holds a `FontStep`: a
+  family kind, `:sans` or `:mono`, a size, a weight and a slant. The two family
+  fields of the font theme give the family of each kind, as `color_accent`
+  gives the hue of the accent ramp.
+
+## 6. Not in this plan
 
 Letter spacing, small capitals, a switch for tabular figures and a line height
 for each font in the renderer; the light face of Ubuntu.
