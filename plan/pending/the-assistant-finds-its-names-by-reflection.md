@@ -406,6 +406,12 @@ today; it gets one keyword for each part and a preset.
 Each step is done in a worktree, runs the narrowest tests that cover it, and
 ends with a commit in each repository that it changes.
 
+**Steps 1 to 4 land on main before steps 5 to 7** (the owner, 2026-11-05). Six
+new plans of the assistant start from main and use the mark, so the mark must
+be on main first. The branch was rebased on main `de6b4e95d` in projectured-julia
+and on main `f7b41c034` in omnet-julia, and landed in both, with the tests after
+the landing. Steps 5 to 7 continue on the branch from there.
+
 1. **The mark and the surface by reflection, with no change of the surface.**
    *Done (2026-11-02); the facts are in §5.1.*
    Read the mark, compute the surface, declare it. Mark the 307 names that are
