@@ -1280,10 +1280,23 @@ approval of the user.
         179963 Pass, 4 Fail, 7 Broken). The three Fail are the baseline ones
         (`CheckLayering.jl:889` and `InterfaceApiTest.jl:46` and `:49`).
         `test_task_execution` passed this time (the load was low). The new part
-        gives +62. `test_platform_examples` gives +337 (162314 to 162651): the
-        split panes of the examples draw one more rect for each divider; the
-        test walks every graphics node of each example. The other 238 parts
-        are the same. `test_dataframes` and `test_research`: 985 Pass (603 and
+        gives +62. `test_platform_examples` gives +337 (162314 to 162651).
+        The test walks every cell that the IO map of an example reaches, the
+        projections too, and a run example by example against `1801029c6`
+        names each cell:
+        - +4 in each of the 64 examples that hold the widget projection: the
+          four new fields of `WidgetSplitPaneToGraphicsCanvas`, each a cell
+          (256).
+        - +15 for each split pane that draws a band: the list element of the
+          band, the 13 cells of its `GraphicsRect` and the field
+          `splitter_under_pointer` of the split pane. `widget`,
+          `widget_split_pane` and `widget_offered` have one such split pane,
+          `pane` has two (75).
+        - +2 in `document_tree`, `work_plan` and `system_process_tree`: the new
+          theme field in `WidgetTheme` and in `ScaledWidgetTheme`, because
+          these examples hold the theme in their output (6).
+
+        The other 238 parts are the same. `test_dataframes` and `test_research`: 985 Pass (603 and
         382).
       - Images: the 44 widget images and the 135 example images are the same
         as in `step7b-after`; the window screen at 674 is the same as in
@@ -1299,8 +1312,15 @@ approval of the user.
       - The window screen with the pointer on the divider between the
         Explorer tab group and the Assistant (x = 680): after 0.8 s the band is
         at x 679 to 682, y 62 to 615, colour (121, 142, 212), and the line at
-        x = 680 is covered. The offscreen window draws a frame slowly, so after
-        a leave the fade still showed alpha 0.33 after 0.5 s and 0 after 1.5 s.
+        x = 680 is covered. A probe of the same window reads the clock time of
+        each frame and the alpha of the band, about every 12 ms: the move
+        comes at clock 8.968, the band starts at 9.270 and has alpha 1 at
+        9.375; the leave comes at 9.802 and the band has alpha 0 at 9.910. So
+        the delay is 0.3 s and each fade is 0.1 s in the loop of the window.
+        While a cell reads the clock, the wait of the loop ends after one
+        frame interval (`Feeds.jl`), so the loop draws the frames of a fade
+        with no input. An earlier script showed a slower fall because of its
+        own waits, not because of the band.
       - The compiled calls are stale after this step: a run of the window
         warns that 1732 of the 11962 calls of `ProjecturedPlatform` and 103 of
         the 838 of `ProjecturedSDL` no longer resolve. The lists are recorded
