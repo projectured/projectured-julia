@@ -201,7 +201,7 @@ This system follows Compose and Flutter in how it passes the edge space: a paren
 ## 6. How to space a new widget, a new layout or a new page
 
 1. **Read a role.** Find the space in section 3 by the rule that requires it: a padding inside an edge, a gap between children. Read it from the widget theme with `get_widget_style(widget_theme, :role)`.
-2. **Hold the role in the projection.** The projection has a field for the value, and its builder fills the field from the `widget_theme` that it takes. The terminal does it:
+2. **Hold the role in the projection.** The projection has a field for the value, and its builder fills the field from the `widget_theme` that it takes. The terminal does it. The code below shows only its gap, and leaves out the fields of its texts:
 
    ```julia
    @projection UntrackedCell struct TerminalToWidget <: Projection
@@ -221,5 +221,3 @@ A builder must not do these:
 - **A padding of its own at the root of a page.** The slot gives the space of the page (R1). A page that pads its root adds a second space.
 - **A copy of the projection for a value of one print.** `test_widget_printer_projection()` reports a call of a projection constructor inside a print in `source/platform/widget/`.
 - **A printer that reads the space and passes it one level too deep.** A box gives 0 to what it holds. `test_slot_space()` prints each widget of the dispatch as the page of a tab and as the body of a card, and checks that the space reaches the first box once.
-
-The examples in [layout-rules.md](layout-rules.md) write a number as a gap to show the size rules. A real builder writes a role there.
