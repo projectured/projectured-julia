@@ -15,8 +15,9 @@ detail in a split a person can drag.
 """
 @projection UntrackedCell struct TaskGroupDocumentToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
-    stack_gap::Int = get_task_style(nothing, :stack_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     success_color::StyleColor = get_task_style(nothing, :success_color)
     info_color::StyleColor = get_task_style(nothing, :info_color)
     warning_color::StyleColor = get_task_style(nothing, :warning_color)
@@ -122,10 +123,10 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     title = WidgetLabel(() -> getfield(doc, :title)[])
     identifier = WidgetBadge(getfield(doc, :identifier)[]; variant = :outline)
     state = _make_live_label(() -> _get_group_state(p, doc, group))
-    heading = HorizontalLayout(Any[title, identifier, state]; vertical_align = :center, gap = p.inline_gap)
+    heading = HorizontalLayout(Any[title, identifier, state]; vertical_align = :center, gap = p.label_gap)
 
     # One chip for each code that has a result, and the tasks that run and wait.
-    chips = HorizontalLayout(Any[]; vertical_align = :center, gap = p.inline_gap)
+    chips = HorizontalLayout(Any[]; vertical_align = :center, gap = p.label_gap)
     set_cell_computation!(getfield(chips.children, :elements), () -> begin
         s = get_summary()
         parts = Any[]
@@ -173,12 +174,12 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
                              values = Any["all", "running", "unexpected"],
                              target = getfield(doc, :row_filter)[], field = "value")
     row = HorizontalLayout(actions ? Any[run_all, stop, again, rows] : Any[rows];
-                           vertical_align = :center, gap = p.inline_gap)
+                           vertical_align = :center, gap = p.button_gap)
     progress = make_task_progress_bar(() -> get_summary().progress)
     preparation = _build_preparation_line(p, doc)
     lines = preparation === nothing ? Any[chips, progress, timing, words, reason, row] :
                                       Any[preparation, chips, progress, timing, words, reason, row]
-    WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.stack_gap, child_width = Fill))
+    WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill))
 end
 
 # ── The preparation ──────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ function _build_preparation_line(p, doc::TaskGroupDocument)
     preparation === nothing && return nothing
     state = _make_live_label(() -> _get_preparation_label(p, doc))
     show = _make_action_button(p, "Show", () -> select_task_document!(doc, -1); enabled = () -> true)
-    HorizontalLayout(Any[state, show]; vertical_align = :center, gap = p.inline_gap)
+    HorizontalLayout(Any[state, show]; vertical_align = :center, gap = p.label_gap)
 end
 
 # The words of the state of the preparation and their colour: muted while it
@@ -419,7 +420,7 @@ const _PLACE_WEIGHT = 6.0
 
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
-    detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    detail = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
         index = getfield(doc, :selected)[]
         index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, bounded)]
@@ -466,7 +467,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         page = WidgetButton("Open the task page"; size = p.button_size,
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
         push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
-                                      gap = p.inline_gap))
+                                      gap = p.button_gap))
         # The tree of the processes of the task while it runs, and the document
         # that the kind gives for the result, each in a place that gives it an
         # exact share of the height, between the facts and the output. The maps of
@@ -492,7 +493,7 @@ end
 # What the kind of the task says about it, one fact a line, which follows what
 # the task ended with.
 function _build_task_details(p, task, document::TaskDocument)
-    lines = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () ->
         Cell[Cell(WidgetLabel(line))
              for line in format_task_details(task, get_task_document_result(document))])
@@ -503,7 +504,7 @@ end
 # in the color of its role among the codes of its result. A task that ran once or
 # never shows none.
 function _build_earlier_executions(p, document::TaskDocument)
-    lines = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () -> begin
         earlier = get_earlier_task_executions(document)
         isempty(earlier) && return Cell[]
@@ -709,7 +710,7 @@ end
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
     bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
     (parts, detail) = _build_group_parts(p, doc, bounded)
-    root = VerticalLayout(parts; horizontal_align = :left, gap = p.stack_gap)
+    root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
     forward_mouse_target = () -> map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path))
@@ -1024,8 +1025,9 @@ leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
-    stack_gap::Int = get_task_style(nothing, :stack_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     success_color::StyleColor = get_task_style(nothing, :success_color)
     info_color::StyleColor = get_task_style(nothing, :info_color)
     warning_color::StyleColor = get_task_style(nothing, :warning_color)
@@ -1080,7 +1082,7 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
         WidgetLabel(() -> string(round(Int, 100 * get_task_group_document_summary(doc).progress), "%")),
         WidgetLabel(() -> (e = get_task_group_document_summary(doc).elapsed; e === nothing ? "" : _format_duration(e))),
         HorizontalLayout(Any[stop_button, again_button, close_button]; vertical_align = :center,
-                         gap = p.inline_gap)]
+                         gap = p.button_gap)]
 end
 
 # The row of another work item: its identifier, its title as a link to its page,
@@ -1102,7 +1104,7 @@ function _build_list_row(p, list::TaskGroupList, item, index::Int)
         WidgetLabel(() -> get_document_decoration(item).detail),
         WidgetLabel(""),
         WidgetLabel(""),
-        HorizontalLayout(Any[stop_button, close_button]; vertical_align = :center, gap = p.inline_gap)]
+        HorizontalLayout(Any[stop_button, close_button]; vertical_align = :center, gap = p.button_gap)]
 end
 
 # The word of the state of a work item and its color: the first condition of its
@@ -1149,7 +1151,7 @@ function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroup
         Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
     end)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
-                          horizontal_align = :left, gap = p.stack_gap)
+                          horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
     follow_output_mouse_target!(root, () ->
         map_mouse_target_forward(list, path -> map_reference_forward(p, iomap, path)))
@@ -1159,26 +1161,26 @@ end
 # ── A closed group ───────────────────────────────────────────────────────────
 
 """
-    ClosedTaskGroupToWidgetPane(; stack_gap, inline_gap, muted_color)
+    ClosedTaskGroupToWidgetPane(; section_gap, label_gap, muted_color)
 
 Draw a [`ClosedTaskGroup`](@ref) as its page: the title and the identifier of the
 group, that it closed, and the line that sums it up. A path that named the group
 names this page, and never another group.
 """
 @projection UntrackedCell struct ClosedTaskGroupToWidgetPane <: Projection
-    stack_gap::Int = get_task_style(nothing, :stack_gap)
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
 
 function print_document(p::ClosedTaskGroupToWidgetPane, recursion, group::ClosedTaskGroup, ctx)
     heading = HorizontalLayout(Any[WidgetLabel(getfield(group, :title)[]),
                                    WidgetBadge(getfield(group, :identifier)[]; variant = :outline)];
-                               vertical_align = :center, gap = p.inline_gap)
+                               vertical_align = :center, gap = p.label_gap)
     lines = VerticalLayout(Any[_make_label("This group is closed. Its tasks and their output are gone.", p.muted_color),
-                               WidgetLabel(getfield(group, :summary)[])]; gap = p.stack_gap, child_width = Fill)
+                               WidgetLabel(getfield(group, :summary)[])]; gap = p.section_gap, child_width = Fill)
     root = VerticalLayout(Any[WidgetCard(; title = heading, content = lines)]; horizontal_align = :left,
-                          gap = p.stack_gap)
+                          gap = p.section_gap)
     ChildrenIoMap(p, group, root, Cell(Any[]))
 end
 
@@ -1200,8 +1202,10 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     measured = measure === nothing ? FontFileMeasure() : measure
     theme = get_scaled_theme!(appearance, TaskTheme)
     get_style(name) = get_task_style(theme, name)
-    styles = (button_size = get_style(:button_size), inline_gap = get_style(:inline_gap),
-              stack_gap = get_style(:stack_gap), success_color = get_style(:success_color),
+    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
+    styles = (button_size = get_style(:button_size), label_gap = get_widget_style(widget_theme, :label_gap),
+              button_gap = get_widget_style(widget_theme, :button_gap),
+              section_gap = get_widget_style(widget_theme, :section_gap), success_color = get_style(:success_color),
               info_color = get_style(:info_color), warning_color = get_style(:warning_color),
               error_color = get_style(:error_color), running_color = get_style(:running_color),
               muted_color = get_style(:muted_color))
@@ -1210,7 +1214,6 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     documents = Pair{Type,Any}[type => Base.invokelatest(make_graphics_projection, type;
                                                          measure = measured, appearance = appearance)
                                for type in collect_graphics_projection_types()]
-    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     make_widget_rows() = WidgetToGraphics(; measure = measured, theme = widget_theme,
                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
                                           text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch
@@ -1220,7 +1223,7 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     # The table of a group is the arrangement of a roster, which draws its rows with
     # the cells of the pane before the natural rows.
     tables = Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
-                            ArrangementChips => ArrangementChipsToGraphics(),
+                            ArrangementChips => ArrangementChipsToGraphics(; gap = get_widget_style(widget_theme, :item_gap)),
                             CellVector{ArrangementGroupRow} => ChainingProjection(ArrangementGroupRowsToWidget(),
                                                                                   GridLayoutToGraphicsCanvas()),
                             Roster => RosterToGraphics(),
@@ -1237,7 +1240,7 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     table = last(only(row for row in make_widget_rows() if first(row) === WidgetTable))
     row_step = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measured, "M", widget_theme.font).height) +
                                                2 * Int(table.cell_padding.top[]) + 1)
-    lines = TaskStreamLinesToWidget(; row_step, inline_gap = styles.inline_gap, warning_color = styles.warning_color,
+    lines = TaskStreamLinesToWidget(; row_step, label_gap = styles.label_gap, warning_color = styles.warning_color,
                                     error_color = styles.error_color, info_color = styles.info_color,
                                     running_color = styles.running_color, muted_color = styles.muted_color)
     stream_widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -1246,12 +1249,12 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     Pair{Type,Any}[
         TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
-        ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; stack_gap = styles.stack_gap,
-                                                  inline_gap = styles.inline_gap, muted_color = styles.muted_color),
+        ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; section_gap = styles.section_gap,
+                                                  label_gap = styles.label_gap, muted_color = styles.muted_color),
                                               widgets()),
         TaskDocument => ChainingProjection(TaskDocumentToWidgetPane(; styles...), widgets()),
-        ACTaskExecution => ChainingProjection(TaskExecutionToWidgetPane(; styles...), widgets()),
-        TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.stack_gap), stream_widgets())]
+        ACTaskExecution => ChainingProjection(TaskExecutionToWidgetPane(; Base.structdiff(styles, (button_gap = 0,))...), widgets()),
+        TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.section_gap), stream_widgets())]
 end
 
 function __init__()

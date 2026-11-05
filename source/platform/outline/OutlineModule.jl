@@ -26,7 +26,7 @@ using ..ToolModule
 using ..TooltipModule
 using ..WidgetModule
 
-export OutlineTheme, ScaledOutlineTheme
+export OutlineTheme, ScaledOutlineTheme, make_outline_values_field
 export compute_shown_dates
 export OutlineSlot, map_outline_forward, map_outline_backward, route_outline_paths!
 export make_outline_label, make_outline_text, make_outline_chip, make_outline_mark, make_outline_control,

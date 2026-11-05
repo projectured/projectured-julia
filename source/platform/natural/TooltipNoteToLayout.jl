@@ -1,7 +1,7 @@
 # Fragment of `NaturalModule` — the natural drawing of a tooltip note.
 
 """
-    TooltipNoteToVerticalLayout(; theme = nothing)
+    TooltipNoteToVerticalLayout(; theme = nothing, widget_theme = nothing)
 
 A [`TooltipNote`](@ref) as a column that the natural projection draws: the title,
 in bold, with the key caps after it, then the code, the text, the facts as a grid
@@ -13,15 +13,18 @@ re-enters the natural projection in its own domain, and the string of a code, a
 text or a hint breaks its lines at the edge of the window. A note is read, never edited, so the column maps no
 reference of its own.
 
-The texts, the colors and the gaps are those of `theme`, a `TooltipTheme` scaled
-or not, or of the default theme.
+The texts and the colors are those of `theme`, a `TooltipTheme`. The gaps and the
+padding are roles of `widget_theme`, a `WidgetTheme`: `title_gap` between the parts
+of a note, `form_column_gap` between the name and the value of a fact and before the
+key caps, `line_gap` between two facts, `item_gap` between two key caps and
+`compact_padding` inside a key cap. Each theme is scaled or not, or the default
+theme.
 """
-# Each field is a value of a `TooltipTheme`: a value, or a cell that reads the
+# Each field is a value of a `TooltipTheme` or a `WidgetTheme`: a value, or a cell that reads the
 # theme. The drawing reads them when it prints, so a change of the appearance
 # shows at the next tooltip.
 struct TooltipNoteToVerticalLayout <: Projection
-    gap::Any
-    section_gap::Any
+    title_gap::Any
     title_text::Any
     body_text::Any
     muted_text::Any
@@ -29,12 +32,11 @@ struct TooltipNoteToVerticalLayout <: Projection
     key_text::Any
     key_fill::Any
     key_line::Any
-    key_padding::Any
-    key_gap::Any
+    compact_padding::Any
+    item_gap::Any
     line_width::Any
-    head_gap::Any
-    fact_gap::Any
-    fact_row_gap::Any
+    form_column_gap::Any
+    line_gap::Any
     warning_mark::Any
     error_mark::Any
     success_mark::Any
@@ -43,13 +45,14 @@ struct TooltipNoteToVerticalLayout <: Projection
     quiet_mark::Any
 end
 
-function TooltipNoteToVerticalLayout(; theme = nothing)
+function TooltipNoteToVerticalLayout(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_tooltip_style(theme, name)
-    TooltipNoteToVerticalLayout(get_style(:gap), get_style(:section_gap), get_style(:title_text), get_style(:body_text),
+    get_role(name) = get_widget_style(widget_theme, name)
+    TooltipNoteToVerticalLayout(get_role(:title_gap), get_style(:title_text), get_style(:body_text),
                                 get_style(:muted_text), get_style(:value_text), get_style(:key_text),
-                                get_style(:key_fill), get_style(:key_line), get_style(:key_padding),
-                                get_style(:key_gap), get_style(:line_width), get_style(:head_gap),
-                                get_style(:fact_gap), get_style(:fact_row_gap), get_style(:warning_mark),
+                                get_style(:key_fill), get_style(:key_line), get_role(:compact_padding),
+                                get_role(:item_gap), get_style(:line_width), get_role(:form_column_gap),
+                                get_role(:line_gap), get_style(:warning_mark),
                                 get_style(:error_mark), get_style(:success_mark), get_style(:info_mark),
                                 get_style(:accent_mark), get_style(:quiet_mark))
 end
@@ -60,12 +63,12 @@ function print_document(p::TooltipNoteToVerticalLayout, recursion, note::Tooltip
                                     _make_note_prose(note.text, unwrap_cell(p.body_text)))
                   if part !== nothing]
     isempty(opening) || push!(sections, length(opening) == 1 ? only(opening) :
-                                        VerticalLayout(opening; gap = unwrap_cell(p.gap)))
+                                        VerticalLayout(opening; gap = unwrap_cell(p.title_gap)))
     facts = _make_note_facts(p, note.facts)
     facts === nothing || push!(sections, facts)
     hint = _make_note_prose(note.hint, unwrap_cell(p.muted_text))
     hint === nothing || push!(sections, hint)
-    SimpleIoMap(p, note, VerticalLayout(sections; gap = unwrap_cell(p.section_gap)))
+    SimpleIoMap(p, note, VerticalLayout(sections; gap = unwrap_cell(p.title_gap)))
 end
 
 # The first line of a note: the mark of its tone, its title and its key caps, or
@@ -84,9 +87,9 @@ function _make_note_head(p::TooltipNoteToVerticalLayout, note::TooltipNote)
     isempty(named) && keys === nothing && return nothing
     parts = Any[]
     isempty(named) || push!(parts, length(named) == 1 ? only(named) :
-                                   HorizontalLayout(named; gap = unwrap_cell(p.gap), vertical_align = :center))
+                                   HorizontalLayout(named; gap = unwrap_cell(p.title_gap), vertical_align = :center))
     keys === nothing || push!(parts, keys)
-    length(parts) == 1 ? only(parts) : HorizontalLayout(parts; gap = unwrap_cell(p.head_gap), vertical_align = :center)
+    length(parts) == 1 ? only(parts) : HorizontalLayout(parts; gap = unwrap_cell(p.form_column_gap), vertical_align = :center)
 end
 
 # The mark of a tone: the glyph of a warning, in the color of a warning or of an
@@ -101,7 +104,7 @@ end
 # two keys; `nothing` for no key.
 function _make_key_caps(p::TooltipNoteToVerticalLayout, keys)
     isempty(keys) && return nothing
-    gap = unwrap_cell(p.key_gap)
+    gap = unwrap_cell(p.item_gap)
     groups = Any[]
     for (index, key) in enumerate(keys)
         index > 1 && push!(groups, WidgetLabel("or"; text_style = unwrap_cell(p.muted_text)))
@@ -115,7 +118,7 @@ function _make_key_cap(p::TooltipNoteToVerticalLayout, name::AbstractString)
     width = unwrap_cell(p.line_width)
     fill = unwrap_cell(p.key_fill)
     WidgetLabel(name; text_style = unwrap_cell(p.key_text), border = Inset(width, width, width, width),
-                padding = unwrap_cell(p.key_padding),
+                padding = unwrap_cell(p.compact_padding),
                 style = WidgetStyle(border_color = unwrap_cell(p.key_line), padding_color = fill, content_color = fill))
 end
 
@@ -144,7 +147,7 @@ function _make_note_facts(p::TooltipNoteToVerticalLayout, facts)
     for fact in facts
         append!(cells, _make_fact_cells(p, fact))
     end
-    GridLayout(cells, 2; horizontal_gap = unwrap_cell(p.fact_gap), vertical_gap = unwrap_cell(p.fact_row_gap))
+    GridLayout(cells, 2; horizontal_gap = unwrap_cell(p.form_column_gap), vertical_gap = unwrap_cell(p.line_gap))
 end
 
 # A fact as its two cells: the name in the quiet text, and the value in the text
@@ -165,7 +168,7 @@ function _make_fact_cells(p::TooltipNoteToVerticalLayout, condition::DocumentCon
     words = WidgetLabel(look.words; text_style = unwrap_cell(p.body_text))
     count = WidgetLabel(condition.count === nothing ? "" : string(condition.count);
                         text_style = unwrap_cell(p.value_text))
-    Any[HorizontalLayout(Any[mark, words]; gap = unwrap_cell(p.gap), vertical_align = :center), count]
+    Any[HorizontalLayout(Any[mark, words]; gap = unwrap_cell(p.title_gap), vertical_align = :center), count]
 end
 
 # The text of the mark of a role: one of `:error`, `:warning`, `:success`,

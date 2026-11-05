@@ -208,7 +208,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                 defaults = IdDict{Any,Any}())
     groups = Any[HorizontalLayout(Any[button("Save", SaveAppearanceOperation(appearance)),
                                       button("Load", LoadAppearanceOperation(appearance))];
-                                  gap = theme.label_gap),
+                                  gap = theme.button_gap),
                  _make_scale_card(controls), _make_color_settings_card(controls)]
     heading = StyleText(theme.font_bold, theme.muted_foreground)
     for (title, themes) in _get_theme_groups(appearance)

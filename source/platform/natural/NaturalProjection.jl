@@ -167,7 +167,7 @@ function NaturalToGraphics(; measure::TextMeasure,
         # A document that a person arranged prints its document with the
         # arrangement in the context, through this renderer.
         Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
-                       ArrangementChips => ArrangementChipsToGraphics(),
+                       ArrangementChips => ArrangementChipsToGraphics(; gap = get_widget_style(widget_theme, :item_gap)),
                        CellVector{ArrangementGroupRow} => ChainingProjection(ArrangementGroupRowsToWidget(),
                                                                              GridLayoutToGraphicsCanvas())],
         # layouts before widgets: a WidgetTable builds a GridLayout
@@ -215,10 +215,10 @@ function NaturalToGraphics(; measure::TextMeasure,
                                                  stack()),
             # A tooltip window: a column of what the parts say, each in its own
             # domain, in a frame.
-            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = tooltip_theme),
+            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = tooltip_theme, widget_theme),
                                                  stack()),
             # What a part says about itself in a tooltip, piece by piece.
-            TooltipNote     => ChainingProjection(TooltipNoteToVerticalLayout(; theme = tooltip_theme),
+            TooltipNote     => ChainingProjection(TooltipNoteToVerticalLayout(; theme = tooltip_theme, widget_theme),
                                                  stack()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package

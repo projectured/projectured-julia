@@ -6,8 +6,9 @@
 
 The place, the size and the frame of the tooltip window: its offset from the
 point where the pointer rested, its gap below a part, its least and largest
-size, the surface, the line, the padding and the texts of the frame around what
-it says, and the texts, the key caps and the gaps of a note.
+size, the surface, the line and the texts of the frame around what it says, and
+the texts and the key caps of a note. The padding and the gaps of the frame and of
+a note are roles of the widget theme.
 
 The theme of `TooltipWindowProjection`, for the place and the size, and of the
 natural drawing of a `TooltipContent` and a `TooltipNote`, for the frame and the
@@ -33,12 +34,6 @@ change of the appearance shows at the next tooltip.
     line::ThemeColor = ColorRole(:border_strong)
     "The width of the line around the window."
     line_width::LineWidth = LineWidth(1)
-    "The space between the line and what the window says."
-    padding::Spacing = Spacing(Inset(8, 8, 12, 12))
-    "The gap between two layers that the window shows, and between the title and the text of a note."
-    gap::Spacing = Spacing(6)
-    "The gap between the parts of a note: its title and text, its facts, and its hint."
-    section_gap::Spacing = Spacing(10)
     "The title of a layer of a part around, and the line that names the keys of the layers."
     layer_text::ThemeText = TextRole(:text_faint; relative_size = 0.9)
     "The title of a note: the name of the part."
@@ -55,16 +50,6 @@ change of the appearance shows at the next tooltip.
     key_fill::ThemeColor = ColorRole(:surface_sunken)
     "The line around a key cap."
     key_line::ThemeColor = ColorRole(:border)
-    "The space between the line of a key cap and the name of its key."
-    key_padding::Spacing = Spacing(Inset(1, 1, 5, 5))
-    "The gap between two key caps."
-    key_gap::Spacing = Spacing(3)
-    "The gap between the title of a note and its key caps."
-    head_gap::Spacing = Spacing(16)
-    "The gap between the name and the value of a fact."
-    fact_gap::Spacing = Spacing(14)
-    "The gap between two facts."
-    fact_row_gap::Spacing = Spacing(2)
     "The mark before the title of a note with the tone of a warning: a glyph of the icon font."
     warning_mark::ThemeText = TextRole(:warning_text; family = "Lucide")
     "The mark before the title of a note with the tone of an error: a glyph of the icon font."

@@ -152,6 +152,7 @@ function _make_gesture_log_panel(projection, options, appearance)
     log = GestureLog(; capacity = get(options, :lines, 8))
     theme = appearance isa Appearance ? make_scaled_theme(make_gesture_log_panel_theme(), appearance) :
                                         make_gesture_log_panel_theme()
+    widget_theme = appearance isa Appearance ? get_scaled_theme!(appearance, WidgetTheme) : nothing
     content = make_gesture_log_content_projection(; measure = get(options, :measure, FontFileMeasure()),
                                                     operation_width = get(options, :operation_width, 60),
                                                     theme)
@@ -160,7 +161,7 @@ function _make_gesture_log_panel(projection, options, appearance)
     GestureLogRecordingProjection(inner = GestureLogOverlayProjection(; inner = projection, log = log,
                                                                       content = content,
                                                                       anchor = get(options, :anchor, :bottom_right),
-                                                                      theme, background...),
+                                                                      theme, widget_theme, background...),
                                   log = log, fold_typing = true)
 end
 

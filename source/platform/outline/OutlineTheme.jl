@@ -14,6 +14,11 @@ theme.
 `@theme` declares it, so `ScaledOutlineTheme` holds each value times its scale,
 and `OutlineTheme()` is the default theme. A builder of the outline slice takes
 its values with `get_outline_style`, from a theme scaled or not.
+
+The gaps and the padding of a row are roles of the widget theme:
+`tree_row_padding` around the parts of a row, `item_gap` between the facts of a
+line, `button_gap` between two buttons and `section_gap` between two sections. [`make_outline_values_field`](@ref)
+gives them with the values of this theme.
 """
 @theme struct OutlineTheme
     "The font that the texts of an outline follow: its family, its weight and its size."
@@ -62,16 +67,10 @@ its values with `get_outline_style`, from a theme scaled or not.
     fold_size::IconSize = IconSize(12)
     "The size of the avatar of an author."
     avatar_size::IconSize = IconSize(14)
-    "The space around the parts of a row, inside its ground."
-    row_padding::Spacing = Spacing(Inset(3, 3, 6, 6))
     "The gap between the columns of a row."
     column_gap::Spacing = Spacing(8)
-    "The gap between the facts on a line of the column of the facts, and between a word and its value."
-    meta_gap::Spacing = Spacing(4)
     "The space inside a chip, around its id."
     chip_padding::Spacing = Spacing(Inset(1, 1, 5, 5))
-    "The gap between two sections."
-    section_gap::Spacing = Spacing(14)
     "The step of the indent of a row of a tree."
     indent::Spacing = Spacing(30)
     "The width of a guide line of a tree."
@@ -86,4 +85,27 @@ its values with `get_outline_style`, from a theme scaled or not.
     radius::Radius = Radius(6)
     "The roundness of a chip."
     chip_radius::Radius = Radius(4)
+end
+
+"""
+    make_outline_values_field(outline_theme, widget_theme) -> NamedTuple or UntrackedCell{NamedTuple}
+
+The `outline` that a builder of the outline slice takes: every value of the
+`OutlineTheme` `outline_theme`, and the roles `tree_row_padding`, `item_gap`,
+`button_gap` and `section_gap` of the `WidgetTheme` `widget_theme`. Each theme is scaled or not, or
+the default theme for `nothing`. With no theme it is the plain values of the
+default themes; with a theme it is a cell that reads the values at each read, as
+[`make_theme_values_field`](@ref) does.
+"""
+function make_outline_values_field(outline_theme, widget_theme)
+    names = get_theme_field_names(OutlineTheme)
+    get_values(theme, type) = theme === nothing ? get_theme_defaults(type) : get_theme_values(theme)
+    make_values(outline, widget) =
+        merge(NamedTuple{names}(Tuple(getproperty(outline, name) for name in names)),
+              (; tree_row_padding = widget.tree_row_padding, item_gap = widget.item_gap,
+                 button_gap = widget.button_gap, section_gap = widget.section_gap))
+    outline_theme === nothing && widget_theme === nothing &&
+        return make_values(get_theme_defaults(OutlineTheme), get_theme_defaults(WidgetTheme))
+    UntrackedCell{NamedTuple}(Computation(() -> make_values(get_values(outline_theme, OutlineTheme),
+                                                           get_values(widget_theme, WidgetTheme))))
 end

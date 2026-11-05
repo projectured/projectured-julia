@@ -68,7 +68,7 @@ draws the bar at the thickness of its widget theme.
     expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
     find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
     header_gap::Int = get_widget_style(nothing, :header_gap)
-    expression_gap::Int = get_data_frame_style(nothing, :expression_gap)
+    item_gap::Int = get_widget_style(nothing, :item_gap)
     invalid_filter::StyleColor = get_widget_style(nothing, :invalid_filter)
     unsorted_glyph::StyleColor = get_widget_style(nothing, :unsorted_glyph)
     list_column_width::Int = get_data_frame_style(nothing, :list_column_width)
@@ -361,8 +361,8 @@ of `appearance`. The height of a row is a line of the font of that theme, and
 its step adds the padding of a cell of the theme and a rule, and the scroll bar
 of the table takes the thickness of that theme; all three read the scaled
 theme at each print, with no edge, as a style field of a widget does. The filter
-row draws with the scaled `WidgetTheme` and the expression bar with the scaled
-`DataFrameTheme` of `appearance`.
+row and the gaps of the expression bar draw with the scaled `WidgetTheme` and the
+width of its fields with the scaled `DataFrameTheme` of `appearance`.
 """
 function make_data_frame_view_projection(; measure::TextMeasure,
                                          appearance::Appearance = Appearance())
@@ -378,7 +378,7 @@ function make_data_frame_view_projection(; measure::TextMeasure,
                                  header_field_minimum_width = get_widget_style(theme, :header_field_minimum_width),
                                  expression_field_width = get_style(:expression_field_width),
                                  find_field_width = get_style(:find_field_width),
-                                 header_gap = get_widget_style(theme, :header_gap), expression_gap = get_style(:expression_gap),
+                                 header_gap = get_widget_style(theme, :header_gap), item_gap = get_widget_style(theme, :item_gap),
                                  invalid_filter = get_widget_style(theme, :invalid_filter),
                                  unsorted_glyph = get_widget_style(theme, :unsorted_glyph),
                                  list_column_width = get_style(:list_column_width))

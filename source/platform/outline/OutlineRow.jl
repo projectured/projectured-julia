@@ -130,7 +130,7 @@ make_outline_facts(outline, lines) =
     VerticalLayout(Any[_make_outline_line(outline, line) for line in lines])
 
 _make_outline_line(outline, parts) =
-    LayoutConstraint(HorizontalLayout(collect(Any, parts); gap = outline.meta_gap, vertical_align = :center);
+    LayoutConstraint(HorizontalLayout(collect(Any, parts); gap = outline.item_gap, vertical_align = :center);
                      height = Fixed(outline.text_line))
 
 """
@@ -143,7 +143,7 @@ lines stand on one baseline.
 make_outline_field(outline, word::AbstractString, value) =
     HorizontalLayout(Any[make_outline_label(outline, word, :word_text; line = :field_line),
                          LayoutConstraint(value; width = Fill)];
-                     gap = outline.meta_gap, vertical_align = :top)
+                     gap = outline.item_gap, vertical_align = :top)
 
 """
     make_outline_relations(outline, groups) -> FlowLayout
@@ -159,7 +159,7 @@ function make_outline_relations(outline, groups)
         push!(parts, make_outline_label(outline, word, :relation_text))
         append!(parts, chips)
     end
-    FlowLayout(parts; horizontal_gap = outline.meta_gap, vertical_align = :center)
+    FlowLayout(parts; horizontal_gap = outline.item_gap, vertical_align = :center)
 end
 
 """
@@ -176,7 +176,7 @@ pointer, and the "⋯", a right click and Shift+F10 open the menu.
 function make_outline_section(outline, title::AbstractString; compute_menu = nothing)
     label = WidgetLabel(uppercase(title); text_style = outline.section_text, margin = inset_default,
                         border = inset_default,
-                        padding = Inset(outline.section_gap, outline.meta_gap, outline.row_padding.left[], 0))
+                        padding = Inset(outline.section_gap, outline.item_gap, outline.tree_row_padding.left[], 0))
     compute_menu === nothing && return label
     name = "The menu of " * title
     control = make_outline_control(outline, :ellipsis, name, () -> make_outline_menu_operation(title, compute_menu);
@@ -186,7 +186,7 @@ function make_outline_section(outline, title::AbstractString; compute_menu = not
     header = WidgetCard(; variant = :row,
                         content = HorizontalLayout(columns; gap = outline.column_gap, vertical_align = :bottom),
                         margin = inset_default, border = inset_default,
-                        padding = Inset(0, 0, 0, outline.row_padding.right[]),
+                        padding = Inset(0, 0, 0, outline.tree_row_padding.right[]),
                         gestures = _make_row_menu_bindings(title, compute_menu))
     _reveal_in_row!(control, header)
     header
@@ -249,7 +249,7 @@ function make_outline_row(outline; facts, body, menu = nothing, indent::Integer 
     gestures = vcat(gestures, collect(GestureBinding, keys))
     row = WidgetCard(; variant = :row,
                      content = HorizontalLayout(columns; gap = outline.column_gap, vertical_align = :top),
-                     margin = Inset(0, 0, indent, 0), border = inset_default, padding = outline.row_padding,
+                     margin = Inset(0, 0, indent, 0), border = inset_default, padding = outline.tree_row_padding,
                      gestures)
     for control in revealed
         _reveal_in_row!(control, row)
@@ -273,7 +273,7 @@ function make_outline_card(outline; content, revealed = (), title = nothing, com
     gestures = compute_menu === nothing ? GestureBinding[] :
                _make_row_menu_bindings(something(title, "the record"), compute_menu)
     card = WidgetCard(; variant = :row, content, width, margin = inset_default, border = inset_default,
-                      padding = outline.row_padding, gestures = vcat(gestures, collect(GestureBinding, keys)))
+                      padding = outline.tree_row_padding, gestures = vcat(gestures, collect(GestureBinding, keys)))
     for control in revealed
         _reveal_in_row!(control, card)
     end

@@ -107,7 +107,7 @@ function make_outline_element(outline; content, menu = nothing, revealed = ())
                        padding = outline.inset_padding)
     parts = Any[LayoutConstraint(inset; width = Fill)]
     menu === nothing || push!(parts, menu)
-    block = WidgetCard(; variant = :row, content = HorizontalLayout(parts; gap = outline.meta_gap, vertical_align = :top),
+    block = WidgetCard(; variant = :row, content = HorizontalLayout(parts; gap = outline.item_gap, vertical_align = :top),
                        margin = inset_default, border = inset_default, padding = inset_default)
     for control in revealed
         _reveal_in_row!(control, block)

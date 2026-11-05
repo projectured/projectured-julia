@@ -40,18 +40,18 @@ the `settings` wrapper turns it into an applied setting.
 """
 struct SettingsToWidget <: Projection
     caption::Any        # the style of a summary and a description: a `StyleText` or a cell of one
-    label_gap::Any      # between the buttons under the cards: a number or a cell of one
+    button_gap::Any     # between the buttons under the cards: a number or a cell of one
     section_gap::Any    # between the cards
     column_gap::Any     # between the columns of a card
     row_gap::Any        # between the rows of a card
 end
 
 SettingsToWidget(; theme = nothing, caption = _make_caption_style(theme),
-                 label_gap = get_widget_style(theme, :label_gap),
+                 button_gap = get_widget_style(theme, :button_gap),
                  section_gap = get_widget_style(theme, :section_gap),
                  column_gap = get_widget_style(theme, :form_column_gap),
                  row_gap = get_widget_style(theme, :form_row_gap)) =
-    SettingsToWidget(caption, label_gap, section_gap, column_gap, row_gap)
+    SettingsToWidget(caption, button_gap, section_gap, column_gap, row_gap)
 
 # The style of a summary and a description: the small font and the muted color of
 # the widget theme `theme`, scaled or not, as the description of a card, or of the
@@ -90,7 +90,7 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     for button in (save, load)
         set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
     end
-    buttons = HorizontalLayout(Any[reset, save, load]; gap = unwrap_cell(p.label_gap))
+    buttons = HorizontalLayout(Any[reset, save, load]; gap = unwrap_cell(p.button_gap))
     output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = unwrap_cell(p.section_gap)))
     # Each kind of path of the settings names a part of the tab: the output holds
     # its image, and each document below it the part of its parent's path.

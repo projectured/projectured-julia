@@ -3,7 +3,7 @@
 # cells of its facts, so a sample that changes the load draws one line again.
 
 """
-    SystemProcessToWidget(; gap)
+    SystemProcessToWidget(; gap, button_gap)
 
 Prints a [`SystemProcess`](@ref) as its page: the process id and the command,
 the folder, the state, the start and the time since it, the processor load, the
@@ -16,6 +16,7 @@ padding of its own: the slot that holds it gives the space around it.
 """
 @projection UntrackedCell struct SystemProcessToWidget
     gap::Int = get_widget_style(nothing, :label_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
 end
 
 function print_document(p::SystemProcessToWidget, recursion, process::SystemProcess, context)
@@ -31,7 +32,7 @@ function print_document(p::SystemProcessToWidget, recursion, process::SystemProc
         WidgetLabel(() -> string("processor ", _format_processor_load(process.processor_load),
                                  " · memory ", format_memory_size(process.memory),
                                  " · threads ", process.thread_count)),
-        HorizontalLayout(Any[interrupt, stop]; vertical_align = :center, gap = p.gap)];
+        HorizontalLayout(Any[interrupt, stop]; vertical_align = :center, gap = p.button_gap)];
         gap = p.gap, child_width = Fill)
     root = WidgetComposite(Any[column]; child_width = Fill)
     iomap = ChildrenIoMap(p, process, root, Cell(Any[]))
@@ -74,7 +75,8 @@ end
 function make_graphics_projection(::Type{SystemProcess}; measure, appearance)
     theme = get_scaled_theme!(appearance, WidgetTheme)
     ChainingProjection(
-        SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap)),
+        SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap),
+                              button_gap = get_widget_style(theme, :button_gap)),
         RecursiveProjection(FaultCatchingProjection(
             inner = WidgetToGraphics(; measure, theme,
                                      graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),

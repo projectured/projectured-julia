@@ -45,7 +45,7 @@ menu of the item, Return at the end of the text adds an item of the same kind, a
 the pointer lights its vertex.
 """
 @projection UntrackedCell struct ResearchMapToGraph <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 @iomap struct ResearchMapToGraphIoMap
@@ -185,7 +185,7 @@ function _make_map_row!(slots, embedded, outline, item::ResearchItem, study, pre
     count == 0 ||
         push!(head, make_outline_label(outline, count == 1 ? "1 element" : string(count, " elements"), :relation_text))
     push!(head, menu)
-    push!(rows, LayoutConstraint(HorizontalLayout(head; gap = outline.meta_gap, vertical_align = :center)))
+    push!(rows, LayoutConstraint(HorizontalLayout(head; gap = outline.item_gap, vertical_align = :center)))
 
     # The text: a field of prose takes the caret; a text of another domain shows as
     # plain text, two lines at most.
@@ -207,18 +207,18 @@ function _make_map_row!(slots, embedded, outline, item::ResearchItem, study, pre
     end
 
     push!(slots, OutlineSlot(prefix, place; whole = true))
-    padding = outline.row_padding
-    make_outline_card(outline; content = VerticalLayout(rows; gap = outline.meta_gap), revealed = Any[menu],
+    padding = outline.tree_row_padding
+    make_outline_card(outline; content = VerticalLayout(rows; gap = outline.item_gap), revealed = Any[menu],
                       title = item.id, compute_menu, keys = _make_research_row_keys(study, item),
                       width = _MAP_TEXT_COLUMNS * outline.meta_width + padding.left[] + padding.right[])
 end
 
 """
     make_research_map_projection(; measure, theme = nothing, outline_theme = nothing,
-                                 engine = make_deferred_layout_engine()) -> Projection
+                                 widget_theme = nothing, engine = make_deferred_layout_engine()) -> Projection
 
 The projection that draws a `ResearchMap`: `ResearchMapToGraph` with the values of
-the `OutlineTheme` `outline_theme`, then the stages of the Graph domain with the
+the `OutlineTheme` `outline_theme` and the `WidgetTheme` `widget_theme`, then the stages of the Graph domain with the
 layout `engine`, which draw the row of each vertex and the label of each edge
 through the layout and widget projections with the font of the `ResearchTheme`
 `theme`, so a vertex needs no other row of the renderer. The edges are curves, and
@@ -226,14 +226,14 @@ the map is in a scroll pane of its own, which scrolls a map that is larger than
 the room that its host gives it.
 """
 function make_research_map_projection(; measure, theme = nothing, outline_theme = nothing,
-                                      engine = make_deferred_layout_engine())
+                                      widget_theme = nothing, engine = make_deferred_layout_engine())
     get_style(name) = get_research_style(theme, name)
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
     stages = ChainingProjection(GraphGraphToGraphLayout(engine),
                                 GraphLayoutToGraphicsCanvas(edge_shape = :curved))
-    ChainingProjection(ResearchMapToGraph(; outline = make_theme_values_field(OutlineTheme, outline_theme)),
+    ChainingProjection(ResearchMapToGraph(; outline = make_outline_values_field(outline_theme, widget_theme)),
                        NestingProjection(make_scrolling_graph_projection(stages; measure);
                                          recursion = widgets))
 end

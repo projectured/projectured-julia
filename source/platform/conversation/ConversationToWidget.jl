@@ -41,12 +41,12 @@
 # `ConversationTheme.jl`.
 
 @projection UntrackedCell struct ConversationConversationToWidgetComposite
-    turn_gap::Int = get_conversation_style(nothing, :turn_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
 end
 
 @projection UntrackedCell struct ConversationTurnToWidgetComposite
-    part_gap::Int = get_conversation_style(nothing, :part_gap)
-    role_gap::Int = get_conversation_style(nothing, :role_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
     user_role_text::StyleText = get_conversation_style(nothing, :user_role_text)
     assistant_role_text::StyleText = get_conversation_style(nothing, :assistant_role_text)
     other_role_text::StyleText = get_conversation_style(nothing, :other_role_text)
@@ -61,7 +61,8 @@ end
     picture_height::Int = get_conversation_style(nothing, :picture_height)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
     error_text::StyleText = get_conversation_style(nothing, :error_text)
-    section_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
     # A section sits under the header of the card around it, indented by the
     # column that card's chevron takes: two half-sizes of the theme's chevron
     # and the title gap, so a section's own chevron starts where the header's
@@ -154,7 +155,7 @@ _role_header(p, role::Symbol) =
     HorizontalLayout(Any[
         WidgetLabel(_role_glyph(role); text_style = _role_icon(p, role)),
         WidgetLabel(String(role); text_style = _role_text(p, role)),
-    ]; vertical_align = :center, gap = p.role_gap)
+    ]; vertical_align = :center, gap = p.label_gap)
 
 # A card that folds. Its `collapsed` cell reads the flag on the domain node,
 # because the toggle reader re-targets every fold to that node and the kernel
@@ -197,7 +198,7 @@ function print_document(projection::ConversationConversationToWidgetComposite,
     ]))
     # Every turn fills the width it is given and grows with what it holds.
     layout = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
-                            Cell(:left), Cell(projection.turn_gap),
+                            Cell(:left), Cell(projection.section_gap),
                             Cell(Fill), Cell(Content), Cell(nothing))
     iomap = ChildrenIoMap(projection, c, layout, ioms)
     _follow_selection!(layout, c, projection, iomap, Any[])
@@ -215,7 +216,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     ]))
     # And so does every part inside a turn.
     body = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
-                          Cell(:left), Cell(projection.part_gap),
+                          Cell(:left), Cell(projection.section_gap),
                           Cell(Fill), Cell(Content), Cell(nothing))
     # A turn is a band and not a box. The user's band is tinted and the model's
     # is plain, which is what tells the two apart — the same job a border did,
@@ -398,7 +399,7 @@ function _permission_card(p, request::ConversationPermissionRequest, part::Conve
     status = WidgetLabel(""; text_style = p.section_text)
     set_cell_computation!(getfield(status, :content),
                           () -> (answer = request.answer; isempty(answer) ? "" : "Answer: " * answer))
-    body = VerticalLayout(Any[WidgetLabel(request.title), HorizontalLayout(buttons; gap = p.section_gap), status];
+    body = VerticalLayout(Any[WidgetLabel(request.title), HorizontalLayout(buttons; gap = p.button_gap), status];
                           gap = p.section_gap)
     _part_card(p, "permission", body, part)
 end
@@ -422,7 +423,7 @@ function _sign_in_card(p, request::ConversationSignInRequest, part::Conversation
     push!(buttons, retry)
     status = WidgetLabel(""; text_style = p.section_text)
     set_cell_computation!(getfield(status, :content), () -> request.state)
-    fixed = Any[WidgetLabel(request.message), HorizontalLayout(buttons; gap = p.section_gap), status]
+    fixed = Any[WidgetLabel(request.message), HorizontalLayout(buttons; gap = p.button_gap), status]
     body = VerticalLayout(copy(fixed); gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         terminal = request.terminal
@@ -453,7 +454,7 @@ function _question_card(p, request::ConversationQuestionRequest, part::Conversat
     status = WidgetLabel(""; text_style = p.section_text)
     set_cell_computation!(getfield(status, :content), () -> !isempty(request.answer) ? request.answer :
                           (values = find_question_values(request); values isa AbstractString ? values : ""))
-    push!(children, HorizontalLayout(Any[send, decline]; gap = p.section_gap), status)
+    push!(children, HorizontalLayout(Any[send, decline]; gap = p.button_gap), status)
     _part_card(p, "question", VerticalLayout(children; gap = p.section_gap, child_width = Fill), part)
 end
 
@@ -483,7 +484,7 @@ function _make_question_control(p, field::AgentQuestionField, value::PrimitiveSt
             set_cell_computation!(getfield(button, :enabled), is_open)
             push!(buttons, button)
         end
-        return HorizontalLayout(buttons; gap = p.section_gap)
+        return HorizontalLayout(buttons; gap = p.button_gap)
     end
     text = WidgetText(value)
     set_cell_computation!(getfield(text, :enabled), is_open)
@@ -1056,18 +1057,20 @@ end
 # ── Factory ──────────────────────────────────────────────────────────────────
 
 """
-    ConversationToWidget(; theme = nothing)
+    ConversationToWidget(; theme = nothing, widget_theme = nothing)
 
 Type-dispatching projection over the conversation document types. Wrap in
 `RecursiveProjection` at the call site. It gives each projection its styles from
-`theme`, a `ConversationTheme` scaled or not, or the default values for `nothing`.
+`theme`, a `ConversationTheme` scaled or not, and its gaps from `widget_theme`, a
+`WidgetTheme` scaled or not, or the default values for `nothing`.
 """
-function ConversationToWidget(; theme = nothing)
+function ConversationToWidget(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_conversation_style(theme, name)
+    get_gap(name) = get_widget_style(widget_theme, name)
     TypeDispatchingProjection(
-        ConversationConversation => ConversationConversationToWidgetComposite(; turn_gap = get_style(:turn_gap)),
+        ConversationConversation => ConversationConversationToWidgetComposite(; section_gap = get_gap(:section_gap)),
         ConversationTurn         => ConversationTurnToWidgetComposite(;
-            part_gap = get_style(:part_gap), role_gap = get_style(:role_gap),
+            section_gap = get_gap(:section_gap), label_gap = get_gap(:label_gap),
             user_role_text = get_style(:user_role_text),
             assistant_role_text = get_style(:assistant_role_text),
             other_role_text = get_style(:other_role_text),
@@ -1077,7 +1080,8 @@ function ConversationToWidget(; theme = nothing)
         ConversationPart         => ConversationPartToWidget(;
             message_text = get_style(:message_text),
             kind_text = get_style(:kind_text), section_text = get_style(:section_text),
-            error_text = get_style(:error_text), section_gap = get_style(:section_gap),
+            error_text = get_style(:error_text), section_gap = get_gap(:section_gap),
+            button_gap = get_gap(:button_gap),
             section_padding = get_style(:section_indent)),
     )
 end

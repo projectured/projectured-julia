@@ -79,7 +79,7 @@ function test_elements()
     end
 
     @testset "an element draws in a light inset, and the element is at the steps of the kit" begin
-        outline = get_theme_defaults(OutlineTheme)
+        outline = make_outline_values_field(nothing, nothing)
         element = PrimitiveString("a")
         block = make_outline_element(outline; content = element)
         reached = evaluate_reference(block, extend_reference(EmptyReference(), get_outline_element_steps()...))

@@ -2,8 +2,7 @@
     test_data_frame_theme()
 
 The data frame view follows the scales of the appearance: the width of a field
-of the expression bar, the gap between the parts of each,
-and the width of a column in the list form of a wide frame.
+of the expression bar, and the width of a column in the list form of a wide frame.
 """
 function test_data_frame_theme()
 @testset "the data frame view follows the scales of the appearance" begin
@@ -13,7 +12,7 @@ function test_data_frame_theme()
     @test plain.expression_field_width == 480
     @test plain.list_column_width == 160
     @test plain.header_gap == 4
-    @test plain.expression_gap == 8
+    @test plain.item_gap == 4
     @test is_color_equal(plain.invalid_filter, get_theme_value(WidgetTheme(), :invalid_filter))
     @test is_color_equal(plain.unsorted_glyph, get_theme_value(WidgetTheme(), :unsorted_glyph))
 
@@ -25,7 +24,7 @@ function test_data_frame_theme()
     @test scaled.expression_field_width == 720
     @test scaled.list_column_width == 240
     @test scaled.header_gap == 6
-    @test scaled.expression_gap == 12
+    @test scaled.item_gap == 6
 
     # End to end: the field of the filter row of a header has no width of its own;
     # the layout of the header fills it to its column.

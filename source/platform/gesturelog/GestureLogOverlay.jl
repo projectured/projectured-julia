@@ -49,7 +49,7 @@ make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
 
 """
     GestureLogOverlayProjection(; inner, log, theme = make_gesture_log_panel_theme(),
-                                  content = …, anchor = :top_right,
+                                  widget_theme = nothing, content = …, anchor = :top_right,
                                   margin, padding, radius, background)
 
 Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
@@ -78,10 +78,11 @@ end
 
 function GestureLogOverlayProjection(; inner, log::GestureLog,
                                        theme = make_gesture_log_panel_theme(),
+                                       widget_theme = nothing,
                                        content = make_gesture_log_content_projection(; theme),
                                        anchor::Symbol = :top_right,
                                        margin::Integer = get_theme_value(theme, :panel_margin),
-                                       padding::Integer = get_theme_value(theme, :panel_padding),
+                                       padding::Integer = unwrap_cell(get_widget_style(widget_theme, :container_padding)),
                                        radius::Integer = get_theme_value(theme, :panel_radius),
                                        background = make_theme_cell(StyleColor, theme,
                                                                     values -> values.panel_background))

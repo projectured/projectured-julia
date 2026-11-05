@@ -5,7 +5,7 @@
 # the node in the navigator around the page.
 
 """
-    AssistantWorkToWidget(theme)
+    AssistantWorkToWidget(theme; widget_theme)
 
 Draw an [`AssistantWork`](@ref) as a column of cards, in a scroll pane:
 
@@ -27,12 +27,12 @@ Each value reads the cells of the assistant and of its work, so the page follows
 the agent. With no theme it takes the values of the default theme.
 """
 @projection UntrackedCell struct AssistantWorkToWidget
-    stack_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     muted_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
 end
 
-AssistantWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AssistantWorkToWidget(; stack_gap = get_conversation_style(theme, :section_gap),
+AssistantWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}; widget_theme = nothing) =
+    AssistantWorkToWidget(; section_gap = get_widget_style(widget_theme, :section_gap),
                           muted_color = get_conversation_style(theme, :placeholder_color))
 
 # The steps from the root of a page to its column of cards: the scroll pane stands
@@ -64,7 +64,7 @@ end
 # A root that holds a scroll pane over a column, which fill the page; the column
 # and the root.
 function _make_page_column(p)
-    column = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    column = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     scroll = LayoutConstraint(WidgetScrollPane(column); width = Fill, height = Fill)
     (VerticalLayout(Any[scroll]; child_width = Fill), column)
 end

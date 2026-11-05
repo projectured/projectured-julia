@@ -3,7 +3,7 @@
 # the detail of the assistant that a person picked.
 
 """
-    AssistantListToWidgetPane(theme)
+    AssistantListToWidgetPane(theme; widget_theme)
 
 Draw an [`AssistantList`](@ref) as the Assistants pane: a heading that counts the
 conversations and the turns that run, a table with one row for each open
@@ -30,12 +30,14 @@ last prompt and its session. With no theme it takes the values of the default
 theme.
 """
 @projection UntrackedCell struct AssistantListToWidgetPane
-    stack_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
     muted_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
 end
 
-AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AssistantListToWidgetPane(; stack_gap = get_conversation_style(theme, :section_gap),
+AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme}; widget_theme = nothing) =
+    AssistantListToWidgetPane(; section_gap = get_widget_style(widget_theme, :section_gap),
+                                button_gap = get_widget_style(widget_theme, :button_gap),
                                 muted_color = get_conversation_style(theme, :placeholder_color))
 
 # The column `tasks` counts the background tasks that run, as the facet
@@ -108,7 +110,7 @@ function _make_assistant_start_note(a::Assistant)
                     text = "The conversation started at " * Libc.strftime("%Y-%m-%d %H:%M:%S", time) * ".")
 end
 
-function _build_assistant_row(list::AssistantList, a::Assistant, clock)
+function _build_assistant_row(p, list::AssistantList, a::Assistant, clock)
     pick = WidgetButton("›"; tooltip = TooltipNote(; title = "Pick", text = "Show this assistant below."),
                         action = _ -> select_assistant!(list, a))
     show = WidgetButton("Show"; action = editor -> open_assistant_tab!(editor, list, a))
@@ -119,7 +121,7 @@ function _build_assistant_row(list::AssistantList, a::Assistant, clock)
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
-    Any[HorizontalLayout(Any[pick, show, work_page]; vertical_align = :center),
+    Any[HorizontalLayout(Any[pick, show, work_page]; vertical_align = :center, gap = p.button_gap),
         WidgetLabel(() -> compute_assistant_overview_title(a)),
         work,
         turn,
@@ -140,7 +142,7 @@ function _build_assistant_table(p, list::AssistantList, clock)
         assistants = list.assistants
         isempty(assistants) && return Cell[Cell(WidgetLabel("No assistant is open in this window.";
                                                             text_style = p.muted_color))]
-        rows = Any[_build_assistant_row(list, a, clock) for a in assistants]
+        rows = Any[_build_assistant_row(p, list, a, clock) for a in assistants]
         Cell[Cell(WidgetTable(collect(Any, _ASSISTANT_LIST_COLUMNS), rows;
                               columns = _make_assistant_list_columns()))]
     end)
@@ -287,7 +289,7 @@ end
 _format_prompt_line(label, prompt) = prompt === nothing ? label * ": none" : label * ": " * prompt
 
 function _build_assistant_detail(p, list::AssistantList, clock)
-    detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    detail = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
         shown = _find_shown_assistant(list)
         shown === nothing && return Cell[Cell(WidgetLabel("Press › on a row to see its conversation here.";
@@ -323,7 +325,7 @@ function print_document(p::AssistantListToWidgetPane, recursion, list::Assistant
     table = LayoutConstraint(WidgetScrollPane(_build_assistant_table(p, list, clock)); width = Fill, height = Fill)
     detail = LayoutConstraint(_build_assistant_detail(p, list, clock); width = Fill, height = Fill)
     split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)
-    root = VerticalLayout(Any[heading, split]; horizontal_align = :left, gap = p.stack_gap)
+    root = VerticalLayout(Any[heading, split]; horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
     follow_output_mouse_target!(root, () ->

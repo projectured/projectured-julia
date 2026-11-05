@@ -27,7 +27,7 @@ the prediction, the design, the method or the content through the view of its ow
 domain. `outline` holds the values of an `OutlineTheme`.
 """
 @projection UntrackedCell struct ResearchItemToWidget <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 """
@@ -42,19 +42,19 @@ it, the links into its item beside the links out of it, and its date where the
 day differs from the day of the row above.
 """
 @projection UntrackedCell struct ResearchStudyToWidget <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 """
-    make_research_projections(; theme = nothing) -> NamedTuple
+    make_research_projections(; theme = nothing, widget_theme = nothing) -> NamedTuple
 
 The projections of a study, `item` for the row of an item and `study` for the
-outline, with the values of the `OutlineTheme` `theme`, scaled or not, or of the
-default theme for `nothing`. Each one makes widgets; a renderer chains it with
+outline, with the values of the `OutlineTheme` `theme` and the roles of the
+`WidgetTheme` `widget_theme`, each scaled or not, or of the default theme for `nothing`. Each one makes widgets; a renderer chains it with
 `VerticalLayoutToGraphicsCanvas`, as `make_research_graphics_entries` does.
 """
-function make_research_projections(; theme = nothing)
-    outline = make_theme_values_field(OutlineTheme, theme)
+function make_research_projections(; theme = nothing, widget_theme = nothing)
+    outline = make_outline_values_field(theme, widget_theme)
     (; item = ResearchItemToWidget(; outline), study = ResearchStudyToWidget(; outline))
 end
 
@@ -68,7 +68,8 @@ study through `make_research_map_projection`. The styles are those of the
 `OutlineTheme` and the `ResearchTheme` of `appearance`.
 """
 function make_research_graphics_entries(; measure, appearance)
-    projections = make_research_projections(; theme = get_scaled_theme!(appearance, OutlineTheme))
+    projections = make_research_projections(; theme = get_scaled_theme!(appearance, OutlineTheme),
+                                            widget_theme = get_scaled_theme!(appearance, WidgetTheme))
     item = ChainingProjection(projections.item, VerticalLayoutToGraphicsCanvas())
     # The view of a study is a vertical layout, and in the map view a grid that gives
     # the map the rest of the height.
@@ -80,7 +81,8 @@ function make_research_graphics_entries(; measure, appearance)
     end
     push!(entries, ResearchMap => make_research_map_projection(; measure,
                                       theme = get_scaled_theme!(appearance, ResearchTheme),
-                                      outline_theme = get_scaled_theme!(appearance, OutlineTheme)))
+                                      outline_theme = get_scaled_theme!(appearance, OutlineTheme),
+                                      widget_theme = get_scaled_theme!(appearance, WidgetTheme)))
     entries
 end
 
@@ -374,7 +376,7 @@ function _make_research_row!(slots, embedded, outline, item::ResearchItem, study
     day = shows_date ? Any[make_outline_label(outline, _format_research_day(item.time), :time_text)] : Any[]
     lines = has_under ? filter(!isempty, Any[first_line, when, day]) : Any[first_line]
     trailing = has_under ? nothing :
-        HorizontalLayout(vcat(when, day); gap = outline.meta_gap, vertical_align = :center)
+        HorizontalLayout(vcat(when, day); gap = outline.item_gap, vertical_align = :center)
 
     # The text, with the author and the time after it when nothing stands under it.
     (name_field, placeholder) = _get_name_field(item)
@@ -486,7 +488,7 @@ function _make_link_editor(outline, study, item, name::Symbol)
     add = make_outline_mark(outline, WidgetIcon(:plus), "Link " * item.id * " " * word * " an item",
                             () -> make_choice_list_operation(item.id * " " * word, _make_link_choice_list(study, item, name)))
     HorizontalLayout(vcat(Any[_make_relation_chip(outline, other) for other in linked], Any[add]);
-                     gap = outline.meta_gap, vertical_align = :center)
+                     gap = outline.item_gap, vertical_align = :center)
 end
 
 # The list of the items that `item` can link to in the field `name`: every other
@@ -664,7 +666,7 @@ function _make_basis_line(outline, study, draft::ResearchDecisionDraft)
         end
         push!(chips, chip)
     end
-    make_outline_field(outline, "basis", HorizontalLayout(chips; gap = outline.meta_gap, vertical_align = :center))
+    make_outline_field(outline, "basis", HorizontalLayout(chips; gap = outline.item_gap, vertical_align = :center))
 end
 
 # The panel of the decision that the person writes in the row of an item, at
@@ -683,12 +685,12 @@ function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchD
                               reason_place; role = :field_text, line = :field_line, placeholder = "the reason")
     buttons = HorizontalLayout(Any[_make_panel_button("Record", () -> _make_record_draft_operation(study, draft)),
                                    _make_panel_button("Cancel", () -> _make_close_decision_operation(study))];
-                               gap = outline.meta_gap)
+                               gap = outline.button_gap)
     cancel = GestureBinding(KeyDownPattern(:escape), (_, _) -> _make_close_decision_operation(study);
                             description = "Cancel the decision", domain = "research")
     basis = _make_basis_line(outline, study, draft)
     parts = basis === nothing ? Any[verdict, reason, buttons] : Any[verdict, reason, basis, buttons]
-    WidgetCard(; variant = :muted, content = VerticalLayout(parts; gap = outline.meta_gap),
+    WidgetCard(; variant = :muted, content = VerticalLayout(parts; gap = outline.item_gap),
                margin = inset_default, border = inset_default, padding = outline.inset_padding,
                gestures = GestureBinding[cancel])
 end

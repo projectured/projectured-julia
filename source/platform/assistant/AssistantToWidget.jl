@@ -11,8 +11,8 @@
 const _MAIN_WEIGHT = 1.0
 
 """
-    AssistantToWidgetSplitPane(theme; slot_padding)
-    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height, option_gap, slot_padding)
+    AssistantToWidgetSplitPane(theme; slot_padding, button_gap)
+    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height, button_gap, slot_padding)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
@@ -20,23 +20,24 @@ takes the rest. A row under the composer, of the height that the theme gives,
 holds the button that stops the turn that runs, and for an external agent the
 menus of its options. The slot of the row is that height and the space that a
 slot of the split pane gives at its top and its bottom, `slot_padding` of the
-`WidgetTheme`. With no theme it takes the values of the default themes.
+`WidgetTheme`; the gap of its items is the `button_gap` of that theme. With no theme it takes the values of the default themes.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
     option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
-    option_gap::Int = get_conversation_style(nothing, :option_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
     slot_padding::Inset = get_widget_style(nothing, :slot_padding)
 end
 
 AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme};
-                           slot_padding = get_widget_style(nothing, :slot_padding)) =
+                           slot_padding = get_widget_style(nothing, :slot_padding),
+                           button_gap = get_widget_style(nothing, :button_gap)) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
                                  option_bar_height = get_conversation_style(theme, :option_bar_height),
-                                 option_gap = get_conversation_style(theme, :option_gap), slot_padding)
+                                 button_gap, slot_padding)
 
 """
-    AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
+    AssistantToWidgetCard(; title, transcript_height, cell_height)
 
 The same assistant, as a card of a fixed height rather than a pane that fills a
 window. It is what an assistant embedded in a DOCUMENT needs: a page of prose
@@ -45,8 +46,7 @@ transcript would push the rest of the page down on every keystroke.
 
 So each half scrolls inside the card, and the page stays the length it was.
 The card has no width of its own: it is as wide as its page, and so are the two
-halves. `gap` is the space between the halves; its default
-is the `card_gap` of the default `ConversationTheme`.
+halves. The halves touch: the card gives no gap between them.
 
 The output is a `VerticalLayout`, so a renderer row can end in
 `VerticalLayoutToGraphicsCanvas` and everything inside re-enters the renderer
@@ -57,14 +57,12 @@ struct AssistantToWidgetCard <: Projection
     title::String
     transcript_height::Int
     cell_height::Int
-    gap::Int
 end
 
 AssistantToWidgetCard(; title::AbstractString = ASSISTANT_TITLE,
                                transcript_height::Integer = 460,
-                               cell_height::Integer = 120,
-                               gap::Integer = get_theme_defaults(ConversationTheme).card_gap) =
-    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height), Int(gap))
+                               cell_height::Integer = 120) =
+    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height))
 
 function print_document(projection::AssistantToWidgetSplitPane,
                            recursion, a::Assistant, ctx)
@@ -107,7 +105,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
         set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
         append!(items, Any[make_agent_option_bar(a), usage])
     end
-    row = HorizontalLayout(items; gap = projection.option_gap)
+    row = HorizontalLayout(items; gap = projection.button_gap)
     slot = projection.slot_padding
     row_height = projection.option_bar_height + Int(slot.top[]) + Int(slot.bottom[])
     push!(panes, LayoutConstraint(row; min_height = row_height, preferred_height = row_height))
@@ -141,7 +139,7 @@ function print_document(p::AssistantToWidgetCard,
                                   size=Point2D(0, p.transcript_height))
     cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height))
     card = WidgetCard(; title=p.title,
-                      content=VerticalLayout(Any[transcript, cell]; gap=p.gap, child_width=Fill))
+                      content=VerticalLayout(Any[transcript, cell]; gap=0, child_width=Fill))
     column = VerticalLayout(Any[card]; child_width=Fill)
     iomap = SimpleIoMap(p, a, column)
     # A keystroke is routed by SELECTION, and every container between the root
@@ -355,13 +353,15 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
     theme = get_scaled_theme!(appearance, ConversationTheme)
     # The pane is a vertical layout of widgets: its own canvas draws it, and the
     # renderer draws the widgets inside, as for the MCP log.
-    slot_padding = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :slot_padding)
-    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding),
-                   AssistantList => ChainingProjection(AssistantListToWidgetPane(theme),
+    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
+    slot_padding = get_widget_style(widget_theme, :slot_padding)
+    button_gap = get_widget_style(widget_theme, :button_gap)
+    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding, button_gap),
+                   AssistantList => ChainingProjection(AssistantListToWidgetPane(theme; widget_theme),
                                                        VerticalLayoutToGraphicsCanvas()),
-                   AssistantWork => ChainingProjection(AssistantWorkToWidget(theme),
+                   AssistantWork => ChainingProjection(AssistantWorkToWidget(theme; widget_theme),
                                                        VerticalLayoutToGraphicsCanvas()),
-                   AgentWork => ChainingProjection(AgentWorkToWidget(theme),
+                   AgentWork => ChainingProjection(AgentWorkToWidget(theme; widget_theme),
                                                    VerticalLayoutToGraphicsCanvas())]
 end
 

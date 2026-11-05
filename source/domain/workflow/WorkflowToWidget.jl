@@ -27,7 +27,7 @@ action of the node; a press on the mark of a step opens its states, and a press 
 the mark of an option chooses it. `outline` holds the values of an `OutlineTheme`.
 """
 @projection UntrackedCell struct WorkflowNodeToWidget <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 """
@@ -37,23 +37,23 @@ Draw an entry of a journal: its author, its time and its kind on a line, and its
 text under that line, through the view of the domain of the text.
 """
 @projection UntrackedCell struct WorkflowEntryToWidget <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 """
-    make_workflow_projections(; theme = nothing, outline_theme = nothing) -> NamedTuple
+    make_workflow_projections(; theme = nothing, outline_theme = nothing, widget_theme = nothing) -> NamedTuple
 
 The projections of a workflow, `node` and `entry` of the outline and `journal` of
 the timeline of its entries, with the values of the `OutlineTheme`
-`outline_theme`, and `list` of the workflows of the open files, with the styles
-of `theme`, a `WorkflowTheme`. Each theme is scaled or not, or the default for
+`outline_theme` and the roles of the `WidgetTheme` `widget_theme`, and `list` of the
+workflows of the open files, with the styles of `theme`, a `WorkflowTheme`. Each theme is scaled or not, or the default for
 `nothing`. Each projection makes
 widgets; a renderer chains it with a layout to graphics, as
 `make_workflow_graphics_entries` does.
 """
-function make_workflow_projections(; theme = nothing, outline_theme = nothing)
+function make_workflow_projections(; theme = nothing, outline_theme = nothing, widget_theme = nothing)
     get_style(name) = get_workflow_style(theme, name)
-    outline = make_theme_values_field(OutlineTheme, outline_theme)
+    outline = make_outline_values_field(outline_theme, widget_theme)
     node = WorkflowNodeToWidget(; outline)
     entry = WorkflowEntryToWidget(; outline)
     journal = WorkflowJournalToWidget(; outline)
@@ -72,7 +72,8 @@ through the renderer. The styles are those of the `OutlineTheme` and the
 """
 function make_workflow_graphics_entries(; measure, appearance)
     projections = make_workflow_projections(; theme = get_scaled_theme!(appearance, WorkflowTheme),
-                                            outline_theme = get_scaled_theme!(appearance, OutlineTheme))
+                                            outline_theme = get_scaled_theme!(appearance, OutlineTheme),
+                                            widget_theme = get_scaled_theme!(appearance, WidgetTheme))
     node = ChainingProjection(projections.node, VerticalLayoutToGraphicsCanvas())
     Pair{Type,Any}[WorkflowStep => node, WorkflowDecision => node, WorkflowOption => node,
                    WorkflowEntry => ChainingProjection(projections.entry, VerticalLayoutToGraphicsCanvas()),
@@ -434,7 +435,7 @@ function _make_journal_facts(outline, node, shows_date::Bool)
     count = make_outline_chip(outline, string(entries), shown ? "Hide the journal" : "Show the journal",
                               () -> _make_show_journal_operation(node, !shown))
     Any[HorizontalLayout(Any[WidgetIcon(:message_square; size = outline.fold_size), count];
-                         gap = outline.meta_gap, vertical_align = :center),
+                         gap = outline.item_gap, vertical_align = :center),
         make_outline_label(outline, _format_workflow_when(node.journal[entries].time, shows_date), :time_text)]
 end
 
@@ -598,7 +599,7 @@ function _build_entry_view(p::WorkflowEntryToWidget, entry::WorkflowEntry)
     line = HorizontalLayout(Any[avatar,
                                 make_outline_label(outline, _format_workflow_when(entry.time, true), :time_text),
                                 make_outline_label(outline, string(entry.kind), :relation_text)];
-                            gap = outline.meta_gap, vertical_align = :center)
+                            gap = outline.item_gap, vertical_align = :center)
     slots = Any[]
     embedded = Base.IdSet{Any}()
     text_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("children"),

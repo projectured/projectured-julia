@@ -22,6 +22,4 @@ default theme. `make_mcp_log_projection` gives the projection its styles with
     fault_text::ThemeText = TextRole(:error_text; weight = 700)
     "The answer of a call, and the line that says how much of it is folded."
     muted_text::ThemeText = TextRole(:text_muted)
-    "The vertical gap between the parts of the log and of a call."
-    gap::Int = 6
 end

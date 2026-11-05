@@ -17,8 +17,9 @@ page of its group.
 """
 @projection UntrackedCell struct TaskDocumentToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
-    stack_gap::Int = get_task_style(nothing, :stack_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     success_color::StyleColor = get_task_style(nothing, :success_color)
     info_color::StyleColor = get_task_style(nothing, :info_color)
     warning_color::StyleColor = get_task_style(nothing, :warning_color)
@@ -36,8 +37,8 @@ its times and its use of the machine, and a link to the page of each stream.
 """
 @projection UntrackedCell struct TaskExecutionToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
-    stack_gap::Int = get_task_style(nothing, :stack_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     success_color::StyleColor = get_task_style(nothing, :success_color)
     info_color::StyleColor = get_task_style(nothing, :info_color)
     warning_color::StyleColor = get_task_style(nothing, :warning_color)
@@ -83,7 +84,7 @@ function _build_stream_preview(p, document, steps, shadow, field::Symbol)
         kept = collect_output_lines(getproperty(shadow, field))
         Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
     end)
-    Any[HorizontalLayout(Any[count, link]; vertical_align = :center, gap = p.inline_gap), lines]
+    Any[HorizontalLayout(Any[count, link]; vertical_align = :center, gap = p.label_gap), lines]
 end
 
 function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDocument, ctx)
@@ -96,7 +97,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
         (group, index) = place
         push!(heading, _make_task_link(() -> "in " * getfield(group, :title)[], group, EmptyReference()))
     end
-    push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.inline_gap))
+    push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.label_gap))
     push!(parts, _build_task_details(p, task, document))
     push!(parts, _build_task_links(p, task))
     push!(parts, WidgetLabel(() -> begin
@@ -111,7 +112,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     push!(parts, _build_task_page_actions(p, document, task, place))
     push!(parts, _build_task_page_executions(p, document))
     push!(parts, _build_task_page_streams(p, document))
-    root = VerticalLayout(parts; horizontal_align = :left, gap = p.stack_gap, child_width = Fill)
+    root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap, child_width = Fill)
     iomap = ChildrenIoMap(p, document, root, Cell(Any[]))
     follow_output_mouse_target!(root, () ->
         map_mouse_target_forward(document, path -> map_reference_forward(p, iomap, path)))
@@ -123,8 +124,8 @@ end
 _build_task_links(p, task) =
     VerticalLayout(Any[HorizontalLayout(Any[_make_label(link.label, p.muted_color),
                                             _make_task_link(link.text, link.document, link.reference)];
-                                        vertical_align = :center, gap = p.inline_gap)
-                       for link in get_task_links(task)]; gap = p.stack_gap, child_width = Fill)
+                                        vertical_align = :center, gap = p.label_gap)
+                       for link in get_task_links(task)]; gap = p.section_gap, child_width = Fill)
 
 # Stop, Run again and the buttons of the kind. A task of a group acts through its
 # group, so the counts of the group follow; a task of no group acts on itself. A
@@ -154,13 +155,13 @@ function _build_task_page_actions(p, document::TaskDocument, task, place)
         inner = find_task_group_document(place[1], place[2])
         inner === nothing || push!(buttons, _make_open_button(p, "Open the group", inner, EmptyReference()))
     end
-    HorizontalLayout(buttons; vertical_align = :center, gap = p.inline_gap)
+    HorizontalLayout(buttons; vertical_align = :center, gap = p.button_gap)
 end
 
 # The executions of the task, the newest first: each a link to its page, with its
 # verdict in the colour of its role.
 function _build_task_page_executions(p, document::TaskDocument)
-    lines = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () -> begin
         executions = getfield(document, :executions)[]
         isempty(executions) && return Cell[Cell(_make_label("The task did not run yet.", p.muted_color))]
@@ -171,7 +172,7 @@ function _build_task_page_executions(p, document::TaskDocument)
                     _get_role_color(p, get_result_role(get_result_codes(result), result.result))
             push!(rows, HorizontalLayout(Any[_make_task_link(string(k), document, _make_steps(_get_execution_steps(k)...)),
                                             _make_label(text, color)];
-                                         vertical_align = :center, gap = p.inline_gap))
+                                         vertical_align = :center, gap = p.label_gap))
         end
         Cell[Cell(row) for row in rows]
     end)
@@ -181,7 +182,7 @@ end
 # The last lines of each stream of the current execution, with the links to the
 # pages of the streams.
 function _build_task_page_streams(p, document::TaskDocument)
-    streams = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    streams = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(streams.children, :elements), () -> begin
         executions = getfield(document, :executions)[]
         isempty(executions) && return Cell[]
@@ -201,7 +202,7 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
         result === nothing ? (string(shadow.status), p.muted_color) :
             (format_task_result(result), _get_role_color(p, get_result_role(get_result_codes(result), result.result)))
     end)
-    facts = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    facts = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(facts.children, :elements), () -> begin
         lines = String[format_task_parameters(task)]
         append!(lines, format_task_details(task, shadow.result))
@@ -219,9 +220,9 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
     streams = vcat(_build_stream_preview(p, shadow, (), shadow, :output),
                    _build_stream_preview(p, shadow, (), shadow, :error_output))
     root = VerticalLayout(Any[HorizontalLayout(Any[WidgetLabel(get_document_title(shadow)), state];
-                                                vertical_align = :center, gap = p.inline_gap),
+                                                vertical_align = :center, gap = p.label_gap),
                               facts, _build_task_links(p, task), streams...];
-                          horizontal_align = :left, gap = p.stack_gap, child_width = Fill)
+                          horizontal_align = :left, gap = p.section_gap, child_width = Fill)
     iomap = ChildrenIoMap(p, shadow, root, Cell(Any[]))
     follow_output_mouse_target!(root, () ->
         map_mouse_target_forward(shadow, path -> map_reference_forward(p, iomap, path)))
@@ -244,7 +245,7 @@ The grid passes a key to the part that its selection names, so a key reaches a
 field of the bar or the lines.
 """
 @projection UntrackedCell struct TaskStreamToWidget <: Projection
-    gap::Int = get_task_style(nothing, :stack_gap)
+    gap::Int = get_widget_style(nothing, :section_gap)
 end
 
 const _STREAM_PARTS = ("bar" => 1, "lines" => 2)
@@ -294,7 +295,7 @@ padding and its rule.
 """
 @projection UntrackedCell struct TaskStreamLinesToWidget <: Projection
     row_step::Int = 24
-    inline_gap::Int = get_task_style(nothing, :inline_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
     warning_color::StyleColor = get_task_style(nothing, :warning_color)
     error_color::StyleColor = get_task_style(nothing, :error_color)
     info_color::StyleColor = get_task_style(nothing, :info_color)
@@ -367,7 +368,7 @@ function print_document(p::TaskStreamLinesToWidget, recursion, lines::TaskStream
     body = HorizontalLayout(Any[LayoutConstraint(table; width = Fill, height = Fill), bar];
                             vertical_align = :top, gap = 0)
     output = VerticalLayout(Any[counts, LayoutConstraint(body; width = Fill, height = Fill)];
-                            horizontal_align = :left, gap = p.inline_gap, child_width = Fill)
+                            horizontal_align = :left, gap = p.label_gap, child_width = Fill)
     TaskStreamLinesToWidgetIoMap(p, lines, output, bar, rows, visible)
 end
 

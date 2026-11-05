@@ -28,7 +28,7 @@ end
 @projection UntrackedCell struct EvaluatorToplevelToWidgetComposite
     element_gap::Int = get_conversation_style(nothing, :element_gap)
     row_gap::Int = get_conversation_style(nothing, :row_gap)
-    option_gap::Int = get_conversation_style(nothing, :option_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
 end
 
 # `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
@@ -48,16 +48,17 @@ function make_evaluator_form_projection(; theme = nothing)
 end
 
 """
-    make_evaluator_toplevel_projection(; theme = nothing) -> EvaluatorToplevelToWidgetComposite
+    make_evaluator_toplevel_projection(; theme = nothing, widget_theme = nothing) -> EvaluatorToplevelToWidgetComposite
 
-The projection of an evaluator, with the gaps of `theme`: a `ConversationTheme`,
-scaled or not, or the default values for `nothing`.
+The projection of an evaluator, with the gaps of `theme`, a `ConversationTheme`,
+and the gap of its options from `widget_theme`, a `WidgetTheme`, each scaled or
+not, or the default values for `nothing`.
 """
-function make_evaluator_toplevel_projection(; theme = nothing)
+function make_evaluator_toplevel_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_conversation_style(theme, name)
     EvaluatorToplevelToWidgetComposite(; element_gap = get_style(:element_gap),
                                        row_gap = get_style(:row_gap),
-                                       option_gap = get_style(:option_gap))
+                                       button_gap = get_widget_style(widget_theme, :button_gap))
 end
 
 # ── print_document: a bare form → a prompt column beside its code and result ──
@@ -217,7 +218,7 @@ function _make_option_row(projection, t::EvaluatorToplevel)
                                                "Make a fresh form a hole that is typed into as Julia code, which can hold a pasted object."),
                          _make_option_checkbox(t, :evaluate_in_background, "Background",
                                                "Evaluate a form as background work, so the window answers while it runs.")];
-                     vertical_align = :center, gap = projection.option_gap)
+                     vertical_align = :center, gap = projection.button_gap)
 end
 
 function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString, text::AbstractString)
@@ -302,7 +303,8 @@ _is_options_path(steps) =
 function __init__()
     register_natural_graphics!(:evaluator, (; measure, appearance) -> Pair{Type,Any}[
         EvaluatorToplevel => ChainingProjection(
-            make_evaluator_toplevel_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            make_evaluator_toplevel_projection(theme = get_scaled_theme!(appearance, ConversationTheme),
+                                               widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
             GridLayoutToGraphicsCanvas()),
         EvaluatorForm     => ChainingProjection(
             make_evaluator_form_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),

@@ -4,7 +4,7 @@
 # navigator around it.
 
 """
-    AgentWorkToWidget(theme)
+    AgentWorkToWidget(theme; widget_theme)
 
 Draw an [`AgentWork`](@ref) as the page of a subagent, a column of cards in a
 scroll pane:
@@ -21,12 +21,12 @@ scroll pane:
 Each value reads the cells of the work, so the page follows the subagent.
 """
 @projection UntrackedCell struct AgentWorkToWidget
-    stack_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     muted_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
 end
 
-AgentWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AgentWorkToWidget(; stack_gap = get_conversation_style(theme, :section_gap),
+AgentWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}; widget_theme = nothing) =
+    AgentWorkToWidget(; section_gap = get_widget_style(widget_theme, :section_gap),
                         muted_color = get_conversation_style(theme, :placeholder_color))
 
 function print_document(p::AgentWorkToWidget, recursion, work::AgentWork, context)

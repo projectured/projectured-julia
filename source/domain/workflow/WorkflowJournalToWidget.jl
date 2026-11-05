@@ -15,7 +15,7 @@ Read only: the timeline is the record of what happened, and an entry is edited i
 the outline. A pick of a kind writes the `kind` of the journal.
 """
 @projection UntrackedCell struct WorkflowJournalToWidget <: Projection
-    outline::NamedTuple = make_theme_values_field(OutlineTheme, nothing)
+    outline::NamedTuple = make_outline_values_field(nothing, nothing)
 end
 
 # The choices of the kind of entry that the table shows, in the order of the choice.

@@ -35,8 +35,6 @@ holds the plain values of the default theme.
     panel_background::ThemeColor = ColorRole(:error_fill; alpha = 0.92)
     "The space between the panel and the edges of the window."
     panel_margin::Spacing = Spacing(12)
-    "The space inside the panel, around the lines of the log."
-    panel_padding::Spacing = Spacing(8)
     "The radius of the corners of the panel."
     panel_radius::Radius = Radius(4)
 end

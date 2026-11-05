@@ -512,14 +512,13 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 `RecursiveProjection`).
 """
 @projection UntrackedCell struct ConversationComposerToWidget
-    part_gap::Int = get_conversation_style(nothing, :part_gap)
     picture_height::Int = get_conversation_style(nothing, :picture_height)
     code_font::StyleFont = get_conversation_style(nothing, :code_font)
     message_text::StyleText = get_conversation_style(nothing, :message_text)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
     error_text::StyleText = get_conversation_style(nothing, :error_text)
-    section_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     section_padding::Inset = get_conversation_style(nothing, :section_indent)
     plain_color::StyleColor = get_conversation_style(nothing, :plain_color)
     placeholder_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
@@ -529,17 +528,18 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 end
 
 """
-    make_conversation_composer_projection(; theme = nothing) -> ConversationComposerToWidget
+    make_conversation_composer_projection(; theme = nothing, widget_theme = nothing) -> ConversationComposerToWidget
 
-The composer, with the fonts, the gaps and the colors of `theme`: a
-`ConversationTheme`, scaled or not, or the default values for `nothing`.
+The composer, with the fonts and the colors of `theme`, a `ConversationTheme`, and
+the gap of `widget_theme`, a `WidgetTheme`, each scaled or not, or the default
+values for `nothing`.
 """
-function make_conversation_composer_projection(; theme = nothing)
+function make_conversation_composer_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_conversation_style(theme, name)
-    ConversationComposerToWidget(; part_gap = get_style(:part_gap), code_font = get_style(:code_font),
+    ConversationComposerToWidget(; code_font = get_style(:code_font),
                                  message_text = get_style(:message_text),
                                  kind_text = get_style(:kind_text), section_text = get_style(:section_text),
-                                 error_text = get_style(:error_text), section_gap = get_style(:section_gap),
+                                 error_text = get_style(:error_text), section_gap = get_widget_style(widget_theme, :section_gap),
                                  section_padding = get_style(:section_indent),
                                  plain_color = get_style(:plain_color),
                                  placeholder_color = get_style(:placeholder_color),
@@ -694,7 +694,7 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     body = VerticalLayout(
         CellVector(@computation((n = length(d.parts);
                           Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n]))),
-        Cell(:left), Cell(p.part_gap), Cell(Fill), Cell(Content), Cell(nothing))
+        Cell(:left), Cell(p.section_gap), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
     iomap_ref[] = iomap
     # The paths, carried down. A key is routed by selection and stops at the first

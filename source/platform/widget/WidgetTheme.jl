@@ -144,6 +144,8 @@ builder fills them from a theme, scaled or not.
     title_gap::Spacing = Spacing(2)
     "The space between an icon or a mark and its label."
     label_gap::Spacing = Spacing(6)
+    "The space between the push buttons of a row."
+    button_gap::Spacing = Spacing(8)
     "The space between sections, and between the rows of a radio group."
     section_gap::Spacing = Spacing(8)
     "The space between the items of a menu bar."

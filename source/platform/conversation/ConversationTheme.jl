@@ -16,14 +16,15 @@ The theme of the conversation projections. `@theme` declares it, so
 The fields are in groups: the base fonts, the label and the glyph of each
 role, the plain text of a message, the tag and the sections of a part, the
 prompts of a form, the colors
-the composer draws a typed part with, and the gaps between the parts of the
-widgets. Each field has a docstring that says what it draws, which the
+the composer draws a typed part with, and the gaps of a REPL and of a prompt.
+Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
 A conversation projection holds its styles and no theme. Its builder
 (`ConversationToWidget`, `make_conversation_composer_projection`,
 `make_evaluator_form_projection`, `make_evaluator_toplevel_projection`) gives
-them with `get_conversation_style`, from a theme scaled or not; a projection built
+them with `get_conversation_style`, from a theme scaled or not, and takes the gaps
+between the parts from the widget theme; a projection built
 with no styles holds the plain values of the default theme.
 """
 @theme struct ConversationTheme
@@ -65,16 +66,8 @@ with no styles holds the plain values of the default theme.
     invalid_color::ThemeColor = ColorRole(:error_text)
     "The hint that completes the value of a kind chooser."
     completion_hint_color::ThemeColor = ColorRole(:text_faint)
-    "The gap between the parts of one turn, and between the cards of the composer."
-    part_gap::Spacing = Spacing(8)
     "The height of a picture in a part, at most; its width follows the shape of the picture."
     picture_height::Int = 160
-    "The gap between the turns of a transcript."
-    turn_gap::Spacing = Spacing(8)
-    "The gap between the icon and the label of a turn's role."
-    role_gap::Spacing = Spacing(10)
-    "The gap between the form and the result of an evaluation shown in a transcript."
-    section_gap::Spacing = Spacing(10)
     "The indent of a section of an evaluation under the panel that holds it."
     section_indent::Spacing = Spacing(Inset(0, 0, 12, 0))
     "The gap between the forms of a standalone REPL."
@@ -83,10 +76,6 @@ with no styles holds the plain values of the default theme.
     row_gap::Spacing = Spacing(4)
     "The gap between a prompt and what follows it."
     prompt_gap::Spacing = Spacing(8)
-    "The gap between the options above the forms of the evaluator."
-    option_gap::Spacing = Spacing(12)
-    "The gap between the transcript and the composer of an assistant card."
-    card_gap::Spacing = Spacing(6)
     "The least height of the composer under the transcript of the assistant."
     composer_min_height::ControlSize = ControlSize(200)
     "The height of the row of the options of an external agent under the composer."

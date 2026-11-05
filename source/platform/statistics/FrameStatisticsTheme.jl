@@ -1,11 +1,10 @@
 # Fragment of `FrameStatisticsModule` — the theme of the statistics: the text of
-# its head line and titles, of the cells of its tables, and of its empty line,
-# and the gap between its parts.
+# its head line and titles, of the cells of its tables, and of its empty line.
 
 """
     FrameStatisticsTheme
 
-The fonts, the colors and the gap of the Statistics panel: its head line and
+The fonts and the colors of the Statistics panel: its head line and
 the titles of its tables, the cells of its tables, and the line it shows when
 empty.
 
@@ -14,8 +13,7 @@ The theme of the statistics. `@theme` declares it, so
 `FrameStatisticsTheme()` is the default theme.
 
 The fields are the text styles of the head line and the titles, of the cells,
-of the cells of a slow frame and of the empty line, and the gap between the
-parts. The borders, the header rows and the scroll of the tables come from the
+of the cells of a slow frame and of the empty line. The gap between the parts, the borders, the header rows and the scroll of the tables come from the
 widget theme. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
@@ -34,6 +32,4 @@ projection built with no styles holds the plain values of the default theme.
     empty_text::ThemeText = TextRole(:text_faint)
     "A cell of a slow frame: its frame time is more than two times the median of the frames of the table."
     slow_text::ThemeText = TextRole(:warning_text)
-    "The gap between the parts of the panel: the head line, the titles and the tables."
-    gap::Spacing = Spacing(6)
 end

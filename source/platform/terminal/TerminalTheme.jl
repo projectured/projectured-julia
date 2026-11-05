@@ -25,6 +25,4 @@ value times its scale, and `TerminalTheme()` is the default theme.
     lines_height::Int = 200
     "The height of the pane of the input line, which a press hits also when the line is empty."
     input_height::Int = 24
-    "The vertical gap between the parts of the terminal."
-    gap::Int = 4
 end

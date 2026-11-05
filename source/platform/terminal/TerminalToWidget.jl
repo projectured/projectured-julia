@@ -21,21 +21,22 @@ itself when the caret is in the input line, and sends the line.
     status_text::StyleText = get_terminal_style(nothing, :status_text)
     lines_height::Int = get_terminal_style(nothing, :lines_height)
     input_height::Int = get_terminal_style(nothing, :input_height)
-    gap::Int = get_terminal_style(nothing, :gap)
+    gap::Int = get_widget_style(nothing, :form_row_gap)
 end
 
 """
-    make_terminal_projection(; theme = nothing) -> TerminalToWidget
+    make_terminal_projection(; theme = nothing, widget_theme = nothing) -> TerminalToWidget
 
-The projection of a terminal with the styles of `theme`: a `TerminalTheme`,
-scaled or not, or the default styles for `nothing`.
+The projection of a terminal with the styles of `theme`, a `TerminalTheme`, and
+the `form_row_gap` of `widget_theme`, a `WidgetTheme`, each scaled or not, or the
+default styles for `nothing`.
 """
-function make_terminal_projection(; theme = nothing)
+function make_terminal_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_terminal_style(theme, name)
     TerminalToWidget(; output_text = get_style(:output_text), error_text = get_style(:error_text),
                      input_text = get_style(:input_text), status_text = get_style(:status_text),
                      lines_height = get_style(:lines_height), input_height = get_style(:input_height),
-                     gap = get_style(:gap))
+                     gap = get_widget_style(widget_theme, :form_row_gap))
 end
 
 function _get_terminal_line_style(p::TerminalToWidget, kind::Symbol)
@@ -182,7 +183,8 @@ end
 
 function __init__()
     register_natural_graphics!(:terminal, (; measure, appearance) -> Pair{Type,Any}[
-        TerminalDocument => ChainingProjection(make_terminal_projection(; theme = get_scaled_theme!(appearance, TerminalTheme)),
+        TerminalDocument => ChainingProjection(make_terminal_projection(; theme = get_scaled_theme!(appearance, TerminalTheme),
+                                                                 widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
                                                VerticalLayoutToGraphicsCanvas())])
     atexit(_end_running_groups!)
 end

@@ -3,14 +3,15 @@
 # takes away, and the menu of a value in an arranged document.
 
 """
-    ArrangementChipsToGraphics()
+    ArrangementChipsToGraphics(; gap)
 
 Draws an `ArrangementChips` as a row of widgets: the count of the items, a chip
 for each condition of a filter and each key of a sort, a text field for each
 quick text condition (`is_quick_text_condition`) and for a find at the end, and
 Show all. A press on the × of a chip or of a field answers the edit that takes
 its part away, a press on Show all the edit that takes the entry away; each
-names its own document, so a history records it as an edit of the person.
+names its own document, so a history records it as an edit of the person. The
+items of the row stand `gap` apart: the `item_gap` of the widget theme.
 
 The text of a field is a text in the entry: the value of a condition, at
 `.entry.projections[i].conditions[k].value` of the chips, or the text of a find,
@@ -18,7 +19,9 @@ at `.entry.projections[i].text`. The maps send that path to the field and back,
 and an edit of the field is a write of that text, which names its document, and
 the caret after it.
 """
-struct ArrangementChipsToGraphics <: Projection end
+@projection UntrackedCell struct ArrangementChipsToGraphics <: Projection
+    gap::Int = get_widget_style(nothing, :item_gap)
+end
 
 @iomap struct ArrangementChipsToGraphicsIoMap
     projection::Any
@@ -34,7 +37,7 @@ function print_document(p::ArrangementChipsToGraphics, recursion, chips::Arrange
     fields = Dict{Int,Any}()
     arranged = get_property(ctx, :arrangement, nothing)
     arrangement = arranged === nothing ? nothing : arranged.arrangement
-    row = Cell(@computation _make_chips_row(chips, edits, fields, arrangement))
+    row = Cell(@computation _make_chips_row(p, chips, edits, fields, arrangement))
     inner = make_reconciled_child_iomap_cell(() -> row[], widget -> print_child(recursion, widget, ctx))
     ArrangementChipsToGraphicsIoMap(p, chips, Cell(@computation inner[].output), inner, edits, fields)
 end
@@ -146,7 +149,7 @@ end
 # The row of `chips`: in `edits` the edit of each of its actions, and in `fields`
 # the place of the text of each text field. The fields come after the chips, the
 # quick text first and then the find, so they are at the end of the bar.
-function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, arrangement)
+function _make_chips_row(p::ArrangementChipsToGraphics, chips::ArrangementChips, edits::IdDict, fields::Dict, arrangement)
     empty!(edits)
     empty!(fields)
     entry = chips.entry
@@ -182,7 +185,7 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
     show_all = Action("Show all")
     edits[show_all] = _make_entry_removal(arrangement, entry)
     push!(widgets, WidgetButton(show_all))
-    row = HorizontalLayout(widgets; gap = 4, vertical_align = :center)
+    row = HorizontalLayout(widgets; gap = p.gap, vertical_align = :center)
     # The row routes a key to the field that holds the caret.
     set_cell_computation!(getfield(row, :selection), () -> _find_row_caret(chips.selection, fields))
     row

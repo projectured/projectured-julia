@@ -62,7 +62,7 @@ Read only: no caret goes into a table.
     row_text::StyleText = get_frame_statistics_style(nothing, :row_text)
     empty_text::StyleText = get_frame_statistics_style(nothing, :empty_text)
     slow_text::StyleText = get_frame_statistics_style(nothing, :slow_text)
-    gap::Int = get_frame_statistics_style(nothing, :gap)
+    gap::Int = get_widget_style(nothing, :form_row_gap)
     row_height::Int = 0
     measure::Any = nothing
     row_step::Int = 0
@@ -86,8 +86,8 @@ The projection of the statistics, with the styles of `theme`: a
 With a `measure`, the rows of the table of the frames are a line of the font of
 the rows tall, its columns are as wide as their content, and both follow the
 scale of the theme. `widget_theme`, the widget theme of the appearance, gives
-the padding of a cell, which the step of a row adds, and the width of the
-scroll bar.
+the gap between the parts, the padding of a cell, which the step of a row adds,
+and the width of the scroll bar.
 """
 function make_frame_statistics_projection(; theme = nothing, measure = nothing,
                                           widget_theme = nothing)
@@ -102,7 +102,7 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing,
                                         Int(widget_theme.control_padding.bottom[]) + 1)
     FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
-                            gap = get_style(:gap), row_height, measure, row_step)
+                            gap = get_widget_style(widget_theme, :form_row_gap), row_height, measure, row_step)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.

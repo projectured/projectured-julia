@@ -15,13 +15,14 @@ function test_outline()
         @test id.font.family == "Ubuntu Mono"
         # A scaled theme gives the same values at the scale of 1, each read from a cell.
         scaled = get_scaled_theme!(Appearance(), OutlineTheme)
-        values = unwrap_cell(make_theme_values_field(OutlineTheme, scaled))
+        values = unwrap_cell(make_outline_values_field(scaled, get_scaled_theme!(Appearance(), WidgetTheme)))
         @test values.meta_width == 72
-        @test values.row_padding isa Inset
+        @test values.tree_row_padding isa Inset
+        @test (values.item_gap, values.button_gap, values.section_gap) == (4, 8, 8)
     end
 
     @testset "a row lights under the pointer and shows its controls, and builds nothing" begin
-        outline = get_theme_defaults(OutlineTheme)
+        outline = make_outline_values_field(nothing, nothing)
         measure = FixedMeasure(8, 12, 4, 0)
         projection = RecursiveProjection(TypeDispatchingProjection(
             WidgetToGraphics(StyleFont("Ubuntu", 14); measure).dispatch))

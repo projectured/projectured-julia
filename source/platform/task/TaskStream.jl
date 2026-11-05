@@ -150,7 +150,7 @@ function _make_task_stream_bar(lines::TaskStreamLines)
                    WidgetLabel("Follow the end"), ObjectField(lines, "follow"),
                    button("First error", () -> make_task_stream_first_error_operation(lines)),
                    button("Open as a file", () -> _make_stream_file_operation(lines))];
-                   vertical_align = :center, gap = get_task_style(nothing, :inline_gap)))
+                   vertical_align = :center, gap = get_widget_style(nothing, :label_gap)))
 end
 
 # ── What the lines read ──────────────────────────────────────────────────────

@@ -135,7 +135,7 @@ function _make_expression_bar(p, view)
     find = make_filter_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view),
                              p.find_field_width, p.invalid_filter; placeholder = () -> "Find (Ctrl+F)")
     bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), find, _make_refresh_glyph(view)], 5;
-                     horizontal_gap = p.expression_gap, vertical_align = :center,
+                     horizontal_gap = p.item_gap, vertical_align = :center,
                      column_policies = Any[Content, Content, Fill, Content, Content])
     set_cell_computation!(getfield(bar, :selection), () -> begin
         inner = make_field_child_reference(field.selection)
