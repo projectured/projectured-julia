@@ -487,7 +487,7 @@ approval of the user.
         signature that this step changed (a widget IO map with a new field, a
         reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
         that takes the shape). The lists are recorded again after step 8.
-- [x] 5. **The text printer takes the line spacing from the context.**
+- [ ] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
       positions and the line height that its readers (`char_to_coord` and the
@@ -498,7 +498,7 @@ approval of the user.
       part, give the counts of the baseline.
 
       - [x] 5a. The text printer makes no copy of itself.
-      - [x] 5b. No widget printer makes a projection. This part runs after
+      - [ ] 5b. No widget printer makes a projection. This part runs after
         step 6, because both change `WidgetToGraphics.jl`.
 
       5a is done in `c5e96d517`. The facts:
@@ -634,7 +634,17 @@ approval of the user.
           `TextBlock => TextToGraphics(measure, text theme)` before
           `Any => NestingProjection(projection)`, no wrap. Without the rule
           the text of a widget of the tab strip or of a bar would go to the
-          projection of the content. `make_opened_window_projections` has
+          projection of the content.
+          **Found on 2026-11-05, after the check: this rule is a defect, and
+          5b is open again.** The wrapper `tabs` is on by default, so
+          `build_editor` puts a root `TextBlock` in a tab, and this rule draws
+          it, not the projection of the caller. A probe gave: the projection
+          of the caller drew 1 document for a root `PrimitiveString` and 0 for
+          a root `TextBlock`. So the example `word_wrapping` in an editor does
+          not wrap at 600. No image shows it, because the image tool prints an
+          example with no editor. The shell table does the same when
+          `tabs = false`. The user decides the fix.
+          `make_opened_window_projections` has
           `Document => NaturalToGraphics`, which takes a `TextBlock`; kept.
         - the tables of the task views: one rule `texts` before the
           documents, no wrap.
