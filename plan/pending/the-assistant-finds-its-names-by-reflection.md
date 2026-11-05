@@ -422,8 +422,7 @@ ends with a commit in each repository that it changes.
    editing verb becomes make plus apply. Check the 73 operations for edits,
    files and tabs. Tests: `test_assistant_verbs`,
    `test_referenced_document_editor`.
-4. **The index.** *Done (2026-11-05), but for the first sentence of the sealed
-   `ClockModule.jl`; the facts are in §5.4.*
+4. **The index.** *Done (2026-11-05); the facts are in §5.4.*
    The generator, its parts, its presets and the setting. Improve
    the first sentence of each module docstring that the index shows.
 5. **The guides.** The `For` field in all 171 headers and in the README rule.
@@ -794,9 +793,11 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   window.
 - **78 module sentences are new** (by an agent (Sonnet), each one read here),
   and 15 were kept. The agent did not wrap its new lines, so a script wrapped the
-  paragraph of each new sentence, and only that paragraph. The first sentence of
-  `ClockModule`, "The animation clock.", stays until the owner allows a change
-  of the sealed `ClockModule.jl`.
+  paragraph of each new sentence, and only that paragraph. The owner gave
+  permission for the first sentence of the sealed `ClockModule.jl`: "Clocks for
+  animations: each holds a time in seconds, and a computation that reads it
+  computes again when the time changes." The next sentence says only that a
+  `Clock` holds its time in a reactive cell.
 - **The sizes after the new sentences:** the editor's full index is about 4,900
   tokens and its compact one about 1,500; the IDE's about 6,300 and 2,200. In
   omnet-julia, `test_ide_documentation` passes 967/967 and 52/52, and
