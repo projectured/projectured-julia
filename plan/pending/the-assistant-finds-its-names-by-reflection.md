@@ -435,10 +435,30 @@ the landing. Steps 5 to 7 continue on the branch from there.
    The `For` field in all 171 headers and in the README rule.
    `audience`, the first line of a result, and the kind label in
    `search_guides`.
-6. **The texts.** One hand-written part for each window, the same on all three
+6. **The texts.** *Done (2026-11-05); the facts are in §5.7.*
+   One hand-written part for each window, the same on all three
    paths, with the index. Rewrite the orientation guide and the IDE's assistant
    guide. Remove the study sections from the IDE text. Add the test of the
    names in the texts.
+   - [x] **6a. One text for each window, on the three paths.** The text of a
+     window is its own part (what the window is, its rules, one worked
+     example), the rules that every window shares (`EDITOR_SYSTEM`, the tools
+     and the rules of behaviour, without the lists of verbs), and the index of
+     the names of the window for the backend (`describe_api_index`). The
+     built-in loop gets it as the `system` of the assistant. An ACP agent gets
+     the framing of an agent (`DEFAULT_AGENT_INSTRUCTIONS`, the two paragraphs
+     about the person's editor and the agent's own file tools) and then the
+     `system` of its assistant, in the system prompt of its session; the MCP
+     server of the agent gets one sentence, so the text is not sent twice. An
+     outside MCP client gets the text of the window with the full index.
+     `EDITOR_TOOL_GUIDE`, the 15 study sections and the section of the
+     orientation guide leave the texts.
+   - [x] **6b. The orientation guide** shows each capability in code: find,
+     read, change, show, control, files, tasks. The concept table goes.
+   - [x] **6c. The IDE's assistant guide** shows each kind of work: run, test,
+     results, study. The study sections stay in it.
+   - [x] **6d. The names test.** A text of a window, and a guide for users that
+     a window names, names only what the window offers.
 7. **Measure.** Run `tool/assistant/rehearsal.jl` with the local model and the
    compact index. Run ACP sessions on three general tasks: change a value in an
    open file, arrange the panes, and read and plot a result in the IDE. Count
@@ -879,6 +899,70 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   `test_meaning_search` 70/70, `test_search_query` 61/61, `test_search_ranking`
   27/27, `test_declared_api` 175/175, `test_search_guides` 6/6,
   `test_search_tools_registered` 8/8, the header check of the documentation.
+
+### 5.7 Facts found in step 6
+
+- **The composition.** `make_assistant_system(text, api; backend, settings)` in the
+  application slice joins the text of a window, the paragraph of the loaded
+  domains and the index of the names of `api` for `backend`, after the line "THE
+  NAMES THAT YOU CAN WRITE, by module". `make_application_system(; backend,
+  settings)` and `make_ide_system(; backend, settings)` make the text of each
+  window with it. `EDITOR_SYSTEM` holds the tools and the rules of every window and
+  names only the verbs that its rules need; `APPLICATION_SYSTEM` and
+  `CAMPAIGN_SYSTEM` each add what the window is and one worked example, and
+  `IDE_SYSTEM` adds a paragraph about the tests and the studies. The type of the
+  keyword `settings` is not written in the application slice, because
+  `StartSettings.jl`, which defines `AssistantIndexSettings`, needs
+  `APPLICATION_ASSISTANTS` of `Application.jl` and is included after it.
+- **The paths.** The built-in loop reads the `system` of the assistant, which the
+  window makes for its backend. An ACP session gets `DEFAULT_AGENT_INSTRUCTIONS`,
+  now only the two paragraphs about the person's editor and the agent's own file
+  tools, then the `system` of its assistant; the MCP server of the agent sends one
+  sentence, so the text is not sent twice. An outside client of the application
+  reads the text with the full index (`backend = :mcp`). The IDE makes one text
+  for the backend of its assistant, and its MCP server sends that text, so an
+  outside client of an IDE with a local model reads the compact index; it is one
+  window and one text. A window binary passes the setting "Assistant index" of
+  its start as `index_settings`. `DEFAULT_ASSISTANT_SYSTEM` is a short fallback
+  for an assistant whose window gives no text. `EDITOR_TOOL_GUIDE`, the section
+  "Reach what a tab holds" in the text of the application and the 15 study
+  sections of the IDE text (`STUDY_GUIDE_SECTIONS`) are gone.
+- **The sizes** (a token is about four characters):
+
+  | Text | Words | Tokens |
+  |---|---|---|
+  | `EDITOR_SYSTEM` | 465 | about 680 |
+  | `APPLICATION_SYSTEM` | 675 | about 1,030 |
+  | the application, full index | 4,147 | about 9,130 |
+  | the application, compact index | 1,733 | about 4,300 |
+  | `IDE_SYSTEM` | 971 | about 1,530 |
+  | the IDE, full index | 4,443 | about 9,630 |
+  | the IDE, compact index | 2,029 | about 4,800 |
+
+  The paragraph of the loaded domains is a large part of what is left: it is the
+  same in both sizes.
+- **The guides.** The orientation guide shows each capability in code, from a
+  search of a name to long work, without the table of concepts, and keeps the
+  section "Reach what a tab holds", which the docstring of `read_guide_section`
+  names. The IDE's assistant guide has its sections by kind of work, its
+  introduction names the orientation guide for the verbs of every window, and a
+  tab is found with `find_pane(title)` and read with `get_edited_document`. The
+  guide named `build_editor`, `ProjecturedPlatform` and `get_window_tree`, which
+  the window does not offer; those lines are gone. The questions of the search
+  measurement of omnet-julia name the new headings; one of them named a heading
+  that did not exist any more ("run it in the page").
+- **The names test.** `test_assistant_documentation` reads the text of the
+  application and the orientation guide, and `test_prompt_names` the texts of the
+  two IDE windows and the IDE's assistant guide: each name in backticks, and each
+  function that a code block calls, is a name that the window offers, a tool or
+  an argument of a tool, or a name that no offered module defines.
+- **Tests:** `test_assistant_documentation` 2810/2810, `test_assistant_verbs`
+  83/83, `test_application` with its 3 known failures (`:682`, `:805`, `:2131`),
+  `test_external_agent_turn` 308/308 with the platform test package alone (in a
+  process that also loads ProjecturedMCP, the turn starts an MCP server for the
+  stand-in editor of the test, which has no tools, and many of its tests fail);
+  in omnet-julia `test_prompt_names` 3/3, 4/4 and 187/187, `test_ide_documentation`
+  973/973 and 52/52, `test_result_verbs` 68/68, `test_ide_assistant_verbs` 10/10.
 
 ## 6. What else changes
 
