@@ -1563,6 +1563,13 @@ approval of the user.
   research suite give 204516 Pass and 1 Fail (research 386 Pass, as before).
   The Fail is `SystemProcessTest.jl:332`, which fails in the first cold run
   of a process under load and passes in a second run, on both commits.
+- The lists of compiled calls are recorded again on fb9e8a171, because the
+  merged code is new to them: the build of the merge warned that 3 of the 16
+  calls of `ProjecturedLanguageServer` no longer resolve. 38 lists change. The
+  workload of `ProjecturedExample` fails for the same 3 examples as before
+  (`json_sorted`, `filesystem`, `files`, now of 141). `Pkg.precompile()` then
+  builds 87 images with no warning, and one process loads each of the 35
+  packages that compile ahead.
 
 ## Not in this plan
 
