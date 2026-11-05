@@ -1,3 +1,8 @@
+# A measure that fails when it is asked for an extent: a free width reads none.
+struct _WordWrappingForbiddenMeasure <: TextMeasure end
+ProjecturedPlatform.StyleModule.compute_text_extent(::_WordWrappingForbiddenMeasure, args...) =
+    error("a free width measures no word")
+
 function test_word_wrapping()
 _test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
@@ -236,5 +241,14 @@ avail[] = 1000
 @test out.elements[1].soft_breaks == Int[]
 
 end # @testset "WordWrapping wraps a block of lines by its soft breaks"
+
+@testset "WordWrapping gives no soft break to a free width and measures no word" begin
+
+line = TextLine(TextString("Lorem ipsum dolor sit amet " ^ 40, StyleFont("Ubuntu Mono", 20), color_default))
+out = print_document(WordWrapping(measure = _WordWrappingForbiddenMeasure()), nothing, TextBlock(line),
+                     PrinterContext()).output
+@test out.elements[1].soft_breaks == Int[]
+
+end # @testset "WordWrapping gives no soft break to a free width and measures no word"
 
 end # test_word_wrapping

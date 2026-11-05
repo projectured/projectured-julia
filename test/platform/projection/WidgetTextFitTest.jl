@@ -30,7 +30,11 @@ function test_widget_text_fit()
     font = StyleFont("Ubuntu Mono", 20)
     # Every character is 10 pixels wide, and a line of the font is 24 pixels tall.
     measure = FixedMeasure(10, 18, 6, 0)
-    projection = RecursiveProjection(TypeDispatchingProjection(WidgetToGraphics(font; measure).dispatch))
+    # The table wraps the text of a field that asks for it, at the width it is offered.
+    projection = RecursiveProjection(TypeDispatchingProjection(vcat(
+        WidgetToGraphics(font; measure).dispatch,
+        Pair{Type,Any}[TextBlock => ChainingProjection(WordWrapping(; measure),
+                                                        TextToGraphics(; measure))])))
     bounded(width) = with_bounded_size(PrinterContext(); width = Cell(width))
     print_at(document, width) = print_document(projection, nothing, document, bounded(width))
     texts(document, width) = [t for t in _fit_drawn_texts(print_at(document, width).output) if !isempty(strip(t[1]))]

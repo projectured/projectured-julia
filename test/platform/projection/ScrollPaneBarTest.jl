@@ -341,7 +341,8 @@ function test_scroll_pane_bar()
     @testset "a pane shows a content that prints a new canvas as it grows" begin
         new_canvas = RecursiveProjection(TypeDispatchingProjection(vcat(
             Pair{Type,Any}[WidgetLabel => _NewCanvasTestProjection()],
-            WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure()).dispatch)))
+            WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure(),
+                             text = TextToGraphics(measure = FontFileMeasure())).dispatch)))
         label = WidgetLabel("line 1")
         pane = WidgetScrollPane(label; size = Point2D(200, 100))
         iomap = print_document(new_canvas, pane)

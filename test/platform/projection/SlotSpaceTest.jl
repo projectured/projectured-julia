@@ -6,7 +6,8 @@
 const _SS_MEASURE = FixedMeasure(10, 18, 6, 0)
 const _SS_SPACE = (8, 6, 4, 2)
 
-_ss_projection() = RecursiveProjection(WidgetToGraphics(; measure = _SS_MEASURE))
+_ss_projection() = RecursiveProjection(WidgetToGraphics(; measure = _SS_MEASURE,
+                                                        text = TextToGraphics(measure = _SS_MEASURE)))
 
 # A bounded offer of 600 by 400 with `space` around the child: a widget takes what
 # it needs, so its extent shows the space.

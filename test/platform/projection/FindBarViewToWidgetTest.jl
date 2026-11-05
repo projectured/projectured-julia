@@ -33,7 +33,8 @@ function _fb_projection()
                        FindBarView => ChainingProjection(FindBarViewToWidget(), VerticalLayoutToGraphicsCanvas()),
                        HighlightedText => ChainingProjection(stage, TextToGraphics(measure = measure))],
         LayoutToGraphics().dispatch,
-        make_object_field_widget_dispatch(w2g.dispatch))))
+        make_object_field_widget_dispatch(w2g.dispatch),
+        Pair{Type,Any}[TextBlock => TextToGraphics(; measure)])))
 end
 
 function _fb_editor(document)
