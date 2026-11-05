@@ -40,7 +40,9 @@ not a setting, so a file does not keep it, and with no answer of a backend it is
 light, normal and with no accent. `color_themes` holds a [`ColorTheme`](@ref)
 for each pair of a mode and a contrast, by the name that
 [`get_color_variant`](@ref) gives the pair, so a fine-tune of a role stays with
-its mode and its contrast. `saved_themes` holds the values of each theme that a loaded file
+its mode and its contrast. `font_theme` holds the [`FontTheme`](@ref): the one table of font roles, the same in
+every mode, which a [`FontRole`](@ref) that names a role resolves in (see
+[`resolve_font_role`](@ref)). `saved_themes` holds the values of each theme that a loaded file
 names and that the appearance does not hold yet, by the name of its type; the
 theme takes them when it is made (see [`load_appearance!`](@ref)).
 
@@ -74,6 +76,7 @@ of each; the wrapper then makes the view print again.
     color_neutral::Symbol = :slate
     system_colors::SystemColors = SystemColors()
     color_themes::Dict{Symbol,Any} = make_color_themes()
+    font_theme::Theme = FontTheme()
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
     scroll_position::Point2D = Point2D(0, 0)
@@ -155,14 +158,18 @@ scale_theme_value(length::IconSize, appearance::Appearance) =
     scale_theme_value(value, theme, appearance)
 
 `value` of a field of `theme` times the scale of its kind in `appearance`. A
-[`FontRole`](@ref) takes the font that it gives over its base font in `theme`, and
-then the font scale; a [`TextRole`](@ref) does the same for its font, and takes the
+[`FontRole`](@ref) that has a base takes the font that it gives over its base font in
+`theme`, and then the font scale; one that names a role takes the font that
+[`resolve_font_role`](@ref) gives, scaled once; a [`TextRole`](@ref) does the same for its font, and takes the
 colour that [`resolve_theme_color`](@ref) gives its colour. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
-says. The scaled theme reads the base font, so a role follows a change of it.
+says. The scaled theme reads the base font or the font theme, so a role follows a
+change of either.
 """
 scale_theme_value(value, theme, appearance::Appearance) = scale_theme_value(value, appearance)
 scale_theme_value(role::FontRole, theme, appearance::Appearance) =
-    scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance)
+    role.role === nothing ?
+        scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance) :
+        scale_theme_value(resolve_font_role(role, appearance), appearance)
 scale_theme_value(role::TextRole, theme, appearance::Appearance) =
     StyleText(scale_theme_value(role.font, theme, appearance),
               resolve_theme_color(role.color, appearance))
@@ -228,8 +235,11 @@ get_appearance_file() = joinpath(get_configuration_folder(), "appearance.toml")
 
 Write `appearance` into the TOML file `path`: the zoom, the six scales, the five
 colour settings, the roles of each colour theme that differ from the default of
-its mode and contrast, and a table for each theme that it holds, with the base
-value of each field. A fixed colour is `#rrggbbaa`, a step of a ramp a table of
+its mode and contrast, the fields of the font theme that differ from the default
+(a step is a table of its family `sans` or `mono`, its size, its weight and its
+slant), and a table for each theme that it holds, with the base value of each
+field. A font role that names a role of the font theme is a table of its `role`
+and the `weight` and `italic` that it sets. A fixed colour is `#rrggbbaa`, a step of a ramp a table of
 its hue and its step, a role a table of its role; a font is a table of its file
 and its size, a size is a number, or a list for an inset (top, bottom, left,
 right) and for a point (x, y). A value of a kind that the file can not say is
@@ -253,6 +263,14 @@ function save_appearance!(appearance::Appearance, path::AbstractString = get_app
         isempty(table) || (fine_tunes[String(variant)] = table)
     end
     isempty(fine_tunes) || (data[_COLOR_THEME_KEY] = fine_tunes)
+    font_table = Dict{String,Any}()
+    default_fonts = FontTheme()
+    for field in get_theme_field_names(FontTheme)
+        value = getproperty(appearance.font_theme, field)
+        value == getproperty(default_fonts, field) && continue
+        font_table[String(field)] = _encode_appearance_value(value)
+    end
+    isempty(font_table) || (data[_FONT_THEME_KEY] = font_table)
     for (T, entry) in appearance.themes
         table = Dict{String,Any}()
         for field in get_theme_field_names(T)
@@ -289,6 +307,9 @@ function load_appearance!(appearance::Appearance, path::AbstractString = get_app
         setproperty!(appearance, field, value isa Real && value > 0 ? Float64(value) : 1.0)
     end
     _load_color_settings!(appearance, data)
+    font_table = pop!(data, _FONT_THEME_KEY, Dict{String,Any}())
+    _write_saved_font_theme!(appearance.font_theme, font_table isa AbstractDict ? font_table :
+                                                                                  Dict{String,Any}())
     fine_tunes = pop!(data, _COLOR_THEME_KEY, Dict{String,Any}())
     for (variant, theme) in appearance.color_themes
         table = fine_tunes isa AbstractDict ? get(fine_tunes, String(variant), nothing) : nothing
@@ -314,6 +335,22 @@ end
 const _APPEARANCE_COLOR_SETTINGS = (:color_mode, :color_contrast, :color_palette,
                                     :color_accent, :color_neutral)
 const _COLOR_THEME_KEY = "ColorTheme"
+const _FONT_THEME_KEY = "FontTheme"
+
+# Write into the font theme `theme` each field of the default font theme, and then
+# the fields that the table `saved` names.
+function _write_saved_font_theme!(theme, saved::AbstractDict)
+    default = FontTheme()
+    for field in get_theme_field_names(FontTheme)
+        value = getproperty(default, field)
+        if haskey(saved, String(field))
+            decoded = _decode_appearance_value(value, saved[String(field)])
+            decoded === nothing || (value = decoded)
+        end
+        setproperty!(theme, field, value)
+    end
+    theme
+end
 
 # Read the colour settings of `data` into `appearance`: a setting that `data` does
 # not name, or names as no text or as a mode or a contrast that is not known,
@@ -386,8 +423,13 @@ _encode_appearance_value(font::StyleFont) =
 _encode_appearance_value(text::StyleText) =
     Dict{String,Any}("font" => _encode_appearance_value(text.font),
                      "color" => _encode_appearance_value(text.color))
+_encode_appearance_value(step::FontStep) =
+    Dict{String,Any}("family" => String(step.family), "size" => step.size,
+                     "weight" => Int(step.weight), "italic" => step.italic)
 function _encode_appearance_value(role::FontRole)
-    table = Dict{String,Any}("base" => String(role.base), "relative_size" => role.relative_size)
+    table = role.role === nothing ?
+        Dict{String,Any}("base" => String(role.base), "relative_size" => role.relative_size) :
+        Dict{String,Any}("role" => String(role.role))
     role.family === nothing || (table["family"] = role.family)
     role.weight === nothing || (table["weight"] = Int(role.weight))
     role.italic === nothing || (table["italic"] = role.italic)
@@ -445,10 +487,29 @@ end
 # such a value names a size, and a role names none.
 _is_absolute_font_table(saved) = saved isa AbstractDict && haskey(saved, "size")
 
+function _decode_appearance_value(current::FontStep, saved)
+    saved isa AbstractDict || return nothing
+    family = get(saved, "family", nothing)
+    size = get(saved, "size", current.size)
+    weight = get(saved, "weight", Int(current.weight))
+    italic = get(saved, "italic", current.italic)
+    (family in ("sans", "mono") && size isa Integer && size > 0 &&
+     weight isa Integer && 1 <= weight <= 1000 && italic isa Bool) || return nothing
+    FontStep(Symbol(family), size; weight, italic)
+end
 function _decode_appearance_value(current::FontRole, saved)
     saved isa AbstractDict || return nothing
     _is_absolute_font_table(saved) &&
         return _decode_appearance_value(StyleFont(_DEFAULT_FONT_FAMILY, 1), saved)
+    name = get(saved, "role", nothing)
+    if name !== nothing
+        weight = get(saved, "weight", nothing)
+        italic = get(saved, "italic", nothing)
+        (name isa AbstractString && !isempty(name) &&
+         (weight === nothing || weight isa Integer && 1 <= weight <= 1000) &&
+         (italic === nothing || italic isa Bool)) || return nothing
+        return FontRole(Symbol(name); weight, italic)
+    end
     base = get(saved, "base", String(current.base))
     relative_size = get(saved, "relative_size", current.relative_size)
     family = get(saved, "family", nothing)
