@@ -146,7 +146,7 @@ gets the new value; the commit names each one.
   until the end of step 5, so that each step builds and passes its tests. Tests: `ThemeTest.jl`, `ColorThemeTest.jl` as a
   model for a new `FontThemeTest.jl`, `test_font_face`, the save and load test of
   the appearance.
-- [ ] **Step 2. The appearance tab.** A "Fonts" section with one row for each
+- [x] **Step 2. The appearance tab.** Done on 2026-11-05, `e708fd341` and `45cab5799`. A "Fonts" section with one row for each
   role: the family, the size, the weight and the slant. A field of a theme shows
   whether it names a role or holds an exact font, as a color field shows a role
   or a fixed color. Test: `AppearanceTabTest.jl`.
@@ -231,6 +231,13 @@ gets the new value; the commit names each one.
   On `main` the same counts, except `test_font_theme`, which `main` does not
   have, and `test_color_theme`, whose run on `main` did not get memory. No Fail,
   no Error and no Broken.
+- **2026-11-05, step 2.** The font card stands second in "Editor", after the
+  colour card, with the title "Font". The family stepper is a method of
+  `_make_field_control` for a `String` value that acts only on `sans_family` and
+  `mono_family` of the font theme; every other text field shows its text, as
+  before. A role with a role name has its own control, `_make_font_theme_role_control`,
+  with no size. Counts on the branch: `test_appearance_tab` 138 before, 156 after;
+  `test_appearance_file` 22; `test_font_theme` 70.
 
 ## 6. Not in this plan
 
