@@ -532,6 +532,44 @@ end
     @test format_style_color(fix.value) in first.(_at_collect_texts(iomap.output))
 end
 
+@testset "a colour text of a card that opens after the print takes a typed digit" begin
+    # A closed card has no controls at the print, and a fold prints nothing again,
+    # so the controls that the card makes when it opens hold their paths themselves.
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"))
+    run_frame!(editor)
+    appearance = find_editor_appearance(; editor)
+    theme = get_theme(appearance, WidgetTheme)
+    theme.primary = resolve_theme_color(theme.primary, appearance)
+    before = format_style_color(theme.primary)
+    time = Ref(1.0)
+    send!(events...) = begin
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+        time[] += 1.0
+    end
+    drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    printed = editor.iomap
+    @test !("primary" in first.(drawn()))
+    # The write that a press on the chevron of the card answers.
+    evaluate_operation(nothing, ProjecturedPlatform.AppearanceModule._make_fold_operation(appearance, "WidgetTheme"))
+    run_frame!(editor)
+    @test editor.iomap === printed
+    _, _, row_y = only(t for t in drawn() if t[1] == "primary")
+    appearance.scroll_position = Point2D(0, max(0, row_y - 300))
+    run_frame!(editor)
+    x, y = _at_find_row_button(drawn(), "primary", before)
+    send!(_at_click(x - 1, y, time[])...)
+    send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
+    send!(KeyPress('f'; time = time[]))
+    @test format_style_color(theme.primary) == "#f" * before[3:end]
+end
+
 end
 end
 
