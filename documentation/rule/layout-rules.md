@@ -5,6 +5,12 @@
 How every widget and every layout gets its size. One rule, both axes, no
 exceptions and no constants.
 
+The space of a widget, the padding inside its edge, the gap between children
+and the space at the edge of a slot, follows [spacing-rules.md](spacing-rules.md).
+In the examples below, a name such as `section_gap` is a role of the widget
+theme. A builder reads it with `get_widget_style(widget_theme, :section_gap)`
+and writes no number.
+
 ## 1. The rule
 
 A parent gives each child, on each axis, a **range**: a minimum `m` and a
@@ -120,7 +126,7 @@ minimum and cut at the placement's maximum. A bare child has weight `0`, so
 badge-shaped, and a paragraph in the column wraps at the column's edge.
 
 ```julia
-VerticalLayout(turns; gap = 6, child_width = Fill, child_height = Content)
+VerticalLayout(turns; gap = section_gap, child_width = Fill, child_height = Content)
 ```
 
 ## 3. What a container offers
@@ -291,7 +297,7 @@ A scroll pane that should take what a header leaves, and scroll:
 
 ```julia
 WidgetShell(size = Point2D(300, 400))
-  └ VerticalLayout(gap = 6)                              # declares nothing
+  └ VerticalLayout(gap = section_gap)                    # declares nothing
       ├ WidgetLabel("header")                            # 26 px, Content
       └ LayoutConstraint(WidgetScrollPane(…); height = Fill)
 ```
@@ -299,19 +305,19 @@ WidgetShell(size = Point2D(300, 400))
 - the shell gives an offer of `400`;
 - the stack sees a weight on `:y`, so it distributes rather than sums;
 - the label is unweighted, keeps its 26, and is not offered a slot;
-- the pane takes the remaining `374`, clips its content, and scrolls.
+- the pane takes the remaining `366`, which is 400 less the label and one `section_gap` of 8, clips its content, and scrolls.
 
 Without the wrapper the pane is offered no height, so it clips nothing: it takes
 the height of its content and the column grows with it. The `Fill` is what makes
 it a viewport in that column.
 
-A row with a label, a field that takes the rest, and a button, in 400 pixels with a
-gap of 8:
+A row with a label, a field that takes the rest, and a button, in 400 pixels, with a
+gap of `form_column_gap`, which is 8:
 
 ```julia
 HorizontalLayout([WidgetLabel("Name:"),                          # 50 px
                   LayoutConstraint(WidgetText(""); width = Fill),
-                  WidgetButton("Go")]; gap = 8)                  # 30 px
+                  WidgetButton("Go")]; gap = form_column_gap)      # 30 px
 ```
 
 - the label's room is `400 − 16 − 0 − 0 = 384`, and it draws its 50;
