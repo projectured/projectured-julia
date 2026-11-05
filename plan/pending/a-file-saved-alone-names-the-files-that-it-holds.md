@@ -532,13 +532,25 @@ through the reload (D7), so no test can check the open without the reload.
      (`CheckLayering.jl:889`), as on main since `550163da1` and in the baseline of main `6e482a59c`;
      no entry of its list names a file of this step. The error of `MarkerVocabularyTest.jl:88` and
      the broken set of a Julia file are the known ones.
-4. **A held file in a tuple or a named tuple (D5).** `FileCut.jl`: `_cut_field` (`:329-349`) and
+4. **A held file in a tuple or a named tuple (D5).** **Done on 2026-11-05.** `FileCut.jl`: `_cut_field` (`:329-349`) and
    `_cut_copy` go into a tuple and a named tuple for a held file. `FileSplice.jl`:
    `_collect_references!` (`:137-160`) and `_splice_walk!` (`:195-226`) go into them and build them
    again. Test: a new set in `test_pred_file()`: a holder with
    `records = [(number = 1, picture = <a held TextFile>)]` saves alone as `picture = file("p.txt")`,
    and `load_project(…; follow = true)` gives the `TextFile` in the named tuple. A plain value in the
    tuple stays as it was.
+
+   What the implementation found:
+   - A record of a list is an element of a vector, so `_cut_copy` goes into a tuple too, not only
+     `_cut_field`. The rule of the fields of a `.pred` file, `_holds_document`, looks into a tuple, a
+     named tuple and a vector at any depth, or the cut would not walk a list of records.
+   - The `.pred` writer and parser need no change: they write and read a `file("…")` in a named
+     tuple as a `PredReference` already, and a list reads as `Any[]`, so the splice can put a new
+     tuple into it.
+   - The test also holds a plain tuple and a named tuple in a named tuple, checks that two places of
+     one path hold one file after the load, and that a load of the file alone keeps each reference
+     and saves it back unchanged.
+   - Results: the sets of step 3 pass, 984 tests, with the same three known results.
 5. **A load into an editor gives each `file("…")` its page (D6, D7, D11).** Needs G4 step 2 on
    main. `FileSplice.jl`: `splice_held_files!`, with its export in `SerializationModule.jl`.
    `OpenFileList.jl`: the generic function `open_file_page!` with its docstring and its default,
@@ -650,8 +662,10 @@ After step 6 the plan moves to `plan/done/`, and the code quality steward reads 
   its two places load as two objects, as now.
 - **The new exports** move the layering guard: `find_held_file` and `splice_held_files!` in
   `SerializationModule`, and `open_file_page!` in `FileFormatModule`.
-  `test_platform_layering()` tells. Their docstrings carry no mark `For the assistant.`, so the rank
-  of `search_api` does not move.
+  `test_platform_layering()` tells. `find_held_file` and `splice_held_files!` carry no mark `For the
+  assistant.`. `open_file_page!` carries it (D7), so step 5 can move the rank of `search_api`, and
+  its tests run `test_assistant_documentation()`, `test_assistant_verbs()` and
+  `test_referenced_document_editor()`.
 
 ## 8. Open questions for the owner
 

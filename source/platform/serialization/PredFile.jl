@@ -157,7 +157,8 @@ function is_written_in_file(file::PredFile, node, name::Symbol)
 end
 
 _holds_document(value) =
-    value isa Document || (value isa AbstractVector && any(element -> element isa Document, value))
+    value isa Document ||
+    (value isa Union{AbstractVector,Tuple,NamedTuple} && any(_holds_document, value))
 
 # The reference this format spells: the call itself, printed where the value
 # would be.

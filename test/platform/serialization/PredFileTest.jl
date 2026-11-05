@@ -262,5 +262,38 @@ function test_pred_file()
         end
     end
 
+    @testset "a held file in a tuple or a named tuple is a reference, and the load gives the file back" begin
+        directory = mktempdir()
+        try
+            record = (number = 1, picture = TextFile("p.txt", "pixels"), note = "first")
+            pair = (2, TextFile("q.txt", "other"))
+            nested = (meta = (picture = TextFile("p.txt", "pixels"),),)
+            holder = PredFileHolder(name = "ledger", elements = Any[record, pair, nested])
+            @test save_file!(PredFile("ledger.pred", holder), directory)
+            text = read(joinpath(directory, "ledger.pred"), String)
+            @test occursin("(number = 1, picture = file(\"p.txt\"), note = \"first\")", text)
+            @test occursin("(2, file(\"q.txt\"))", text)
+            @test occursin("(meta = (picture = file(\"p.txt\"),),)", text)
+            @test !occursin("pixels", text) && !occursin("other", text)
+            @test readdir(directory) == ["ledger.pred"]
+            write(joinpath(directory, "p.txt"), "pixels")
+            write(joinpath(directory, "q.txt"), "other")
+            project = load_project(directory, ["ledger.pred"]; follow = true)
+            @test length(project.files) == 3
+            loaded = get_file_content(project.files[1]).elements
+            @test loaded[1].number == 1 && loaded[1].note == "first"
+            @test loaded[1].picture isa TextFile && get_filename(loaded[1].picture) == "p.txt"
+            @test loaded[2][1] == 2 && loaded[2][2] isa TextFile && get_filename(loaded[2][2]) == "q.txt"
+            # Two places of one path hold one file.
+            @test loaded[3].meta.picture === loaded[1].picture
+            # A load of the file alone keeps each reference, and saves it back unchanged.
+            alone = load_file(directory, "ledger.pred")
+            @test get_file_content(alone).elements[1].picture isa SerializationModule.PredReference
+            @test cut_file_text(alone, directory) == text
+        finally
+            rm(directory; recursive = true, force = true)
+        end
+    end
+
 end
 end

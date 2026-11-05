@@ -287,6 +287,7 @@ end
 # file. A node of the file is written at its owner path, and every other place
 # names it by a marker into the file itself.
 function _cut_copy(cut::_FileCut, node, path::Reference)
+    node isa Union{Tuple,NamedTuple} && return _cut_tuple(cut, node, path)
     node isa Document || return node
     held = find_held_file(node)
     held === nothing || return _make_held_file_leaf(cut, held, path)
@@ -302,6 +303,16 @@ function _cut_copy(cut::_FileCut, node, path::Reference)
     is_file_domain_node(cut.file, node) || return make_inline_leaf(cut.file, node, path)
     _rebuild(cut, node, path)
 end
+
+# A tuple and a named tuple keep each value as the writer writes it, but a held
+# file, at any depth, which becomes its reference leaf. A node in a tuple has no
+# path that a marker can name, so the cut owns no other node there.
+_cut_tuple(cut::_FileCut, value::Union{Tuple,NamedTuple}, path::Reference) =
+    map(value) do element
+        element isa Union{Tuple,NamedTuple} && return _cut_tuple(cut, element, path)
+        held = element isa Document ? find_held_file(element) : nothing
+        held === nothing ? element : _make_held_file_leaf(cut, held, path)
+    end
 
 _is_same_path(a::Reference, b::Reference) =
     collect(get_reference_steps(a)) == collect(get_reference_steps(b))
@@ -357,7 +368,7 @@ function _cut_field(cut::_FileCut, name::Symbol, value, path::Reference)
         return Any[_cut_copy(cut, element,
                              extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)))
                    for (index, element) in enumerate(value)]
-    elseif value isa Document
+    elseif value isa Document || value isa Union{Tuple,NamedTuple}
         return _cut_copy(cut, value, extend_reference(path, FieldReferenceStep(string(name))))
     end
     value

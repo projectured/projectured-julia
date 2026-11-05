@@ -135,6 +135,10 @@ _referenced_filenames(file) =
     _collect_references!(String[], get_file_content(file), IdDict{Any,Bool}())
 
 function _collect_references!(names::Vector{String}, node, visited::IdDict)
+    if node isa Union{Tuple,NamedTuple}
+        foreach(element -> _collect_references!(names, element, visited), node)
+        return names
+    end
     node isa Document || return names
     haskey(visited, node) && return names
     visited[node] = true
@@ -205,12 +209,21 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
         if is_element_collection(value) || value isa AbstractVector
             for index_in in eachindex(value)
                 element = value[index_in]
-                target = _splice_target(project, index, element, tolerant)
+                target = element isa Union{Tuple,NamedTuple} ?
+                         _splice_tuple(project, index, element, visited, tolerant) :
+                         _splice_target(project, index, element, tolerant)
                 if target !== nothing
                     value[index_in] = target
                 else
                     _splice_walk!(project, index, element, visited, tolerant)
                 end
+            end
+        elseif value isa Union{Tuple,NamedTuple}
+            target = _splice_tuple(project, index, value, visited, tolerant)
+            if target !== nothing
+                raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
+                                              name, " of ", typeof(node), ", which cannot be spliced")
+                raw[] = target
             end
         elseif value isa Document
             target = _splice_target(project, index, value, tolerant)
@@ -223,6 +236,22 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
             end
         end
     end
+end
+
+# A tuple or a named tuple built again with each reference leaf in it, at any
+# depth, replaced by the node that it names, or `nothing` when no leaf in it
+# names a node of the set. A document in it is walked as any other.
+function _splice_tuple(project, index, value::Union{Tuple,NamedTuple}, visited::IdDict, tolerant::Bool)
+    changed = false
+    spliced = map(value) do element
+        target = element isa Union{Tuple,NamedTuple} ?
+                 _splice_tuple(project, index, element, visited, tolerant) :
+                 _splice_target(project, index, element, tolerant)
+        target === nothing || (changed = true; return target)
+        _splice_walk!(project, index, element, visited, tolerant)
+        element
+    end
+    changed ? spliced : nothing
 end
 
 # The node a reference leaf names, or `nothing` when the leaf is not a reference
