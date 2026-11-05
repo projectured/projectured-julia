@@ -480,7 +480,7 @@ through the reload (D7), so no test can check the open without the reload.
      `test_project_errors()` and four workbench sets pass, 408 tests. Of the recorded calls of
      omnet-julia that no longer resolve, 2 name `_file_holding`, which this step removes; the
      others come from main since the lists were recorded on 3 November.
-2. **The save alone writes a held file as `file("…")` (D2, D3, D12).** `FileCut.jl`: `_cut_copy`
+2. **The save alone writes a held file as `file("…")` (D2, D3, D12).** **Done on 2026-11-05.** `FileCut.jl`: `_cut_copy`
    (`:267-285`) and `_cut_leaf` (`:293-299`) write the leaf in both saves, the cut takes the base
    folder of a save alone (`cut_file_text`, `:403-408`), and a marker of a save alone names a file
    relative to it (`_reference_marker`, `:366-370`). An unnamed held file refuses (D3).
@@ -493,6 +493,21 @@ through the reload (D7), so no test can check the open without the reload.
    An unnamed held file logs the reason and answers `false`. A `PredFile` with an absolute name that
    holds one document at two places loads back with one object. `test_file_project()` keeps its set
    "a foreign node is rejected".
+
+   What the implementation found:
+   - The cut carries one value, `_FileCut`: the owners, the nodes that the copy wrote, the mode and
+     the base folder. The cut functions had six positional arguments, and the base folder would
+     have been the seventh. `_cut_leaf` goes: in a save alone the set holds one file, so no node
+     has another owner, and its only refusal was the held file. `_reference_marker` is
+     `_make_reference_marker`, and `_compute_marker_file_name` gives the name of a file in a marker.
+   - A held file with no name refuses in a project save too, because `file("")` names no file.
+   - The refusal of a foreign node keeps its words: such a node needs a reference into a file of
+     its domain, and a save alone has none.
+   - A limit: `make_inline_leaf` of a `.pred` file cuts the text of an inline node with the working
+     folder as the base, so a file document inside a JSON value that a `.pred` file writes inline
+     is named relative to the working folder. No document makes that case now.
+   - Results: the sets of step 1 and `test_text_file()` pass, 475 tests, with the error that main
+     has at `MarkerVocabularyTest.jl:88` and the known broken set of a Julia file.
 3. **A page saves as the file that it shows (D4).** `find_held_file` with its default in
    `FileCut.jl`, its export in `SerializationModule.jl`, and its row in the table of defaults of
    `serialization.md`. The walks `_own_walk!` (`:189`), `_own_inline_walk!` (`:169`),

@@ -37,7 +37,7 @@ FileProject(base_dir::AbstractString, files::AbstractVector) =
     FileCutException(message)
 
 A save could not cut the graph into files: a node has no file to be written
-into, or a single-file save met a cut it may not write.
+into, or a file that the content holds has no name to write.
 """
 struct FileCutException <: Exception
     message::String
@@ -260,42 +260,48 @@ end
 
 # ── The cut ──────────────────────────────────────────────────────────────────
 
-# The five rules, for the copy of `file`. `strict` is the single-file save: a cut
-# into another file is an error, because no other file is there to refer into. A
-# node of the file is written at its owner path, and every other place names it by
-# a marker into the file itself, in both saves.
-function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
+# One cut of `file`: the owners of the set, the nodes that the copy wrote, and how
+# a marker names a file. A save alone (`strict`) names a file by its path relative
+# to `base_dir`; a project save names a file by the name that the file gives.
+struct _FileCut
+    owner::IdDict{Any,Tuple{Any,Reference}}
+    file::Any
+    visited::IdDict{Any,Bool}
+    strict::Bool
+    base_dir::String
+end
+
+# The rules, for the copy of the file of `cut`. A file document that the content
+# holds is a reference leaf in both saves, and the save writes nothing of that
+# file. A node of the file is written at its owner path, and every other place
+# names it by a marker into the file itself.
+function _cut_copy(cut::_FileCut, node, path::Reference)
     node isa Document || return node
-    if is_file_document(node)
-        return _cut_leaf(file, path, strict, "file(" * repr(get_filename(node)) * ")",
-                         "holds the file document " * repr(get_filename(node)))
-    end
-    entry = get(owner, node, nothing)
+    is_file_document(node) && return _make_held_file_leaf(cut, node, path)
+    entry = get(cut.owner, node, nothing)
     entry === nothing &&
-        throw(FileCutException(_orphan_message(file, path, node, strict)))
+        throw(FileCutException(_orphan_message(cut.file, path, node, cut.strict)))
     owner_file, owner_path = entry
-    owner_file === file ||
-        return _cut_leaf(file, path, strict, _reference_marker(owner_file, owner_path),
-                         "holds a " * string(nameof(typeof(node))) * " that " *
-                         repr(get_filename(owner_file)) * " writes")
-    (haskey(visited, node) || !_is_same_path(path, owner_path)) &&
-        return make_reference_leaf(file, _reference_marker(file, owner_path))
-    visited[node] = true
-    is_file_domain_node(file, node) || return make_inline_leaf(file, node, path)
-    _rebuild(owner, file, node, path, visited, strict)
+    owner_file === cut.file ||
+        return make_reference_leaf(cut.file, _make_reference_marker(cut, owner_file, owner_path))
+    (haskey(cut.visited, node) || !_is_same_path(path, owner_path)) &&
+        return make_reference_leaf(cut.file, _make_reference_marker(cut, cut.file, owner_path))
+    cut.visited[node] = true
+    is_file_domain_node(cut.file, node) || return make_inline_leaf(cut.file, node, path)
+    _rebuild(cut, node, path)
 end
 
 _is_same_path(a::Reference, b::Reference) =
     collect(get_reference_steps(a)) == collect(get_reference_steps(b))
 
-# A reference leaf in the file's notation, or — in the strict mode — the error
-# that says why the file cannot be saved alone.
-function _cut_leaf(file, path, strict::Bool, marker::AbstractString, why::AbstractString)
-    strict && throw(FileCutException(
-        "save_file!: " * repr(get_filename(file)) * " " * why * " at " * print_path_text(path) *
-        "; it needs a reference, and a file saved alone cannot write one — " *
-        "save it in a FileProject"))
-    make_reference_leaf(file, marker)
+# The reference leaf of a held file, `file("…")`. A held file with no name has no
+# path to write, so the save refuses and says where the content holds it.
+function _make_held_file_leaf(cut::_FileCut, held, path::Reference)
+    isempty(get_filename(held)) && throw(FileCutException(
+        (cut.strict ? "save_file!: " : "save_project!: ") * repr(get_filename(cut.file)) *
+        " holds a " * string(nameof(typeof(held))) * " with no name at " * print_path_text(path) *
+        "; save that file first with \"Save as\", so that this file can name it"))
+    make_reference_leaf(cut.file, "file(" * repr(_compute_marker_file_name(cut, held)) * ")")
 end
 
 function _orphan_message(file, path, node, strict::Bool)
@@ -312,38 +318,35 @@ end
 # its kind; a collection field is rebuilt as the same kind of collection. A field
 # of the state of a view is no content, so it keeps its value, as the selection
 # does, and its documents are not cut.
-function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
+function _rebuild(cut::_FileCut, node, path::Reference)
     T = typeof(node)
     args = Any[]
     for name in fieldnames(T)
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         copied = name === :mouse_target ? nothing :
-                 (is_view_state_field(T, name) || !is_written_in_file(file, node, name)) ? value :
-                 _cut_field(owner, file, name, value, path, visited, strict)
+                 (is_view_state_field(T, name) || !is_written_in_file(cut.file, node, name)) ? value :
+                 _cut_field(cut, name, value, path)
         push!(args, raw isa AbstractCell ? make_similar_cell(raw, copied) : copied)
     end
     Base.typename(T).wrapper(args...)
 end
 
-function _cut_field(owner, file, name::Symbol, value, path::Reference, visited::IdDict, strict::Bool)
+function _cut_field(cut::_FileCut, name::Symbol, value, path::Reference)
     if is_element_collection(value)
-        items = Any[_cut_copy(owner, file, element,
-                              extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
-                              visited, strict)
+        items = Any[_cut_copy(cut, element,
+                              extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)))
                     for (index, element) in enumerate(value)]
         # The list keeps the type of its elements, which its field declares.
         wrapper = Base.typename(typeof(value)).wrapper
         element_type = find_declared_element_type(value)
         return element_type === nothing ? wrapper(items) : wrapper{element_type}(items)
     elseif value isa AbstractVector
-        return Any[_cut_copy(owner, file, element,
-                             extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
-                             visited, strict)
+        return Any[_cut_copy(cut, element,
+                             extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)))
                    for (index, element) in enumerate(value)]
     elseif value isa Document
-        return _cut_copy(owner, file, value, extend_reference(path, FieldReferenceStep(string(name))),
-                         visited, strict)
+        return _cut_copy(cut, value, extend_reference(path, FieldReferenceStep(string(name))))
     end
     value
 end
@@ -365,8 +368,22 @@ print_path_text(path::Reference) =
 
 # `node(file("b.xml"), "children[1]")` for a node in a file, and
 # `node(file("b.xml"), "")` for its root.
-_reference_marker(file, path::Reference) =
-    "node(file(" * repr(get_filename(file)) * "), " * repr(print_path_text(path)) * ")"
+_make_reference_marker(cut::_FileCut, file, path::Reference) =
+    "node(file(" * repr(_compute_marker_file_name(cut, file)) * "), " * repr(print_path_text(path)) * ")"
+
+# The name of `file` in a marker. A save alone writes its path relative to the base
+# folder, with `..` for a file outside it, so the text does not depend on the
+# machine, and `load_file(base_dir, name)` reads the name against the same folder.
+# A file on another drive has no relative path, and keeps its absolute path. A
+# project save writes the name that the file gives.
+function _compute_marker_file_name(cut::_FileCut, file)
+    name = get_filename(file)
+    cut.strict || return name
+    base = abspath(cut.base_dir)
+    path = abspath(base, name)
+    first(splitdrive(path)) == first(splitdrive(base)) || return path
+    relpath(path, base)
+end
 
 # ── The two saves ────────────────────────────────────────────────────────────
 
@@ -380,7 +397,7 @@ written into, log the reason, write nothing, and return `false`.
 function save_project!(project::FileProject)
     owner = _assign_owners(project)
     texts = try
-        Any[(file, _cut_text(owner, file, false)) for file in project.files]
+        Any[(file, _cut_text(owner, file, false, project.base_dir)) for file in project.files]
     catch e
         e isa FileCutException || rethrow()
         @error e.message
@@ -394,8 +411,9 @@ end
     cut_file_text(file, base_dir = ".") -> String
 
 The text that [`save_file!`](@ref) writes for `file` into `base_dir`: the graph
-cut at the file, and printed in the notation of its file type. It writes
-nothing. It throws a [`FileCutException`](@ref) where the save refuses.
+cut at the file, and printed in the notation of its file type. A marker names a
+file by its path relative to `base_dir`. It writes nothing. It throws a
+[`FileCutException`](@ref) where the save refuses.
 
 Use it to compare a document with its file on disk.
 """
@@ -403,20 +421,24 @@ function cut_file_text(file, base_dir::AbstractString = ".")
     is_file_document(file) ||
         error("cut_file_text: not a file document (", typeof(file), ")")
     owner = _assign_owners(FileProject(base_dir, Any[file]))
-    String(_cut_text(owner, file, true))
+    String(_cut_text(owner, file, true, base_dir))
 end
 
 """
     save_file!(file, base_dir) -> Bool
 
-Write one file with no other file around it, so no reference into another file
-can be written: the content must be of the file's domain, with no foreign node,
-or the save logs why and returns `false`. A node that the content holds at two
+Write one file with no other file around it. A file document that the content
+holds is written as `file("…")`, with its path relative to `base_dir` and `..`
+for a file outside it, and the save writes nothing of that file. Any other node
+must be of the file's domain, or one that the file writes in its own text, as a
+`.pred` file writes a JSON value; else the save logs why and returns `false`, as
+it does for a held file with no name. A node that the content holds at two
 places, and a cycle, are written once, and each other place holds a marker into
-the file itself, which [`load_file`](@ref) splices back. The node is written at
-the first place, or at the place of a typed list that a marker does not fit,
-such as the formulas of a formula sheet. A marker that is a plain leaf of the
-domain is a plain leaf, and saves as one.
+the file itself, named by its path relative to `base_dir`, which
+[`load_file`](@ref) splices back. The node is written at the first place, or at
+the place of a typed list that a marker does not fit, such as the formulas of a
+formula sheet. A marker that is a plain leaf of the domain is a plain leaf, and
+saves as one.
 """
 save_file!(file, base_dir::AbstractString) = save_file_text!(file, base_dir) !== nothing
 
@@ -444,16 +466,16 @@ end
 # notation. Both halves can refuse — the cut at a node with no file, the
 # notation at a value it cannot write — and both refuse before anything is
 # written, so a save that cannot be finished leaves the directory as it was.
-function _cut_text(owner, file, strict::Bool)
+function _cut_text(owner, file, strict::Bool, base_dir::AbstractString)
+    cut = _FileCut(owner, file, IdDict{Any,Bool}(), strict, String(base_dir))
     content = get_file_content(file)
-    visited = IdDict{Any,Bool}()
     if is_own_content(file)
         # The root is the file, so it is rebuilt rather than cut, and the copy is
         # already the file the notation prints.
-        visited[content] = true
-        return emit_text(_rebuild(owner, file, content, EmptyReference(), visited, strict))
+        cut.visited[content] = true
+        return emit_text(_rebuild(cut, content, EmptyReference()))
     end
-    emit_text(_with_content(file, _cut_copy(owner, file, content, EmptyReference(), visited, strict)))
+    emit_text(_with_content(file, _cut_copy(cut, content, EmptyReference())))
 end
 
 function _write_texts!(base_dir::AbstractString, texts)

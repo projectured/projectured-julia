@@ -141,13 +141,20 @@ _is_format_node(node) =
     end
 
 # A `.pred` file writes the call `pred_arguments` gives and nothing else, so
-# that is what it walks. A field the call leaves out — the live half a document
-# built for itself — is not written, not cut, and not an orphan. A field the
-# call writes as a rendering — a formula's code, written as its text — holds
+# that is what it walks: a field that the call writes as a keyword with its name,
+# and a field whose value is one of the positional arguments of the call, such as
+# the content of a scroll pane. A field the call leaves out — the live half a
+# document built for itself — is not written, not cut, and not an orphan. A field
+# the call writes as a rendering — a formula's code, written as its text — holds
 # no node the walk could reach, so it is not walked and not cut either.
-is_written_in_file(file::PredFile, node, name::Symbol) =
-    !(node isa Document) ||
-    any(pair -> first(pair) === name && _holds_document(last(pair)), last(pred_arguments(node)))
+function is_written_in_file(file::PredFile, node, name::Symbol)
+    node isa Document || return true
+    positional, keywords = pred_arguments(node)
+    any(pair -> first(pair) === name && _holds_document(last(pair)), keywords) && return true
+    raw = getfield(node, name)
+    value = raw isa AbstractCell ? raw[] : raw
+    _holds_document(value) && any(argument -> argument === value, positional)
+end
 
 _holds_document(value) =
     value isa Document || (value isa AbstractVector && any(element -> element isa Document, value))

@@ -7,7 +7,7 @@ using Test
 using ProjecturedPlatform.SerializationModule
 using ProjecturedPlatform.StyleModule: StyleFont, StyleColor
 using ProjecturedPlatform.TextModule: TextBlock, TextString
-using ProjecturedPlatform.WidgetModule: WidgetTable, WidgetLabel
+using ProjecturedPlatform.WidgetModule: WidgetTable, WidgetLabel, WidgetScrollPane
 using ProjecturedKernel.DocumentModule: @document
 
 """
@@ -199,6 +199,67 @@ function test_pred_file()
               [["pure", "5.0", "0.5"], ["slotted", "6", "0.25"]]
         @test print_pred_text(loaded) == text
         @test !occursin("scroll_position", text)
+    end
+
+    @testset "a file saved alone writes a file that it holds as file(…), relative to its folder" begin
+        root = mktempdir()
+        try
+            directory = joinpath(root, "work")
+            mkpath(directory)
+            outside = TextFile(joinpath(root, "other", "notes.txt"), "far")
+            holder = PredFileHolder(name = "work", elements = Any[TextFile("notes.txt", "hello"), outside])
+            @test save_file!(PredFile("work.pred", holder), directory)
+            text = read(joinpath(directory, "work.pred"), String)
+            @test occursin("file(\"notes.txt\")", text)
+            @test occursin("file(\"../other/notes.txt\")", text)
+            @test !occursin("hello", text) && !occursin("far", text)
+            # The save writes no held file.
+            @test readdir(directory) == ["work.pred"]
+            @test !ispath(joinpath(root, "other"))
+            # A held file with an absolute name gives the same text.
+            absolute = PredFileHolder(name = "work",
+                                      elements = Any[TextFile(joinpath(directory, "notes.txt"), "hello"), outside])
+            @test cut_file_text(PredFile("work.pred", absolute), directory) == text
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a file saved alone walks the content of a scroll pane, a positional argument of its call" begin
+        held = TextFile("notes.txt", "hello")
+        text = cut_file_text(PredFile("card.pred", PredFileHolder(elements = Any[WidgetScrollPane(held)])), mktempdir())
+        @test occursin(r"WidgetScrollPane\(\s*file\(\"notes.txt\"\)", text)
+        @test !occursin("hello", text)
+    end
+
+    @testset "a file saved alone refuses a held file with no name, and says where it is held" begin
+        directory = mktempdir()
+        try
+            holder = PredFileHolder(name = "work", elements = Any[TextFile("", "draft")])
+            result = @test_logs (:error, r"with no name at elements\[1\].*Save as") save_file!(
+                PredFile("work.pred", holder), directory)
+            @test result === false
+            @test isempty(readdir(directory))
+        finally
+            rm(directory; recursive = true, force = true)
+        end
+    end
+
+    @testset "a file saved alone with an absolute name names itself relative to its folder" begin
+        register_file_document_type!(".lines", PredFileLinesFile)
+        page = PredFileLines(lines = ["shared"])
+        directory = mktempdir()
+        try
+            path = joinpath(directory, "work.pred")
+            @test save_file!(PredFile(path, PredFileHolder(elements = Any[page, page])), directory)
+            text = read(path, String)
+            @test occursin("node(file(\"work.pred\"), \"elements[1]\")", text)
+            loaded = get_file_content(load_file(directory, "work.pred"))
+            @test loaded.elements[1] isa PredFileLines
+            @test loaded.elements[2] === loaded.elements[1]
+        finally
+            rm(directory; recursive = true, force = true)
+        end
     end
 
 end
