@@ -6,77 +6,31 @@ const ASSISTANT_TITLE = "Assistant"
 """
     DEFAULT_ASSISTANT_SYSTEM
 
-The system prompt an `Assistant` starts with: its `system` field, unless a
-caller names another. `McpServer` has its own, domain-free instructions
-(`DEFAULT_MCP_INSTRUCTIONS` in `source/adapter/mcp/Mcp.jl`), so the MCP module keeps
-no dependency on the assistant.
+The system prompt of an `Assistant` whose window gives no text of its own: what
+the editor is, the tools, and the rule against a guess. A window gives its own
+text in the `system` field, with its rules, a worked example and the names that
+it offers. `McpServer` has its own, domain-free instructions
+(`DEFAULT_MCP_INSTRUCTIONS` in `source/adapter/mcp/McpServer.jl`), so the MCP
+module keeps no dependency on the assistant.
 """
-# The guide to the tools of the editor that the native assistant and an external
-# agent share: how to inspect and change the running editor through
-# `execute_julia_code`, and how to find an API or a guide.
-const EDITOR_TOOL_GUIDE = "Use `execute_julia_code` to inspect and modify the editor's document and projection; " *
-                                  "the variable `editor` is bound to the running editor.\n\n" *
-                                  "MANDATORY — read this BEFORE writing any code:\n" *
-                                  "- resource://guide/guide/orientation  (the concept index — your starting point)\n" *
-                                  "Everything else is on demand: the orientation lists the catalogues " *
-                                  "(resource://guides, resource://modules) and the search tools, and points to the " *
-                                  "specific guides (reference, selection, finding-and-selecting, operations, …). " *
-                                  "Read whatever your task touches.\n\n" *
-                                  "TO INSPECT OR CHANGE THE DOCUMENT — never hand-walk the document tree or write\n" *
-                                  "bespoke helpers; use the general primitives (they work through any Screen/Window\n" *
-                                  "wrapping and across every domain):\n" *
-                                  "- `search_documents(editor.document, query; places = true)` returns each matching document node with its place in the window, a part that a verb takes as it is.\n" *
-                                  "- `search_documents(editor.document, query)` returns the matching document nodes themselves, and `search_references(editor.document, query)` their places as paths.\n" *
-                                  "  `query` is a predicate `node -> Bool`, or a `String`/`Regex` matching leaf text (which folds to its enclosing document; pass `raw=true` for the exact matched value).\n" *
-                                  "  Each node is found once. A search answers at most 100 matches and visits at most 100,000 nodes by default, and the first line of the answer names the limit that stopped it and the keyword that lifts it (`limit = nothing`, `maxvisits = nothing`).\n" *
-                                  "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
-                                  "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
-                                  "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
-                                  "  See resource://guide/kernel/finding-and-selecting and resource://guide/kernel/operation for the details.\n\n" *
-                                  "SCOPING A SEARCH TO A DOMAIN — the pane tree holds every open tab inside the\n" *
-                                  "SAME document, so a JSON file in one tab and an unrelated value in another can\n" *
-                                  "share the same string (e.g. \"Alice\" or match `n isa AbstractString`), and a\n" *
-                                  "bare value match returns one hit per tab and cannot tell them apart. Match the\n" *
-                                  "DOMAIN NODE TYPE instead, e.g.\n" *
-                                  "`v -> v isa JsonString && v.value == \"Alice\"`, and/or first locate the document\n" *
-                                  "with `search_documents(editor.document, x -> x isa JsonDocument)`.\n\n" *
-                                  "STATE PERSISTS between `execute_julia_code` calls: a variable you assign at top\n" *
-                                  "level in one call (e.g. `paths = search_references(...)`) is still bound in the\n" *
-                                  "next call, so you can build up state incrementally instead of one giant block.\n" *
-                                  "The person edits the window between your turns too: a key, an undo or a click can\n" *
-                                  "change what a variable of an earlier turn shows. Read a document again before you\n" *
-                                  "tell the person what it holds.\n\n" *
-                                  "LONG WORK RUNS IN THE BACKGROUND: code that does not need the documents of the\n" *
-                                  "editor, such as a long computation or a wait for a process, runs with the\n" *
-                                  "`background` argument of `execute_julia_code` set to true, so the person can use\n" *
-                                  "the editor while it runs. Code can also start its long part with\n" *
-                                  "`start_background_work(f)`, which answers at once, and read its value with\n" *
-                                  "`fetch(work)` in a later call. Code in the background reaches a document only\n" *
-                                  "through the verbs, never through the fields of a document.\n\n" *
-                                  "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
-                                  "- Call the `search_api` tool to find the right module, struct, or function.\n" *
-                                  "- Call the `search_guides` tool to find the relevant guide section.\n" *
-                                  "- When you know what you want to do but not what it is called, call either " *
-                                  "search with mode \"description\" and say it in a sentence.\n" *
-                                  "- Read full text with `read_resource(uri)`; read a function's full docs with " *
-                                  "`read_function_documentation(\"Module\", \"name\")`.\n" *
-                                  "- `list_resources` enumerates documentation/module/class resources if you need to browse.\n\n" *
-                                  "NEVER guess names or signatures — search for them.\n"
-
-const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
-                                  EDITOR_TOOL_GUIDE *
-                                  "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
+const DEFAULT_ASSISTANT_SYSTEM =
+    "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
+    "Use `execute_julia_code` to read and change the editor; the variable `editor` is bound " *
+    "to the running editor. Before you write code, find the names with `search_api` and the " *
+    "guides with `search_guides`, and read a guide with `read_resource`. NEVER guess a name " *
+    "or a signature: search for it.\n\n" *
+    "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
 
 """
     DEFAULT_AGENT_INSTRUCTIONS
 
-The instructions of the MCP server that an external agent of the assistant
-gets, and the text that the editor adds to the system prompt of the agent: the
-agent runs inside the editor of the person, the MCP server controls that
-editor, and a request about what the editor shows goes through its tools.
-They hold the guide to the tools that the native assistant gets, but not its
-rule against files and shell commands, because a person can ask an agent for
-work on files.
+What an external agent of the assistant gets before the text of its window: the
+agent runs inside the editor of the person, the MCP server controls that editor,
+and a request about what the editor shows goes through its tools. The session
+gets these and then the `system` of the assistant in its system prompt, so an
+agent and the built-in loop read the same text of the window. They leave out the
+rule of the built-in loop against files and shell commands, because a person can
+ask an agent for work on files.
 """
 const DEFAULT_AGENT_INSTRUCTIONS =
     "You run inside ProjecturEd, the projectional editor built in Julia that the person uses now, " *
@@ -86,8 +40,7 @@ const DEFAULT_AGENT_INSTRUCTIONS =
     "a tab, a pane, a table, a form, a widget, or a value in an open document — do it in the running " *
     "editor with the tools of this server. Do not write source files, change the code of ProjecturEd, " *
     "or start a git worktree for such a request. Use your own file and shell tools only when the " *
-    "person asks for work on files or on the code of a project.\n\n" *
-    EDITOR_TOOL_GUIDE
+    "person asks for work on files or on the code of a project."
 
 """
     Assistant(; conversation, input, backend, model, system, api_key, context, status, llm)

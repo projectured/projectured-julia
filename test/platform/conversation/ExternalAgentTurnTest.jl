@@ -23,8 +23,9 @@ function test_external_agent_turn()
             _submit_to_agent!(a, "What is 1 + 1?")
             @test a.status === :idle
             @test only(connection.sessions).mcp_servers == Any[]
-            # The agent learns that it runs inside the editor.
-            @test only(connection.sessions).instructions == DEFAULT_AGENT_INSTRUCTIONS
+            # The agent learns that it runs inside the editor, and reads the text of
+            # its window, as the built-in loop does.
+            @test only(connection.sessions).instructions == DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * a.system
             @test only(connection.prompts) == Any[LlmText("What is 1 + 1?")]
             turns = collect(a.conversation.turns)
             @test [turn.role for turn in turns] == [:user, :assistant]

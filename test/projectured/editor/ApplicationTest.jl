@@ -378,9 +378,16 @@ function test_application()
             @test occursin("FileFormatModule", refusal)
             @test !occursin("No API matches", search_api(ToolSet(), "apply_reference_rules"))
 
-            @test occursin("FileFormatModule", APPLICATION_SYSTEM)
-            @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
-            # The paragraph that every window of the editor holds.
+            # The text of the window, then the index of its names: the full one
+            # for a large model, and the compact one for a local model.
+            full = make_application_system()
+            @test startswith(full, APPLICATION_SYSTEM)
+            @test occursin("FileFormatModule", full)
+            @test endswith(full, describe_api_index(make_editor_api(), :anthropic))
+            @test endswith(make_application_system(; backend = :ollama),
+                           describe_api_index(make_editor_api(), :ollama))
+            @test length(make_application_system(; backend = :ollama)) < length(full)
+            # The rules that every window of the editor holds.
             @test occursin(EDITOR_SYSTEM, APPLICATION_SYSTEM)
 
             # The text of what a tab holds, by the path the prompt names. A file

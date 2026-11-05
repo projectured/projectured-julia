@@ -73,6 +73,7 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        make_application_document, make_application_content_projections,
        make_application_projection, make_application_wrappers, make_application_window,
        make_editor_api, EDITOR_SYSTEM, APPLICATION_SYSTEM, make_domain_system,
+       make_assistant_system, make_application_system,
        make_application_settings,
        run_application, parse_application_arguments, restart_with_window_threads!,
        run_application_command,

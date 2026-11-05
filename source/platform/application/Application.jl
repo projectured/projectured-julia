@@ -68,7 +68,8 @@ end
 """
     make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing,
                                agent_command = DEFAULT_AGENT_COMMAND,
-                               agent_session_meta = DEFAULT_AGENT_SESSION_META) -> Assistant or nothing
+                               agent_session_meta = DEFAULT_AGENT_SESSION_META,
+                               system = make_application_system(; backend)) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
 [`APPLICATION_ASSISTANTS`](@ref). With `:none` the pane opens too: it says that no
@@ -79,19 +80,21 @@ that the assistant asks, in place of the one it builds from `backend`, `model` a
 `context`: a scripted model that stands in for the real one, or an `OllamaLlm`
 with a `seed` and a `temperature`. `agent_command` is the command line of the
 external agent of the backend `:acp`, and `agent_session_meta` the JSON `_meta`
-of its sessions.
+of its sessions. `system` is the text of the window that the model reads, with
+the index of the names for `backend` ([`make_application_system`](@ref)).
 """
 function make_application_assistant(backend::Symbol; model::AbstractString = "",
                                     context::Integer = 0, llm = nothing,
                                     agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
-                                    agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META)
+                                    agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
+                                    system::AbstractString = make_application_system(; backend))
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(make_prose_document(get_application_greeting_text(backend)))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
-                context = context, system = make_application_system(),
+                context = context, system = system,
                 api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm,
                 agent_command = agent_command, agent_session_meta = agent_session_meta)
 end
@@ -326,7 +329,8 @@ _make_assistant_factory(assistant::Assistant) =
     _ -> make_application_assistant(assistant.backend; model = assistant.model,
                                     context = assistant.context,
                                     agent_command = assistant.agent_command,
-                                    agent_session_meta = assistant.agent_session_meta)
+                                    agent_session_meta = assistant.agent_session_meta,
+                                    system = assistant.system)
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
 # file tab, the Files pane and the assistant each register their own natural
@@ -360,135 +364,114 @@ make_editor_api() =
 """
     EDITOR_SYSTEM
 
-What the assistant of every window of the editor is told about the verbs that
-[`make_editor_api`](@ref) declares and the tools that
-[`register_editor_tools!`](@ref) adds. The system text of a window holds it,
-beside what that window adds about itself, so [`make_editor_api`](@ref) and this
-text change together.
+The rules of every window of the editor, for its assistant: the tools, and how
+to find, change and show a part. The text of a window holds it after what the
+window is, and before its worked example ([`APPLICATION_SYSTEM`](@ref)). It names
+the few verbs that the rules need; the index of the names, which
+[`make_assistant_system`](@ref) adds, lists the rest.
 """
 const EDITOR_SYSTEM =
-    "YOU WORK IN THE WINDOW BESIDE THE PERSON. Read the guide " *
-    "resource://guide/guide/orientation first: it shows each step below in code. " *
-    "The verbs act on the window, and no verb but `select_part!` moves the " *
-    "selection of the person.\n\n" *
-    "READ what the person does, what the window shows and the data under it. " *
-    "`find_pane(title)` answers a tab by its title, `find_focused_pane()` the tab " *
-    "where the person works, `find_selected_part()` the part that the person " *
-    "selected, and `find_part_under_pointer()` the part under the mouse pointer. " *
-    "`get_edited_document(tab)` answers the document that a tab shows, which acts " *
-    "like the data: index it, iterate it, read a field. " *
-    "`print_natural_text(part)` answers the text of a document or of a part of it, " *
-    "and of the logs of the session: `get_session_gesture_log()`, " *
-    "`get_session_message_log()` and `get_session_fault_log()`. " *
-    "`print_pred_text(part)` prints a part that has no text of its own domain, " *
-    "such as a widget or a chart. `describe_undo_history()` says what changed last, " *
-    "`show_layout()` prints what is where, `describe_settings()` lists the " *
-    "settings, and `read_os_clipboard()` answers the text that the person copied. " *
-    "`search_documents` finds a document in the window when no tab names it. " *
-    "`find_explorer_content()` answers the root section of the explorer, whose " *
-    "entries are the documents that the person keeps there, and " *
-    "`format_tree_node_label(entry)` says the label of an entry, such as Files, " *
-    "Tasks or Dashboards: `[format_tree_node_label(entry) for entry in " *
-    "find_explorer_content().entries]` lists them. " *
-    "Example: `part_1 = find_selected_part(); println(print_natural_text(part_1))`.\n\n" *
-    "TELL the person with a document in a tab: `open_pane!(document; title, " *
-    "target, side)` puts it in a tab, beside or under another tab, behind the tab " *
-    "that its group shows, and `show_pane!(tab)` brings it to the front when the " *
-    "person must look at it; the focus of the person stays where it is. WidgetModule " *
-    "and LayoutModule build what a tab shows: a card, a button, a table, a row or " *
-    "a column of them. To draw, put shapes and text on a canvas: " *
-    "`GraphicsCanvas`, `GraphicsRect`, `GraphicsText`, `GraphicsLine`, " *
-    "`GraphicsCircle`, `GraphicsPolyline`, with `StyleColor` and `StyleFont`. " *
-    "A loaded domain, such as a chart or a graph, says below how its documents " *
-    "are made. A shape takes a function of no " *
-    "arguments for a coordinate, and one that reads " *
-    "`get_reactive_clock_time(editor.clock)` moves the shape on each frame. " *
-    "`open_page!(part)` opens a part as a " *
-    "page of its own in a tab, as `open_pane!` does, " *
-    "`open_explorer_page!(part)` shows its page in the explorer " *
-    "beside the tree, `select_part!(part)` selects a part to show it, and " *
-    "`write_os_clipboard!(text)` gives the person a text to paste. " *
-    "`show_roster!(source; title, columns, filter, sort, group, aggregates, first)` " *
-    "shows a table of the members of one kind, gathered from the whole window or " *
-    "the session: `TabDocuments(type)` gives the documents of the tabs, and " *
-    "`StoreRecords(:log)` a store of the session; `describe_roster_sources()` and " *
-    "`describe_item_facets(type)` say which sources and which keys exist. " *
-    "`show_document_tree!(root; title)` shows a document as a tree, " *
-    "`show_system_process_tree!(process_ids; title)` and " *
-    "`describe_system_process_tree(process_ids)` show processes, and " *
-    "`show_assistant_work!(assistant)` shows the work of the agent of an assistant. " *
-    # @style: the example is text for the agent; it shows how a canvas is written, and draws nothing
-    "Example: `sketch_1 = open_pane!(GraphicsCanvas([GraphicsRect(10, 10, 120, 40; " *
-    "color = StyleColor(0.2, 0.4, 0.8, 1.0)), GraphicsText(\"hello\", 20, 34; " *
-    "font = StyleFont(\"DejaVu Sans\", 14))]; w = 200, h = 80); title = \"Sketch\"); " *
-    "show_pane!(sketch_1)`.\n\n" *
-    "CONTROL the window: `get_parent(editor, tab)` answers the group that holds a " *
-    "tab; `show_pane!`, `move_pane!` and `close_pane!` bring a tab forward, move it " *
-    "and close it. `focus_pane!` also moves the focus of the person, so do not call " *
-    "it: the person moves their focus. `filter_collection!`, `sort_collection!`, `group_collection!` " *
-    "and `limit_collection!` change the rows that `show_roster!` answers. " *
-    "`change_setting!(name, value)` changes a setting of the window. " *
-    "`make_file_tab_content(path)` opens a path as the content of a tab, " *
-    "`write_document_file(document, path)` writes a document to a file, and " *
-    "`Workspace` names the folders that the Files pane lists. " *
-    "`list_task_groups()` lists the groups of tasks of the session, and " *
-    "`describe_task_group`, `get_task_output`, `stop_tasks!`, `rerun_tasks!` and " *
-    "`close_task_group!` act on one. The tool `undo` takes back the last change, as " *
-    "Ctrl+Z does, `redo` puts it back, and the tool `take_picture` shows you what " *
-    "the window draws. Example: `change_setting!(:partial_render, false)`.\n\n" *
-    "CHANGE a document with a verb, so the change is an edit that Ctrl+Z takes back: " *
-    "`replace_referenced_value!(part, new_value)`, " *
-    "`insert_elements!(collection, index, values)` and " *
-    "`delete_elements!(collection, index)`. Write a new value as the text of its " *
-    "domain, which you know well, not with the constructors of its documents: " *
-    "`parse_natural_text(format, text)` makes a document from its text, and " *
-    "`describe_natural_formats()` lists the formats. `describe_commands(part)` " *
-    "lists the commands of a part, which a key or the command palette runs for the " *
-    "person, and `run_command!(part, description)` runs one by its words. On an " *
-    "entry of the explorer they also give the commands of its row, such as a move. " *
-    "To add a document to the explorer, insert it into the entries of " *
-    "`find_explorer_content()`, such as `Dashboard(title, [DashboardCard(title, document)])` " *
-    "or `ExplorerSection(title)`. " *
-    "Example: `delete_elements!(people_1, 2)`."
+    "HOW YOU WORK. You work in the window beside the person, with Julia code that " *
+    "runs in the window.\n\n" *
+    "Your tools:\n" *
+    "- `execute_julia_code` runs Julia in the window. Put the whole source in its " *
+    "`code` argument: a call with no code does nothing and costs the round. A " *
+    "variable that one call binds at the top level is still bound in the next call. " *
+    "The variable `editor` is the running editor, and a verb acts on it, so the code " *
+    "does not pass it. Code that needs no document of the window, such as a long " *
+    "computation, runs with `background` set to true, so the person can go on working.\n" *
+    "- `search_api` finds the name to call: by words, by a pattern, or by a sentence " *
+    "with the mode \"description\". One clear hit comes back with its whole documentation.\n" *
+    "- `search_guides` finds a section of a guide: prose with worked examples. " *
+    "`read_resource` reads a whole guide by the `resource://guide/…` name that a " *
+    "search prints.\n" *
+    "- `read_function_documentation` reads the documentation of one function.\n" *
+    "- `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it back. " *
+    "`take_picture` shows you what the window draws.\n\n" *
+    "The rules:\n" *
+    "- NEVER guess a name or a signature: search for it, then act. When a signature " *
+    "answers the request, call the verb; a keyword that you leave out takes its default.\n" *
+    "- Find a part with a verb, and do not walk the tree of the window. " *
+    "`find_pane(title)` answers a tab, `get_edited_document(tab)` the data that the tab " *
+    "shows, `find_selected_part()` the part that the person selected, and " *
+    "`search_documents(document, query; places = true)` the parts of a document that match. " *
+    "A part acts like its data: index it, iterate it, read a field. " *
+    "`print_natural_text(part)` answers its text.\n" *
+    "- Change a document only with a verb, so the change is an edit that Ctrl+Z takes " *
+    "back: `replace_referenced_value!`, `insert_elements!`, `delete_elements!` and " *
+    "`run_command!`. Write a new value as the text of its domain, with " *
+    "`parse_natural_text(format, text)`. `make_change` makes the change of a verb as a " *
+    "value, and `apply_change!(combine_changes(changes...))` applies several changes as " *
+    "one step of the undo.\n" *
+    "- Show a result in a tab: `open_pane!(document; title)` puts a document in a tab " *
+    "and answers the tab, and `show_pane!(tab)` brings that tab to the front when the " *
+    "person must look at it. The focus of the person stays where it is: never call " *
+    "`focus_pane!`. Only `select_part!` moves the selection of the person.\n" *
+    "- Keep each object in its own numbered variable, such as items_1 and rows_1, " *
+    "and use it again in a later call. The person edits the window between your turns, " *
+    "so read a document again before you say what it holds.\n" *
+    "- Call one tool per round. Answer the person in one or two short sentences: what " *
+    "you did, or what you found."
 
 """
     APPLICATION_SYSTEM
 
-What the assistant of this application is told about itself.
-
-It is the editor's own instructions with one paragraph added: which verbs this
-window offers, which is [`EDITOR_SYSTEM`](@ref). The greeting, this text and
-[`make_editor_api`](@ref) are three descriptions of one thing, so all three
-change together.
+The text of the application window for its assistant: what the window is, the
+rules of every window ([`EDITOR_SYSTEM`](@ref)), and one worked example that
+finds, reads, changes and shows. [`make_application_system`](@ref) adds the
+domains and the index of the names.
 """
-const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
-    "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
-    "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
-    "FileSystemModule, and the names that search_api lists. " *
-    EDITOR_SYSTEM * " " *
-    "Call one tool per round, and put the whole Julia source " *
-    "in the code argument of execute_julia_code: a call with no code does " *
-    "nothing and costs the round."
+const APPLICATION_SYSTEM =
+    "You are the assistant of ProjecturEd, a projectional editor built in Julia. Its " *
+    "window shows the explorer of a folder, this conversation, and a tab for each file " *
+    "or document that is open. A document is structured data, such as a JSON file, a " *
+    "Markdown page, a table or a chart. The person edits it with keys and the mouse, " *
+    "and you edit it with the same edits, from Julia code.\n\n" *
+    EDITOR_SYSTEM * "\n\n" *
+    "AN EXAMPLE: find, read, change, show. A tab shows items.json, a JSON array of " *
+    "records with a name and a price. The first call finds the data and reads it:\n\n" *
+    "    items_tab_1 = find_pane(\"items.json\")\n" *
+    "    items_1 = get_edited_document(items_tab_1)\n" *
+    "    println(print_natural_text(items_1))\n\n" *
+    "The next call changes a price, as an edit that Ctrl+Z takes back, and shows the " *
+    "records in a table in a new tab:\n\n" *
+    "    replace_referenced_value!(items_1[2][\"price\"], parse_natural_text(:json, \"12\"))\n" *
+    "    rows_1 = sort([[item[\"name\"].value, item[\"price\"].value] for item in items_1]; by = first)\n" *
+    "    table_tab_1 = open_pane!(WidgetTable([\"name\", \"price\"], rows_1); title = \"Items by name\")\n" *
+    "    show_pane!(table_tab_1)\n\n" *
+    "A `JsonArray` acts as a vector and a `JsonObject` as a map from key to value; the " *
+    "field value of a leaf is its plain value. The orientation guide, " *
+    "resource://guide/guide/orientation, shows in code how to read what the person " *
+    "does, draw in a tab, control the window, and work with files and tasks."
 
 """
-    make_application_system() -> String
+    make_assistant_system(text, api; backend = :anthropic,
+                          settings = AssistantIndexSettings()) -> String
 
-The system text of the assistant of this application: [`APPLICATION_SYSTEM`](@ref),
-the paragraph of the loaded domains ([`make_domain_system`](@ref)), then the
-section "Reach what a tab holds" of the orientation guide, which shows in
-code how to read what a tab holds, change a part of it with a verb, add a record and
-open a table beside a tab.
-
-The section is in the text from the first round, because a model that is only told
-to read the guide sometimes starts without it, guesses how to make a value, and
-fails. Measured with the rehearsal of the assistant (`tool/assistant/rehearsal.jl`):
-with the section, S2 passed 10 of 10 seeds and the tasks of one prompt 12 of 12;
-without it, 4 of 5 and 4 of 6. The guide stays the one place of the section.
+The whole text that the assistant of a window reads: `text`, which says what the
+window is, its rules and a worked example; the paragraph of the loaded domains
+([`make_domain_system`](@ref)); and the index of the names that `api` declares,
+in the size that the settings choose for `backend` ([`describe_api_index`](@ref)).
+The built-in loop reads it as its system text, an external agent in its system
+prompt after [`DEFAULT_AGENT_INSTRUCTIONS`](@ref), and an outside client of the
+MCP server as the instructions of the server.
 """
-make_application_system() =
-    APPLICATION_SYSTEM * make_domain_system() *
-    "\n\nHOW TO WORK IN THIS WINDOW, from the orientation guide:\n\n" *
-    read_guide_section("guide/orientation", "Reach what a tab holds")
+make_assistant_system(text::AbstractString, api; backend::Symbol = :anthropic,
+                      settings = AssistantIndexSettings()) =
+    text * make_domain_system() *
+    "\n\nTHE NAMES THAT YOU CAN WRITE, by module. `search_api` finds the documentation " *
+    "of each.\n\n" * describe_api_index(api, backend; settings)
+
+"""
+    make_application_system(; backend = :anthropic, settings = AssistantIndexSettings()) -> String
+
+The text that the assistant of this application reads:
+[`APPLICATION_SYSTEM`](@ref), the loaded domains and the index of the names of
+[`make_editor_api`](@ref), in the size for `backend`
+([`make_assistant_system`](@ref)).
+"""
+make_application_system(; backend::Symbol = :anthropic, settings = AssistantIndexSettings()) =
+    make_assistant_system(APPLICATION_SYSTEM, make_editor_api(); backend, settings)
 
 """
     make_domain_system() -> String
@@ -610,7 +593,11 @@ function run_application(paths::AbstractString...;
     file = get_explorer_content_file(root)
     _restore_explorer_content!(editor, file)
     mcp = get_settings_group!(settings, StartSettings).mcp
-    result = run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    # An outside client reads the text of the window as the instructions of the
+    # server, with the full index.
+    instructions = make_application_system(; backend = :mcp,
+                                             settings = get_settings_group!(settings, AssistantIndexSettings))
+    result = run_editor!(editor; mcp = mcp ? (; instructions, host = mcp_host, port = mcp_port) : false)
     save_explorer_content!(get_session_explorer_content(; editor), file; editor)
     result
 end
@@ -623,10 +610,13 @@ function _make_application_editor(paths::Vector{String}, settings; backend,
                                   measure = FontFileMeasure(), appearance::Appearance,
                                   llm = nothing)
     start = get_settings_group!(settings, StartSettings)
+    index = get_settings_group!(settings, AssistantIndexSettings)
     chat = make_application_assistant(start.assistant; model = start.model,
                                       context = start.context, llm,
                                       agent_command = start.agent_command,
-                                      agent_session_meta = start.agent_session_meta)
+                                      agent_session_meta = start.agent_session_meta,
+                                      system = make_application_system(; backend = start.assistant,
+                                                                         settings = index))
     # The root is the application's own pane tree, so the tabs leave it as it is.
     # The settings carry the fault policy of the command line, and the first print
     # runs under it already.

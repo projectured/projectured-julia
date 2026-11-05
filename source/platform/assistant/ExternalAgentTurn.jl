@@ -257,8 +257,9 @@ end
 # The lock of the start holds no wait for the editor: the kept session is read
 # through the door before it, and the editor forgets a kept session after it.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
-    conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
-        a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
+    conversation, kept_id, kept_directory, kept_count, system = run_on_editor_task!(editor) do
+        a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count,
+        a.system
     end
     is_kept_session_lost = false
     lock(session.start_lock) do
@@ -272,7 +273,8 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             session.has_answered = false
             queue = _make_agent_event_queue!(editor, a, session)
             session_id = Base.invokelatest(open_agent_session!, session.connection;
-                directory = session.directory, mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
+                directory = session.directory, mcp_servers = servers,
+                instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system,
                 session_id = is_resumable ? kept_id : "",
                 on_event = event -> _post_agent_options!(editor, a, event),
                 events = queue)
@@ -631,6 +633,13 @@ end
 # its next turn starts the agent again and resumes the session.
 release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); stop_external_agent!(a))
 
+# What the MCP server of an agent says about itself. The system prompt of the
+# session holds the text of the window, so the server does not send it a second
+# time.
+const _AGENT_SERVER_INSTRUCTIONS =
+    "The tools of this server act on the running editor of the person. The system " *
+    "prompt of the session says how to use them, and which names the code can write."
+
 # The MCP server through which the agent reaches the tools of this editor: on a
 # free port, with a secret that only this agent gets. With no MCP package loaded
 # the agent has its own tools only.
@@ -640,7 +649,7 @@ function _start_agent_tool_server!(editor, a::Assistant, session::ExternalAgentS
     session.tool_server === nothing || return session.tool_server
     :mcp in Base.invokelatest(get_agent_server_names) || return nothing
     server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true,
-                               instructions = DEFAULT_AGENT_INSTRUCTIONS,
+                               instructions = _AGENT_SERVER_INSTRUCTIONS,
                                stop = _make_turn_stop_step(editor, a))
     Base.invokelatest(start_agent_server!, server)
     session.tool_server = server
