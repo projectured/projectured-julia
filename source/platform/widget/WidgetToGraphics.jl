@@ -4423,6 +4423,26 @@ function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
     layout_preferred(elem, axis, intrinsic)
 end
 
+# Whether a slot takes the extent of its content on the main axis: the child is
+# wrapped in a `LayoutConstraint` that says `Content` there, a policy that writes
+# no preferred extent and an explicit weight of 0. A bare child, and a constraint
+# that writes no weight, are not such a slot: with no size and no weight a slot
+# takes no room when the split has an extent to divide.
+function _is_split_content_slot(elem, axis::Symbol)
+    elem isa LayoutConstraint || return false
+    preferred = axis === :x ? elem.preferred_width : elem.preferred_height
+    weight = axis === :x ? elem.weight_width : elem.weight_height
+    preferred === nothing && weight !== nothing && iszero(weight)
+end
+
+# The extent that the child of a content slot draws on the main axis, within the
+# minimum and the maximum of the slot.
+function _get_split_content_extent(elem, cim, axis::Symbol)
+    out = cim.output
+    drawn = out isa GraphicsCanvas ? Int(axis === :x ? out.w[] : out.h[]) : 0
+    clamp(drawn, layout_min(elem, axis, drawn), layout_max(elem, axis, drawn))
+end
+
 # The slot list a split lays out: `Document` children, each optionally wrapped in a
 # `LayoutConstraint` (transparent for projection, consulted for sizing policy).
 function _split_valid_elements(w::WidgetSplitPane)
@@ -4508,6 +4528,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
     alloc_cell = Cell(nothing)
+    is_content = Bool[_is_split_content_slot(elem, main_axis) for elem in valid_elems]
     open_cell = Cell(@computation _get_split_open_slots(valid_elems, main_axis))
     slot_main = Cell[]
     if avail_main !== nothing
@@ -4539,7 +4560,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # the axis lets the child size itself, which is what the slot then is.
         # Each slot gives `slot_padding` to what it holds, so the first box in it
         # stands that far from the dividers and the edges.
-        cctx  = avail_main === nothing ? with_free_axis(ctx, main_axis; space = slot_space) :
+        cctx  = avail_main === nothing || is_content[i] ? with_free_axis(ctx, main_axis; space = slot_space) :
                 main_axis === :x ? with_exact_size(ctx; width = cell, space = slot_space) :
                                    with_exact_size(ctx; height = cell, space = slot_space)
         cim = print_child(recursion, inner, cctx)
@@ -4556,6 +4577,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cim_local = inner_iomaps[i]
             set_cell_computation!(slot_main[i], function ()
                 open_cell[][i] || return 0
+                is_content[i] && return _get_split_content_extent(elem_local, cim_local, main_axis)
                 declared = _split_intrinsic(elem_local, w.sizes, i, main_axis)
                 declared > 0 && return declared
                 out = cim_local.output
@@ -4586,11 +4608,19 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 intrinsic = _split_intrinsic(elem, sizes_local, i, axis)
                 mins[i]   = layout_min(elem, axis, intrinsic)
                 maxs[i]   = layout_max(elem, axis, intrinsic)
+                # A content slot is exactly as long as its child draws, and a drag
+                # gives it no size.
                 # A slot pinned by a drag is laid out at its dragged `sizes`
                 # extent exactly: that value becomes a hard pref (overriding any
                 # LayoutConstraint preferred) and its weight is zeroed so
                 # weighted redistribution leaves it alone.
-                if i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
+                if is_content[i]
+                    extent   = _get_split_content_extent(elem, local_cims[i], axis)
+                    mins[i]  = extent
+                    maxs[i]  = extent
+                    prefs[i] = extent
+                    wts[i]   = 0.0
+                elseif i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
                     prefs[i] = Int(sizes_local[i])
                     wts[i]   = 0.0
                     has_pinned = true
@@ -4607,7 +4637,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             isempty(shown) && return result
             # A drag pins every slot but the last, and the last takes the rest of
             # the total, also when it has no weight of its own.
-            has_pinned && wts[shown[end]] == 0.0 && (wts[shown[end]] = 1.0)
+            last_sized = findlast(i -> !is_content[i], shown)
+            has_pinned && last_sized !== nothing && wts[shown[last_sized]] == 0.0 &&
+                (wts[shown[last_sized]] = 1.0)
             gaps = count(i -> _has_split_gap(open, i), 1:n_local) * splitter_thickness
             result[shown] = allocate_axis(Int(avail_main[]) - gaps; mins = mins[shown],
                                           maxs = maxs[shown], prefs = prefs[shown],
@@ -4877,6 +4909,9 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChild
         elem_b = w.elements[k + 1]
         min_a, max_a = layout_min(elem_a, axis, size_a), layout_max(elem_a, axis, size_a)
         min_b, max_b = layout_min(elem_b, axis, size_b), layout_max(elem_b, axis, size_b)
+        # A content slot keeps the extent of its child: a drag beside it moves no divider.
+        _is_split_content_slot(elem_a, axis) && ((min_a, max_a) = (size_a, size_a))
+        _is_split_content_slot(elem_b, axis) && ((min_b, max_b) = (size_b, size_b))
         # Move the boundary by `delta`, conserve the pair's total, and keep both
         # slots within their min/max: clamp A, give/take the rest from B, then
         # re-derive A from the clamped B so the sum is exactly preserved.

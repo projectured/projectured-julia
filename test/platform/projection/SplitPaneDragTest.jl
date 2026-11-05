@@ -245,5 +245,25 @@ end
     @test all(children() .=== before)
 end
 
+@testset "a drag beside a content slot gives it no size" begin
+    doc = WidgetSplitPane(:vertical, Any[WidgetLabel("top"),
+                                         LayoutConstraint(WidgetLabel("content"); height = Content)])
+    proj  = _proj()
+    iomap = print_document(proj, doc)
+    found = getfield(iomap, :step_iomaps)[][1][]
+    while !hasfield(typeof(found), :child_iomaps)
+        found = getfield(found, :child_iomap)
+        found isa Cell && (found = found[])
+    end
+    children = getfield(found, :child_iomaps)[]
+    content_height = Int(iomap.output.h) - Int(children[2][2][])
+    splitter_y = Int(children[2][2][]) - 1
+    _feed(proj, iomap, MouseDown(:left, 5, splitter_y, ModifierKeys(); time = 0.0))
+    @test doc.active_splitter == 1
+    _feed(proj, iomap, DragMove(5, splitter_y - 6; time = 0.0))
+    @test _szs(doc)[2] == content_height
+    _feed(proj, iomap, DragEnd(5, splitter_y - 6; time = 0.0))
+end
+
 end # @testset
 end

@@ -99,6 +99,12 @@ function _offered(pane, width, height)
     print_document(_proj(), nothing, pane, ctx)
 end
 
+# The IoMap of the split itself, which holds the slots, for a stated offer.
+function _offered_split(pane, width, height)
+    ctx = PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}())
+    print_document(_direct(), nothing, pane, ctx)
+end
+
 _pair() = Any[_label("one"), _label("two")]
 _INSET = Inset(8, 8, 8, 8)
 
@@ -137,6 +143,34 @@ end
     @test ih == ph
     @test Int(inset.output.h[]) == Int(plain.output.h[]) + 16
     @test Int(inset.output.w[]) == Int(plain.output.w[])
+end
+
+@testset "a content slot takes the height of its child, and the others share the rest" begin
+    for height in (300, 500)
+        pane = WidgetSplitPane(:vertical, Any[
+            LayoutConstraint(_label("fills"); preferred_height = 0, weight_height = 1.0),
+            LayoutConstraint(_label("fixed"); height = Fixed(60)),
+            LayoutConstraint(_label("content"); height = Content)])
+        iomap = _offered_split(pane, 400, height)
+        children = getfield(iomap, :child_iomaps)[]
+        ys = [Int(entry[2][]) for entry in children]
+        content_height = Int(children[3][3].output.h[])
+        @test content_height > 0
+        # Each splitter is one pixel: the slots are the distances between the tops.
+        splitter = ys[3] - ys[2] - 60
+        @test splitter >= 1
+        @test Int(iomap.output.h[]) == height
+        @test height - ys[3] == content_height
+        @test ys[2] - ys[1] - splitter == height - content_height - 60 - 2 * splitter
+    end
+end
+
+@testset "a slot with no size and no weight takes no room under an offer" begin
+    pane = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(_label("fills"); preferred_height = 0, weight_height = 1.0),
+        _label("bare")])
+    children = getfield(_offered_split(pane, 400, 300), :child_iomaps)[]
+    @test Int(children[2][2][]) == 300
 end
 
 end # testset

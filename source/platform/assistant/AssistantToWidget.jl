@@ -12,19 +12,19 @@ const _MAIN_WEIGHT = 1.0
 
 """
     AssistantToWidgetSplitPane(theme; slot_padding, button_gap)
-    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height, button_gap, slot_padding)
+    AssistantToWidgetSplitPane(; composer_min_height, button_gap, slot_padding)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
-takes the rest. A row under the composer, of the height that the theme gives,
-holds the button that stops the turn that runs, and for an external agent the
-menus of its options. The slot of the row is that height and the space that a
-slot of the split pane gives at its top and its bottom, `slot_padding` of the
-`WidgetTheme`; the gap of its items is the `button_gap` of that theme. With no theme it takes the values of the default themes.
+takes the rest. A row under the composer holds the button that stops the turn
+that runs, and for an external agent the menus of its options. The slot of the
+row takes the height of its content, and the space that a slot of the split
+pane gives at its top and its bottom is `slot_padding` of the `WidgetTheme`; the
+gap of its items is the `button_gap` of that theme. With no theme it takes the
+values of the default themes.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
-    option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
     button_gap::Int = get_widget_style(nothing, :button_gap)
     slot_padding::Inset = get_widget_style(nothing, :slot_padding)
 end
@@ -33,7 +33,6 @@ AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationThem
                            slot_padding = get_widget_style(nothing, :slot_padding),
                            button_gap = get_widget_style(nothing, :button_gap)) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
-                                 option_bar_height = get_conversation_style(theme, :option_bar_height),
                                  button_gap, slot_padding)
 
 """
@@ -95,8 +94,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # button shows them, and a line says how much of its context the session
     # uses. The row is the last child, so the maps below, which name the first
     # two, stay as they are, and a click on it is a click on a part that the view
-    # drew. A split pane prints a child at the height of its slot, so the row
-    # declares its height.
+    # drew. The row is a slot of the height of its content.
     items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
     if a.backend === :acp
         push!(items, _make_assistant_work_button(a))
@@ -106,9 +104,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
         append!(items, Any[make_agent_option_bar(a), usage])
     end
     row = HorizontalLayout(items; gap = projection.button_gap)
-    slot = projection.slot_padding
-    row_height = projection.option_bar_height + Int(slot.top[]) + Int(slot.bottom[])
-    push!(panes, LayoutConstraint(row; min_height = row_height, preferred_height = row_height))
+    push!(panes, LayoutConstraint(row; height = Content))
     column = WidgetSplitPane(:vertical, panes)
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
