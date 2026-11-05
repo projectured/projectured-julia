@@ -93,7 +93,8 @@ Each shape of `POINTER_SHAPES` but the open hand and the closed hand has a curso
 | mouse wheel | `MouseScroll`, merged |
 | window close, window resize | `WindowClose`, `WindowResize` |
 | `SDL_QUIT` | `WindowQuit` on the id `:none` |
-| window focus gained | nothing; a new query of the colour settings of the system, whose change comes later as `SystemColorsChange` on the id `:none` |
+| window focus gained | nothing; a new query of the colour settings of the system, whose change comes later as `SystemColorsChange` on the id `:none`, and the next frame paints the whole window again |
+| window exposed, shown, restored, maximized | nothing; the next frame paints the whole window again, because the window system can drop the pixels of a window whose canvas did not change, as after Alt+Tab |
 
 Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: a gesture tracking projection builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event. A run of wheel events of one window with the same modifiers gives one `MouseScroll` with the sum of the turns and the position and the time of the newest, so a fast turn does not take a frame for each notch. Any other event ends the run, and nothing merges while an older input, a held motion or the update of a frame waits. A wheel event holds the whole notches of SDL in `dx` and `dy`, and the turn with its fraction, `preciseX` and `preciseY`, in `precise_dx` and `precise_dy`; an SDL that gives no fraction gives the whole notches there.
 

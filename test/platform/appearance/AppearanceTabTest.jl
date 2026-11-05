@@ -153,7 +153,10 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     theme = get_theme(appearance, WidgetTheme)
     get_scaled_theme!(appearance, FaultTheme)
+    appearance.open_sections = ["WidgetTheme", "FaultTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
+    # The draw of the tab makes the controls of the two open cards.
+    _at_collect_texts(iomap.output)
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     @test tab !== nothing
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
@@ -527,6 +530,70 @@ end
     reset = only(op for (action, op) in tab.commands if action.label == "Reset" && writes_role(op, :keyword))
     @test reset.value == make_color_theme(:dark).keyword
     @test format_style_color(fix.value) in first.(_at_collect_texts(iomap.output))
+end
+
+@testset "a colour text of a card that opens after the print takes a typed digit" begin
+    # A closed card has no controls at the print, and a fold prints nothing again,
+    # so the controls that the card makes when it opens hold their paths themselves.
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"))
+    run_frame!(editor)
+    appearance = find_editor_appearance(; editor)
+    theme = get_theme(appearance, WidgetTheme)
+    theme.primary = resolve_theme_color(theme.primary, appearance)
+    before = format_style_color(theme.primary)
+    time = Ref(1.0)
+    send!(events...) = begin
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+        time[] += 1.0
+    end
+    drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    printed = editor.iomap
+    @test !("primary" in first.(drawn()))
+    # The write that a press on the chevron of the card answers.
+    evaluate_operation(nothing, ProjecturedPlatform.AppearanceModule._make_fold_operation(appearance, "WidgetTheme"))
+    run_frame!(editor)
+    @test editor.iomap === printed
+    _, _, row_y = only(t for t in drawn() if t[1] == "primary")
+    appearance.scroll_position = Point2D(0, max(0, row_y - 300))
+    run_frame!(editor)
+    x, y = _at_find_row_button(drawn(), "primary", before)
+    send!(_at_click(x - 1, y, time[])...)
+    send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
+    send!(KeyPress('f'; time = time[]))
+    @test format_style_color(theme.primary) == "#f" * before[3:end]
+end
+
+@testset "a closed card makes its controls when it opens, and keeps them when it opens again" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, FaultTheme)
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    # The draw of the tab makes the controls of each card that shows them.
+    _at_collect_texts(iomap.output)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    @test isempty(tab.writes)
+    @test isempty(tab.edits)
+    card = only(card for (card, name) in tab.folds if name == "WidgetTheme")
+    toggle() = evaluate_operation(nothing,
+        ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, ToggleCollapseOperation(card)))
+    toggle()
+    @test !card.collapsed
+    @test "item gap" in first.(_at_collect_texts(iomap.output))
+    @test !isempty(tab.writes)
+    controls = Set(keys(tab.writes))
+    toggle()
+    @test card.collapsed
+    @test !("item gap" in first.(_at_collect_texts(iomap.output)))
+    toggle()
+    @test "item gap" in first.(_at_collect_texts(iomap.output))
+    @test Set(keys(tab.writes)) == controls
 end
 
 end

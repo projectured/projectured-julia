@@ -306,13 +306,52 @@ function _get_section_title(T::Type)
     uppercasefirst(lowercase(join(words, " ")))
 end
 
-# The card of `theme`: its title and the summary of its type, and its presets and
-# for each field a row and the docstring of the field under it, which show while
-# the `open_sections` of the appearance name the type of the theme.
-# `controls` makes the controls of the tab and holds its widget theme.
+# The card of `theme`: its title and the summary of its type, and under them the
+# controls of the theme, which show while the `open_sections` of the appearance
+# name the type of the theme. A closed card has no controls: the card makes them
+# when it first opens, and keeps them while it closes and opens again in this
+# print. `controls` makes the controls of the tab and holds its widget theme.
 function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
     name = string(nameof(T))
+    appearance = controls.appearance
+    body = Cell(nothing)
+    children = CellVector(@computation(name in appearance.open_sections ? Any[body[]] : Any[]))
+    set_cell_computation!(body, () -> _follow_section_body_paths!(children,
+                                          _make_theme_section_content(controls, theme)))
+    summary = strip_code_marks(compute_docstring_summary(T))
+    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
+                      description = isempty(summary) ? nothing : summary,
+                      content = VerticalLayout(children, Cell(:left), Cell(controls.theme.item_gap),
+                                               Cell(nothing), Cell(nothing), Cell(nothing)),
+                      collapsible = true, collapsed = !(name in appearance.open_sections))
+    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
+    controls.folds[card] = name
+    card
+end
+
+# The body of a card, which the card makes after the print, holds its part of the
+# paths of the vector that holds it, and so do the documents below it: the print
+# gave the paths only to the documents that were there. The cells that the wiring
+# reads are no inputs of the body.
+function _follow_section_body_paths!(children, body)
+    run_without_cell_tracking(() -> begin
+        set_output_path_computations!(body, children, _get_path_below_first_element)
+        set_output_tree_path_computations!(body)
+    end)
+    body
+end
+
+# The part of `path` below the first element of a vector, or `nothing`.
+function _get_path_below_first_element(path)
+    path isa ConcreteReference || return nothing
+    path.head == RangeReferenceStep(0, 1) ? path.tail : nothing
+end
+
+# The controls of `theme`: its presets, and for each field a row and the docstring
+# of the field under it.
+function _make_theme_section_content(controls, theme)
+    T = get_theme_type(theme)
     parts = Any[]
     presets = get_theme_presets(T)
     isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
@@ -339,15 +378,7 @@ function _make_theme_section(controls, theme)
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
                             vertical_gap = controls.theme.section_gap, vertical_align = :center,
                             row_gaps))
-    appearance = controls.appearance
-    summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
-                      description = isempty(summary) ? nothing : summary,
-                      content = VerticalLayout(parts; gap = controls.theme.item_gap),
-                      collapsible = true, collapsed = !(name in appearance.open_sections))
-    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
-    controls.folds[card] = name
-    card
+    VerticalLayout(parts; gap = controls.theme.item_gap)
 end
 
 # The write that opens the section of the theme type named `name` in the tab, or

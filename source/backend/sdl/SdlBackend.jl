@@ -5068,6 +5068,11 @@ backend-agnostic inner event, with the time that SDL stamped on it:
 - a change of the colour settings of the system, which a query found after
   `SDL_WINDOWEVENT_FOCUS_GAINED`, → `WindowInput(:none, SystemColorsChange)`
 
+`SDL_WINDOWEVENT_EXPOSED`, `SDL_WINDOWEVENT_SHOWN`, `SDL_WINDOWEVENT_RESTORED`,
+`SDL_WINDOWEVENT_MAXIMIZED` and `SDL_WINDOWEVENT_FOCUS_GAINED` give no input. Each
+makes the next frame paint the whole window again, because the window system can
+drop the pixels of a window whose canvas did not change.
+
 `<id>` is the `WindowDocument.id` of the originating window (looked up
 in `backend.window_ids`), or `:none` if the SDL event carries no window
 id or refers to a window the backend does not track.
@@ -5181,6 +5186,16 @@ _merge_wheel_events(older::MouseScroll, newer::MouseScroll) =
                 time = newer.time, precise_dx = older.precise_dx + newer.precise_dx,
                 precise_dy = older.precise_dy + newer.precise_dy)
 
+# The window system can drop the pixels of a window whose canvas did not change, as
+# after Alt+Tab, so the next frame paints the whole window `id` again. An id that
+# the backend does not hold, such as that of a window that closed, changes nothing.
+function _request_window_repaint!(backend::SdlBackend, id::Symbol)
+    res = get(backend.windows, id, nothing)
+    res === nothing && return nothing
+    res.first_paint = true
+    nothing
+end
+
 """
     _poll_window_input(backend) -> (other, motion)
 
@@ -5221,10 +5236,16 @@ function _poll_window_input(backend::SdlBackend)
             elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_LOST)
                 return (WindowInput(wid, WindowDefocus(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_GAINED)
+                _request_window_repaint!(backend, wid)
                 # A person can change the colour settings of the system in another
                 # window, so the backend asks again. A change comes later, as a
                 # `SystemColorsChange`.
                 _start_system_colors_query!(backend)
+                continue
+            elseif sub in (UInt8(SDL_WINDOWEVENT_EXPOSED), UInt8(SDL_WINDOWEVENT_SHOWN),
+                           UInt8(SDL_WINDOWEVENT_RESTORED),
+                           UInt8(SDL_WINDOWEVENT_MAXIMIZED))
+                _request_window_repaint!(backend, wid)
                 continue
             elseif sub == UInt8(SDL_WINDOWEVENT_LEAVE)
                 return (WindowInput(wid, WindowLeave(; time = event_time)), nothing)
