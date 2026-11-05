@@ -73,6 +73,13 @@ function _at_collect_card_widths(value; found = Int[])
     found
 end
 
+# A theme whose fields name roles of the font theme, in the two forms that a
+# field holds.
+@theme struct ThTabFonts
+    role::ThemeFont = FontRole(:quiet)
+    text::ThemeText = TextRole(:text_muted; font_role = :quiet)
+end
+
 _at_click(x, y, time) =(MouseDown(:left, x, y, ModifierKeys(); time),
                          MouseUp(:left, x, y, ModifierKeys(); time = time + 0.05))
 
@@ -211,7 +218,9 @@ end
         _at_collect_card_widths(tab)
     end
     # The two cards of settings and a card for each theme of the appearance.
-    @test length(widths[1]) == length(widths[2]) == 2 + 1 + length(appearance.themes)
+    # The two cards of settings, the colour theme, the font theme, and a card for
+    # each theme of the appearance.
+    @test length(widths[1]) == length(widths[2]) == 2 + 2 + length(appearance.themes)
     @test all(==(first(widths[1])), widths[1])
     @test all(==(first(widths[2])), widths[2])
     @test first(widths[1]) - first(widths[2]) == 300
@@ -225,7 +234,7 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     order = [findfirst(==(t), texts)
-             for t in ("Save", "Scale", "Colors", "Editor", "Color", "Widget", "Syntax", "Tools", "Fault")]
+             for t in ("Save", "Scale", "Colors", "Editor", "Color", "Font", "Widget", "Syntax", "Tools", "Fault")]
     @test all(!isnothing, order) && issorted(order)
     # Every section is closed: a card draws its title and no field.
     @test !("primary" in texts) && !("item gap" in texts)
@@ -305,6 +314,66 @@ end
     box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 100 &&
                writes_bool_text(write(150)))
     @test tab.writes[box](150).value.font.relative_size == 1.5
+end
+
+@testset "the font card has a control for each step, and the two families step through the font families" begin
+    appearance = Appearance()
+    fonts = get_font_theme(appearance)
+    appearance.open_sections = ["FontTheme"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    _at_collect_texts(iomap.output)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === fonts &&
+                             op.reference.head == FieldReferenceStep(name)
+    # The size: a press on + of the spin box of `quiet` writes the step at 13.
+    size_box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 12 &&
+                    writes_field(write(13), "quiet") && !writes_field(write(13), "section") &&
+                    !writes_field(write(13), "column") && !writes_field(write(13), "badge"))
+    @test tab.writes[size_box](13).value == FontStep(:sans, 13)
+    # The kind: the second choice writes the mono family and keeps the rest.
+    kind = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_field(write(2), "quiet"))
+    @test kind.selected == 1
+    @test tab.writes[kind](2).value == FontStep(:mono, 12)
+    # The weight steps through the weights of the family of the kind, and italic keeps the rest.
+    heavier = only(op for (action, op) in tab.commands if action.label == "+" && writes_field(op, "quiet"))
+    @test heavier.value == FontStep(:sans, 12; weight = 500)
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_field(write(true), "quiet"))
+    @test tab.writes[italic_box](true).value == FontStep(:sans, 12; italic = true)
+    # The two families step through the font families.
+    families = filter(f -> !(f in ("Lucide", "Noto Emoji")), get_font_families())
+    next = only(op for (action, op) in tab.commands if action.label == "›" && writes_field(op, "sans_family"))
+    @test next.value == families[mod1(findfirst(==("Ubuntu"), families) + 1, length(families))]
+    @test any(writes_field(op, "mono_family") for (action, op) in tab.commands if action.label == "‹")
+end
+
+@testset "a font role that names a role of the font theme steps through the roles and keeps its name" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, ThTabFonts)
+    theme = get_theme(appearance, ThTabFonts)
+    appearance.open_sections = ["ThTabFonts"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    @test count(==("quiet"), texts) == 2
+    @test !("% of font" in texts)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === theme &&
+                             op.reference.head == FieldReferenceStep(name)
+    font_of(op) = op.value isa TextRole ? op.value.font : op.value
+    for (field, make) in (("role", font -> font), ("text", font -> TextRole(font, ColorRole(:text_muted))))
+        step(label, same) = only(op for (action, op) in tab.commands if action.label == label &&
+                                 writes_field(op, field) && (font_of(op).role == :quiet) == same)
+        @test font_of(step("›", false)) == FontRole(:badge)
+        @test font_of(step("‹", false)) == FontRole(:column)
+        # A weight step keeps the name of the role.
+        @test font_of(step("+", true)) == FontRole(:quiet; weight = 500)
+    end
+    @test tab.writes !== nothing
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_field(write(true), "role"))
+    @test tab.writes[italic_box](true).value == FontRole(:quiet; italic = true)
+    @test only(op for (action, op) in tab.commands if action.label == "+" && writes_field(op, "text")).value.color ==
+          ColorRole(:text_muted)
 end
 
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin

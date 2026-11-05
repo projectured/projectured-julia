@@ -17,8 +17,8 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   button "Reset all" that writes the default of each of them. These two cards do
   not fold;
 - the themes in three groups, each a heading over its cards: "Editor", the
-  colour theme of the present mode and contrast, with a row for each role, then
-  the widget, the text, the syntax, the reference, the graphics and the tooltip
+  colour theme of the present mode and contrast, with a row for each role, the
+  font theme, with a row for each role of the type scale, then the widget, the text, the syntax, the reference, the graphics and the tooltip
   themes, which every view draws with; "Tools", the other themes of
   `ProjecturedPlatform`; and "Documents", the themes of the other packages, in
   the order of their names. Every card is as wide as the pane;
@@ -31,7 +31,13 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   color of the widget theme. A size has a spin box for each of its parts, a font has buttons that step through
   the font files and a spin box for its size, a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits, and a text style has the
-  controls of its colour over those of its font. A role of the colour theme has
+  controls of its colour over those of its font. A step of the font theme has
+  buttons that choose the kind of its family, `sans` or `mono`, buttons that step
+  through the weights of that family, a checkbox for italic and a spin box for
+  its size; the two families of the font theme have buttons that step through the
+  font families. A font role that names a role of the font theme has buttons that
+  step through the roles, then the weight and the checkbox for italic, and no
+  size, because a role never changes its size. A role of the colour theme has
   its swatch, buttons that step through the roles, and a button "Step", which
   writes the step of a ramp that the role names, so the field leaves the role and
   still follows the mode; a step of a ramp has buttons that step through the hues
@@ -189,10 +195,10 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
-    # A choice of `labels`, with none chosen; the choice of an index answers
-    # `write(index)`.
-    function choice(labels, write)
-        group = WidgetRadioGroup(labels; selected = 0)
+    # A choice of `labels`, with the one at `selected` chosen or, at 0, none; the
+    # choice of an index answers `write(index)`.
+    function choice(labels, write; selected = 0)
+        group = WidgetRadioGroup(labels; selected)
         writes[group] = write
         group
     end
@@ -281,17 +287,18 @@ function _make_color_settings_card(controls)
 end
 
 # The themes that every view of the editor draws with, in the order of the group
-# "Editor" of the tab, after the colour theme.
+# "Editor" of the tab, after the colour theme and the font theme.
 const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
 
 # The groups of the tab: each a title and the themes of `appearance` that it shows.
-# The colour theme of the present mode and contrast stands first in "Editor". A
+# The colour theme of the present mode and contrast stands first in "Editor", and
+# the font theme second. A
 # theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
 # and a theme of another package is the theme of a document.
 function _get_theme_groups(appearance::Appearance)
     themes = sort!([entry.theme for entry in values(appearance.themes)];
                    by = theme -> string(nameof(get_theme_type(theme))))
-    editor = Any[get_color_theme(appearance);
+    editor = Any[get_color_theme(appearance); get_font_theme(appearance);
                  Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]]
     others = filter(theme -> !(get_theme_type(theme) in _EDITOR_THEME_TYPES), themes)
     is_tool = theme -> Base.moduleroot(parentmodule(get_theme_type(theme))) ===
@@ -406,6 +413,44 @@ _make_field_control(controls, theme, field::Symbol, value::StyleFont) =
     _make_font_control(controls, () -> getproperty(theme, field),
                        font -> _write_theme_field(theme, field, font))
 
+# A step of the font theme has the kind of its family, the weights of that family,
+# italic and the size. `theme` is the font theme, which names the family of each kind.
+function _make_field_control(controls, theme, field::Symbol, value::FontStep)
+    read = () -> getproperty(theme, field)
+    write = step -> _write_theme_field(theme, field, step)
+    font = _get_font_step_font(theme, value)
+    gap = controls.theme.label_gap
+    kinds = (:sans, :mono)
+    HorizontalLayout(Any[
+        controls.choice(collect(String.(kinds)), index -> write(_with_font_step(read(); family = kinds[index]));
+                        selected = findfirst(==(value.family), kinds)),
+        controls.button("−", write(_with_font_step(value; weight = _step_font_weight(font, -1).weight));
+                        tooltip = _make_weight_note("Lighter", font, -1)),
+        WidgetLabel(_get_font_weight_name(font.weight)),
+        controls.button("+", write(_with_font_step(value; weight = _step_font_weight(font, 1).weight));
+                        tooltip = _make_weight_note("Heavier", font, 1)),
+        controls.checkbox(value.italic, v -> write(_with_font_step(read(); italic = v)); label = "italic"),
+        controls.spin_box(value.size, v -> write(_with_font_step(read(); size = v)); min = 6, max = 96),
+    ]; gap, vertical_align = :center)
+end
+
+# The two families of the font theme step through the font families. A text field
+# of any other theme shows its text.
+function _make_field_control(controls, theme, field::Symbol, value::String)
+    (get_theme_type(theme) === FontTheme && field in (:sans_family, :mono_family)) ||
+        return WidgetLabel(value)
+    font = StyleFont(value, 13)
+    write = family -> _write_theme_field(theme, field, family.family)
+    gap = controls.theme.label_gap
+    HorizontalLayout(Any[
+        controls.button("‹", write(_step_font_family(font, -1));
+                        tooltip = _make_family_note("Previous", font, -1)),
+        WidgetLabel(value),
+        controls.button("›", write(_step_font_family(font, 1));
+                        tooltip = _make_family_note("Next", font, 1)),
+    ]; gap, vertical_align = :center)
+end
+
 _make_field_control(controls, theme, field::Symbol, value::ThemeColor) =
     _make_theme_color_control(controls, () -> getproperty(theme, field),
                               color -> _write_theme_field(theme, field, color),
@@ -456,10 +501,32 @@ _make_field_control(controls, theme, field::Symbol, value::MultipleSpacing) =
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
-# `role` with its weight, its slant or its relative size replaced.
+# `role` with its weight, its slant or its relative size replaced. A role that
+# names a role of the font theme keeps its name and has no relative size.
 _with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
                 relative_size = role.relative_size) =
-    FontRole(; base = role.base, family = role.family, weight, italic, relative_size)
+    role.role === nothing ?
+        FontRole(; base = role.base, family = role.family, weight, italic, relative_size) :
+        FontRole(role.role; weight, italic)
+
+# `step` with its kind of family, its size, its weight or its slant replaced.
+_with_font_step(step::FontStep; family = step.family, size = step.size, weight = step.weight,
+                italic = step.italic) =
+    FontStep(family, size; weight, italic)
+
+# The font that `step` gives in the font theme `theme`: the family of its kind.
+_get_font_step_font(theme, step::FontStep) =
+    StyleFont(step.family === :mono ? theme.mono_family : theme.sans_family, step.size;
+              weight = step.weight, italic = step.italic)
+
+# The role `delta` roles away from `role` in the order of the font theme, with the
+# weight and the slant of `role`.
+function _step_font_role_name(role::FontRole, delta::Integer)
+    default = FontTheme()
+    names = [name for name in get_theme_field_names(FontTheme) if getproperty(default, name) isa FontStep]
+    i = something(findfirst(==(role.role), names), 1)
+    FontRole(names[mod1(i + delta, length(names))]; weight = role.weight, italic = role.italic)
+end
 
 # The notes of the buttons that step the family or the weight of `font`.
 _make_family_note(title, font::StyleFont, delta::Integer) =
@@ -470,13 +537,16 @@ _make_weight_note(title, font::StyleFont, delta::Integer) =
                        () -> ["Now" => _get_font_weight_name(font.weight),
                               "Becomes" => _get_font_weight_name(_step_font_weight(font, delta).weight)])
 
-# The controls of the font role that `read()` answers, in one row: its family when
-# it sets one, the steps through the weights of the family of the font that it
-# gives, a checkbox for italic, and its size in percent of its base font. A step or
-# a check sets the weight or the slant of the role, which then no longer follows
-# the base in it. `write(role)` is the operation that sets a new role.
+# The controls of the font role that `read()` answers, in one row. A role that names
+# a role of the font theme has `_make_font_theme_role_control`. A role with a base
+# has its family when it sets one, the steps through the weights of the family of
+# the font that it gives, a checkbox for italic, and its size in percent of its
+# base font. A step or a check sets the weight or the slant of the role, which then
+# no longer follows the base in it. `write(role)` is the operation that sets a new
+# role.
 function _make_role_control(controls, theme, read, write)
     role = read()
+    role.role === nothing || return _make_font_theme_role_control(controls, read, write)
     font = apply_font_role(role, get_role_base(role, theme))
     parts = Any[]
     role.family === nothing || push!(parts, WidgetLabel(role.family))
@@ -492,6 +562,28 @@ function _make_role_control(controls, theme, read, write)
         WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
     ])
     HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The controls of the font role that `read()` answers and that names a role of the
+# font theme, in one row: buttons that step through the roles and name the role,
+# the steps through the weights of the font that it gives, and a checkbox for
+# italic. It has no size, because a role never changes its size.
+function _make_font_theme_role_control(controls, read, write)
+    role = read()
+    font = resolve_font_role(role, controls.appearance)
+    note(title, delta) = _make_setting_note(title, "Use the $(delta < 0 ? "previous" : "next") role of the font theme.",
+        () -> ["Now" => String(role.role), "Becomes" => String(_step_font_role_name(role, delta).role)])
+    HorizontalLayout(Any[
+        controls.button("‹", write(_step_font_role_name(role, -1)); tooltip = note("Previous", -1)),
+        WidgetLabel(String(role.role)),
+        controls.button("›", write(_step_font_role_name(role, 1)); tooltip = note("Next", 1)),
+        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight));
+                        tooltip = _make_weight_note("Lighter", font, -1)),
+        WidgetLabel(_get_font_weight_name(font.weight)),
+        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight));
+                        tooltip = _make_weight_note("Heavier", font, 1)),
+        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
+    ]; gap = controls.theme.label_gap, vertical_align = :center)
 end
 
 # The controls of the font that `read()` answers. The first row steps through the
