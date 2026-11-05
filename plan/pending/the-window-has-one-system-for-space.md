@@ -1110,6 +1110,35 @@ approval of the user.
         and `test_outline` 1. `test_dataframes` 603, `test_research` 382,
         `test_workflow` 314, `test_pivot` 335 Pass with the known Error at
         `PivotZoneEditTest.jl:84`: as the baseline.
+      - The user looked at the changed images on 2026-11-05 and accepted them
+        ("it generally looks good"), with one question, which step 7b answers.
+- [ ] 7b. **A slot of a split pane can take the height of its content.** The
+      user found it on 2026-11-05, in the images of step 7: under the composer
+      of the assistant, the row of the stop and picture buttons has 8 px above
+      its buttons and 14 px below them (2 px of shadow and 12 px of space). The
+      row is older than step 7. `AssistantToWidgetSplitPane` gives its slot
+      `option_bar_height + slot_padding.top + slot_padding.bottom`, 32 + 8 + 8;
+      `option_bar_height` is a number of `ConversationTheme`, made for the row
+      of menus of an external agent, and the buttons are 26 px high, so the 4 px
+      that they do not use go below them. The split pane needs the number
+      because a slot that is offered a share of a height and has neither a size
+      nor a weight takes no room, so a slot can not take the height of its
+      content. The user chose, on 2026-11-05, the fix that makes the number go
+      (option A), not the row in the center of its 32 px (option B):
+      - `WidgetSplitPane` takes the size policy `Content` for a slot also when
+        it is offered a height to divide. It prints such a child with a free
+        main axis, takes the extent that the child needs (with the space of the
+        slot that step 6 gives), and divides the rest of its offer between the
+        other slots, as it does now.
+      - The row of the assistant is such a slot. `option_bar_height` goes from
+        `ConversationTheme`, and `AssistantToWidgetSplitPane` loses its field.
+        The space is then `slot_padding` above and below the buttons, and the
+        shadow of a button lies in the space below, as with every button.
+      Check: a test of the split pane, in which a `Content` slot takes the
+      height of its child at two heights of the offer, and the other slots
+      share the rest; the images of the assistant and the two window screens
+      show 8 px above and 8 px below the border of the buttons; the platform
+      suite, part by part, gives the counts of step 7.
 - [ ] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
