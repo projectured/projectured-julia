@@ -683,6 +683,53 @@ approval of the user.
         and `make_tabs_projection` a `TextBlock` that is a document of the
         content now goes to the rule of the table and not to the content
         projection (no example or test image changes).
+
+      **The third form of 5b, as the user accepted it on 2026-11-05.** It
+      replaces the rule of each table above. The cause of the defect is deeper
+      than the order of the rules: a table chooses by type, and its choice is
+      the same for every document of that type, but a look (the wrap, the line
+      spacing) belongs to one text. The look is state of a view, by the rule of
+      `plan/done/a-view-document-keeps-the-state-of-one-view.md`, so it goes
+      into a view document of the text. The user asked for the smallest form
+      now: the selection still goes down into the `TextBlock`, and the plan
+      `views-compose-as-content-composes.md` gives the view its own caret later.
+      - A new document of the text slice, `TextView(content::TextBlock, wrap,
+        line_spacing)`. It has the name and the field `content` of the
+        `TextView` of the branch `views-compose`, so that plan only moves the
+        caret into it and adds the folds. `get_edited_field` names `content`.
+      - The tail of the selection stays on the block. `block.selection` is the
+        caret, computed from the selection of the field as now
+        (`_get_text_view_caret`); `view.selection` is the step `content` and
+        then the tail of the block. A move of the caret changes only the cell
+        of the block. The view draws no caret.
+      - A field (`_print_plain_text_view`) and the name of a tab print a
+        `TextView` of their block through the recursion, with `wrap` from
+        `w.wrap` (false for a tab name) and `line_spacing` from
+        `w.line_spacing`, else `SingleSpacing()`. `_make_text_view_offer` goes.
+      - A new projection `TextViewToGraphics` holds no projection. It prints
+        `view.content` through the recursion, in a child context of the step
+        `content` that holds the look of the view: `:line_spacing`, and a free
+        width when `wrap = false`. Its IO map removes the step `content` on
+        the way forward and adds it on the way back, as `HighlightedTextToText`
+        does with `text`. The field removes the step again and maps the rest to
+        the range of its `content`.
+      - One rule, in the dispatch of `WidgetToGraphics(...)`, because widgets
+        embed text views: `TextView => NestingProjection(TextViewToGraphics(),
+        ChainingProjection(WordWrapping(; measure), TextToGraphics(; measure,
+        theme)))`. The factory builds it once. The text theme comes into
+        `WidgetToGraphics` as its graphics theme does.
+      - No document is a `TextView`, so the rule takes no document from a
+        table: `TextDocument => prose_chain` of the natural view and
+        `Any => projection` of the tabs and of the shell get their documents
+        again. A `wrap = true` text wraps in every table now.
+      - From the second form, these go: the `TextBlock` rules of the tables of
+        the 8 slices, of the examples and of the 9 test files; the keyword
+        `text` of `WidgetToGraphics`; the edges to `text` that only those rules
+        needed. These stay: the print through the recursion, the static test,
+        the fast path of `WordWrapping` at a free width.
+      - Not in this step: a root document that is a widget still draws with
+        the widget rules of the tab strip and not with the projection of the
+        caller. It is older than 5b; the places of the plan for views fix it.
 - [x] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
