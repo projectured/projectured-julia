@@ -2,8 +2,6 @@
 # rows there, inside their border: each prints itself again, as its rows alone,
 # in a scroll pane of its own. A path of that pane is a path of the widget.
 
-using ProjecturedKernel.IntentModule: CollectIntents, CollectedIntentsOperation
-
 _make_rows_test_list() = WidgetList(["row $i" for i in 1:40]; selected = 0, width = 200)
 
 _make_rows_test_offer() =
@@ -19,19 +17,6 @@ function _find_rows_test_bar(iomap, dy)
     ((iomap.place[1] + Int(bar.place.x) + 2, iomap.place[2] + Int(bar.place.y) + dy), bar)
 end
 
-function test_widget_rows_command_collection()
-    projection = _scroll_pane_projection()
-    @testset "command collection passes through list and tree row panes" begin
-        for widget in (_make_rows_test_list(), WidgetTree(Any[("node", Any["leaf"])]))
-            iomap = print_document(projection, nothing, widget, _make_rows_test_offer())
-            @test iomap isa WidgetModule.WidgetRowsPaneIoMap
-            answer = read_intent(projection, nothing, Intent(CollectIntents()), iomap)
-            # A widget can decline the request when it has no commands to offer.
-            @test answer.operation isa Union{Nothing,CollectedIntentsOperation}
-        end
-    end
-end
-
 """
     test_widget_rows_scroll()
 
@@ -43,9 +28,23 @@ The drag of the thumb comes back to the widget. A chevron of a tree still opens
 its node.
 """
 function test_widget_rows_scroll()
-    test_widget_rows_command_collection()
     projection = _scroll_pane_projection()
     plain = ModifierKeys()
+
+    @testset "the query that collects the commands passes through the pane of the rows" begin
+        # The query has no place, and the pane passes it on to the widget all the same.
+        collect_commands(iomap) = read_intent(projection, nothing, Intent(CollectIntents()), iomap).operation
+        list = print_document(projection, nothing, _make_rows_test_list(), _make_rows_test_offer())
+        @test list isa WidgetModule.WidgetRowsPaneIoMap
+        # A list has no command of its own to offer.
+        @test collect_commands(list) === nothing
+        tree = print_document(projection, nothing, WidgetTree(Any[("node", Any["leaf"])]),
+                              _make_rows_test_offer())
+        @test tree isa WidgetModule.WidgetRowsPaneIoMap
+        answer = collect_commands(tree)
+        @test answer isa CollectedIntentsOperation
+        @test [intent.description for intent in answer.intents] == ["Show the tooltip"]
+    end
 
     @testset "a list in a slot fills it and scrolls its rows inside its border" begin
         list = _make_rows_test_list()
