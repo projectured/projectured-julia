@@ -20,6 +20,7 @@ function make_assistant_projection_example(; measure=FontFileMeasure())
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
+            TextBlock => TextToGraphics(; measure),
             make_conversation_draft_row(measure=measure),
             make_conversation_row(measure=measure),
         ],

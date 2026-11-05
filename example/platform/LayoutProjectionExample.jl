@@ -18,7 +18,7 @@ function make_layout_projection_example(; measure=FontFileMeasure())
             VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
             GridLayout       => GridLayoutToGraphicsCanvas(),
             FlowLayout       => FlowLayoutToGraphicsCanvas(),
-            Any              => WidgetToGraphics(font; measure=measure),
+            Any              => WidgetToGraphics(font; measure=measure, text=TextToGraphics(; measure)),
         )),
     )
 end
@@ -41,7 +41,7 @@ function make_constraint_layout_projection_example(; measure=FontFileMeasure(),
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             ConstraintLayout => ConstraintLayoutToGraphicsCanvas(solver=solver),
-            Any              => WidgetToGraphics(font; measure=measure),
+            Any              => WidgetToGraphics(font; measure=measure, text=TextToGraphics(; measure)),
         )),
     )
 end

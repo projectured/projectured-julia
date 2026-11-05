@@ -189,7 +189,8 @@ function make_application_content_projections(; measure = FontFileMeasure(),
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                         text = TextToGraphics(measure = measure, theme = text_theme)),
                 substitute = FaultToGraphics()))),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
@@ -199,7 +200,8 @@ function make_application_content_projections(; measure = FontFileMeasure(),
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                         text = TextToGraphics(measure = measure, theme = text_theme)),
                 substitute = FaultToGraphics()))),
         # A tab of its own: the pane group hands the assistant's own split pane
         # to a fresh renderer, rather than re-entering the one already dispatching

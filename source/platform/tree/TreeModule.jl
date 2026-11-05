@@ -32,6 +32,7 @@ using ..RosterModule
 using ..ScreenModule
 using ..SerializationModule
 using ..StyleModule
+using ..TextModule
 using ..ToolModule
 using ..WidgetModule
 

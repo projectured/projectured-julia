@@ -106,6 +106,8 @@ end
 # indentation.
 function _compute_soft_breaks(line::TextLine, wrap_w::Int, measure_fn::TextMeasure)
     breaks = Int[]
+    # A free width: no row breaks, and no word is measured.
+    wrap_w >= _NO_WRAP_WIDTH && return breaks
     width = wrap_w - _measure_indentation(line, measure_fn)
     width > 0 || return breaks
     cx = 0

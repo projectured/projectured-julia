@@ -13,6 +13,7 @@ function make_find_bar_projection(; measure=FontFileMeasure(), font=StyleFont("U
             FindBarView     => ChainingProjection(FindBarViewToWidget(), VerticalLayoutToGraphicsCanvas()),
             HighlightedText => text,
             FilteredText    => text,
+            TextBlock       => TextToGraphics(; measure),
         ],
         LayoutToGraphics().dispatch,
         make_object_field_widget_dispatch(w2g.dispatch),

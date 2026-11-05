@@ -1990,8 +1990,10 @@ end
 # A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, such as
 # a `String`, is edited as a text too. The printer makes one `TextBlock` whose
 # text is the string of the value and whose caret is the range of `content` that
-# the widget holds, and draws it with a `TextToGraphics` of its own, so a chain
-# with no rule for a `TextBlock` draws it too. The block is the lines of the string;
+# the widget holds, and prints it through the recursion, as it prints a document
+# in `content`: each table of rules that draws such a widget holds one rule for a
+# `TextBlock`, which draws the text of its documents and the text of its widgets.
+# The block is the lines of the string;
 # in a field of code, each line holds a run for each piece that `compute_code_pieces`
 # gives, in its color. The reader maps what the text domain answers back to a range
 # of the `content` field. So a string edit writes the field itself, and the caret after
@@ -2061,19 +2063,29 @@ function _get_value_text_caret(selection, child)
 end
 
 # `appearance` is the appearance of a field of code, whose theme of its language
-# gives the colors, or `nothing`.
+# gives the colors, or `nothing`. The view prints through `recursion`, as the
+# document of a `content` does: the rule of the table for a `TextBlock` draws it,
+# and the offer of the field (`_make_text_view_offer`) decides how it lays out.
 function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing,
                                 value_slot = nothing)
     view = _make_plain_text_view(w, style, appearance; value_slot)
-    measure = p.measure
-    # A field that wraps breaks its lines at the width of its content: a soft break
-    # is no character, so every reference of the view maps to itself.
-    text = hasfield(typeof(w), :wrap) && w.wrap ?
-        ChainingProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
-        TextToGraphics(measure = measure)
+    make_reconciled_child_iomap_cell(() -> view,
+                                     v -> print_child(recursion, v, _make_text_view_offer(w, ctx)))
+end
+
+# The offer of a widget to its text view. The widget gives its text all of its own
+# look: the spans carry the font and the color, and the offer carries the line
+# spacing, that of the widget or single spacing, so the spacing of the printer of
+# the table never applies. A field that wraps offers the bounded width of `ctx`,
+# so its text breaks its lines at the width of its content: a soft break is no
+# character, so every reference of the view maps to itself. A field that does not
+# wrap offers a free width, with the space of `ctx` kept, so its text keeps each
+# line whole.
+function _make_text_view_offer(w, ctx; wrap::Bool = hasfield(typeof(w), :wrap) && w.wrap)
     spacing = hasfield(typeof(w), :line_spacing) ? w.line_spacing : nothing
-    spacing === nothing || ctx === nothing || (ctx = with_property(ctx, :line_spacing, spacing))
-    make_reconciled_child_iomap_cell(() -> view, v -> print_document(text, recursion, v, ctx))
+    offer = ctx === nothing ? PrinterContext() : ctx
+    wrap || (offer = with_free_axis(offer, :x; space = offer.space))
+    with_property(offer, :line_spacing, spacing === nothing ? SingleSpacing() : spacing)
 end
 
 # The caret of the view: the range of `content` that the widget holds, as a flat
@@ -5210,7 +5222,7 @@ function _find_tab_name_caret(selection)
 end
 
 # The view of the name that holds the caret, in the style of the selected tab,
-# drawn with a `TextToGraphics` of its own.
+# drawn through `recursion`.
 function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ctx)
     span = TextString(() -> begin
         found = caret[]
@@ -5223,9 +5235,8 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ct
         found = caret[]
         found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
     end)
-    measure = p.measure
     make_reconciled_child_iomap_cell(() -> view,
-                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+                          v -> print_child(recursion, v, _make_text_view_offer(nothing, ctx; wrap = false)))
 end
 
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
@@ -13727,9 +13738,9 @@ end
 
 
 """
-    WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing)
+    WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing, text = nothing)
     WidgetToGraphics(font; measure, theme = make_widget_theme(font = font),
-                     graphics_theme = nothing)
+                     graphics_theme = nothing, text = nothing)
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is used for all
@@ -13740,12 +13751,19 @@ holds a theme. A builder of an editor passes the scaled themes of its
 `Appearance`, so every widget of the editor follows its scales; an interface with
 no scales passes a theme as it is. A projection built on its own can name the
 font of its default theme, the slate light preset.
+
+The dispatch has no rule for a `TextBlock`: the text of a widget and the text of a
+document are both a `TextBlock`, and the table that holds the dispatch chooses how
+it draws them. A table that splices `.dispatch` adds its own rule. A projection
+built on its own as a table passes it as `text`, which ends the dispatch with
+`TextBlock => text`.
 """
 WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                 theme = make_widget_theme(font = font), graphics_theme = nothing) =
-    WidgetToGraphics(; measure, theme, graphics_theme)
+                 theme = make_widget_theme(font = font), graphics_theme = nothing, text = nothing) =
+    WidgetToGraphics(; measure, theme, graphics_theme, text)
 
-function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing)
+function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing,
+                          text = nothing)
     widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
@@ -13799,7 +13817,8 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
     # A layout draws the ring around a child selected as a whole with the
     # graphics theme.
     TypeDispatchingProjection(vcat(widgets.dispatch,
-        LayoutToGraphics(; theme = graphics_theme).dispatch))
+        LayoutToGraphics(; theme = graphics_theme).dispatch,
+        text === nothing ? Pair{Type,Any}[] : Pair{Type,Any}[TextBlock => text]))
 end
 
 # ── A route gives a child the point in its own frame ───────────────────────

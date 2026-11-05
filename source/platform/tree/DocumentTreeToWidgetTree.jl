@@ -610,5 +610,6 @@ end
 make_graphics_projection(::Type{DocumentTree}; measure, appearance) =
     ChainingProjection(DocumentTreeToWidgetTree(), RecursiveProjection(FaultCatchingProjection(
         inner = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
-                                 graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                 graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                 text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))),
         substitute = FaultToGraphics())))

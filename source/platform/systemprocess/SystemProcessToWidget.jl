@@ -77,6 +77,7 @@ function make_graphics_projection(::Type{SystemProcess}; measure, appearance)
         SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap)),
         RecursiveProjection(FaultCatchingProjection(
             inner = WidgetToGraphics(; measure, theme,
-                                     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                     text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))),
             substitute = FaultToGraphics())))
 end

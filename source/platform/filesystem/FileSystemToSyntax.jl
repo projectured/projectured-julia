@@ -248,7 +248,9 @@ function __init__()
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                         text = TextToGraphics(; measure,
+                                             theme = get_scaled_theme!(appearance, TextTheme))),
                 substitute = FaultToGraphics()))),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
@@ -257,7 +259,9 @@ function __init__()
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                         text = TextToGraphics(; measure,
+                                             theme = get_scaled_theme!(appearance, TextTheme))),
                 substitute = FaultToGraphics()))),
     ])
 end

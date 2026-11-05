@@ -38,6 +38,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..RosterModule
 using ..StyleModule
+using ..TextModule
 using ..ToolModule
 using ..TooltipModule
 using ..TreeModule

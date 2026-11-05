@@ -11,6 +11,7 @@ function make_widget_projection_example(; measure=FontFileMeasure())
     inner = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         w2g.dispatch,
+        Pair{Type,Any}[TextBlock => TextToGraphics(; measure)],
     )))
     # Tab starts over at the ends. A widget lights while its mouse target is set,
     # which each move of the pointer writes.

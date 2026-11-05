@@ -40,6 +40,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..RosterModule
 using ..StyleModule
+using ..TextModule
 using ..SystemProcessModule
 using ..ToolModule
 using ..TooltipModule
