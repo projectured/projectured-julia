@@ -1,6 +1,6 @@
 # Spacing
 
-> **Kind:** rule · **Status:** current · **Stands on:** [layout-rules.md](layout-rules.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [layout-rules.md](layout-rules.md)
 
 How much space goes where in a window, and who gives it. Each space has a reason in a rule about what a person sees, a role in the widget theme names its value, and the printer context gives it once at the edge of a slot. [layout-rules.md](layout-rules.md) says how a widget gets its size, and this document says how it gets its space.
 
