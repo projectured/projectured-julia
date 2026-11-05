@@ -14,7 +14,7 @@ const _RankingHarness = parentmodule(SearchRanker)
 
 _make_ranking_entry(qualname, summary = "") =
     ToolModule._ApiEntry("function", qualname, last(split(qualname, '.')) * "()", summary,
-                         summary, summary)
+                         summary, summary, false)
 
 function test_search_ranking()
 @testset "rankings of a search compared" begin
