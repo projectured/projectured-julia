@@ -1096,8 +1096,10 @@ approval of the user.
         `widget`: the overlay reads `container_padding` from the widget theme.
       - Counts: `test_platform()` part by part: 179954 Pass, 4 Fail, 7 Broken
         in the run before the table change; the 4th Fail, the slice edge of
-        `gesturelog`, passes after it, so 179955 Pass and the 3 known Fail
-        (`CheckLayering.jl:889`, `InterfaceApiTest.jl:46` and `:49`). The
+        `gesturelog`, passes after it. A run on `63435098b`, which holds the
+        code of this step, gives 179954 Pass and the 3 known Fail
+        (`CheckLayering.jl:889`, `InterfaceApiTest.jl:46` and `:49`), so the
+        check that passes after the table change adds no Pass. The
         baseline is 179994: `test_platform_examples` has 162317 for 162362.
         A count of each example on `e733e7153` and on this step finds the 45
         in three examples, 15 each: `document_tree`, `work_plan` and
@@ -1181,14 +1183,20 @@ approval of the user.
         rows above it and 14 below it to the line of the panel. It is now at
         rows 582 to 607, with 8 rows above and 8 below. The shadow of the
         button has the colour of the ground in this column, so the pixels do
-        not show it. The composer has the 6 px that the row gives up. No image
-        shows a fault.
+        not show it. The transcript has the 6 px that the row gives up: the
+        line above the composer moves from row 366 to 372, and the composer
+        keeps its height. No image shows a fault.
       - Counts: `test_platform()` part by part, 179964 Pass, 3 Fail (the known
-        three), 7 Broken, for 179955 before. The change is +9: +11 in
-        `WidgetSplitPaneTest` and +2 in `SplitPaneDragTest`, and -3 in
-        `test_platform_examples` (162314 for 162317): the printer walk of the
-        assistant examples no longer finds the cell of `option_bar_height`,
-        once in each of three tests. One more -1 is not located.
+        three), 7 Broken, for 179954 before. A run of each part on `63435098b`
+        and on this step, at the same time, gives the change of +10 in three
+        parts: `test_widget_split_pane` +11 (22 to 33), `test_split_pane_drag`
+        +2 (41 to 43), and `test_platform_examples` -3 (162317 to 162314): the
+        printer walk of the assistant examples no longer finds the cell of
+        `option_bar_height`, once in each of three tests. That run also gave
+        `test_task_execution` 56 Pass and 1 Fail (`TaskExecutionTest.jl:171`,
+        a stop takes 30 s). The test depends on the load of the machine: with
+        a load average of about 30, it fails in 6 of 8 runs on `63435098b`, so
+        the fault is older than this step.
         `test_dataframes` 603 and `test_research` 382, as before.
         `test_assistant_mvp`, `test_assistant_composer_panel` and
         `test_assistant_stream`: 301 Pass, 4 Broken, no Fail. `test_conversation`
