@@ -178,15 +178,26 @@ opens the part where its content holds the document
 get_task_links(::AbstractTask) = NamedTuple[]
 
 """
-    get_task_result_document(task, result) -> Document or nothing
+    make_task_kind_document(task, result) -> Document or nothing
 
-A document that shows what `task` ended with in more than lines of text, such as
-the table of the scalars that a statistical test compared. `result` is what the
-task ended with. The detail of the task shows the document below its facts. It
-draws by the method of `make_graphics_projection` for its type, as it draws in
-any document. A kind with no such document answers `nothing`.
+The document of the kind of `task`: its facts, its verdict, its tables and its
+command. It exists from the start of the task, and the frame calls it again when
+the result changes: `result` is `nothing` before the task ended, and what it
+ended with after. The detail and the page of the task show the document below
+their header. It draws by the method of `make_graphics_projection` for its type,
+as it draws in any document. A kind with no document answers `nothing`, and the
+frame shows the lines of [`format_task_details`](@ref).
 """
-get_task_result_document(::AbstractTask, result) = nothing
+make_task_kind_document(::AbstractTask, result) = nothing
+
+"""
+    get_task_kind_name(task) -> String
+
+The name of the kind of `task`, such as `"statistical test"`, which the header of
+the detail and of the page shows in muted text beside the name of the task. A
+kind with no name answers an empty string.
+"""
+get_task_kind_name(::AbstractTask) = ""
 
 """
     find_task_output_mark(task, stream, line) -> Symbol or nothing

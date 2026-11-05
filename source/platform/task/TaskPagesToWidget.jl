@@ -7,9 +7,10 @@
 """
     TaskDocumentToWidgetPane(; theme styles…)
 
-Draw a [`TaskDocument`](@ref) as the page of a task: its name and its state, the
-facts of its kind, its process and its verdict; Stop, Run again and the buttons of
-its kind; its executions, each a link to its page; and the last lines of each
+Draw a [`TaskDocument`](@ref) as the page of a task: its state, its name, its
+kind and its verdict in one line, and the error message of an `ERROR` under it;
+Stop, Run again and the buttons of its kind; the document of its kind, or the
+lines of its facts when it gives no document; its process; its executions, each a link to its page; and the last lines of each
 stream of its current execution, with a link to the page of the stream. A task
 of a group stops and runs again through its group. A kind that the editor does
 not start has only the buttons of its kind. A task that is a group links to the
@@ -51,17 +52,6 @@ end
 # page of the stream.
 const _STREAM_PREVIEW_LINES = 8
 
-# The word of the state of a task and its colour, by the codes of its own kind.
-function _get_task_page_state(p, document::TaskDocument)
-    result = get_task_document_result(document)
-    result === nothing ||
-        return (format_task_result(result), _get_role_color(p, get_result_role(get_result_codes(result), result.result)))
-    status = get_task_document_status(document)
-    status === :running && return ("running", p.running_color)
-    status === :cancelling && return ("stopping", p.running_color)
-    (string(status), p.muted_color)
-end
-
 # A link that names the page at `reference` from `document`.
 _make_task_link(text, document, reference::Reference) = WidgetLink(text, DocumentLocator(document, reference))
 
@@ -73,43 +63,45 @@ _make_open_button(p, text, document, reference::Reference) =
 _make_steps(steps...) = foldr(ConcreteReference, steps; init = EmptyReference())
 _get_execution_steps(k::Int) = (FieldReferenceStep("executions"), RangeReferenceStep(k - 1, k))
 
-# The last lines of one stream of an execution, and the link to its page.
+# The last lines of one stream of an execution, and the link to its page; an
+# empty stream is the muted word `stdout · empty`, with no link and no lines. The
+# part reads whether the stream has a line in a cell of its own, so a later line
+# does not build it again.
 function _build_stream_preview(p, document, steps, shadow, field::Symbol)
     name = field === :output ? "stdout" : "stderr"
     page = field === :output ? "stdout_page" : "stderr_page"
-    count = WidgetLabel(() -> (n = getproperty(shadow, field).count; string(name, " · ", n, n == 1 ? " line" : " lines")))
-    link = _make_open_button(p, "Open " * name, document, _make_steps(steps..., FieldReferenceStep(page)))
-    lines = VerticalLayout(Any[]; gap = 0, child_width = Fill)
-    set_cell_computation!(getfield(lines.children, :elements), () -> begin
-        kept = collect_output_lines(getproperty(shadow, field))
-        Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
+    has_lines = Cell(@computation getproperty(shadow, field).count > 0)
+    preview = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    set_cell_computation!(getfield(preview.children, :elements), () -> begin
+        has_lines[] || return Cell[Cell(_make_label(name * " · empty", p.muted_color))]
+        count = WidgetLabel(() -> _format_stream_count(name, getproperty(shadow, field).count))
+        link = _make_open_button(p, "Open " * name, document, _make_steps(steps..., FieldReferenceStep(page)))
+        lines = VerticalLayout(Any[]; gap = 0, child_width = Fill)
+        set_cell_computation!(getfield(lines.children, :elements), () -> begin
+            kept = collect_output_lines(getproperty(shadow, field))
+            Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
+        end)
+        Cell[Cell(HorizontalLayout(Any[count, link]; vertical_align = :center, gap = p.label_gap)), Cell(lines)]
     end)
-    Any[HorizontalLayout(Any[count, link]; vertical_align = :center, gap = p.label_gap), lines]
+    Any[preview]
 end
 
 function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDocument, ctx)
     task = getfield(document, :task)[]
     place = find_task_document_group(document)
     parts = Any[]
-    heading = Any[WidgetLabel(format_task_parameters(task)),
-                  _make_live_label(() -> _get_task_page_state(p, document))]
+    heading = Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+                  _make_task_header_note(p, document)]
     if place !== nothing
         (group, index) = place
         push!(heading, _make_task_link(() -> "in " * getfield(group, :title)[], group, EmptyReference()))
     end
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.label_gap))
-    push!(parts, _build_task_details(p, task, document))
-    push!(parts, _build_task_links(p, task))
-    push!(parts, WidgetLabel(() -> begin
-        facts = String[]
-        process = _get_current_field(document, :process_id)
-        process === nothing || push!(facts, "process " * string(process))
-        started = _get_current_field(document, :start_time)
-        started === nothing || push!(facts, "elapsed " * _format_duration(
-            something(_get_current_field(document, :end_time), time()) - started; precision = 1))
-        join(facts, " · ")
-    end))
+    push!(parts, _make_task_error_line(p, document))
     push!(parts, _build_task_page_actions(p, document, task, place))
+    push!(parts, _build_task_kind_part(p, task, document))
+    push!(parts, _build_task_links(p, task))
+    push!(parts, _make_task_process_group(place === nothing ? nothing : first(place), document))
     push!(parts, _build_task_page_executions(p, document))
     push!(parts, _build_task_page_streams(p, document))
     root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap, child_width = Fill)
@@ -117,6 +109,20 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     follow_output_mouse_target!(root, () ->
         map_mouse_target_forward(document, path -> map_reference_forward(p, iomap, path)))
     iomap
+end
+
+# What the kind says about a task: its document, drawn by the recursion like
+# any document, or the lines of `format_task_details` when it gives none. It
+# follows the document of the kind.
+function _build_task_kind_part(p, task, document::TaskDocument)
+    part = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    set_cell_computation!(getfield(part.children, :elements), () -> begin
+        shown = getfield(document, :kind_document)[]
+        shown === nothing ?
+            Cell[Cell(WidgetLabel(line)) for line in format_task_details(task, get_task_document_result(document))] :
+            Cell[Cell(shown)]
+    end)
+    part
 end
 
 # The links of the kind of a task among its facts, one a line: the name of the

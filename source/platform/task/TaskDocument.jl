@@ -29,9 +29,10 @@ See also `TaskGroupDocument`, `TaskExecution`, `find_task_group` and `list_task_
   streams. A view reads them; the feed of the session syncs each one while its
   execution runs. A start again adds one and replaces none
   ([`add_task_execution!`](@ref)).
-- `result_document` — the document that the kind of the task gives for the
-  result of the current execution ([`get_task_result_document`](@ref)), or
-  `nothing`. It computes when a view reads it, on the editor task, and stays the
+- `kind_document` — the document that the kind of the task gives
+  ([`make_task_kind_document`](@ref)), or `nothing`. It exists before the
+  result and is made again when the result of the current execution changes. It
+  computes when a view reads it, on the editor task, and stays the
   same document until the result changes, so an edit of it stays while the
   person looks at another task. A path reaches it, so a key edits it where the
   detail of the task shows it.
@@ -58,7 +59,7 @@ For the assistant.
     task::Any
     running::Any
     executions::Any
-    result_document::Any
+    kind_document::Any
     process_tree::Any
     group::Any
     inner_group::Any
@@ -90,7 +91,7 @@ is_field_walked(::TaskDocument, name::Symbol) = name !== :group
 Whether a search for tasks reads the field `name` of `parent`: from a task, only
 its inner group, which holds the tasks of a task that is a group; from a group,
 only its tasks and its preparation; from anything else, every field. So a search
-for the tasks of a group reads no task value, no execution and no result document
+for the tasks of a group reads no task value, no execution and no kind document
 of a task, and computes none of them.
 
 Use it as the `enter_field` of a search for tasks, such as the source of a roster
@@ -107,7 +108,7 @@ is_task_search_field(parent::TaskDocument, name) = name === :inner_group
 is_pred_constructible(::typeof(is_task_search_field)) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
-                                                    executions = CellVector(), result_document = nothing,
+                                                    executions = CellVector(), kind_document = nothing,
                                                     process_tree = nothing, group = Ref{Any}(nothing),
                                                     inner_group = nothing))
 
@@ -138,13 +139,11 @@ function remove_task_output_files!(document::TaskDocument)
     document
 end
 
-# The document of the result follows the result of the current execution, and the
-# tree of the processes follows its process until the result comes.
+# The document of the kind is made before the result and again when the result
+# changes, and the tree of the processes follows its process until the result comes.
 function _follow_current_execution!(document::TaskDocument)
-    set_cell_computation!(getfield(document, :result_document), () -> begin
-        result = get_task_document_result(document)
-        result === nothing ? nothing : get_task_result_document(getfield(document, :task)[], result)
-    end)
+    set_cell_computation!(getfield(document, :kind_document), () ->
+        make_task_kind_document(getfield(document, :task)[], get_task_document_result(document)))
     set_cell_computation!(getfield(document, :process_tree), () -> begin
         current = get_current_task_execution(document)
         process_id = current === nothing ? nothing : current.process_id

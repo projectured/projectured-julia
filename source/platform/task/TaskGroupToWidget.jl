@@ -103,6 +103,71 @@ function _format_task_elapsed_time(doc::Union{TaskGroupDocument,Nothing}, docume
     _format_duration(something(_get_current_field(document, :end_time), time()) - started; precision = 1)
 end
 
+# ── The header of a task ─────────────────────────────────────────────────────
+
+# The badge of the state of a task: its result code in the role of the code once
+# it has a result, else the word of its state, in the accent role while it runs
+# and stops, with no role otherwise. It follows the task without a new print.
+function _make_task_state_badge(document::TaskDocument)
+    badge = WidgetBadge("")
+    set_cell_computation!(getfield(badge, :content), () -> _get_task_state_word(document))
+    set_cell_computation!(getfield(badge, :role), () -> begin
+        result = get_task_document_result(document)
+        result === nothing &&
+            return get_task_document_status(document) in (:running, :cancelling) ? :accent : nothing
+        get_result_role(get_result_codes(result), result.result)
+    end)
+    badge
+end
+
+# The muted text beside the name of a task: the name of its kind, whether its
+# result is the expected one (as `format_task_result` writes it), and the reason
+# of its result, joined by ` · `. It takes no line while it is empty.
+function _make_task_header_note(p, document::TaskDocument)
+    task = getfield(document, :task)[]
+    _make_live_label(() -> begin
+        parts = String[]
+        kind = get_task_kind_name(task)
+        isempty(kind) || push!(parts, kind)
+        result = get_task_document_result(document)
+        if result !== nothing
+            if !is_expected(result)
+                push!(parts, "unexpected")
+            elseif get_result_role(get_result_codes(result), result.result) !== :success
+                push!(parts, "expected")
+            end
+            _has_text(result.reason) && push!(parts, result.reason)
+        end
+        (join(parts, " · "), p.muted_color)
+    end)
+end
+
+# The error message of a task that ended with `ERROR`, in the error colour; no
+# line while the task has none.
+_make_task_error_line(p, document::TaskDocument) = _make_live_label(() -> begin
+    result = get_task_document_result(document)
+    (result !== nothing && result.result == "ERROR") ? (get_error_message(result), p.error_color) :
+                                                       ("", p.error_color)
+end)
+
+# The `Process` group of a task: its process and the time it took or takes,
+# each when it has a value. The elapsed time counts on with each drain of the
+# group `doc`. A group with no fact is not visible.
+function _make_task_process_group(doc::Union{TaskGroupDocument,Nothing}, document::TaskDocument)
+    group = WidgetFactGroup(Any[]; title = "Process")
+    facts = group.facts
+    set_cell_computation!(getfield(facts, :elements), () -> begin
+        shown = Cell[]
+        process = _get_current_field(document, :process_id)
+        process === nothing || push!(shown, Cell(WidgetFact("process", string(process))))
+        elapsed = _format_task_elapsed_time(doc, document)
+        isempty(elapsed) || push!(shown, Cell(WidgetFact("elapsed", elapsed)))
+        shown
+    end)
+    set_cell_computation!(getfield(group, :visible), () -> !isempty(getfield(facts, :elements)[]))
+    group
+end
+
 # The column `progress`: a ring while the task runs, filled to the fraction that
 # it reports, or turning when it reports none. Its tooltip says where the task
 # is, such as the event and the time of a simulation.
@@ -315,11 +380,11 @@ const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1
 
 # ── The documents of a task, edited where they show ─────────────────────────
 #
-# The detail of a task draws the tree of the processes of the task while it runs,
-# and the document of its result, each in a place of its own: a constraint that
+# The detail of a task draws the document of its kind and the tree of the
+# processes of the task while it runs, each in a place of its own: a constraint that
 # gives the document its share of the height, in the split and alone. A path from
-# the group reaches each document, `tasks[i].process_tree + rest` and
-# `tasks[i].result_document + rest`, so the pane maps that path to the place and
+# the group reaches each document, `tasks[i].kind_document + rest` and
+# `tasks[i].process_tree + rest`, so the pane maps that path to the place and
 # back, with the same `rest`. Every other path takes the defaults of `Projection`.
 
 # The steps from the root of the pane to the detail: the place below the summary card is
@@ -332,14 +397,14 @@ const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeRef
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
 # The parts of the detail of a task before its documents: the scroll area of its
-# state, its facts, its process, its result, its earlier executions and its buttons.
+# header, its error line, its lines of facts and its buttons.
 const _PARTS_BEFORE_DOCUMENTS = 1
 
 # The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
-const _DOCUMENT_FIELDS = (:process_tree, :result_document)
+const _DOCUMENT_FIELDS = (:kind_document, :process_tree)
 
-# The document of the result that the place below the card of the group holds while
+# The document of the kind that the place below the card of the group holds while
 # the detail is alone: the one of the selected task, or `nothing` for a task that
 # has none and for a row that is an inner group, which shows its detail.
 function _find_alone_document(doc::TaskGroupDocument)
@@ -347,7 +412,7 @@ function _find_alone_document(doc::TaskGroupDocument)
     documents = getfield(doc, :tasks)[]
     (1 <= index <= length(documents)) || return nothing
     find_task_group_document(doc, index) === nothing || return nothing
-    getfield(documents[index], :result_document)[]
+    getfield(documents[index], :kind_document)[]
 end
 
 # The place of each document that the detail of the pane shows: the steps from the
@@ -360,11 +425,11 @@ function _find_document_places(doc::TaskGroupDocument)
     documents = getfield(doc, :tasks)[]
     (1 <= index <= length(documents)) || return places
     find_task_group_document(doc, index) === nothing || return places
-    # The document of the result alone in the place below the card of the group: the
+    # The document of the kind alone in the place below the card of the group: the
     # tree of the processes has no place, and the detail is not in the output.
     if getfield(doc, :is_detail_alone)[] && _find_alone_document(doc) !== nothing
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
-                        FieldReferenceStep("result_document")), _PLACE_STEPS))
+                        FieldReferenceStep("kind_document")), _PLACE_STEPS))
         return places
     end
     for field in _DOCUMENT_FIELDS
@@ -436,27 +501,16 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
-        facts = Any[]
-        push!(facts, _make_live_label(() -> begin
-            (text, color) = _get_task_state(p, group.codes, document)
-            (format_task_parameters(task) * " — " * text, color)
-        end))
-        push!(facts, _build_task_details(p, task, document))
-        push!(facts, WidgetLabel(() -> begin
-            items = String[]
-            process = _get_current_field(document, :process_id)
-            process === nothing || push!(items, "process " * string(process))
-            elapsed = _format_task_elapsed_time(doc, document)
-            isempty(elapsed) || push!(items, "elapsed " * elapsed)
-            join(items, " · ")
-        end))
-        push!(facts, _make_live_label(() -> begin
-            result = get_task_document_result(document)
-            result === nothing ? ("", p.muted_color) :
-                (format_task_result(result),
-                 _get_role_color(p, get_result_role(group.codes, result.result)))
-        end))
-        push!(facts, _build_earlier_executions(p, document))
+        # The header, the error line, the lines of a kind that gives no document,
+        # and the buttons scroll in a part with no weight, so a short detail keeps
+        # the least height of the place of a document and gives up the height of
+        # the facts.
+        shown = getfield(document, :kind_document)[]
+        facts = Any[HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+                                         _make_task_header_note(p, document)];
+                                     vertical_align = :center, gap = p.label_gap),
+                    _make_task_error_line(p, document)]
+        shown === nothing && push!(facts, _build_task_details(p, task, document))
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = editor -> _run_guarded("stop",
                                 () -> evaluate_operation(editor, StopTaskOperation(doc, index))))
@@ -472,13 +526,11 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
         push!(facts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.button_gap))
-        # The facts scroll in a part with no weight, so a short detail keeps the
-        # least height of the place of a document and gives up the height of the facts.
         parts = Any[WidgetScrollPane(VerticalLayout(facts; gap = p.section_gap, child_width = Fill))]
-        # The tree of the processes of the task while it runs, and the document
-        # that the kind gives for the result, each in a place that gives it a
-        # share of the height and at least `document_minimum_height`, between the
-        # facts and the output. The maps of the pane find each document by its place.
+        # The document that the kind gives and the tree of the processes of the
+        # task while it runs, each in a place that gives it a share of the height
+        # and at least `document_minimum_height`, between the facts and the
+        # output. The maps of the pane find each document by its place.
         length(parts) == _PARTS_BEFORE_DOCUMENTS ||
             error("the documents of the task are not where the maps of the pane find them")
         for field in _DOCUMENT_FIELDS
@@ -488,11 +540,13 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                                      min_height = p.document_minimum_height)
             push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
-        push!(parts, _make_label("stdout", p.muted_color))
-        push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
-        push!(parts, _make_label("stderr", p.muted_color))
-        push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :error_output);
-                                        weight = 1))
+        # What every task has, in a part with no weight: its process and its
+        # earlier executions.
+        push!(parts, VerticalLayout(Any[_make_task_process_group(doc, document),
+                                        _build_earlier_executions(p, document)];
+                                    gap = p.section_gap, child_width = Fill))
+        append!(parts, _build_stream_parts(p, document, :output; weight = 2))
+        append!(parts, _build_stream_parts(p, document, :error_output; weight = 1))
         Cell[Cell(x) for x in parts]
     end)
     detail
@@ -533,6 +587,28 @@ end
 _make_task_action_button(p, label, action, task) =
     WidgetButton(label; size = p.button_size,
                  action = editor -> _run_guarded(label, () -> action(editor, task)))
+
+# Whether the stream `field` of the current execution of a task holds a line.
+_has_stream_lines(document::TaskDocument, field::Symbol) =
+    (current = get_current_task_execution(document); current !== nothing && getproperty(current, field).count > 0)
+
+# The words over a stream: its name and the count of its lines, or its name and
+# `empty`.
+_format_stream_count(name::AbstractString, count::Integer) =
+    count == 0 ? name * " · empty" : string(name, " · ", count, count == 1 ? " line" : " lines")
+
+# The parts of one stream in the detail: the count of its lines over the pane of
+# its lines, or the muted word `stdout · empty` and no pane. The parts read
+# whether the stream has a line in a cell of its own, which stays as it is while
+# lines come, so the first line builds the parts again and a later line does not.
+function _build_stream_parts(p, document::TaskDocument, field::Symbol; weight)
+    name = field === :output ? "stdout" : "stderr"
+    has_lines = Cell(@computation _has_stream_lines(document, field))
+    has_lines[] || return Any[_make_label(name * " · empty", p.muted_color)]
+    Any[_make_label(() -> _format_stream_count(name, getproperty(get_current_task_execution(document), field).count),
+                    p.muted_color),
+        _build_output_pane(() -> collect_task_document_lines(document, field); weight)]
+end
 
 # The lines of a stream in a pane of its own that follows the end. The two panes
 # of a task share the height that the lines above them leave, by `weight`, and
@@ -701,7 +777,7 @@ get_document_decoration(group::ClosedTaskGroup) =
 
 # The card of a group, and below it its table above the detail of the task that
 # a person picked, in a split a person can drag. While `is_detail_alone` is set, the
-# place of the split holds the document of the result of the selected task and
+# place of the split holds the document of the kind of the selected task and
 # nothing else, or the detail alone when the task has no such document.
 function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
     card = _build_summary_card(p, doc; actions)
@@ -873,32 +949,32 @@ function _find_neighbour_task(doc::TaskGroupDocument, step::Int)
     findfirst(task -> task === shown[target], documents)
 end
 
-# The caret in the document of the result of task `index`, so a key reaches that
+# The caret in the document of the kind of task `index`, so a key reaches that
 # document first; the caret on the group when the task has none.
-function _make_result_caret_operation(doc::TaskGroupDocument, index::Int)
+function _make_kind_caret_operation(doc::TaskGroupDocument, index::Int)
     documents = getfield(doc, :tasks)[]
-    (1 <= index <= length(documents) && getfield(documents[index], :result_document)[] !== nothing) ||
+    (1 <= index <= length(documents) && getfield(documents[index], :kind_document)[] !== nothing) ||
         return ReplaceSelectionOperation(EmptyReference())
     ReplaceSelectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("tasks"),
                                                RangeReferenceStep(index - 1, index),
-                                               FieldReferenceStep("result_document")))
+                                               FieldReferenceStep("kind_document")))
 end
 
 function _make_detail_move_operation(doc::TaskGroupDocument, step::Int)
     getfield(doc, :is_detail_alone)[] || return nothing
     index = _find_neighbour_task(doc, step)
     index === nothing && return DoNothingOperation()
-    CompoundOperation(Any[_make_view_write_operation(doc, "selected", index), _make_result_caret_operation(doc, index)])
+    CompoundOperation(Any[_make_view_write_operation(doc, "selected", index), _make_kind_caret_operation(doc, index)])
 end
 
-# Return writes the caret into the result of the selected task, so Left and Right
-# reach the document of the result, and Escape puts it back on the group.
+# Return writes the caret into the document of the kind of the selected task, so Left and Right
+# reach the document of the kind, and Escape puts it back on the group.
 function _make_detail_alone_operation(doc::TaskGroupDocument, is_alone::Bool)
     getfield(doc, :is_detail_alone)[] == is_alone && return nothing
     index = getfield(doc, :selected)[]
     is_alone && !(1 <= index <= length(getfield(doc, :tasks)[])) && return nothing
     write = _make_view_write_operation(doc, "is_detail_alone", is_alone)
-    caret = is_alone ? _make_result_caret_operation(doc, index) : ReplaceSelectionOperation(EmptyReference())
+    caret = is_alone ? _make_kind_caret_operation(doc, index) : ReplaceSelectionOperation(EmptyReference())
     CompoundOperation(Any[write, caret])
 end
 

@@ -43,16 +43,21 @@ are plain values:
   alone;
 - `get_task_output_folder(task)` gives the folder of the files of its streams, or
   `nothing` for the folder of the process;
-- `get_task_result_document(task, result)` gives a document that shows the
-  result in more than lines of text, such as the table of the scalars that a
-  statistical test compared. The task document holds it in `result_document`,
-  made when a view first reads it after the result came, and the same document
-  until the result changes. The detail of the task shows it below its facts, in
-  a place of its own that is at least `document_minimum_height` high. It draws by the method of
-  `make_graphics_projection` for its type, as it draws in any document, so the
-  renderer of the views reads that seam too. A path reaches it,
-  `tasks[i].result_document`, and the pane maps that path to the card and back,
-  as a page maps an embedded file: a person edits the document where it shows.
+- `make_task_kind_document(task, result)` gives the document of the kind of the
+  task: its facts, its verdict, its tables and its command. It exists from the
+  start of the task, so `result` is `nothing` before the task ended, and the
+  frame calls it again when the result changes. The task document holds it in
+  `kind_document`, made when a view first reads it, and the same document until
+  the result changes. The detail of the task shows it below its header and its
+  buttons, in a place of its own that is at least `document_minimum_height`
+  high. It draws by the method of `make_graphics_projection` for its type, as it
+  draws in any document, so the renderer of the views reads that seam too. A path
+  reaches it, `tasks[i].kind_document`, and the pane maps that path to the card
+  and back, as a page maps an embedded file: a person edits the document where
+  it shows. A kind with no document answers `nothing`, and then the frame shows
+  the lines of `format_task_details`;
+- `get_task_kind_name(task)` gives the name of the kind, such as `"statistical
+  test"`, which the header shows in muted text; the default is an empty string.
 
 The defaults answer nothing, so a task of a kind that adds nothing shows what
 every task has. A run of a simulation, for example, can add its directory, its
@@ -314,7 +319,7 @@ current execution. A view reads the shadow of the current execution
 `get_task_document_result` and `collect_task_document_lines` read its status, its
 result and its lines.
 
-`process_tree` is a computed field of `TaskDocument`, as `result_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the step of the tree for each execution that changed, when a view read its tree; a `TaskDocument` and the slot of a group of tasks both answer the step. The sampler writes the execution of a process that runs four times a second, so the tree of a running task takes its step at each drain, and the feed of the tasks already wakes the window then; the tree needs no wake of its own. The read of the tree runs off the loop, as for any tree. So a build or a simulation run shows its compilers or its workers with no code in its domain.
+`process_tree` is a computed field of `TaskDocument`, as `kind_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the step of the tree for each execution that changed, when a view read its tree; a `TaskDocument` and the slot of a group of tasks both answer the step. The sampler writes the execution of a process that runs four times a second, so the tree of a running task takes its step at each drain, and the feed of the tasks already wakes the window then; the tree needs no wake of its own. The read of the tree runs off the loop, as for any tree. So a build or a simulation run shows its compilers or its workers with no code in its domain.
 
 A start again, or a run again of a group, adds an execution and replaces none
 (`add_task_execution!`). The earlier executions keep their own results
@@ -412,7 +417,7 @@ runs again goes back into its place.
 counts of each code, a bar of the progress, the time, the reason of what was not
 expected and the actions on the whole group; a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
-buttons and its two streams. While the current execution of that task has a process, the detail shows the tree of its processes in a card, after the buttons and before the card of the result ([tree.md](../tree/tree.md) says how a tree draws). A task that ended has no tree, so the card of the result follows the buttons at once. The detail of a task that is a group is the pane of
+buttons and its two streams. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, with the code word nowhere else; the error message of an `ERROR` is a line in the error colour under it. Below the buttons come the document of the kind, in a place of its own (a kind with no document shows the lines of `format_task_details` above the buttons), and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A part with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -442,7 +447,7 @@ holds it, and an open that no navigator takes opens a tab.
 
 **A picture in a column.** A cell of a kind column shows the value that `get_task_column_value` gives. When the value is an `ImageFile`, the cell shows a small picture of the file, as a cell of any roster table does (`make_roster_value_cell`, [roster.md](../roster/roster.md)): at most `table_picture_height` high (a field of `WidgetTheme`, 120 by default), in its shape, and the row is as high as its highest cell. Any other value shows as text.
 
-**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the result document of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no result document keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail holds the document of the result and the tree of the processes each in a place of its own, with no card: a constraint that gives the document a share of the height, and at least `document_minimum_height` of `TaskTheme`. The place takes 6 shares against 2 and 1 for the two output panes, so a picture or a table in the result fills its share and the two panes stay in the window. The facts and the buttons are in a scroll area with no weight above the places, so in a short detail they give up their height and scroll, and the document keeps its least height. While the detail is alone and the selected task has a result document, the place below the card of the group holds that document and nothing else, so it gets the whole size: the facts, the buttons and the output panes are not drawn. A task with no result document, and a row that is an inner group, show their detail. A path into the document is the path below its place, which is the place of the group in the alone view.
+**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the document of the kind of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no document of its kind keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail holds the document of the kind and the tree of the processes each in a place of its own, with no card: a constraint that gives the document a share of the height, and at least `document_minimum_height` of `TaskTheme`. The place takes 6 shares against 2 and 1 for the two output panes, so a picture or a table in the document fills its share and the two panes stay in the window. The header, the error line and the buttons are in a scroll area with no weight above the places, so in a short detail they give up their height and scroll, and the document keeps its least height. While the detail is alone and the selected task has a document of its kind, the place below the card of the group holds that document and nothing else, so it gets the whole size: the header, the buttons and the output panes are not drawn. A task with no document of its kind, and a row that is an inner group, show their detail. A path into the document is the path below its place, which is the place of the group in the alone view.
 
 In a tree, the text of a task is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does. A task is a leaf, but a task that is a group has the tasks of its inner group under its node. A group has its tasks under its node, and its text says its identifier, its title, how many of its tasks finished and each code that came back unexpected (`T3 fingerprint tests · 37/40 · 2 FAIL`), with the icon of its tab. The list of groups has a node for each group, and a closed group says that it closed.
 
@@ -472,15 +477,19 @@ a row of the natural renderer for each. A part that leads to another page answer
 `OpenPageOperation` with the document that holds it and a path from it, so the
 navigator around the page opens it, and Ctrl+press opens it in a new tab.
 
-- **The page of a task** (`TaskDocumentToWidgetPane`): its name, its state, and a
-  link to its group; the facts of its kind, its process and its time; Stop, Run
-  again and the buttons of its kind, which act through the group of the task, so
+- **The page of a task** (`TaskDocumentToWidgetPane`): the header line of the
+  detail (the badge, the name, the muted text) with a link to its group, and the
+  error line of an `ERROR`; Stop, Run again
+  and the buttons of its kind, which act through the group of the task, so
   the counts of the group follow, or on the task itself when it has no group; a
   kind that the editor does not start (`start_task`), such as a background task
   of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
-  its kind; a link to the page of the group of a task that is a group; its executions, the
-  newest first, each a link to its page; and the last lines of each stream of its
-  current execution, with a link to the page of the stream.
+  its kind; a link to the page of the group of a task that is a group; the
+  document of the kind, drawn in the page by the recursion, or the lines of
+  `format_task_details` when the kind gives none; the links of the kind; the
+  `Process` group; its executions, the newest first, each a link to its page; and
+  each stream of its current execution, as the last lines with a link to the
+  page of the stream, or `stdout · empty` when it has no line.
 - **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a
   shadow: its time, its verdict, the facts of the kind of its task, its process,
   its times, its use of the machine and its reason, and a link to the page of
@@ -575,7 +584,7 @@ A domain adds a kind of task in five steps. The example is a build that runs
    `finish_task_execution!` with `on_finish`.
 4. If the views must show more than every task has, answer the functions of the
    views: `get_task_columns`, `format_task_column`, `format_task_details`,
-   `get_task_actions`, `get_task_links` and `get_task_result_document`.
+   `get_task_actions`, `get_task_links` and `make_task_kind_document`.
 5. Give a model the kind and the verbs: the kind itself carries the mark
    `For the assistant.` in its docstring (with "Use it to", an example and "See
    also"), as `ProgramTask` and `TaskGroup` do, when a model builds it into a
