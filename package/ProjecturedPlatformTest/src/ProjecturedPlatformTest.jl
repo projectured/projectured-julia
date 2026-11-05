@@ -294,6 +294,7 @@ include("../../../test/platform/projection/TabsWrapperTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
 include("../../../test/platform/projection/SplitPaneDragTest.jl")
+include("../../../test/platform/projection/SplitPaneBandTest.jl")
 include("../../../test/platform/projection/PartPointerShapeTest.jl")
 include("../../../test/platform/projection/RoutedGestureTest.jl")
 include("../../../test/platform/projection/LayoutPointTest.jl")

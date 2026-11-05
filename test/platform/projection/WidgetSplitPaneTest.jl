@@ -82,8 +82,10 @@ end
 
 # Every rectangle a print produced. The splitter is the only one a split of two
 # labels draws, so this reads it back.
+# A band that shows no color, as at rest, is no divider and is left out.
 function _rects(node, acc = Tuple{Int,Int,Int,Int}[])
     if node isa GraphicsRect
+        node.color.alpha == 0 && return acc
         push!(acc, (Int(node.x[]), Int(node.y[]), Int(node.w[]), Int(node.h[])))
     elseif node isa GraphicsCanvas
         for e in node.elements; _rects(e, acc); end

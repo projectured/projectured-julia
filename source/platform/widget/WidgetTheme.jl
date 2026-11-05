@@ -203,6 +203,8 @@ builder fills them from a theme, scaled or not.
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
+    "The width of the band that a splitter shows while the pointer rests on it or it is dragged."
+    splitter_band_width::ControlSize = ControlSize(4)
     # ── Table ──
     "The least width of a column of a table that takes a share of its width."
     table_column_minimum_width::ControlSize = ControlSize(100)

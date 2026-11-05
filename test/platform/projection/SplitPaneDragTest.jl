@@ -205,7 +205,7 @@ end
     ctx   = with_exact_size(PrinterContext(); width = Cell(601), height = Cell(400))
     iomap = print_document(proj, nothing, doc, ctx)
     viewports() = [e for e in iomap.output.elements if e isa GraphicsModule.GraphicsViewport]
-    rectangles() = count(e -> e isa GraphicsModule.GraphicsRect, iomap.output.elements)
+    rectangles() = count(e -> e isa GraphicsModule.GraphicsRect && e.color.alpha > 0, iomap.output.elements)
     # The IoMap of the split pane, under the layers of the chain.
     function split_iomap()
         found = getfield(iomap, :step_iomaps)[][1][]

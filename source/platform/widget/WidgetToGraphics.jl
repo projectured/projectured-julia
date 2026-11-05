@@ -899,6 +899,10 @@ WidgetTitlePaneToGraphicsCanvas(theme; measure,
     content_color::StyleColor
     splitter_stroke::StyleStroke    # divider color + thickness
     slot_padding::Inset             # the space that each slot gives to what it holds
+    splitter_band_color::StyleColor # the band of a divider that the pointer rests on or that is dragged
+    splitter_band_width::Int        # across the band, centred on the divider
+    band_delay::Float64             # seconds that the pointer rests on a divider before its band shows
+    fade_duration::Float64          # seconds that the band takes to fade in and to fade out
 end
 
 WidgetSplitPaneToGraphicsCanvas(theme;
@@ -907,9 +911,13 @@ WidgetSplitPaneToGraphicsCanvas(theme;
                                 padding_color = color_transparent, content_color = color_transparent,
                                 splitter_stroke =
                                     _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
-                                slot_padding = _themed(Inset, theme, t -> t.slot_padding)) =
+                                slot_padding = _themed(Inset, theme, t -> t.slot_padding),
+                                splitter_band_color = _themed(StyleColor, theme, t -> t.ring),
+                                splitter_band_width = _themed(Int, theme, t -> t.splitter_band_width),
+                                band_delay = 0.3, fade_duration = 0.1) =
     WidgetSplitPaneToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, splitter_stroke, slot_padding)
+                                    content_color, splitter_stroke, slot_padding, splitter_band_color,
+                                    splitter_band_width, Float64(band_delay), Float64(fade_duration))
 
 @projection UntrackedCell struct WidgetTabbedPaneToGraphicsCanvas
     measure::TextMeasure
@@ -4716,6 +4724,15 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     outer_w_cell = Cell(@computation Int32(Int(inner_w_cell[]) + inset_x))
     outer_h_cell = Cell(@computation Int32(Int(inner_h_cell[]) + inset_y))
 
+    # The band of each divider is a rect of cells of its own, made once for the
+    # split, so a change of the pointer or of the clock writes the cells of the band
+    # and prints no child again.
+    bands = [_make_splitter_band(p, w, k, main_axis, splitter_thickness,
+                                 ctx === nothing ? nothing : ctx.clock,
+                                 main_axis === :x ? child_x[k + 1] : child_y[k + 1],
+                                 main_axis === :x ? coy : cox, outer_cross)
+             for k in 1:(n - 1)]
+
     # Build the outer canvas elements as a CellVector so splitter positions
     # and child wrappers re-flow reactively when slot sizes change. The
     # splitter's cross-axis extent tracks `outer_cross` so it spans exactly
@@ -4759,6 +4776,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 cursor += splitter_thickness
             end
         end
+        for i in 1:(n-1)
+            _has_split_gap(open, i) && push!(result, bands[i])
+        end
         # Where a press grabs a splitter, the pointer is a double arrow along the
         # main axis, over the band of the reader (`_get_splitter_band`).
         for i in 2:n
@@ -4786,6 +4806,60 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         push!(child_iomaps, (child_x[i], child_y[i], inner_iomaps[i]))
     end
     (canvas = outer_canvas, child_iomaps = child_iomaps)
+end
+
+# The share of the band of a divider that shows `fade` seconds after the pointer
+# came to rest on it for `delay` seconds, from the clock time `start` at which it
+# came: 0 during the delay, then up to 1 over `fade` seconds, then 1. With no clock
+# the pointer never rests, so the share is 0. While the delay and the rise run, the
+# read subscribes to the clock; after that it reads none.
+function _compute_splitter_rise(clock, start::Float64, delay::Real, fade::Real)
+    clock === nothing && return 0.0
+    _is_within_duration(clock, start, delay + fade) || return 1.0
+    clamp((get_clock_time(clock) - start - delay) / fade, 0.0, 1.0)
+end
+
+# The band of the divider after slot `k`, a rect across the divider along the
+# cross axis, centred on the line of `thickness` pixels. `next_position` is the
+# cell of the main-axis place of slot `k + 1`, `cross_start` the cross-axis place
+# of the line and `cross_extent` the cell of its length. The band is the colour of
+# `splitter_band_color` with its alpha scaled by a share: 1 at once while the
+# divider is dragged, else it rises after the pointer rested on the grab area of
+# the divider for `band_delay` seconds of `clock`, and it falls over
+# `fade_duration` seconds after the pointer leaves or the drag ends. A split with
+# no pointer on a divider and none dragged reads no clock.
+function _make_splitter_band(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane, k::Int,
+                             main_axis::Symbol, thickness::Int, clock,
+                             next_position::Cell, cross_start::Int, cross_extent::Cell)
+    under = Cell(@computation w.splitter_under_pointer == k)
+    dragged = Cell(@computation w.active_splitter == k)
+    resting = _make_change_time_cell(() -> under[], clock)
+    rise = Cell(Computation(function ()
+        rests, since = resting[]
+        rests ? _compute_splitter_rise(clock, since, p.band_delay, p.fade_duration) : 0.0
+    end))
+    lit = Cell(Computation(function ()
+        raised = rise[]
+        dragged[] || raised > 0
+    end))
+    lit_since = _make_change_time_cell(() -> lit[], clock)
+    # `lit_since` is read each time, so it sees each change of `lit`.
+    share = Cell(Computation(function ()
+        since = lit_since[][2]
+        dragged[] && return 1.0
+        rise[] > 0 && return rise[]
+        _compute_scroll_bar_share(clock, (false, since), p.fade_duration)
+    end))
+    band = p.splitter_band_width
+    along = Cell(@computation Int32(Int(next_position[]) - thickness + (thickness - band) ÷ 2))
+    rect = GraphicsRect(0, 0, 0, 0; color = color_transparent)
+    set_cell_computation!(getfield(rect, :x), () -> main_axis === :x ? along[] : Int32(cross_start))
+    set_cell_computation!(getfield(rect, :y), () -> main_axis === :x ? Int32(cross_start) : along[])
+    set_cell_computation!(getfield(rect, :w), () -> main_axis === :x ? Int32(band) : Int32(cross_extent[]))
+    set_cell_computation!(getfield(rect, :h), () -> main_axis === :x ? Int32(cross_extent[]) : Int32(band))
+    set_cell_computation!(getfield(rect, :color),
+                          () -> _mix_colors(color_transparent, p.splitter_band_color, share[]))
+    rect
 end
 
 map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -4942,7 +5016,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIo
     # the pointer is, so a divider does not stop where the pane ends.
     w isa WidgetSplitPane && evt isa Union{DragMove, DragEnd, DragCancel} &&
         return _split_drag_read(p, iomap, w, evt)
-    w isa WidgetSplitPane && evt isa MouseMove && return _read_split_move(iomap, w, evt)
+    w isa WidgetSplitPane && evt isa MouseMove && return _read_split_move(p, iomap, w, evt)
     _outside_widget(iomap, evt) && return nothing
     if w isa WidgetSplitPane
         drag = _split_drag_read(p, iomap, w, evt)
@@ -4998,10 +5072,27 @@ function _get_split_slot_steps(w, slot::Int)
     w.elements[slot] isa LayoutConstraint ? (steps..., FieldReferenceStep("child")) : steps
 end
 
-# A move of the pointer: the slot that the pane's own mouse target names (the
-# pointer leaves it), then the slot under the point, each re-rooted into its slot.
-# A point on a splitter is on the pane itself.
-function _read_split_move(iomap::WidgetChildrenIoMap, w::WidgetSplitPane, evt::MouseMove)
+# A move of the pointer: the answer of the slots (`_read_split_slot_move`), joined
+# with the write of the divider whose grab area holds the pointer, when that is
+# not the divider that the split holds. A point off the split is on no divider, so
+# a leave writes 0. The move still goes to the slot under the point.
+function _read_split_move(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap,
+                          w::WidgetSplitPane, evt::MouseMove)
+    answer = _read_split_slot_move(iomap, w, evt)
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
+    orientation = w.orientation::Symbol
+    open = _get_split_open_slots(_split_valid_elements(w), orientation === :horizontal ? :x : :y)
+    under = _outside_widget(iomap, evt) || length(open) != length(child_iomaps) ? 0 :
+            _splitter_band_hit(orientation, child_iomaps, max(1, Int(p.splitter_stroke.width)),
+                               evt.x, evt.y, open)
+    under == w.splitter_under_pointer && return answer
+    join_move_answers(answer, ReplaceViewStateOperation(SetSplitterUnderPointerOperation(w, under)))
+end
+
+# The slot that the pane's own mouse target names (the pointer leaves it), then the
+# slot under the point, each re-rooted into its slot. A point on a splitter is on
+# the pane itself.
+function _read_split_slot_move(iomap::WidgetChildrenIoMap, w::WidgetSplitPane, evt::MouseMove)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     new = _outside_widget(iomap, evt) ? nothing :
           _route_split_event(child_iomaps, evt.x, evt.y,

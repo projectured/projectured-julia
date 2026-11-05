@@ -643,6 +643,8 @@ read_intent(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
         operation      # a split a tab's content built: it keeps its own sizes
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
+read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+            operation::SetSplitterUnderPointerOperation) = operation
 
 # The drag of a tab needs the raw gesture beside the operation that the layers
 # below made of it: the press keeps its point, and a move with a button held

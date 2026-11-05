@@ -1304,8 +1304,12 @@ two documents in tabs of their own, use `show_layout` and the panes.
     note = WidgetLabel("The delay grows with the load.")
     open_pane!(WidgetSplitPane(:horizontal, Any[table, note]; sizes = [400, 400]); title = "Split")
 
-`active_splitter` and `drag_anchor` are **transient UI state** holding an
-in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
+`active_splitter`, `drag_anchor` and `splitter_under_pointer` are **transient UI
+state**. `splitter_under_pointer` is `0`, or `k` while the pointer is on the grab
+area of the splitter after slot `k` (see `SetSplitterUnderPointerOperation`);
+the print shows a band on that splitter after a short delay. `active_splitter`
+and `drag_anchor` hold an in-progress splitter drag (see
+`StartSplitterDragOperation`): `active_splitter`
 is `0` when no drag is in progress, or `k` while the splitter after slot `k` is
 being dragged; `drag_anchor` is `nothing` or a
 `(coord, size_a, size_b)` named tuple recording the grab origin so each motion
@@ -1327,6 +1331,7 @@ See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
     padding::Union{Inset, Nothing}
     style::Any
     active_splitter::Int
+    splitter_under_pointer::Int
     drag_anchor::Any
     pinned::CellVector
     tooltip::Any
@@ -1340,7 +1345,7 @@ function WidgetSplitPane(orientation::Symbol, elements::Vector;
     sizes_cv = sizes isa Vector ? CellVector(Cell[Cell(s) for s in sizes]) : CellVector()
     WidgetSplitPane(Cell(orientation), CellVector(Cell[Cell(x) for x in elements]), sizes_cv,
                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
-                    Cell(style), Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
+                    Cell(style), Cell(0), Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -3442,6 +3447,19 @@ struct ResizeSplitPaneOperation <: Operation
 end
 
 """
+    SetSplitterUnderPointerOperation(split, splitter_index)
+
+Record that the pointer is on the grab area of the splitter after slot
+`splitter_index` of `split`, or on none when `splitter_index` is `0`: the
+print shows a band on that splitter after a delay. The field is written only
+when its value changes. Transient UI state only.
+"""
+struct SetSplitterUnderPointerOperation <: Operation
+    split::WidgetSplitPane
+    splitter_index::Int
+end
+
+"""
     EndSplitterDragOperation(split)
 
 Finish a splitter drag: reset `active_splitter` to `0` and clear `drag_anchor`.
@@ -3667,7 +3685,8 @@ end
 OperationModule.is_self_contained_operation(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
     DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation,
-    ResizeSplitPaneOperation, EndSplitterDragOperation}) = true
+    ResizeSplitPaneOperation, EndSplitterDragOperation,
+    SetSplitterUnderPointerOperation}) = true
 
 """
     _write_view_state(widget, field, value) -> ReplaceViewStateOperation
@@ -3748,6 +3767,11 @@ function evaluate_operation(editor, op::ResizeSplitPaneOperation)
             pinned[i] === true || (pinned[i] = true)
         end
     end
+end
+
+function evaluate_operation(editor, op::SetSplitterUnderPointerOperation)
+    op.split.splitter_under_pointer == op.splitter_index ||
+        (op.split.splitter_under_pointer = op.splitter_index)
 end
 
 function evaluate_operation(editor, op::EndSplitterDragOperation)
