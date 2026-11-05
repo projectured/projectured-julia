@@ -24,12 +24,11 @@ See also [`load_user_interface`](@ref), `save_project!`.
 
 An open file tab holds a [`FileDocument`](@ref) — a `JsonFile`, an `XmlFile`,
 another `.pred` file — and the cut in `FileCut.jl` writes a `FileDocument`
-child as `file("a.json")`, a reference rather than a copy, **only when that
-file is itself one of the project's files**; a `FileDocument` reachable from
-no file of the project is an orphan, and the save aborts naming it. So every
-file tab reachable in the document is found with [`search_documents`](@ref)
-and added to the project here, beside the `.pred` file that holds the
-document itself.
+child as `file("a.json")`, a reference rather than a copy, and
+[`load_user_interface`](@ref) gives the tab that file document again. Every
+file that the document reaches is found with [`search_documents`](@ref) and
+added to the project here, beside the `.pred` file that holds the document
+itself, so the save writes each of those files too.
 """
 function save_user_interface(path::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "save_user_interface") do

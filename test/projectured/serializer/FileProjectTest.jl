@@ -136,9 +136,10 @@ before the code, and the names they use are the API the plan adopts:
   save logs why and returns `false`. `load_file(base_dir, filename)` is its
   inverse; a marker in it stays a leaf.
 
-A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
-inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
-the reference DSL's text form.
+A file document that a node holds is `<<file("b.xml")>>`. A reference to a
+node inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path
+is the reference DSL's text form, and the root of the file is
+`<<node(file("b.xml"), "")>>`.
 
 - `PredFile(filename, document)` — a `.pred` file: any loaded document type,
   written as its own constructor and read by the marker interpreter.
@@ -160,7 +161,7 @@ function test_file_project()
         disk = _json_on_disk(d, "a.json")
         @test disk isa JsonArray
         back = _json_value(_json_element(disk, 1), "back")
-        @test _marker_of(back) == "file(\"a.json\")"
+        @test _marker_of(back) == "node(file(\"a.json\"), \"\")"
 
         loaded = load_project(d, ["a.json"])
         root = get_file_content(loaded.files[1])
@@ -194,7 +195,7 @@ function test_file_project()
         d, project = _project(JsonFile("a.json", JsonObject("n" => note)),
                               XmlFile("b.xml", note))
         @test save_project!(project) === true
-        @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "n")) == "file(\"b.xml\")"
+        @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "n")) == "node(file(\"b.xml\"), \"\")"
 
         loaded = load_project(d, ["a.json", "b.xml"])
         @test _json_value(get_file_content(loaded.files[1]), "n") ===
@@ -212,8 +213,8 @@ function test_file_project()
                               XmlFile("b.xml", element))
         @test save_project!(project) === true
         disk = _json_on_disk(d, "a.json")
-        @test _marker_of(_json_value(disk, "x")) == "file(\"b.xml\")"
-        @test _marker_of(_json_element(_json_value(disk, "arr"), 1)) == "file(\"b.xml\")"
+        @test _marker_of(_json_value(disk, "x")) == "node(file(\"b.xml\"), \"\")"
+        @test _marker_of(_json_element(_json_value(disk, "arr"), 1)) == "node(file(\"b.xml\"), \"\")"
         # b.xml writes the element and, inside it, a reference to the array, which
         # the JSON file owns at entries[2].value.
         @test occursin("node(file(\"a.json\"), \"entries[2].value\")", read(joinpath(d, "b.xml"), String))
@@ -253,6 +254,26 @@ function test_file_project()
         @test _marker_of(_json_value(_json_on_disk(d, "root.json"), "c")) == "file(\"child.json\")"
     end
 
+    @testset "a file document that a node holds loads back as that file, and the root of a file is node(file(…), \"\")" begin
+        # A node is written by the first file of its own domain that reaches it,
+        # so the root of the other file is of another domain than `root.json`.
+        child = JsonFile("child.json", JsonString("leaf"))
+        other_root = XmlElement("note", XmlAttribute[], [XmlText("hi")])
+        d, project = _project(JsonFile("root.json", JsonObject("c" => child, "r" => other_root)),
+                              child, XmlFile("other.xml", other_root))
+        @test save_project!(project) === true
+        disk = _json_on_disk(d, "root.json")
+        @test _marker_of(_json_value(disk, "c")) == "file(\"child.json\")"
+        @test _marker_of(_json_value(disk, "r")) == "node(file(\"other.xml\"), \"\")"
+        loaded = load_project(d, ["root.json", "child.json", "other.xml"])
+        root = get_file_content(loaded.files[1])
+        @test _json_value(root, "c") === loaded.files[2]
+        @test _json_value(root, "r") === get_file_content(loaded.files[3])
+        # A held file outside the set stays the string of its marker.
+        alone = get_file_content(load_project(d, ["root.json"]).files[1])
+        @test _marker_of(_json_value(alone, "c")) == "file(\"child.json\")"
+    end
+
     @testset "a reference to a file outside the loaded set stays a string" begin
         note = XmlElement("note", XmlAttribute[], [XmlText("hi")])
         d, project = _project(JsonFile("a.json", JsonObject("n" => note)),
@@ -262,7 +283,7 @@ function test_file_project()
         partial = load_project(d, ["a.json"])
         slot = _json_value(get_file_content(partial.files[1]), "n")
         @test slot isa JsonString
-        @test _marker_of(slot) == "file(\"b.xml\")"
+        @test _marker_of(slot) == "node(file(\"b.xml\"), \"\")"
 
         # Saving the partial set again changes no byte.
         before = mtime(joinpath(d, "a.json"))
@@ -351,7 +372,7 @@ function test_file_project()
             d = mktempdir()
             @test save_file!(JsonFile("a.json", array), d) === true
             @test _marker_of(_json_value(_json_element(_json_on_disk(d, "a.json"), 1), "back")) ==
-                  "file(\"a.json\")"
+                  "node(file(\"a.json\"), \"\")"
             root = get_file_content(load_file(d, "a.json"))
             @test _json_value(_json_element(root, 1), "back") === root
         end
@@ -402,7 +423,7 @@ function test_file_project()
         note = XmlElement("note", [XmlAttribute("lang", "en")], XmlDocument[])
         d, project = _project(JsonFile("a.json", note), XmlFile("b.xml", note))
         @test save_project!(project) === true
-        @test _marker_of(_json_on_disk(d, "a.json")) == "file(\"b.xml\")"
+        @test _marker_of(_json_on_disk(d, "a.json")) == "node(file(\"b.xml\"), \"\")"
         loaded = load_project(d, ["a.json", "b.xml"])
         @test get_file_content(loaded.files[1]) === get_file_content(loaded.files[2])
     end
@@ -418,7 +439,7 @@ function test_file_project()
         @test length(alone.files) == 1
         # Nothing to splice it to, so the marker is still a string.
         @test _marker_of(_json_value(_json_value(get_file_content(alone.files[1]), "deep"), "x")) ==
-              "file(\"b.xml\")"
+              "node(file(\"b.xml\"), \"\")"
         followed = load_project(d, ["a.json"]; follow = true)
         @test length(followed.files) == 2
         @test _json_value(_json_value(get_file_content(followed.files[1]), "deep"), "x") ===
@@ -436,8 +457,8 @@ function test_file_project()
             write(joinpath(d, "good.pred"), "TestRun(name = \"ok\")\n")
             write(joinpath(d, "foreign.pred"), "NotOffered(name = \"x\")\n")
             write(joinpath(d, "page.md"),
-                  "# Page\n\nProse.\n\n```pred-ref\n<<file(\"good.pred\")>>\n```\n\n" *
-                  "```pred-ref\n<<file(\"foreign.pred\")>>\n```\n")
+                  "# Page\n\nProse.\n\n```pred-ref\n<<node(file(\"good.pred\"), \"\")>>\n```\n\n" *
+                  "```pred-ref\n<<node(file(\"foreign.pred\"), \"\")>>\n```\n")
             # Without it the whole page is lost to the one file that will not open.
             @test_throws Exception load_project(d, ["page.md"]; follow = true)
             project = load_project(d, ["page.md"]; follow = true, tolerant = true)
@@ -445,7 +466,7 @@ function test_file_project()
             @test any(e -> e isa TestRun, elements)
             # The marker it could not open is the text it was.
             @test any(e -> e isa MarkdownCodeBlock &&
-                           find_reference_marker(e) == "file(\"foreign.pred\")", elements)
+                           find_reference_marker(e) == "node(file(\"foreign.pred\"), \"\")", elements)
             @test any(e -> e isa MarkdownParagraph, elements)
         finally
             rm(d; recursive = true, force = true)
@@ -525,7 +546,7 @@ function test_file_project()
             d = mktempdir()
             try
                 write(joinpath(d, "a.pred"), "TestRun(name = \"a\")\n")
-                write(joinpath(d, "bag.pred"), "TestBag(items = [file(\"a.pred\")])\n")
+                write(joinpath(d, "bag.pred"), "TestBag(items = [node(file(\"a.pred\"), \"\")])\n")
                 project = load_project(d, ["bag.pred"]; follow = true)
                 bag_back = get_file_content(project.files[1])
                 @test bag_back.items[1] isa TestRun && bag_back.items[1].name == "a"
@@ -586,7 +607,7 @@ function test_file_project()
             run.attachment = bag
             d = mktempdir()
             @test save_file!(PredFile("bag.pred", bag), d) === true
-            @test occursin("attachment = file(\"bag.pred\")", read(joinpath(d, "bag.pred"), String))
+            @test occursin("attachment = node(file(\"bag.pred\"), \"\")", read(joinpath(d, "bag.pred"), String))
             back = get_file_content(load_file(d, "bag.pred"))
             @test back.items[1].attachment === back
         end
@@ -596,7 +617,7 @@ function test_file_project()
             d, project = _project(JsonFile("a.json", JsonObject("run" => run)),
                                   PredFile("run.pred", run))
             @test save_project!(project) === true
-            @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "run")) == "file(\"run.pred\")"
+            @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "run")) == "node(file(\"run.pred\"), \"\")"
             loaded = load_project(d, ["a.json", "run.pred"])
             @test _json_value(get_file_content(loaded.files[1]), "run") ===
                   get_file_content(loaded.files[2])
@@ -607,7 +628,7 @@ function test_file_project()
             run  = TestRun(name = "aloha", attachment = note)
             d, project = _project(PredFile("run.pred", run), XmlFile("b.xml", note))
             @test save_project!(project) === true
-            @test occursin("attachment = file(\"b.xml\")", read(joinpath(d, "run.pred"), String))
+            @test occursin("attachment = node(file(\"b.xml\"), \"\")", read(joinpath(d, "run.pred"), String))
             loaded = load_project(d, ["run.pred", "b.xml"])
             @test get_file_content(loaded.files[1]).attachment === get_file_content(loaded.files[2])
         end

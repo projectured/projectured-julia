@@ -239,7 +239,7 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 ### Save and load of the whole editor
 
-`save_user_interface(path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.
+`save_user_interface(path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`. The function finds each reachable file with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file, so the save writes each of those files too. `load_user_interface(path)` returns the document, and each file tab holds its file document again, read back from its file.
 
 `pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. A `.pred` file builds `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` by their names, as it builds any loaded document type. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
 

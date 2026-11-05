@@ -14,9 +14,9 @@
 # nodes of that domain; a node that no file of its domain reaches is written
 # inline by a file that can write its text, as a `.pred` file writes a JSON value,
 # and anything else is an orphan and the save aborts. And how a node is named
-# from another file: `file("b.xml")` for a file's root,
-# `node(file("b.xml"), "children[1]")` for a node inside it, the path in the
-# reference DSL's text form.
+# from another file: `node(file("b.xml"), "children[1]")`, the path in the
+# reference DSL's text form, and `node(file("b.xml"), "")` for a file's root.
+# `file("b.xml")` names the file document itself.
 
 """
     FileProject(base_dir, files)
@@ -363,11 +363,10 @@ indices only.
 print_path_text(path::Reference) =
     path isa EmptyReference ? "" : String(lstrip(string(strip_reference_types(path)), '.'))
 
-# `file("b.xml")` for a root, `node(file("b.xml"), "children[1]")` for a node in it.
-function _reference_marker(file, path::Reference)
-    name = "file(" * repr(get_filename(file)) * ")"
-    path isa EmptyReference ? name : "node(" * name * ", " * repr(print_path_text(path)) * ")"
-end
+# `node(file("b.xml"), "children[1]")` for a node in a file, and
+# `node(file("b.xml"), "")` for its root.
+_reference_marker(file, path::Reference) =
+    "node(file(" * repr(get_filename(file)) * "), " * repr(print_path_text(path)) * ")"
 
 # ── The two saves ────────────────────────────────────────────────────────────
 

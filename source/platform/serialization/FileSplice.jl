@@ -226,7 +226,8 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
 end
 
 # The node a reference leaf names, or `nothing` when the leaf is not a reference
-# or names a file outside the set.
+# or names a file outside the set. `file(…)` names the file document, in a slot
+# as well as in the argument of another verb; `node(file(…), "")` names its root.
 function _splice_target(project, index, leaf, tolerant::Bool = false)
     marker = find_reference_marker(leaf)
     marker === nothing && return nothing
@@ -241,10 +242,7 @@ function _splice_target(project, index, leaf, tolerant::Bool = false)
             first(split(sprint(showerror, e), "\n"))
         nothing
     end
-    # `file(…)` names the file's content: the node the save cut at the root. As
-    # an argument to another verb it is the file document, which every verb
-    # that takes a document accepts.
-    target !== nothing && is_file_document(target) ? get_file_content(target) : target
+    target
 end
 
 # The marker vocabulary, evaluated against the set: `file` and `node` here, a
@@ -335,9 +333,9 @@ function parse_path_text(text::AbstractString)
     extend_reference(EmptyReference(), steps...)
 end
 
-# A file's root is `file(…)`, so a path here always has a step. The save writes a
-# field step and an element index and nothing else, so any other step kind in a
-# marker is an error, not a path.
+# The empty path names the root of the file. The save writes a field step and an
+# element index and nothing else, so any other step kind in a marker is an error,
+# not a path.
 function _evaluate_path_text(root, text::AbstractString)
     path = try
         parse_path_text(text)
@@ -345,7 +343,6 @@ function _evaluate_path_text(root, text::AbstractString)
         exception isa ArgumentError || rethrow()
         error("node(…): ", exception.msg)
     end
-    path isa EmptyReference && error("node(…): an empty path names the file; write file(…) instead")
     evaluate_reference(root, path)
 end
 

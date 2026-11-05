@@ -2,7 +2,9 @@
 
 > **Kind:** plan · **Status:** a plan, written 2026-11-05 at `main` `0d8dd49a0`, and revised the
 > same day at `main` `6b93bfcf3` to follow the decisions of the owner (D0, D1, D2, D6, D7, D8) and
-> the decisions of G3 and G4. Nothing is built. ·
+> the decisions of G3 and G4. The owner approved the implementation on 2026-11-05. Steps 1 to 4 are
+> built in the worktree `projectured-julia-held-files`, branch `held-files`, with omnet-julia in
+> `omnet-julia-held-files`, branch `held-files`. ·
 > **Needed by:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md),
 > G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
@@ -277,9 +279,8 @@ question 9 asks the owner for the order of the plans.
   computation; the editor is lazy, so a value that is not visible is not computed.
 
 The owner decided D1, D2, D6, D7 and D8 on 2026-11-05. The assistant proposed D3, D4, D5, D9, D10,
-D11 and D12.
-A decision that the assistant proposed counts as approved when the owner approves this plan for
-implementation (the owner, 2026-11-05). The owner can name one to see it first.
+D11 and D12, and the owner approved them with the plan on 2026-11-05, when the owner approved its
+implementation.
 
 **D1. `file("…")` names the file in every place, and `node(file("…"), "")` names its root node.**
 The owner decided this on 2026-11-05 (open question 1), with no regard to backward compatibility.
@@ -436,7 +437,7 @@ step 4 and G4 step 2 on main. Step 6 needs step 5. The first form of this plan h
 open and the reload were two. They are one step now, because the first read of a held page goes
 through the reload (D7), so no test can check the open without the reload.
 
-1. **`file("…")` names the file (D1).** `FileSplice.jl`: the splice puts the file document into
+1. **`file("…")` names the file (D1).** **Done on 2026-11-05.** `FileSplice.jl`: the splice puts the file document into
    the slot (`_splice_target`, `:244-247`), also for a file whose whole content is a reference
    (`_splice!`, `:176-190`), and `node(…)` takes the empty path for the root
    (`_evaluate_path_text`, `:338-350`). `FileCut.jl`: `_reference_marker` writes
@@ -445,7 +446,11 @@ through the reload (D7), so no test can check the open without the reload.
    `save_user_interface` (`UserInterfaceFile.jl:25-32`) and `pane.md:242`, which also lose the claim
    that the save aborts. In omnet-julia, `load_catalog_shell` takes the file document from the slot
    (`CatalogShell.jl:420-428`). That commit lands on main together with this one, and it has no plan
-   of its own (open question 1). Test: a
+   of its own (open question 1). Found in the implementation: `finish_omnet_project!`
+   (`OmnetProject.jl:117-147`) also takes the file from the slot, and `_file_holding` goes. After
+   step 1 its search finds no file whose content is a file document, so it answered the slot value
+   and did nothing; its docstring said that `file("mm1k.jl")` names the content, which is no longer
+   true (D1: both loaders "then get the file at once"). Test: a
    new set in `test_file_project()` (`test/projectured/serializer/FileProjectTest.jl`), "a file
    document that a node holds loads back as that file, and the root of a file is
    node(file(…), \"\")". The sets that assert `file("…")` for a root change:
@@ -456,6 +461,25 @@ through the reload (D7), so no test can check the open without the reload.
    `test_research_combinations()`, `test_marker_vocabulary()`, and `test_marker_language()` with
    `test_pred_file()`. In omnet-julia: `test_demo_catalog()` (`test/presentation/DemoCatalogTest.jl`)
    and `Pkg.precompile()`.
+
+   What the implementation found:
+   - The new set of `test_file_project()` takes the root of the other file from another domain (an
+     XML element), because a node belongs to the first file of its own domain that reaches it. A
+     JSON root of `other.json` is written inline by `root.json`.
+   - Three more tests asserted a root with a bare `file("…")` and now assert
+     `node(file("…"), "")` exactly: `PredFileTest.jl:152`, `WorkflowConversationTest.jl:42`, and the
+     hand-written markers of the tolerant load and of the list of `TestBag` in `FileProjectTest.jl`.
+   - `test_user_interface_file()` reads the object through `get_file_content` of the `JsonFile`
+     that the tab holds again.
+   - In omnet-julia, the catalog pages embed `<<file("pages/….pred")>>` and now hold the file
+     document. `test_demo_catalog()` passes with no change to a page.
+   - Results: the projectured-julia sets pass, with one error that main has since `961df53cb`
+     (`MarkerVocabularyTest.jl:88`, the section of a Markdown page) and the known broken set of a
+     Julia file. In a scratch environment with both worktrees, omnet-julia `Pkg.precompile()`
+     builds 94 packages, and `test_demo_catalog()`, `test_project_load()`, `test_project_reload()`,
+     `test_project_errors()` and four workbench sets pass, 408 tests. Of the recorded calls of
+     omnet-julia that no longer resolve, 2 name `_file_holding`, which this step removes; the
+     others come from main since the lists were recorded on 3 November.
 2. **The save alone writes a held file as `file("…")` (D2, D3, D12).** `FileCut.jl`: `_cut_copy`
    (`:267-285`) and `_cut_leaf` (`:293-299`) write the leaf in both saves, the cut takes the base
    folder of a save alone (`cut_file_text`, `:403-408`), and a marker of a save alone names a file

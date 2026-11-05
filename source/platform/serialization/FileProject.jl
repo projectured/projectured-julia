@@ -26,7 +26,8 @@
 # `FileSplice.jl` — never `eval`, so opening a project can never execute
 # arbitrary code, and a marker is still analyzable data.
 #
-#     <<file("child.json")>>                            the file's content
+#     <<file("child.json")>>                            the file document
+#     <<node(file("child.json"), "")>>                  the root of its content
 #     <<node(file("child.json"), "entries[2].value")>>  one node inside it
 #     <<definition(file("steps.jl"), "queue_step")>>    one definition inside it
 #     <<section(file("page.md"), "Title")>>             what a heading heads

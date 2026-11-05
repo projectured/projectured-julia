@@ -39,14 +39,15 @@ A document graph can also be saved as text files that a version control system c
 A marker is `<<expr>>`, where `expr` is a call:
 
 ```
-<<file("child.json")>>                             the root of a file
+<<file("child.json")>>                             the file document
+<<node(file("child.json"), "")>>                   the root of its content
 <<node(file("child.json"), "entries[2].value")>>   one node in it, as a reference path
 <<section(file("page.md"), "Title")>>              the part of a page under a heading
 <<definition(file("steps.jl"), "queue_step")>>     one definition in a Julia file
 <<UdpHeader(source_port = 5000)>>                  a document of a loaded type
 ```
 
-**The Julia parser reads a marker, and a small interpreter runs it. Nothing calls `eval`.** The interpreter accepts only a call to a plain name whose arguments are literals, keyword arguments, vectors, tuples, named tuples or such calls. An operator, an assignment, a bare name other than `nothing`, the name of a type that a file may build or the name of a function that a file may name, and any control flow are not markers. So opening a project can not run code, and a marker stays data that a program can analyse. `file` and `node` belong to the load. A name with a capital letter constructs the loaded document type of that name. Any other name must be registered with `register_marker_function!(:name, f)`, and the interpreter calls `f(project, args...)`.
+**The Julia parser reads a marker, and a small interpreter runs it. Nothing calls `eval`.** The interpreter accepts only a call to a plain name whose arguments are literals, keyword arguments, vectors, tuples, named tuples or such calls. An operator, an assignment, a bare name other than `nothing`, the name of a type that a file may build or the name of a function that a file may name, and any control flow are not markers. So opening a project can not run code, and a marker stays data that a program can analyse. `file` and `node` belong to the load. `file("…")` gives the file document in every place: as the whole value of a slot, and as the argument of another verb. A save writes `node(file("…"), "")` for the root of the content of another file, and `file("…")` for a file document that a node holds. A name with a capital letter constructs the loaded document type of that name. Any other name must be registered with `register_marker_function!(:name, f)`, and the interpreter calls `f(project, args...)`.
 
 The first registration of a name wins. A second, different function logs a warning and is not used, because otherwise the order of the `__init__` calls would choose the winner. Two formats that need one name share a generic function instead: `section` calls `get_document_section`, and Markdown and RST each add a method for their own root type.
 

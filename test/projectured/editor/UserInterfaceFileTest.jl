@@ -56,10 +56,11 @@ mktempdir() do dir
         @test get_pane_tab_title_string(groups[2].tabs[1]) == "a.json"
         @test get_pane_tab_title_string(groups[2].tabs[2]) == "assistant"
 
-        # The json tab's content is readable again — spliced back in from the
-        # file the save wrote it to, not carried inline in `ui.pred`.
+        # The json tab holds its file again — spliced back in from the file
+        # the save wrote it to, not carried inline in `ui.pred`.
         json_back = groups[2].tabs[1].content
-        @test json_back.entries[1].value.value == "hello"
+        @test json_back isa JsonFile
+        @test get_file_content(json_back).entries[1].value.value == "hello"
 
         # Last session's gestures are not this one's: the log comes back empty.
         gestures_back = groups[1].tabs[2].content
