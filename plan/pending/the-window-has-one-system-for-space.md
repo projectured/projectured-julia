@@ -487,7 +487,7 @@ approval of the user.
         signature that this step changed (a widget IO map with a new field, a
         reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
         that takes the shape). The lists are recorded again after step 8.
-- [ ] 5. **The text printer takes the line spacing from the context.**
+- [x] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
       positions and the line height that its readers (`char_to_coord` and the
@@ -498,7 +498,7 @@ approval of the user.
       part, give the counts of the baseline.
 
       - [x] 5a. The text printer makes no copy of itself.
-      - [ ] 5b. No widget printer makes a projection. This part runs after
+      - [x] 5b. No widget printer makes a projection. This part runs after
         step 6, because both change `WidgetToGraphics.jl`.
 
       5a is done in `c5e96d517`. The facts:
@@ -643,7 +643,7 @@ approval of the user.
           a root `TextBlock`. So the example `word_wrapping` in an editor does
           not wrap at 600. No image shows it, because the image tool prints an
           example with no editor. The shell table does the same when
-          `tabs = false`. The user decides the fix.
+          `tabs = false`. The fix is the third form below.
           `make_opened_window_projections` has
           `Document => NaturalToGraphics`, which takes a `TextBlock`; kept.
         - the tables of the task views: one rule `texts` before the
@@ -730,6 +730,88 @@ approval of the user.
       - Not in this step: a root document that is a widget still draws with
         the widget rules of the tab strip and not with the projection of the
         caller. It is older than 5b; the places of the plan for views fix it.
+
+      The third form is done in `a055cf397`. The facts:
+      - New names, all in the text slice (`TextView.jl`): the document
+        `TextView(content::TextBlock, wrap::Bool = false, line_spacing =
+        SingleSpacing())`, `make_text_view(content; wrap, line_spacing)`, the
+        projection `TextViewToGraphics` (no field, no projection) and
+        `TextViewToGraphicsIoMap(projection, input, output, content_iomap)`.
+        `get_edited_field(::TextView)` is `:content`. The view has no gestures
+        of its own and draws no caret.
+      - `make_text_view` wires `selection` and `mouse_target` of the view with
+        `set_output_path_computations!`: the path of the block with the step
+        `content` in front, dormant state kept. The tail stays on the block: a
+        move of the caret changes the cell of the block, and the view follows
+        it. A test finds it (`WidgetTextWrapTest.jl`).
+      - `TextViewToGraphics` prints `view.content` through the recursion in a
+        cell. The cell reads `wrap`, `line_spacing` and `content` and prints
+        outside the tracking, so a change of the look prints the block again
+        and a caret move does not. The context of the block is
+        `make_child_context(ctx, content)`, then `with_free_axis(.., :x; space)`
+        when `wrap = false`, then `:line_spacing` set (`SingleSpacing()` for
+        `nothing`). A context of `nothing` becomes `PrinterContext()`.
+      - Readers through the IO map: forward strips the step `content` and goes
+        to the IO map of the block; backward goes through the IO map of the
+        block and puts the step `content` on; a key, a gesture and
+        `CollectIntents` go to the IO map of the block and the answer is
+        rerooted with `content`; an operation takes the generic reader, which
+        maps its reference backward through the two. The field removes the step
+        again: `_strip_text_view_step` in `_map_plain_text_reference` (the
+        reference of the caret, the press on an empty string, and the value
+        slot), and `_get_plain_text_view(iomap)` is `iomap.content_iomap.input.content`.
+        A press reads `content_iomap.projection`, which is the `NestingProjection`
+        of the rule; its reader sends the event to `TextViewToGraphics`.
+      - `_print_plain_text_view` and the view of a tab name make a `TextView`
+        and print it with `print_child(recursion, view, ctx)`. The view follows
+        `w.wrap` and `w.line_spacing` through two cells (`_make_widget_text_view`).
+        `_make_text_view_offer` is gone.
+      - The dispatch of `WidgetToGraphics(...)` has one rule for the text:
+        `TextView => NestingProjection(TextViewToGraphics(),
+        ChainingProjection(WordWrapping(; measure), TextToGraphics(; measure,
+        theme = text_theme)))`. `NestingProjection(outer, inner)` gives the
+        direct child of `outer` the recursion of `inner` and falls back to the
+        outer recursion for the rest, so the block prints with the chain. The
+        keyword `text_theme` (`nothing` takes the default text theme, as
+        `graphics_theme = nothing` takes the default graphics theme) replaces
+        the keyword `text`. The builders that pass the scaled `GraphicsTheme`
+        pass the scaled `TextTheme` too: the natural view, the application
+        (two renderers), the file system (two), the system process, the document
+        tree, the task views, the tabs table, the shell table and the table of
+        the opened windows. The slices tree, systemprocess, task and pane use
+        `TextModule` again for `TextTheme`, and `PLATFORM_SLICE_EDGES` keeps
+        their edges to `text`.
+      - Removed from the second form: every `TextBlock` rule of the tables of
+        the eight slices and of the research map, of the examples and of the nine
+        test files; the keyword `text`. Kept: the print through the recursion,
+        `test_widget_printer_projection` (no change to its allowed list:
+        `TextViewToGraphics` builds no projection, and the factory builds the
+        rule), the fast path of `_compute_soft_breaks` and its test.
+      - A `TextView` is not a widget, so `test_slot_space` leaves it out of the
+        list of widget printers and tests it alone: a view passes the space on to
+        its text.
+      - New tests: a root `TextBlock` draws with the projection of the caller
+        (`TabsWrapperTest.jl`); a `wrap = true` field wraps and a `wrap = false`
+        field keeps one line in a table with no rule for a text; the selection
+        of a field text is the step `content` and the tail of the block, with
+        the tail on the block (`WidgetTextWrapTest.jl`); a view passes the space
+        on (`SlotSpaceTest.jl`).
+      - Images: the 44 widget images and the 135 images of the examples are the
+        same byte for byte as the set of `9cbe98463`, and `explorer.png` and
+        `settings.png` (`window.jl 674`) are the same pixel for pixel. The
+        default text theme and the scaled one of the default appearance draw the
+        same.
+      - Counts: the platform suite, part by part, gives 179994 Pass, 4 Fail, 0
+        Error, 7 Broken: the 3 known Fail and `SlotSpaceTest.jl:81`, which the
+        new rule made fail and which one change of that test fixes (109 Pass in
+        a run of the part alone). The 1423 more Pass than the second form (178571)
+        are 1416 in `test_platform_examples`, which gives a test to each cell it
+        forces and each text now holds a view and its IO map, and the new
+        tests. `test_dataframes` 603, `test_research` 382, `test_workflow` 314,
+        `test_languageserver` 104, `test_julia` 772 Pass; `test_pivot` 335 Pass
+        and 1 Error at `PivotZoneEditTest.jl:84`, the known failure of main.
+      - Not in this step: a root document that is a widget draws with the widget
+        rules of the tab strip and not with the projection of the caller.
 - [x] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
